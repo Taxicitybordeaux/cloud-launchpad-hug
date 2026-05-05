@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useT } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/tarifs")({
   head: () => ({
@@ -10,34 +11,33 @@ export const Route = createFileRoute("/tarifs")({
   component: TarifsPage,
 });
 
-const forfaits = [
-  { from: "Bordeaux centre", to: "Aéroport Mérignac", jour: "≈ 35 €", nuit: "≈ 50 €" },
-  { from: "Bordeaux centre", to: "Gare Saint-Jean", jour: "≈ 15 €", nuit: "≈ 22 €" },
-  { from: "Cenon / Floirac", to: "Aéroport Mérignac", jour: "≈ 45 €", nuit: "≈ 60 €" },
-  { from: "Mérignac", to: "Gare Saint-Jean", jour: "≈ 30 €", nuit: "≈ 42 €" },
-  { from: "Bordeaux", to: "Arcachon", jour: "≈ 110 €", nuit: "≈ 145 €" },
-  { from: "Bordeaux", to: "Saint-Émilion", jour: "≈ 95 €", nuit: "≈ 130 €" },
-];
-
 function TarifsPage() {
+  const t = useT();
+  const forfaits = [
+    { from: t("city.bdx_centre"), to: t("city.airport"), jour: "≈ 35 €", nuit: "≈ 50 €" },
+    { from: t("city.bdx_centre"), to: t("city.gare"), jour: "≈ 15 €", nuit: "≈ 22 €" },
+    { from: t("city.cenon"), to: t("city.airport"), jour: "≈ 45 €", nuit: "≈ 60 €" },
+    { from: t("city.merignac"), to: t("city.gare"), jour: "≈ 30 €", nuit: "≈ 42 €" },
+    { from: t("city.bdx"), to: t("city.arcachon"), jour: "≈ 110 €", nuit: "≈ 145 €" },
+    { from: t("city.bdx"), to: t("city.stemilion"), jour: "≈ 95 €", nuit: "≈ 130 €" },
+  ];
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-16">
       <div className="text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">Tarifs</p>
-        <h1 className="mt-3 font-display text-4xl font-bold md:text-5xl">Des prix transparents</h1>
-        <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-          Tarifs indicatifs basés sur la réglementation préfectorale. Un devis précis vous est confirmé à la réservation.
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">{t("tarifs.eyebrow")}</p>
+        <h1 className="mt-3 font-display text-4xl font-bold md:text-5xl">{t("tarifs.title")}</h1>
+        <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">{t("tarifs.intro")}</p>
       </div>
 
       <div className="mt-12 overflow-hidden rounded-2xl border border-border bg-card">
         <table className="w-full text-left">
           <thead className="bg-secondary text-sm uppercase tracking-wider">
             <tr>
-              <th className="px-4 py-4">Départ</th>
-              <th className="px-4 py-4">Arrivée</th>
-              <th className="px-4 py-4 text-right">Tarif jour</th>
-              <th className="px-4 py-4 text-right">Tarif nuit / dim</th>
+              <th className="px-4 py-4">{t("tarifs.col.from")}</th>
+              <th className="px-4 py-4">{t("tarifs.col.to")}</th>
+              <th className="px-4 py-4 text-right">{t("tarifs.col.day")}</th>
+              <th className="px-4 py-4 text-right">{t("tarifs.col.night")}</th>
             </tr>
           </thead>
           <tbody>
@@ -53,24 +53,22 @@ function TarifsPage() {
         </table>
       </div>
 
-      <p className="mt-6 text-center text-sm text-muted-foreground">
-        Tarifs nuit appliqués de 19h à 7h, dimanches et jours fériés. Forfaits aéroport / gare possibles selon les zones.
-      </p>
+      <p className="mt-6 text-center text-sm text-muted-foreground">{t("tarifs.note")}</p>
 
       <div className="mt-10 grid gap-4 md:grid-cols-2">
         <div className="rounded-xl border border-border bg-card p-6">
-          <h3 className="font-display text-xl font-semibold text-primary">🏥 Conventionné CPAM</h3>
-          <p className="mt-2 text-sm text-muted-foreground">Sur présentation d'un bon de transport, prise en charge directe par l'Assurance Maladie. Pas d'avance de frais (tiers payant).</p>
+          <h3 className="font-display text-xl font-semibold text-primary">{t("tarifs.cpam.title")}</h3>
+          <p className="mt-2 text-sm text-muted-foreground">{t("tarifs.cpam.desc")}</p>
         </div>
         <div className="rounded-xl border border-border bg-card p-6">
-          <h3 className="font-display text-xl font-semibold text-primary">📅 Forfaits événements</h3>
-          <p className="mt-2 text-sm text-muted-foreground">Mariages, séminaires, soirées : tarifs forfaitaires sur devis personnalisé. Contactez-nous.</p>
+          <h3 className="font-display text-xl font-semibold text-primary">{t("tarifs.event.title")}</h3>
+          <p className="mt-2 text-sm text-muted-foreground">{t("tarifs.event.desc")}</p>
         </div>
       </div>
 
       <div className="mt-12 text-center">
         <Link to="/reservation" className="inline-flex rounded-md bg-primary px-8 py-3 font-semibold text-primary-foreground shadow-[var(--shadow-gold)]">
-          Demander un devis exact
+          {t("tarifs.cta")}
         </Link>
       </div>
     </div>
