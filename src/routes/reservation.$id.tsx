@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { CheckCircle2, Calendar, MapPin, Phone, MessageCircle, Loader2, XCircle, AlertTriangle, Navigation } from "lucide-react";
 import { buildReservationMessage, whatsappLink } from "@/lib/whatsapp";
-import { useT } from "@/i18n/I18nProvider";
+import { useT, useI18n } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/reservation/$id")({
   head: () => ({
@@ -24,6 +24,7 @@ type Reservation = {
 
 function ConfirmationPage() {
   const t = useT();
+  const { lang } = useI18n();
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const [reservation, setReservation] = useState<Reservation | null>(null);
@@ -87,7 +88,7 @@ function ConfirmationPage() {
     service_type: reservation.service_type,
     message: reservation.message ?? undefined,
     reservation_id: reservation.id,
-  });
+  }, lang);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-16">

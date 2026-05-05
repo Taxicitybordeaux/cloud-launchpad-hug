@@ -1,12 +1,12 @@
 import { MessageCircle } from "lucide-react";
 import { useReservationDraft } from "@/lib/reservation-draft";
 import { buildReservationMessage, whatsappLink } from "@/lib/whatsapp";
-import { useT } from "@/i18n/I18nProvider";
+import { useI18n } from "@/i18n/I18nProvider";
 
 export function WhatsAppFloat() {
-  const t = useT();
+  const { t, lang } = useI18n();
   const draft = useReservationDraft();
-  const message = draft ? buildReservationMessage(draft) : t("wa.default");
+  const message = draft ? buildReservationMessage(draft, lang) : t("wa.default");
   const href = whatsappLink(message);
 
   return (
