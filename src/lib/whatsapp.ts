@@ -21,7 +21,7 @@ export type ReservationLite = {
 };
 
 const LOCALE_MAP: Record<Lang, string> = {
-  fr: "fr-FR", en: "en-GB", es: "es-ES", de: "de-DE",
+  fr: "fr-FR", en: "en-GB", es: "es-ES", it: "it-IT",
 };
 
 const STRINGS = {
@@ -58,16 +58,16 @@ const STRINGS = {
     msg: "Mensaje", ref: "Reserva",
     outro: "Por favor confirme la disponibilidad.",
   },
-  de: {
-    intro: "Hallo, ich möchte ein Taxi bei Taxi City Bordeaux buchen.",
-    name: "Name", phone: "Telefon", pickup: "Abholung",
-    ret: "Rückfahrt", from: "Von", to: "Nach",
-    pax: (n: string | number) => `${n} Fahrgast(äste)`,
-    bag: (n: string | number) => `${n} Gepäckstück(e)`,
-    type: "Typ", needs: "Bedarf",
-    cpam: "CPAM-Krankentransport", bagHelp: "Gepäckhilfe", child: "Kindersitz",
-    msg: "Nachricht", ref: "Buchung",
-    outro: "Bitte bestätigen Sie die Verfügbarkeit.",
+  it: {
+    intro: "Salve, vorrei prenotare un taxi con Taxi City Bordeaux.",
+    name: "Nome", phone: "Telefono", pickup: "Prelievo",
+    ret: "Ritorno", from: "Partenza", to: "Arrivo",
+    pax: (n: string | number) => `${n} passeggero(i)`,
+    bag: (n: string | number) => `${n} bagaglio(i)`,
+    type: "Tipo", needs: "Esigenze",
+    cpam: "Trasporto medico CPAM", bagHelp: "Aiuto bagagli", child: "Seggiolino bambino",
+    msg: "Messaggio", ref: "Prenotazione",
+    outro: "Vi prego di confermare la disponibilità.",
   },
 } as const;
 
