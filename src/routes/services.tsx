@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Plane, Train, Briefcase, Heart, ShieldCheck, MapPin, Users, Clock } from "lucide-react";
+import { useT } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/services")({
   head: () => ({
@@ -11,22 +12,23 @@ export const Route = createFileRoute("/services")({
   component: ServicesPage,
 });
 
-const services = [
-  { icon: Plane, title: "Transferts Aéroport Mérignac", desc: "Prise en charge ponctuelle pour vos vols, suivi en temps réel des horaires, accueil avec pancarte sur demande.", points: ["Suivi des vols", "Accueil personnalisé", "Aller-retour possible"] },
-  { icon: Train, title: "Gare Saint-Jean & gares TGV", desc: "Transferts depuis ou vers la gare de Bordeaux Saint-Jean et toutes les gares de la région.", points: ["Accueil en gare", "Aide aux bagages", "Disponible 24h/24"] },
-  { icon: Briefcase, title: "Déplacements professionnels", desc: "Service discret et premium pour vos rendez-vous, séminaires et déplacements d'affaires.", points: ["Facturation entreprise", "Wifi à bord", "Discrétion garantie"] },
-  { icon: Heart, title: "Mariages & événements", desc: "Véhicule soigné pour accompagner vos plus beaux moments avec élégance.", points: ["Véhicule décoré sur demande", "Tarif forfait", "Chauffeur en costume"] },
-  { icon: ShieldCheck, title: "Transport conventionné CPAM", desc: "Transport assis professionnalisé pris en charge par l'Assurance Maladie.", points: ["Tiers payant", "Bon de transport accepté", "Hôpitaux & cliniques"] },
-  { icon: MapPin, title: "Longues distances", desc: "Trajets toutes distances en France et en Europe, sur devis personnalisé.", points: ["Devis gratuit", "Tarif au kilomètre", "Confort longue durée"] },
-];
-
 function ServicesPage() {
+  const t = useT();
+  const services = [
+    { icon: Plane, title: t("svcp.airport.title"), desc: t("svcp.airport.desc"), points: [t("svcp.airport.p1"), t("svcp.airport.p2"), t("svcp.airport.p3")] },
+    { icon: Train, title: t("svcp.train.title"), desc: t("svcp.train.desc"), points: [t("svcp.train.p1"), t("svcp.train.p2"), t("svcp.train.p3")] },
+    { icon: Briefcase, title: t("svcp.business.title"), desc: t("svcp.business.desc"), points: [t("svcp.business.p1"), t("svcp.business.p2"), t("svcp.business.p3")] },
+    { icon: Heart, title: t("svcp.wedding.title"), desc: t("svcp.wedding.desc"), points: [t("svcp.wedding.p1"), t("svcp.wedding.p2"), t("svcp.wedding.p3")] },
+    { icon: ShieldCheck, title: t("svcp.cpam.title"), desc: t("svcp.cpam.desc"), points: [t("svcp.cpam.p1"), t("svcp.cpam.p2"), t("svcp.cpam.p3")] },
+    { icon: MapPin, title: t("svcp.long.title"), desc: t("svcp.long.desc"), points: [t("svcp.long.p1"), t("svcp.long.p2"), t("svcp.long.p3")] },
+  ];
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-16">
       <div className="text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">Nos prestations</p>
-        <h1 className="mt-3 font-display text-4xl font-bold md:text-5xl">Un service taxi pour chaque besoin</h1>
-        <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">À Bordeaux, en Gironde et partout en France — un seul interlocuteur, un service haut de gamme.</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">{t("services.eyebrow")}</p>
+        <h1 className="mt-3 font-display text-4xl font-bold md:text-5xl">{t("services.title")}</h1>
+        <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">{t("services.intro")}</p>
       </div>
 
       <div className="mt-14 grid gap-8 md:grid-cols-2">
@@ -50,9 +52,9 @@ function ServicesPage() {
 
       <div className="mt-16 grid gap-4 md:grid-cols-3">
         {[
-          { icon: Clock, label: "7j/7 – 24h/24" },
-          { icon: Users, label: "Jusqu'à 4 passagers" },
-          { icon: ShieldCheck, label: "Chauffeur professionnel" },
+          { icon: Clock, label: t("services.b1") },
+          { icon: Users, label: t("services.b2") },
+          { icon: ShieldCheck, label: t("services.b3") },
         ].map((b) => (
           <div key={b.label} className="flex items-center gap-3 rounded-xl border border-border bg-card p-5">
             <b.icon className="h-6 w-6 text-primary" />
@@ -63,7 +65,7 @@ function ServicesPage() {
 
       <div className="mt-16 text-center">
         <Link to="/reservation" className="inline-flex rounded-md bg-primary px-8 py-3 font-semibold text-primary-foreground shadow-[var(--shadow-gold)]">
-          Demander un devis / Réserver
+          {t("services.cta")}
         </Link>
       </div>
     </div>
