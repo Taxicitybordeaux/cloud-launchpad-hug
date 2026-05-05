@@ -3,6 +3,7 @@ import { useState } from "react";
 import { z } from "zod";
 import { Phone, Mail, MapPin, MessageCircle, Clock, Loader2, CheckCircle2, Send } from "lucide-react";
 import { COUNTRIES, normalizePhone, type CountryCode } from "@/lib/phone";
+import { useT } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
@@ -14,24 +15,25 @@ export const Route = createFileRoute("/contact")({
   component: ContactPage,
 });
 
-const schema = z.object({
-  nom: z.string().trim().min(2, "Nom requis").max(100),
-  email: z.string().trim().email("Email invalide").max(255),
-  telephone: z.string().trim().max(30).optional(),
-  sujet: z.string().trim().max(120).optional(),
-  message: z.string().trim().min(10, "Message trop court (10 caractères min)").max(2000),
-});
-
 const initial = {
   nom: "", email: "", telephone_raw: "", country: "FR" as CountryCode,
   sujet: "", message: "",
 };
 
 function ContactPage() {
+  const t = useT();
   const [form, setForm] = useState(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  const schema = z.object({
+    nom: z.string().trim().min(2, t("contact.err.name")).max(100),
+    email: z.string().trim().email(t("contact.err.email")).max(255),
+    telephone: z.string().trim().max(30).optional(),
+    sujet: z.string().trim().max(120).optional(),
+    message: z.string().trim().min(10, t("contact.err.message")).max(2000),
+  });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -45,7 +47,7 @@ function ContactPage() {
     if (form.telephone_raw.trim()) {
       phoneE164 = normalizePhone(form.telephone_raw, form.country);
       if (!phoneE164) {
-        setErrors({ telephone_raw: "Numéro invalide" });
+        setErrors({ telephone_raw: t("contact.err.phone") });
         return;
       }
     }
@@ -75,7 +77,7 @@ function ContactPage() {
       setSuccess(true);
       setForm(initial);
     } catch {
-      setErrors({ _global: "Une erreur est survenue. Merci de nous appeler directement au 06 73 07 23 22." });
+      setErrors({ _global: t("contact.form.error") });
     } finally {
       setLoading(false);
     }
@@ -84,116 +86,96 @@ function ContactPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-16">
       <div className="text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">Contact</p>
-        <h1 className="mt-3 font-display text-4xl font-bold md:text-5xl">Nous contacter</h1>
-        <p className="mt-4 text-muted-foreground">Disponible 7j/7 — un appel suffit, ou envoyez-nous un message.</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">{t("contact.eyebrow")}</p>
+        <h1 className="mt-3 font-display text-4xl font-bold md:text-5xl">{t("contact.title")}</h1>
+        <p className="mt-4 text-muted-foreground">{t("contact.intro")}</p>
       </div>
 
       <div className="mt-12 grid gap-6 md:grid-cols-2">
         <a href="tel:0673072322" className="group rounded-2xl border border-border bg-card p-6 transition hover:border-primary">
           <Phone className="h-8 w-8 text-primary" />
-          <h2 className="mt-3 font-display text-xl font-semibold">Téléphone</h2>
+          <h2 className="mt-3 font-display text-xl font-semibold">{t("contact.phone")}</h2>
           <p className="mt-1 text-2xl font-bold text-primary">06 73 07 23 22</p>
-          <p className="mt-1 text-sm text-muted-foreground">Réponse immédiate</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t("contact.phone.sub")}</p>
         </a>
 
         <a href="https://wa.me/33673072322" target="_blank" rel="noopener noreferrer" className="group rounded-2xl border border-border bg-card p-6 transition hover:border-primary">
           <MessageCircle className="h-8 w-8 text-green-500" />
-          <h2 className="mt-3 font-display text-xl font-semibold">WhatsApp</h2>
-          <p className="mt-1 text-lg font-semibold">Discutons sur WhatsApp</p>
-          <p className="mt-1 text-sm text-muted-foreground">Idéal pour envoyer une adresse</p>
+          <h2 className="mt-3 font-display text-xl font-semibold">{t("contact.wa.title")}</h2>
+          <p className="mt-1 text-lg font-semibold">{t("contact.wa.line")}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t("contact.wa.sub")}</p>
         </a>
 
         <a href="mailto:taxi.city0033@gmail.com" className="group rounded-2xl border border-border bg-card p-6 transition hover:border-primary">
           <Mail className="h-8 w-8 text-primary" />
-          <h2 className="mt-3 font-display text-xl font-semibold">Email</h2>
+          <h2 className="mt-3 font-display text-xl font-semibold">{t("contact.email")}</h2>
           <p className="mt-1 text-base font-semibold break-all">taxi.city0033@gmail.com</p>
-          <p className="mt-1 text-sm text-muted-foreground">Devis & demandes spéciales</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t("contact.email.sub")}</p>
         </a>
 
         <div className="rounded-2xl border border-border bg-card p-6">
           <MapPin className="h-8 w-8 text-primary" />
-          <h2 className="mt-3 font-display text-xl font-semibold">Adresse</h2>
+          <h2 className="mt-3 font-display text-xl font-semibold">{t("contact.address")}</h2>
           <p className="mt-1 font-semibold">163 cours Victor Hugo</p>
           <p className="text-muted-foreground">33150 Cenon</p>
-          <p className="mt-2 text-sm text-muted-foreground">Interventions dans toute la Gironde.</p>
+          <p className="mt-2 text-sm text-muted-foreground">{t("contact.address.area")}</p>
         </div>
       </div>
 
       <div className="mt-8 rounded-2xl border border-primary/30 bg-card p-5 text-center">
         <Clock className="mx-auto h-7 w-7 text-primary" />
-        <p className="mt-2 font-display text-lg font-semibold">Disponible 7j/7 — 24h/24</p>
+        <p className="mt-2 font-display text-lg font-semibold">{t("common.available_247")}</p>
       </div>
 
-      {/* CONTACT FORM */}
       <section className="mt-16">
         <div className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">Formulaire</p>
-          <h2 className="mt-3 font-display text-3xl font-bold md:text-4xl">Envoyez-nous un message</h2>
-          <p className="mt-3 text-muted-foreground">
-            Pour un devis, une question ou une demande particulière — nous vous répondons dans les plus brefs délais.
-          </p>
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">{t("contact.form.eyebrow")}</p>
+          <h2 className="mt-3 font-display text-3xl font-bold md:text-4xl">{t("contact.form.title")}</h2>
+          <p className="mt-3 text-muted-foreground">{t("contact.form.intro")}</p>
         </div>
 
         {success ? (
           <div className="mt-10 rounded-2xl border border-primary/30 bg-card p-10 text-center">
             <CheckCircle2 className="mx-auto h-14 w-14 text-primary" />
-            <h3 className="mt-5 font-display text-2xl font-bold">Message envoyé !</h3>
-            <p className="mt-3 text-muted-foreground">
-              Merci de nous avoir contactés. Nous vous répondons rapidement par email.
-            </p>
+            <h3 className="mt-5 font-display text-2xl font-bold">{t("contact.form.success.title")}</h3>
+            <p className="mt-3 text-muted-foreground">{t("contact.form.success.desc")}</p>
             <button
               onClick={() => setSuccess(false)}
               className="mt-6 rounded-md border border-border px-6 py-2.5 text-sm font-semibold hover:border-primary"
             >
-              Envoyer un autre message
+              {t("contact.form.success.again")}
             </button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="mx-auto mt-10 max-w-2xl space-y-5 rounded-2xl border border-border bg-card p-6 md:p-8">
             <div className="grid gap-5 md:grid-cols-2">
-              <Field label="Nom complet *" name="nom" value={form.nom} onChange={handleChange} error={errors.nom} />
-              <Field label="Email *" name="email" type="email" value={form.email} onChange={handleChange} error={errors.email} />
+              <Field label={t("contact.form.name")} name="nom" value={form.nom} onChange={handleChange} error={errors.nom} />
+              <Field label={t("contact.form.email")} name="email" type="email" value={form.email} onChange={handleChange} error={errors.email} />
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium">Téléphone (facultatif)</label>
+              <label className="mb-1.5 block text-sm font-medium">{t("contact.form.phone")}</label>
               <div className="flex gap-2">
-                <select
-                  name="country"
-                  value={form.country}
-                  onChange={handleChange}
-                  className="h-11 rounded-md border border-border bg-input px-2 text-sm"
-                  aria-label="Indicatif pays"
-                >
+                <select name="country" value={form.country} onChange={handleChange}
+                  className="h-11 rounded-md border border-border bg-input px-2 text-sm" aria-label="country">
                   {COUNTRIES.map((c) => (
                     <option key={c.code} value={c.code}>{c.flag} {c.dial}</option>
                   ))}
                 </select>
-                <input
-                  name="telephone_raw"
-                  type="tel"
-                  value={form.telephone_raw}
-                  onChange={handleChange}
+                <input name="telephone_raw" type="tel" value={form.telephone_raw} onChange={handleChange}
                   placeholder="6 73 07 23 22"
-                  className="h-11 flex-1 rounded-md border border-border bg-input px-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                />
+                  className="h-11 flex-1 rounded-md border border-border bg-input px-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
               </div>
               {errors.telephone_raw && <p className="mt-1 text-xs text-destructive">{errors.telephone_raw}</p>}
             </div>
 
-            <Field label="Sujet (facultatif)" name="sujet" value={form.sujet} onChange={handleChange} error={errors.sujet} placeholder="Ex : Devis trajet Bordeaux → Paris" />
+            <Field label={t("contact.form.subject")} name="sujet" value={form.sujet} onChange={handleChange} error={errors.sujet} placeholder={t("contact.form.subject.ph")} />
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium">Message *</label>
-              <textarea
-                name="message"
-                value={form.message}
-                onChange={handleChange}
-                rows={6}
-                placeholder="Détaillez votre demande…"
-                className="w-full rounded-md border border-border bg-input px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
+              <label className="mb-1.5 block text-sm font-medium">{t("contact.form.message")}</label>
+              <textarea name="message" value={form.message} onChange={handleChange} rows={6}
+                placeholder={t("contact.form.message.ph")}
+                className="w-full rounded-md border border-border bg-input px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
               {errors.message && <p className="mt-1 text-xs text-destructive">{errors.message}</p>}
             </div>
 
@@ -201,11 +183,11 @@ function ContactPage() {
 
             <button type="submit" disabled={loading}
               className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-6 py-3.5 font-semibold text-primary-foreground shadow-[var(--shadow-gold)] transition hover:opacity-90 disabled:opacity-60">
-              {loading ? <><Loader2 className="h-5 w-5 animate-spin" /> Envoi…</> : <><Send className="h-4 w-4" /> Envoyer le message</>}
+              {loading ? <><Loader2 className="h-5 w-5 animate-spin" /> {t("contact.form.sending")}</> : <><Send className="h-4 w-4" /> {t("contact.form.send")}</>}
             </button>
 
             <p className="text-center text-xs text-muted-foreground">
-              Pour une course, utilisez plutôt le formulaire de <a href="/reservation" className="text-primary font-semibold">réservation</a>.
+              {t("contact.form.note")}
             </p>
           </form>
         )}
