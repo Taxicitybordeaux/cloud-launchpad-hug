@@ -199,6 +199,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cancel_reservation_public: { Args: { p_id: string }; Returns: boolean }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -206,6 +207,24 @@ export type Database = {
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
+      }
+      get_reservation_public: {
+        Args: { p_id: string }
+        Returns: {
+          arrivee: string
+          bagages: number
+          created_at: string
+          depart: string
+          email: string
+          id: string
+          message: string
+          nom: string
+          passagers: number
+          pickup_datetime: string
+          service_type: string
+          status: string
+          telephone: string
+        }[]
       }
       has_role: {
         Args: {
