@@ -54,7 +54,7 @@ function ReservationPage() {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.from("reservations").insert({
+    const { data: inserted, error } = await supabase.from("reservations").insert({
       nom: parsed.data.nom,
       telephone: parsed.data.telephone,
       email: parsed.data.email || null,
@@ -65,12 +65,30 @@ function ReservationPage() {
       bagages: parsed.data.bagages,
       service_type: parsed.data.service_type,
       message: parsed.data.message || null,
-    });
+    }).select("id").maybeSingle();
     setLoading(false);
     if (error) {
       setErrors({ _global: "Erreur lors de l'envoi. Merci de nous appeler au 06 73 07 23 22." });
       return;
     }
+    // Fire-and-forget email notification
+    fetch("/api/public/notify-reservation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nom: parsed.data.nom,
+        telephone: parsed.data.telephone,
+        email: parsed.data.email || null,
+        pickup_datetime: parsed.data.pickup_datetime,
+        depart: parsed.data.depart,
+        arrivee: parsed.data.arrivee,
+        passagers: parsed.data.passagers,
+        bagages: parsed.data.bagages,
+        service_type: parsed.data.service_type,
+        message: parsed.data.message || null,
+        reservation_id: inserted?.id,
+      }),
+    }).catch(() => {});
     setSuccess(true);
     setForm(initial);
   };
