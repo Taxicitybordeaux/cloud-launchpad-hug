@@ -30,7 +30,7 @@ export function LanguageSwitcher({ className = "" }: { className?: string }) {
         <span className="hidden sm:inline uppercase">{current.code}</span>
       </button>
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-44 overflow-hidden rounded-md border border-border bg-background shadow-lg">
+        <div className="absolute end-0 z-50 mt-2 w-44 overflow-hidden rounded-md border border-border bg-background shadow-lg">
           {LANGUAGES.map((l) => (
             <button
               key={l.code}

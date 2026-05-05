@@ -3,9 +3,15 @@ export const LANGUAGES = [
   { code: "en", label: "English", flag: "🇬🇧" },
   { code: "es", label: "Español", flag: "🇪🇸" },
   { code: "it", label: "Italiano", flag: "🇮🇹" },
+  { code: "ar", label: "العربية", flag: "🇸🇦" },
 ] as const;
 
 export type Lang = (typeof LANGUAGES)[number]["code"];
+
+// Langues écrites de droite à gauche
+export const RTL_LANGS: ReadonlySet<Lang> = new Set<Lang>(["ar"]);
+export const isRtl = (l: Lang) => RTL_LANGS.has(l);
+export const dirOf = (l: Lang): "rtl" | "ltr" => (isRtl(l) ? "rtl" : "ltr");
 
 type Dict = Record<string, string>;
 
@@ -1329,5 +1335,26 @@ const it: Dict = {
   "conf.track": "Segui il mio autista in tempo reale",
 };
 
-export const DICTS: Record<Lang, Dict> = { fr, en, es, it };
+// Dictionnaire arabe — traductions clés ; fallback automatique sur le français pour les clés manquantes.
+const ar: Dict = {
+  "nav.home": "الرئيسية",
+  "nav.services": "الخدمات",
+  "nav.tarifs": "الأسعار",
+  "nav.about": "من نحن",
+  "nav.contact": "اتصل بنا",
+  "nav.book": "احجز",
+  "nav.book_long": "احجز سيارة أجرة",
+  "common.available_247": "متاح 7/7 — 24/24",
+  "common.lang_label": "اللغة",
+  "home.hero.badge": "متاح 7/7 — 24/24",
+  "home.hero.title.before": "سيارة الأجرة في",
+  "home.hero.title.city": "بوردو",
+  "home.hero.title.after": "، دقيقة ومريحة.",
+  "home.hero.subtitle":
+    "رحلات مهنية أو شخصية، فورية أو محجوزة: نأخذك إلى كل مكان في جيروند وفرنسا، ليلاً ونهاراً، في سيارة مهيأة بعناية.",
+  "home.hero.need_taxi": "أحتاج سيارة أجرة…",
+  "home.hero.book_now": "احجز الآن",
+};
+
+export const DICTS: Record<Lang, Dict> = { fr, en, es, it, ar };
 
