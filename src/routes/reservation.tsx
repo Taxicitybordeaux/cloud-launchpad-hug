@@ -16,20 +16,34 @@ export const Route = createFileRoute("/reservation")({
 
 const schema = z.object({
   nom: z.string().trim().min(2, "Nom requis").max(100),
-  telephone: z.string().trim().min(8, "Téléphone requis").max(20),
+  telephone: z
+    .string()
+    .trim()
+    .min(8, "Téléphone requis")
+    .max(20)
+    .regex(/^[0-9+\s().-]+$/, "Numéro invalide"),
   email: z.string().trim().email("Email invalide").max(255).optional().or(z.literal("")),
-  pickup_datetime: z.string().min(1, "Date/heure requise"),
+  pickup_datetime: z
+    .string()
+    .min(1, "Date/heure requise")
+    .refine((v) => new Date(v).getTime() > Date.now() - 60_000, "La date doit être dans le futur"),
+  trip_type: z.enum(["aller", "aller_retour"]),
+  return_datetime: z.string().optional(),
   depart: z.string().trim().min(2, "Adresse de départ requise").max(200),
   arrivee: z.string().trim().min(2, "Adresse d'arrivée requise").max(200),
   passagers: z.coerce.number().int().min(1).max(8),
   bagages: z.coerce.number().int().min(0).max(10),
   service_type: z.string().max(50),
   message: z.string().max(1000).optional(),
-});
+}).refine(
+  (d) => d.trip_type !== "aller_retour" || (d.return_datetime && new Date(d.return_datetime) > new Date(d.pickup_datetime)),
+  { path: ["return_datetime"], message: "Date de retour postérieure à l'aller" }
+);
 
 const initial = {
   nom: "", telephone: "", email: "",
-  pickup_datetime: "", depart: "", arrivee: "",
+  pickup_datetime: "", trip_type: "aller", return_datetime: "",
+  depart: "", arrivee: "",
   passagers: "1", bagages: "0", service_type: "standard", message: "",
 };
 
@@ -54,6 +68,12 @@ function ReservationPage() {
       return;
     }
     setLoading(true);
+    const messageWithTrip = [
+      parsed.data.trip_type === "aller_retour"
+        ? `Aller/retour — retour prévu le ${new Date(parsed.data.return_datetime!).toLocaleString("fr-FR")}`
+        : null,
+      parsed.data.message,
+    ].filter(Boolean).join("\n");
     const { data: inserted, error } = await supabase.from("reservations").insert({
       nom: parsed.data.nom,
       telephone: parsed.data.telephone,
@@ -64,7 +84,7 @@ function ReservationPage() {
       passagers: parsed.data.passagers,
       bagages: parsed.data.bagages,
       service_type: parsed.data.service_type,
-      message: parsed.data.message || null,
+      message: messageWithTrip || null,
     }).select("id").maybeSingle();
     setLoading(false);
     if (error) {
@@ -124,7 +144,40 @@ function ReservationPage() {
         </div>
         <Field label="Email (facultatif)" name="email" type="email" value={form.email} onChange={handleChange} error={errors.email} />
 
+        <div>
+          <label className="mb-1.5 block text-sm font-medium">Type de trajet *</label>
+          <div className="flex gap-2">
+            {[
+              { v: "aller", l: "Aller simple" },
+              { v: "aller_retour", l: "Aller / retour" },
+            ].map((o) => (
+              <label
+                key={o.v}
+                className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-md border px-4 py-2.5 text-sm font-medium transition ${
+                  form.trip_type === o.v
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-input text-muted-foreground hover:border-primary/40"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="trip_type"
+                  value={o.v}
+                  checked={form.trip_type === o.v}
+                  onChange={handleChange}
+                  className="sr-only"
+                />
+                {o.l}
+              </label>
+            ))}
+          </div>
+        </div>
+
         <Field label="Date et heure de prise en charge *" name="pickup_datetime" type="datetime-local" value={form.pickup_datetime} onChange={handleChange} error={errors.pickup_datetime} />
+
+        {form.trip_type === "aller_retour" && (
+          <Field label="Date et heure de retour *" name="return_datetime" type="datetime-local" value={form.return_datetime} onChange={handleChange} error={errors.return_datetime} />
+        )}
 
         <div className="grid gap-5 md:grid-cols-2">
           <Field label="Adresse de départ *" name="depart" value={form.depart} onChange={handleChange} error={errors.depart} placeholder="Ex : 12 cours de l'Intendance, Bordeaux" />

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Phone, Plane, Train, Briefcase, Heart, ShieldCheck, MapPin, Clock, Star, Wallet, Car, ArrowRight, Quote } from "lucide-react";
+import { Phone, Plane, Train, Briefcase, Heart, ShieldCheck, MapPin, Clock, Star, Wallet, Car, ArrowRight, Quote, HelpCircle } from "lucide-react";
 import logo from "@/assets/logo.jpeg";
 import heroCar from "@/assets/hero-car.jpg";
 import destGare from "@/assets/dest-gare.jpg";
@@ -215,6 +215,60 @@ function Home() {
                   <Star className="h-3.5 w-3.5 text-primary" /> {t.name}
                 </figcaption>
               </figure>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="border-t border-border">
+        <div className="mx-auto max-w-4xl px-4 py-20">
+          <div className="text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">Vos questions</p>
+            <h2 className="mt-3 font-display text-4xl font-bold md:text-5xl">On vous répond franchement</h2>
+            <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
+              Quelques réponses aux questions qu'on nous pose le plus souvent. Si vous ne trouvez pas, un coup de fil suffit.
+            </p>
+          </div>
+
+          <div className="mt-12 space-y-3">
+            {[
+              {
+                q: "Êtes-vous conventionné CPAM ?",
+                a: "Oui, nous sommes conventionnés avec la CPAM pour les transports de santé (consultations, dialyses, hospitalisations…). Pensez à demander à votre médecin la prescription médicale de transport, et nous nous occupons du reste — vous n'avancez pas les frais dans la plupart des cas.",
+              },
+                {
+                q: "Que se passe-t-il si mon vol a du retard à Mérignac ?",
+                a: "On suit votre vol en temps réel. Si l'avion arrive en avance ou en retard, on ajuste l'heure de prise en charge. La première demi-heure d'attente après l'atterrissage est offerte — on ne facture jamais un retard qui n'est pas le vôtre.",
+              },
+              {
+                q: "Comment annuler ou modifier ma réservation ?",
+                a: "Un simple appel ou message WhatsApp suffit. L'annulation est gratuite jusqu'à 2 heures avant la course. Pour une modification (horaire, adresse, nombre de passagers), prévenez-nous dès que possible — on s'arrange.",
+              },
+              {
+                q: "Quels moyens de paiement acceptez-vous ?",
+                a: "Carte bancaire (sans contact, Apple Pay, Google Pay), espèces, et virement pour les comptes professionnels. Une facture est remise systématiquement à la fin de la course, sur demande pour vos notes de frais.",
+              },
+              {
+                q: "Faut-il réserver à l'avance ?",
+                a: "Pas obligatoire — on prend aussi les courses immédiates si on est disponible. Pour un train tôt le matin, un vol ou un rendez-vous important, mieux vaut réserver la veille pour être tranquille.",
+              },
+              {
+                q: "Combien de bagages puis-je emporter ?",
+                a: "Une berline confortable accepte facilement 3 à 4 valises et 4 passagers. Pour un groupe, du matériel encombrant ou un vélo, prévenez-nous à la réservation, on adapte le véhicule.",
+              },
+            ].map((item) => (
+              <details
+                key={item.q}
+                className="group rounded-xl border border-border bg-card/50 p-5 transition hover:border-primary/40"
+              >
+                <summary className="flex cursor-pointer list-none items-start gap-3 font-semibold">
+                  <HelpCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                  <span className="flex-1">{item.q}</span>
+                  <span className="ml-2 text-primary transition group-open:rotate-45">+</span>
+                </summary>
+                <p className="mt-3 pl-8 text-sm leading-relaxed text-muted-foreground">{item.a}</p>
+              </details>
             ))}
           </div>
         </div>
