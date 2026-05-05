@@ -15,6 +15,7 @@ import { Route as ReservationRouteImport } from './routes/reservation'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AProposRouteImport } from './routes/a-propos'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ReservationIdRouteImport } from './routes/reservation.$id'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as ApiPublicNotifyReservationRouteImport } from './routes/api/public/notify-reservation'
@@ -53,6 +54,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ReservationIdRoute = ReservationIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ReservationRoute,
 } as any)
 const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
   id: '/email/unsubscribe',
@@ -103,10 +109,11 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/a-propos': typeof AProposRoute
   '/contact': typeof ContactRoute
-  '/reservation': typeof ReservationRoute
+  '/reservation': typeof ReservationRouteWithChildren
   '/services': typeof ServicesRoute
   '/tarifs': typeof TarifsRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/reservation/$id': typeof ReservationIdRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -119,10 +126,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/a-propos': typeof AProposRoute
   '/contact': typeof ContactRoute
-  '/reservation': typeof ReservationRoute
+  '/reservation': typeof ReservationRouteWithChildren
   '/services': typeof ServicesRoute
   '/tarifs': typeof TarifsRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/reservation/$id': typeof ReservationIdRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -136,10 +144,11 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/a-propos': typeof AProposRoute
   '/contact': typeof ContactRoute
-  '/reservation': typeof ReservationRoute
+  '/reservation': typeof ReservationRouteWithChildren
   '/services': typeof ServicesRoute
   '/tarifs': typeof TarifsRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/reservation/$id': typeof ReservationIdRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -158,6 +167,7 @@ export interface FileRouteTypes {
     | '/services'
     | '/tarifs'
     | '/email/unsubscribe'
+    | '/reservation/$id'
     | '/api/public/notify-reservation'
     | '/lovable/email/suppression'
     | '/lovable/email/auth/preview'
@@ -174,6 +184,7 @@ export interface FileRouteTypes {
     | '/services'
     | '/tarifs'
     | '/email/unsubscribe'
+    | '/reservation/$id'
     | '/api/public/notify-reservation'
     | '/lovable/email/suppression'
     | '/lovable/email/auth/preview'
@@ -190,6 +201,7 @@ export interface FileRouteTypes {
     | '/services'
     | '/tarifs'
     | '/email/unsubscribe'
+    | '/reservation/$id'
     | '/api/public/notify-reservation'
     | '/lovable/email/suppression'
     | '/lovable/email/auth/preview'
@@ -203,7 +215,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AProposRoute: typeof AProposRoute
   ContactRoute: typeof ContactRoute
-  ReservationRoute: typeof ReservationRoute
+  ReservationRoute: typeof ReservationRouteWithChildren
   ServicesRoute: typeof ServicesRoute
   TarifsRoute: typeof TarifsRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
@@ -259,6 +271,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/reservation/$id': {
+      id: '/reservation/$id'
+      path: '/$id'
+      fullPath: '/reservation/$id'
+      preLoaderRoute: typeof ReservationIdRouteImport
+      parentRoute: typeof ReservationRoute
     }
     '/email/unsubscribe': {
       id: '/email/unsubscribe'
@@ -319,11 +338,23 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ReservationRouteChildren {
+  ReservationIdRoute: typeof ReservationIdRoute
+}
+
+const ReservationRouteChildren: ReservationRouteChildren = {
+  ReservationIdRoute: ReservationIdRoute,
+}
+
+const ReservationRouteWithChildren = ReservationRoute._addFileChildren(
+  ReservationRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AProposRoute: AProposRoute,
   ContactRoute: ContactRoute,
-  ReservationRoute: ReservationRoute,
+  ReservationRoute: ReservationRouteWithChildren,
   ServicesRoute: ServicesRoute,
   TarifsRoute: TarifsRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
