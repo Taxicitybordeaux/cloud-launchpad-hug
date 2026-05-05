@@ -249,10 +249,6 @@ function SuiviPage() {
   );
 }
 
-function Power({ className }: { className?: string }) {
-  return <span className={className}>●</span>;
-}
-
 function Stat({ icon: Icon, label, value, accent }: { icon: any; label: string; value: string; accent?: boolean }) {
   return (
     <div className={`rounded-xl border p-4 ${accent ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
