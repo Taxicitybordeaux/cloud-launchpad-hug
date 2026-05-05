@@ -3,9 +3,15 @@ export const LANGUAGES = [
   { code: "en", label: "English", flag: "🇬🇧" },
   { code: "es", label: "Español", flag: "🇪🇸" },
   { code: "it", label: "Italiano", flag: "🇮🇹" },
+  { code: "ar", label: "العربية", flag: "🇸🇦" },
 ] as const;
 
 export type Lang = (typeof LANGUAGES)[number]["code"];
+
+// Langues écrites de droite à gauche
+export const RTL_LANGS: ReadonlySet<Lang> = new Set<Lang>(["ar"]);
+export const isRtl = (l: Lang) => RTL_LANGS.has(l);
+export const dirOf = (l: Lang): "rtl" | "ltr" => (isRtl(l) ? "rtl" : "ltr");
 
 type Dict = Record<string, string>;
 
