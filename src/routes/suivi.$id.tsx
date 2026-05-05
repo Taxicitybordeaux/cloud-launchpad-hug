@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, AlertTriangle, MapPin, Clock, Navigation, Phone } from "lucide-react";
+import { Loader2, AlertTriangle, MapPin, Clock, Navigation, Phone, PowerOff } from "lucide-react";
 import { useT } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/suivi/$id")({
@@ -212,10 +212,10 @@ function SuiviPage() {
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         <Stat
-          icon={driver?.is_online && !stale ? Navigation : Power}
+          icon={driver?.is_online && !stale ? Navigation : PowerOff}
           label={t("suivi.status")}
           value={driver?.is_online && !stale ? t("suivi.online") : t("suivi.offline")}
-          accent={driver?.is_online && !stale}
+          accent={!!driver?.is_online && !stale}
         />
         <Stat
           icon={Clock}
