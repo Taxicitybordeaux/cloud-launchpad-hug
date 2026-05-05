@@ -1,6 +1,7 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import { SiteHeader } from "@/components/SiteHeader";
+import { I18nProvider } from "@/i18n/I18nProvider";
 
 import appCss from "../styles.css?url";
 
@@ -72,10 +73,10 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   return (
-    <>
+    <I18nProvider>
       <SiteHeader />
       <Outlet />
       <WhatsAppFloat />
-    </>
+    </I18nProvider>
   );
 }

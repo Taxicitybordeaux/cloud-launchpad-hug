@@ -2,20 +2,23 @@ import { Link } from "@tanstack/react-router";
 import { Phone, Menu, X } from "lucide-react";
 import { useState } from "react";
 import logo from "@/assets/logo.jpeg";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useT } from "@/i18n/I18nProvider";
 
 const PHONE = "0673072322";
 const PHONE_DISPLAY = "06 73 07 23 22";
 
-const links = [
-  { to: "/", label: "Accueil" },
-  { to: "/services", label: "Services" },
-  { to: "/tarifs", label: "Tarifs" },
-  { to: "/a-propos", label: "À propos" },
-  { to: "/contact", label: "Contact" },
-] as const;
-
 export function SiteHeader() {
+  const t = useT();
   const [open, setOpen] = useState(false);
+
+  const links = [
+    { to: "/", label: t("nav.home") },
+    { to: "/services", label: t("nav.services") },
+    { to: "/tarifs", label: t("nav.tarifs") },
+    { to: "/a-propos", label: t("nav.about") },
+    { to: "/contact", label: t("nav.contact") },
+  ] as const;
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-md">
@@ -42,6 +45,7 @@ export function SiteHeader() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
+          <LanguageSwitcher />
           <a
             href={`tel:${PHONE}`}
             className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-semibold transition hover:border-primary"
@@ -52,18 +56,21 @@ export function SiteHeader() {
             to="/reservation"
             className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-gold)] transition hover:opacity-90"
           >
-            Réserver
+            {t("nav.book")}
           </Link>
         </div>
 
-        <button
-          type="button"
-          aria-label="Menu"
-          onClick={() => setOpen((v) => !v)}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border md:hidden"
-        >
-          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        <div className="flex items-center gap-2 md:hidden">
+          <LanguageSwitcher />
+          <button
+            type="button"
+            aria-label="Menu"
+            onClick={() => setOpen((v) => !v)}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border"
+          >
+            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
 
       {open && (
@@ -93,7 +100,7 @@ export function SiteHeader() {
                 onClick={() => setOpen(false)}
                 className="rounded-md bg-primary px-4 py-2.5 text-center text-sm font-semibold text-primary-foreground"
               >
-                Réserver une course
+                {t("nav.book_long")}
               </Link>
             </div>
           </nav>
