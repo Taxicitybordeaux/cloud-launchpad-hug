@@ -1335,5 +1335,26 @@ const it: Dict = {
   "conf.track": "Segui il mio autista in tempo reale",
 };
 
-export const DICTS: Record<Lang, Dict> = { fr, en, es, it };
+// Dictionnaire arabe — traductions clés ; fallback automatique sur le français pour les clés manquantes.
+const ar: Dict = {
+  "nav.home": "الرئيسية",
+  "nav.services": "الخدمات",
+  "nav.tarifs": "الأسعار",
+  "nav.about": "من نحن",
+  "nav.contact": "اتصل بنا",
+  "nav.book": "احجز",
+  "nav.book_long": "احجز سيارة أجرة",
+  "common.available_247": "متاح 7/7 — 24/24",
+  "common.lang_label": "اللغة",
+  "home.hero.badge": "متاح 7/7 — 24/24",
+  "home.hero.title.before": "سيارة الأجرة في",
+  "home.hero.title.city": "بوردو",
+  "home.hero.title.after": "، دقيقة ومريحة.",
+  "home.hero.subtitle":
+    "رحلات مهنية أو شخصية، فورية أو محجوزة: نأخذك إلى كل مكان في جيروند وفرنسا، ليلاً ونهاراً، في سيارة مهيأة بعناية.",
+  "home.hero.need_taxi": "أحتاج سيارة أجرة…",
+  "home.hero.book_now": "احجز الآن",
+};
+
+export const DICTS: Record<Lang, Dict> = { fr, en, es, it, ar };
 

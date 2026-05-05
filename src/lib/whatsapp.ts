@@ -21,7 +21,7 @@ export type ReservationLite = {
 };
 
 const LOCALE_MAP: Record<Lang, string> = {
-  fr: "fr-FR", en: "en-GB", es: "es-ES", it: "it-IT",
+  fr: "fr-FR", en: "en-GB", es: "es-ES", it: "it-IT", ar: "ar-SA",
 };
 
 const STRINGS = {
@@ -68,6 +68,17 @@ const STRINGS = {
     cpam: "Trasporto medico CPAM", bagHelp: "Aiuto bagagli", child: "Seggiolino bambino",
     msg: "Messaggio", ref: "Prenotazione",
     outro: "Vi prego di confermare la disponibilità.",
+  },
+  ar: {
+    intro: "مرحباً، أود حجز سيارة أجرة مع Taxi City Bordeaux.",
+    name: "الاسم", phone: "الهاتف", pickup: "الانطلاق",
+    ret: "العودة", from: "من", to: "إلى",
+    pax: (n: string | number) => `${n} راكب`,
+    bag: (n: string | number) => `${n} حقيبة`,
+    type: "النوع", needs: "احتياجات",
+    cpam: "نقل طبي CPAM", bagHelp: "مساعدة في الأمتعة", child: "مقعد طفل",
+    msg: "رسالة", ref: "حجز",
+    outro: "يرجى تأكيد التوفر.",
   },
 } as const;
 
