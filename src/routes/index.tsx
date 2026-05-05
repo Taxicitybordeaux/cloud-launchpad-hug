@@ -1,63 +1,165 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Phone, MessageCircle, Plane, Train, Briefcase, Heart, Clock, ShieldCheck, Star, MapPin } from "lucide-react";
+import { Phone, Plane, Train, Briefcase, Heart, ShieldCheck, MapPin, Clock, Star, Wallet, Car, ArrowRight, Quote } from "lucide-react";
 import logo from "@/assets/logo.jpeg";
+import heroCar from "@/assets/hero-car.jpg";
+import destGare from "@/assets/dest-gare.jpg";
+import destAeroport from "@/assets/dest-aeroport.jpg";
+import destVignobles from "@/assets/dest-vignobles.jpg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Taxi City Bordeaux – Taxi premium 7j/7 à Bordeaux & Gironde" },
-      { name: "description", content: "Réservez votre taxi à Bordeaux : aéroport Mérignac, gare Saint-Jean, longues distances, mariages, business. Conventionné CPAM. 7j/7." },
+      { title: "Taxi City Bordeaux – Taxi 7j/7 à Bordeaux & en Gironde" },
+      { name: "description", content: "Réservez votre taxi à Bordeaux : aéroport Mérignac, gare Saint-Jean, vignobles, longues distances. Conventionné CPAM. Service ponctuel et confortable, jour & nuit." },
     ],
   }),
   component: Home,
 });
 
 const PHONE = "0673072322";
-const WHATSAPP = "33673072322";
+const PHONE_DISPLAY = "06 73 07 23 22";
 
 function Home() {
   return (
     <>
       {/* HERO */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-[var(--gradient-dark)]" />
-        <div className="absolute inset-0 opacity-20" style={{
-          backgroundImage: "radial-gradient(circle at 20% 20%, oklch(0.78 0.13 85 / 0.4), transparent 50%), radial-gradient(circle at 80% 80%, oklch(0.78 0.13 85 / 0.2), transparent 50%)"
-        }} />
-        <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-20 md:grid-cols-2 md:py-32">
-          <div className="flex flex-col justify-center">
-            <span className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-medium uppercase tracking-widest text-primary">
-              <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+      <section className="relative isolate overflow-hidden">
+        <img
+          src={heroCar}
+          alt="Taxi premium à Bordeaux la nuit"
+          className="absolute inset-0 -z-10 h-full w-full object-cover"
+          width={1920}
+          height={1080}
+        />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-background via-background/90 to-background/30" />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-t from-background via-transparent to-transparent" />
+
+        <div className="mx-auto max-w-7xl px-4 pt-16 pb-24 md:pt-24 md:pb-32">
+          <div className="max-w-2xl">
+            <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-background/40 px-4 py-1.5 text-[11px] font-medium uppercase tracking-[0.25em] text-primary backdrop-blur">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
               Disponible 7j/7 — 24h/24
             </span>
-            <h1 className="mt-6 font-display text-5xl font-bold leading-tight md:text-6xl">
-              Votre taxi <span className="text-primary">premium</span> à Bordeaux
+
+            <h1 className="mt-7 font-display text-5xl font-bold leading-[1.05] md:text-6xl lg:text-7xl">
+              Votre taxi à <span className="italic text-primary">Bordeaux</span>,
+              <br className="hidden md:block" /> ponctuel et confortable.
             </h1>
-            <p className="mt-6 text-lg text-muted-foreground">
-              Confort, ponctualité et discrétion. Transferts aéroport, gare, longues distances, événements et déplacements professionnels en Gironde et partout en France.
+
+            <p className="mt-6 max-w-xl text-base text-foreground/80 md:text-lg">
+              Trajets professionnels ou personnels, courses immédiates ou réservées : nous vous emmenons partout en Gironde et en France, de jour comme de nuit, dans un véhicule soigné.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <a href={`tel:${PHONE}`} className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-3 text-base font-semibold text-primary-foreground shadow-[var(--shadow-gold)] transition hover:opacity-90">
-                <Phone className="h-5 w-5" /> Appeler maintenant
+
+            {/* Action bar */}
+            <div className="mt-8 flex flex-col gap-3 rounded-2xl border border-border/60 bg-card/70 p-3 backdrop-blur-md sm:flex-row sm:items-center sm:p-2">
+              <div className="flex flex-1 items-center gap-3 px-3 py-2 text-sm text-muted-foreground">
+                <Car className="h-5 w-5 text-primary" />
+                <span>J'ai besoin d'un taxi…</span>
+              </div>
+              <a
+                href={`tel:${PHONE}`}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-5 py-3 text-sm font-semibold transition hover:border-primary"
+              >
+                <Phone className="h-4 w-4" /> {PHONE_DISPLAY}
               </a>
-              <a href={`https://wa.me/${WHATSAPP}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-6 py-3 text-base font-semibold transition hover:border-primary">
-                <MessageCircle className="h-5 w-5 text-green-500" /> WhatsApp
-              </a>
-              <Link to="/reservation" className="inline-flex items-center gap-2 rounded-md border border-primary/40 px-6 py-3 text-base font-semibold text-primary transition hover:bg-primary/10">
-                Réserver en ligne
+              <Link
+                to="/reservation"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-gold)] transition hover:opacity-90"
+              >
+                Réserver une course <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
-            <div className="mt-10 flex flex-wrap gap-6 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Conventionné CPAM</div>
-              <div className="flex items-center gap-2"><Clock className="h-4 w-4 text-primary" /> Ponctualité garantie</div>
-              <div className="flex items-center gap-2"><Star className="h-4 w-4 text-primary" /> Service haut de gamme</div>
+
+            <div className="mt-8 flex flex-wrap items-center gap-x-7 gap-y-3 text-sm text-foreground/70">
+              <span className="inline-flex items-center gap-2"><Clock className="h-4 w-4 text-primary" /> Réservation rapide</span>
+              <span className="inline-flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Conventionné CPAM</span>
+              <span className="inline-flex items-center gap-2"><Wallet className="h-4 w-4 text-primary" /> Tarifs transparents</span>
             </div>
           </div>
-          <div className="relative flex items-center justify-center">
-            <div className="relative aspect-square w-full max-w-md overflow-hidden rounded-3xl border border-primary/20 bg-card shadow-[var(--shadow-elegant)]">
-              <div className="absolute inset-0 rounded-3xl bg-[var(--gradient-gold)] opacity-10" />
-              <img src={logo} alt="Taxi City Bordeaux – Privé & Business" className="relative h-full w-full object-contain p-6" />
+        </div>
+      </section>
+
+      {/* DESTINATIONS */}
+      <section className="mx-auto max-w-7xl px-4 py-20">
+        <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">Destinations</p>
+            <h2 className="mt-3 font-display text-4xl font-bold md:text-5xl">Là où l'on vous emmène</h2>
+          </div>
+          <p className="max-w-md text-sm text-muted-foreground">
+            Quelques itinéraires que nos clients réservent au quotidien — l'arrivée en douceur, c'est notre métier.
+          </p>
+        </div>
+
+        <div className="mt-12 grid gap-5 md:grid-cols-3">
+          {[
+            { img: destGare, title: "Gare Bordeaux Saint-Jean", sub: "Accueil quai d'arrivée, aide aux bagages." },
+            { img: destAeroport, title: "Aéroport Mérignac", sub: "Suivi des vols, attente offerte 15 min." },
+            { img: destVignobles, title: "Châteaux & vignobles", sub: "Médoc, Saint-Émilion, Sauternes — à la journée." },
+          ].map((d) => (
+            <Link
+              key={d.title}
+              to="/reservation"
+              className="group relative block aspect-[4/5] overflow-hidden rounded-3xl border border-border"
+            >
+              <img
+                src={d.img}
+                alt={d.title}
+                loading="lazy"
+                width={1024}
+                height={1280}
+                className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 p-6">
+                <h3 className="font-display text-2xl font-semibold">{d.title}</h3>
+                <p className="mt-1 text-sm text-foreground/75">{d.sub}</p>
+                <span className="mt-4 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+                  Réserver <ArrowRight className="h-3 w-3" />
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* WHY US */}
+      <section className="border-y border-border bg-card/30">
+        <div className="mx-auto grid max-w-7xl gap-10 px-4 py-20 md:grid-cols-2 md:items-center">
+          <div className="relative">
+            <div className="overflow-hidden rounded-3xl border border-primary/20 bg-card p-10">
+              <img src={logo} alt="Taxi City Bordeaux" className="mx-auto h-auto w-full max-w-sm" />
             </div>
+            <div className="absolute -bottom-6 -right-6 hidden rounded-2xl border border-primary/30 bg-background px-6 py-4 shadow-[var(--shadow-gold)] md:block">
+              <p className="text-3xl font-bold text-primary">10+</p>
+              <p className="text-xs uppercase tracking-widest text-muted-foreground">années d'expérience</p>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">Pourquoi nous</p>
+            <h2 className="mt-3 font-display text-4xl font-bold md:text-5xl">Un service simple, humain, fiable.</h2>
+            <p className="mt-5 text-muted-foreground">
+              Taxi City Bordeaux, c'est un chauffeur de proximité, un véhicule entretenu et l'envie de bien faire. Pas de surprise sur la facture, pas d'attente interminable — on confirme, on arrive, on vous dépose.
+            </p>
+
+            <ul className="mt-8 space-y-4">
+              {[
+                { icon: Clock, t: "Ponctualité garantie", d: "Suivi de vol et de train, marge anti-retard." },
+                { icon: Wallet, t: "Tarifs clairs", d: "Devis sur demande, paiement CB & espèces." },
+                { icon: ShieldCheck, t: "Conventionné CPAM", d: "Transports de santé pris en charge." },
+              ].map((f) => (
+                <li key={f.t} className="flex gap-4">
+                  <span className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <f.icon className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="font-semibold">{f.t}</p>
+                    <p className="text-sm text-muted-foreground">{f.d}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </section>
@@ -65,21 +167,21 @@ function Home() {
       {/* SERVICES */}
       <section className="mx-auto max-w-7xl px-4 py-20">
         <div className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">Nos services</p>
-          <h2 className="mt-3 font-display text-4xl font-bold">Pour tous vos déplacements</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">Nos prestations</p>
+          <h2 className="mt-3 font-display text-4xl font-bold md:text-5xl">Pour tous vos déplacements</h2>
         </div>
-        <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {[
-            { icon: Plane, title: "Aéroport Mérignac", desc: "Transferts depuis et vers l'aéroport de Bordeaux-Mérignac, jour et nuit." },
-            { icon: Train, title: "Gare Saint-Jean", desc: "Prise en charge à l'arrivée du train, accueil personnalisé en gare." },
-            { icon: Briefcase, title: "Déplacements business", desc: "Service discret et ponctuel pour vos rendez-vous professionnels." },
+            { icon: Plane, title: "Aéroport Mérignac", desc: "Transferts depuis et vers l'aéroport, jour et nuit." },
+            { icon: Train, title: "Gare Saint-Jean", desc: "Prise en charge à l'arrivée, accueil personnalisé." },
+            { icon: Briefcase, title: "Déplacements business", desc: "Discrétion et ponctualité pour vos rendez-vous." },
             { icon: Heart, title: "Mariages & événements", desc: "Véhicule soigné pour vos plus beaux moments." },
-            { icon: ShieldCheck, title: "Conventionné CPAM", desc: "Transports de santé pris en charge par l'Assurance Maladie." },
-            { icon: MapPin, title: "Longues distances", desc: "Trajets toutes distances en France sur simple devis." },
+            { icon: ShieldCheck, title: "Conventionné CPAM", desc: "Transports de santé pris en charge." },
+            { icon: MapPin, title: "Longues distances", desc: "Trajets toutes distances en France sur devis." },
           ].map((s) => (
-            <div key={s.title} className="group rounded-2xl border border-border bg-card p-6 transition hover:border-primary/50 hover:shadow-[var(--shadow-gold)]">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary transition group-hover:bg-primary group-hover:text-primary-foreground">
-                <s.icon className="h-6 w-6" />
+            <div key={s.title} className="group rounded-2xl border border-border bg-card p-6 transition hover:border-primary/50">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition group-hover:bg-primary group-hover:text-primary-foreground">
+                <s.icon className="h-5 w-5" />
               </div>
               <h3 className="mt-4 font-display text-xl font-semibold">{s.title}</h3>
               <p className="mt-2 text-sm text-muted-foreground">{s.desc}</p>
@@ -88,23 +190,52 @@ function Home() {
         </div>
         <div className="mt-10 text-center">
           <Link to="/services" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
-            Voir tous les services →
+            Voir tous les services <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
       </section>
 
+      {/* TESTIMONIALS */}
+      <section className="border-t border-border bg-card/30">
+        <div className="mx-auto max-w-7xl px-4 py-20">
+          <div className="text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">Ils nous ont fait confiance</p>
+            <h2 className="mt-3 font-display text-4xl font-bold md:text-5xl">Ce qu'en disent nos clients</h2>
+          </div>
+          <div className="mt-12 grid gap-6 md:grid-cols-3">
+            {[
+              { name: "Camille B.", text: "Chauffeur très ponctuel, voiture impeccable. J'ai été déposée à Mérignac en toute tranquillité, je recommande." },
+              { name: "Julien R.", text: "Réservation simple, prix annoncé respecté. Parfait pour mes déplacements professionnels à la semaine." },
+              { name: "Sophie L.", text: "Pris en charge à la gare avec mes enfants, le chauffeur a été d'une grande gentillesse. On rappellera." },
+            ].map((t) => (
+              <figure key={t.name} className="rounded-2xl border border-border bg-background p-6">
+                <Quote className="h-6 w-6 text-primary" />
+                <blockquote className="mt-4 text-sm leading-relaxed text-foreground/85">"{t.text}"</blockquote>
+                <figcaption className="mt-5 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  <Star className="h-3.5 w-3.5 text-primary" /> {t.name}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* CTA */}
-      <section className="mx-auto max-w-7xl px-4 pb-20">
+      <section className="mx-auto max-w-7xl px-4 py-20">
         <div className="relative overflow-hidden rounded-3xl border border-primary/30 bg-card p-10 text-center md:p-16">
           <div className="absolute inset-0 bg-[var(--gradient-gold)] opacity-10" />
           <div className="relative">
-            <h2 className="font-display text-3xl font-bold md:text-4xl">Réservez votre course en quelques clics</h2>
+            <h2 className="font-display text-3xl font-bold md:text-5xl">Prêt à réserver votre course ?</h2>
             <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-              Confirmation rapide, prix transparent, chauffeur professionnel.
+              Confirmation rapide, chauffeur professionnel et prix transparent — appelez-nous ou réservez en ligne.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <Link to="/reservation" className="rounded-md bg-primary px-8 py-3 font-semibold text-primary-foreground shadow-[var(--shadow-gold)]">Réserver en ligne</Link>
-              <a href={`tel:${PHONE}`} className="rounded-md border border-border bg-background px-8 py-3 font-semibold">📞 {PHONE}</a>
+              <Link to="/reservation" className="rounded-xl bg-primary px-8 py-3 font-semibold text-primary-foreground shadow-[var(--shadow-gold)]">
+                Réserver en ligne
+              </Link>
+              <a href={`tel:${PHONE}`} className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-8 py-3 font-semibold">
+                <Phone className="h-4 w-4" /> {PHONE_DISPLAY}
+              </a>
             </div>
           </div>
         </div>
