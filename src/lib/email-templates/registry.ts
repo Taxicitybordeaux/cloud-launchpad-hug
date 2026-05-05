@@ -10,7 +10,9 @@ export interface TemplateEntry {
 }
 
 import { template as reservationNotification } from './reservation-notification'
+import { template as contactMessage } from './contact-message'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'reservation-notification': reservationNotification,
+  'contact-message': contactMessage,
 }

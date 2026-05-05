@@ -19,6 +19,7 @@ import { Route as ReservationIdRouteImport } from './routes/reservation.$id'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as ApiPublicNotifyReservationRouteImport } from './routes/api/public/notify-reservation'
+import { Route as ApiPublicContactRouteImport } from './routes/api/public/contact'
 import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
@@ -76,6 +77,11 @@ const ApiPublicNotifyReservationRoute =
     path: '/api/public/notify-reservation',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicContactRoute = ApiPublicContactRouteImport.update({
+  id: '/api/public/contact',
+  path: '/api/public/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LovableEmailTransactionalSendRoute =
   LovableEmailTransactionalSendRouteImport.update({
     id: '/lovable/email/transactional/send',
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/tarifs': typeof TarifsRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
+  '/api/public/contact': typeof ApiPublicContactRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -131,6 +138,7 @@ export interface FileRoutesByTo {
   '/tarifs': typeof TarifsRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
+  '/api/public/contact': typeof ApiPublicContactRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -149,6 +157,7 @@ export interface FileRoutesById {
   '/tarifs': typeof TarifsRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
+  '/api/public/contact': typeof ApiPublicContactRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -168,6 +177,7 @@ export interface FileRouteTypes {
     | '/tarifs'
     | '/email/unsubscribe'
     | '/reservation/$id'
+    | '/api/public/contact'
     | '/api/public/notify-reservation'
     | '/lovable/email/suppression'
     | '/lovable/email/auth/preview'
@@ -185,6 +195,7 @@ export interface FileRouteTypes {
     | '/tarifs'
     | '/email/unsubscribe'
     | '/reservation/$id'
+    | '/api/public/contact'
     | '/api/public/notify-reservation'
     | '/lovable/email/suppression'
     | '/lovable/email/auth/preview'
@@ -202,6 +213,7 @@ export interface FileRouteTypes {
     | '/tarifs'
     | '/email/unsubscribe'
     | '/reservation/$id'
+    | '/api/public/contact'
     | '/api/public/notify-reservation'
     | '/lovable/email/suppression'
     | '/lovable/email/auth/preview'
@@ -219,6 +231,7 @@ export interface RootRouteChildren {
   ServicesRoute: typeof ServicesRoute
   TarifsRoute: typeof TarifsRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
+  ApiPublicContactRoute: typeof ApiPublicContactRoute
   ApiPublicNotifyReservationRoute: typeof ApiPublicNotifyReservationRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
@@ -300,6 +313,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicNotifyReservationRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/contact': {
+      id: '/api/public/contact'
+      path: '/api/public/contact'
+      fullPath: '/api/public/contact'
+      preLoaderRoute: typeof ApiPublicContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/lovable/email/transactional/send': {
       id: '/lovable/email/transactional/send'
       path: '/lovable/email/transactional/send'
@@ -358,6 +378,7 @@ const rootRouteChildren: RootRouteChildren = {
   ServicesRoute: ServicesRoute,
   TarifsRoute: TarifsRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
+  ApiPublicContactRoute: ApiPublicContactRoute,
   ApiPublicNotifyReservationRoute: ApiPublicNotifyReservationRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
