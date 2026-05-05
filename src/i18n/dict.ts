@@ -335,6 +335,21 @@ const fr: Dict = {
   "wa.float.label": "WhatsApp",
   "wa.default":
     "Bonjour, je souhaite réserver un taxi avec Taxi City Bordeaux. Pouvez-vous me confirmer la disponibilité ? Merci.",
+  // Tracking page
+  "suivi.title": "Suivi de votre chauffeur",
+  "suivi.hello": "Bonjour",
+  "suivi.pickup_at": "prise en charge à",
+  "suivi.status": "Statut",
+  "suivi.online": "En route",
+  "suivi.offline": "Hors ligne",
+  "suivi.eta": "Arrivée estimée",
+  "suivi.distance": "Distance",
+  "suivi.last_update": "Dernière mise à jour",
+  "suivi.view_reservation": "Voir ma réservation",
+  "suivi.notfound.title": "Réservation introuvable",
+  "suivi.notfound.desc": "Le lien de suivi est invalide ou expiré.",
+  "suivi.back_home": "Retour à l'accueil",
+  "conf.track": "Suivre mon chauffeur en direct",
 };
 
 const en: Dict = {
@@ -646,6 +661,20 @@ const en: Dict = {
   "wa.float.label": "WhatsApp",
   "wa.default":
     "Hello, I'd like to book a taxi with Taxi City Bordeaux. Could you confirm availability? Thanks.",
+  "suivi.title": "Track your driver",
+  "suivi.hello": "Hello",
+  "suivi.pickup_at": "pickup at",
+  "suivi.status": "Status",
+  "suivi.online": "On the way",
+  "suivi.offline": "Offline",
+  "suivi.eta": "Estimated arrival",
+  "suivi.distance": "Distance",
+  "suivi.last_update": "Last update",
+  "suivi.view_reservation": "View my booking",
+  "suivi.notfound.title": "Booking not found",
+  "suivi.notfound.desc": "This tracking link is invalid or expired.",
+  "suivi.back_home": "Back to home",
+  "conf.track": "Track my driver live",
 };
 
 const es: Dict = {
@@ -958,6 +987,20 @@ const es: Dict = {
   "wa.float.label": "WhatsApp",
   "wa.default":
     "Hola, quisiera reservar un taxi con Taxi City Bordeaux. ¿Podría confirmarme la disponibilidad? Gracias.",
+  "suivi.title": "Sigue a tu conductor",
+  "suivi.hello": "Hola",
+  "suivi.pickup_at": "recogida a las",
+  "suivi.status": "Estado",
+  "suivi.online": "En camino",
+  "suivi.offline": "Desconectado",
+  "suivi.eta": "Llegada estimada",
+  "suivi.distance": "Distancia",
+  "suivi.last_update": "Última actualización",
+  "suivi.view_reservation": "Ver mi reserva",
+  "suivi.notfound.title": "Reserva no encontrada",
+  "suivi.notfound.desc": "El enlace de seguimiento no es válido o ha expirado.",
+  "suivi.back_home": "Volver al inicio",
+  "conf.track": "Seguir a mi conductor en vivo",
 };
 
 const de: Dict = {
@@ -1270,6 +1313,20 @@ const de: Dict = {
   "wa.float.label": "WhatsApp",
   "wa.default":
     "Hallo, ich möchte ein Taxi bei Taxi City Bordeaux buchen. Können Sie mir die Verfügbarkeit bestätigen? Danke.",
+  "suivi.title": "Verfolge deinen Fahrer",
+  "suivi.hello": "Hallo",
+  "suivi.pickup_at": "Abholung um",
+  "suivi.status": "Status",
+  "suivi.online": "Unterwegs",
+  "suivi.offline": "Offline",
+  "suivi.eta": "Geschätzte Ankunft",
+  "suivi.distance": "Entfernung",
+  "suivi.last_update": "Letzte Aktualisierung",
+  "suivi.view_reservation": "Meine Buchung ansehen",
+  "suivi.notfound.title": "Buchung nicht gefunden",
+  "suivi.notfound.desc": "Dieser Tracking-Link ist ungültig oder abgelaufen.",
+  "suivi.back_home": "Zur Startseite",
+  "conf.track": "Meinen Fahrer live verfolgen",
 };
 
 export const DICTS: Record<Lang, Dict> = { fr, en, es, de };

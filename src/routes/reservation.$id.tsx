@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { CheckCircle2, Calendar, MapPin, Phone, MessageCircle, Loader2, XCircle, AlertTriangle } from "lucide-react";
+import { CheckCircle2, Calendar, MapPin, Phone, MessageCircle, Loader2, XCircle, AlertTriangle, Navigation } from "lucide-react";
 import { buildReservationMessage, whatsappLink } from "@/lib/whatsapp";
 import { useT } from "@/i18n/I18nProvider";
 
@@ -139,6 +139,13 @@ function ConfirmationPage() {
             <Phone className="h-5 w-5" /> 06 73 07 23 22
           </a>
         </div>
+      )}
+
+      {!isCancelled && (
+        <Link to="/suivi/$id" params={{ id: reservation.id }}
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 font-semibold text-primary-foreground shadow transition hover:opacity-90">
+          <Navigation className="h-5 w-5" /> {t("conf.track")}
+        </Link>
       )}
 
       {!isCancelled && (

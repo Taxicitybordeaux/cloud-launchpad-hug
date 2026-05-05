@@ -13,12 +13,15 @@ import { Route as TarifsRouteImport } from './routes/tarifs'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as ReservationRouteImport } from './routes/reservation'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as ChauffeurRouteImport } from './routes/chauffeur'
 import { Route as AProposRouteImport } from './routes/a-propos'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SuiviIdRouteImport } from './routes/suivi.$id'
 import { Route as ReservationIdRouteImport } from './routes/reservation.$id'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as ApiPublicNotifyReservationRouteImport } from './routes/api/public/notify-reservation'
+import { Route as ApiPublicDriverLocationRouteImport } from './routes/api/public/driver-location'
 import { Route as ApiPublicContactRouteImport } from './routes/api/public/contact'
 import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
@@ -46,6 +49,11 @@ const ContactRoute = ContactRouteImport.update({
   path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChauffeurRoute = ChauffeurRouteImport.update({
+  id: '/chauffeur',
+  path: '/chauffeur',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AProposRoute = AProposRouteImport.update({
   id: '/a-propos',
   path: '/a-propos',
@@ -54,6 +62,11 @@ const AProposRoute = AProposRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SuiviIdRoute = SuiviIdRouteImport.update({
+  id: '/suivi/$id',
+  path: '/suivi/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReservationIdRoute = ReservationIdRouteImport.update({
@@ -77,6 +90,11 @@ const ApiPublicNotifyReservationRoute =
     path: '/api/public/notify-reservation',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicDriverLocationRoute = ApiPublicDriverLocationRouteImport.update({
+  id: '/api/public/driver-location',
+  path: '/api/public/driver-location',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicContactRoute = ApiPublicContactRouteImport.update({
   id: '/api/public/contact',
   path: '/api/public/contact',
@@ -114,13 +132,16 @@ const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/a-propos': typeof AProposRoute
+  '/chauffeur': typeof ChauffeurRoute
   '/contact': typeof ContactRoute
   '/reservation': typeof ReservationRouteWithChildren
   '/services': typeof ServicesRoute
   '/tarifs': typeof TarifsRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
+  '/suivi/$id': typeof SuiviIdRoute
   '/api/public/contact': typeof ApiPublicContactRoute
+  '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -132,13 +153,16 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/a-propos': typeof AProposRoute
+  '/chauffeur': typeof ChauffeurRoute
   '/contact': typeof ContactRoute
   '/reservation': typeof ReservationRouteWithChildren
   '/services': typeof ServicesRoute
   '/tarifs': typeof TarifsRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
+  '/suivi/$id': typeof SuiviIdRoute
   '/api/public/contact': typeof ApiPublicContactRoute
+  '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -151,13 +175,16 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/a-propos': typeof AProposRoute
+  '/chauffeur': typeof ChauffeurRoute
   '/contact': typeof ContactRoute
   '/reservation': typeof ReservationRouteWithChildren
   '/services': typeof ServicesRoute
   '/tarifs': typeof TarifsRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
+  '/suivi/$id': typeof SuiviIdRoute
   '/api/public/contact': typeof ApiPublicContactRoute
+  '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -171,13 +198,16 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/a-propos'
+    | '/chauffeur'
     | '/contact'
     | '/reservation'
     | '/services'
     | '/tarifs'
     | '/email/unsubscribe'
     | '/reservation/$id'
+    | '/suivi/$id'
     | '/api/public/contact'
+    | '/api/public/driver-location'
     | '/api/public/notify-reservation'
     | '/lovable/email/suppression'
     | '/lovable/email/auth/preview'
@@ -189,13 +219,16 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/a-propos'
+    | '/chauffeur'
     | '/contact'
     | '/reservation'
     | '/services'
     | '/tarifs'
     | '/email/unsubscribe'
     | '/reservation/$id'
+    | '/suivi/$id'
     | '/api/public/contact'
+    | '/api/public/driver-location'
     | '/api/public/notify-reservation'
     | '/lovable/email/suppression'
     | '/lovable/email/auth/preview'
@@ -207,13 +240,16 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/a-propos'
+    | '/chauffeur'
     | '/contact'
     | '/reservation'
     | '/services'
     | '/tarifs'
     | '/email/unsubscribe'
     | '/reservation/$id'
+    | '/suivi/$id'
     | '/api/public/contact'
+    | '/api/public/driver-location'
     | '/api/public/notify-reservation'
     | '/lovable/email/suppression'
     | '/lovable/email/auth/preview'
@@ -226,12 +262,15 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AProposRoute: typeof AProposRoute
+  ChauffeurRoute: typeof ChauffeurRoute
   ContactRoute: typeof ContactRoute
   ReservationRoute: typeof ReservationRouteWithChildren
   ServicesRoute: typeof ServicesRoute
   TarifsRoute: typeof TarifsRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
+  SuiviIdRoute: typeof SuiviIdRoute
   ApiPublicContactRoute: typeof ApiPublicContactRoute
+  ApiPublicDriverLocationRoute: typeof ApiPublicDriverLocationRoute
   ApiPublicNotifyReservationRoute: typeof ApiPublicNotifyReservationRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
@@ -271,6 +310,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContactRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/chauffeur': {
+      id: '/chauffeur'
+      path: '/chauffeur'
+      fullPath: '/chauffeur'
+      preLoaderRoute: typeof ChauffeurRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/a-propos': {
       id: '/a-propos'
       path: '/a-propos'
@@ -283,6 +329,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/suivi/$id': {
+      id: '/suivi/$id'
+      path: '/suivi/$id'
+      fullPath: '/suivi/$id'
+      preLoaderRoute: typeof SuiviIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reservation/$id': {
@@ -311,6 +364,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/notify-reservation'
       fullPath: '/api/public/notify-reservation'
       preLoaderRoute: typeof ApiPublicNotifyReservationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/driver-location': {
+      id: '/api/public/driver-location'
+      path: '/api/public/driver-location'
+      fullPath: '/api/public/driver-location'
+      preLoaderRoute: typeof ApiPublicDriverLocationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/contact': {
@@ -373,12 +433,15 @@ const ReservationRouteWithChildren = ReservationRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AProposRoute: AProposRoute,
+  ChauffeurRoute: ChauffeurRoute,
   ContactRoute: ContactRoute,
   ReservationRoute: ReservationRouteWithChildren,
   ServicesRoute: ServicesRoute,
   TarifsRoute: TarifsRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
+  SuiviIdRoute: SuiviIdRoute,
   ApiPublicContactRoute: ApiPublicContactRoute,
+  ApiPublicDriverLocationRoute: ApiPublicDriverLocationRoute,
   ApiPublicNotifyReservationRoute: ApiPublicNotifyReservationRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
@@ -390,12 +453,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
