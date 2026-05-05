@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Phone, MessageCircle, Plane, Train, Briefcase, Heart, Clock, ShieldCheck, Star, MapPin } from "lucide-react";
+import logo from "@/assets/logo.jpeg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -53,15 +54,9 @@ function Home() {
             </div>
           </div>
           <div className="relative flex items-center justify-center">
-            <div className="relative aspect-square w-full max-w-md rounded-3xl border border-primary/20 bg-card p-10 shadow-[var(--shadow-elegant)]">
+            <div className="relative aspect-square w-full max-w-md overflow-hidden rounded-3xl border border-primary/20 bg-card shadow-[var(--shadow-elegant)]">
               <div className="absolute inset-0 rounded-3xl bg-[var(--gradient-gold)] opacity-10" />
-              <div className="relative flex h-full flex-col items-center justify-center text-center">
-                <div className="text-7xl">🚖</div>
-                <h2 className="mt-6 font-display text-3xl font-bold text-primary">Taxi City</h2>
-                <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">Privé & Business</p>
-                <div className="mt-8 h-px w-24 bg-primary/40" />
-                <p className="mt-6 text-sm text-muted-foreground">Bordeaux · Gironde · France</p>
-              </div>
+              <img src={logo} alt="Taxi City Bordeaux – Privé & Business" className="relative h-full w-full object-contain p-6" />
             </div>
           </div>
         </div>
