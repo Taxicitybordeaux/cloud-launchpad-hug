@@ -214,10 +214,8 @@ function ReservationPage() {
 
         <fieldset>
           <legend className="mb-3 block text-sm font-medium">{t("res.f.needs")}</legend>
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3">
             <Extra icon={ShieldCheck} name="needs_cpam" checked={form.needs_cpam} onChange={handleChange} label={t("res.f.needs.cpam")} hint={t("res.f.needs.cpam.hint")} />
-            <Extra icon={Luggage} name="needs_baggage_help" checked={form.needs_baggage_help} onChange={handleChange} label={t("res.f.needs.bags")} hint={t("res.f.needs.bags.hint")} />
-            <Extra icon={Baby} name="needs_child_seat" checked={form.needs_child_seat} onChange={handleChange} label={t("res.f.needs.child")} hint={t("res.f.needs.child.hint")} />
           </div>
         </fieldset>
 
