@@ -47,8 +47,6 @@ function ReservationPage() {
     bagages: z.coerce.number().int().min(0).max(10),
     service_type: z.string().max(50),
     needs_cpam: z.boolean(),
-    needs_baggage_help: z.boolean(),
-    needs_child_seat: z.boolean(),
     message: z.string().max(1000).optional(),
   }).refine(
     (d) => d.trip_type !== "aller_retour" || (d.return_datetime && new Date(d.return_datetime) > new Date(d.pickup_datetime)),
@@ -62,8 +60,7 @@ function ReservationPage() {
       pickup_datetime: form.pickup_datetime, return_datetime: form.return_datetime,
       trip_type: form.trip_type, depart: form.depart, arrivee: form.arrivee,
       passagers: form.passagers, bagages: form.bagages, service_type: form.service_type,
-      needs_cpam: form.needs_cpam, needs_baggage_help: form.needs_baggage_help,
-      needs_child_seat: form.needs_child_seat, message: form.message,
+      needs_cpam: form.needs_cpam, message: form.message,
     };
   }, [form]);
   usePublishReservationDraft(draft);
@@ -98,8 +95,6 @@ function ReservationPage() {
     setLoading(true);
     const extras: string[] = [];
     if (form.needs_cpam) extras.push(t("res.f.needs.cpam"));
-    if (form.needs_baggage_help) extras.push(t("res.f.needs.bags"));
-    if (form.needs_child_seat) extras.push(t("res.f.needs.child"));
 
     const composedMessage = [
       parsed.data.trip_type === "aller_retour"
