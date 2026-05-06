@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ShieldCheck, Luggage, Baby } from "lucide-react";
+import { Loader2, ShieldCheck } from "lucide-react";
 import { COUNTRIES, normalizePhone, type CountryCode } from "@/lib/phone";
 import { usePublishReservationDraft } from "@/lib/reservation-draft";
 import { useT } from "@/i18n/I18nProvider";
@@ -22,7 +22,7 @@ const initial = {
   pickup_datetime: "", trip_type: "aller", return_datetime: "",
   depart: "", arrivee: "",
   passagers: "1", bagages: "0", service_type: "standard",
-  needs_cpam: false, needs_baggage_help: false, needs_child_seat: false,
+  needs_cpam: false,
   message: "",
 };
 

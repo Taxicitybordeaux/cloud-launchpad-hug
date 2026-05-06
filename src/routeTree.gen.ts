@@ -9,7 +9,6 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TarifsRouteImport } from './routes/tarifs'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as ReservationRouteImport } from './routes/reservation'
 import { Route as ContactRouteImport } from './routes/contact'
@@ -29,11 +28,6 @@ import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/e
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
 
-const TarifsRoute = TarifsRouteImport.update({
-  id: '/tarifs',
-  path: '/tarifs',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ServicesRoute = ServicesRouteImport.update({
   id: '/services',
   path: '/services',
@@ -136,7 +130,6 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/reservation': typeof ReservationRouteWithChildren
   '/services': typeof ServicesRoute
-  '/tarifs': typeof TarifsRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
   '/suivi/$id': typeof SuiviIdRoute
@@ -157,7 +150,6 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/reservation': typeof ReservationRouteWithChildren
   '/services': typeof ServicesRoute
-  '/tarifs': typeof TarifsRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
   '/suivi/$id': typeof SuiviIdRoute
@@ -179,7 +171,6 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/reservation': typeof ReservationRouteWithChildren
   '/services': typeof ServicesRoute
-  '/tarifs': typeof TarifsRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
   '/suivi/$id': typeof SuiviIdRoute
@@ -202,7 +193,6 @@ export interface FileRouteTypes {
     | '/contact'
     | '/reservation'
     | '/services'
-    | '/tarifs'
     | '/email/unsubscribe'
     | '/reservation/$id'
     | '/suivi/$id'
@@ -223,7 +213,6 @@ export interface FileRouteTypes {
     | '/contact'
     | '/reservation'
     | '/services'
-    | '/tarifs'
     | '/email/unsubscribe'
     | '/reservation/$id'
     | '/suivi/$id'
@@ -244,7 +233,6 @@ export interface FileRouteTypes {
     | '/contact'
     | '/reservation'
     | '/services'
-    | '/tarifs'
     | '/email/unsubscribe'
     | '/reservation/$id'
     | '/suivi/$id'
@@ -266,7 +254,6 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   ReservationRoute: typeof ReservationRouteWithChildren
   ServicesRoute: typeof ServicesRoute
-  TarifsRoute: typeof TarifsRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   SuiviIdRoute: typeof SuiviIdRoute
   ApiPublicContactRoute: typeof ApiPublicContactRoute
@@ -282,13 +269,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/tarifs': {
-      id: '/tarifs'
-      path: '/tarifs'
-      fullPath: '/tarifs'
-      preLoaderRoute: typeof TarifsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/services': {
       id: '/services'
       path: '/services'
@@ -437,7 +417,6 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   ReservationRoute: ReservationRouteWithChildren,
   ServicesRoute: ServicesRoute,
-  TarifsRoute: TarifsRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   SuiviIdRoute: SuiviIdRoute,
   ApiPublicContactRoute: ApiPublicContactRoute,
@@ -453,3 +432,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
