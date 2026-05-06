@@ -3,6 +3,7 @@ import { Phone, Menu, X } from "lucide-react";
 import { useState } from "react";
 import logo from "@/assets/logo.jpeg";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { useT } from "@/i18n/I18nProvider";
 
 const PHONE = "0673072322";
@@ -15,7 +16,6 @@ export function SiteHeader() {
   const links = [
     { to: "/", label: t("nav.home") },
     { to: "/services", label: t("nav.services") },
-    { to: "/tarifs", label: t("nav.tarifs") },
     { to: "/a-propos", label: t("nav.about") },
     { to: "/contact", label: t("nav.contact") },
   ] as const;
@@ -24,10 +24,8 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
         <Link to="/" className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
-          <img src={logo} alt="Taxi City Bordeaux" className="h-9 w-9 rounded-md object-cover" />
-          <span className="font-display text-lg font-bold tracking-tight">
-            Taxi City <span className="text-primary">Bordeaux</span>
-          </span>
+          <img src={logo} alt="Taxi City Bordeaux" className="h-12 w-auto rounded-md object-contain" />
+          <span className="sr-only">Taxi City Bordeaux</span>
         </Link>
 
         <nav className="hidden items-center gap-7 md:flex">
@@ -45,6 +43,7 @@ export function SiteHeader() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
+          <ThemeToggle />
           <LanguageSwitcher />
           <a
             href={`tel:${PHONE}`}
@@ -61,6 +60,7 @@ export function SiteHeader() {
         </div>
 
         <div className="flex items-center gap-2 md:hidden">
+          <ThemeToggle />
           <LanguageSwitcher />
           <button
             type="button"
