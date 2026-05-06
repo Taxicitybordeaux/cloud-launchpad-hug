@@ -1,0 +1,92 @@
+import { createFileRoute } from '@tanstack/react-router'
+import { createClient } from '@supabase/supabase-js'
+import * as React from 'react'
+import { render } from '@react-email/components'
+import { z } from 'zod'
+import { TEMPLATES } from '@/lib/email-templates/registry'
+
+const SITE_NAME = 'Taxi City Bordeaux'
+const SENDER_DOMAIN = 'notify.taxicitybordeaux.fr'
+const FROM_DOMAIN = 'taxicitybordeaux.fr'
+const TEMPLATE_NAME = 'reservation-client-confirmation'
+
+const schema = z.object({
+  lang: z.enum(['fr', 'en', 'es', 'it', 'ar']).optional(),
+  nom: z.string().min(1).max(100),
+  email: z.string().email().max(255),
+  pickup_datetime: z.string().min(1).max(50),
+  depart: z.string().min(1).max(300),
+  arrivee: z.string().min(1).max(300),
+  passagers: z.union([z.number(), z.string()]).optional(),
+  bagages: z.union([z.number(), z.string()]).optional(),
+  reservation_id: z.string().max(100).optional(),
+})
+
+export const Route = createFileRoute('/api/public/notify-reservation-client')({
+  server: {
+    handlers: {
+      POST: async ({ request }) => {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+        if (!supabaseUrl || !serviceKey) return Response.json({ error: 'cfg' }, { status: 500 })
+
+        let raw: unknown
+        try { raw = await request.json() } catch { return Response.json({ error: 'json' }, { status: 400 }) }
+        const parsed = schema.safeParse(raw)
+        if (!parsed.success) return Response.json({ error: 'invalid' }, { status: 400 })
+        const data = parsed.data
+
+        const supabase = createClient(supabaseUrl, serviceKey)
+        const tpl = TEMPLATES[TEMPLATE_NAME]
+        if (!tpl) return Response.json({ error: 'tpl' }, { status: 500 })
+
+        const recipient = data.email
+        const messageId = crypto.randomUUID()
+        const idempotencyKey = data.reservation_id ? `client-confirm-${data.reservation_id}` : messageId
+        const element = React.createElement(tpl.component, data)
+        const html = await render(element)
+        const text = await render(element, { plainText: true })
+        const subject = typeof tpl.subject === 'function' ? tpl.subject(data as any) : tpl.subject
+
+        const normalized = recipient.toLowerCase()
+        let unsubscribeToken = ''
+        const { data: existing } = await supabase
+          .from('email_unsubscribe_tokens').select('token, used_at').eq('email', normalized).maybeSingle()
+        if (existing && !existing.used_at) unsubscribeToken = existing.token
+        else {
+          const bytes = new Uint8Array(32); crypto.getRandomValues(bytes)
+          unsubscribeToken = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
+          await supabase.from('email_unsubscribe_tokens').upsert(
+            { token: unsubscribeToken, email: normalized },
+            { onConflict: 'email', ignoreDuplicates: true },
+          )
+          const { data: stored } = await supabase
+            .from('email_unsubscribe_tokens').select('token').eq('email', normalized).maybeSingle()
+          if (stored?.token) unsubscribeToken = stored.token
+        }
+
+        await supabase.from('email_send_log').insert({
+          message_id: messageId, template_name: TEMPLATE_NAME, recipient_email: recipient, status: 'pending',
+        })
+
+        const { error } = await supabase.rpc('enqueue_email', {
+          queue_name: 'transactional_emails',
+          payload: {
+            message_id: messageId,
+            to: recipient,
+            from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
+            sender_domain: SENDER_DOMAIN,
+            subject, html, text,
+            purpose: 'transactional',
+            label: TEMPLATE_NAME,
+            idempotency_key: idempotencyKey,
+            unsubscribe_token: unsubscribeToken,
+            queued_at: new Date().toISOString(),
+          },
+        })
+        if (error) return Response.json({ error: 'enqueue' }, { status: 500 })
+        return Response.json({ success: true })
+      },
+    },
+  },
+})
