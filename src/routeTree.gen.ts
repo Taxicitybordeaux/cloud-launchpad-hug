@@ -19,6 +19,7 @@ import { Route as SuiviIdRouteImport } from './routes/suivi.$id'
 import { Route as ReservationIdRouteImport } from './routes/reservation.$id'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
+import { Route as ApiPublicNotifyReservationClientRouteImport } from './routes/api/public/notify-reservation-client'
 import { Route as ApiPublicNotifyReservationRouteImport } from './routes/api/public/notify-reservation'
 import { Route as ApiPublicDriverLocationRouteImport } from './routes/api/public/driver-location'
 import { Route as ApiPublicContactRouteImport } from './routes/api/public/contact'
@@ -78,6 +79,12 @@ const LovableEmailSuppressionRoute = LovableEmailSuppressionRouteImport.update({
   path: '/lovable/email/suppression',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicNotifyReservationClientRoute =
+  ApiPublicNotifyReservationClientRouteImport.update({
+    id: '/api/public/notify-reservation-client',
+    path: '/api/public/notify-reservation-client',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicNotifyReservationRoute =
   ApiPublicNotifyReservationRouteImport.update({
     id: '/api/public/notify-reservation',
@@ -136,6 +143,7 @@ export interface FileRoutesByFullPath {
   '/api/public/contact': typeof ApiPublicContactRoute
   '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
+  '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -156,6 +164,7 @@ export interface FileRoutesByTo {
   '/api/public/contact': typeof ApiPublicContactRoute
   '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
+  '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -177,6 +186,7 @@ export interface FileRoutesById {
   '/api/public/contact': typeof ApiPublicContactRoute
   '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
+  '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -199,6 +209,7 @@ export interface FileRouteTypes {
     | '/api/public/contact'
     | '/api/public/driver-location'
     | '/api/public/notify-reservation'
+    | '/api/public/notify-reservation-client'
     | '/lovable/email/suppression'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -219,6 +230,7 @@ export interface FileRouteTypes {
     | '/api/public/contact'
     | '/api/public/driver-location'
     | '/api/public/notify-reservation'
+    | '/api/public/notify-reservation-client'
     | '/lovable/email/suppression'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -239,6 +251,7 @@ export interface FileRouteTypes {
     | '/api/public/contact'
     | '/api/public/driver-location'
     | '/api/public/notify-reservation'
+    | '/api/public/notify-reservation-client'
     | '/lovable/email/suppression'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -259,6 +272,7 @@ export interface RootRouteChildren {
   ApiPublicContactRoute: typeof ApiPublicContactRoute
   ApiPublicDriverLocationRoute: typeof ApiPublicDriverLocationRoute
   ApiPublicNotifyReservationRoute: typeof ApiPublicNotifyReservationRoute
+  ApiPublicNotifyReservationClientRoute: typeof ApiPublicNotifyReservationClientRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
@@ -337,6 +351,13 @@ declare module '@tanstack/react-router' {
       path: '/lovable/email/suppression'
       fullPath: '/lovable/email/suppression'
       preLoaderRoute: typeof LovableEmailSuppressionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/notify-reservation-client': {
+      id: '/api/public/notify-reservation-client'
+      path: '/api/public/notify-reservation-client'
+      fullPath: '/api/public/notify-reservation-client'
+      preLoaderRoute: typeof ApiPublicNotifyReservationClientRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/notify-reservation': {
@@ -422,6 +443,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicContactRoute: ApiPublicContactRoute,
   ApiPublicDriverLocationRoute: ApiPublicDriverLocationRoute,
   ApiPublicNotifyReservationRoute: ApiPublicNotifyReservationRoute,
+  ApiPublicNotifyReservationClientRoute: ApiPublicNotifyReservationClientRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
