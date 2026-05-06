@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, ShieldCheck } from "lucide-react";
 import { COUNTRIES, normalizePhone, type CountryCode } from "@/lib/phone";
 import { usePublishReservationDraft } from "@/lib/reservation-draft";
-import { useT } from "@/i18n/I18nProvider";
+import { useT, useI18n } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/reservation")({
   head: () => ({
@@ -130,6 +130,22 @@ function ReservationPage() {
         reservation_id: inserted.id,
       }),
     }).catch(() => {});
+
+    if (parsed.data.email) {
+      fetch("/api/public/notify-reservation-client", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lang,
+          nom: parsed.data.nom,
+          email: parsed.data.email,
+          pickup_datetime: parsed.data.pickup_datetime,
+          depart: parsed.data.depart, arrivee: parsed.data.arrivee,
+          passagers: parsed.data.passagers, bagages: parsed.data.bagages,
+          reservation_id: inserted.id,
+        }),
+      }).catch(() => {});
+    }
 
     navigate({ to: "/reservation/$id", params: { id: inserted.id } });
   };
