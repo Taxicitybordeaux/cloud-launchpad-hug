@@ -28,6 +28,7 @@ const initial = {
 
 function ReservationPage() {
   const t = useT();
+  const { lang } = useI18n();
   const [form, setForm] = useState(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
