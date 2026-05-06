@@ -9,7 +9,7 @@ export const Route = createFileRoute("/contact")({
   head: () => ({
     meta: [
       { title: "Contact – Taxi City Bordeaux" },
-      { name: "description", content: "Contactez Taxi City Bordeaux : 06 73 07 23 22, taxi.city0033@gmail.com, 163 cours Victor Hugo 33150 Cenon." },
+      { name: "description", content: "Contactez Taxi City Bordeaux : 06 73 07 23 22, taxi.city033@gmail.com, 163 cours Victor Hugo 33150 Cenon." },
     ],
   }),
   component: ContactPage,
@@ -106,10 +106,10 @@ function ContactPage() {
           <p className="mt-1 text-sm text-muted-foreground">{t("contact.wa.sub")}</p>
         </a>
 
-        <a href="mailto:taxi.city0033@gmail.com" className="group rounded-2xl border border-border bg-card p-6 transition hover:border-primary">
+        <a href="mailto:taxi.city033@gmail.com" className="group rounded-2xl border border-border bg-card p-6 transition hover:border-primary">
           <Mail className="h-8 w-8 text-primary" />
           <h2 className="mt-3 font-display text-xl font-semibold">{t("contact.email")}</h2>
-          <p className="mt-1 text-base font-semibold break-all">taxi.city0033@gmail.com</p>
+          <p className="mt-1 text-base font-semibold break-all">taxi.city033@gmail.com</p>
           <p className="mt-1 text-sm text-muted-foreground">{t("contact.email.sub")}</p>
         </a>
 

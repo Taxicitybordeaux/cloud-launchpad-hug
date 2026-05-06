@@ -34,50 +34,61 @@
   --font-sans: 'Inter', sans-serif;
 }
 
-:root {
+/* ===== DARK (default) — luxe noir + or ===== */
+:root, .dark {
   --radius: 0.5rem;
-
-  /* Premium luxe : noir profond + or */
   --background: oklch(0.12 0.01 60);
   --foreground: oklch(0.97 0.01 90);
-
   --card: oklch(0.16 0.012 60);
   --card-foreground: oklch(0.97 0.01 90);
-
   --popover: oklch(0.16 0.012 60);
   --popover-foreground: oklch(0.97 0.01 90);
-
-  --primary: oklch(0.78 0.13 85); /* or */
+  --primary: oklch(0.78 0.13 85);
   --primary-foreground: oklch(0.12 0.01 60);
-
   --secondary: oklch(0.22 0.012 60);
   --secondary-foreground: oklch(0.97 0.01 90);
-
   --muted: oklch(0.2 0.01 60);
   --muted-foreground: oklch(0.7 0.02 80);
-
   --accent: oklch(0.78 0.13 85);
   --accent-foreground: oklch(0.12 0.01 60);
-
   --destructive: oklch(0.6 0.22 25);
   --destructive-foreground: oklch(0.98 0 0);
-
   --border: oklch(0.28 0.012 60);
   --input: oklch(0.22 0.012 60);
   --ring: oklch(0.78 0.13 85);
-
   --gold: oklch(0.78 0.13 85);
   --gold-foreground: oklch(0.12 0.01 60);
-
   --gradient-gold: linear-gradient(135deg, oklch(0.82 0.14 88), oklch(0.7 0.12 75));
   --gradient-dark: linear-gradient(180deg, oklch(0.14 0.01 60), oklch(0.1 0.01 60));
   --shadow-gold: 0 10px 40px -10px oklch(0.78 0.13 85 / 0.4);
   --shadow-elegant: 0 20px 60px -20px oklch(0 0 0 / 0.6);
 }
 
-.dark {
-  --background: oklch(0.12 0.01 60);
-  --foreground: oklch(0.97 0.01 90);
+/* ===== LIGHT mode ===== */
+.light {
+  --background: oklch(0.99 0.005 90);
+  --foreground: oklch(0.18 0.01 60);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0.01 60);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.18 0.01 60);
+  --primary: oklch(0.62 0.12 75);
+  --primary-foreground: oklch(0.99 0.005 90);
+  --secondary: oklch(0.95 0.01 80);
+  --secondary-foreground: oklch(0.18 0.01 60);
+  --muted: oklch(0.95 0.005 80);
+  --muted-foreground: oklch(0.45 0.01 60);
+  --accent: oklch(0.62 0.12 75);
+  --accent-foreground: oklch(0.99 0.005 90);
+  --destructive: oklch(0.55 0.22 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0.9 0.005 80);
+  --input: oklch(0.97 0.005 80);
+  --ring: oklch(0.62 0.12 75);
+  --gold: oklch(0.62 0.12 75);
+  --gold-foreground: oklch(0.99 0.005 90);
+  --shadow-gold: 0 10px 40px -10px oklch(0.62 0.12 75 / 0.35);
+  --shadow-elegant: 0 20px 60px -20px oklch(0 0 0 / 0.15);
 }
 
 @layer base {
@@ -90,16 +101,8 @@
   h1, h2, h3, h4 { font-family: var(--font-display); }
 }
 
-/* ===========================================================
-   RTL support — appliqué quand <html dir="rtl"> (langue arabe)
-   Tailwind utilities directionnelles (ms-/me-/ps-/pe-/start-/end-)
-   sont déjà gérées nativement. Ici on adapte le reste :
-   =========================================================== */
-[dir="rtl"] body {
-  font-family: "Noto Naskh Arabic", "Segoe UI", var(--font-sans), system-ui, sans-serif;
-}
-
-/* Inverse les marges/paddings directionnels les plus utilisés */
+/* RTL support */
+[dir="rtl"] body { font-family: "Noto Naskh Arabic", "Segoe UI", var(--font-sans), system-ui, sans-serif; }
 [dir="rtl"] .ml-1, [dir="rtl"] .ml-2, [dir="rtl"] .ml-3, [dir="rtl"] .ml-4 { margin-left: 0; }
 [dir="rtl"] .ml-1 { margin-right: 0.25rem; }
 [dir="rtl"] .ml-2 { margin-right: 0.5rem; }
@@ -110,28 +113,17 @@
 [dir="rtl"] .mr-2 { margin-left: 0.5rem; }
 [dir="rtl"] .mr-3 { margin-left: 0.75rem; }
 [dir="rtl"] .mr-4 { margin-left: 1rem; }
-
-/* text-left / text-right s'inversent automatiquement avec text-start/end ;
-   pour le legacy on force la cohérence visuelle. */
 [dir="rtl"] .text-left { text-align: right; }
 [dir="rtl"] .text-right { text-align: left; }
-
-/* Ancrages absolus left/right courants (boutons flottants, dropdowns) */
 [dir="rtl"] .left-0 { left: auto; right: 0; }
 [dir="rtl"] .right-0 { right: auto; left: 0; }
 [dir="rtl"] .left-4 { left: auto; right: 1rem; }
 [dir="rtl"] .right-4 { right: auto; left: 1rem; }
 [dir="rtl"] .left-6 { left: auto; right: 1.5rem; }
 [dir="rtl"] .right-6 { right: auto; left: 1.5rem; }
-
-/* Icônes directionnelles : flèches (chevrons, arrows) à miroiter */
 [dir="rtl"] .rtl-mirror,
 [dir="rtl"] svg.lucide-arrow-right,
 [dir="rtl"] svg.lucide-arrow-left,
 [dir="rtl"] svg.lucide-chevron-right,
-[dir="rtl"] svg.lucide-chevron-left {
-  transform: scaleX(-1);
-}
-
-/* Garder les icônes "neutres" (logos, pictos circulaires) NON miroirisées */
+[dir="rtl"] svg.lucide-chevron-left { transform: scaleX(-1); }
 [dir="rtl"] .rtl-keep { transform: none !important; }

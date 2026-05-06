@@ -62,7 +62,7 @@ export const template = {
   subject: (d: Record<string, any>) =>
     `Nouvelle réservation — ${d?.nom ?? 'Client'} (${d?.pickup_datetime ?? ''})`,
   displayName: 'Notification de réservation',
-  to: 'taxi.city0033@gmail.com',
+  to: 'taxi.city033@gmail.com',
   previewData: {
     nom: 'Jean Dupont',
     telephone: '06 12 34 56 78',

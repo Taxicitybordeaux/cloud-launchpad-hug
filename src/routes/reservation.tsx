@@ -2,10 +2,10 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ShieldCheck, Luggage, Baby } from "lucide-react";
+import { Loader2, ShieldCheck } from "lucide-react";
 import { COUNTRIES, normalizePhone, type CountryCode } from "@/lib/phone";
 import { usePublishReservationDraft } from "@/lib/reservation-draft";
-import { useT } from "@/i18n/I18nProvider";
+import { useT, useI18n } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/reservation")({
   head: () => ({
@@ -22,12 +22,13 @@ const initial = {
   pickup_datetime: "", trip_type: "aller", return_datetime: "",
   depart: "", arrivee: "",
   passagers: "1", bagages: "0", service_type: "standard",
-  needs_cpam: false, needs_baggage_help: false, needs_child_seat: false,
+  needs_cpam: false,
   message: "",
 };
 
 function ReservationPage() {
   const t = useT();
+  const { lang } = useI18n();
   const [form, setForm] = useState(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -47,8 +48,6 @@ function ReservationPage() {
     bagages: z.coerce.number().int().min(0).max(10),
     service_type: z.string().max(50),
     needs_cpam: z.boolean(),
-    needs_baggage_help: z.boolean(),
-    needs_child_seat: z.boolean(),
     message: z.string().max(1000).optional(),
   }).refine(
     (d) => d.trip_type !== "aller_retour" || (d.return_datetime && new Date(d.return_datetime) > new Date(d.pickup_datetime)),
@@ -62,8 +61,7 @@ function ReservationPage() {
       pickup_datetime: form.pickup_datetime, return_datetime: form.return_datetime,
       trip_type: form.trip_type, depart: form.depart, arrivee: form.arrivee,
       passagers: form.passagers, bagages: form.bagages, service_type: form.service_type,
-      needs_cpam: form.needs_cpam, needs_baggage_help: form.needs_baggage_help,
-      needs_child_seat: form.needs_child_seat, message: form.message,
+      needs_cpam: form.needs_cpam, message: form.message,
     };
   }, [form]);
   usePublishReservationDraft(draft);
@@ -98,8 +96,6 @@ function ReservationPage() {
     setLoading(true);
     const extras: string[] = [];
     if (form.needs_cpam) extras.push(t("res.f.needs.cpam"));
-    if (form.needs_baggage_help) extras.push(t("res.f.needs.bags"));
-    if (form.needs_child_seat) extras.push(t("res.f.needs.child"));
 
     const composedMessage = [
       parsed.data.trip_type === "aller_retour"
@@ -135,6 +131,22 @@ function ReservationPage() {
         reservation_id: inserted.id,
       }),
     }).catch(() => {});
+
+    if (parsed.data.email) {
+      fetch("/api/public/notify-reservation-client", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lang,
+          nom: parsed.data.nom,
+          email: parsed.data.email,
+          pickup_datetime: parsed.data.pickup_datetime,
+          depart: parsed.data.depart, arrivee: parsed.data.arrivee,
+          passagers: parsed.data.passagers, bagages: parsed.data.bagages,
+          reservation_id: inserted.id,
+        }),
+      }).catch(() => {});
+    }
 
     navigate({ to: "/reservation/$id", params: { id: inserted.id } });
   };
@@ -219,10 +231,8 @@ function ReservationPage() {
 
         <fieldset>
           <legend className="mb-3 block text-sm font-medium">{t("res.f.needs")}</legend>
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3">
             <Extra icon={ShieldCheck} name="needs_cpam" checked={form.needs_cpam} onChange={handleChange} label={t("res.f.needs.cpam")} hint={t("res.f.needs.cpam.hint")} />
-            <Extra icon={Luggage} name="needs_baggage_help" checked={form.needs_baggage_help} onChange={handleChange} label={t("res.f.needs.bags")} hint={t("res.f.needs.bags.hint")} />
-            <Extra icon={Baby} name="needs_child_seat" checked={form.needs_child_seat} onChange={handleChange} label={t("res.f.needs.child")} hint={t("res.f.needs.child.hint")} />
           </div>
         </fieldset>
 
