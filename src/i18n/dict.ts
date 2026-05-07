@@ -401,7 +401,7 @@ const en: Dict = {
   "home.why.f1.t": "Guaranteed punctuality",
   "home.why.f1.d": "Flight & train tracking, anti-delay buffer.",
   "home.why.f2.t": "Clear pricing",
-  "home.why.f2.d": "Quote on request, card & cash payment.",
+  "home.why.f2.d": "Regulated rates, card & cash payment.",
   "home.why.f3.t": "CPAM-certified medical rides",
   "home.why.f3.d": "Health transports covered.",
 
