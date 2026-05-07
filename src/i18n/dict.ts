@@ -76,12 +76,12 @@ const fr: Dict = {
   "svc.train.desc": "Prise en charge à l'arrivée, accueil personnalisé.",
   "svc.business.title": "Déplacements business",
   "svc.business.desc": "Discrétion et ponctualité pour vos rendez-vous.",
-  "svc.wedding.title": "Mariages & événements",
-  "svc.wedding.desc": "Véhicule soigné pour vos plus beaux moments.",
+  "svc.wedding.title": "Assistance dépannage voiture",
+  "svc.wedding.desc": "Vous nous appelez en cas de panne, on vient vous récupérer rapidement.",
   "svc.cpam.title": "Conventionné CPAM",
-  "svc.cpam.desc": "Transports de santé pris en charge.",
+  "svc.cpam.desc": "Bon de transport accepté, toutes distances.",
   "svc.long.title": "Longues distances",
-  "svc.long.desc": "Trajets toutes distances en France sur devis.",
+  "svc.long.desc": "Trajets toutes distances en France.",
 
   // Home — testimonials
   "home.test.eyebrow": "Ils nous ont fait confiance",
