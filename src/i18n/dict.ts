@@ -46,9 +46,9 @@ const fr: Dict = {
   "home.dest.intro":
     "Quelques itinéraires que nos clients réservent au quotidien — l'arrivée en douceur, c'est notre métier.",
   "home.dest.gare.title": "Gare Bordeaux Saint-Jean",
-  "home.dest.gare.sub": "Accueil quai d'arrivée, aide aux bagages.",
+  "home.dest.gare.sub": "Accueil sur demande à l'arrivée du train.",
   "home.dest.airport.title": "Aéroport Mérignac",
-  "home.dest.airport.sub": "Suivi des vols, attente offerte 15 min.",
+  "home.dest.airport.sub": "Suivi des vols en temps réel.",
   "home.dest.vine.title": "Châteaux & vignobles",
   "home.dest.vine.sub": "Médoc, Saint-Émilion, Sauternes — à la journée.",
   "home.dest.cta": "Réserver",
