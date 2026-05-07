@@ -179,14 +179,14 @@ const fr: Dict = {
   "tarifs.col.day": "Tarif jour",
   "tarifs.col.night": "Tarif nuit / dim",
   "tarifs.note":
-    "Tarifs nuit appliqués de 19h à 7h, dimanches et jours fériés. Forfaits aéroport / gare possibles selon les zones.",
+    "Tarifs nuit appliqués de 19h à 7h, dimanches et jours fériés.",
   "tarifs.cpam.title": "🏥 Conventionné CPAM",
   "tarifs.cpam.desc":
-    "Sur présentation d'un bon de transport, prise en charge directe par l'Assurance Maladie. Pas d'avance de frais (tiers payant).",
-  "tarifs.event.title": "📅 Forfaits événements",
+    "Sur présentation d'un bon de transport, prise en charge directe par l'Assurance Maladie. Tiers payant ou ALD — bon de transport toutes distances.",
+  "tarifs.event.title": "🚗 Assistance dépannage voiture",
   "tarifs.event.desc":
-    "Mariages, séminaires, soirées : tarifs forfaitaires sur devis personnalisé. Contactez-nous.",
-  "tarifs.cta": "Demander un devis exact",
+    "En cas de panne, on vient vous récupérer rapidement et on vous emmène à destination. Disponible 7j/7.",
+  "tarifs.cta": "Réserver",
   "city.bdx_centre": "Bordeaux centre",
   "city.cenon": "Cenon / Floirac",
   "city.merignac": "Mérignac",
