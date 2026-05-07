@@ -1163,14 +1163,14 @@ const it: Dict = {
   "tarifs.col.day": "Tariffa diurna",
   "tarifs.col.night": "Notturna / Dom.",
   "tarifs.note":
-    "Tariffa notturna dalle 19 alle 7, domeniche e festivi. Forfait per aeroporto/stazione secondo la zona.",
+    "Tariffa notturna dalle 19 alle 7, domeniche e festivi.",
   "tarifs.cpam.title": "🏥 Trasporto medico CPAM",
   "tarifs.cpam.desc":
-    "Con prescrizione, pagamento diretto con la cassa malattia francese. Nessun anticipo da pagare.",
-  "tarifs.event.title": "📅 Forfait eventi",
+    "Con prescrizione, pagamento diretto con la cassa malattia francese. Pagamento diretto o ALD — buono qualsiasi distanza.",
+  "tarifs.event.title": "🚗 Soccorso auto in panne",
   "tarifs.event.desc":
-    "Matrimoni, seminari, serate: forfait su preventivo personalizzato. Contattateci.",
-  "tarifs.cta": "Richiedi un preventivo preciso",
+    "In caso di guasto, veniamo a recuperarvi rapidamente e vi portiamo a destinazione. Disponibile 7/7.",
+  "tarifs.cta": "Prenota",
   "city.bdx_centre": "Bordeaux centro",
   "city.cenon": "Cenon / Floirac",
   "city.merignac": "Mérignac",
