@@ -1037,9 +1037,9 @@ const it: Dict = {
   "home.dest.intro":
     "Alcuni itinerari prenotati ogni giorno dai nostri clienti: arrivare in tranquillità è il nostro mestiere.",
   "home.dest.gare.title": "Stazione Bordeaux Saint-Jean",
-  "home.dest.gare.sub": "Accoglienza al binario, aiuto bagagli.",
+  "home.dest.gare.sub": "Accoglienza su richiesta all'arrivo del treno.",
   "home.dest.airport.title": "Aeroporto Mérignac",
-  "home.dest.airport.sub": "Monitoraggio voli, 15 min di attesa offerti.",
+  "home.dest.airport.sub": "Monitoraggio voli in tempo reale.",
   "home.dest.vine.title": "Castelli e vigneti",
   "home.dest.vine.sub": "Médoc, Saint-Émilion, Sauternes — giornate intere.",
   "home.dest.cta": "Prenota",
