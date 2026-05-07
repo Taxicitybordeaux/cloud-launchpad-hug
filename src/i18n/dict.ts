@@ -511,14 +511,14 @@ const en: Dict = {
   "tarifs.col.day": "Day rate",
   "tarifs.col.night": "Night / Sun. rate",
   "tarifs.note":
-    "Night rates apply 7pm–7am, Sundays and bank holidays. Airport / station flat rates available depending on the area.",
+    "Night rates apply 7pm–7am, Sundays and bank holidays.",
   "tarifs.cpam.title": "🏥 CPAM medical transport",
   "tarifs.cpam.desc":
-    "With a medical transport voucher, direct billing to the French health insurance. No upfront payment.",
-  "tarifs.event.title": "📅 Event packages",
+    "With a medical transport voucher, direct billing to the French health insurance. Direct billing or ALD — voucher accepted any distance.",
+  "tarifs.event.title": "🚗 Car breakdown assistance",
   "tarifs.event.desc":
-    "Weddings, seminars, evenings: flat-rate pricing on personal quote. Contact us.",
-  "tarifs.cta": "Get an exact quote",
+    "If your car breaks down, we pick you up quickly and drive you to your destination. Available 7/7.",
+  "tarifs.cta": "Book",
   "city.bdx_centre": "Bordeaux center",
   "city.cenon": "Cenon / Floirac",
   "city.merignac": "Mérignac",
