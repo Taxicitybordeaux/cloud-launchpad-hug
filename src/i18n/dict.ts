@@ -462,7 +462,7 @@ const en: Dict = {
   "services.title": "A taxi service for every need",
   "services.intro":
     "In Bordeaux, across Gironde and all over France — one contact, premium service.",
-  "services.cta": "Get a quote / Book",
+  "services.cta": "Book",
   "services.b1": "24/7",
   "services.b2": "Up to 4 passengers",
   "services.b3": "Professional driver",
