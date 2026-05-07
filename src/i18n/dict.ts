@@ -128,7 +128,7 @@ const fr: Dict = {
   "services.title": "Un service taxi pour chaque besoin",
   "services.intro":
     "À Bordeaux, en Gironde et partout en France — un seul interlocuteur, un service haut de gamme.",
-  "services.cta": "Demander un devis / Réserver",
+  "services.cta": "Réserver",
   "services.b1": "7j/7 – 24h/24",
   "services.b2": "Jusqu'à 4 passagers",
   "services.b3": "Chauffeur professionnel",
