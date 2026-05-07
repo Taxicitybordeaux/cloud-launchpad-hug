@@ -27,14 +27,13 @@ function Home() {
       {/* HERO */}
       <section className="relative isolate overflow-hidden">
         <img
-          src={heroCar}
-          alt="Taxi premium à Bordeaux la nuit"
+          src="https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=1600&q=80"
+          alt="Taxi premium à Bordeaux"
           className="absolute inset-0 -z-10 h-full w-full object-cover"
           width={1920}
           height={1080}
         />
-        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-background via-background/90 to-background/30" />
-        <div className="absolute inset-0 -z-10 bg-gradient-to-t from-background via-transparent to-transparent" />
+        <div className="absolute inset-0 -z-10 bg-black/25" />
 
         <div className="mx-auto max-w-7xl px-4 pt-16 pb-24 md:pt-24 md:pb-32">
           <div className="max-w-2xl">

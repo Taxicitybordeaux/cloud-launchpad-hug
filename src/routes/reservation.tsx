@@ -105,19 +105,26 @@ function ReservationPage() {
       parsed.data.message,
     ].filter(Boolean).join("\n");
 
-    const { data: inserted, error } = await supabase.from("reservations").insert({
+    const reservationId = (typeof crypto !== "undefined" && "randomUUID" in crypto)
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    const { error } = await supabase.from("reservations").insert({
+      id: reservationId,
       nom: parsed.data.nom, telephone: e164, email: parsed.data.email || null,
       pickup_datetime: new Date(parsed.data.pickup_datetime).toISOString(),
       depart: parsed.data.depart, arrivee: parsed.data.arrivee,
       passagers: parsed.data.passagers, bagages: parsed.data.bagages,
       service_type: parsed.data.service_type, message: composedMessage || null,
-    }).select("id").maybeSingle();
+    });
 
     setLoading(false);
-    if (error || !inserted?.id) {
+    if (error) {
+      console.error("Supabase insert error:", error);
       setErrors({ _global: t("res.err.global") });
       return;
     }
+    const inserted = { id: reservationId };
 
     fetch("/api/public/notify-reservation", {
       method: "POST",
