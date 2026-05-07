@@ -1113,7 +1113,7 @@ const it: Dict = {
   "services.title": "Un servizio taxi per ogni esigenza",
   "services.intro":
     "A Bordeaux, in Gironda e in tutta la Francia: un solo interlocutore, servizio premium.",
-  "services.cta": "Richiedi preventivo / Prenota",
+  "services.cta": "Prenota",
   "services.b1": "24/7",
   "services.b2": "Fino a 4 persone",
   "services.b3": "Autista professionale",
