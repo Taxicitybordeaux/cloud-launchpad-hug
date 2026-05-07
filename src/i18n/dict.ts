@@ -386,9 +386,9 @@ const en: Dict = {
   "home.dest.intro":
     "A few routes our customers book every day — a smooth arrival is what we do best.",
   "home.dest.gare.title": "Bordeaux Saint-Jean station",
-  "home.dest.gare.sub": "Platform meet & greet, luggage assistance.",
+  "home.dest.gare.sub": "Meet & greet on request at arrival.",
   "home.dest.airport.title": "Mérignac airport",
-  "home.dest.airport.sub": "Flight tracking, 15-min free wait.",
+  "home.dest.airport.sub": "Real-time flight tracking.",
   "home.dest.vine.title": "Châteaux & vineyards",
   "home.dest.vine.sub": "Médoc, Saint-Émilion, Sauternes — full day trips.",
   "home.dest.cta": "Book",
