@@ -787,7 +787,7 @@ const es: Dict = {
   "services.title": "Un servicio de taxi para cada necesidad",
   "services.intro":
     "En Burdeos, en la Gironda y en toda Francia — un único interlocutor, servicio premium.",
-  "services.cta": "Pedir presupuesto / Reservar",
+  "services.cta": "Reservar",
   "services.b1": "24/7",
   "services.b2": "Hasta 4 pasajeros",
   "services.b3": "Chófer profesional",
