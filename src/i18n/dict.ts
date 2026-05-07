@@ -1052,7 +1052,7 @@ const it: Dict = {
   "home.why.f1.t": "Puntualità garantita",
   "home.why.f1.d": "Monitoraggio voli e treni, margine per i ritardi.",
   "home.why.f2.t": "Tariffe chiare",
-  "home.why.f2.d": "Preventivo su richiesta, carta e contanti.",
+  "home.why.f2.d": "Tariffe regolamentate, carta e contanti.",
   "home.why.f3.t": "Convenzionato CPAM",
   "home.why.f3.d": "Trasporti medici rimborsati.",
 
