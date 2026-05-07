@@ -837,14 +837,14 @@ const es: Dict = {
   "tarifs.col.day": "Tarifa día",
   "tarifs.col.night": "Tarifa noche / dom",
   "tarifs.note":
-    "Tarifa nocturna de 19 h a 7 h, domingos y festivos. Tarifas cerradas aeropuerto / estación según zona.",
+    "Tarifa nocturna de 19 h a 7 h, domingos y festivos.",
   "tarifs.cpam.title": "🏥 Concertado CPAM",
   "tarifs.cpam.desc":
-    "Con bono de transporte, pago directo a la Seguridad Social francesa. Sin adelanto.",
-  "tarifs.event.title": "📅 Tarifas eventos",
+    "Con bono de transporte, pago directo a la Seguridad Social francesa. Pago directo o ALD — bono todas distancias.",
+  "tarifs.event.title": "🚗 Asistencia avería coche",
   "tarifs.event.desc":
-    "Bodas, seminarios, veladas: tarifas cerradas con presupuesto personal. Contáctenos.",
-  "tarifs.cta": "Pedir presupuesto exacto",
+    "En caso de avería, le recogemos rápidamente y le llevamos a su destino. Disponible 7/7.",
+  "tarifs.cta": "Reservar",
   "city.bdx_centre": "Burdeos centro",
   "city.cenon": "Cenon / Floirac",
   "city.merignac": "Mérignac",
