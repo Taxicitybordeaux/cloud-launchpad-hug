@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Plane, Train, Briefcase, Heart, ShieldCheck, MapPin, Users, Clock } from "lucide-react";
+import { Plane, Train, Briefcase, Wrench, ShieldCheck, MapPin, Users, Clock } from "lucide-react";
 import { useT } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/services")({
@@ -18,7 +18,7 @@ function ServicesPage() {
     { icon: Plane, title: t("svcp.airport.title"), desc: t("svcp.airport.desc"), points: [t("svcp.airport.p1"), t("svcp.airport.p2"), t("svcp.airport.p3")] },
     { icon: Train, title: t("svcp.train.title"), desc: t("svcp.train.desc"), points: [t("svcp.train.p1"), t("svcp.train.p2"), t("svcp.train.p3")] },
     { icon: Briefcase, title: t("svcp.business.title"), desc: t("svcp.business.desc"), points: [t("svcp.business.p1"), t("svcp.business.p2"), t("svcp.business.p3")] },
-    { icon: Heart, title: t("svcp.wedding.title"), desc: t("svcp.wedding.desc"), points: [t("svcp.wedding.p1"), t("svcp.wedding.p2"), t("svcp.wedding.p3")] },
+    { icon: Wrench, title: t("svcp.wedding.title"), desc: t("svcp.wedding.desc"), points: [t("svcp.wedding.p1"), t("svcp.wedding.p2"), t("svcp.wedding.p3")] },
     { icon: ShieldCheck, title: t("svcp.cpam.title"), desc: t("svcp.cpam.desc"), points: [t("svcp.cpam.p1"), t("svcp.cpam.p2"), t("svcp.cpam.p3")] },
     { icon: MapPin, title: t("svcp.long.title"), desc: t("svcp.long.desc"), points: [t("svcp.long.p1"), t("svcp.long.p2"), t("svcp.long.p3")] },
   ];

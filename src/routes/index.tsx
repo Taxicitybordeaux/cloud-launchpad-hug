@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Phone, Plane, Train, Briefcase, Heart, ShieldCheck, MapPin, Clock, Star, Wallet, Car, ArrowRight, Quote, HelpCircle } from "lucide-react";
+import { Phone, Plane, Train, Briefcase, Wrench, ShieldCheck, MapPin, Clock, Star, Wallet, Car, ArrowRight, Quote, HelpCircle } from "lucide-react";
 import logo from "@/assets/logo.jpeg";
 import heroCar from "@/assets/hero-car.jpg";
 import destGare from "@/assets/dest-gare.jpg";
@@ -171,7 +171,7 @@ function Home() {
             { icon: Plane, title: t("svc.airport.title"), desc: t("svc.airport.desc") },
             { icon: Train, title: t("svc.train.title"), desc: t("svc.train.desc") },
             { icon: Briefcase, title: t("svc.business.title"), desc: t("svc.business.desc") },
-            { icon: Heart, title: t("svc.wedding.title"), desc: t("svc.wedding.desc") },
+            { icon: Wrench, title: t("svc.wedding.title"), desc: t("svc.wedding.desc") },
             { icon: ShieldCheck, title: t("svc.cpam.title"), desc: t("svc.cpam.desc") },
             { icon: MapPin, title: t("svc.long.title"), desc: t("svc.long.desc") },
           ].map((s) => (
