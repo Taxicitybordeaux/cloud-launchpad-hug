@@ -62,7 +62,7 @@ const fr: Dict = {
   "home.why.f1.t": "Ponctualité garantie",
   "home.why.f1.d": "Suivi de vol et de train, marge anti-retard.",
   "home.why.f2.t": "Tarifs clairs",
-  "home.why.f2.d": "Devis sur demande, paiement CB & espèces.",
+  "home.why.f2.d": "Tarifs réglementés, paiement CB & espèces.",
   "home.why.f3.t": "Conventionné CPAM",
   "home.why.f3.d": "Transports de santé pris en charge.",
 
