@@ -726,7 +726,7 @@ const es: Dict = {
   "home.why.f1.t": "Puntualidad garantizada",
   "home.why.f1.d": "Seguimiento de vuelos y trenes, margen anti-retraso.",
   "home.why.f2.t": "Tarifas claras",
-  "home.why.f2.d": "Presupuesto a petición, pago con tarjeta y efectivo.",
+  "home.why.f2.d": "Tarifas reguladas, pago con tarjeta y efectivo.",
   "home.why.f3.t": "Concertado CPAM",
   "home.why.f3.d": "Transportes médicos cubiertos.",
 
