@@ -193,14 +193,6 @@ function ContactPage() {
         )}
       </section>
 
-      <div className="mt-12 overflow-hidden rounded-2xl border border-border">
-        <iframe
-          src="https://www.google.com/maps?q=163+cours+Victor+Hugo,+33150+Cenon&output=embed"
-          width="100%" height="400" loading="lazy"
-          referrerPolicy="no-referrer-when-downgrade"
-          title="Localisation Taxi City Bordeaux"
-        />
-      </div>
     </div>
   );
 }
