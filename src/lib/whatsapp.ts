@@ -21,7 +21,7 @@ export type ReservationLite = {
 };
 
 const LOCALE_MAP: Record<Lang, string> = {
-  fr: "fr-FR", en: "en-GB", es: "es-ES", it: "it-IT", ar: "ar-SA",
+  fr: "fr-FR", en: "en-GB", es: "es-ES", pt: "pt-PT", it: "it-IT", ar: "ar-SA",
 };
 
 const STRINGS = {
