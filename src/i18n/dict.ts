@@ -358,6 +358,16 @@ const fr: Dict = {
   "suivi.notfound.desc": "Le lien de suivi est invalide ou expiré.",
   "suivi.back_home": "Retour à l'accueil",
   "conf.track": "Suivre mon chauffeur en direct",
+
+  // FAQ Services — suivi vol, attente, CPAM/ALD
+  "faqx.title": "Questions fréquentes",
+  "faqx.intro": "Tout ce qu'il faut savoir avant votre course.",
+  "faqx.tracking.q": "Comment fonctionne le suivi en temps réel de mon vol ou de mon train ?",
+  "faqx.tracking.a": "Dès que vous nous communiquez votre numéro de vol ou de train, nous le suivons automatiquement. Si l'arrivée est avancée ou retardée, l'heure de prise en charge est ajustée — vous n'avez rien à faire, le chauffeur sera là quand vous sortirez.",
+  "faqx.wait.q": "Combien de temps le chauffeur attend-il après l'atterrissage ?",
+  "faqx.wait.a": "Le chauffeur se présente après l'atterrissage réel (et non l'horaire prévu). Le temps nécessaire pour récupérer vos bagages et passer la douane est pris en compte. Au-delà, le temps d'attente supplémentaire est facturé au tarif réglementé en vigueur, en toute transparence.",
+  "faqx.cpam.q": "Comment se passe la prise en charge CPAM / ALD ?",
+  "faqx.cpam.a": "Munissez-vous de la prescription médicale de transport remise par votre médecin. Sur présentation de ce bon de transport, nous appliquons le tiers payant : la course est directement prise en charge par l'Assurance Maladie. En ALD (affection longue durée), la prise en charge est intégrale et valable pour toutes les distances — y compris les longs trajets vers un centre spécialisé.",
 };
 
 const en: Dict = {
