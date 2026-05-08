@@ -100,10 +100,10 @@ const fr: Dict = {
     "Quelques réponses aux questions qu'on nous pose le plus souvent. Si vous ne trouvez pas, un coup de fil suffit.",
   "faq.q1": "Êtes-vous conventionné CPAM ?",
   "faq.a1":
-    "Oui, nous sommes conventionnés avec la CPAM pour les transports de santé (consultations, dialyses, hospitalisations…). Pensez à demander à votre médecin la prescription médicale de transport, et nous nous occupons du reste — vous n'avancez pas les frais dans la plupart des cas.",
+    "Oui, nous sommes conventionnés avec la CPAM pour les transports de santé (consultations, dialyses, hospitalisations…). Pensez à demander à votre médecin la prescription médicale de transport, et nous nous occupons du reste. Sur présentation d'un bon de transport, prise en charge directe par l'Assurance Maladie. Tiers payant ou ALD — bon de transport toutes distances.",
   "faq.q2": "Que se passe-t-il si mon vol a du retard à Mérignac ?",
   "faq.a2":
-    "On suit votre vol en temps réel. Si l'avion arrive en avance ou en retard, on ajuste l'heure de prise en charge. La première demi-heure d'attente après l'atterrissage est offerte — on ne facture jamais un retard qui n'est pas le vôtre.",
+    "On suit votre vol en temps réel. Si l'avion arrive en avance ou en retard, on ajuste l'heure de prise en charge.",
   "faq.q3": "Comment annuler ou modifier ma réservation ?",
   "faq.a3":
     "Un simple appel ou message WhatsApp suffit. L'annulation est gratuite jusqu'à 2 heures avant la course. Pour une modification (horaire, adresse, nombre de passagers), prévenez-nous dès que possible — on s'arrange.",
@@ -115,7 +115,7 @@ const fr: Dict = {
     "Pas obligatoire — on prend aussi les courses immédiates si on est disponible. Pour un train tôt le matin, un vol ou un rendez-vous important, mieux vaut réserver la veille pour être tranquille.",
   "faq.q6": "Combien de bagages puis-je emporter ?",
   "faq.a6":
-    "Une berline confortable accepte facilement 3 à 4 valises et 4 passagers. Pour un groupe, du matériel encombrant ou un vélo, prévenez-nous à la réservation, on adapte le véhicule.",
+    "Une berline confortable accepte facilement 3 à 4 valises et 4 passagers. Pour un groupe ou du matériel encombrant, prévenez-nous à la réservation, on adapte le véhicule.",
 
   // Home — final CTA
   "home.cta.title": "Prêt à réserver votre course ?",
