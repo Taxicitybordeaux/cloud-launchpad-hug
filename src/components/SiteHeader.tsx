@@ -42,7 +42,6 @@ export function SiteHeader() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
-          <ThemeToggle />
           <LanguageSwitcher />
           <a
             href={`tel:${PHONE}`}
