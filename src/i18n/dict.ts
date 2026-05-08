@@ -475,7 +475,7 @@ const en: Dict = {
   "svcp.train.title": "Saint-Jean & TGV stations",
   "svcp.train.desc":
     "Transfers to or from Bordeaux Saint-Jean and any station in the region.",
-  "svcp.train.p1": "Greeting on request",
+  "svcp.train.p1": "Meet & greet on request",
   "svcp.train.p2": "On-time pick-up",
   "svcp.train.p3": "Available 24/7",
   "svcp.business.title": "Business travel",
