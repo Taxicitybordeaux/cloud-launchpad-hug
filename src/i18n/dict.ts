@@ -358,6 +358,16 @@ const fr: Dict = {
   "suivi.notfound.desc": "Le lien de suivi est invalide ou expiré.",
   "suivi.back_home": "Retour à l'accueil",
   "conf.track": "Suivre mon chauffeur en direct",
+
+  // FAQ Services — suivi vol, attente, CPAM/ALD
+  "faqx.title": "Questions fréquentes",
+  "faqx.intro": "Tout ce qu'il faut savoir avant votre course.",
+  "faqx.tracking.q": "Comment fonctionne le suivi en temps réel de mon vol ou de mon train ?",
+  "faqx.tracking.a": "Dès que vous nous communiquez votre numéro de vol ou de train, nous le suivons automatiquement. Si l'arrivée est avancée ou retardée, l'heure de prise en charge est ajustée — vous n'avez rien à faire, le chauffeur sera là quand vous sortirez.",
+  "faqx.wait.q": "Combien de temps le chauffeur attend-il après l'atterrissage ?",
+  "faqx.wait.a": "Le chauffeur se présente après l'atterrissage réel (et non l'horaire prévu). Le temps nécessaire pour récupérer vos bagages et passer la douane est pris en compte. Au-delà, le temps d'attente supplémentaire est facturé au tarif réglementé en vigueur, en toute transparence.",
+  "faqx.cpam.q": "Comment se passe la prise en charge CPAM / ALD ?",
+  "faqx.cpam.a": "Munissez-vous de la prescription médicale de transport remise par votre médecin. Sur présentation de ce bon de transport, nous appliquons le tiers payant : la course est directement prise en charge par l'Assurance Maladie. En ALD (affection longue durée), la prise en charge est intégrale et valable pour toutes les distances — y compris les longs trajets vers un centre spécialisé.",
 };
 
 const en: Dict = {
@@ -685,6 +695,15 @@ const en: Dict = {
   "suivi.notfound.desc": "This tracking link is invalid or expired.",
   "suivi.back_home": "Back to home",
   "conf.track": "Track my driver live",
+
+  "faqx.title": "Frequently asked questions",
+  "faqx.intro": "Everything you need to know before your ride.",
+  "faqx.tracking.q": "How does real-time flight or train tracking work?",
+  "faqx.tracking.a": "As soon as you share your flight or train number, we track it automatically. If your arrival is early or delayed, the pick-up time is adjusted — you don't need to do anything, your driver will be waiting when you come out.",
+  "faqx.wait.q": "How long does the driver wait after landing?",
+  "faqx.wait.a": "The driver shows up based on actual landing time (not the scheduled one), and we account for the time needed to collect your luggage and clear customs. Beyond that, additional waiting time is billed at the official regulated rate, in full transparency.",
+  "faqx.cpam.q": "How does CPAM / ALD coverage work?",
+  "faqx.cpam.a": "Bring the medical transport prescription given by your doctor. With this transport voucher we apply third-party payment: the ride is billed directly to the French health insurance. Under ALD (long-term illness), coverage is full and valid for all distances — including long trips to a specialised centre.",
 };
 
 const es: Dict = {
@@ -1013,6 +1032,15 @@ const es: Dict = {
   "suivi.notfound.desc": "El enlace de seguimiento no es válido o ha expirado.",
   "suivi.back_home": "Volver al inicio",
   "conf.track": "Seguir a mi conductor en vivo",
+
+  "faqx.title": "Preguntas frecuentes",
+  "faqx.intro": "Todo lo que debe saber antes de su trayecto.",
+  "faqx.tracking.q": "¿Cómo funciona el seguimiento en tiempo real de mi vuelo o tren?",
+  "faqx.tracking.a": "En cuanto nos facilita su número de vuelo o tren, lo seguimos automáticamente. Si la llegada se adelanta o se retrasa, ajustamos la hora de recogida — no tiene que hacer nada, el conductor le esperará a la salida.",
+  "faqx.wait.q": "¿Cuánto tiempo espera el conductor tras el aterrizaje?",
+  "faqx.wait.a": "El conductor llega según la hora real de aterrizaje (no la prevista), e incluimos el tiempo necesario para recoger el equipaje y pasar la aduana. A partir de ahí, el tiempo de espera adicional se factura según la tarifa oficial regulada, con total transparencia.",
+  "faqx.cpam.q": "¿Cómo funciona la cobertura CPAM / ALD?",
+  "faqx.cpam.a": "Traiga la prescripción médica de transporte entregada por su médico. Con este bono de transporte aplicamos el tercero pagador: el trayecto lo abona directamente la Seguridad Social francesa. En ALD (enfermedad de larga duración), la cobertura es total y válida para todas las distancias, incluidos los traslados largos a centros especializados.",
 };
 
 const it: Dict = {
@@ -1341,6 +1369,15 @@ const it: Dict = {
   "suivi.notfound.desc": "Il link di tracciamento non è valido o è scaduto.",
   "suivi.back_home": "Torna alla home",
   "conf.track": "Segui il mio autista in tempo reale",
+
+  "faqx.title": "Domande frequenti",
+  "faqx.intro": "Tutto quello che c'è da sapere prima della corsa.",
+  "faqx.tracking.q": "Come funziona il tracciamento in tempo reale del volo o del treno?",
+  "faqx.tracking.a": "Appena ci comunica il numero del volo o del treno, lo seguiamo automaticamente. Se l'arrivo è in anticipo o in ritardo, l'orario di prelievo viene aggiornato — non deve fare nulla, l'autista la aspetterà all'uscita.",
+  "faqx.wait.q": "Quanto tempo attende l'autista dopo l'atterraggio?",
+  "faqx.wait.a": "L'autista si presenta in base all'orario reale di atterraggio (non a quello previsto) e teniamo conto del tempo per ritirare i bagagli e passare la dogana. Oltre, l'attesa supplementare è fatturata secondo la tariffa ufficiale regolamentata, in totale trasparenza.",
+  "faqx.cpam.q": "Come funziona la copertura CPAM / ALD?",
+  "faqx.cpam.a": "Porti la prescrizione medica di trasporto rilasciata dal medico. Con questo buono di trasporto applichiamo il pagamento diretto: la corsa è a carico dell'Assicurazione Sanitaria francese. In ALD (malattia di lunga durata) la copertura è totale e valida per tutte le distanze, anche per lunghi trasferimenti verso centri specializzati.",
 };
 
 // Dictionnaire arabe — traductions clés ; fallback automatique sur le français pour les clés manquantes.
@@ -1626,6 +1663,15 @@ const ar: Dict = {
   "suivi.notfound.desc": "رابط التتبع غير صالح أو منتهي الصلاحية.",
   "suivi.back_home": "العودة للرئيسية",
   "conf.track": "تتبع سائقي مباشرة",
+
+  "faqx.title": "الأسئلة الشائعة",
+  "faqx.intro": "كل ما تحتاج معرفته قبل رحلتك.",
+  "faqx.tracking.q": "كيف يعمل التتبع المباشر لرحلتي الجوية أو القطار؟",
+  "faqx.tracking.a": "بمجرد إعطائنا رقم الرحلة أو القطار، نتابعه تلقائيًا. إذا وصلت مبكرًا أو متأخرًا، نعدّل وقت الاستقبال — لا داعي لفعل أي شيء، السائق سينتظرك عند الخروج.",
+  "faqx.wait.q": "كم من الوقت ينتظر السائق بعد الهبوط؟",
+  "faqx.wait.a": "يحضر السائق وفقًا لوقت الهبوط الفعلي (وليس المجدول)، ونحسب الوقت اللازم لاستلام الأمتعة وإجراءات الجمارك. بعد ذلك، يُحتسب وقت الانتظار الإضافي وفق التعرفة الرسمية المعتمدة، بكل شفافية.",
+  "faqx.cpam.q": "كيف تتم التغطية CPAM / ALD؟",
+  "faqx.cpam.a": "أحضر وصفة النقل الطبي من طبيبك. بتقديم بون النقل، نطبّق نظام الدفع المباشر: تتولى التأمين الصحي الفرنسي تكاليف الرحلة مباشرة. في حالة ALD (مرض طويل الأمد)، التغطية كاملة وصالحة لجميع المسافات — بما في ذلك الرحلات الطويلة إلى المراكز المتخصصة.",
 };
 
 export const DICTS: Record<Lang, Dict> = { fr, en, es, it, ar };
