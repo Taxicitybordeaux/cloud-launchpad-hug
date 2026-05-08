@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Plane, Train, Briefcase, Wrench, ShieldCheck, MapPin, Users, Clock, HelpCircle } from "lucide-react";
 import { useT } from "@/i18n/I18nProvider";
+import { BulletedList } from "@/components/BulletedList";
 
 export const Route = createFileRoute("/services")({
   head: () => ({
@@ -39,14 +40,7 @@ function ServicesPage() {
             </div>
             <h2 className="mt-5 font-display text-xl font-semibold sm:text-2xl">{s.title}</h2>
             <p className="mt-2 text-sm text-muted-foreground sm:text-base">{s.desc}</p>
-            <ul className="mt-4 space-y-2 text-sm">
-              {s.points.map((p) => (
-                <li key={p} className="flex items-start gap-2 text-foreground/80">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" />
-                  <span className="min-w-0 flex-1 break-words leading-snug [hyphens:auto]">{p}</span>
-                </li>
-              ))}
-            </ul>
+            <BulletedList items={s.points} className="mt-4" />
           </article>
         ))}
       </div>
