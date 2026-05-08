@@ -1647,7 +1647,7 @@ const ar: Dict = {
   "conf.notfound.cta": "إنشاء حجز جديد",
 
   "wa.float.send": "أرسل طلبي",
-  "wa.float.label": "واتساب",
+  "wa.float.label": "احجز عبر واتساب",
   "wa.default": "مرحباً، أود حجز سيارة أجرة مع تاكسي سيتي بوردو. هل يمكنك تأكيد التوفر؟ شكراً.",
   "suivi.title": "تتبع سائقك",
   "suivi.hello": "مرحباً",
