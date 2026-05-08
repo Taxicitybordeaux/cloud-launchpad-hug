@@ -566,7 +566,7 @@ const en: Dict = {
   "contact.form.eyebrow": "Form",
   "contact.form.title": "Send us a message",
   "contact.form.intro":
-    "For a quote, a question or a special request — we reply as soon as possible.",
+    "For a question or a special request — we reply as soon as possible.",
   "contact.form.name": "Full name *",
   "contact.form.email": "Email *",
   "contact.form.phone": "Phone (optional)",
