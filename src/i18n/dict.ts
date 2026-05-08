@@ -340,7 +340,7 @@ const fr: Dict = {
 
   // WhatsApp float
   "wa.float.send": "Envoyer ma demande",
-  "wa.float.label": "WhatsApp",
+  "wa.float.label": "Réserver sur WhatsApp",
   "wa.default":
     "Bonjour, je souhaite réserver un taxi avec Taxi City Bordeaux. Pouvez-vous me confirmer la disponibilité ? Merci.",
   // Tracking page
