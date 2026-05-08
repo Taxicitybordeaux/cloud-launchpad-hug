@@ -1555,7 +1555,7 @@ const ar: Dict = {
   "res.f.kind.airport": "مطار",
   "res.f.kind.train": "محطة",
   "res.f.kind.cpam": "طبي CPAM",
-  "res.f.kind.wedding": "زفاف / مناسبة",
+  "res.f.kind.wedding": "إغاثة عطل",
   "res.f.kind.business": "أعمال",
   "res.f.kind.long": "مسافة طويلة",
   "res.f.needs": "احتياجات خاصة",
