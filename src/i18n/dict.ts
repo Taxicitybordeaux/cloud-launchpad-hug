@@ -232,7 +232,7 @@ const fr: Dict = {
   "about.p2":
     "Que vous soyez un particulier qui rejoint l'aéroport, un professionnel en déplacement, ou un patient nécessitant un transport médical conventionné, nous adaptons notre prestation à votre besoin.",
   "about.p3":
-    "Notre véhicule récent, climatisé et soigneusement entretenu, vous garantit un trajet agréable, en toutes circonstances.",
+    "Notre véhicule climatisé et soigneusement entretenu, vous garantit un trajet agréable, en toutes circonstances.",
   "about.b1.t": "Chauffeur professionnel",
   "about.b1.d":
     "Carte professionnelle de taxi, formation continue, parfaite connaissance de Bordeaux et de la Gironde.",
@@ -603,7 +603,7 @@ const en: Dict = {
   "about.p2":
     "Whether you're a private customer heading to the airport, a professional on the move, or a patient needing medical transport, we adapt our service to your need.",
   "about.p3":
-    "Our recent, air-conditioned and carefully maintained car guarantees a pleasant ride in any situation.",
+    "Our air-conditioned and carefully maintained car guarantees a pleasant ride in any situation.",
   "about.b1.t": "Professional driver",
   "about.b1.d":
     "Official taxi card, ongoing training, deep knowledge of Bordeaux and Gironde.",
@@ -1333,7 +1333,7 @@ const it: Dict = {
   "about.p2":
     "Privato in partenza per l'aeroporto, professionista in trasferta o paziente in trasporto medico: adattiamo il nostro servizio alle vostre esigenze.",
   "about.p3":
-    "Il nostro veicolo recente, climatizzato e curato, garantisce un viaggio piacevole in qualsiasi circostanza.",
+    "Il nostro veicolo climatizzato e curato, garantisce un viaggio piacevole in qualsiasi circostanza.",
   "about.b1.t": "Autista professionale",
   "about.b1.d":
     "Licenza taxi ufficiale, formazione continua, perfetta conoscenza di Bordeaux e della Gironda.",
@@ -2030,7 +2030,7 @@ const pt: Dict = {
   "about.p2":
     "Quer seja um particular a caminho do aeroporto, um profissional em deslocação ou um paciente que precisa de transporte médico convencionado, adaptamos o nosso serviço à sua necessidade.",
   "about.p3":
-    "O nosso veículo recente, climatizado e cuidadosamente mantido, garante uma viagem agradável em todas as circunstâncias.",
+    "O nosso veículo climatizado e cuidadosamente mantido, garante uma viagem agradável em todas as circunstâncias.",
   "about.b1.t": "Motorista profissional",
   "about.b1.d":
     "Cartão profissional de táxi, formação contínua, perfeito conhecimento de Bordéus e da Gironde.",
