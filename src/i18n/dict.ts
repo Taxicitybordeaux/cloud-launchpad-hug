@@ -2156,6 +2156,8 @@ const pt: Dict = {
   // WhatsApp float
   "wa.float.send": "Enviar pedido",
   "wa.float.label": "Reservar pelo WhatsApp",
+  "wa.aria.hint": "Abre uma conversa no WhatsApp num novo separador.",
+  "wa.aria.draftReady": "O seu pedido de reserva está pronto para ser enviado pelo WhatsApp.",
   "wa.default":
     "Olá, gostaria de reservar um táxi com Taxi City Bordeaux. Pode confirmar a disponibilidade? Obrigado.",
   // Tracking page
