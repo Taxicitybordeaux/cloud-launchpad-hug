@@ -831,7 +831,7 @@ const es: Dict = {
   "tarifs.eyebrow": "Tarifas",
   "tarifs.title": "Precios transparentes",
   "tarifs.intro":
-    "Tarifas indicativas según la regulación prefectoral. Un presupuesto exacto se confirma al reservar.",
+    "Tarifas indicativas según la regulación prefectoral. Un precio exacto se confirma al reservar.",
   "tarifs.col.from": "Origen",
   "tarifs.col.to": "Destino",
   "tarifs.col.day": "Tarifa día",
