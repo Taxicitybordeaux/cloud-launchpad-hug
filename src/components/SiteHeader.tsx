@@ -3,7 +3,6 @@ import { Phone, Menu, X } from "lucide-react";
 import { useState } from "react";
 import logo from "@/assets/logo.jpeg";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { useT } from "@/i18n/I18nProvider";
 
 const PHONE = "0673072322";
