@@ -9,7 +9,7 @@ export const Route = createFileRoute("/contact")({
   head: () => ({
     meta: [
       { title: "Contact – Taxi City Bordeaux" },
-      { name: "description", content: "Contactez Taxi City Bordeaux : 06 73 07 23 22, taxi.city033@gmail.com, 163 cours Victor Hugo 33150 Cenon." },
+      { name: "description", content: "Contactez Taxi City Bordeaux : 06 73 07 23 22, taxi.city033@gmail.com. Interventions à Bordeaux et dans toute la Gironde." },
     ],
   }),
   component: ContactPage,
