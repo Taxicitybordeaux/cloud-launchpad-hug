@@ -282,7 +282,7 @@ const fr: Dict = {
   "res.f.kind.airport": "Aéroport",
   "res.f.kind.train": "Gare",
   "res.f.kind.cpam": "Conventionné CPAM",
-  "res.f.kind.wedding": "Mariage / événement",
+  "res.f.kind.wedding": "Assistance dépannage",
   "res.f.kind.business": "Business",
   "res.f.kind.long": "Longue distance",
   "res.f.needs": "Besoins spécifiques",
