@@ -505,7 +505,7 @@ const en: Dict = {
   "tarifs.eyebrow": "Pricing",
   "tarifs.title": "Transparent prices",
   "tarifs.intro":
-    "Indicative prices based on the prefectoral regulations. An exact quote is confirmed at booking.",
+    "Indicative prices based on the prefectoral regulations. An exact price is confirmed at booking.",
   "tarifs.col.from": "From",
   "tarifs.col.to": "To",
   "tarifs.col.day": "Day rate",
