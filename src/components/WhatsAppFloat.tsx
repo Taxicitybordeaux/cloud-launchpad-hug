@@ -76,15 +76,21 @@ export function WhatsAppFloat() {
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        aria-label="WhatsApp"
+        aria-label={ariaLabel}
         className="group fixed bottom-6 right-6 z-50 hidden items-center gap-3 rounded-full bg-[#25D366] px-7 py-5 text-lg font-bold text-white shadow-2xl shadow-black/40 ring-4 ring-[#25D366]/30 transition hover:scale-105 hover:bg-[#20bd5a] hover:ring-[#25D366]/50 sm:inline-flex"
       >
-        <span className="relative flex h-8 w-8 items-center justify-center">
+        <span aria-hidden="true" className="relative flex h-8 w-8 items-center justify-center">
           <span className="absolute inset-0 animate-ping rounded-full bg-white/40" />
           <MessageCircle className="relative h-8 w-8" />
         </span>
         <span>{label}</span>
       </a>
+
+      {/* Polite live region: announces when the CTA switches from
+          "send a generic message" to "send the user's filled draft". */}
+      <div role="status" aria-live="polite" className="sr-only">
+        {liveMessage}
+      </div>
     </>
   );
 }
