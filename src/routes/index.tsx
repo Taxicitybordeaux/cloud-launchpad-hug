@@ -341,7 +341,7 @@ function Home() {
       </section>
 
       {/* FAQ */}
-      <section className="border-t border-border">
+      <section id="faq" className="scroll-mt-24 border-t border-border">
         <div className="mx-auto max-w-4xl px-4 py-20">
           <div className="text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">{t("home.faq.eyebrow")}</p>
