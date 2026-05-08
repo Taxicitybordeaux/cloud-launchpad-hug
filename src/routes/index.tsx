@@ -175,7 +175,7 @@ function Home() {
             { icon: ShieldCheck, title: t("svc.cpam.title"), desc: t("svc.cpam.desc") },
             { icon: MapPin, title: t("svc.long.title"), desc: t("svc.long.desc") },
           ].map((s) => (
-            <div key={s.title} className="group rounded-2xl border border-border bg-card p-6 transition hover:border-primary/50">
+            <div key={s.title} className="group flex h-full flex-col rounded-2xl border border-border bg-card p-6 transition hover:border-primary/50">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition group-hover:bg-primary group-hover:text-primary-foreground">
                 <s.icon className="h-5 w-5" />
               </div>
