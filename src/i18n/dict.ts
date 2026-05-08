@@ -340,7 +340,7 @@ const fr: Dict = {
 
   // WhatsApp float
   "wa.float.send": "Envoyer ma demande",
-  "wa.float.label": "WhatsApp",
+  "wa.float.label": "Réserver sur WhatsApp",
   "wa.default":
     "Bonjour, je souhaite réserver un taxi avec Taxi City Bordeaux. Pouvez-vous me confirmer la disponibilité ? Merci.",
   // Tracking page
@@ -678,7 +678,7 @@ const en: Dict = {
   "conf.notfound.cta": "Make a new booking",
 
   "wa.float.send": "Send my request",
-  "wa.float.label": "WhatsApp",
+  "wa.float.label": "Book on WhatsApp",
   "wa.default":
     "Hello, I'd like to book a taxi with Taxi City Bordeaux. Could you confirm availability? Thanks.",
   "suivi.title": "Track your driver",
@@ -1015,7 +1015,7 @@ const es: Dict = {
   "conf.notfound.cta": "Hacer una nueva reserva",
 
   "wa.float.send": "Enviar mi solicitud",
-  "wa.float.label": "WhatsApp",
+  "wa.float.label": "Reservar por WhatsApp",
   "wa.default":
     "Hola, quisiera reservar un taxi con Taxi City Bordeaux. ¿Podría confirmarme la disponibilidad? Gracias.",
   "suivi.title": "Sigue a tu conductor",
@@ -1352,7 +1352,7 @@ const it: Dict = {
   "conf.notfound.cta": "Effettua una nuova prenotazione",
 
   "wa.float.send": "Invia la mia richiesta",
-  "wa.float.label": "WhatsApp",
+  "wa.float.label": "Prenota su WhatsApp",
   "wa.default":
     "Salve, vorrei prenotare un taxi con Taxi City Bordeaux. Potete confermarmi la disponibilità? Grazie.",
   "suivi.title": "Segui il tuo autista",
@@ -1647,7 +1647,7 @@ const ar: Dict = {
   "conf.notfound.cta": "إنشاء حجز جديد",
 
   "wa.float.send": "أرسل طلبي",
-  "wa.float.label": "واتساب",
+  "wa.float.label": "احجز عبر واتساب",
   "wa.default": "مرحباً، أود حجز سيارة أجرة مع تاكسي سيتي بوردو. هل يمكنك تأكيد التوفر؟ شكراً.",
   "suivi.title": "تتبع سائقك",
   "suivi.hello": "مرحباً",
