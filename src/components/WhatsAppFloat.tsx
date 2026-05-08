@@ -3,6 +3,7 @@ import { MessageCircle } from "lucide-react";
 import { useReservationDraft } from "@/lib/reservation-draft";
 import { buildReservationMessage, whatsappLink } from "@/lib/whatsapp";
 import { useI18n } from "@/i18n/I18nProvider";
+import { trackCtaClick } from "@/lib/analytics";
 
 export function WhatsAppFloat() {
   const { t, lang } = useI18n();
@@ -16,6 +17,15 @@ export function WhatsAppFloat() {
   // Announced politely when the draft becomes available, so SR users know
   // the CTA now sends their filled-in reservation rather than a generic message.
   const liveMessage = draft ? t("wa.aria.draftReady") : "";
+
+  const handleClick = (variant: "mobile_sticky" | "desktop_float") => () => {
+    trackCtaClick({
+      event_type: "whatsapp_click",
+      variant,
+      has_draft: Boolean(draft),
+      lang,
+    });
+  };
 
   // Measure the mobile sticky bar so the page-content spacer below
   // always matches its real height (label length, line wraps, safe-area
