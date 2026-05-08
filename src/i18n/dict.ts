@@ -761,10 +761,10 @@ const es: Dict = {
     "Algunas respuestas a las preguntas más frecuentes. Si no encuentra la suya, basta con una llamada.",
   "faq.q1": "¿Está concertado con la CPAM?",
   "faq.a1":
-    "Sí, estamos concertados con la CPAM para transportes médicos (consultas, diálisis, hospitalizaciones…). Pida a su médico la prescripción de transporte y nos encargamos del resto — en la mayoría de los casos no adelanta nada.",
+    "Sí, estamos concertados con la CPAM para transportes médicos (consultas, diálisis, hospitalizaciones…). Pida a su médico la prescripción de transporte y nos encargamos del resto. Con un bono de transporte, facturación directa a la Seguridad Social. Tercer pagador o ALD — bono de transporte para todas las distancias.",
   "faq.q2": "¿Y si mi vuelo se retrasa en Mérignac?",
   "faq.a2":
-    "Seguimos su vuelo en tiempo real. Si el avión llega antes o después, ajustamos la hora de recogida. La primera media hora de espera tras el aterrizaje es gratis.",
+    "Seguimos su vuelo en tiempo real. Si el avión llega antes o después, ajustamos la hora de recogida.",
   "faq.q3": "¿Cómo cancelo o modifico mi reserva?",
   "faq.a3":
     "Una llamada o WhatsApp es suficiente. La cancelación es gratuita hasta 2 horas antes. Para cualquier cambio (hora, dirección, pasajeros), avísenos cuanto antes.",
@@ -776,7 +776,7 @@ const es: Dict = {
     "No es obligatorio — también atendemos carreras inmediatas si estamos disponibles. Para un tren temprano o un vuelo, mejor reservar la víspera.",
   "faq.q6": "¿Cuánto equipaje puedo llevar?",
   "faq.a6":
-    "Una berlina cómoda admite 3 o 4 maletas y 4 pasajeros. Para grupos, material voluminoso o bicicleta, avísenos al reservar.",
+    "Una berlina cómoda admite 3 o 4 maletas y 4 pasajeros. Para grupos o material voluminoso, avísenos al reservar.",
 
   "home.cta.title": "¿Listo para reservar su carrera?",
   "home.cta.desc":
