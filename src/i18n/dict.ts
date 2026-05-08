@@ -1369,6 +1369,15 @@ const it: Dict = {
   "suivi.notfound.desc": "Il link di tracciamento non è valido o è scaduto.",
   "suivi.back_home": "Torna alla home",
   "conf.track": "Segui il mio autista in tempo reale",
+
+  "faqx.title": "Domande frequenti",
+  "faqx.intro": "Tutto quello che c'è da sapere prima della corsa.",
+  "faqx.tracking.q": "Come funziona il tracciamento in tempo reale del volo o del treno?",
+  "faqx.tracking.a": "Appena ci comunica il numero del volo o del treno, lo seguiamo automaticamente. Se l'arrivo è in anticipo o in ritardo, l'orario di prelievo viene aggiornato — non deve fare nulla, l'autista la aspetterà all'uscita.",
+  "faqx.wait.q": "Quanto tempo attende l'autista dopo l'atterraggio?",
+  "faqx.wait.a": "L'autista si presenta in base all'orario reale di atterraggio (non a quello previsto) e teniamo conto del tempo per ritirare i bagagli e passare la dogana. Oltre, l'attesa supplementare è fatturata secondo la tariffa ufficiale regolamentata, in totale trasparenza.",
+  "faqx.cpam.q": "Come funziona la copertura CPAM / ALD?",
+  "faqx.cpam.a": "Porti la prescrizione medica di trasporto rilasciata dal medico. Con questo buono di trasporto applichiamo il pagamento diretto: la corsa è a carico dell'Assicurazione Sanitaria francese. In ALD (malattia di lunga durata) la copertura è totale e valida per tutte le distanze, anche per lunghi trasferimenti verso centri specializzati.",
 };
 
 // Dictionnaire arabe — traductions clés ; fallback automatique sur le français pour les clés manquantes.
