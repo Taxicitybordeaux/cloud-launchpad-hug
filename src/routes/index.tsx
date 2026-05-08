@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Phone, Plane, Train, Briefcase, Wrench, ShieldCheck, MapPin, Clock, Star, Wallet, Car, ArrowRight, Quote, HelpCircle } from "lucide-react";
 import logo from "@/assets/logo.jpeg";
-import heroCar from "@/assets/hero-car.jpg";
+import heroCar from "@/assets/hero-bordeaux.jpg";
 import destGare from "@/assets/dest-gare.jpg";
 import destAeroport from "@/assets/dest-aeroport.jpg";
 import destVignobles from "@/assets/dest-vignobles.jpg";
@@ -29,37 +29,38 @@ function Home() {
       <section className="relative isolate overflow-hidden">
         <img
           src={heroCar}
-          alt="Taxi City Bordeaux – Mercedes break noir"
+          alt="Bordeaux la nuit – Pont Chaban-Delmas illuminé sur la Garonne"
           className="absolute inset-0 -z-10 h-full w-full object-cover"
           width={1920}
           height={1080}
         />
-        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/60 via-black/30 to-transparent" />
+        {/* Strong dark overlay so headline & body copy stay readable in BOTH light and dark themes */}
+        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/75 via-black/55 to-black/30" />
 
-        <div className="mx-auto max-w-7xl px-4 pt-16 pb-24 md:pt-24 md:pb-32">
+        <div className="mx-auto max-w-7xl px-4 pt-16 pb-24 md:pt-24 md:pb-32 text-white">
           <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-background/40 px-4 py-1.5 text-[11px] font-medium uppercase tracking-[0.25em] text-primary backdrop-blur">
+            <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-black/40 px-4 py-1.5 text-[11px] font-medium uppercase tracking-[0.25em] text-primary backdrop-blur">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
               {t("home.hero.badge")}
             </span>
 
-            <h1 className="mt-7 font-display text-5xl font-bold leading-[1.05] md:text-6xl lg:text-7xl">
+            <h1 className="mt-7 font-display text-5xl font-bold leading-[1.05] text-white md:text-6xl lg:text-7xl">
               {t("home.hero.title.before")} <span className="italic text-primary">{t("home.hero.title.city")}</span>
               <br className="hidden md:block" />{t("home.hero.title.after")}
             </h1>
 
-            <p className="mt-6 max-w-xl text-base text-foreground/80 md:text-lg">
+            <p className="mt-6 max-w-xl text-base text-white/85 md:text-lg">
               {t("home.hero.subtitle")}
             </p>
 
-            <div className="mt-8 flex flex-col gap-3 rounded-2xl border border-border/60 bg-card/70 p-3 backdrop-blur-md sm:flex-row sm:items-center sm:p-2">
-              <div className="flex flex-1 items-center gap-3 px-3 py-2 text-sm text-muted-foreground">
+            <div className="mt-8 flex flex-col gap-3 rounded-2xl border border-white/15 bg-black/40 p-3 backdrop-blur-md sm:flex-row sm:items-center sm:p-2">
+              <div className="flex flex-1 items-center gap-3 px-3 py-2 text-sm text-white/80">
                 <Car className="h-5 w-5 text-primary" />
                 <span>{t("home.hero.need_taxi")}</span>
               </div>
               <a
                 href={`tel:${PHONE}`}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-5 py-3 text-sm font-semibold transition hover:border-primary"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:border-primary"
               >
                 <Phone className="h-4 w-4" /> {PHONE_DISPLAY}
               </a>
@@ -71,7 +72,7 @@ function Home() {
               </Link>
             </div>
 
-            <div className="mt-8 flex flex-wrap items-center gap-x-7 gap-y-3 text-sm text-foreground/70">
+            <div className="mt-8 flex flex-wrap items-center gap-x-7 gap-y-3 text-sm text-white/80">
               <span className="inline-flex items-center gap-2"><Clock className="h-4 w-4 text-primary" /> {t("home.hero.tag1")}</span>
               <span className="inline-flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> {t("home.hero.tag2")}</span>
               <span className="inline-flex items-center gap-2"><Wallet className="h-4 w-4 text-primary" /> {t("home.hero.tag3")}</span>

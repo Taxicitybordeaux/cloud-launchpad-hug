@@ -52,36 +52,28 @@ export function WhatsAppFloat() {
 
   return (
     <>
-      {/* Mobile: full-width sticky bar */}
+      {/* Mobile: small floating icon button (bottom-right) */}
       <div
         ref={mobileBarRef}
-        className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-2 sm:hidden"
-        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.6), transparent)" }}
+        className="fixed bottom-3 right-3 z-50 pb-[max(env(safe-area-inset-bottom),0px)] sm:hidden"
       >
         <a
           href={href}
           target="_blank"
           rel="noopener noreferrer"
           aria-label={ariaLabel}
+          title={label}
           onClick={handleClick("mobile_sticky")}
           onAuxClick={handleClick("mobile_sticky")}
-          className="flex w-full items-center justify-center gap-3 rounded-full bg-[#25D366] px-6 py-4 text-base font-bold text-white shadow-2xl shadow-black/40 ring-2 ring-[#25D366]/30 transition active:scale-95"
+          className="flex h-12 w-12 items-center justify-center rounded-full bg-[#25D366] text-white shadow-xl shadow-black/40 ring-2 ring-[#25D366]/30 transition active:scale-95"
         >
-          <span aria-hidden="true" className="relative flex h-7 w-7 items-center justify-center">
+          <span aria-hidden="true" className="relative flex h-6 w-6 items-center justify-center">
             <span className="absolute inset-0 animate-ping rounded-full bg-white/40" />
-            <MessageCircle className="relative h-7 w-7" />
+            <MessageCircle className="relative h-6 w-6" />
           </span>
-          <span>{label}</span>
         </a>
       </div>
 
-      {/* Mobile spacer — height tracks the sticky bar exactly so page
-          content never sits under it, regardless of screen size. */}
-      <div
-        aria-hidden="true"
-        className="sm:hidden"
-        style={{ height: mobileBarHeight }}
-      />
 
       {/* Desktop: floating bubble bottom-right */}
       <a
