@@ -1087,10 +1087,10 @@ const it: Dict = {
     "Alcune risposte alle domande più frequenti. Se non trovi la tua, una telefonata basta.",
   "faq.q1": "Siete convenzionati CPAM per il trasporto medico?",
   "faq.a1":
-    "Sì, siamo convenzionati per il trasporto medico assicurato (esami, dialisi, ospedale…). Fatevi rilasciare la prescrizione di trasporto dal medico, ci occupiamo del resto: nella maggior parte dei casi non dovete anticipare nulla.",
+    "Sì, siamo convenzionati per il trasporto medico assicurato (esami, dialisi, ospedale…). Fatevi rilasciare la prescrizione di trasporto dal medico, ci occupiamo del resto. Con un buono di trasporto, fatturazione diretta all'assicurazione sanitaria. Terzo pagante o ALD — buono di trasporto per tutte le distanze.",
   "faq.q2": "Cosa succede se il mio volo a Mérignac è in ritardo?",
   "faq.a2":
-    "Monitoriamo il vostro volo in tempo reale. In caso di atterraggio anticipato o ritardato adattiamo l'orario di prelievo. La prima mezz'ora di attesa dopo l'atterraggio è offerta.",
+    "Monitoriamo il vostro volo in tempo reale. In caso di atterraggio anticipato o ritardato adattiamo l'orario di prelievo.",
   "faq.q3": "Come modificare o annullare la mia prenotazione?",
   "faq.a3":
     "Una telefonata o un messaggio WhatsApp bastano. Annullamento gratuito fino a 2 ore prima della corsa. Per modifiche (orario, indirizzo, persone) avvisateci il prima possibile.",
@@ -1102,7 +1102,7 @@ const it: Dict = {
     "Non obbligatoriamente: accettiamo anche corse immediate se siamo disponibili. Per un treno o un volo presto al mattino, meglio prenotare il giorno prima.",
   "faq.q6": "Quanti bagagli posso portare?",
   "faq.a6":
-    "Una berlina confortevole accoglie facilmente 3-4 valigie e 4 persone. Per gruppi, oggetti ingombranti o una bici, segnalatecelo al momento della prenotazione.",
+    "Una berlina confortevole accoglie facilmente 3-4 valigie e 4 persone. Per gruppi o oggetti ingombranti, segnalatecelo al momento della prenotazione.",
 
   "home.cta.title": "Pronto a prenotare la tua corsa?",
   "home.cta.desc":
