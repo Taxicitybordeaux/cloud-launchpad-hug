@@ -100,10 +100,10 @@ const fr: Dict = {
     "Quelques réponses aux questions qu'on nous pose le plus souvent. Si vous ne trouvez pas, un coup de fil suffit.",
   "faq.q1": "Êtes-vous conventionné CPAM ?",
   "faq.a1":
-    "Oui, nous sommes conventionnés avec la CPAM pour les transports de santé (consultations, dialyses, hospitalisations…). Pensez à demander à votre médecin la prescription médicale de transport, et nous nous occupons du reste — vous n'avancez pas les frais dans la plupart des cas.",
+    "Oui, nous sommes conventionnés avec la CPAM pour les transports de santé (consultations, dialyses, hospitalisations…). Pensez à demander à votre médecin la prescription médicale de transport, et nous nous occupons du reste. Sur présentation d'un bon de transport, prise en charge directe par l'Assurance Maladie. Tiers payant ou ALD — bon de transport toutes distances.",
   "faq.q2": "Que se passe-t-il si mon vol a du retard à Mérignac ?",
   "faq.a2":
-    "On suit votre vol en temps réel. Si l'avion arrive en avance ou en retard, on ajuste l'heure de prise en charge. La première demi-heure d'attente après l'atterrissage est offerte — on ne facture jamais un retard qui n'est pas le vôtre.",
+    "On suit votre vol en temps réel. Si l'avion arrive en avance ou en retard, on ajuste l'heure de prise en charge.",
   "faq.q3": "Comment annuler ou modifier ma réservation ?",
   "faq.a3":
     "Un simple appel ou message WhatsApp suffit. L'annulation est gratuite jusqu'à 2 heures avant la course. Pour une modification (horaire, adresse, nombre de passagers), prévenez-nous dès que possible — on s'arrange.",
@@ -115,7 +115,7 @@ const fr: Dict = {
     "Pas obligatoire — on prend aussi les courses immédiates si on est disponible. Pour un train tôt le matin, un vol ou un rendez-vous important, mieux vaut réserver la veille pour être tranquille.",
   "faq.q6": "Combien de bagages puis-je emporter ?",
   "faq.a6":
-    "Une berline confortable accepte facilement 3 à 4 valises et 4 passagers. Pour un groupe, du matériel encombrant ou un vélo, prévenez-nous à la réservation, on adapte le véhicule.",
+    "Une berline confortable accepte facilement 3 à 4 valises et 4 passagers. Pour un groupe ou du matériel encombrant, prévenez-nous à la réservation, on adapte le véhicule.",
 
   // Home — final CTA
   "home.cta.title": "Prêt à réserver votre course ?",
@@ -173,7 +173,7 @@ const fr: Dict = {
   "tarifs.eyebrow": "Tarifs",
   "tarifs.title": "Des prix transparents",
   "tarifs.intro":
-    "Tarifs indicatifs basés sur la réglementation préfectorale. Un devis précis vous est confirmé à la réservation.",
+    "Tarifs indicatifs basés sur la réglementation préfectorale. Un tarif précis vous est confirmé à la réservation.",
   "tarifs.col.from": "Départ",
   "tarifs.col.to": "Arrivée",
   "tarifs.col.day": "Tarif jour",
@@ -236,7 +236,7 @@ const fr: Dict = {
   "contact.form.eyebrow": "Formulaire",
   "contact.form.title": "Envoyez-nous un message",
   "contact.form.intro":
-    "Pour un devis, une question ou une demande particulière — nous vous répondons dans les plus brefs délais.",
+    "Pour une question ou une demande particulière — nous vous répondons dans les plus brefs délais.",
   "contact.form.name": "Nom complet *",
   "contact.form.email": "Email *",
   "contact.form.phone": "Téléphone (facultatif)",
@@ -282,7 +282,7 @@ const fr: Dict = {
   "res.f.kind.airport": "Aéroport",
   "res.f.kind.train": "Gare",
   "res.f.kind.cpam": "Conventionné CPAM",
-  "res.f.kind.wedding": "Mariage / événement",
+  "res.f.kind.wedding": "Assistance dépannage",
   "res.f.kind.business": "Business",
   "res.f.kind.long": "Longue distance",
   "res.f.needs": "Besoins spécifiques",
@@ -436,10 +436,10 @@ const en: Dict = {
     "A few answers to the questions we get most often. If you can't find yours, just give us a call.",
   "faq.q1": "Are you CPAM-certified for medical transport?",
   "faq.a1":
-    "Yes, we are certified by the CPAM for health transport (consultations, dialysis, hospital stays…). Just ask your doctor for the medical transport prescription, and we take care of the rest — in most cases you don't pay anything upfront.",
+    "Yes, we are certified by the CPAM for health transport (consultations, dialysis, hospital stays…). Just ask your doctor for the medical transport prescription, and we take care of the rest. With a transport voucher, direct billing to the French health insurance. Third-party payment or ALD — transport voucher for all distances.",
   "faq.q2": "What if my flight at Mérignac is delayed?",
   "faq.a2":
-    "We track your flight in real time. If your plane lands early or late, we adjust the pick-up time. The first half hour of waiting after landing is free — we never charge for a delay that isn't yours.",
+    "We track your flight in real time. If your plane lands early or late, we adjust the pick-up time.",
   "faq.q3": "How can I cancel or change my booking?",
   "faq.a3":
     "A simple call or WhatsApp message is enough. Cancellation is free up to 2 hours before the ride. For a change (time, address, passengers), let us know as soon as possible — we'll arrange it.",
@@ -451,7 +451,7 @@ const en: Dict = {
     "Not mandatory — we also take immediate rides if we're available. For an early train, a flight or an important meeting, it's safer to book the day before.",
   "faq.q6": "How much luggage can I bring?",
   "faq.a6":
-    "A comfortable sedan easily fits 3 to 4 suitcases and 4 passengers. For a group, bulky items or a bicycle, let us know when booking and we'll adapt the vehicle.",
+    "A comfortable sedan easily fits 3 to 4 suitcases and 4 passengers. For a group or bulky items, let us know when booking and we'll adapt the vehicle.",
 
   "home.cta.title": "Ready to book your ride?",
   "home.cta.desc":
@@ -505,7 +505,7 @@ const en: Dict = {
   "tarifs.eyebrow": "Pricing",
   "tarifs.title": "Transparent prices",
   "tarifs.intro":
-    "Indicative prices based on the prefectoral regulations. An exact quote is confirmed at booking.",
+    "Indicative prices based on the prefectoral regulations. An exact price is confirmed at booking.",
   "tarifs.col.from": "From",
   "tarifs.col.to": "To",
   "tarifs.col.day": "Day rate",
@@ -566,7 +566,7 @@ const en: Dict = {
   "contact.form.eyebrow": "Form",
   "contact.form.title": "Send us a message",
   "contact.form.intro":
-    "For a quote, a question or a special request — we reply as soon as possible.",
+    "For a question or a special request — we reply as soon as possible.",
   "contact.form.name": "Full name *",
   "contact.form.email": "Email *",
   "contact.form.phone": "Phone (optional)",
@@ -611,7 +611,7 @@ const en: Dict = {
   "res.f.kind.airport": "Airport",
   "res.f.kind.train": "Station",
   "res.f.kind.cpam": "CPAM medical",
-  "res.f.kind.wedding": "Wedding / event",
+  "res.f.kind.wedding": "Breakdown assistance",
   "res.f.kind.business": "Business",
   "res.f.kind.long": "Long distance",
   "res.f.needs": "Special needs",
@@ -761,10 +761,10 @@ const es: Dict = {
     "Algunas respuestas a las preguntas más frecuentes. Si no encuentra la suya, basta con una llamada.",
   "faq.q1": "¿Está concertado con la CPAM?",
   "faq.a1":
-    "Sí, estamos concertados con la CPAM para transportes médicos (consultas, diálisis, hospitalizaciones…). Pida a su médico la prescripción de transporte y nos encargamos del resto — en la mayoría de los casos no adelanta nada.",
+    "Sí, estamos concertados con la CPAM para transportes médicos (consultas, diálisis, hospitalizaciones…). Pida a su médico la prescripción de transporte y nos encargamos del resto. Con un bono de transporte, facturación directa a la Seguridad Social. Tercer pagador o ALD — bono de transporte para todas las distancias.",
   "faq.q2": "¿Y si mi vuelo se retrasa en Mérignac?",
   "faq.a2":
-    "Seguimos su vuelo en tiempo real. Si el avión llega antes o después, ajustamos la hora de recogida. La primera media hora de espera tras el aterrizaje es gratis.",
+    "Seguimos su vuelo en tiempo real. Si el avión llega antes o después, ajustamos la hora de recogida.",
   "faq.q3": "¿Cómo cancelo o modifico mi reserva?",
   "faq.a3":
     "Una llamada o WhatsApp es suficiente. La cancelación es gratuita hasta 2 horas antes. Para cualquier cambio (hora, dirección, pasajeros), avísenos cuanto antes.",
@@ -776,7 +776,7 @@ const es: Dict = {
     "No es obligatorio — también atendemos carreras inmediatas si estamos disponibles. Para un tren temprano o un vuelo, mejor reservar la víspera.",
   "faq.q6": "¿Cuánto equipaje puedo llevar?",
   "faq.a6":
-    "Una berlina cómoda admite 3 o 4 maletas y 4 pasajeros. Para grupos, material voluminoso o bicicleta, avísenos al reservar.",
+    "Una berlina cómoda admite 3 o 4 maletas y 4 pasajeros. Para grupos o material voluminoso, avísenos al reservar.",
 
   "home.cta.title": "¿Listo para reservar su carrera?",
   "home.cta.desc":
@@ -831,7 +831,7 @@ const es: Dict = {
   "tarifs.eyebrow": "Tarifas",
   "tarifs.title": "Precios transparentes",
   "tarifs.intro":
-    "Tarifas indicativas según la regulación prefectoral. Un presupuesto exacto se confirma al reservar.",
+    "Tarifas indicativas según la regulación prefectoral. Un precio exacto se confirma al reservar.",
   "tarifs.col.from": "Origen",
   "tarifs.col.to": "Destino",
   "tarifs.col.day": "Tarifa día",
@@ -892,7 +892,7 @@ const es: Dict = {
   "contact.form.eyebrow": "Formulario",
   "contact.form.title": "Envíenos un mensaje",
   "contact.form.intro":
-    "Para un presupuesto, una pregunta o una petición especial — respondemos lo antes posible.",
+    "Para una pregunta o una petición especial — respondemos lo antes posible.",
   "contact.form.name": "Nombre completo *",
   "contact.form.email": "Email *",
   "contact.form.phone": "Teléfono (opcional)",
@@ -937,7 +937,7 @@ const es: Dict = {
   "res.f.kind.airport": "Aeropuerto",
   "res.f.kind.train": "Estación",
   "res.f.kind.cpam": "CPAM médico",
-  "res.f.kind.wedding": "Boda / evento",
+  "res.f.kind.wedding": "Asistencia avería",
   "res.f.kind.business": "Negocios",
   "res.f.kind.long": "Larga distancia",
   "res.f.needs": "Necesidades especiales",
@@ -1087,10 +1087,10 @@ const it: Dict = {
     "Alcune risposte alle domande più frequenti. Se non trovi la tua, una telefonata basta.",
   "faq.q1": "Siete convenzionati CPAM per il trasporto medico?",
   "faq.a1":
-    "Sì, siamo convenzionati per il trasporto medico assicurato (esami, dialisi, ospedale…). Fatevi rilasciare la prescrizione di trasporto dal medico, ci occupiamo del resto: nella maggior parte dei casi non dovete anticipare nulla.",
+    "Sì, siamo convenzionati per il trasporto medico assicurato (esami, dialisi, ospedale…). Fatevi rilasciare la prescrizione di trasporto dal medico, ci occupiamo del resto. Con un buono di trasporto, fatturazione diretta all'assicurazione sanitaria. Terzo pagante o ALD — buono di trasporto per tutte le distanze.",
   "faq.q2": "Cosa succede se il mio volo a Mérignac è in ritardo?",
   "faq.a2":
-    "Monitoriamo il vostro volo in tempo reale. In caso di atterraggio anticipato o ritardato adattiamo l'orario di prelievo. La prima mezz'ora di attesa dopo l'atterraggio è offerta.",
+    "Monitoriamo il vostro volo in tempo reale. In caso di atterraggio anticipato o ritardato adattiamo l'orario di prelievo.",
   "faq.q3": "Come modificare o annullare la mia prenotazione?",
   "faq.a3":
     "Una telefonata o un messaggio WhatsApp bastano. Annullamento gratuito fino a 2 ore prima della corsa. Per modifiche (orario, indirizzo, persone) avvisateci il prima possibile.",
@@ -1102,7 +1102,7 @@ const it: Dict = {
     "Non obbligatoriamente: accettiamo anche corse immediate se siamo disponibili. Per un treno o un volo presto al mattino, meglio prenotare il giorno prima.",
   "faq.q6": "Quanti bagagli posso portare?",
   "faq.a6":
-    "Una berlina confortevole accoglie facilmente 3-4 valigie e 4 persone. Per gruppi, oggetti ingombranti o una bici, segnalatecelo al momento della prenotazione.",
+    "Una berlina confortevole accoglie facilmente 3-4 valigie e 4 persone. Per gruppi o oggetti ingombranti, segnalatecelo al momento della prenotazione.",
 
   "home.cta.title": "Pronto a prenotare la tua corsa?",
   "home.cta.desc":
@@ -1157,7 +1157,7 @@ const it: Dict = {
   "tarifs.eyebrow": "Tariffe",
   "tarifs.title": "Tariffe trasparenti",
   "tarifs.intro":
-    "Tariffe indicative secondo le norme prefettizie. Un preventivo preciso è confermato alla prenotazione.",
+    "Tariffe indicative secondo le norme prefettizie. Un prezzo preciso è confermato alla prenotazione.",
   "tarifs.col.from": "Partenza",
   "tarifs.col.to": "Destinazione",
   "tarifs.col.day": "Tariffa diurna",
@@ -1212,18 +1212,18 @@ const it: Dict = {
   "contact.wa.line": "Scriveteci su WhatsApp",
   "contact.wa.sub": "Ideale per inviare un indirizzo",
   "contact.email": "Email",
-  "contact.email.sub": "Preventivi e richieste particolari",
+  "contact.email.sub": "Richieste particolari",
   "contact.address": "Indirizzo",
   "contact.address.area": "Interveniamo in tutta la Gironda.",
   "contact.form.eyebrow": "Modulo",
   "contact.form.title": "Inviateci un messaggio",
   "contact.form.intro":
-    "Per un preventivo, una domanda o una richiesta particolare — vi rispondiamo al più presto.",
+    "Per una domanda o una richiesta particolare — vi rispondiamo al più presto.",
   "contact.form.name": "Nome completo *",
   "contact.form.email": "Email *",
   "contact.form.phone": "Telefono (opzionale)",
   "contact.form.subject": "Oggetto (opzionale)",
-  "contact.form.subject.ph": "Es.: Preventivo Bordeaux → Parigi",
+  "contact.form.subject.ph": "Es.: Bordeaux → Parigi",
   "contact.form.message": "Messaggio *",
   "contact.form.message.ph": "Descrivete la vostra richiesta…",
   "contact.form.send": "Invia il messaggio",
@@ -1263,7 +1263,7 @@ const it: Dict = {
   "res.f.kind.airport": "Aeroporto",
   "res.f.kind.train": "Stazione",
   "res.f.kind.cpam": "Medico CPAM",
-  "res.f.kind.wedding": "Matrimonio / evento",
+  "res.f.kind.wedding": "Soccorso panne",
   "res.f.kind.business": "Affari",
   "res.f.kind.long": "Lunga distanza",
   "res.f.needs": "Esigenze particolari",
@@ -1407,9 +1407,9 @@ const ar: Dict = {
   "home.faq.title": "إجابات صادقة",
   "home.faq.intro": "بعض الإجابات على الأسئلة الأكثر تكراراً. إذا لم تجد سؤالك، اتصل بنا.",
   "faq.q1": "هل أنتم معتمدون من CPAM للنقل الطبي؟",
-  "faq.a1": "نعم، نحن معتمدون من CPAM للنقل الصحي (الاستشارات، غسيل الكلى، الإقامة في المستشفى…). فقط اطلب وصفة النقل الطبي من طبيبك، ونحن نتولى الباقي — في معظم الحالات لا تدفع شيئاً مقدماً.",
+  "faq.a1": "نعم، نحن معتمدون من CPAM للنقل الصحي (الاستشارات، غسيل الكلى، الإقامة في المستشفى…). فقط اطلب وصفة النقل الطبي من طبيبك، ونحن نتولى الباقي. عند تقديم بون النقل، التغطية المباشرة من التأمين الصحي. الدفع من طرف ثالث أو ALD — بون نقل لجميع المسافات.",
   "faq.q2": "ماذا لو تأخرت رحلتي في ميرينياك؟",
-  "faq.a2": "نتتبع رحلتك في الوقت الفعلي. إذا هبطت طائرتك مبكراً أو متأخراً، نضبط وقت الاستقبال. أول نصف ساعة انتظار بعد الهبوط مجاناً — لا نحاسب على تأخير ليس منك.",
+  "faq.a2": "نتتبع رحلتك في الوقت الفعلي. إذا هبطت طائرتك مبكراً أو متأخراً، نضبط وقت الاستقبال.",
   "faq.q3": "كيف ألغي أو أعدل حجزي؟",
   "faq.a3": "مكالمة بسيطة أو رسالة واتساب تكفي. الإلغاء مجاني حتى ساعتين قبل الرحلة. للتعديل (الوقت، العنوان، الركاب)، أعلمنا في أقرب وقت — سنرتب الأمر.",
   "faq.q4": "ما هي طرق الدفع المقبولة؟",
@@ -1417,7 +1417,7 @@ const ar: Dict = {
   "faq.q5": "هل يجب الحجز مسبقاً؟",
   "faq.a5": "ليس إلزامياً — نقبل أيضاً الرحلات الفورية إذا كنا متاحين. لقطار مبكر أو رحلة طيران أو اجتماع مهم، يفضل الحجز قبل يوم.",
   "faq.q6": "كم من الأمتعة يمكنني حملها؟",
-  "faq.a6": "السيارة تتسع بسهولة لـ 3-4 حقائب و4 ركاب. للمجموعات أو الأمتعة الكبيرة أو الدراجة، أعلمنا عند الحجز ونكيف السيارة.",
+  "faq.a6": "السيارة تتسع بسهولة لـ 3-4 حقائب و4 ركاب. للمجموعات أو الأمتعة الكبيرة، أعلمنا عند الحجز ونكيف السيارة.",
 
   "home.cta.title": "جاهز لحجز رحلتك؟",
   "home.cta.desc": "تأكيد سريع، سائق محترف وسعر شفاف — اتصل بنا أو احجز عبر الإنترنت.",
@@ -1508,17 +1508,17 @@ const ar: Dict = {
   "contact.wa.line": "دردش عبر واتساب",
   "contact.wa.sub": "ممتاز لمشاركة عنوان",
   "contact.email": "البريد الإلكتروني",
-  "contact.email.sub": "عروض الأسعار والطلبات الخاصة",
+  "contact.email.sub": "الطلبات الخاصة",
   "contact.address": "العنوان",
   "contact.address.area": "نعمل في كامل منطقة جيروند.",
   "contact.form.eyebrow": "نموذج",
   "contact.form.title": "أرسل لنا رسالة",
-  "contact.form.intro": "لعرض سعر، سؤال أو طلب خاص — نرد بأسرع وقت ممكن.",
+  "contact.form.intro": "لسؤال أو طلب خاص — نرد بأسرع وقت ممكن.",
   "contact.form.name": "الاسم الكامل *",
   "contact.form.email": "البريد الإلكتروني *",
   "contact.form.phone": "الهاتف (اختياري)",
   "contact.form.subject": "الموضوع (اختياري)",
-  "contact.form.subject.ph": "مثال: عرض سعر بوردو → باريس",
+  "contact.form.subject.ph": "مثال: بوردو → باريس",
   "contact.form.message": "الرسالة *",
   "contact.form.message.ph": "أخبرنا عن طلبك…",
   "contact.form.send": "أرسل الرسالة",
@@ -1555,7 +1555,7 @@ const ar: Dict = {
   "res.f.kind.airport": "مطار",
   "res.f.kind.train": "محطة",
   "res.f.kind.cpam": "طبي CPAM",
-  "res.f.kind.wedding": "زفاف / مناسبة",
+  "res.f.kind.wedding": "إغاثة عطل",
   "res.f.kind.business": "أعمال",
   "res.f.kind.long": "مسافة طويلة",
   "res.f.needs": "احتياجات خاصة",
