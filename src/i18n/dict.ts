@@ -695,6 +695,15 @@ const en: Dict = {
   "suivi.notfound.desc": "This tracking link is invalid or expired.",
   "suivi.back_home": "Back to home",
   "conf.track": "Track my driver live",
+
+  "faqx.title": "Frequently asked questions",
+  "faqx.intro": "Everything you need to know before your ride.",
+  "faqx.tracking.q": "How does real-time flight or train tracking work?",
+  "faqx.tracking.a": "As soon as you share your flight or train number, we track it automatically. If your arrival is early or delayed, the pick-up time is adjusted — you don't need to do anything, your driver will be waiting when you come out.",
+  "faqx.wait.q": "How long does the driver wait after landing?",
+  "faqx.wait.a": "The driver shows up based on actual landing time (not the scheduled one), and we account for the time needed to collect your luggage and clear customs. Beyond that, additional waiting time is billed at the official regulated rate, in full transparency.",
+  "faqx.cpam.q": "How does CPAM / ALD coverage work?",
+  "faqx.cpam.a": "Bring the medical transport prescription given by your doctor. With this transport voucher we apply third-party payment: the ride is billed directly to the French health insurance. Under ALD (long-term illness), coverage is full and valid for all distances — including long trips to a specialised centre.",
 };
 
 const es: Dict = {
