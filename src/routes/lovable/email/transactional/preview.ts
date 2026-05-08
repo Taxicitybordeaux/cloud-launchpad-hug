@@ -85,7 +85,7 @@ export const Route = createFileRoute("/lovable/email/transactional/preview")({
               subject: '',
               html: '',
               status: 'render_failed',
-              errorMessage: err instanceof Error ? err.message : String(err),
+              errorMessage: 'Render failed — see server logs',
             })
           }
         }
