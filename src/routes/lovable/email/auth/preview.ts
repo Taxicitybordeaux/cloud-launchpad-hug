@@ -82,9 +82,9 @@ export const Route = createFileRoute("/lovable/email/auth/preview")({
           )
         }
 
-        // Verify the caller is authorized with LOVABLE_API_KEY
+        // Verify the caller is authorized with LOVABLE_API_KEY (timing-safe)
         const authHeader = request.headers.get('Authorization')
-        if (!authHeader || authHeader !== `Bearer ${apiKey}`) {
+        if (!safeBearerEqual(authHeader, apiKey)) {
           return Response.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
