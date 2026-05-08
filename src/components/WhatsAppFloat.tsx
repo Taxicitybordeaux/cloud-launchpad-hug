@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { MessageCircle } from "lucide-react";
 import { useReservationDraft } from "@/lib/reservation-draft";
 import { buildReservationMessage, whatsappLink } from "@/lib/whatsapp";
@@ -10,10 +11,34 @@ export function WhatsAppFloat() {
   const href = whatsappLink(message);
   const label = draft ? t("wa.float.send") : t("wa.float.label");
 
+  // Measure the mobile sticky bar so the page-content spacer below
+  // always matches its real height (label length, line wraps, safe-area
+  // inset, dynamic font sizes…) on every screen size.
+  const mobileBarRef = useRef<HTMLDivElement | null>(null);
+  const [mobileBarHeight, setMobileBarHeight] = useState<number>(0);
+
+  useEffect(() => {
+    const el = mobileBarRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const update = () => setMobileBarHeight(el.getBoundingClientRect().height);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    // Also re-measure on viewport changes (orientation, dynamic toolbar, font scale).
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+    };
+  }, [label]);
+
   return (
     <>
       {/* Mobile: full-width sticky bar */}
       <div
+        ref={mobileBarRef}
         className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-2 sm:hidden"
         style={{ background: "linear-gradient(to top, rgba(0,0,0,0.6), transparent)" }}
       >
@@ -31,6 +56,14 @@ export function WhatsAppFloat() {
           <span>{label}</span>
         </a>
       </div>
+
+      {/* Mobile spacer — height tracks the sticky bar exactly so page
+          content never sits under it, regardless of screen size. */}
+      <div
+        aria-hidden="true"
+        className="sm:hidden"
+        style={{ height: mobileBarHeight }}
+      />
 
       {/* Desktop: floating bubble bottom-right */}
       <a
