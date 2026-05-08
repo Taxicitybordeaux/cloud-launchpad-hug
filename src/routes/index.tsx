@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Phone, Plane, Train, Briefcase, Wrench, ShieldCheck, MapPin, Clock, Star, Wallet, Car, ArrowRight, Quote, HelpCircle } from "lucide-react";
 import logo from "@/assets/logo.jpeg";
-import heroCar from "@/assets/hero-car.jpg";
+import heroCar from "@/assets/hero-bordeaux.jpg";
 import destGare from "@/assets/dest-gare.jpg";
 import destAeroport from "@/assets/dest-aeroport.jpg";
 import destVignobles from "@/assets/dest-vignobles.jpg";
@@ -29,12 +29,13 @@ function Home() {
       <section className="relative isolate overflow-hidden">
         <img
           src={heroCar}
-          alt="Taxi City Bordeaux – Mercedes break noir"
+          alt="Bordeaux la nuit – Pont Chaban-Delmas illuminé sur la Garonne"
           className="absolute inset-0 -z-10 h-full w-full object-cover"
           width={1920}
           height={1080}
         />
-        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/60 via-black/30 to-transparent" />
+        {/* Strong dark overlay so headline & body copy stay readable in BOTH light and dark themes */}
+        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/75 via-black/55 to-black/30" />
 
         <div className="mx-auto max-w-7xl px-4 pt-16 pb-24 md:pt-24 md:pb-32">
           <div className="max-w-2xl">
