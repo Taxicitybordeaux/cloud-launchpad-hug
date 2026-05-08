@@ -135,8 +135,8 @@ const fr: Dict = {
   "svcp.airport.title": "Transferts Aéroport Mérignac",
   "svcp.airport.desc":
     "Prise en charge ponctuelle pour vos vols, suivi en temps réel des horaires, accueil sur demande.",
-  "svcp.airport.p1": "Suivi des vols",
-  "svcp.airport.p2": "Accueil sur demande",
+  "svcp.airport.p1": "Accueil sur demande",
+  "svcp.airport.p2": "Suivi des vols",
   "svcp.airport.p3": "Aller-retour possible",
   "svcp.train.title": "Gare Saint-Jean & gares TGV",
   "svcp.train.desc":
@@ -469,13 +469,13 @@ const en: Dict = {
   "svcp.airport.title": "Mérignac airport transfers",
   "svcp.airport.desc":
     "On-time pick-up for your flights, real-time tracking, meet & greet on request.",
-  "svcp.airport.p1": "Flight tracking",
-  "svcp.airport.p2": "Greeting on request",
+  "svcp.airport.p1": "Meet & greet on request",
+  "svcp.airport.p2": "Flight tracking",
   "svcp.airport.p3": "Round-trip available",
   "svcp.train.title": "Saint-Jean & TGV stations",
   "svcp.train.desc":
     "Transfers to or from Bordeaux Saint-Jean and any station in the region.",
-  "svcp.train.p1": "Greeting on request",
+  "svcp.train.p1": "Meet & greet on request",
   "svcp.train.p2": "On-time pick-up",
   "svcp.train.p3": "Available 24/7",
   "svcp.business.title": "Business travel",
@@ -794,8 +794,8 @@ const es: Dict = {
   "svcp.airport.title": "Traslados al aeropuerto de Mérignac",
   "svcp.airport.desc":
     "Recogida puntual para sus vuelos, seguimiento en tiempo real, recibimiento a petición.",
-  "svcp.airport.p1": "Seguimiento de vuelos",
-  "svcp.airport.p2": "Recibimiento a petición",
+  "svcp.airport.p1": "Recibimiento a petición",
+  "svcp.airport.p2": "Seguimiento de vuelos",
   "svcp.airport.p3": "Ida y vuelta posible",
   "svcp.train.title": "Estación Saint-Jean y estaciones TGV",
   "svcp.train.desc":
@@ -1120,8 +1120,8 @@ const it: Dict = {
   "svcp.airport.title": "Trasferimenti Aeroporto Mérignac",
   "svcp.airport.desc":
     "Prelievo puntuale per i vostri voli, monitoraggio in tempo reale, accoglienza su richiesta.",
-  "svcp.airport.p1": "Monitoraggio volo",
-  "svcp.airport.p2": "Accoglienza su richiesta",
+  "svcp.airport.p1": "Accoglienza su richiesta",
+  "svcp.airport.p2": "Monitoraggio volo",
   "svcp.airport.p3": "Andata e ritorno possibili",
   "svcp.train.title": "Stazione Saint-Jean & TGV",
   "svcp.train.desc":
@@ -1432,8 +1432,8 @@ const ar: Dict = {
   "services.b3": "سائق محترف",
   "svcp.airport.title": "نقل من وإلى مطار ميرينياك",
   "svcp.airport.desc": "استقبال دقيق لرحلاتك، تتبع فوري، استقبال عند الطلب.",
-  "svcp.airport.p1": "تتبع الرحلات",
-  "svcp.airport.p2": "ترحيب عند الطلب",
+  "svcp.airport.p1": "استقبال عند الطلب",
+  "svcp.airport.p2": "تتبع الرحلات",
   "svcp.airport.p3": "ذهاب وإياب متاح",
   "svcp.train.title": "محطات سان جان وTGV",
   "svcp.train.desc": "نقل من وإلى محطة بوردو سان جان وأي محطة في المنطقة.",
