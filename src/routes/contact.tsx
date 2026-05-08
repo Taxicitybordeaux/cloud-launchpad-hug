@@ -115,10 +115,10 @@ function ContactPage() {
 
         <div className="rounded-2xl border border-border bg-card p-6">
           <MapPin className="h-8 w-8 text-primary" />
-          <h2 className="mt-3 font-display text-xl font-semibold">{t("contact.address")}</h2>
-          <p className="mt-1 font-semibold">163 cours Victor Hugo</p>
-          <p className="text-muted-foreground">33150 Cenon</p>
-          <p className="mt-2 text-sm text-muted-foreground">{t("contact.address.area")}</p>
+          <h2 className="mt-3 font-display text-xl font-semibold">{t("contact.zone.title")}</h2>
+          <p className="mt-1 font-semibold">{t("contact.zone.line1")}</p>
+          <p className="text-muted-foreground">{t("contact.zone.line2")}</p>
+          <p className="mt-2 text-sm text-muted-foreground">{t("contact.zone.sub")}</p>
         </div>
       </div>
 
