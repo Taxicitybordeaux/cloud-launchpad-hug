@@ -200,6 +200,9 @@ function Home() {
         </div>
       </section>
 
+      {/* FARE SIMULATOR */}
+      <FareSimulator />
+
       {/* SERVICES */}
       <section className="mx-auto max-w-7xl px-4 py-20">
         <div className="text-center">
