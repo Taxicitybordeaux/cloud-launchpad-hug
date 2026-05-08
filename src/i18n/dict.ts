@@ -892,7 +892,7 @@ const es: Dict = {
   "contact.form.eyebrow": "Formulario",
   "contact.form.title": "Envíenos un mensaje",
   "contact.form.intro":
-    "Para un presupuesto, una pregunta o una petición especial — respondemos lo antes posible.",
+    "Para una pregunta o una petición especial — respondemos lo antes posible.",
   "contact.form.name": "Nombre completo *",
   "contact.form.email": "Email *",
   "contact.form.phone": "Teléfono (opcional)",
