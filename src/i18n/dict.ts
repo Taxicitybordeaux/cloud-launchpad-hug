@@ -563,8 +563,10 @@ const en: Dict = {
   "contact.wa.sub": "Great for sharing an address",
   "contact.email": "Email",
   "contact.email.sub": "Quotes & special requests",
-  "contact.address": "Address",
-  "contact.address.area": "We operate across the whole Gironde area.",
+  "contact.zone.title": "Service area",
+  "contact.zone.line1": "Bordeaux & Metropolitan area",
+  "contact.zone.line2": "All of Gironde (33)",
+  "contact.zone.sub": "Long-distance trips across France and Europe on request.",
   "contact.form.eyebrow": "Form",
   "contact.form.title": "Send us a message",
   "contact.form.intro":
