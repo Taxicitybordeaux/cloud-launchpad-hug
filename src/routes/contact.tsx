@@ -91,7 +91,7 @@ function ContactPage() {
         <p className="mt-4 text-muted-foreground">{t("contact.intro")}</p>
       </div>
 
-      <div className="mt-12 grid gap-6 md:grid-cols-2">
+      <div className="mt-12 grid gap-6 md:grid-cols-2 md:items-stretch">
         <a href="tel:0673072322" className="group rounded-2xl border border-border bg-card p-6 transition hover:border-primary">
           <Phone className="h-8 w-8 text-primary" />
           <h2 className="mt-3 font-display text-xl font-semibold">{t("contact.phone")}</h2>
