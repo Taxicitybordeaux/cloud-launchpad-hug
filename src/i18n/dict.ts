@@ -794,8 +794,8 @@ const es: Dict = {
   "svcp.airport.title": "Traslados al aeropuerto de Mérignac",
   "svcp.airport.desc":
     "Recogida puntual para sus vuelos, seguimiento en tiempo real, recibimiento a petición.",
-  "svcp.airport.p1": "Seguimiento de vuelos",
-  "svcp.airport.p2": "Recibimiento a petición",
+  "svcp.airport.p1": "Recibimiento a petición",
+  "svcp.airport.p2": "Seguimiento de vuelos",
   "svcp.airport.p3": "Ida y vuelta posible",
   "svcp.train.title": "Estación Saint-Jean y estaciones TGV",
   "svcp.train.desc":
