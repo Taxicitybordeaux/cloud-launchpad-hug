@@ -89,6 +89,8 @@ export function WhatsAppFloat() {
         target="_blank"
         rel="noopener noreferrer"
         aria-label={ariaLabel}
+        onClick={handleClick("desktop_float")}
+        onAuxClick={handleClick("desktop_float")}
         className="group fixed bottom-6 right-6 z-50 hidden items-center gap-3 rounded-full bg-[#25D366] px-7 py-5 text-lg font-bold text-white shadow-2xl shadow-black/40 ring-4 ring-[#25D366]/30 transition hover:scale-105 hover:bg-[#20bd5a] hover:ring-[#25D366]/50 sm:inline-flex"
       >
         <span aria-hidden="true" className="relative flex h-8 w-8 items-center justify-center">
