@@ -3,6 +3,7 @@ import { MessageCircle } from "lucide-react";
 import { useReservationDraft } from "@/lib/reservation-draft";
 import { buildReservationMessage, whatsappLink } from "@/lib/whatsapp";
 import { useI18n } from "@/i18n/I18nProvider";
+import { trackCtaClick } from "@/lib/analytics";
 
 export function WhatsAppFloat() {
   const { t, lang } = useI18n();
@@ -16,6 +17,15 @@ export function WhatsAppFloat() {
   // Announced politely when the draft becomes available, so SR users know
   // the CTA now sends their filled-in reservation rather than a generic message.
   const liveMessage = draft ? t("wa.aria.draftReady") : "";
+
+  const handleClick = (variant: "mobile_sticky" | "desktop_float") => () => {
+    trackCtaClick({
+      event_type: "whatsapp_click",
+      variant,
+      has_draft: Boolean(draft),
+      lang,
+    });
+  };
 
   // Measure the mobile sticky bar so the page-content spacer below
   // always matches its real height (label length, line wraps, safe-area
@@ -53,6 +63,8 @@ export function WhatsAppFloat() {
           target="_blank"
           rel="noopener noreferrer"
           aria-label={ariaLabel}
+          onClick={handleClick("mobile_sticky")}
+          onAuxClick={handleClick("mobile_sticky")}
           className="flex w-full items-center justify-center gap-3 rounded-full bg-[#25D366] px-6 py-4 text-base font-bold text-white shadow-2xl shadow-black/40 ring-2 ring-[#25D366]/30 transition active:scale-95"
         >
           <span aria-hidden="true" className="relative flex h-7 w-7 items-center justify-center">
@@ -77,6 +89,8 @@ export function WhatsAppFloat() {
         target="_blank"
         rel="noopener noreferrer"
         aria-label={ariaLabel}
+        onClick={handleClick("desktop_float")}
+        onAuxClick={handleClick("desktop_float")}
         className="group fixed bottom-6 right-6 z-50 hidden items-center gap-3 rounded-full bg-[#25D366] px-7 py-5 text-lg font-bold text-white shadow-2xl shadow-black/40 ring-4 ring-[#25D366]/30 transition hover:scale-105 hover:bg-[#20bd5a] hover:ring-[#25D366]/50 sm:inline-flex"
       >
         <span aria-hidden="true" className="relative flex h-8 w-8 items-center justify-center">
