@@ -193,12 +193,12 @@ function Home() {
         {/* TARIFS INFO */}
         <div className="mt-12 rounded-2xl border border-border bg-card/50 p-6 md:p-8">
           <p className="text-center text-sm text-muted-foreground">{t("tarifs.note")}</p>
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            <div className="rounded-xl border border-border bg-background/40 p-5">
+          <div className="mt-6 grid gap-4 md:grid-cols-2 md:items-stretch">
+            <div className="flex h-full flex-col rounded-xl border border-border bg-background/40 p-5">
               <h3 className="font-display text-lg font-semibold text-primary">{t("tarifs.cpam.title")}</h3>
               <p className="mt-2 text-sm text-muted-foreground">{t("tarifs.cpam.desc")}</p>
             </div>
-            <div className="rounded-xl border border-border bg-background/40 p-5">
+            <div className="flex h-full flex-col rounded-xl border border-border bg-background/40 p-5">
               <h3 className="font-display text-lg font-semibold text-primary">{t("tarifs.event.title")}</h3>
               <p className="mt-2 text-sm text-muted-foreground">{t("tarifs.event.desc")}</p>
             </div>
