@@ -119,6 +119,18 @@ const fr: Dict = {
     "Une berline confortable accepte facilement 3 à 4 valises et 4 passagers. Pour un groupe ou du matériel encombrant, prévenez-nous à la réservation, on adapte le véhicule.",
 
   // Home — final CTA
+  // Home — comment réserver
+  "home.how.eyebrow": "Comment ça marche",
+  "home.how.title": "Réserver, c'est simple comme un appel",
+  "home.how.intro": "Pas de file d'attente, pas de robot. Juste un échange direct avec votre chauffeur — on confirme, on arrive, on vous emmène.",
+  "home.how.s1.t": "Vous nous contactez",
+  "home.how.s1.d": "Un appel, un message WhatsApp ou le formulaire en ligne — choisissez le plus pratique pour vous.",
+  "home.how.s2.t": "On confirme ensemble",
+  "home.how.s2.d": "On vérifie l'horaire, l'adresse et les détails (vol, bagages, CPAM…) pour qu'il n'y ait aucune surprise.",
+  "home.how.s3.t": "Le chauffeur arrive",
+  "home.how.s3.d": "Pile à l'heure, voiture propre et chauffeur souriant. Vous montez, on s'occupe du reste.",
+  "home.how.s4.t": "Trajet et règlement",
+  "home.how.s4.d": "Tarif annoncé respecté. Carte, espèces, virement ou bon CPAM — comme vous préférez.",
   "home.cta.title": "Prêt à réserver votre course ?",
   "home.cta.desc":
     "Confirmation rapide, chauffeur professionnel et prix transparent — appelez-nous ou réservez en ligne.",
@@ -466,6 +478,18 @@ const en: Dict = {
   "faq.a6":
     "A comfortable sedan easily fits 3 to 4 suitcases and 4 passengers. For a group or bulky items, let us know when booking and we'll adapt the vehicle.",
 
+  // Home — how it works
+  "home.how.eyebrow": "How it works",
+  "home.how.title": "Booking is as simple as a phone call",
+  "home.how.intro": "No queue, no robot. Just a direct chat with your driver — we confirm, we show up, we drive you.",
+  "home.how.s1.t": "You get in touch",
+  "home.how.s1.d": "Phone, WhatsApp or the online form — pick whichever is easiest for you.",
+  "home.how.s2.t": "We confirm together",
+  "home.how.s2.d": "We double-check time, address and details (flight, luggage, CPAM…) so there are no surprises.",
+  "home.how.s3.t": "Your driver arrives",
+  "home.how.s3.d": "On time, clean car, friendly driver. You hop in, we take care of the rest.",
+  "home.how.s4.t": "Ride and payment",
+  "home.how.s4.d": "The quoted price is honoured. Card, cash, bank transfer or CPAM voucher — as you prefer.",
   "home.cta.title": "Ready to book your ride?",
   "home.cta.desc":
     "Quick confirmation, professional driver and transparent price — call us or book online.",
@@ -802,6 +826,18 @@ const es: Dict = {
   "faq.a6":
     "Una berlina cómoda admite 3 o 4 maletas y 4 pasajeros. Para grupos o material voluminoso, avísenos al reservar.",
 
+  // Home — cómo reservar
+  "home.how.eyebrow": "Cómo funciona",
+  "home.how.title": "Reservar es tan simple como una llamada",
+  "home.how.intro": "Sin colas, sin robots. Una conversación directa con su conductor — confirmamos, llegamos, le llevamos.",
+  "home.how.s1.t": "Nos contacta",
+  "home.how.s1.d": "Llamada, WhatsApp o formulario en línea — elija lo que le resulte más cómodo.",
+  "home.how.s2.t": "Confirmamos juntos",
+  "home.how.s2.d": "Verificamos hora, dirección y detalles (vuelo, equipaje, CPAM…) para evitar sorpresas.",
+  "home.how.s3.t": "Llega su conductor",
+  "home.how.s3.d": "Puntual, coche limpio y conductor amable. Suba, nos ocupamos del resto.",
+  "home.how.s4.t": "Trayecto y pago",
+  "home.how.s4.d": "Se respeta el precio anunciado. Tarjeta, efectivo, transferencia o bono CPAM — como prefiera.",
   "home.cta.title": "¿Listo para reservar su carrera?",
   "home.cta.desc":
     "Confirmación rápida, chófer profesional y precio transparente — llámenos o reserve en línea.",
@@ -1139,6 +1175,18 @@ const it: Dict = {
   "faq.a6":
     "Una berlina confortevole accoglie facilmente 3-4 valigie e 4 persone. Per gruppi o oggetti ingombranti, segnalatecelo al momento della prenotazione.",
 
+  // Home — come prenotare
+  "home.how.eyebrow": "Come funziona",
+  "home.how.title": "Prenotare è semplice come una telefonata",
+  "home.how.intro": "Niente code, niente robot. Una chiacchierata diretta con il tuo autista — confermiamo, arriviamo, ti portiamo.",
+  "home.how.s1.t": "Ci contatti",
+  "home.how.s1.d": "Telefono, WhatsApp o modulo online — scegli quello che ti è più comodo.",
+  "home.how.s2.t": "Confermiamo insieme",
+  "home.how.s2.d": "Verifichiamo orario, indirizzo e dettagli (volo, bagagli, CPAM…) per evitare sorprese.",
+  "home.how.s3.t": "Arriva il tuo autista",
+  "home.how.s3.d": "Puntuale, auto pulita e autista cordiale. Sali, pensiamo a tutto noi.",
+  "home.how.s4.t": "Corsa e pagamento",
+  "home.how.s4.d": "Il prezzo annunciato è rispettato. Carta, contanti, bonifico o buono CPAM — come preferisci.",
   "home.cta.title": "Pronto a prenotare la tua corsa?",
   "home.cta.desc":
     "Conferma rapida, autista professionale e prezzo trasparente: chiamateci o prenotate online.",
@@ -1465,6 +1513,18 @@ const ar: Dict = {
   "faq.q6": "كم من الأمتعة يمكنني حملها؟",
   "faq.a6": "السيارة تتسع بسهولة لـ 3-4 حقائب و4 ركاب. للمجموعات أو الأمتعة الكبيرة، أعلمنا عند الحجز ونكيف السيارة.",
 
+  // Home — كيف نحجز
+  "home.how.eyebrow": "كيف يعمل",
+  "home.how.title": "الحجز بسيط كاتصال هاتفي",
+  "home.how.intro": "لا انتظار ولا روبوت. فقط تواصل مباشر مع سائقك — نؤكد، نصل، ننقلك.",
+  "home.how.s1.t": "تتواصل معنا",
+  "home.how.s1.d": "هاتف، واتساب أو النموذج عبر الإنترنت — اختر ما يناسبك.",
+  "home.how.s2.t": "نؤكد معاً",
+  "home.how.s2.d": "نتحقق من الموعد والعنوان والتفاصيل (الرحلة، الأمتعة، CPAM…) لتجنب أي مفاجآت.",
+  "home.how.s3.t": "يصل سائقك",
+  "home.how.s3.d": "في الموعد، سيارة نظيفة وسائق ودود. اصعد، نحن نتكفل بالباقي.",
+  "home.how.s4.t": "الرحلة والدفع",
+  "home.how.s4.d": "السعر المعلن محترم. بطاقة، نقداً، تحويل أو بون CPAM — كما تفضل.",
   "home.cta.title": "جاهز لحجز رحلتك؟",
   "home.cta.desc": "تأكيد سريع، سائق محترف وسعر شفاف — اتصل بنا أو احجز عبر الإنترنت.",
   "home.cta.online": "احجز عبر الإنترنت",
@@ -1778,6 +1838,18 @@ const pt: Dict = {
     "Uma berlina confortável transporta facilmente 3 a 4 malas e 4 passageiros. Para um grupo ou material volumoso, avise-nos na reserva e adaptamos o veículo.",
 
   // Home — final CTA
+  // Home — como reservar
+  "home.how.eyebrow": "Como funciona",
+  "home.how.title": "Reservar é tão simples como um telefonema",
+  "home.how.intro": "Sem filas, sem robôs. Apenas uma conversa direta com o seu motorista — confirmamos, chegamos, levamo-lo.",
+  "home.how.s1.t": "Entra em contacto",
+  "home.how.s1.d": "Telefone, WhatsApp ou formulário online — escolha o que for mais prático.",
+  "home.how.s2.t": "Confirmamos juntos",
+  "home.how.s2.d": "Verificamos hora, morada e detalhes (voo, bagagem, CPAM…) para não haver surpresas.",
+  "home.how.s3.t": "O seu motorista chega",
+  "home.how.s3.d": "À hora certa, carro limpo e motorista simpático. Suba, tratamos do resto.",
+  "home.how.s4.t": "Trajeto e pagamento",
+  "home.how.s4.d": "O preço anunciado é respeitado. Cartão, dinheiro, transferência ou voucher CPAM — como preferir.",
   "home.cta.title": "Pronto para reservar a sua corrida?",
   "home.cta.desc":
     "Confirmação rápida, motorista profissional e preço transparente — telefone-nos ou reserve online.",
