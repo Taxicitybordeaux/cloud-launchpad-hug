@@ -169,20 +169,84 @@ function Home() {
           <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">{t("home.how.intro")}</p>
         </div>
 
-        <ol className="relative mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <li
-              key={i}
-              className="relative flex h-full flex-col rounded-2xl border border-border bg-card p-6 transition hover:border-primary/50"
-            >
+        {(() => {
+          // Each step routes to the most useful next action.
+          // Smooth-scroll handlers progressively enhance the anchor links so
+          // browsers without :target / scroll-behavior still navigate correctly.
+          const scrollTo = (id: string) => (e: React.MouseEvent) => {
+            const el = typeof document !== "undefined" ? document.getElementById(id) : null;
+            if (!el) return;
+            e.preventDefault();
+            el.scrollIntoView({ behavior: "smooth", block: "start" });
+            history.replaceState(null, "", `#${id}`);
+          };
+
+          const steps = [
+            {
+              i: 1,
+              kind: "tel" as const,
+              href: `tel:${PHONE}`,
+              cta: PHONE_DISPLAY,
+            },
+            {
+              i: 2,
+              kind: "route" as const,
+              to: "/reservation" as const,
+              cta: t("home.hero.book_now"),
+            },
+            {
+              i: 3,
+              kind: "anchor" as const,
+              href: "#faq",
+              onClick: scrollTo("faq"),
+              cta: t("home.faq.title"),
+            },
+            {
+              i: 4,
+              kind: "anchor" as const,
+              href: "#simulateur-tarif",
+              onClick: scrollTo("simulateur-tarif"),
+              cta: t("sim.eyebrow"),
+            },
+          ];
+
+          const cardClass =
+            "group relative flex h-full flex-col rounded-2xl border border-border bg-card p-6 transition hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-[var(--shadow-elegant)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
+
+          const inner = (s: (typeof steps)[number]) => (
+            <>
               <span className="absolute -top-4 left-6 inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary font-display text-base font-bold text-primary-foreground shadow-[var(--shadow-gold)]">
-                {i}
+                {s.i}
               </span>
-              <h3 className="mt-3 font-display text-lg font-semibold">{t(`home.how.s${i}.t`)}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{t(`home.how.s${i}.d`)}</p>
-            </li>
-          ))}
-        </ol>
+              <h3 className="mt-3 font-display text-lg font-semibold">{t(`home.how.s${s.i}.t`)}</h3>
+              <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">
+                {t(`home.how.s${s.i}.d`)}
+              </p>
+              <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
+                {s.cta}
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </span>
+            </>
+          );
+
+          return (
+            <ol className="relative mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              {steps.map((s) => (
+                <li key={s.i} className="contents">
+                  {s.kind === "route" ? (
+                    <Link to={s.to} className={cardClass}>
+                      {inner(s)}
+                    </Link>
+                  ) : (
+                    <a href={s.href} onClick={s.kind === "anchor" ? s.onClick : undefined} className={cardClass}>
+                      {inner(s)}
+                    </a>
+                  )}
+                </li>
+              ))}
+            </ol>
+          );
+        })()}
 
         <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
           <a
@@ -201,7 +265,9 @@ function Home() {
       </section>
 
       {/* FARE SIMULATOR */}
-      <FareSimulator />
+      <div id="simulateur-tarif" className="scroll-mt-24">
+        <FareSimulator />
+      </div>
 
       {/* SERVICES */}
       <section className="mx-auto max-w-7xl px-4 py-20">
