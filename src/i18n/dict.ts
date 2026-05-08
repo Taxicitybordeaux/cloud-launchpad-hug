@@ -202,7 +202,7 @@ const fr: Dict = {
   "about.title": "À propos de Taxi City Bordeaux",
   "about.p1.brand": "Taxi City Bordeaux",
   "about.p1":
-    "est une entreprise de taxi indépendante basée à Cenon, à proximité immédiate de Bordeaux. Nous avons à cœur de proposer un service à la hauteur de l'élégance bordelaise : ponctualité, confort et discrétion.",
+    "est une entreprise de taxi indépendante à Bordeaux. Nous avons à cœur de proposer un service à la hauteur de l'élégance bordelaise : ponctualité, confort et discrétion.",
   "about.p2":
     "Que vous soyez un particulier qui rejoint l'aéroport, un professionnel en déplacement, ou un patient nécessitant un transport médical conventionné, nous adaptons notre prestation à votre besoin.",
   "about.p3":
@@ -545,7 +545,7 @@ const en: Dict = {
   "about.title": "About Taxi City Bordeaux",
   "about.p1.brand": "Taxi City Bordeaux",
   "about.p1":
-    "is an independent taxi business based in Cenon, right next to Bordeaux. We aim to deliver a service worthy of Bordeaux's elegance: punctuality, comfort and discretion.",
+    "is an independent taxi business in Bordeaux. We aim to deliver a service worthy of Bordeaux's elegance: punctuality, comfort and discretion.",
   "about.p2":
     "Whether you're a private customer heading to the airport, a professional on the move, or a patient needing medical transport, we adapt our service to your need.",
   "about.p3":
@@ -882,7 +882,7 @@ const es: Dict = {
   "about.title": "Sobre Taxi City Bordeaux",
   "about.p1.brand": "Taxi City Bordeaux",
   "about.p1":
-    "es una empresa de taxi independiente con base en Cenon, junto a Burdeos. Buscamos un servicio a la altura de la elegancia bordelesa: puntualidad, confort y discreción.",
+    "es una empresa de taxi independiente en Burdeos. Buscamos un servicio a la altura de la elegancia bordelesa: puntualidad, confort y discreción.",
   "about.p2":
     "Tanto si es un particular que va al aeropuerto, un profesional en viaje o un paciente que necesita transporte médico, adaptamos el servicio a su necesidad.",
   "about.p3":
@@ -1219,7 +1219,7 @@ const it: Dict = {
   "about.title": "Chi siamo — Taxi City Bordeaux",
   "about.p1.brand": "Taxi City Bordeaux",
   "about.p1":
-    "è un'azienda di taxi indipendente con sede a Cenon, alle porte di Bordeaux. Vogliamo offrire un servizio all'altezza dell'eleganza di Bordeaux: puntualità, comfort e discrezione.",
+    "è un'azienda di taxi indipendente a Bordeaux. Vogliamo offrire un servizio all'altezza dell'eleganza di Bordeaux: puntualità, comfort e discrezione.",
   "about.p2":
     "Privato in partenza per l'aeroporto, professionista in trasferta o paziente in trasporto medico: adattiamo il nostro servizio alle vostre esigenze.",
   "about.p3":
@@ -1532,7 +1532,7 @@ const ar: Dict = {
   "about.eyebrow": "قصتنا",
   "about.title": "عن تاكسي سيتي بوردو",
   "about.p1.brand": "تاكسي سيتي بوردو",
-  "about.p1": "شركة تاكسي مستقلة مقرها سينون، بجوار بوردو مباشرة. نهدف لتقديم خدمة تليق بأناقة بوردو: دقة، راحة، وتكتم.",
+  "about.p1": "شركة تاكسي مستقلة في بوردو. نهدف لتقديم خدمة تليق بأناقة بوردو: دقة، راحة، وتكتم.",
   "about.p2": "سواء كنت عميلاً خاصاً متجهاً للمطار، أو محترفاً في تنقل، أو مريضاً يحتاج نقلاً طبياً، نكيف خدمتنا حسب حاجتك.",
   "about.p3": "سيارتنا الحديثة المكيفة والمعتنى بها بدقة تضمن رحلة ممتعة في كل الأحوال.",
   "about.b1.t": "سائق محترف",
@@ -1860,7 +1860,7 @@ const pt: Dict = {
   "about.title": "Sobre Taxi City Bordeaux",
   "about.p1.brand": "Taxi City Bordeaux",
   "about.p1":
-    "é uma empresa de táxi independente sediada em Cenon, junto a Bordéus. Procuramos oferecer um serviço à altura da elegância bordalesa: pontualidade, conforto e discrição.",
+    "é uma empresa de táxi independente em Bordéus. Procuramos oferecer um serviço à altura da elegância bordalesa: pontualidade, conforto e discrição.",
   "about.p2":
     "Quer seja um particular a caminho do aeroporto, um profissional em deslocação ou um paciente que precisa de transporte médico convencionado, adaptamos o nosso serviço à sua necessidade.",
   "about.p3":
