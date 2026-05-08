@@ -231,8 +231,10 @@ const fr: Dict = {
   "contact.wa.sub": "Idéal pour envoyer une adresse",
   "contact.email": "Email",
   "contact.email.sub": "Devis & demandes spéciales",
-  "contact.address": "Adresse",
-  "contact.address.area": "Interventions dans toute la Gironde.",
+  "contact.zone.title": "Zone d'intervention",
+  "contact.zone.line1": "Bordeaux & Métropole",
+  "contact.zone.line2": "Toute la Gironde (33)",
+  "contact.zone.sub": "Longues distances sur toute la France et l'Europe sur réservation.",
   "contact.form.eyebrow": "Formulaire",
   "contact.form.title": "Envoyez-nous un message",
   "contact.form.intro":
