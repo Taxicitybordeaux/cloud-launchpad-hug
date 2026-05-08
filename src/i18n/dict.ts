@@ -1352,7 +1352,7 @@ const it: Dict = {
   "conf.notfound.cta": "Effettua una nuova prenotazione",
 
   "wa.float.send": "Invia la mia richiesta",
-  "wa.float.label": "WhatsApp",
+  "wa.float.label": "Prenota su WhatsApp",
   "wa.default":
     "Salve, vorrei prenotare un taxi con Taxi City Bordeaux. Potete confermarmi la disponibilità? Grazie.",
   "suivi.title": "Segui il tuo autista",
