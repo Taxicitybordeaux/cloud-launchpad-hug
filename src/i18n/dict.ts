@@ -2,6 +2,7 @@ export const LANGUAGES = [
   { code: "fr", label: "Français", flag: "🇫🇷" },
   { code: "en", label: "English", flag: "🇬🇧" },
   { code: "es", label: "Español", flag: "🇪🇸" },
+  { code: "pt", label: "Português", flag: "🇵🇹" },
   { code: "it", label: "Italiano", flag: "🇮🇹" },
   { code: "ar", label: "العربية", flag: "🇸🇦" },
 ] as const;
@@ -1674,5 +1675,358 @@ const ar: Dict = {
   "faqx.cpam.a": "أحضر وصفة النقل الطبي من طبيبك. بتقديم بون النقل، نطبّق نظام الدفع المباشر: تتولى التأمين الصحي الفرنسي تكاليف الرحلة مباشرة. في حالة ALD (مرض طويل الأمد)، التغطية كاملة وصالحة لجميع المسافات — بما في ذلك الرحلات الطويلة إلى المراكز المتخصصة.",
 };
 
-export const DICTS: Record<Lang, Dict> = { fr, en, es, it, ar };
+const pt: Dict = {
+  // Common / nav / header
+  "nav.home": "Início",
+  "nav.services": "Serviços",
+  "nav.tarifs": "Tarifas",
+  "nav.about": "Sobre",
+  "nav.contact": "Contacto",
+  "nav.book": "Reservar",
+  "nav.book_long": "Reservar uma corrida",
+  "common.available_247": "Disponível 7d/7 — 24h/24",
+  "common.lang_label": "Idioma",
 
+  // Home — hero
+  "home.hero.badge": "Disponível 7d/7 — 24h/24",
+  "home.hero.title.before": "O seu táxi em",
+  "home.hero.title.city": "Bordéus",
+  "home.hero.title.after": ", pontual e confortável.",
+  "home.hero.subtitle":
+    "Deslocações profissionais ou pessoais, corridas imediatas ou reservadas: levamo-lo a qualquer parte da Gironde e da França, de dia e de noite, num veículo cuidado.",
+  "home.hero.need_taxi": "Preciso de um táxi…",
+  "home.hero.book_now": "Reservar uma corrida",
+  "home.hero.tag1": "Reserva rápida",
+  "home.hero.tag2": "Convencionado CPAM",
+  "home.hero.tag3": "Tarifas transparentes",
+
+  // Home — destinations
+  "home.dest.eyebrow": "Destinos",
+  "home.dest.title": "Para onde o levamos",
+  "home.dest.intro":
+    "Alguns trajetos que os nossos clientes reservam todos os dias — uma chegada tranquila é a nossa especialidade.",
+  "home.dest.gare.title": "Estação Bordeaux Saint-Jean",
+  "home.dest.gare.sub": "Receção a pedido à chegada do comboio.",
+  "home.dest.airport.title": "Aeroporto de Mérignac",
+  "home.dest.airport.sub": "Acompanhamento de voos em tempo real.",
+  "home.dest.vine.title": "Castelos e vinhas",
+  "home.dest.vine.sub": "Médoc, Saint-Émilion, Sauternes — dia inteiro.",
+  "home.dest.cta": "Reservar",
+
+  // Home — why us
+  "home.why.eyebrow": "Porquê nós",
+  "home.why.title": "Um serviço simples, humano e fiável.",
+  "home.why.desc":
+    "Taxi City Bordeaux é um motorista de proximidade, um veículo bem mantido e a vontade de fazer bem. Sem surpresas na fatura, sem esperas intermináveis — confirmamos, chegamos, deixamo-lo no destino.",
+  "home.why.years": "anos de experiência",
+  "home.why.f1.t": "Pontualidade garantida",
+  "home.why.f1.d": "Acompanhamento de voos e comboios, margem antiatraso.",
+  "home.why.f2.t": "Tarifas claras",
+  "home.why.f2.d": "Tarifas regulamentadas, pagamento em cartão e dinheiro.",
+  "home.why.f3.t": "Convencionado CPAM",
+  "home.why.f3.d": "Transporte de saúde com cobertura.",
+
+  // Home — services
+  "home.services.eyebrow": "Os nossos serviços",
+  "home.services.title": "Para todas as suas deslocações",
+  "home.services.see_all": "Ver todos os serviços",
+  "svc.airport.title": "Aeroporto de Mérignac",
+  "svc.airport.desc": "Transferes de e para o aeroporto, dia e noite.",
+  "svc.train.title": "Estação Saint-Jean",
+  "svc.train.desc": "Receção à chegada, atendimento personalizado.",
+  "svc.business.title": "Deslocações profissionais",
+  "svc.business.desc": "Discrição e pontualidade para as suas reuniões.",
+  "svc.wedding.title": "Assistência em avaria automóvel",
+  "svc.wedding.desc": "Telefone-nos em caso de avaria, vamos buscá-lo rapidamente.",
+  "svc.cpam.title": "Convencionado CPAM",
+  "svc.cpam.desc": "Voucher de transporte aceite, todas as distâncias.",
+  "svc.long.title": "Longas distâncias",
+  "svc.long.desc": "Trajetos de qualquer distância em França.",
+
+  // Home — testimonials
+  "home.test.eyebrow": "Confiaram em nós",
+  "home.test.title": "O que dizem os nossos clientes",
+  "home.test.t1":
+    "Motorista muito pontual, carro impecável. Fui levada a Mérignac com toda a tranquilidade, recomendo.",
+  "home.test.t2":
+    "Reserva simples, preço anunciado respeitado. Perfeito para as minhas deslocações profissionais semanais.",
+  "home.test.t3":
+    "Recebidos na estação com os meus filhos, o motorista foi extremamente simpático. Vamos voltar a chamar.",
+
+  // Home — FAQ
+  "home.faq.eyebrow": "As suas questões",
+  "home.faq.title": "Respondemos com franqueza",
+  "home.faq.intro":
+    "Algumas respostas às perguntas mais frequentes. Se não encontrar, basta um telefonema.",
+  "faq.q1": "Estão convencionados com a CPAM?",
+  "faq.a1":
+    "Sim, somos convencionados com a CPAM para transportes de saúde (consultas, diálises, hospitalizações…). Peça ao seu médico a prescrição médica de transporte e nós tratamos do resto. Mediante apresentação do voucher de transporte, cobertura direta pelo Seguro de Saúde. Terceiro pagador ou ALD — voucher de transporte para todas as distâncias.",
+  "faq.q2": "E se o meu voo se atrasar em Mérignac?",
+  "faq.a2":
+    "Acompanhamos o seu voo em tempo real. Se o avião chegar mais cedo ou com atraso, ajustamos a hora de recolha.",
+  "faq.q3": "Como cancelar ou alterar a minha reserva?",
+  "faq.a3":
+    "Basta uma chamada ou mensagem WhatsApp. O cancelamento é gratuito até 2 horas antes da corrida. Para alterações (hora, morada, passageiros), avise-nos o mais cedo possível — combinamos.",
+  "faq.q4": "Que meios de pagamento aceitam?",
+  "faq.a4":
+    "Cartão (sem contacto, Apple Pay, Google Pay), dinheiro e transferência bancária para contas profissionais. Recibo entregue no fim da corrida, fatura a pedido para notas de despesa.",
+  "faq.q5": "É preciso reservar com antecedência?",
+  "faq.a5":
+    "Não é obrigatório — também aceitamos corridas imediatas se estivermos disponíveis. Para um comboio de manhã cedo, um voo ou uma reunião importante, é mais seguro reservar na véspera.",
+  "faq.q6": "Quanta bagagem posso levar?",
+  "faq.a6":
+    "Uma berlina confortável transporta facilmente 3 a 4 malas e 4 passageiros. Para um grupo ou material volumoso, avise-nos na reserva e adaptamos o veículo.",
+
+  // Home — final CTA
+  "home.cta.title": "Pronto para reservar a sua corrida?",
+  "home.cta.desc":
+    "Confirmação rápida, motorista profissional e preço transparente — telefone-nos ou reserve online.",
+  "home.cta.online": "Reservar online",
+
+  // Services page
+  "services.eyebrow": "Os nossos serviços",
+  "services.title": "Um serviço de táxi para cada necessidade",
+  "services.intro":
+    "Em Bordéus, na Gironde e em toda a França — um único interlocutor, um serviço de alta qualidade.",
+  "services.cta": "Reservar",
+  "services.b1": "7d/7 – 24h/24",
+  "services.b2": "Até 4 passageiros",
+  "services.b3": "Motorista profissional",
+  "svcp.airport.title": "Transferes Aeroporto Mérignac",
+  "svcp.airport.desc":
+    "Recolha pontual para os seus voos, acompanhamento em tempo real, receção a pedido.",
+  "svcp.airport.p1": "Receção a pedido",
+  "svcp.airport.p2": "Acompanhamento de voos",
+  "svcp.airport.p3": "Ida e volta possível",
+  "svcp.train.title": "Estação Saint-Jean e estações TGV",
+  "svcp.train.desc":
+    "Transferes de e para a estação de Bordeaux Saint-Jean e todas as estações da região.",
+  "svcp.train.p1": "Receção a pedido",
+  "svcp.train.p2": "Recolha pontual",
+  "svcp.train.p3": "Disponível 24h/24",
+  "svcp.business.title": "Deslocações profissionais",
+  "svcp.business.desc":
+    "Serviço discreto e premium para as suas reuniões, seminários e viagens de negócios.",
+  "svcp.business.p1": "Faturação a empresas",
+  "svcp.business.p2": "Wifi a bordo",
+  "svcp.business.p3": "Discrição garantida",
+  "svcp.wedding.title": "Assistência em avaria automóvel",
+  "svcp.wedding.desc":
+    "Em caso de avaria, vamos buscá-lo rapidamente e levamo-lo ao destino.",
+  "svcp.wedding.p1": "Intervenção rápida",
+  "svcp.wedding.p2": "Toda a Gironde",
+  "svcp.wedding.p3": "Disponível 24h/24",
+  "svcp.cpam.title": "Transporte convencionado CPAM",
+  "svcp.cpam.desc":
+    "Transporte sentado profissionalizado coberto pelo Seguro de Saúde. Voucher de transporte para todas as distâncias.",
+  "svcp.cpam.p1": "Terceiro pagador / ALD",
+  "svcp.cpam.p2": "Voucher de transporte todas as distâncias",
+  "svcp.cpam.p3": "Hospitais e clínicas",
+  "svcp.long.title": "Longas distâncias",
+  "svcp.long.desc": "Trajetos de qualquer distância em França e na Europa.",
+  "svcp.long.p1": "Tarifas regulamentadas",
+  "svcp.long.p2": "Tarifa por quilómetro",
+  "svcp.long.p3": "Conforto longa duração",
+
+  // Tarifs page
+  "tarifs.eyebrow": "Tarifas",
+  "tarifs.title": "Preços transparentes",
+  "tarifs.intro":
+    "Tarifas indicativas baseadas na regulamentação prefeitoral. O preço exato é confirmado na reserva.",
+  "tarifs.col.from": "Partida",
+  "tarifs.col.to": "Chegada",
+  "tarifs.col.day": "Tarifa diurna",
+  "tarifs.col.night": "Tarifa noturna / dom",
+  "tarifs.note":
+    "Tarifa noturna aplicada das 19h às 7h, domingos e feriados.",
+  "tarifs.cpam.title": "🏥 Convencionado CPAM",
+  "tarifs.cpam.desc":
+    "Mediante apresentação do voucher de transporte, cobertura direta pelo Seguro de Saúde. Terceiro pagador ou ALD — voucher de transporte para todas as distâncias.",
+  "tarifs.event.title": "🚗 Assistência em avaria automóvel",
+  "tarifs.event.desc":
+    "Em caso de avaria, vamos buscá-lo rapidamente e levamo-lo ao destino. Disponível 7d/7.",
+  "tarifs.cta": "Reservar",
+  "city.bdx_centre": "Centro de Bordéus",
+  "city.cenon": "Cenon / Floirac",
+  "city.merignac": "Mérignac",
+  "city.bdx": "Bordéus",
+  "city.airport": "Aeroporto Mérignac",
+  "city.gare": "Estação Saint-Jean",
+  "city.arcachon": "Arcachon",
+  "city.stemilion": "Saint-Émilion",
+
+  // About page
+  "about.eyebrow": "A nossa história",
+  "about.title": "Sobre Taxi City Bordeaux",
+  "about.p1.brand": "Taxi City Bordeaux",
+  "about.p1":
+    "é uma empresa de táxi independente sediada em Cenon, junto a Bordéus. Procuramos oferecer um serviço à altura da elegância bordalesa: pontualidade, conforto e discrição.",
+  "about.p2":
+    "Quer seja um particular a caminho do aeroporto, um profissional em deslocação ou um paciente que precisa de transporte médico convencionado, adaptamos o nosso serviço à sua necessidade.",
+  "about.p3":
+    "O nosso veículo recente, climatizado e cuidadosamente mantido, garante uma viagem agradável em todas as circunstâncias.",
+  "about.b1.t": "Motorista profissional",
+  "about.b1.d":
+    "Cartão profissional de táxi, formação contínua, perfeito conhecimento de Bordéus e da Gironde.",
+  "about.b2.t": "Disponível 7d/7",
+  "about.b2.d": "De dia e de noite, fins de semana e feriados incluídos.",
+  "about.b3.t": "Bordéus e Gironde",
+  "about.b3.d":
+    "Estação oficial em Bordéus. Toda a metrópole, aeroporto, estações e toda a França mediante reserva.",
+  "about.b4.t": "Convencionado CPAM",
+  "about.b4.d":
+    "Transporte sentado profissionalizado coberto pelo Seguro de Saúde.",
+  "about.cta": "Reservar uma corrida",
+
+  // Contact page
+  "contact.eyebrow": "Contacto",
+  "contact.title": "Fale connosco",
+  "contact.intro":
+    "Disponível 7d/7 — basta uma chamada, ou envie-nos uma mensagem.",
+  "contact.phone": "Telefone",
+  "contact.phone.sub": "Resposta imediata",
+  "contact.wa.title": "WhatsApp",
+  "contact.wa.line": "Falemos no WhatsApp",
+  "contact.wa.sub": "Ideal para enviar uma morada",
+  "contact.email": "Email",
+  "contact.email.sub": "Orçamentos e pedidos especiais",
+  "contact.zone.title": "Zona de intervenção",
+  "contact.zone.line1": "Bordéus e área metropolitana",
+  "contact.zone.line2": "Toda a Gironde (33)",
+  "contact.zone.sub": "Longas distâncias por toda a França mediante reserva.",
+  "contact.form.eyebrow": "Formulário",
+  "contact.form.title": "Envie-nos uma mensagem",
+  "contact.form.intro":
+    "Para uma questão ou pedido especial — respondemos o mais rapidamente possível.",
+  "contact.form.name": "Nome completo *",
+  "contact.form.email": "Email *",
+  "contact.form.phone": "Telefone (opcional)",
+  "contact.form.subject": "Assunto (opcional)",
+  "contact.form.subject.ph": "Ex.: Orçamento Bordéus → Paris",
+  "contact.form.message": "Mensagem *",
+  "contact.form.message.ph": "Detalhe o seu pedido…",
+  "contact.form.send": "Enviar mensagem",
+  "contact.form.sending": "A enviar…",
+  "contact.form.error":
+    "Ocorreu um erro. Por favor ligue diretamente para 06 73 07 23 22.",
+  "contact.form.success.title": "Mensagem enviada!",
+  "contact.form.success.desc":
+    "Obrigado por nos contactar. Responderemos rapidamente por email.",
+  "contact.form.success.again": "Enviar outra mensagem",
+  "contact.form.note":
+    "Para uma corrida, utilize antes o formulário de reserva.",
+  "contact.err.name": "Nome obrigatório",
+  "contact.err.email": "Email inválido",
+  "contact.err.message": "Mensagem demasiado curta (mín. 10 caracteres)",
+  "contact.err.phone": "Número inválido",
+
+  // Reservation page
+  "res.eyebrow": "Reserva online",
+  "res.title": "Reserve o seu táxi",
+  "res.intro": "Preencha o formulário — ligamos para confirmar.",
+  "res.f.name": "Nome completo *",
+  "res.f.phone": "Telefone *",
+  "res.f.email": "Email (opcional)",
+  "res.f.trip": "Tipo de trajeto *",
+  "res.f.trip.one": "Só ida",
+  "res.f.trip.round": "Ida e volta",
+  "res.f.pickup": "Data e hora de recolha *",
+  "res.f.return": "Data e hora de regresso *",
+  "res.f.from": "Morada de partida *",
+  "res.f.from.ph": "Ex.: 12 cours de l'Intendance, Bordéus",
+  "res.f.to": "Morada de chegada *",
+  "res.f.to.ph": "Ex.: Aeroporto Mérignac",
+  "res.f.passengers": "Passageiros",
+  "res.f.luggage": "Bagagens",
+  "res.f.kind": "Tipo de corrida",
+  "res.f.kind.standard": "Standard",
+  "res.f.kind.airport": "Aeroporto",
+  "res.f.kind.train": "Estação",
+  "res.f.kind.cpam": "Convencionado CPAM",
+  "res.f.kind.wedding": "Assistência avaria",
+  "res.f.kind.business": "Business",
+  "res.f.kind.long": "Longa distância",
+  "res.f.needs": "Necessidades específicas",
+  "res.f.needs.cpam": "CPAM / médico",
+  "res.f.needs.cpam.hint": "Transporte convencionado",
+  "res.f.needs.bags": "Ajuda com bagagem",
+  "res.f.needs.bags.hint": "Apoio na recolha",
+  "res.f.needs.child": "Cadeira para criança",
+  "res.f.needs.child.hint": "Indicar idade na mensagem",
+  "res.f.message": "Mensagem (opcional)",
+  "res.f.message.ph": "Número de voo, idade das crianças, observações…",
+  "res.send": "Enviar pedido",
+  "res.sending": "A enviar…",
+  "res.note":
+    "Para uma corrida imediata, ligue diretamente para 06 73 07 23 22",
+  "res.err.global":
+    "Erro no envio. Por favor ligue para 06 73 07 23 22.",
+  "res.err.phone": "Número de telefone inválido",
+  "res.err.name": "Nome obrigatório",
+  "res.err.pickup": "Data/hora obrigatória",
+  "res.err.future": "A data deve ser futura",
+  "res.err.from": "Morada de partida obrigatória",
+  "res.err.to": "Morada de chegada obrigatória",
+  "res.err.return": "Data de regresso posterior à de ida",
+
+  // Confirmation page
+  "conf.cancelled.title": "Reserva cancelada",
+  "conf.cancelled.desc": "Esta reserva foi cancelada com sucesso.",
+  "conf.ok.title": "Pedido registado!",
+  "conf.ok.desc":
+    "Ligamos brevemente para confirmar a sua corrida.",
+  "conf.ref.label": "Nº de reserva",
+  "conf.ref.note": "A guardar para qualquer alteração ou cancelamento.",
+  "conf.summary": "Resumo",
+  "conf.row.pickup": "Recolha",
+  "conf.row.from": "Partida",
+  "conf.row.to": "Chegada",
+  "conf.row.phone": "Telefone",
+  "conf.passengers": "passageiro(s)",
+  "conf.luggage": "bagagem(s)",
+  "conf.wa": "Confirmar via WhatsApp",
+  "conf.modify.title": "Alterar ou cancelar",
+  "conf.modify.desc":
+    "Para alterar o pedido, contacte-nos por telefone ou WhatsApp com o seu número de reserva.",
+  "conf.cancel": "Cancelar a minha reserva",
+  "conf.cancel.confirm": "Confirmar cancelamento",
+  "conf.cancel.keep": "Manter a minha reserva",
+  "conf.back": "← Voltar ao início",
+  "conf.notfound.title": "Reserva não encontrada",
+  "conf.notfound.desc":
+    "O link parece inválido ou a reserva foi removida.",
+  "conf.notfound.cta": "Fazer nova reserva",
+
+  // WhatsApp float
+  "wa.float.send": "Enviar pedido",
+  "wa.float.label": "Reservar pelo WhatsApp",
+  "wa.default":
+    "Olá, gostaria de reservar um táxi com Taxi City Bordeaux. Pode confirmar a disponibilidade? Obrigado.",
+  // Tracking page
+  "suivi.title": "Acompanhamento do seu motorista",
+  "suivi.hello": "Olá",
+  "suivi.pickup_at": "recolha às",
+  "suivi.status": "Estado",
+  "suivi.online": "A caminho",
+  "suivi.offline": "Offline",
+  "suivi.eta": "Chegada estimada",
+  "suivi.distance": "Distância",
+  "suivi.last_update": "Última atualização",
+  "suivi.view_reservation": "Ver a minha reserva",
+  "suivi.notfound.title": "Reserva não encontrada",
+  "suivi.notfound.desc": "O link de acompanhamento é inválido ou expirou.",
+  "suivi.back_home": "Voltar ao início",
+  "conf.track": "Acompanhar o meu motorista em direto",
+
+  // FAQ Services
+  "faqx.title": "Perguntas frequentes",
+  "faqx.intro": "Tudo o que precisa de saber antes da sua corrida.",
+  "faqx.tracking.q": "Como funciona o acompanhamento em tempo real do meu voo ou comboio?",
+  "faqx.tracking.a": "Assim que nos comunica o número do voo ou comboio, acompanhamo-lo automaticamente. Se a chegada for adiantada ou atrasada, ajustamos a hora de recolha — não tem de fazer nada, o motorista estará à sua espera à saída.",
+  "faqx.wait.q": "Quanto tempo espera o motorista após a aterragem?",
+  "faqx.wait.a": "O motorista apresenta-se com base na hora real de aterragem (não a prevista) e contamos o tempo necessário para recolher a bagagem e passar a alfândega. Para além disso, o tempo de espera adicional é cobrado segundo a tarifa oficial regulamentada, com total transparência.",
+  "faqx.cpam.q": "Como funciona a cobertura CPAM / ALD?",
+  "faqx.cpam.a": "Traga a prescrição médica de transporte entregue pelo seu médico. Com este voucher de transporte aplicamos o terceiro pagador: a corrida é faturada diretamente ao Seguro de Saúde francês. Em ALD (doença de longa duração), a cobertura é total e válida para todas as distâncias — incluindo trajetos longos para um centro especializado.",
+};
+
+export const DICTS: Record<Lang, Dict> = { fr, en, es, pt, it, ar };
