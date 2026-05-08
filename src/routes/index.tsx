@@ -175,7 +175,7 @@ function Home() {
             { icon: ShieldCheck, title: t("svc.cpam.title"), desc: t("svc.cpam.desc") },
             { icon: MapPin, title: t("svc.long.title"), desc: t("svc.long.desc") },
           ].map((s) => (
-            <div key={s.title} className="group rounded-2xl border border-border bg-card p-6 transition hover:border-primary/50">
+            <div key={s.title} className="group flex h-full flex-col rounded-2xl border border-border bg-card p-6 transition hover:border-primary/50">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition group-hover:bg-primary group-hover:text-primary-foreground">
                 <s.icon className="h-5 w-5" />
               </div>
@@ -193,12 +193,12 @@ function Home() {
         {/* TARIFS INFO */}
         <div className="mt-12 rounded-2xl border border-border bg-card/50 p-6 md:p-8">
           <p className="text-center text-sm text-muted-foreground">{t("tarifs.note")}</p>
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            <div className="rounded-xl border border-border bg-background/40 p-5">
+          <div className="mt-6 grid gap-4 md:grid-cols-2 md:items-stretch">
+            <div className="flex h-full flex-col rounded-xl border border-border bg-background/40 p-5">
               <h3 className="font-display text-lg font-semibold text-primary">{t("tarifs.cpam.title")}</h3>
               <p className="mt-2 text-sm text-muted-foreground">{t("tarifs.cpam.desc")}</p>
             </div>
-            <div className="rounded-xl border border-border bg-background/40 p-5">
+            <div className="flex h-full flex-col rounded-xl border border-border bg-background/40 p-5">
               <h3 className="font-display text-lg font-semibold text-primary">{t("tarifs.event.title")}</h3>
               <p className="mt-2 text-sm text-muted-foreground">{t("tarifs.event.desc")}</p>
             </div>
@@ -219,9 +219,9 @@ function Home() {
               { name: "Julien R.", text: t("home.test.t2") },
               { name: "Sophie L.", text: t("home.test.t3") },
             ].map((tt) => (
-              <figure key={tt.name} className="rounded-2xl border border-border bg-background p-6">
+              <figure key={tt.name} className="flex h-full flex-col rounded-2xl border border-border bg-background p-6">
                 <Quote className="h-6 w-6 text-primary" />
-                <blockquote className="mt-4 text-sm leading-relaxed text-foreground/85">"{tt.text}"</blockquote>
+                <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-foreground/85">"{tt.text}"</blockquote>
                 <figcaption className="mt-5 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   <Star className="h-3.5 w-3.5 text-primary" /> {tt.name}
                 </figcaption>

@@ -91,29 +91,29 @@ function ContactPage() {
         <p className="mt-4 text-muted-foreground">{t("contact.intro")}</p>
       </div>
 
-      <div className="mt-12 grid gap-6 md:grid-cols-2">
-        <a href="tel:0673072322" className="group rounded-2xl border border-border bg-card p-6 transition hover:border-primary">
+      <div className="mt-12 grid gap-6 md:grid-cols-2 md:items-stretch">
+        <a href="tel:0673072322" className="group flex h-full flex-col rounded-2xl border border-border bg-card p-6 transition hover:border-primary">
           <Phone className="h-8 w-8 text-primary" />
           <h2 className="mt-3 font-display text-xl font-semibold">{t("contact.phone")}</h2>
           <p className="mt-1 text-2xl font-bold text-primary">06 73 07 23 22</p>
           <p className="mt-1 text-sm text-muted-foreground">{t("contact.phone.sub")}</p>
         </a>
 
-        <a href="https://wa.me/33673072322" target="_blank" rel="noopener noreferrer" className="group rounded-2xl border border-border bg-card p-6 transition hover:border-primary">
+        <a href="https://wa.me/33673072322" target="_blank" rel="noopener noreferrer" className="group flex h-full flex-col rounded-2xl border border-border bg-card p-6 transition hover:border-primary">
           <MessageCircle className="h-8 w-8 text-green-500" />
           <h2 className="mt-3 font-display text-xl font-semibold">{t("contact.wa.title")}</h2>
           <p className="mt-1 text-lg font-semibold">{t("contact.wa.line")}</p>
           <p className="mt-1 text-sm text-muted-foreground">{t("contact.wa.sub")}</p>
         </a>
 
-        <a href="mailto:taxi.city033@gmail.com" className="group rounded-2xl border border-border bg-card p-6 transition hover:border-primary">
+        <a href="mailto:taxi.city033@gmail.com" className="group flex h-full flex-col rounded-2xl border border-border bg-card p-6 transition hover:border-primary">
           <Mail className="h-8 w-8 text-primary" />
           <h2 className="mt-3 font-display text-xl font-semibold">{t("contact.email")}</h2>
           <p className="mt-1 text-base font-semibold break-all">taxi.city033@gmail.com</p>
           <p className="mt-1 text-sm text-muted-foreground">{t("contact.email.sub")}</p>
         </a>
 
-        <div className="rounded-2xl border border-border bg-card p-6">
+        <div className="flex h-full flex-col rounded-2xl border border-border bg-card p-6">
           <MapPin className="h-8 w-8 text-primary" />
           <h2 className="mt-3 font-display text-xl font-semibold">{t("contact.zone.title")}</h2>
           <p className="mt-1 font-semibold">{t("contact.zone.line1")}</p>
