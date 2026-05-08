@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Plane, Train, Briefcase, Wrench, ShieldCheck, MapPin, Users, Clock, HelpCircle } from "lucide-react";
 import { useT } from "@/i18n/I18nProvider";
+import { BulletedList } from "@/components/BulletedList";
 
 export const Route = createFileRoute("/services")({
   head: () => ({
