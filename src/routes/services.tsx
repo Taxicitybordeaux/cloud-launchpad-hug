@@ -64,6 +64,26 @@ function ServicesPage() {
         ))}
       </div>
 
+      <section className="mt-20">
+        <div className="text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">FAQ</p>
+          <h2 className="mt-3 font-display text-3xl font-bold md:text-4xl">{t("faqx.title")}</h2>
+          <p className="mx-auto mt-3 max-w-xl text-muted-foreground">{t("faqx.intro")}</p>
+        </div>
+        <div className="mx-auto mt-10 max-w-3xl space-y-3">
+          {(["tracking", "wait", "cpam"] as const).map((k) => (
+            <details key={k} className="group rounded-xl border border-border bg-card/50 p-5 transition hover:border-primary/40">
+              <summary className="flex cursor-pointer list-none items-start gap-3 font-semibold">
+                <HelpCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                <span className="flex-1">{t(`faqx.${k}.q`)}</span>
+                <span className="ml-2 text-primary transition group-open:rotate-45">+</span>
+              </summary>
+              <p className="mt-3 pl-8 text-sm leading-relaxed text-muted-foreground">{t(`faqx.${k}.a`)}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
       <div className="mt-16 text-center">
         <Link to="/reservation" className="inline-flex rounded-md bg-primary px-8 py-3 font-semibold text-primary-foreground shadow-[var(--shadow-gold)]">
           {t("services.cta")}
