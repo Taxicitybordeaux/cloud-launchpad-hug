@@ -732,6 +732,8 @@ const en: Dict = {
 
   "wa.float.send": "Send my request",
   "wa.float.label": "Book on WhatsApp",
+  "wa.aria.hint": "Opens a WhatsApp conversation in a new tab.",
+  "wa.aria.draftReady": "Your booking request is ready to send on WhatsApp.",
   "wa.default":
     "Hello, I'd like to book a taxi with Taxi City Bordeaux. Could you confirm availability? Thanks.",
   "suivi.title": "Track your driver",
