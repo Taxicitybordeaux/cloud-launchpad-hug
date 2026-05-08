@@ -160,6 +160,45 @@ function Home() {
         </div>
       </section>
 
+      {/* HOW TO BOOK */}
+      <section className="mx-auto max-w-7xl px-4 py-20">
+        <div className="text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">{t("home.how.eyebrow")}</p>
+          <h2 className="mt-3 font-display text-4xl font-bold md:text-5xl">{t("home.how.title")}</h2>
+          <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">{t("home.how.intro")}</p>
+        </div>
+
+        <ol className="relative mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <li
+              key={i}
+              className="relative flex h-full flex-col rounded-2xl border border-border bg-card p-6 transition hover:border-primary/50"
+            >
+              <span className="absolute -top-4 left-6 inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary font-display text-base font-bold text-primary-foreground shadow-[var(--shadow-gold)]">
+                {i}
+              </span>
+              <h3 className="mt-3 font-display text-lg font-semibold">{t(`home.how.s${i}.t`)}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{t(`home.how.s${i}.d`)}</p>
+            </li>
+          ))}
+        </ol>
+
+        <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+          <a
+            href={`tel:${PHONE}`}
+            className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-6 py-3 text-sm font-semibold transition hover:border-primary"
+          >
+            <Phone className="h-4 w-4" /> {PHONE_DISPLAY}
+          </a>
+          <Link
+            to="/reservation"
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-gold)]"
+          >
+            {t("home.hero.book_now")} <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </section>
+
       {/* SERVICES */}
       <section className="mx-auto max-w-7xl px-4 py-20">
         <div className="text-center">
