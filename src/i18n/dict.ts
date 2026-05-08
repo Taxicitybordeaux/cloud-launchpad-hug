@@ -1219,8 +1219,10 @@ const it: Dict = {
   "contact.wa.sub": "Ideale per inviare un indirizzo",
   "contact.email": "Email",
   "contact.email.sub": "Richieste particolari",
-  "contact.address": "Indirizzo",
-  "contact.address.area": "Interveniamo in tutta la Gironda.",
+  "contact.zone.title": "Zona di intervento",
+  "contact.zone.line1": "Bordeaux & area metropolitana",
+  "contact.zone.line2": "Tutta la Gironda (33)",
+  "contact.zone.sub": "Lunghe distanze in Francia ed Europa su prenotazione.",
   "contact.form.eyebrow": "Modulo",
   "contact.form.title": "Inviateci un messaggio",
   "contact.form.intro":
