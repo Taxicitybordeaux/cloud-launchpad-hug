@@ -31,18 +31,19 @@ function ServicesPage() {
         <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">{t("services.intro")}</p>
       </div>
 
-      <div className="mt-14 grid gap-8 md:grid-cols-2">
+      <div className="mt-14 grid gap-6 sm:gap-8 md:grid-cols-2">
         {services.map((s) => (
-          <article key={s.title} className="rounded-2xl border border-border bg-card p-8 transition hover:border-primary/50">
+          <article key={s.title} className="flex h-full flex-col rounded-2xl border border-border bg-card p-6 transition hover:border-primary/50 sm:p-8">
             <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <s.icon className="h-7 w-7" />
             </div>
-            <h2 className="mt-5 font-display text-2xl font-semibold">{s.title}</h2>
-            <p className="mt-2 text-muted-foreground">{s.desc}</p>
-            <ul className="mt-4 space-y-1.5 text-sm">
+            <h2 className="mt-5 font-display text-xl font-semibold sm:text-2xl">{s.title}</h2>
+            <p className="mt-2 text-sm text-muted-foreground sm:text-base">{s.desc}</p>
+            <ul className="mt-4 space-y-2 text-sm">
               {s.points.map((p) => (
-                <li key={p} className="flex items-center gap-2 text-foreground/80">
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary" /> {p}
+                <li key={p} className="flex items-start gap-2 text-foreground/80">
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                  <span className="leading-snug">{p}</span>
                 </li>
               ))}
             </ul>
