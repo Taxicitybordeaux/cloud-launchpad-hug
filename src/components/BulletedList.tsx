@@ -14,8 +14,19 @@ export type BulletedListTone =
   | "destructive"
   | "success";
 
+/**
+ * An item can be:
+ * - a plain string (recommended for simple bullet text — used as React key),
+ * - any ReactNode (link, <strong>, <mark>, fragment…),
+ * - or an object `{ key, content }` when you need a stable key for non-string nodes.
+ */
+export type BulletedListItem =
+  | string
+  | ReactNode
+  | { key: string | number; content: ReactNode };
+
 type BulletedListProps = {
-  items: readonly string[];
+  items: readonly BulletedListItem[];
   className?: string;
   itemClassName?: string;
   /** Preset text size (default: "sm"). */
@@ -29,6 +40,18 @@ type BulletedListProps = {
   /** ID of an element that labels the list. Use instead of ariaLabel when a visible heading exists. */
   ariaLabelledBy?: string;
 };
+
+function isKeyedItem(
+  item: BulletedListItem,
+): item is { key: string | number; content: ReactNode } {
+  return (
+    typeof item === "object" &&
+    item !== null &&
+    !Array.isArray(item) &&
+    "key" in (item as object) &&
+    "content" in (item as object)
+  );
+}
 
 const SIZE_CLASS: Record<BulletedListSize, string> = {
   xs: "text-xs",
