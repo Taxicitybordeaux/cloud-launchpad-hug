@@ -1263,7 +1263,7 @@ const it: Dict = {
   "res.f.kind.airport": "Aeroporto",
   "res.f.kind.train": "Stazione",
   "res.f.kind.cpam": "Medico CPAM",
-  "res.f.kind.wedding": "Matrimonio / evento",
+  "res.f.kind.wedding": "Soccorso panne",
   "res.f.kind.business": "Affari",
   "res.f.kind.long": "Lunga distanza",
   "res.f.needs": "Esigenze particolari",
