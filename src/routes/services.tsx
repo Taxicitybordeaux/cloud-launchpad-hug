@@ -33,16 +33,19 @@ function ServicesPage() {
       </div>
 
       <div className="mt-14 grid gap-6 sm:gap-8 md:grid-cols-2">
-        {services.map((s) => (
-          <article key={s.title} className="flex h-full flex-col rounded-2xl border border-border bg-card p-6 transition hover:border-primary/50 sm:p-8">
-            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <s.icon className="h-7 w-7" />
-            </div>
-            <h2 className="mt-5 font-display text-xl font-semibold sm:text-2xl">{s.title}</h2>
-            <p className="mt-2 text-sm text-muted-foreground sm:text-base">{s.desc}</p>
-            <BulletedList items={s.points} className="mt-4" ariaLabel={s.title} />
-          </article>
-        ))}
+        {services.map((s, i) => {
+          const headingId = `svc-${i}-title`;
+          return (
+            <article key={s.title} className="flex h-full flex-col rounded-2xl border border-border bg-card p-6 transition hover:border-primary/50 sm:p-8">
+              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <s.icon className="h-7 w-7" />
+              </div>
+              <h2 id={headingId} className="mt-5 font-display text-xl font-semibold sm:text-2xl">{s.title}</h2>
+              <p className="mt-2 text-sm text-muted-foreground sm:text-base">{s.desc}</p>
+              <BulletedList items={s.points} className="mt-4" ariaLabelledBy={headingId} />
+            </article>
+          );
+        })}
       </div>
 
       <div className="mt-16 grid gap-4 md:grid-cols-3">
