@@ -1032,6 +1032,15 @@ const es: Dict = {
   "suivi.notfound.desc": "El enlace de seguimiento no es válido o ha expirado.",
   "suivi.back_home": "Volver al inicio",
   "conf.track": "Seguir a mi conductor en vivo",
+
+  "faqx.title": "Preguntas frecuentes",
+  "faqx.intro": "Todo lo que debe saber antes de su trayecto.",
+  "faqx.tracking.q": "¿Cómo funciona el seguimiento en tiempo real de mi vuelo o tren?",
+  "faqx.tracking.a": "En cuanto nos facilita su número de vuelo o tren, lo seguimos automáticamente. Si la llegada se adelanta o se retrasa, ajustamos la hora de recogida — no tiene que hacer nada, el conductor le esperará a la salida.",
+  "faqx.wait.q": "¿Cuánto tiempo espera el conductor tras el aterrizaje?",
+  "faqx.wait.a": "El conductor llega según la hora real de aterrizaje (no la prevista), e incluimos el tiempo necesario para recoger el equipaje y pasar la aduana. A partir de ahí, el tiempo de espera adicional se factura según la tarifa oficial regulada, con total transparencia.",
+  "faqx.cpam.q": "¿Cómo funciona la cobertura CPAM / ALD?",
+  "faqx.cpam.a": "Traiga la prescripción médica de transporte entregada por su médico. Con este bono de transporte aplicamos el tercero pagador: el trayecto lo abona directamente la Seguridad Social francesa. En ALD (enfermedad de larga duración), la cobertura es total y válida para todas las distancias, incluidos los traslados largos a centros especializados.",
 };
 
 const it: Dict = {
