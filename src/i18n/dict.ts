@@ -234,7 +234,7 @@ const fr: Dict = {
   "contact.zone.title": "Zone d'intervention",
   "contact.zone.line1": "Bordeaux & Métropole",
   "contact.zone.line2": "Toute la Gironde (33)",
-  "contact.zone.sub": "Longues distances sur toute la France et l'Europe sur réservation.",
+  "contact.zone.sub": "Longues distances sur toute la France sur réservation.",
   "contact.form.eyebrow": "Formulaire",
   "contact.form.title": "Envoyez-nous un message",
   "contact.form.intro":
@@ -576,7 +576,7 @@ const en: Dict = {
   "contact.zone.title": "Service area",
   "contact.zone.line1": "Bordeaux & Metropolitan area",
   "contact.zone.line2": "All of Gironde (33)",
-  "contact.zone.sub": "Long-distance trips across France and Europe on request.",
+  "contact.zone.sub": "Long-distance trips across France on request.",
   "contact.form.eyebrow": "Form",
   "contact.form.title": "Send us a message",
   "contact.form.intro":
@@ -913,7 +913,7 @@ const es: Dict = {
   "contact.zone.title": "Zona de servicio",
   "contact.zone.line1": "Burdeos y área metropolitana",
   "contact.zone.line2": "Toda la Gironda (33)",
-  "contact.zone.sub": "Viajes de larga distancia por Francia y Europa con reserva.",
+  "contact.zone.sub": "Viajes de larga distancia por toda Francia con reserva.",
   "contact.form.eyebrow": "Formulario",
   "contact.form.title": "Envíenos un mensaje",
   "contact.form.intro":
@@ -1250,7 +1250,7 @@ const it: Dict = {
   "contact.zone.title": "Zona di intervento",
   "contact.zone.line1": "Bordeaux & area metropolitana",
   "contact.zone.line2": "Tutta la Gironda (33)",
-  "contact.zone.sub": "Lunghe distanze in Francia ed Europa su prenotazione.",
+  "contact.zone.sub": "Lunghe distanze in tutta la Francia su prenotazione.",
   "contact.form.eyebrow": "Modulo",
   "contact.form.title": "Inviateci un messaggio",
   "contact.form.intro":
@@ -1557,7 +1557,7 @@ const ar: Dict = {
   "contact.zone.title": "منطقة الخدمة",
   "contact.zone.line1": "بوردو والمنطقة الحضرية",
   "contact.zone.line2": "كامل جيروند (33)",
-  "contact.zone.sub": "رحلات طويلة عبر فرنسا وأوروبا بالحجز المسبق.",
+  "contact.zone.sub": "رحلات طويلة عبر كامل فرنسا بالحجز المسبق.",
   "contact.form.eyebrow": "نموذج",
   "contact.form.title": "أرسل لنا رسالة",
   "contact.form.intro": "لسؤال أو طلب خاص — نرد بأسرع وقت ممكن.",
