@@ -10,6 +10,12 @@ export function WhatsAppFloat() {
   const message = draft ? buildReservationMessage(draft, lang) : t("wa.default");
   const href = whatsappLink(message);
   const label = draft ? t("wa.float.send") : t("wa.float.label");
+  const hint = t("wa.aria.hint");
+  // Combined accessible name read by screen readers (visible text + extra context).
+  const ariaLabel = `${label}. ${hint}`;
+  // Announced politely when the draft becomes available, so SR users know
+  // the CTA now sends their filled-in reservation rather than a generic message.
+  const liveMessage = draft ? t("wa.aria.draftReady") : "";
 
   // Measure the mobile sticky bar so the page-content spacer below
   // always matches its real height (label length, line wraps, safe-area
