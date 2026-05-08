@@ -436,10 +436,10 @@ const en: Dict = {
     "A few answers to the questions we get most often. If you can't find yours, just give us a call.",
   "faq.q1": "Are you CPAM-certified for medical transport?",
   "faq.a1":
-    "Yes, we are certified by the CPAM for health transport (consultations, dialysis, hospital stays…). Just ask your doctor for the medical transport prescription, and we take care of the rest — in most cases you don't pay anything upfront.",
+    "Yes, we are certified by the CPAM for health transport (consultations, dialysis, hospital stays…). Just ask your doctor for the medical transport prescription, and we take care of the rest. With a transport voucher, direct billing to the French health insurance. Third-party payment or ALD — transport voucher for all distances.",
   "faq.q2": "What if my flight at Mérignac is delayed?",
   "faq.a2":
-    "We track your flight in real time. If your plane lands early or late, we adjust the pick-up time. The first half hour of waiting after landing is free — we never charge for a delay that isn't yours.",
+    "We track your flight in real time. If your plane lands early or late, we adjust the pick-up time.",
   "faq.q3": "How can I cancel or change my booking?",
   "faq.a3":
     "A simple call or WhatsApp message is enough. Cancellation is free up to 2 hours before the ride. For a change (time, address, passengers), let us know as soon as possible — we'll arrange it.",
@@ -451,7 +451,7 @@ const en: Dict = {
     "Not mandatory — we also take immediate rides if we're available. For an early train, a flight or an important meeting, it's safer to book the day before.",
   "faq.q6": "How much luggage can I bring?",
   "faq.a6":
-    "A comfortable sedan easily fits 3 to 4 suitcases and 4 passengers. For a group, bulky items or a bicycle, let us know when booking and we'll adapt the vehicle.",
+    "A comfortable sedan easily fits 3 to 4 suitcases and 4 passengers. For a group or bulky items, let us know when booking and we'll adapt the vehicle.",
 
   "home.cta.title": "Ready to book your ride?",
   "home.cta.desc":
