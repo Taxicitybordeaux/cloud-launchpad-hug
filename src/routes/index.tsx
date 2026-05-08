@@ -219,9 +219,9 @@ function Home() {
               { name: "Julien R.", text: t("home.test.t2") },
               { name: "Sophie L.", text: t("home.test.t3") },
             ].map((tt) => (
-              <figure key={tt.name} className="rounded-2xl border border-border bg-background p-6">
+              <figure key={tt.name} className="flex h-full flex-col rounded-2xl border border-border bg-background p-6">
                 <Quote className="h-6 w-6 text-primary" />
-                <blockquote className="mt-4 text-sm leading-relaxed text-foreground/85">"{tt.text}"</blockquote>
+                <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-foreground/85">"{tt.text}"</blockquote>
                 <figcaption className="mt-5 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   <Star className="h-3.5 w-3.5 text-primary" /> {tt.name}
                 </figcaption>
