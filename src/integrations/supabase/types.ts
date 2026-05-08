@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      cta_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          has_draft: boolean | null
+          id: string
+          lang: string | null
+          page: string | null
+          referrer: string | null
+          user_agent: string | null
+          variant: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          has_draft?: boolean | null
+          id?: string
+          lang?: string | null
+          page?: string | null
+          referrer?: string | null
+          user_agent?: string | null
+          variant?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          has_draft?: boolean | null
+          id?: string
+          lang?: string | null
+          page?: string | null
+          referrer?: string | null
+          user_agent?: string | null
+          variant?: string | null
+        }
+        Relationships: []
+      }
       driver_location: {
         Row: {
           accuracy: number | null
