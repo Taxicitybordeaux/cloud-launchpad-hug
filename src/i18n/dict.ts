@@ -891,8 +891,10 @@ const es: Dict = {
   "contact.wa.sub": "Ideal para enviar una dirección",
   "contact.email": "Email",
   "contact.email.sub": "Presupuestos y solicitudes especiales",
-  "contact.address": "Dirección",
-  "contact.address.area": "Trabajamos en toda la Gironda.",
+  "contact.zone.title": "Zona de servicio",
+  "contact.zone.line1": "Burdeos y área metropolitana",
+  "contact.zone.line2": "Toda la Gironda (33)",
+  "contact.zone.sub": "Viajes de larga distancia por Francia y Europa con reserva.",
   "contact.form.eyebrow": "Formulario",
   "contact.form.title": "Envíenos un mensaje",
   "contact.form.intro":
