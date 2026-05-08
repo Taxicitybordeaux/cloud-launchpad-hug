@@ -135,8 +135,8 @@ const fr: Dict = {
   "svcp.airport.title": "Transferts Aéroport Mérignac",
   "svcp.airport.desc":
     "Prise en charge ponctuelle pour vos vols, suivi en temps réel des horaires, accueil sur demande.",
-  "svcp.airport.p1": "Suivi des vols",
-  "svcp.airport.p2": "Accueil sur demande",
+  "svcp.airport.p1": "Accueil sur demande",
+  "svcp.airport.p2": "Suivi des vols",
   "svcp.airport.p3": "Aller-retour possible",
   "svcp.train.title": "Gare Saint-Jean & gares TGV",
   "svcp.train.desc":
