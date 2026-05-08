@@ -6,6 +6,7 @@ import destGare from "@/assets/dest-gare.jpg";
 import destAeroport from "@/assets/dest-aeroport.jpg";
 import destVignobles from "@/assets/dest-vignobles.jpg";
 import { useT } from "@/i18n/I18nProvider";
+import { FareSimulator } from "@/components/FareSimulator";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -198,6 +199,9 @@ function Home() {
           </Link>
         </div>
       </section>
+
+      {/* FARE SIMULATOR */}
+      <FareSimulator />
 
       {/* SERVICES */}
       <section className="mx-auto max-w-7xl px-4 py-20">
