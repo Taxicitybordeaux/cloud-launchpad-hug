@@ -469,8 +469,8 @@ const en: Dict = {
   "svcp.airport.title": "Mérignac airport transfers",
   "svcp.airport.desc":
     "On-time pick-up for your flights, real-time tracking, meet & greet on request.",
-  "svcp.airport.p1": "Flight tracking",
-  "svcp.airport.p2": "Greeting on request",
+  "svcp.airport.p1": "Meet & greet on request",
+  "svcp.airport.p2": "Flight tracking",
   "svcp.airport.p3": "Round-trip available",
   "svcp.train.title": "Saint-Jean & TGV stations",
   "svcp.train.desc":
