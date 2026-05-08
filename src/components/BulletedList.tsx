@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /** Text size of each list item. Maps to a Tailwind text utility. */
@@ -13,8 +14,19 @@ export type BulletedListTone =
   | "destructive"
   | "success";
 
+/**
+ * An item can be:
+ * - a plain string (recommended for simple bullet text — used as React key),
+ * - any ReactNode (link, <strong>, <mark>, fragment…),
+ * - or an object `{ key, content }` when you need a stable key for non-string nodes.
+ */
+export type BulletedListItem =
+  | string
+  | ReactNode
+  | { key: string | number; content: ReactNode };
+
 type BulletedListProps = {
-  items: readonly string[];
+  items: readonly BulletedListItem[];
   className?: string;
   itemClassName?: string;
   /** Preset text size (default: "sm"). */
@@ -28,6 +40,18 @@ type BulletedListProps = {
   /** ID of an element that labels the list. Use instead of ariaLabel when a visible heading exists. */
   ariaLabelledBy?: string;
 };
+
+function isKeyedItem(
+  item: BulletedListItem,
+): item is { key: string | number; content: ReactNode } {
+  return (
+    typeof item === "object" &&
+    item !== null &&
+    !Array.isArray(item) &&
+    "key" in (item as object) &&
+    "content" in (item as object)
+  );
+}
 
 const SIZE_CLASS: Record<BulletedListSize, string> = {
   xs: "text-xs",
@@ -96,24 +120,32 @@ export function BulletedList({
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledBy}
     >
-      {items.map((item) => (
-        <li
-          key={item}
-          className={cn("flex items-start gap-2 text-foreground/80", itemClassName)}
-        >
-          <span
-            aria-hidden="true"
-            className={cn(
-              "shrink-0 rounded-full",
-              DOT_SIZE_CLASS[size],
-              TONE_CLASS[tone],
-            )}
-          />
-          <span className="min-w-0 flex-1 break-words leading-snug [hyphens:auto]">
-            {item}
-          </span>
-        </li>
-      ))}
+      {items.map((item, index) => {
+        const key: string | number = isKeyedItem(item)
+          ? item.key
+          : typeof item === "string" || typeof item === "number"
+            ? item
+            : index;
+        const content: ReactNode = isKeyedItem(item) ? item.content : (item as ReactNode);
+        return (
+          <li
+            key={key}
+            className={cn("flex items-start gap-2 text-foreground/80", itemClassName)}
+          >
+            <span
+              aria-hidden="true"
+              className={cn(
+                "shrink-0 rounded-full",
+                DOT_SIZE_CLASS[size],
+                TONE_CLASS[tone],
+              )}
+            />
+            <span className="min-w-0 flex-1 break-words leading-snug [hyphens:auto]">
+              {content}
+            </span>
+          </li>
+        );
+      })}
     </ul>
   );
 }
