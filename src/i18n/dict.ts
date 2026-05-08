@@ -1095,6 +1095,8 @@ const es: Dict = {
 
   "wa.float.send": "Enviar mi solicitud",
   "wa.float.label": "Reservar por WhatsApp",
+  "wa.aria.hint": "Abre una conversación de WhatsApp en una nueva pestaña.",
+  "wa.aria.draftReady": "Tu solicitud de reserva está lista para enviarse por WhatsApp.",
   "wa.default":
     "Hola, quisiera reservar un taxi con Taxi City Bordeaux. ¿Podría confirmarme la disponibilidad? Gracias.",
   "suivi.title": "Sigue a tu conductor",
