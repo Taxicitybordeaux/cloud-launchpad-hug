@@ -52,10 +52,10 @@ export function WhatsAppFloat() {
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          aria-label="WhatsApp"
+          aria-label={ariaLabel}
           className="flex w-full items-center justify-center gap-3 rounded-full bg-[#25D366] px-6 py-4 text-base font-bold text-white shadow-2xl shadow-black/40 ring-2 ring-[#25D366]/30 transition active:scale-95"
         >
-          <span className="relative flex h-7 w-7 items-center justify-center">
+          <span aria-hidden="true" className="relative flex h-7 w-7 items-center justify-center">
             <span className="absolute inset-0 animate-ping rounded-full bg-white/40" />
             <MessageCircle className="relative h-7 w-7" />
           </span>
