@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /** Text size of each list item. Maps to a Tailwind text utility. */
