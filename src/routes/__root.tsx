@@ -86,8 +86,7 @@ function RootComponent() {
     <I18nProvider>
       <SiteHeader />
       <Outlet />
-      {/* Mobile spacer so the sticky WhatsApp bar never hides page content */}
-      <div className="h-24 sm:hidden" aria-hidden="true" />
+      {/* WhatsAppFloat renders its own auto-sized mobile spacer. */}
       <WhatsAppFloat />
     </I18nProvider>
   );
