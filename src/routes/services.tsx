@@ -40,7 +40,7 @@ function ServicesPage() {
             </div>
             <h2 className="mt-5 font-display text-xl font-semibold sm:text-2xl">{s.title}</h2>
             <p className="mt-2 text-sm text-muted-foreground sm:text-base">{s.desc}</p>
-            <BulletedList items={s.points} className="mt-4" />
+            <BulletedList items={s.points} className="mt-4" ariaLabel={s.title} />
           </article>
         ))}
       </div>
