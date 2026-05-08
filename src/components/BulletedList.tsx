@@ -120,24 +120,32 @@ export function BulletedList({
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledBy}
     >
-      {items.map((item) => (
-        <li
-          key={item}
-          className={cn("flex items-start gap-2 text-foreground/80", itemClassName)}
-        >
-          <span
-            aria-hidden="true"
-            className={cn(
-              "shrink-0 rounded-full",
-              DOT_SIZE_CLASS[size],
-              TONE_CLASS[tone],
-            )}
-          />
-          <span className="min-w-0 flex-1 break-words leading-snug [hyphens:auto]">
-            {item}
-          </span>
-        </li>
-      ))}
+      {items.map((item, index) => {
+        const key: string | number = isKeyedItem(item)
+          ? item.key
+          : typeof item === "string" || typeof item === "number"
+            ? item
+            : index;
+        const content: ReactNode = isKeyedItem(item) ? item.content : (item as ReactNode);
+        return (
+          <li
+            key={key}
+            className={cn("flex items-start gap-2 text-foreground/80", itemClassName)}
+          >
+            <span
+              aria-hidden="true"
+              className={cn(
+                "shrink-0 rounded-full",
+                DOT_SIZE_CLASS[size],
+                TONE_CLASS[tone],
+              )}
+            />
+            <span className="min-w-0 flex-1 break-words leading-snug [hyphens:auto]">
+              {content}
+            </span>
+          </li>
+        );
+      })}
     </ul>
   );
 }
