@@ -6,6 +6,7 @@ import destGare from "@/assets/dest-gare.jpg";
 import destAeroport from "@/assets/dest-aeroport.jpg";
 import destVignobles from "@/assets/dest-vignobles.jpg";
 import { useT } from "@/i18n/I18nProvider";
+import { FareSimulator } from "@/components/FareSimulator";
 
 export const Route = createFileRoute("/")({
   head: () => ({
