@@ -937,7 +937,7 @@ const es: Dict = {
   "res.f.kind.airport": "Aeropuerto",
   "res.f.kind.train": "Estación",
   "res.f.kind.cpam": "CPAM médico",
-  "res.f.kind.wedding": "Boda / evento",
+  "res.f.kind.wedding": "Asistencia avería",
   "res.f.kind.business": "Negocios",
   "res.f.kind.long": "Larga distancia",
   "res.f.needs": "Necesidades especiales",
