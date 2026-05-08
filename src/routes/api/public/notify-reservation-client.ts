@@ -19,7 +19,7 @@ const schema = z.object({
   arrivee: z.string().min(1).max(300),
   passagers: z.union([z.number(), z.string()]).optional(),
   bagages: z.union([z.number(), z.string()]).optional(),
-  reservation_id: z.string().max(100).optional(),
+  reservation_id: z.string().uuid(),
 })
 
 export const Route = createFileRoute('/api/public/notify-reservation-client')({
@@ -37,12 +37,29 @@ export const Route = createFileRoute('/api/public/notify-reservation-client')({
         const data = parsed.data
 
         const supabase = createClient(supabaseUrl, serviceKey)
+
+        // Verify the reservation exists AND the supplied email matches the stored one.
+        // Prevents using this endpoint as an open email relay.
+        const { data: reservation, error: lookupError } = await supabase
+          .from('reservations')
+          .select('email')
+          .eq('id', data.reservation_id)
+          .maybeSingle()
+        if (lookupError) return Response.json({ error: 'lookup' }, { status: 500 })
+        if (!reservation) return Response.json({ error: 'not_found' }, { status: 404 })
+        if (
+          !reservation.email ||
+          reservation.email.trim().toLowerCase() !== data.email.trim().toLowerCase()
+        ) {
+          return Response.json({ error: 'forbidden' }, { status: 403 })
+        }
+
         const tpl = TEMPLATES[TEMPLATE_NAME]
         if (!tpl) return Response.json({ error: 'tpl' }, { status: 500 })
 
         const recipient = data.email
         const messageId = crypto.randomUUID()
-        const idempotencyKey = data.reservation_id ? `client-confirm-${data.reservation_id}` : messageId
+        const idempotencyKey = `client-confirm-${data.reservation_id}`
         const element = React.createElement(tpl.component, data)
         const html = await render(element)
         const text = await render(element, { plainText: true })

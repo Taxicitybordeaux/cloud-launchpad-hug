@@ -1,7 +1,15 @@
 import * as React from 'react'
 import { render } from '@react-email/components'
 import { createFileRoute } from '@tanstack/react-router'
+import { timingSafeEqual } from 'node:crypto'
 import { TEMPLATES } from '@/lib/email-templates/registry'
+
+function safeEqual(a: string, b: string): boolean {
+  const aBuf = Buffer.from(a)
+  const bBuf = Buffer.from(b)
+  if (aBuf.length !== bBuf.length) return false
+  return timingSafeEqual(aBuf, bBuf)
+}
 
 // Renders all registered templates with their previewData.
 // Gated by LOVABLE_API_KEY — only the Go API calls this.
@@ -18,10 +26,10 @@ export const Route = createFileRoute("/lovable/email/transactional/preview")({
           )
         }
 
-        // Verify the caller is authorized with LOVABLE_API_KEY
+        // Verify the caller is authorized with LOVABLE_API_KEY (timing-safe)
         const authHeader = request.headers.get('Authorization')
-        const token = authHeader?.replace(/^Bearer\s+/i, '')
-        if (token !== apiKey) {
+        const token = authHeader?.replace(/^Bearer\s+/i, '') ?? ''
+        if (!safeEqual(token, apiKey)) {
           return Response.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
@@ -77,7 +85,7 @@ export const Route = createFileRoute("/lovable/email/transactional/preview")({
               subject: '',
               html: '',
               status: 'render_failed',
-              errorMessage: err instanceof Error ? err.message : String(err),
+              errorMessage: 'Render failed — see server logs',
             })
           }
         }

@@ -1,12 +1,21 @@
 import * as React from 'react'
 import { render } from '@react-email/components'
 import { createFileRoute } from '@tanstack/react-router'
+import { timingSafeEqual } from 'node:crypto'
 import { SignupEmail } from '@/lib/email-templates/signup'
 import { InviteEmail } from '@/lib/email-templates/invite'
 import { MagicLinkEmail } from '@/lib/email-templates/magic-link'
 import { RecoveryEmail } from '@/lib/email-templates/recovery'
 import { EmailChangeEmail } from '@/lib/email-templates/email-change'
 import { ReauthenticationEmail } from '@/lib/email-templates/reauthentication'
+
+function safeBearerEqual(authHeader: string | null, apiKey: string): boolean {
+  if (!authHeader) return false
+  const expected = Buffer.from(`Bearer ${apiKey}`)
+  const actual = Buffer.from(authHeader)
+  if (expected.length !== actual.length) return false
+  return timingSafeEqual(expected, actual)
+}
 
 const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
   signup: SignupEmail,
@@ -73,9 +82,9 @@ export const Route = createFileRoute("/lovable/email/auth/preview")({
           )
         }
 
-        // Verify the caller is authorized with LOVABLE_API_KEY
+        // Verify the caller is authorized with LOVABLE_API_KEY (timing-safe)
         const authHeader = request.headers.get('Authorization')
-        if (!authHeader || authHeader !== `Bearer ${apiKey}`) {
+        if (!safeBearerEqual(authHeader, apiKey)) {
           return Response.json({ error: 'Unauthorized' }, { status: 401 })
         }
 

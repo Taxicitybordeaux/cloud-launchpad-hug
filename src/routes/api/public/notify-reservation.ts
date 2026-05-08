@@ -11,17 +11,7 @@ const FROM_DOMAIN = 'taxicitybordeaux.fr'
 const TEMPLATE_NAME = 'reservation-notification'
 
 const schema = z.object({
-  nom: z.string().min(1).max(100),
-  telephone: z.string().min(1).max(30),
-  email: z.string().max(255).optional().nullable(),
-  pickup_datetime: z.string().min(1).max(50),
-  depart: z.string().min(1).max(300),
-  arrivee: z.string().min(1).max(300),
-  passagers: z.union([z.number(), z.string()]).optional(),
-  bagages: z.union([z.number(), z.string()]).optional(),
-  service_type: z.string().max(50).optional(),
-  message: z.string().max(2000).optional().nullable(),
-  reservation_id: z.string().max(100).optional(),
+  reservation_id: z.string().uuid(),
 })
 
 export const Route = createFileRoute('/api/public/notify-reservation')({
@@ -42,18 +32,28 @@ export const Route = createFileRoute('/api/public/notify-reservation')({
         if (!parsed.success) {
           return Response.json({ error: 'Invalid payload' }, { status: 400 })
         }
-        const data = parsed.data
+        const reservationId = parsed.data.reservation_id
 
         const supabase = createClient(supabaseUrl, serviceKey)
+
+        // Pull the reservation server-side. The caller only sends an id, so they
+        // cannot fabricate the contents of the notification email to the operator.
+        const { data: reservation, error: lookupError } = await supabase
+          .from('reservations')
+          .select('id, nom, telephone, email, pickup_datetime, depart, arrivee, passagers, bagages, service_type, message')
+          .eq('id', reservationId)
+          .maybeSingle()
+        if (lookupError) return Response.json({ error: 'lookup' }, { status: 500 })
+        if (!reservation) return Response.json({ error: 'not_found' }, { status: 404 })
+
+        const data = reservation
         const template = TEMPLATES[TEMPLATE_NAME]
         if (!template || !template.to) {
           return Response.json({ error: 'Template not configured' }, { status: 500 })
         }
         const recipient = template.to
         const messageId = crypto.randomUUID()
-        const idempotencyKey = data.reservation_id
-          ? `reservation-${data.reservation_id}`
-          : messageId
+        const idempotencyKey = `reservation-${reservationId}`
 
         const element = React.createElement(template.component, data)
         const html = await render(element)
