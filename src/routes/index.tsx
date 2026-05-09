@@ -129,6 +129,49 @@ function Home() {
         </div>
       </section>
 
+      {/* BEST SELLERS BORDEAUX */}
+      <section className="border-t border-border bg-card/20">
+        <div className="mx-auto max-w-7xl px-4 py-20">
+          <div className="text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">{t("home.best.eyebrow")}</p>
+            <h2 className="mt-3 font-display text-4xl font-bold md:text-5xl">{t("home.best.title")}</h2>
+            <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">{t("home.best.intro")}</p>
+          </div>
+
+          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { img: bestMiroirEau, title: t("home.best.miroir.title"), sub: t("home.best.miroir.sub") },
+              { img: bestCiteVin, title: t("home.best.cite.title"), sub: t("home.best.cite.sub") },
+              { img: bestSaintEmilion, title: t("home.best.emilion.title"), sub: t("home.best.emilion.sub") },
+              { img: bestDunePilat, title: t("home.best.pilat.title"), sub: t("home.best.pilat.sub") },
+            ].map((b) => (
+              <Link
+                key={b.title}
+                to="/reservation"
+                className="group relative block aspect-[4/5] overflow-hidden rounded-3xl border border-border"
+              >
+                <img
+                  src={b.img}
+                  alt={b.title}
+                  loading="lazy"
+                  width={1024}
+                  height={1280}
+                  className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 p-5 text-white">
+                  <h3 className="font-display text-xl font-semibold">{b.title}</h3>
+                  <p className="mt-1 text-sm text-white/80">{b.sub}</p>
+                  <span className="mt-3 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+                    {t("home.dest.cta")} <ArrowRight className="h-3 w-3" />
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* WHY US */}
       <section className="border-y border-border bg-card/30">
         <div className="mx-auto grid max-w-7xl gap-10 px-4 py-20 md:grid-cols-2 md:items-center">
