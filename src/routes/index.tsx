@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { Phone, Plane, Train, Briefcase, Wrench, ShieldCheck, MapPin, Clock, Star, Wallet, Car, ArrowRight, Quote, HelpCircle } from "lucide-react";
 import logo from "@/assets/logo.jpeg";
 import heroCar from "@/assets/hero-bordeaux.jpg";
@@ -11,6 +12,8 @@ import bestSaintEmilion from "@/assets/best-saint-emilion.jpg";
 import bestMiroirEau from "@/assets/best-miroir-eau.jpg";
 import { useT } from "@/i18n/I18nProvider";
 import { FareSimulator } from "@/components/FareSimulator";
+import { ReviewForm } from "@/components/ReviewForm";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -366,29 +369,8 @@ function Home() {
       </section>
 
       {/* TESTIMONIALS */}
-      <section className="border-t border-border bg-card/30">
-        <div className="mx-auto max-w-7xl px-4 py-20">
-          <div className="text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">{t("home.test.eyebrow")}</p>
-            <h2 className="mt-3 font-display text-4xl font-bold md:text-5xl">{t("home.test.title")}</h2>
-          </div>
-          <div className="mt-12 grid gap-6 md:grid-cols-3">
-            {[
-              { name: "Camille B.", text: t("home.test.t1") },
-              { name: "Julien R.", text: t("home.test.t2") },
-              { name: "Sophie L.", text: t("home.test.t3") },
-            ].map((tt) => (
-              <figure key={tt.name} className="flex h-full flex-col rounded-2xl border border-border bg-background p-6">
-                <Quote className="h-6 w-6 text-primary" />
-                <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-foreground/85">"{tt.text}"</blockquote>
-                <figcaption className="mt-5 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  <Star className="h-3.5 w-3.5 text-primary" /> {tt.name}
-                </figcaption>
-              </figure>
-            ))}
-          </div>
-        </div>
-      </section>
+      <Testimonials />
+
 
       {/* FAQ */}
       <section id="faq" className="scroll-mt-24 border-t border-border">
@@ -436,5 +418,68 @@ function Home() {
         </div>
       </section>
     </>
+  );
+}
+
+type Review = { id: string; name: string; rating: number; text: string; created_at: string };
+
+function Testimonials() {
+  const t = useT();
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("reviews")
+        .select("id,name,rating,text,created_at")
+        .eq("approved", true)
+        .order("created_at", { ascending: false })
+        .limit(9);
+      if (!cancelled && data) setReviews(data as Review[]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshKey]);
+
+  const fallback = [
+    { id: "f1", name: "Camille B.", rating: 5, text: t("home.test.t1"), created_at: "" },
+    { id: "f2", name: "Julien R.", rating: 5, text: t("home.test.t2"), created_at: "" },
+    { id: "f3", name: "Sophie L.", rating: 5, text: t("home.test.t3"), created_at: "" },
+  ];
+  const items = reviews.length > 0 ? reviews : fallback;
+
+  return (
+    <section className="border-t border-border bg-card/30">
+      <div className="mx-auto max-w-7xl px-4 py-20">
+        <div className="text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">{t("home.test.eyebrow")}</p>
+          <h2 className="mt-3 font-display text-4xl font-bold md:text-5xl">{t("home.test.title")}</h2>
+        </div>
+        <div className="mt-12 grid gap-6 md:grid-cols-3">
+          {items.map((r) => (
+            <figure key={r.id} className="flex h-full flex-col rounded-2xl border border-border bg-background p-6">
+              <Quote className="h-6 w-6 text-primary" />
+              <div className="mt-3 flex gap-0.5">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Star
+                    key={i}
+                    className={`h-4 w-4 ${i <= r.rating ? "fill-primary text-primary" : "text-muted-foreground/30"}`}
+                  />
+                ))}
+              </div>
+              <blockquote className="mt-3 flex-1 text-sm leading-relaxed text-foreground/85">"{r.text}"</blockquote>
+              <figcaption className="mt-5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                {r.name}
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+
+        <ReviewForm onSubmitted={() => setRefreshKey((k) => k + 1)} />
+      </div>
+    </section>
   );
 }
