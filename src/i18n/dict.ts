@@ -100,6 +100,15 @@ const fr: Dict = {
   // Home — testimonials
   "home.test.eyebrow": "Ils nous ont fait confiance",
   "home.test.title": "Ce qu'en disent nos clients",
+  "review.title": "Laissez votre avis",
+  "review.intro": "Votre retour nous aide à progresser et oriente nos futurs clients.",
+  "review.rating": "Note",
+  "review.name.placeholder": "Votre prénom",
+  "review.text.placeholder": "Partagez votre expérience…",
+  "review.submit": "Publier mon avis",
+  "review.success": "Merci ! Votre avis a bien été publié.",
+  "review.error.fields": "Merci de renseigner une note, votre nom et un message.",
+  "review.error.submit": "Impossible d'envoyer votre avis. Réessayez.",
   "home.test.t1":
     "Chauffeur très ponctuel, voiture impeccable. J'ai été déposée à Mérignac en toute tranquillité, je recommande.",
   "home.test.t2":
