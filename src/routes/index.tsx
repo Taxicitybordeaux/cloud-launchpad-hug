@@ -5,6 +5,10 @@ import heroCar from "@/assets/hero-bordeaux.jpg";
 import destGare from "@/assets/dest-gare.jpg";
 import destAeroport from "@/assets/dest-aeroport.jpg";
 import destVignobles from "@/assets/dest-vignobles.jpg";
+import bestCiteVin from "@/assets/best-cite-vin.jpg";
+import bestDunePilat from "@/assets/best-dune-pilat.jpg";
+import bestSaintEmilion from "@/assets/best-saint-emilion.jpg";
+import bestMiroirEau from "@/assets/best-miroir-eau.jpg";
 import { useT } from "@/i18n/I18nProvider";
 import { FareSimulator } from "@/components/FareSimulator";
 
@@ -34,8 +38,10 @@ function Home() {
           width={1920}
           height={1080}
         />
-        {/* Strong dark overlay so headline & body copy stay readable in BOTH light and dark themes */}
-        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/75 via-black/55 to-black/30" />
+        {/* Strong overlays so the headline & body copy stay readable in BOTH light/dark themes,
+            with an extra bottom-up gradient on mobile where the text sits over the image. */}
+        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/75 via-black/50 to-black/20" />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/80 via-black/40 to-black/10 sm:hidden" />
 
         <div className="mx-auto max-w-7xl px-4 pt-16 pb-24 md:pt-24 md:pb-32 text-white">
           <div className="max-w-2xl">
