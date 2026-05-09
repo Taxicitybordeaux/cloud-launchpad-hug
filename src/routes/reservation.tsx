@@ -236,13 +236,6 @@ function ReservationPage() {
           </div>
         </div>
 
-        <fieldset>
-          <legend className="mb-3 block text-sm font-medium">{t("res.f.needs")}</legend>
-          <div className="grid gap-3">
-            <Extra icon={ShieldCheck} name="needs_cpam" checked={form.needs_cpam} onChange={handleChange} label={t("res.f.needs.cpam")} hint={t("res.f.needs.cpam.hint")} />
-          </div>
-        </fieldset>
-
         <div>
           <label className="mb-1.5 block text-sm font-medium">{t("res.f.message")}</label>
           <textarea name="message" value={form.message} onChange={handleChange} rows={4}

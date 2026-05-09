@@ -26,7 +26,7 @@ const LOCALE_MAP: Record<Lang, string> = {
 
 const STRINGS = {
   fr: {
-    intro: "Bonjour, je souhaite réserver un taxi avec Taxi City Bordeaux.",
+    intro: "Bonjour, je souhaite réserver un taxi.",
     name: "Nom", phone: "Téléphone", pickup: "Prise en charge",
     ret: "Retour", from: "Départ", to: "Arrivée",
     pax: (n: string | number) => `${n} passager(s)`,
@@ -37,7 +37,7 @@ const STRINGS = {
     outro: "Merci de me confirmer la disponibilité.",
   },
   en: {
-    intro: "Hello, I would like to book a taxi with Taxi City Bordeaux.",
+    intro: "Hello, I would like to book a taxi.",
     name: "Name", phone: "Phone", pickup: "Pickup",
     ret: "Return", from: "From", to: "To",
     pax: (n: string | number) => `${n} passenger(s)`,
@@ -48,7 +48,7 @@ const STRINGS = {
     outro: "Please confirm availability.",
   },
   es: {
-    intro: "Hola, quisiera reservar un taxi con Taxi City Bordeaux.",
+    intro: "Hola, quisiera reservar un taxi.",
     name: "Nombre", phone: "Teléfono", pickup: "Recogida",
     ret: "Regreso", from: "Origen", to: "Destino",
     pax: (n: string | number) => `${n} pasajero(s)`,
@@ -59,7 +59,7 @@ const STRINGS = {
     outro: "Por favor confirme la disponibilidad.",
   },
   it: {
-    intro: "Salve, vorrei prenotare un taxi con Taxi City Bordeaux.",
+    intro: "Salve, vorrei prenotare un taxi.",
     name: "Nome", phone: "Telefono", pickup: "Prelievo",
     ret: "Ritorno", from: "Partenza", to: "Arrivo",
     pax: (n: string | number) => `${n} passeggero(i)`,
@@ -70,7 +70,7 @@ const STRINGS = {
     outro: "Vi prego di confermare la disponibilità.",
   },
   pt: {
-    intro: "Olá, gostaria de reservar um táxi com Taxi City Bordeaux.",
+    intro: "Olá, gostaria de reservar um táxi.",
     name: "Nome", phone: "Telefone", pickup: "Recolha",
     ret: "Regresso", from: "Partida", to: "Chegada",
     pax: (n: string | number) => `${n} passageiro(s)`,
@@ -81,7 +81,7 @@ const STRINGS = {
     outro: "Por favor, confirme a disponibilidade.",
   },
   ar: {
-    intro: "مرحباً، أود حجز سيارة أجرة مع Taxi City Bordeaux.",
+    intro: "مرحباً، أود حجز سيارة أجرة.",
     name: "الاسم", phone: "الهاتف", pickup: "الانطلاق",
     ret: "العودة", from: "من", to: "إلى",
     pax: (n: string | number) => `${n} راكب`,
