@@ -62,9 +62,12 @@ export function FareSimulator() {
                 inputMode="decimal"
                 min={0}
                 step={1}
-                value={Number.isFinite(distance) ? distance : ""}
+                value={distance > 0 ? distance : ""}
                 onChange={(e) => {
-                  const v = parseFloat(e.target.value);
+                  // Strip leading zeros so users typing on mobile never end up with "0365".
+                  const cleaned = e.target.value.replace(/^0+(?=\d)/, "");
+                  if (cleaned === "") { setDistance(0); return; }
+                  const v = parseFloat(cleaned);
                   setDistance(Number.isFinite(v) ? Math.max(0, v) : 0);
                 }}
                 className="w-32 rounded-xl border border-border bg-background px-4 py-3 font-display text-lg font-semibold focus:border-primary focus:outline-none"
