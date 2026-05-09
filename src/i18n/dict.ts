@@ -54,6 +54,19 @@ const fr: Dict = {
   "home.dest.vine.sub": "Médoc, Saint-Émilion, Sauternes — à la journée.",
   "home.dest.cta": "Réserver",
 
+  // Home — best sellers Bordeaux
+  "home.best.eyebrow": "Incontournables",
+  "home.best.title": "Les best-sellers de Bordeaux",
+  "home.best.intro": "Les lieux que nos clients adorent visiter — on vous y emmène en toute sérénité.",
+  "home.best.miroir.title": "Miroir d'eau",
+  "home.best.miroir.sub": "Place de la Bourse, l'icône bordelaise.",
+  "home.best.cite.title": "Cité du Vin",
+  "home.best.cite.sub": "Le voyage au cœur des vignobles.",
+  "home.best.emilion.title": "Saint-Émilion",
+  "home.best.emilion.sub": "Village médiéval & Grand Cru classé.",
+  "home.best.pilat.title": "Dune du Pilat",
+  "home.best.pilat.sub": "La plus haute dune d'Europe.",
+
   // Home — why us
   "home.why.eyebrow": "Pourquoi nous",
   "home.why.title": "Un service simple, humain, fiable.",
