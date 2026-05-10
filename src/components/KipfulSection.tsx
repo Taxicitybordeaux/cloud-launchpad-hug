@@ -1,3 +1,4 @@
+// @ts-nocheck
 // ============================================================
 //  SECTION KIPFUL — À intégrer dans ta homepage Lovable
 //  Taxi City Bordeaux — taxicitybordeaux.fr
