@@ -525,13 +525,20 @@ export default function KipfulSection() {
       console.log("Réponse Kipful :", json);
 
       if (res.ok) {
-        const cards = Array.isArray(json) ? json : Array.isArray(json.data) ? json.data : [];
+        const extractedCards = Array.isArray(json)
+          ? json
+          : Array.isArray(json.data)
+            ? json.data
+            : Array.isArray(json.cards)
+              ? json.cards
+              : [];
 
-        if (cards.length > 0) {
-          setCards(cards);
+        if (extractedCards.length > 0) {
+          setCards(extractedCards);
           setConnected(true);
           showToast("✅ Kipful connecté !");
         } else {
+          console.warn("Aucune carte trouvée :", json);
           showToast("Aucune carte trouvée");
         }
       } else {
