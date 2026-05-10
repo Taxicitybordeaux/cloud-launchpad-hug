@@ -521,9 +521,13 @@ export default function KipfulSection() {
         body: JSON.stringify({ path: "/api/cards", sessionToken: token }),
       });
       const json = await res.json();
+
+      console.log("Réponse Kipful :", json);
+
       if (res.ok) {
-        const cards = json.data;
-        if (Array.isArray(cards) && cards.length > 0) {
+        const cards = Array.isArray(json) ? json : Array.isArray(json.data) ? json.data : [];
+
+        if (cards.length > 0) {
           setCards(cards);
           setConnected(true);
           showToast("✅ Kipful connecté !");
@@ -531,7 +535,7 @@ export default function KipfulSection() {
           showToast("Aucune carte trouvée");
         }
       } else {
-        showToast(`Erreur Kipful (${json.status || res.status})`);
+        showToast(`Erreur Kipful (${res.status})`);
       }
     } catch {
       showToast("Mode démo — proxy non configuré");
