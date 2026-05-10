@@ -273,8 +273,8 @@ export default function KipfulSection() {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: "" });
 
-  // ── Remplace par ta vraie URL Supabase Edge Function
-  const SUPABASE_PROXY = "https://TON_PROJECT.supabase.co/functions/v1/kipful-proxy";
+  // ── Proxy interne TanStack (relaie vers selfcare.kipful.me)
+  const SUPABASE_PROXY = "/api/public/kipful-proxy";
 
   const showToast = (msg) => {
     setToast({ visible: true, message: msg });
