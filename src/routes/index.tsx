@@ -13,6 +13,7 @@ import bestMiroirEau from "@/assets/best-miroir-eau.jpg";
 import { useT } from "@/i18n/I18nProvider";
 import { FareSimulator } from "@/components/FareSimulator";
 import { ReviewForm } from "@/components/ReviewForm";
+import KipfulSection from "@/components/KipfulSection";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/")({
@@ -370,6 +371,10 @@ function Home() {
 
       {/* TESTIMONIALS */}
       <Testimonials />
+
+      {/* KIPFUL DIGITAL CARD */}
+      <KipfulSection />
+
 
 
       {/* FAQ */}
