@@ -524,6 +524,7 @@ export default function KipfulSection() {
       if (res.ok && json.ok) {
         const cards = json.data;
         if (Array.isArray(cards) && cards.length > 0) {
+          setCards(cards);
           setConnected(true);
           showToast("✅ Kipful connecté !");
         } else {
