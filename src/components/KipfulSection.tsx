@@ -273,8 +273,8 @@ export default function KipfulSection() {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: "" });
 
-  // ── Remplace par ta vraie URL Supabase Edge Function
-  const SUPABASE_PROXY = "https://TON_PROJECT.supabase.co/functions/v1/kipful-proxy";
+  // ── Proxy interne TanStack (relaie vers selfcare.kipful.me)
+  const SUPABASE_PROXY = "/api/public/kipful-proxy";
 
   const showToast = (msg) => {
     setToast({ visible: true, message: msg });
@@ -290,16 +290,17 @@ export default function KipfulSection() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ path: "/api/cards", sessionToken: token }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
+      const json = await res.json();
+      if (res.ok && json.ok) {
+        const cards = json.data;
+        if (Array.isArray(cards) && cards.length > 0) {
           setConnected(true);
           showToast("✅ Kipful connecté !");
         } else {
           showToast("Aucune carte trouvée");
         }
       } else {
-        showToast("Erreur de connexion Kipful");
+        showToast(`Erreur Kipful (${json.status || res.status})`);
       }
     } catch {
       showToast("Mode démo — proxy non configuré");
