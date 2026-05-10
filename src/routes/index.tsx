@@ -372,6 +372,10 @@ function Home() {
       {/* TESTIMONIALS */}
       <Testimonials />
 
+      {/* KIPFUL DIGITAL CARD */}
+      <KipfulSection />
+
+
 
       {/* FAQ */}
       <section id="faq" className="scroll-mt-24 border-t border-border">
