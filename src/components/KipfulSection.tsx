@@ -521,7 +521,7 @@ export default function KipfulSection() {
         body: JSON.stringify({ path: "/api/cards", sessionToken: token }),
       });
       const json = await res.json();
-      if (res.ok && json.ok) {
+      if (res.ok) {
         const cards = json.data;
         if (Array.isArray(cards) && cards.length > 0) {
           setCards(cards);
