@@ -496,7 +496,7 @@ function VisualCard({ card, onShare }) {
 //  COMPOSANT PRINCIPAL — à coller dans ta homepage
 // ════════════════════════════════════════════════════════════
 export default function KipfulSection() {
-  const [cards] = useState(MOCK_CARDS);
+  const [cards, setCards] = useState(MOCK_CARDS);
   const [shareCard, setShareCard] = useState(null);
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [connected, setConnected] = useState(false);
