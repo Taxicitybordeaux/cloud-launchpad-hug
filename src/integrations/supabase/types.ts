@@ -50,6 +50,39 @@ export type Database = {
         }
         Relationships: []
       }
+      driver_gps: {
+        Row: {
+          accuracy: number | null
+          heading: number | null
+          id: string
+          is_active: boolean
+          latitude: number | null
+          longitude: number | null
+          speed: number | null
+          updated_at: string
+        }
+        Insert: {
+          accuracy?: number | null
+          heading?: number | null
+          id: string
+          is_active?: boolean
+          latitude?: number | null
+          longitude?: number | null
+          speed?: number | null
+          updated_at?: string
+        }
+        Update: {
+          accuracy?: number | null
+          heading?: number | null
+          id?: string
+          is_active?: boolean
+          latitude?: number | null
+          longitude?: number | null
+          speed?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       driver_location: {
         Row: {
           accuracy: number | null
