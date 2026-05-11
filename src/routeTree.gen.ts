@@ -21,7 +21,6 @@ import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as ApiPublicNotifyReservationClientRouteImport } from './routes/api/public/notify-reservation-client'
 import { Route as ApiPublicNotifyReservationRouteImport } from './routes/api/public/notify-reservation'
-import { Route as ApiPublicKipfulProxyRouteImport } from './routes/api/public/kipful-proxy'
 import { Route as ApiPublicDriverLocationRouteImport } from './routes/api/public/driver-location'
 import { Route as ApiPublicContactRouteImport } from './routes/api/public/contact'
 import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
@@ -92,11 +91,6 @@ const ApiPublicNotifyReservationRoute =
     path: '/api/public/notify-reservation',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicKipfulProxyRoute = ApiPublicKipfulProxyRouteImport.update({
-  id: '/api/public/kipful-proxy',
-  path: '/api/public/kipful-proxy',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiPublicDriverLocationRoute = ApiPublicDriverLocationRouteImport.update({
   id: '/api/public/driver-location',
   path: '/api/public/driver-location',
@@ -148,7 +142,6 @@ export interface FileRoutesByFullPath {
   '/suivi/$id': typeof SuiviIdRoute
   '/api/public/contact': typeof ApiPublicContactRoute
   '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
-  '/api/public/kipful-proxy': typeof ApiPublicKipfulProxyRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
@@ -170,7 +163,6 @@ export interface FileRoutesByTo {
   '/suivi/$id': typeof SuiviIdRoute
   '/api/public/contact': typeof ApiPublicContactRoute
   '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
-  '/api/public/kipful-proxy': typeof ApiPublicKipfulProxyRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
@@ -193,7 +185,6 @@ export interface FileRoutesById {
   '/suivi/$id': typeof SuiviIdRoute
   '/api/public/contact': typeof ApiPublicContactRoute
   '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
-  '/api/public/kipful-proxy': typeof ApiPublicKipfulProxyRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
@@ -217,7 +208,6 @@ export interface FileRouteTypes {
     | '/suivi/$id'
     | '/api/public/contact'
     | '/api/public/driver-location'
-    | '/api/public/kipful-proxy'
     | '/api/public/notify-reservation'
     | '/api/public/notify-reservation-client'
     | '/lovable/email/suppression'
@@ -239,7 +229,6 @@ export interface FileRouteTypes {
     | '/suivi/$id'
     | '/api/public/contact'
     | '/api/public/driver-location'
-    | '/api/public/kipful-proxy'
     | '/api/public/notify-reservation'
     | '/api/public/notify-reservation-client'
     | '/lovable/email/suppression'
@@ -261,7 +250,6 @@ export interface FileRouteTypes {
     | '/suivi/$id'
     | '/api/public/contact'
     | '/api/public/driver-location'
-    | '/api/public/kipful-proxy'
     | '/api/public/notify-reservation'
     | '/api/public/notify-reservation-client'
     | '/lovable/email/suppression'
@@ -283,7 +271,6 @@ export interface RootRouteChildren {
   SuiviIdRoute: typeof SuiviIdRoute
   ApiPublicContactRoute: typeof ApiPublicContactRoute
   ApiPublicDriverLocationRoute: typeof ApiPublicDriverLocationRoute
-  ApiPublicKipfulProxyRoute: typeof ApiPublicKipfulProxyRoute
   ApiPublicNotifyReservationRoute: typeof ApiPublicNotifyReservationRoute
   ApiPublicNotifyReservationClientRoute: typeof ApiPublicNotifyReservationClientRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
@@ -380,13 +367,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicNotifyReservationRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/kipful-proxy': {
-      id: '/api/public/kipful-proxy'
-      path: '/api/public/kipful-proxy'
-      fullPath: '/api/public/kipful-proxy'
-      preLoaderRoute: typeof ApiPublicKipfulProxyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/driver-location': {
       id: '/api/public/driver-location'
       path: '/api/public/driver-location'
@@ -462,7 +442,6 @@ const rootRouteChildren: RootRouteChildren = {
   SuiviIdRoute: SuiviIdRoute,
   ApiPublicContactRoute: ApiPublicContactRoute,
   ApiPublicDriverLocationRoute: ApiPublicDriverLocationRoute,
-  ApiPublicKipfulProxyRoute: ApiPublicKipfulProxyRoute,
   ApiPublicNotifyReservationRoute: ApiPublicNotifyReservationRoute,
   ApiPublicNotifyReservationClientRoute: ApiPublicNotifyReservationClientRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
@@ -475,3 +454,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
