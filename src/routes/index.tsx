@@ -372,9 +372,6 @@ function Home() {
       {/* TESTIMONIALS */}
       <Testimonials />
 
-      {/* KIPFUL DIGITAL CARD */}
-      <KipfulSection />
-
 
 
       {/* FAQ */}
