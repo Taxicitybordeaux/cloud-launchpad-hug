@@ -420,6 +420,9 @@ function Home() {
           </div>
         </div>
       </section>
+
+      {/* TRACKING QR SECTION */}
+      <TrackingQRSection />
     </>
   );
 }
