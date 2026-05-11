@@ -13,6 +13,7 @@ import bestMiroirEau from "@/assets/best-miroir-eau.jpg";
 import { useT } from "@/i18n/I18nProvider";
 import { FareSimulator } from "@/components/FareSimulator";
 import { ReviewForm } from "@/components/ReviewForm";
+import { TrackingQRSection } from "@/components/TrackingQRSection";
 
 import { supabase } from "@/integrations/supabase/client";
 
