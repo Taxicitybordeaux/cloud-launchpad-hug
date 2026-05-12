@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix } from "@/lib/tarif";
 import { assertTrackingId, newTrackingId } from "@/lib/tracking-id";
+import { CourseCardSkeleton, SkeletonStyles } from "@/components/admin/Skeleton";
 
 export const Route = createFileRoute("/admin/courses")({
   head: () => ({
@@ -35,6 +36,7 @@ function CoursesPage() {
   const [tab, setTab] = useState<(typeof tabKeys)[number]>("pending");
 
   const [items, setItems] = useState<R[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [counts, setCounts] = useState({
     pending: 0,
@@ -66,6 +68,7 @@ function CoursesPage() {
 
     if (error) {
       console.error(error);
+      setLoading(false);
       return;
     }
 
@@ -84,6 +87,7 @@ function CoursesPage() {
     });
 
     setCounts(nextCounts);
+    setLoading(false);
   }, []);
 
   // =========================
@@ -463,7 +467,16 @@ function CoursesPage() {
 
       {/* LISTE */}
 
-      {filtered.map((r) => {
+      <SkeletonStyles />
+      {loading && (
+        <>
+          <CourseCardSkeleton />
+          <CourseCardSkeleton />
+          <CourseCardSkeleton />
+        </>
+      )}
+
+      {!loading && filtered.map((r) => {
         const phone = r.client_phone || r.telephone;
 
         const email = r.client_email || r.email;
@@ -622,7 +635,7 @@ function CoursesPage() {
         );
       })}
 
-      {filtered.length === 0 && (
+      {!loading && filtered.length === 0 && (
         <div
           style={{
             textAlign: "center",

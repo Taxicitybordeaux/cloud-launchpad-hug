@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { Skeleton, SkeletonStyles, StatCardSkeleton, ReservationRowSkeleton } from "@/components/admin/Skeleton";
 
 export const Route = createFileRoute("/admin/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Admin" }, { name: "robots", content: "noindex" }] }),
@@ -20,6 +21,8 @@ function Dashboard() {
   const [qrImp, setQrImp] = useState(0);
   const [qrClick, setQrClick] = useState(0);
   const [reservs, setReservs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [gpsLoading, setGpsLoading] = useState(true);
   const [gpsActive, setGpsActive] = useState(false);
   const [gpsBusy, setGpsBusy] = useState(false);
   const [gpsPos, setGpsPos] = useState<{ lat: number; lng: number } | null>(null);
@@ -63,7 +66,7 @@ function Dashboard() {
   };
 
   useEffect(() => {
-    ensureRow().then((r) => setGpsActive(!!r.is_active));
+    ensureRow().then((r) => { setGpsActive(!!r.is_active); setGpsLoading(false); });
     return () => {
       if (watchIdRef.current !== null && typeof navigator !== "undefined") navigator.geolocation.clearWatch(watchIdRef.current);
     };
@@ -92,6 +95,7 @@ function Dashboard() {
     setQrImp(impR.count ?? 0);
     setQrClick(clkR.count ?? 0);
     setReservs(resR.data ?? []);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -117,49 +121,69 @@ function Dashboard() {
 
   return (
     <div style={{ padding: "32px 24px", fontFamily: "'DM Sans',sans-serif" }}>
+      <SkeletonStyles />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <h1 style={{ fontFamily: "'Syne',sans-serif", fontSize: 30, fontWeight: 800, color: "#f8fafc", margin: 0 }}>Dashboard</h1>
         <button onClick={fetchAll} style={{ padding: "8px 16px", background: "rgba(14,165,233,0.15)", border: "1px solid rgba(14,165,233,0.3)", color: "#0ea5e9", borderRadius: 10, cursor: "pointer", fontWeight: 600 }}>↻ Actualiser</button>
       </div>
 
       <div style={{ ...card, marginBottom: 24, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ width: 48, height: 48, borderRadius: "50%", background: gpsActive ? "#22c55e" : "#475569", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: gpsActive ? "0 0 0 6px rgba(34,197,94,0.18)" : "none", transition: "all 0.2s" }}>📡</div>
-          <div>
-            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, color: "#f8fafc", fontSize: 16 }}>{gpsActive ? "GPS actif" : "GPS inactif"}</div>
-            <div style={{ color: "#94a3b8", fontSize: 12 }}>{gpsActive ? (gpsPos ? `${gpsPos.lat.toFixed(5)}, ${gpsPos.lng.toFixed(5)}` : "Acquisition de la position…") : "Vos clients ne peuvent pas vous suivre"}</div>
-          </div>
-        </div>
-        <button onClick={gpsActive ? stopGps : startGps} disabled={gpsBusy} style={{ padding: "12px 22px", background: gpsActive ? "#ef4444" : "#22c55e", color: "#fff", border: 0, borderRadius: 12, cursor: gpsBusy ? "wait" : "pointer", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, boxShadow: gpsActive ? "0 6px 18px rgba(239,68,68,0.3)" : "0 6px 18px rgba(34,197,94,0.3)", opacity: gpsBusy ? 0.7 : 1 }}>{gpsActive ? "⏹ Désactiver" : "📡 Activer mon GPS"}</button>
+        {gpsLoading ? (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, flex: 1 }}>
+              <Skeleton width={48} height={48} radius="50%" />
+              <div style={{ display: "grid", gap: 8, flex: 1, maxWidth: 280 }}>
+                <Skeleton width="50%" height={16} />
+                <Skeleton width="80%" height={12} />
+              </div>
+            </div>
+            <Skeleton width={180} height={44} radius={12} />
+          </>
+        ) : (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{ width: 48, height: 48, borderRadius: "50%", background: gpsActive ? "#22c55e" : "#475569", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: gpsActive ? "0 0 0 6px rgba(34,197,94,0.18)" : "none", transition: "all 0.2s" }}>📡</div>
+              <div>
+                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, color: "#f8fafc", fontSize: 16 }}>{gpsActive ? "GPS actif" : "GPS inactif"}</div>
+                <div style={{ color: "#94a3b8", fontSize: 12 }}>{gpsActive ? (gpsPos ? `${gpsPos.lat.toFixed(5)}, ${gpsPos.lng.toFixed(5)}` : "Acquisition de la position…") : "Vos clients ne peuvent pas vous suivre"}</div>
+              </div>
+            </div>
+            <button onClick={gpsActive ? stopGps : startGps} disabled={gpsBusy} style={{ padding: "12px 22px", background: gpsActive ? "#ef4444" : "#22c55e", color: "#fff", border: 0, borderRadius: 12, cursor: gpsBusy ? "wait" : "pointer", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, boxShadow: gpsActive ? "0 6px 18px rgba(239,68,68,0.3)" : "0 6px 18px rgba(34,197,94,0.3)", opacity: gpsBusy ? 0.7 : 1 }}>{gpsActive ? "⏹ Désactiver" : "📡 Activer mon GPS"}</button>
+          </>
+        )}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 16, marginBottom: 24 }}>
-        {[
-          { i: "💶", v: `${caJ.toFixed(2)} €`, l: "CA aujourd'hui" },
-          { i: "📈", v: `${caM.toFixed(2)} €`, l: "CA ce mois" },
-          { i: "🚗", v: coursesJ, l: "Courses aujourd'hui" },
-          { i: "👥", v: clientsTotal, l: "Clients total" },
-        ].map((c, i) => (
-          <div key={i} style={card}>
-            <div style={{ fontSize: 26 }}>{c.i}</div>
-            <div style={valCss}>{c.v}</div>
-            <div style={labelCss}>{c.l}</div>
-          </div>
-        ))}
+        {loading
+          ? Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
+          : [
+              { i: "💶", v: `${caJ.toFixed(2)} €`, l: "CA aujourd'hui" },
+              { i: "📈", v: `${caM.toFixed(2)} €`, l: "CA ce mois" },
+              { i: "🚗", v: coursesJ, l: "Courses aujourd'hui" },
+              { i: "👥", v: clientsTotal, l: "Clients total" },
+            ].map((c, i) => (
+              <div key={i} style={card}>
+                <div style={{ fontSize: 26 }}>{c.i}</div>
+                <div style={valCss}>{c.v}</div>
+                <div style={labelCss}>{c.l}</div>
+              </div>
+            ))}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 16, marginBottom: 24 }}>
-        {[
-          { i: "👁️", v: visitors, l: "Visiteurs aujourd'hui" },
-          { i: "📱", v: qrImp, l: "Scans QR aujourd'hui" },
-          { i: "🔗", v: qrClick, l: "Clics QR aujourd'hui" },
-        ].map((c, i) => (
-          <div key={i} style={card}>
-            <div style={{ fontSize: 26 }}>{c.i}</div>
-            <div style={valCss}>{c.v}</div>
-            <div style={labelCss}>{c.l}</div>
-          </div>
-        ))}
+        {loading
+          ? Array.from({ length: 3 }).map((_, i) => <StatCardSkeleton key={i} />)
+          : [
+              { i: "👁️", v: visitors, l: "Visiteurs aujourd'hui" },
+              { i: "📱", v: qrImp, l: "Scans QR aujourd'hui" },
+              { i: "🔗", v: qrClick, l: "Clics QR aujourd'hui" },
+            ].map((c, i) => (
+              <div key={i} style={card}>
+                <div style={{ fontSize: 26 }}>{c.i}</div>
+                <div style={valCss}>{c.v}</div>
+                <div style={labelCss}>{c.l}</div>
+              </div>
+            ))}
       </div>
 
       <div style={{ ...card, padding: 0, overflow: "hidden" }}>
@@ -172,7 +196,8 @@ function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {reservs.map(r => (
+              {loading && Array.from({ length: 4 }).map((_, i) => <ReservationRowSkeleton key={`s${i}`} cols={6} />)}
+              {!loading && reservs.map(r => (
                 <tr key={r.id} style={{ borderTop: "1px solid rgba(255,255,255,0.05)", color: "#cbd5e1" }}>
                   <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>{new Date(r.created_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}</td>
                   <td style={{ padding: "10px 14px" }}>{r.client_name || r.nom}</td>
@@ -189,7 +214,7 @@ function Dashboard() {
                   </td>
                 </tr>
               ))}
-              {reservs.length === 0 && <tr><td colSpan={6} style={{ padding: 30, textAlign: "center", color: "#475569" }}>Aucune réservation</td></tr>}
+              {!loading && reservs.length === 0 && <tr><td colSpan={6} style={{ padding: 30, textAlign: "center", color: "#475569" }}>Aucune réservation</td></tr>}
             </tbody>
           </table>
         </div>

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix } from "@/lib/tarif";
+import { GpsCardSkeleton, SkeletonStyles } from "@/components/admin/Skeleton";
 
 export const Route = createFileRoute("/admin/gps")({
   head: () => ({ meta: [{ title: "GPS — Admin" }, { name: "robots", content: "noindex" }] }),
@@ -11,6 +12,7 @@ export const Route = createFileRoute("/admin/gps")({
 function GpsPage() {
   const [isActive, setIsActive] = useState(false);
   const [destination, setDestination] = useState("");
+  const [loading, setLoading] = useState(true);
   const [prixEstime, setPrixEstime] = useState("");
   const [calcKm, setCalcKm] = useState(5);
   const [calcJour, setCalcJour] = useState(true);
@@ -34,9 +36,11 @@ function GpsPage() {
 
         if (insertError) {
           console.error("Erreur création driver_gps:", insertError);
+          setLoading(false);
           return;
         }
 
+        setLoading(false);
         return;
       }
 
@@ -44,6 +48,7 @@ function GpsPage() {
       setIsActive(!!data.is_active);
       setDestination(data.destination ?? "");
       setPrixEstime(data.prix_estime ?? "");
+      setLoading(false);
     };
 
     initGPS();
@@ -108,6 +113,10 @@ function GpsPage() {
         GPS Chauffeur
       </h1>
 
+      <SkeletonStyles />
+      {loading ? (
+        <GpsCardSkeleton />
+      ) : (
       <div
         style={{
           maxWidth: 540,
@@ -282,6 +291,7 @@ function GpsPage() {
           </>
         )}
       </div>
+      )}
     </div>
   );
 }
