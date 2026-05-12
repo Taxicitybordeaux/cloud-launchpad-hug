@@ -183,7 +183,7 @@ function CoursesPage() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : "tracking_id invalide";
       console.error("[admin.courses] tracking_id validation failed:", msg);
-      if (typeof window !== "undefined") alert(`❌ ${msg}`);
+      toast.error("Impossible d'accepter la course", { description: msg });
       return;
     }
 
@@ -198,6 +198,7 @@ function CoursesPage() {
 
     if (error) {
       console.error(error);
+      toast.error("Échec de l'acceptation", { description: error.message });
       return;
     }
 
