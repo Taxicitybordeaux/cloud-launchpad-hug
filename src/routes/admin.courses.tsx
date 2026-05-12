@@ -664,7 +664,11 @@ function CoursesPage() {
       {/* MODALE DE CONFIRMATION */}
       {confirmAction && (
         <div
-          onClick={() => !confirmBusy && setConfirmAction(null)}
+          onClick={() => {
+            if (confirmBusy) return;
+            setConfirmAction(null);
+            setRefusalReason("");
+          }}
           style={{
             position: "fixed",
             inset: 0,
