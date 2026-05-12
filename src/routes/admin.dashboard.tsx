@@ -121,6 +121,7 @@ function Dashboard() {
 
   return (
     <div style={{ padding: "32px 24px", fontFamily: "'DM Sans',sans-serif" }}>
+      <SkeletonStyles />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <h1 style={{ fontFamily: "'Syne',sans-serif", fontSize: 30, fontWeight: 800, color: "#f8fafc", margin: 0 }}>Dashboard</h1>
         <button onClick={fetchAll} style={{ padding: "8px 16px", background: "rgba(14,165,233,0.15)", border: "1px solid rgba(14,165,233,0.3)", color: "#0ea5e9", borderRadius: 10, cursor: "pointer", fontWeight: 600 }}>↻ Actualiser</button>
