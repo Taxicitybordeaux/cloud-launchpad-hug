@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { trackingIdSchema } from "@/lib/tracking-id";
+import { SkeletonStyles, CardSkeleton, LineSkeleton, ButtonSkeleton, ReservationRowSkeleton } from "@/components/admin/Skeleton";
 
 export const Route = createFileRoute("/admin/flow-check")({
   head: () => ({ meta: [{ title: "Vérification du flow — Admin" }, { name: "robots", content: "noindex" }] }),
@@ -242,6 +243,7 @@ function FlowCheckPage() {
 
   return (
     <div style={{ padding: 28, fontFamily: "'DM Sans',sans-serif", color: "#f1f5f9" }}>
+      <SkeletonStyles />
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
         <div>
           <h1 style={{ fontFamily: "'Syne',sans-serif", fontWeight: 900, fontSize: 26, margin: 0 }}>🩺 Vérification du flow</h1>
@@ -264,7 +266,16 @@ function FlowCheckPage() {
       <section style={{ background: "#0f172a", borderRadius: 16, padding: 20, marginBottom: 24, border: "1px solid rgba(255,255,255,0.06)" }}>
         <h2 style={{ fontFamily: "'Syne',sans-serif", fontSize: 16, fontWeight: 800, marginTop: 0, marginBottom: 12 }}>Checks</h2>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {checks.length === 0 && <div style={{ color: "#64748b", fontSize: 13 }}>Analyse…</div>}
+          {checks.length === 0 && (
+            <div style={{ display: "grid", gap: 8 }}>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "rgba(255,255,255,0.02)", borderRadius: 10, borderLeft: "3px solid rgba(255,255,255,0.08)" }}>
+                  <LineSkeleton width={20} height={20} />
+                  <div style={{ flex: 1 }}><LineSkeleton width={`${60 + (i * 7) % 30}%`} height={12} /></div>
+                </div>
+              ))}
+            </div>
+          )}
           {checks.map(c => (
             <div key={c.id} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", background: "rgba(255,255,255,0.02)", borderRadius: 10, borderLeft: `3px solid ${colorOf(c.status)}` }}>
               <span style={{ fontSize: 18, lineHeight: "20px" }}>{iconOf(c.status)}</span>
@@ -355,7 +366,9 @@ function FlowCheckPage() {
                 );
               })}
               {reservations.length === 0 && (
-                <tr><td colSpan={7} style={{ padding: 20, textAlign: "center", color: "#64748b" }}>Aucune réservation récente.</td></tr>
+                running
+                  ? Array.from({ length: 4 }).map((_, i) => <ReservationRowSkeleton key={i} cols={7} />)
+                  : <tr><td colSpan={7} style={{ padding: 20, textAlign: "center", color: "#64748b" }}>Aucune réservation récente.</td></tr>
               )}
             </tbody>
           </table>

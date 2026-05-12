@@ -95,6 +95,43 @@ export function ClientRowSkeleton() {
   );
 }
 
+export function ButtonSkeleton({ width = 140, height = 38 }: { width?: number | string; height?: number }) {
+  return <Skeleton width={width} height={height} radius={10} />;
+}
+
+export function LineSkeleton({ width = "100%", height = 12 }: { width?: number | string; height?: number }) {
+  return <Skeleton width={width} height={height} />;
+}
+
+export function LinesSkeleton({ count = 3, gap = 8 }: { count?: number; gap?: number }) {
+  return (
+    <div style={{ display: "grid", gap }}>
+      {Array.from({ length: count }).map((_, i) => (
+        <Skeleton key={i} width={`${95 - i * 12}%`} height={12} />
+      ))}
+    </div>
+  );
+}
+
+export function CardSkeleton({ lines = 3, withTitle = true, withActions = false }: { lines?: number; withTitle?: boolean; withActions?: boolean }) {
+  return (
+    <div style={cardSkel}>
+      {withTitle && (
+        <div style={{ marginBottom: 12 }}>
+          <Skeleton width="45%" height={16} />
+        </div>
+      )}
+      <LinesSkeleton count={lines} />
+      {withActions && (
+        <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+          <ButtonSkeleton width={110} />
+          <ButtonSkeleton width={110} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function GpsCardSkeleton() {
   return (
     <div style={{ maxWidth: 540, margin: "0 auto", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 24, padding: 32, textAlign: "center" }}>
