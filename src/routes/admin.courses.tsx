@@ -467,7 +467,16 @@ function CoursesPage() {
 
       {/* LISTE */}
 
-      {filtered.map((r) => {
+      <SkeletonStyles />
+      {loading && (
+        <>
+          <CourseCardSkeleton />
+          <CourseCardSkeleton />
+          <CourseCardSkeleton />
+        </>
+      )}
+
+      {!loading && filtered.map((r) => {
         const phone = r.client_phone || r.telephone;
 
         const email = r.client_email || r.email;
