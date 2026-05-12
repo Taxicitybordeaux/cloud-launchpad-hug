@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { trackingIdSchema } from "@/lib/tracking-id";
 
 export const Route = createFileRoute("/scan/$id")({
   head: () => ({ meta: [{ title: "QR scanné – Taxi City Bordeaux" }, { name: "robots", content: "noindex" }] }),
@@ -28,16 +29,19 @@ function ScanPage() {
       if (cancelled) return;
       setStep("fetching");
 
-      if (!id || id.length < 6) {
-        toast.error("QR code invalide", { id: toastId });
-        setError("L'identifiant de course est manquant ou incorrect.");
+      const parsed = trackingIdSchema.safeParse(id);
+      if (!parsed.success) {
+        const reason = parsed.error.issues[0]?.message ?? "Identifiant de course invalide";
+        toast.error("QR code invalide", { id: toastId, description: reason });
+        setError(`${reason}. Le QR code ne contient pas un identifiant de course au bon format (UUID attendu).`);
         setStep("error");
         return;
       }
+      const trackingId = parsed.data;
       const { data, error: err } = await supabase
         .from("reservations")
         .select("id, status, tracking_id")
-        .eq("tracking_id", id)
+        .eq("tracking_id", trackingId)
         .maybeSingle();
       if (cancelled) return;
 

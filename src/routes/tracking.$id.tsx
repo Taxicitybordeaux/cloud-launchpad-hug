@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { trackingIdSchema } from "@/lib/tracking-id";
 
 export const Route = createFileRoute("/tracking/$id")({
   head: () => ({ meta: [{ title: "Suivi de votre course – Taxi City Bordeaux" }, { name: "description", content: "Suivez votre taxi en temps réel." }, { name: "robots", content: "noindex" }] }),
@@ -104,17 +105,25 @@ function TrackingPage() {
     toast.loading("📷 QR code détecté", { id: toastId, description: "Lecture du code et connexion sécurisée…" });
 
     const init = async () => {
-      // 1) Validate the QR code / tracking id against a reservation
-      if (!id || id.length < 6) {
-        toast.error("QR code invalide", { id: toastId, description: "L'identifiant de course est manquant ou incorrect." });
-        setError({ code: "invalid", title: "QR code invalide", message: "Le lien scanné ne contient pas d'identifiant de course valide. Vérifiez que vous scannez bien le QR code de Taxi City Bordeaux." });
+      // 1) Validate the QR code / tracking id format (must be a UUID v4)
+      const parsed = trackingIdSchema.safeParse(id);
+      if (!parsed.success) {
+        const reason = parsed.error.issues[0]?.message ?? "Identifiant de course invalide";
+        toast.error("QR code invalide", { id: toastId, description: reason });
+        setError({
+          code: "invalid",
+          title: "QR code invalide",
+          message: `${reason}. Le lien scanné ne correspond pas au format attendu (UUID). Vérifiez que vous scannez bien le QR code officiel de Taxi City Bordeaux.`,
+        });
         setLoading(false);
         return;
       }
+      const trackingId = parsed.data;
+
       const { data: resa, error: resaErr } = await supabase
         .from("reservations")
         .select("id, status, tracking_id, created_at, client_name, nom, depart, arrivee, destination, prix_estime, pickup_datetime")
-        .eq("tracking_id", id)
+        .eq("tracking_id", trackingId)
         .maybeSingle();
 
       if (resaErr || !resa) {
