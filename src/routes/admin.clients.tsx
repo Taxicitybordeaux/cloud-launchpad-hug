@@ -61,8 +61,10 @@ function ClientsPage() {
 
       <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Rechercher nom / téléphone / email" style={{ width: "100%", padding: "10px 14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, color: "#fff", fontSize: 14, marginBottom: 16 }} />
 
+      <SkeletonStyles />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 14 }}>
-        {filtered.map(c => (
+        {loading && Array.from({ length: 6 }).map((_, i) => <ClientRowSkeleton key={i} />)}
+        {!loading && filtered.map(c => (
           <div key={c.id} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: 20 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ width: 44, height: 44, background: "#0ea5e9", color: "#fff", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontFamily: "'Syne',sans-serif" }}>{(c.name || "?")[0]?.toUpperCase()}</div>
