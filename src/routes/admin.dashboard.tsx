@@ -66,7 +66,7 @@ function Dashboard() {
   };
 
   useEffect(() => {
-    ensureRow().then((r) => setGpsActive(!!r.is_active));
+    ensureRow().then((r) => { setGpsActive(!!r.is_active); setGpsLoading(false); });
     return () => {
       if (watchIdRef.current !== null && typeof navigator !== "undefined") navigator.geolocation.clearWatch(watchIdRef.current);
     };
