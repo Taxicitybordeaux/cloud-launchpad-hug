@@ -604,6 +604,24 @@ function CoursesPage() {
               )}
             </div>
 
+            {normalizeStatus(r.status) === "refused" && (r as any).refus_motif && (
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: "10px 12px",
+                  background: "rgba(239,68,68,0.08)",
+                  border: "1px solid rgba(239,68,68,0.25)",
+                  borderRadius: 10,
+                  color: "#fecaca",
+                  fontSize: 13,
+                  lineHeight: 1.5,
+                }}
+              >
+                <span style={{ fontWeight: 700, color: "#fca5a5" }}>Motif du refus :</span>{" "}
+                {(r as any).refus_motif}
+              </div>
+            )}
+
             {/* BOUTONS */}
 
             {normalizeStatus(r.status) === "pending" && (
