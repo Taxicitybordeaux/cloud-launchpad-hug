@@ -171,17 +171,19 @@ function Dashboard() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 16, marginBottom: 24 }}>
-        {[
-          { i: "👁️", v: visitors, l: "Visiteurs aujourd'hui" },
-          { i: "📱", v: qrImp, l: "Scans QR aujourd'hui" },
-          { i: "🔗", v: qrClick, l: "Clics QR aujourd'hui" },
-        ].map((c, i) => (
-          <div key={i} style={card}>
-            <div style={{ fontSize: 26 }}>{c.i}</div>
-            <div style={valCss}>{c.v}</div>
-            <div style={labelCss}>{c.l}</div>
-          </div>
-        ))}
+        {loading
+          ? Array.from({ length: 3 }).map((_, i) => <StatCardSkeleton key={i} />)
+          : [
+              { i: "👁️", v: visitors, l: "Visiteurs aujourd'hui" },
+              { i: "📱", v: qrImp, l: "Scans QR aujourd'hui" },
+              { i: "🔗", v: qrClick, l: "Clics QR aujourd'hui" },
+            ].map((c, i) => (
+              <div key={i} style={card}>
+                <div style={{ fontSize: 26 }}>{c.i}</div>
+                <div style={valCss}>{c.v}</div>
+                <div style={labelCss}>{c.l}</div>
+              </div>
+            ))}
       </div>
 
       <div style={{ ...card, padding: 0, overflow: "hidden" }}>
