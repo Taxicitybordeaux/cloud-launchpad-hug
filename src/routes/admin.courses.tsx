@@ -45,6 +45,13 @@ function CoursesPage() {
   const [simJour, setSimJour] = useState(true);
   const [simOpen, setSimOpen] = useState(false);
 
+  // Boîte de confirmation accepter / refuser
+  const [confirmAction, setConfirmAction] = useState<{
+    type: "accept" | "refuse";
+    r: R;
+  } | null>(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
+
   const initialLoad = useRef(true);
 
   // =========================
