@@ -96,6 +96,7 @@ function RootComponent() {
     <I18nProvider>
       <SiteHeader />
       <Outlet />
+      <SiteFooter />
       {/* WhatsAppFloat renders its own auto-sized mobile spacer. */}
       <WhatsAppFloat />
       <Toaster position="top-right" theme="dark" richColors closeButton />
