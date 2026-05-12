@@ -579,7 +579,7 @@ function CoursesPage() {
                 }}
               >
                 <button
-                  onClick={() => handleAccept(r)}
+                  onClick={() => setConfirmAction({ type: "accept", r })}
                   style={{
                     background: "#22c55e",
                     color: "#fff",
@@ -594,7 +594,7 @@ function CoursesPage() {
                 </button>
 
                 <button
-                  onClick={() => handleRefuse(r)}
+                  onClick={() => setConfirmAction({ type: "refuse", r })}
                   style={{
                     background: "#ef4444",
                     color: "#fff",
