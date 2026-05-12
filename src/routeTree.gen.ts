@@ -24,6 +24,7 @@ import { Route as ScanIdRouteImport } from './routes/scan.$id'
 import { Route as ReservationIdRouteImport } from './routes/reservation.$id'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as AdminGpsRouteImport } from './routes/admin.gps'
+import { Route as AdminFlowCheckRouteImport } from './routes/admin.flow-check'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
 import { Route as AdminCoursesRouteImport } from './routes/admin.courses'
 import { Route as AdminClientsRouteImport } from './routes/admin.clients'
@@ -113,6 +114,11 @@ const AdminGpsRoute = AdminGpsRouteImport.update({
   path: '/gps',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminFlowCheckRoute = AdminFlowCheckRouteImport.update({
+  id: '/flow-check',
+  path: '/flow-check',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminDashboardRoute = AdminDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -197,6 +203,7 @@ export interface FileRoutesByFullPath {
   '/admin/clients': typeof AdminClientsRoute
   '/admin/courses': typeof AdminCoursesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/flow-check': typeof AdminFlowCheckRoute
   '/admin/gps': typeof AdminGpsRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
@@ -227,6 +234,7 @@ export interface FileRoutesByTo {
   '/admin/clients': typeof AdminClientsRoute
   '/admin/courses': typeof AdminCoursesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/flow-check': typeof AdminFlowCheckRoute
   '/admin/gps': typeof AdminGpsRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
@@ -258,6 +266,7 @@ export interface FileRoutesById {
   '/admin/clients': typeof AdminClientsRoute
   '/admin/courses': typeof AdminCoursesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/flow-check': typeof AdminFlowCheckRoute
   '/admin/gps': typeof AdminGpsRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
@@ -290,6 +299,7 @@ export interface FileRouteTypes {
     | '/admin/clients'
     | '/admin/courses'
     | '/admin/dashboard'
+    | '/admin/flow-check'
     | '/admin/gps'
     | '/email/unsubscribe'
     | '/reservation/$id'
@@ -320,6 +330,7 @@ export interface FileRouteTypes {
     | '/admin/clients'
     | '/admin/courses'
     | '/admin/dashboard'
+    | '/admin/flow-check'
     | '/admin/gps'
     | '/email/unsubscribe'
     | '/reservation/$id'
@@ -350,6 +361,7 @@ export interface FileRouteTypes {
     | '/admin/clients'
     | '/admin/courses'
     | '/admin/dashboard'
+    | '/admin/flow-check'
     | '/admin/gps'
     | '/email/unsubscribe'
     | '/reservation/$id'
@@ -501,6 +513,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminGpsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/flow-check': {
+      id: '/admin/flow-check'
+      path: '/flow-check'
+      fullPath: '/admin/flow-check'
+      preLoaderRoute: typeof AdminFlowCheckRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/dashboard': {
       id: '/admin/dashboard'
       path: '/dashboard'
@@ -599,6 +618,7 @@ interface AdminRouteChildren {
   AdminClientsRoute: typeof AdminClientsRoute
   AdminCoursesRoute: typeof AdminCoursesRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminFlowCheckRoute: typeof AdminFlowCheckRoute
   AdminGpsRoute: typeof AdminGpsRoute
 }
 
@@ -606,6 +626,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminClientsRoute: AdminClientsRoute,
   AdminCoursesRoute: AdminCoursesRoute,
   AdminDashboardRoute: AdminDashboardRoute,
+  AdminFlowCheckRoute: AdminFlowCheckRoute,
   AdminGpsRoute: AdminGpsRoute,
 }
 
