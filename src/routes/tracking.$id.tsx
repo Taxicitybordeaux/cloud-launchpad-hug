@@ -168,7 +168,6 @@ function TrackingPage() {
       } else {
         await initMap(BORDEAUX_CENTER[0], BORDEAUX_CENTER[1]);
       }
-      const clientName = (resa.client_name || resa.nom || "").toString().trim();
       toast.success("✅ Course trouvée", { id: toastId, description: clientName ? `Suivi en cours pour ${clientName}` : "Suivi en cours du chauffeur en temps réel.", duration: 4000 });
       setLoading(false);
 
