@@ -72,13 +72,7 @@ function CoursesPage() {
     };
 
     rows.forEach((r: R) => {
-      if (r.status === "accepted") {
-        nextCounts.accepted++;
-      } else if (r.status === "refused") {
-        nextCounts.refused++;
-      } else {
-        nextCounts.pending++;
-      }
+      nextCounts[normalizeStatus(r.status)]++;
     });
 
     setCounts(nextCounts);
