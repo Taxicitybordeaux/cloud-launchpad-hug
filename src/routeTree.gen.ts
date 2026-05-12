@@ -20,6 +20,7 @@ import { Route as AProposRouteImport } from './routes/a-propos'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TrackingIdRouteImport } from './routes/tracking.$id'
 import { Route as SuiviIdRouteImport } from './routes/suivi.$id'
+import { Route as ScanIdRouteImport } from './routes/scan.$id'
 import { Route as ReservationIdRouteImport } from './routes/reservation.$id'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as AdminGpsRouteImport } from './routes/admin.gps'
@@ -90,6 +91,11 @@ const TrackingIdRoute = TrackingIdRouteImport.update({
 const SuiviIdRoute = SuiviIdRouteImport.update({
   id: '/suivi/$id',
   path: '/suivi/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScanIdRoute = ScanIdRouteImport.update({
+  id: '/scan/$id',
+  path: '/scan/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReservationIdRoute = ReservationIdRouteImport.update({
@@ -194,6 +200,7 @@ export interface FileRoutesByFullPath {
   '/admin/gps': typeof AdminGpsRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
+  '/scan/$id': typeof ScanIdRoute
   '/suivi/$id': typeof SuiviIdRoute
   '/tracking/$id': typeof TrackingIdRoute
   '/api/public/contact': typeof ApiPublicContactRoute
@@ -223,6 +230,7 @@ export interface FileRoutesByTo {
   '/admin/gps': typeof AdminGpsRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
+  '/scan/$id': typeof ScanIdRoute
   '/suivi/$id': typeof SuiviIdRoute
   '/tracking/$id': typeof TrackingIdRoute
   '/api/public/contact': typeof ApiPublicContactRoute
@@ -253,6 +261,7 @@ export interface FileRoutesById {
   '/admin/gps': typeof AdminGpsRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
+  '/scan/$id': typeof ScanIdRoute
   '/suivi/$id': typeof SuiviIdRoute
   '/tracking/$id': typeof TrackingIdRoute
   '/api/public/contact': typeof ApiPublicContactRoute
@@ -284,6 +293,7 @@ export interface FileRouteTypes {
     | '/admin/gps'
     | '/email/unsubscribe'
     | '/reservation/$id'
+    | '/scan/$id'
     | '/suivi/$id'
     | '/tracking/$id'
     | '/api/public/contact'
@@ -313,6 +323,7 @@ export interface FileRouteTypes {
     | '/admin/gps'
     | '/email/unsubscribe'
     | '/reservation/$id'
+    | '/scan/$id'
     | '/suivi/$id'
     | '/tracking/$id'
     | '/api/public/contact'
@@ -342,6 +353,7 @@ export interface FileRouteTypes {
     | '/admin/gps'
     | '/email/unsubscribe'
     | '/reservation/$id'
+    | '/scan/$id'
     | '/suivi/$id'
     | '/tracking/$id'
     | '/api/public/contact'
@@ -367,6 +379,7 @@ export interface RootRouteChildren {
   ReserverRoute: typeof ReserverRoute
   ServicesRoute: typeof ServicesRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
+  ScanIdRoute: typeof ScanIdRoute
   SuiviIdRoute: typeof SuiviIdRoute
   TrackingIdRoute: typeof TrackingIdRoute
   ApiPublicContactRoute: typeof ApiPublicContactRoute
@@ -458,6 +471,13 @@ declare module '@tanstack/react-router' {
       path: '/suivi/$id'
       fullPath: '/suivi/$id'
       preLoaderRoute: typeof SuiviIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scan/$id': {
+      id: '/scan/$id'
+      path: '/scan/$id'
+      fullPath: '/scan/$id'
+      preLoaderRoute: typeof ScanIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reservation/$id': {
@@ -614,6 +634,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReserverRoute: ReserverRoute,
   ServicesRoute: ServicesRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
+  ScanIdRoute: ScanIdRoute,
   SuiviIdRoute: SuiviIdRoute,
   TrackingIdRoute: TrackingIdRoute,
   ApiPublicContactRoute: ApiPublicContactRoute,
