@@ -36,9 +36,11 @@ function GpsPage() {
 
         if (insertError) {
           console.error("Erreur création driver_gps:", insertError);
+          setLoading(false);
           return;
         }
 
+        setLoading(false);
         return;
       }
 
@@ -46,6 +48,7 @@ function GpsPage() {
       setIsActive(!!data.is_active);
       setDestination(data.destination ?? "");
       setPrixEstime(data.prix_estime ?? "");
+      setLoading(false);
     };
 
     initGPS();
