@@ -332,6 +332,7 @@ export type Database = {
           passagers: number
           pickup_datetime: string
           prix_estime: number | null
+          refus_motif: string | null
           service_type: string
           source: string | null
           status: string
@@ -360,6 +361,7 @@ export type Database = {
           passagers?: number
           pickup_datetime: string
           prix_estime?: number | null
+          refus_motif?: string | null
           service_type?: string
           source?: string | null
           status?: string
@@ -388,6 +390,7 @@ export type Database = {
           passagers?: number
           pickup_datetime?: string
           prix_estime?: number | null
+          refus_motif?: string | null
           service_type?: string
           source?: string | null
           status?: string

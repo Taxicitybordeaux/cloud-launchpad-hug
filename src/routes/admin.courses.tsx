@@ -54,6 +54,7 @@ function CoursesPage() {
     r: R;
   } | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
+  const [refusalReason, setRefusalReason] = useState("");
 
   const initialLoad = useRef(true);
 
@@ -308,11 +309,21 @@ function CoursesPage() {
   // REFUSE
   // =========================
 
-  const handleRefuse = async (r: R) => {
+  const handleRefuse = async (r: R, motif: string) => {
+    const cleaned = motif.trim();
+    if (cleaned.length < 3) {
+      toast.error("Motif requis", { description: "Indiquez la raison du refus (3 caractères minimum)." });
+      return false;
+    }
+    if (cleaned.length > 500) {
+      toast.error("Motif trop long", { description: "500 caractères maximum." });
+      return false;
+    }
     const { error } = await supabase
       .from("reservations")
       .update({
         status: "refused",
+        refus_motif: cleaned,
         updated_at: new Date().toISOString(),
       })
       .eq("id", r.id);
@@ -320,11 +331,14 @@ function CoursesPage() {
     if (error) {
       console.error(error);
       toast.error("Échec du refus", { description: error.message });
-      return;
+      return false;
     }
 
-    toast.success(`Course refusée — ${r.client_name || r.nom || "client"}`);
+    toast.success(`Course refusée — ${r.client_name || r.nom || "client"}`, {
+      description: `Motif enregistré : « ${cleaned.slice(0, 80)}${cleaned.length > 80 ? "…" : ""} »`,
+    });
     fetchAll();
+    return true;
   };
 
   // =========================
@@ -590,6 +604,24 @@ function CoursesPage() {
               )}
             </div>
 
+            {normalizeStatus(r.status) === "refused" && (r as any).refus_motif && (
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: "10px 12px",
+                  background: "rgba(239,68,68,0.08)",
+                  border: "1px solid rgba(239,68,68,0.25)",
+                  borderRadius: 10,
+                  color: "#fecaca",
+                  fontSize: 13,
+                  lineHeight: 1.5,
+                }}
+              >
+                <span style={{ fontWeight: 700, color: "#fca5a5" }}>Motif du refus :</span>{" "}
+                {(r as any).refus_motif}
+              </div>
+            )}
+
             {/* BOUTONS */}
 
             {normalizeStatus(r.status) === "pending" && (
@@ -650,7 +682,11 @@ function CoursesPage() {
       {/* MODALE DE CONFIRMATION */}
       {confirmAction && (
         <div
-          onClick={() => !confirmBusy && setConfirmAction(null)}
+          onClick={() => {
+            if (confirmBusy) return;
+            setConfirmAction(null);
+            setRefusalReason("");
+          }}
           style={{
             position: "fixed",
             inset: 0,
@@ -700,12 +736,49 @@ function CoursesPage() {
             <p style={{ color: "#64748b", fontSize: 13, margin: "0 0 22px" }}>
               {confirmAction.type === "accept"
                 ? "Le client recevra un email avec le lien de suivi en temps réel."
-                : "Cette action peut être modifiée plus tard depuis l'onglet Refusées."}
+                : "Le motif sera enregistré sur la réservation. Vous pourrez le revoir dans l'onglet Refusées."}
             </p>
+
+            {confirmAction.type === "refuse" && (
+              <div style={{ marginBottom: 18 }}>
+                <label
+                  htmlFor="refusal-reason"
+                  style={{ display: "block", color: "#cbd5e1", fontSize: 13, fontWeight: 600, marginBottom: 6 }}
+                >
+                  Motif du refus <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <textarea
+                  id="refusal-reason"
+                  value={refusalReason}
+                  onChange={(e) => setRefusalReason(e.target.value.slice(0, 500))}
+                  disabled={confirmBusy}
+                  autoFocus
+                  rows={3}
+                  maxLength={500}
+                  placeholder="Ex. : créneau indisponible, zone non desservie, doublon…"
+                  style={{
+                    width: "100%",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(239,68,68,0.3)",
+                    borderRadius: 10,
+                    padding: "10px 12px",
+                    color: "#f8fafc",
+                    fontFamily: "'DM Sans',sans-serif",
+                    fontSize: 14,
+                    resize: "vertical",
+                    outline: "none",
+                  }}
+                />
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 11, color: "#64748b" }}>
+                  <span>{refusalReason.trim().length < 3 ? "3 caractères minimum" : "✓"}</span>
+                  <span>{refusalReason.length}/500</span>
+                </div>
+              </div>
+            )}
 
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
               <button
-                onClick={() => setConfirmAction(null)}
+                onClick={() => { setConfirmAction(null); setRefusalReason(""); }}
                 disabled={confirmBusy}
                 style={{
                   background: "rgba(255,255,255,0.06)",
@@ -723,19 +796,30 @@ function CoursesPage() {
               <button
                 onClick={async () => {
                   if (confirmBusy) return;
+                  if (confirmAction.type === "refuse" && refusalReason.trim().length < 3) {
+                    toast.error("Motif requis", { description: "Indiquez la raison du refus (3 caractères minimum)." });
+                    return;
+                  }
                   setConfirmBusy(true);
                   try {
                     if (confirmAction.type === "accept") {
                       await handleAccept(confirmAction.r);
+                      setConfirmAction(null);
                     } else {
-                      await handleRefuse(confirmAction.r);
+                      const ok = await handleRefuse(confirmAction.r, refusalReason);
+                      if (ok) {
+                        setConfirmAction(null);
+                        setRefusalReason("");
+                      }
                     }
-                    setConfirmAction(null);
                   } finally {
                     setConfirmBusy(false);
                   }
                 }}
-                disabled={confirmBusy}
+                disabled={
+                  confirmBusy ||
+                  (confirmAction.type === "refuse" && refusalReason.trim().length < 3)
+                }
                 style={{
                   background: confirmAction.type === "accept" ? "#22c55e" : "#ef4444",
                   color: "#fff",
@@ -744,7 +828,11 @@ function CoursesPage() {
                   borderRadius: 12,
                   cursor: confirmBusy ? "wait" : "pointer",
                   fontWeight: 700,
-                  opacity: confirmBusy ? 0.7 : 1,
+                  opacity:
+                    confirmBusy ||
+                    (confirmAction.type === "refuse" && refusalReason.trim().length < 3)
+                      ? 0.5
+                      : 1,
                 }}
               >
                 {confirmBusy
