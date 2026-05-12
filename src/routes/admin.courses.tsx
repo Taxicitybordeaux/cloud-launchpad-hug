@@ -315,9 +315,11 @@ function CoursesPage() {
 
     if (error) {
       console.error(error);
+      toast.error("Échec du refus", { description: error.message });
       return;
     }
 
+    toast.success(`Course refusée — ${r.client_name || r.nom || "client"}`);
     fetchAll();
   };
 
