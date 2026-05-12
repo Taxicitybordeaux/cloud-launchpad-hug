@@ -67,7 +67,7 @@ export function CourseCardSkeleton() {
     <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: 20, marginBottom: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
         <Skeleton width={140} height={16} />
-        <Skeleton width={90} height: 24} radius={99} />
+        <Skeleton width={90} height={24} radius={99} />
       </div>
       <div style={{ display: "grid", gap: 8 }}>
         <Skeleton width="80%" height={12} />
