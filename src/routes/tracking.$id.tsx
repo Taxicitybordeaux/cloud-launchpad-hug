@@ -169,7 +169,7 @@ function TrackingPage() {
       if (channelRef.current) supabase.removeChannel(channelRef.current);
       if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; markerRef.current = null; }
     };
-  }, []);
+  }, [id, retryNonce]);
 
   const styleTag = (
     <style>{`@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');
