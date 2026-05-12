@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin/dashboard")({
@@ -20,6 +20,54 @@ function Dashboard() {
   const [qrImp, setQrImp] = useState(0);
   const [qrClick, setQrClick] = useState(0);
   const [reservs, setReservs] = useState<any[]>([]);
+  const [gpsActive, setGpsActive] = useState(false);
+  const [gpsBusy, setGpsBusy] = useState(false);
+  const [gpsPos, setGpsPos] = useState<{ lat: number; lng: number } | null>(null);
+  const watchIdRef = useRef<number | null>(null);
+
+  const ensureRow = async () => {
+    const { data } = await supabase.from("driver_gps").select("is_active,latitude,longitude").eq("id", "driver").maybeSingle();
+    if (!data) {
+      await supabase.from("driver_gps").insert({ id: "driver", is_active: false, latitude: 0, longitude: 0 });
+      return { is_active: false, latitude: 0, longitude: 0 };
+    }
+    return data;
+  };
+
+  const startGps = async () => {
+    if (!navigator.geolocation) { alert("Géolocalisation indisponible sur cet appareil."); return; }
+    setGpsBusy(true);
+    await ensureRow();
+    await supabase.from("driver_gps").update({ is_active: true, updated_at: new Date().toISOString() }).eq("id", "driver");
+    setGpsActive(true);
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      async (pos) => {
+        const { latitude, longitude, accuracy } = pos.coords;
+        setGpsPos({ lat: latitude, lng: longitude });
+        await supabase.from("driver_gps").update({ latitude, longitude, accuracy, updated_at: new Date().toISOString() }).eq("id", "driver");
+      },
+      (e) => console.error(e),
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 },
+    );
+    setGpsBusy(false);
+  };
+
+  const stopGps = async () => {
+    setGpsBusy(true);
+    if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+    watchIdRef.current = null;
+    await supabase.from("driver_gps").update({ is_active: false }).eq("id", "driver");
+    setGpsActive(false);
+    setGpsPos(null);
+    setGpsBusy(false);
+  };
+
+  useEffect(() => {
+    ensureRow().then((r) => setGpsActive(!!r.is_active));
+    return () => {
+      if (watchIdRef.current !== null && typeof navigator !== "undefined") navigator.geolocation.clearWatch(watchIdRef.current);
+    };
+  }, []);
 
   const fetchAll = useCallback(async () => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -72,6 +120,17 @@ function Dashboard() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <h1 style={{ fontFamily: "'Syne',sans-serif", fontSize: 30, fontWeight: 800, color: "#f8fafc", margin: 0 }}>Dashboard</h1>
         <button onClick={fetchAll} style={{ padding: "8px 16px", background: "rgba(14,165,233,0.15)", border: "1px solid rgba(14,165,233,0.3)", color: "#0ea5e9", borderRadius: 10, cursor: "pointer", fontWeight: 600 }}>↻ Actualiser</button>
+      </div>
+
+      <div style={{ ...card, marginBottom: 24, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ width: 48, height: 48, borderRadius: "50%", background: gpsActive ? "#22c55e" : "#475569", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: gpsActive ? "0 0 0 6px rgba(34,197,94,0.18)" : "none", transition: "all 0.2s" }}>📡</div>
+          <div>
+            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, color: "#f8fafc", fontSize: 16 }}>{gpsActive ? "GPS actif" : "GPS inactif"}</div>
+            <div style={{ color: "#94a3b8", fontSize: 12 }}>{gpsActive ? (gpsPos ? `${gpsPos.lat.toFixed(5)}, ${gpsPos.lng.toFixed(5)}` : "Acquisition de la position…") : "Vos clients ne peuvent pas vous suivre"}</div>
+          </div>
+        </div>
+        <button onClick={gpsActive ? stopGps : startGps} disabled={gpsBusy} style={{ padding: "12px 22px", background: gpsActive ? "#ef4444" : "#22c55e", color: "#fff", border: 0, borderRadius: 12, cursor: gpsBusy ? "wait" : "pointer", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, boxShadow: gpsActive ? "0 6px 18px rgba(239,68,68,0.3)" : "0 6px 18px rgba(34,197,94,0.3)", opacity: gpsBusy ? 0.7 : 1 }}>{gpsActive ? "⏹ Désactiver" : "📡 Activer mon GPS"}</button>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 16, marginBottom: 24 }}>
