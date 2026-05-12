@@ -35,6 +35,7 @@ function CoursesPage() {
   const [tab, setTab] = useState<(typeof tabKeys)[number]>("pending");
 
   const [items, setItems] = useState<R[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [counts, setCounts] = useState({
     pending: 0,
