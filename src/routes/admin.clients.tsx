@@ -10,6 +10,7 @@ export const Route = createFileRoute("/admin/clients")({
 
 function ClientsPage() {
   const [clients, setClients] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [history, setHistory] = useState<Record<string, any[]>>({});
   const [open, setOpen] = useState<Record<string, boolean>>({});
