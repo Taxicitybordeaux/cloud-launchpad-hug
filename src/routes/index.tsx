@@ -1,6 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Phone, Plane, Train, Briefcase, Wrench, ShieldCheck, MapPin, Clock, Star, Wallet, Car, ArrowRight, Quote, HelpCircle } from "lucide-react";
+import {
+  Phone,
+  Plane,
+  Train,
+  Briefcase,
+  Wrench,
+  ShieldCheck,
+  MapPin,
+  Clock,
+  Star,
+  Wallet,
+  Car,
+  ArrowRight,
+  Quote,
+  HelpCircle,
+} from "lucide-react";
 import logo from "@/assets/logo.jpeg";
 import heroCar from "@/assets/hero-bordeaux.jpg";
 import destGare from "@/assets/dest-gare.jpg";
@@ -21,7 +36,11 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Taxi City Bordeaux – Taxi 7j/7 à Bordeaux & en Gironde" },
-      { name: "description", content: "Réservez votre taxi à Bordeaux : aéroport Mérignac, gare Saint-Jean, vignobles, longues distances. Conventionné CPAM. Service ponctuel et confortable, jour & nuit." },
+      {
+        name: "description",
+        content:
+          "Réservez votre taxi à Bordeaux : aéroport Mérignac, gare Saint-Jean, vignobles, longues distances. Conventionné CPAM. Service ponctuel et confortable, jour & nuit.",
+      },
     ],
   }),
   component: Home,
@@ -32,6 +51,22 @@ const PHONE_DISPLAY = "06 73 07 23 22";
 
 function Home() {
   const t = useT();
+
+  const [tapCount, setTapCount] = useState(0);
+
+  const handleSecretAdmin = () => {
+    const next = tapCount + 1;
+
+    setTapCount(next);
+
+    setTimeout(() => {
+      setTapCount(0);
+    }, 2000);
+
+    if (next >= 5) {
+      window.location.href = "/login";
+    }
+  };
   return (
     <>
       {/* HERO */}
@@ -57,12 +92,11 @@ function Home() {
 
             <h1 className="mt-7 font-display text-5xl font-bold leading-[1.05] text-white md:text-6xl lg:text-7xl">
               {t("home.hero.title.before")} <span className="italic text-primary">{t("home.hero.title.city")}</span>
-              <br className="hidden md:block" />{t("home.hero.title.after")}
+              <br className="hidden md:block" />
+              {t("home.hero.title.after")}
             </h1>
 
-            <p className="mt-6 max-w-xl text-base text-white/85 md:text-lg">
-              {t("home.hero.subtitle")}
-            </p>
+            <p className="mt-6 max-w-xl text-base text-white/85 md:text-lg">{t("home.hero.subtitle")}</p>
 
             <div className="mt-8 flex flex-col gap-3 rounded-2xl border border-white/15 bg-black/40 p-3 backdrop-blur-md sm:flex-row sm:items-center sm:p-2">
               <div className="flex flex-1 items-center gap-3 px-3 py-2 text-sm text-white/80">
@@ -84,9 +118,15 @@ function Home() {
             </div>
 
             <div className="mt-8 flex flex-wrap items-center gap-x-7 gap-y-3 text-sm text-white/80">
-              <span className="inline-flex items-center gap-2"><Clock className="h-4 w-4 text-primary" /> {t("home.hero.tag1")}</span>
-              <span className="inline-flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> {t("home.hero.tag2")}</span>
-              <span className="inline-flex items-center gap-2"><Wallet className="h-4 w-4 text-primary" /> {t("home.hero.tag3")}</span>
+              <span className="inline-flex items-center gap-2">
+                <Clock className="h-4 w-4 text-primary" /> {t("home.hero.tag1")}
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-primary" /> {t("home.hero.tag2")}
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-primary" /> {t("home.hero.tag3")}
+              </span>
             </div>
           </div>
         </div>
@@ -274,9 +314,7 @@ function Home() {
                 {s.i}
               </span>
               <h3 className="mt-3 font-display text-lg font-semibold">{t(`home.how.s${s.i}.t`)}</h3>
-              <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">
-                {t(`home.how.s${s.i}.d`)}
-              </p>
+              <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">{t(`home.how.s${s.i}.d`)}</p>
               <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
                 {s.cta}
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
@@ -339,7 +377,10 @@ function Home() {
             { icon: ShieldCheck, title: t("svc.cpam.title"), desc: t("svc.cpam.desc") },
             { icon: MapPin, title: t("svc.long.title"), desc: t("svc.long.desc") },
           ].map((s) => (
-            <div key={s.title} className="group flex h-full flex-col rounded-2xl border border-border bg-card p-6 transition hover:border-primary/50">
+            <div
+              key={s.title}
+              className="group flex h-full flex-col rounded-2xl border border-border bg-card p-6 transition hover:border-primary/50"
+            >
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition group-hover:bg-primary group-hover:text-primary-foreground">
                 <s.icon className="h-5 w-5" />
               </div>
@@ -349,7 +390,10 @@ function Home() {
           ))}
         </div>
         <div className="mt-10 text-center">
-          <Link to="/services" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+          <Link
+            to="/services"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
+          >
             {t("home.services.see_all")} <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
@@ -372,8 +416,6 @@ function Home() {
 
       {/* TESTIMONIALS */}
       <Testimonials />
-
-
 
       {/* FAQ */}
       <section id="faq" className="scroll-mt-24 border-t border-border">
@@ -410,10 +452,16 @@ function Home() {
             <h2 className="font-display text-3xl font-bold md:text-5xl">{t("home.cta.title")}</h2>
             <p className="mx-auto mt-4 max-w-xl text-muted-foreground">{t("home.cta.desc")}</p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <Link to="/reservation" className="rounded-xl bg-primary px-8 py-3 font-semibold text-primary-foreground shadow-[var(--shadow-gold)]">
+              <Link
+                to="/reservation"
+                className="rounded-xl bg-primary px-8 py-3 font-semibold text-primary-foreground shadow-[var(--shadow-gold)]"
+              >
                 {t("home.cta.online")}
               </Link>
-              <a href={`tel:${PHONE}`} className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-8 py-3 font-semibold">
+              <a
+                href={`tel:${PHONE}`}
+                className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-8 py-3 font-semibold"
+              >
                 <Phone className="h-4 w-4" /> {PHONE_DISPLAY}
               </a>
             </div>
