@@ -19,6 +19,7 @@ function ClientsPage() {
   const fetchClients = useCallback(async () => {
     const { data } = await supabase.from("clients").select("*").order("created_at", { ascending: false });
     setClients(data ?? []);
+    setLoading(false);
   }, []);
 
   useEffect(() => { fetchClients(); }, [fetchClients]);
