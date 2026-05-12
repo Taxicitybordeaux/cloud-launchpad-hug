@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix } from "@/lib/tarif";
 import { assertTrackingId, newTrackingId } from "@/lib/tracking-id";
+import { CourseCardSkeleton, SkeletonStyles } from "@/components/admin/Skeleton";
 
 export const Route = createFileRoute("/admin/courses")({
   head: () => ({
