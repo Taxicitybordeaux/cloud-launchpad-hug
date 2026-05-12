@@ -44,6 +44,24 @@ function ReservationPage() {
     setSending(true);
     const fullName = `${f.prenom} ${f.nom}`.trim();
     const pickup = new Date(`${f.date}T${f.heure || "12:00"}:00`).toISOString();
+
+    // Empêcher deux courses au même créneau (±30 min)
+    const pickupMs = new Date(pickup).getTime();
+    const fromIso = new Date(pickupMs - 30 * 60_000).toISOString();
+    const toIso = new Date(pickupMs + 30 * 60_000).toISOString();
+    const { data: conflicts } = await supabase
+      .from("reservations")
+      .select("id")
+      .gte("pickup_datetime", fromIso)
+      .lte("pickup_datetime", toIso)
+      .not("status", "in", "(annulee,refusee,terminee)")
+      .limit(1);
+    if (conflicts && conflicts.length > 0) {
+      setSending(false);
+      setErrors({ ...errors, heure: "Ce créneau est déjà réservé. Choisissez un autre horaire (±30 min)." });
+      return;
+    }
+
     await supabase.from("reservations").insert({
       nom: fullName, telephone: f.phone, email: f.email,
       depart: f.depart, arrivee: f.destination, pickup_datetime: pickup, passagers: f.passagers,
