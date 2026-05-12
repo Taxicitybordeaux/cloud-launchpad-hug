@@ -94,6 +94,25 @@ function ReservationPage() {
     }
 
     setLoading(true);
+
+    // Empêcher deux courses au même créneau (±30 min)
+    const pickupMs = new Date(parsed.data.pickup_datetime).getTime();
+    const windowMin = 30;
+    const fromIso = new Date(pickupMs - windowMin * 60_000).toISOString();
+    const toIso = new Date(pickupMs + windowMin * 60_000).toISOString();
+    const { data: conflicts, error: conflictErr } = await supabase
+      .from("reservations")
+      .select("id, pickup_datetime, status")
+      .gte("pickup_datetime", fromIso)
+      .lte("pickup_datetime", toIso)
+      .not("status", "in", "(annulee,refusee,terminee)")
+      .limit(1);
+    if (!conflictErr && conflicts && conflicts.length > 0) {
+      setLoading(false);
+      setErrors({ pickup_datetime: t("res.err.conflict") || "Ce créneau est déjà réservé. Choisissez un autre horaire (±30 min)." });
+      return;
+    }
+
     const extras: string[] = [];
     if (form.needs_cpam) extras.push(t("res.f.needs.cpam"));
 
