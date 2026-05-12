@@ -25,6 +25,8 @@ function TrackingPage() {
   const [driverData, setDriverData] = useState<DriverData | null>(null);
   const [eta, setEta] = useState<ETA>({ minutes: null, km: null });
   const [loading, setLoading] = useState(true);
+  const [loadStep, setLoadStep] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -73,6 +75,17 @@ function TrackingPage() {
     markerRef.current = L.marker([lat, lng], { icon }).addTo(map);
     mapInstanceRef.current = map;
   };
+
+  useEffect(() => {
+    if (!loading) return;
+    const start = Date.now();
+    const t = setInterval(() => {
+      const s = Math.floor((Date.now() - start) / 1000);
+      setElapsed(s);
+      setLoadStep(s < 2 ? 0 : s < 5 ? 1 : s < 9 ? 2 : 3);
+    }, 200);
+    return () => clearInterval(t);
+  }, [loading]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -126,14 +139,38 @@ function TrackingPage() {
   );
 
   if (loading) {
+    const steps = [
+      { label: "Connexion sécurisée…", icon: "🔐" },
+      { label: "Recherche du chauffeur…", icon: "🔎" },
+      { label: "Récupération de la position GPS…", icon: "📡" },
+      { label: "Calcul de l'itinéraire…", icon: "🗺️" },
+    ];
+    const pct = Math.min(95, (loadStep + 1) * 24 + Math.min(elapsed * 2, 10));
     return (
-      <div style={{ minHeight: "100vh", background: "#0a0f1e", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
+      <div style={{ minHeight: "100vh", background: "#0a0f1e", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 22, padding: 24 }}>
         {styleTag}
-        <span style={{ fontSize: 48, display: "inline-block", animation: "spinTaxi 1s linear infinite" }}>🚕</span>
-        <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 15, color: "#475569" }}>Connexion au chauffeur...</p>
-        <div style={{ display: "flex", gap: 6 }}>
-          {[0, 1, 2].map(i => <span key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: "#0ea5e9", display: "inline-block", animation: `liveDot 1.2s ${i * 0.2}s infinite` }} />)}
+        <div style={{ position: "relative", width: 110, height: 110, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <svg width="110" height="110" style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)" }}>
+            <circle cx="55" cy="55" r="48" stroke="rgba(14,165,233,0.12)" strokeWidth="6" fill="none" />
+            <circle cx="55" cy="55" r="48" stroke="#0ea5e9" strokeWidth="6" fill="none" strokeLinecap="round" strokeDasharray={2 * Math.PI * 48} strokeDashoffset={2 * Math.PI * 48 * (1 - pct / 100)} style={{ transition: "stroke-dashoffset 0.4s ease" }} />
+          </svg>
+          <span style={{ fontSize: 40, animation: "spinTaxi 2s linear infinite", display: "inline-block" }}>🚕</span>
         </div>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20, color: "#f8fafc", marginBottom: 6 }}>{steps[loadStep].icon} {steps[loadStep].label}</div>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: "#0ea5e9" }}>{Math.round(pct)}% · {elapsed}s</div>
+        </div>
+        <div style={{ width: "min(320px, 80vw)", display: "flex", flexDirection: "column", gap: 8 }}>
+          {steps.map((s, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, opacity: i <= loadStep ? 1 : 0.35, transition: "opacity 0.3s" }}>
+              <span style={{ width: 18, height: 18, borderRadius: "50%", background: i < loadStep ? "#22c55e" : i === loadStep ? "#0ea5e9" : "rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#fff", fontWeight: 700, animation: i === loadStep ? "liveDot 1.2s infinite" : "none" }}>{i < loadStep ? "✓" : ""}</span>
+              <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: i <= loadStep ? "#cbd5e1" : "#475569" }}>{s.label}</span>
+            </div>
+          ))}
+        </div>
+        {elapsed > 12 && (
+          <p style={{ fontSize: 12, color: "#64748b", maxWidth: 300, textAlign: "center", marginTop: 4 }}>La connexion prend plus de temps que prévu, merci de patienter…</p>
+        )}
       </div>
     );
   }
