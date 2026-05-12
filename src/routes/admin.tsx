@@ -49,6 +49,7 @@ function AdminLayout() {
     { to: "/admin/courses", icon: "🚗", label: "Courses", badge: pending },
     { to: "/admin/clients", icon: "👥", label: "Clients" },
     { to: "/admin/gps", icon: "📍", label: "GPS" },
+    { to: "/admin/flow-check", icon: "🩺", label: "Vérif. du flow" },
   ];
 
   const Sidebar = () => (
