@@ -25,6 +25,7 @@ const BORDEAUX_CENTER: [number, number] = [44.8378, -0.5792];
 function TrackingPage() {
   const { id } = Route.useParams();
   const [driverData, setDriverData] = useState<DriverData | null>(null);
+  const [reservation, setReservation] = useState<{ client_name: string; depart: string | null; destination: string | null; prix_estime: string | null; pickup_datetime: string | null } | null>(null);
   const [eta, setEta] = useState<ETA>({ minutes: null, km: null });
   const [loading, setLoading] = useState(true);
   const [loadStep, setLoadStep] = useState(0);
@@ -112,7 +113,7 @@ function TrackingPage() {
       }
       const { data: resa, error: resaErr } = await supabase
         .from("reservations")
-        .select("id, status, tracking_id, created_at, client_name, nom")
+        .select("id, status, tracking_id, created_at, client_name, nom, depart, arrivee, destination, prix_estime, pickup_datetime")
         .eq("tracking_id", id)
         .maybeSingle();
 
@@ -143,8 +144,18 @@ function TrackingPage() {
         return;
       }
 
+      // Store reservation details (used for prix + destination affichés au client)
+      const clientName = (resa.client_name || resa.nom || "").toString().trim();
+      setReservation({
+        client_name: clientName,
+        depart: resa.depart ?? null,
+        destination: (resa.destination ?? resa.arrivee) ?? null,
+        prix_estime: resa.prix_estime != null ? `${resa.prix_estime} €` : null,
+        pickup_datetime: resa.pickup_datetime ?? null,
+      });
+
       // 2) Load driver GPS
-      const { data } = await supabase.from("driver_gps").select("*").eq("id", "driver").single();
+      const { data } = await supabase.from("driver_gps").select("*").eq("id", "driver").maybeSingle();
       if (data) {
         setDriverData(data as DriverData);
         if (data.latitude && data.longitude) {
@@ -157,7 +168,6 @@ function TrackingPage() {
       } else {
         await initMap(BORDEAUX_CENTER[0], BORDEAUX_CENTER[1]);
       }
-      const clientName = (resa.client_name || resa.nom || "").toString().trim();
       toast.success("✅ Course trouvée", { id: toastId, description: clientName ? `Suivi en cours pour ${clientName}` : "Suivi en cours du chauffeur en temps réel.", duration: 4000 });
       setLoading(false);
 
@@ -303,20 +313,40 @@ function TrackingPage() {
             <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 38, fontWeight: 900, color: "#f8fafc", lineHeight: 1 }}>{eta.minutes !== null ? `${eta.minutes} min` : "Calcul..."}</div>
             {eta.km && <div style={{ fontSize: 12, color: "#475569", marginTop: 4 }}>{eta.km} km restants</div>}
           </div>
-          {driverData?.prix_estime && (
+          {(reservation?.prix_estime || driverData?.prix_estime) && (
             <div style={{ textAlign: "right" }}>
               <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#334155", letterSpacing: "0.08em", marginBottom: 6 }}>PRIX ESTIMÉ</div>
-              <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 26, fontWeight: 900, color: "#f8fafc" }}>{driverData.prix_estime}</div>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 26, fontWeight: 900, color: "#f8fafc" }}>{reservation?.prix_estime || driverData?.prix_estime}</div>
             </div>
           )}
         </div>
 
-        {driverData?.destination && (
+        {reservation?.client_name && (
+          <div style={{ marginTop: 12, background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.18)", borderRadius: 14, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 20 }}>👋</span>
+            <div>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#334155", letterSpacing: "0.08em" }}>COURSE DE</div>
+              <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 15, fontWeight: 700, color: "#f1f5f9", marginTop: 3 }}>{reservation.client_name}</div>
+            </div>
+          </div>
+        )}
+
+        {reservation?.depart && (
+          <div style={{ marginTop: 12, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 22 }}>🟢</span>
+            <div>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#334155", letterSpacing: "0.08em" }}>DÉPART</div>
+              <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 15, fontWeight: 700, color: "#f1f5f9", marginTop: 3 }}>{reservation.depart}</div>
+            </div>
+          </div>
+        )}
+
+        {(reservation?.destination || driverData?.destination) && (
           <div style={{ marginTop: 12, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
             <span style={{ fontSize: 22 }}>📍</span>
             <div>
               <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#334155", letterSpacing: "0.08em" }}>DESTINATION</div>
-              <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 15, fontWeight: 700, color: "#f1f5f9", marginTop: 3 }}>{driverData.destination}</div>
+              <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 15, fontWeight: 700, color: "#f1f5f9", marginTop: 3 }}>{reservation?.destination || driverData?.destination}</div>
             </div>
           </div>
         )}
