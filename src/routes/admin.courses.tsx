@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix } from "@/lib/tarif";
 import { assertTrackingId, newTrackingId } from "@/lib/tracking-id";
@@ -182,7 +183,7 @@ function CoursesPage() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : "tracking_id invalide";
       console.error("[admin.courses] tracking_id validation failed:", msg);
-      if (typeof window !== "undefined") alert(`❌ ${msg}`);
+      toast.error("Impossible d'accepter la course", { description: msg });
       return;
     }
 
@@ -197,6 +198,7 @@ function CoursesPage() {
 
     if (error) {
       console.error(error);
+      toast.error("Échec de l'acceptation", { description: error.message });
       return;
     }
 
@@ -247,13 +249,14 @@ function CoursesPage() {
     }
 
     // 📧 Notifie le client par email pour l'inviter à scanner / ouvrir le suivi
-    let emailStatus = "non envoyé (pas d'email client)";
+    let emailOk = false;
+    let emailDetail = "Aucun email client renseigné";
     if (email && url) {
       try {
         const { data: sess } = await supabase.auth.getSession();
         const accessToken = sess?.session?.access_token;
         if (!accessToken) {
-          emailStatus = "non envoyé (session admin expirée)";
+          emailDetail = "session admin expirée";
         } else {
           const res = await fetch("/lovable/email/transactional/send", {
             method: "POST",
@@ -276,19 +279,23 @@ function CoursesPage() {
               },
             }),
           });
-          emailStatus = res.ok ? "✉️ envoyé au client" : `échec (${res.status})`;
+          if (res.ok) {
+            emailOk = true;
+            emailDetail = `Email envoyé à ${email}`;
+          } else {
+            emailDetail = `Échec envoi email (${res.status})`;
+          }
         }
       } catch (e) {
         console.error("[admin.courses] email send failed:", e);
-        emailStatus = "échec (réseau)";
+        emailDetail = "Échec envoi email (réseau)";
       }
     }
 
-    if (typeof window !== "undefined") {
-      alert(
-        `Course acceptée ✅\n\nLien tracking copié :\n${url}\n\nNotification client : ${emailStatus}`,
-      );
-    }
+    toast.success(`Course acceptée — ${name || "client"}`, {
+      description: `${emailOk ? "✉️ " : ""}${emailDetail}. Lien tracking copié.`,
+      duration: 6000,
+    });
 
     fetchAll();
   };
@@ -308,9 +315,11 @@ function CoursesPage() {
 
     if (error) {
       console.error(error);
+      toast.error("Échec du refus", { description: error.message });
       return;
     }
 
+    toast.success(`Course refusée — ${r.client_name || r.nom || "client"}`);
     fetchAll();
   };
 
