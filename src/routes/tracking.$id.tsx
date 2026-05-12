@@ -22,11 +22,14 @@ type ETA = { minutes: number | null; km: string | null };
 const BORDEAUX_CENTER: [number, number] = [44.8378, -0.5792];
 
 function TrackingPage() {
+  const { id } = Route.useParams();
   const [driverData, setDriverData] = useState<DriverData | null>(null);
   const [eta, setEta] = useState<ETA>({ minutes: null, km: null });
   const [loading, setLoading] = useState(true);
   const [loadStep, setLoadStep] = useState(0);
   const [elapsed, setElapsed] = useState(0);
+  const [error, setError] = useState<null | { code: "invalid" | "expired" | "notfound"; title: string; message: string }>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -89,11 +92,49 @@ function TrackingPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    setLoading(true);
+    setError(null);
     const sessionId = sessionStorage.getItem("sid") || Math.random().toString(36).slice(2);
     sessionStorage.setItem("sid", sessionId);
     supabase.from("site_analytics").insert({ event: "qr_click", session_id: sessionId });
 
     const init = async () => {
+      // 1) Validate the QR code / tracking id against a reservation
+      if (!id || id.length < 6) {
+        setError({ code: "invalid", title: "QR code invalide", message: "Le lien scanné ne contient pas d'identifiant de course valide. Vérifiez que vous scannez bien le QR code de Taxi City Bordeaux." });
+        setLoading(false);
+        return;
+      }
+      const { data: resa, error: resaErr } = await supabase
+        .from("reservations")
+        .select("id, status, tracking_id, created_at, client_name, nom")
+        .eq("tracking_id", id)
+        .maybeSingle();
+
+      if (resaErr || !resa) {
+        setError({ code: "notfound", title: "Aucune course trouvée", message: "Ce QR code ne correspond à aucune course active. Demandez à l'administrateur d'accepter votre réservation, puis scannez à nouveau." });
+        setLoading(false);
+        return;
+      }
+      const status = (resa.status || "").toLowerCase();
+      if (["refusee", "refused", "annulee", "cancelled", "canceled"].includes(status)) {
+        setError({ code: "expired", title: "Course annulée ou refusée", message: "Cette course n'est plus active. Contactez-nous pour en créer une nouvelle." });
+        setLoading(false);
+        return;
+      }
+      if (["terminee", "terminée", "completed", "done"].includes(status)) {
+        setError({ code: "expired", title: "Course terminée", message: "Cette course est déjà terminée. Merci d'avoir voyagé avec Taxi City Bordeaux." });
+        setLoading(false);
+        return;
+      }
+      const createdAt = resa.created_at ? new Date(resa.created_at).getTime() : 0;
+      if (createdAt && Date.now() - createdAt > 24 * 60 * 60 * 1000) {
+        setError({ code: "expired", title: "QR code expiré", message: "Ce lien de suivi a expiré (plus de 24h). Veuillez créer une nouvelle réservation." });
+        setLoading(false);
+        return;
+      }
+
+      // 2) Load driver GPS
       const { data } = await supabase.from("driver_gps").select("*").eq("id", "driver").single();
       if (data) {
         setDriverData(data as DriverData);
@@ -128,7 +169,7 @@ function TrackingPage() {
       if (channelRef.current) supabase.removeChannel(channelRef.current);
       if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; markerRef.current = null; }
     };
-  }, []);
+  }, [id, retryNonce]);
 
   const styleTag = (
     <style>{`@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');
@@ -137,6 +178,26 @@ function TrackingPage() {
 @keyframes slideUp{from{transform:translateY(24px);opacity:0}to{transform:translateY(0);opacity:1}}
 @keyframes spinTaxi{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
   );
+
+  if (error) {
+    const icon = error.code === "invalid" ? "⚠️" : error.code === "expired" ? "⏱️" : "🔍";
+    return (
+      <div style={{ minHeight: "100vh", background: "#0a0f1e", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, padding: 28, textAlign: "center" }}>
+        {styleTag}
+        <div style={{ width: 88, height: 88, borderRadius: "50%", background: "rgba(245,158,11,0.12)", border: "2px solid rgba(245,158,11,0.35)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 42 }}>{icon}</div>
+        <div style={{ maxWidth: 380 }}>
+          <h1 style={{ fontFamily: "'Syne',sans-serif", fontWeight: 900, fontSize: 22, color: "#f8fafc", margin: 0 }}>{error.title}</h1>
+          <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, color: "#94a3b8", marginTop: 10, lineHeight: 1.55 }}>{error.message}</p>
+          <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "#334155", marginTop: 12 }}>Code: {id?.slice(0, 12) || "—"}</p>
+        </div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center", marginTop: 6 }}>
+          <button onClick={() => setRetryNonce(n => n + 1)} style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 20px", background: "linear-gradient(135deg,#0ea5e9,#0369a1)", color: "#fff", border: "none", borderRadius: 12, fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, cursor: "pointer", boxShadow: "0 4px 14px rgba(14,165,233,0.35)" }}>🔄 Réessayer</button>
+          <button onClick={() => { if (window.history.length > 1) window.history.back(); else window.location.href = "/"; }} style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 20px", background: "rgba(255,255,255,0.06)", color: "#f1f5f9", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 12, fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>← Retour</button>
+          <a href="tel:0673072322" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 20px", background: "#22c55e", color: "#fff", borderRadius: 12, textDecoration: "none", fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, boxShadow: "0 4px 14px rgba(34,197,94,0.35)" }}>📞 Appeler</a>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     const steps = [
