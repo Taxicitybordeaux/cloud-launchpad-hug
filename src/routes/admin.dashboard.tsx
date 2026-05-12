@@ -196,7 +196,8 @@ function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {reservs.map(r => (
+              {loading && Array.from({ length: 4 }).map((_, i) => <ReservationRowSkeleton key={`s${i}`} cols={6} />)}
+              {!loading && reservs.map(r => (
                 <tr key={r.id} style={{ borderTop: "1px solid rgba(255,255,255,0.05)", color: "#cbd5e1" }}>
                   <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>{new Date(r.created_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}</td>
                   <td style={{ padding: "10px 14px" }}>{r.client_name || r.nom}</td>
@@ -213,7 +214,7 @@ function Dashboard() {
                   </td>
                 </tr>
               ))}
-              {reservs.length === 0 && <tr><td colSpan={6} style={{ padding: 30, textAlign: "center", color: "#475569" }}>Aucune réservation</td></tr>}
+              {!loading && reservs.length === 0 && <tr><td colSpan={6} style={{ padding: 30, textAlign: "center", color: "#475569" }}>Aucune réservation</td></tr>}
             </tbody>
           </table>
         </div>
