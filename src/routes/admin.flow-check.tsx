@@ -366,7 +366,9 @@ function FlowCheckPage() {
                 );
               })}
               {reservations.length === 0 && (
-                <tr><td colSpan={7} style={{ padding: 20, textAlign: "center", color: "#64748b" }}>Aucune réservation récente.</td></tr>
+                running
+                  ? Array.from({ length: 4 }).map((_, i) => <ReservationRowSkeleton key={i} cols={7} />)
+                  : <tr><td colSpan={7} style={{ padding: 20, textAlign: "center", color: "#64748b" }}>Aucune réservation récente.</td></tr>
               )}
             </tbody>
           </table>
