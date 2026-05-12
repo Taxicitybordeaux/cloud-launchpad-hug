@@ -313,20 +313,40 @@ function TrackingPage() {
             <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 38, fontWeight: 900, color: "#f8fafc", lineHeight: 1 }}>{eta.minutes !== null ? `${eta.minutes} min` : "Calcul..."}</div>
             {eta.km && <div style={{ fontSize: 12, color: "#475569", marginTop: 4 }}>{eta.km} km restants</div>}
           </div>
-          {driverData?.prix_estime && (
+          {(reservation?.prix_estime || driverData?.prix_estime) && (
             <div style={{ textAlign: "right" }}>
               <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#334155", letterSpacing: "0.08em", marginBottom: 6 }}>PRIX ESTIMÉ</div>
-              <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 26, fontWeight: 900, color: "#f8fafc" }}>{driverData.prix_estime}</div>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 26, fontWeight: 900, color: "#f8fafc" }}>{reservation?.prix_estime || driverData?.prix_estime}</div>
             </div>
           )}
         </div>
 
-        {driverData?.destination && (
+        {reservation?.client_name && (
+          <div style={{ marginTop: 12, background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.18)", borderRadius: 14, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 20 }}>👋</span>
+            <div>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#334155", letterSpacing: "0.08em" }}>COURSE DE</div>
+              <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 15, fontWeight: 700, color: "#f1f5f9", marginTop: 3 }}>{reservation.client_name}</div>
+            </div>
+          </div>
+        )}
+
+        {reservation?.depart && (
+          <div style={{ marginTop: 12, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 22 }}>🟢</span>
+            <div>
+              <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#334155", letterSpacing: "0.08em" }}>DÉPART</div>
+              <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 15, fontWeight: 700, color: "#f1f5f9", marginTop: 3 }}>{reservation.depart}</div>
+            </div>
+          </div>
+        )}
+
+        {(reservation?.destination || driverData?.destination) && (
           <div style={{ marginTop: 12, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
             <span style={{ fontSize: 22 }}>📍</span>
             <div>
               <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#334155", letterSpacing: "0.08em" }}>DESTINATION</div>
-              <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 15, fontWeight: 700, color: "#f1f5f9", marginTop: 3 }}>{driverData.destination}</div>
+              <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 15, fontWeight: 700, color: "#f1f5f9", marginTop: 3 }}>{reservation?.destination || driverData?.destination}</div>
             </div>
           </div>
         )}
