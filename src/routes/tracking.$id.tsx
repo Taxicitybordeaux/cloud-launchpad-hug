@@ -113,7 +113,7 @@ function TrackingPage() {
       }
       const { data: resa, error: resaErr } = await supabase
         .from("reservations")
-        .select("id, status, tracking_id, created_at, client_name, nom")
+        .select("id, status, tracking_id, created_at, client_name, nom, depart, arrivee, destination, prix_estime, pickup_datetime")
         .eq("tracking_id", id)
         .maybeSingle();
 
