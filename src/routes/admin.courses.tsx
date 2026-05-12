@@ -50,17 +50,70 @@ function CoursesPage() {
   }, [fetchAll]);
 
   const handleAccept = async (r: R) => {
-    await supabase.from("reservations").update({ status: "accepted", updated_at: new Date().toISOString() }).eq("id", r.id);
-    const phone = r.client_phone || r.telephone;
-    const name = r.client_name || r.nom;
-    const email = r.client_email || r.email;
-    if (phone) {
-      const { data: existing } = await supabase.from("clients").select("id, total_courses").eq("phone", phone).maybeSingle();
-      if (existing) {
-        await supabase.from("clients").update({ total_courses: (existing.total_courses ?? 0) + 1 }).eq("id", existing.id);
-      } else {
-        await supabase.from("clients").insert({ name, phone, email, total_courses: 1 });
-      }
+  const trackingId =
+    r.tracking_id ||
+    crypto.randomUUID();
+
+  await supabase
+    .from("reservations")
+    .update({
+      status: "accepted",
+      tracking_id: trackingId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", r.id);
+
+  const phone = r.client_phone || r.telephone;
+  const name = r.client_name || r.nom;
+  const email = r.client_email || r.email;
+
+  if (phone) {
+    const { data: existing } = await supabase
+      .from("clients")
+      .select("id, total_courses")
+      .eq("phone", phone)
+      .maybeSingle();
+
+    if (existing) {
+      await supabase
+        .from("clients")
+        .update({
+          total_courses:
+            (existing.total_courses ?? 0) + 1,
+        })
+        .eq("id", existing.id);
+    } else {
+      await supabase
+        .from("clients")
+        .insert({
+          name,
+          phone,
+          email,
+          total_courses: 1,
+        });
+    }
+  }
+
+  // notification succès
+  try {
+    const audio = new Audio("/notification.mp3");
+    audio.play().catch(() => {});
+  } catch {}
+
+  // popup tracking
+  if (typeof window !== "undefined") {
+    const url =
+      `${window.location.origin}/tracking/${trackingId}`;
+
+    navigator.clipboard.writeText(url);
+
+    alert(
+      `Course acceptée ✅\n\nLien tracking copié :\n${url}`
+    );
+  }
+
+  fetchAll();
+};
     }
     fetchAll();
   };
