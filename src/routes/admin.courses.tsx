@@ -31,54 +31,72 @@ function CoursesPage() {
     setCounts(c);
   }, []);
 
-  useEffect(() => {
-    fetchAll();
-    const ch = supabase
-      .channel("courses-rt")
-      .on(
-  "postgres_changes",
-  {
-    event: "UPDATE",
-    schema: "public",
-    table: "reservations",
-  },
-  () => {
-    fetchAll();
-  }
-)
+  useEffect(() => {useEffect(() => {
+  fetchAll();
+
+  const ch = supabase
+    .channel("courses-rt")
+
+    // nouvelle réservation
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "reservations",
+      },
+      (payload) => {
         if (!initialLoad.current) {
           const n = payload.new as R;
+
           try {
-            new Audio("/notification.mp3").play().catch(() => {});
+            new Audio("/notification.mp3")
+              .play()
+              .catch(() => {});
           } catch {}
+
           if (typeof window !== "undefined") {
             const t = document.createElement("div");
-            t.textContent = `🔔 Nouvelle réservation de ${n.client_name || n.nom}!`;
+
+            t.textContent =
+              `🔔 Nouvelle réservation de ${
+                n.client_name || n.nom
+              }!`;
+
             t.style.cssText =
               "position:fixed;top:20px;right:20px;background:#0ea5e9;color:#fff;padding:14px 20px;border-radius:12px;font-family:DM Sans,sans-serif;font-weight:600;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,0.3)";
+
             document.body.appendChild(t);
+
             setTimeout(() => t.remove(), 5000);
           }
         }
+
         fetchAll();
-      })
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "reservations",
-        },
-        () => {
-          fetchAll();
-        },
-      )
-      .subscribe();
-    initialLoad.current = false;
-    return () => {
-      supabase.removeChannel(ch);
-    };
-  }, [fetchAll]);
+      }
+    )
+
+    // update réservation
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "reservations",
+      },
+      () => {
+        fetchAll();
+      }
+    )
+
+    .subscribe();
+
+  initialLoad.current = false;
+
+  return () => {
+    supabase.removeChannel(ch);
+  };
+}, [fetchAll]);
 
   const handleAccept = async (r: R) => {
     const trackingId = r.tracking_id || crypto.randomUUID();
