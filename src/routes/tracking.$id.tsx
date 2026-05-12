@@ -144,8 +144,18 @@ function TrackingPage() {
         return;
       }
 
+      // Store reservation details (used for prix + destination affichés au client)
+      const clientName = (resa.client_name || resa.nom || "").toString().trim();
+      setReservation({
+        client_name: clientName,
+        depart: resa.depart ?? null,
+        destination: (resa.destination ?? resa.arrivee) ?? null,
+        prix_estime: resa.prix_estime != null ? `${resa.prix_estime} €` : null,
+        pickup_datetime: resa.pickup_datetime ?? null,
+      });
+
       // 2) Load driver GPS
-      const { data } = await supabase.from("driver_gps").select("*").eq("id", "driver").single();
+      const { data } = await supabase.from("driver_gps").select("*").eq("id", "driver").maybeSingle();
       if (data) {
         setDriverData(data as DriverData);
         if (data.latitude && data.longitude) {
