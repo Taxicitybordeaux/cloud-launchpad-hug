@@ -4,40 +4,87 @@ import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix } from "@/lib/tarif";
 
 export const Route = createFileRoute("/admin/courses")({
-  head: () => ({ meta: [{ title: "Courses — Admin" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [{ title: "Courses — Admin" }, { name: "robots", content: "noindex" }],
+  }),
   component: CoursesPage,
 });
 
 type R = any;
+
 const tabKeys = ["pending", "accepted", "refused"] as const;
-const tabLabels: Record<string, string> = { pending: "En attente", accepted: "Acceptées", refused: "Refusées" };
+
+const tabLabels: Record<string, string> = {
+  pending: "En attente",
+  accepted: "Acceptées",
+  refused: "Refusées",
+};
 
 function CoursesPage() {
   const [tab, setTab] = useState<(typeof tabKeys)[number]>("pending");
+
   const [items, setItems] = useState<R[]>([]);
+
+  const [counts, setCounts] = useState({
+    pending: 0,
+    accepted: 0,
+    refused: 0,
+  });
+
   const [simKm, setSimKm] = useState(5);
   const [simJour, setSimJour] = useState(true);
   const [simOpen, setSimOpen] = useState(false);
-  const [counts, setCounts] = useState<Record<string, number>>({ pending: 0, accepted: 0, refused: 0 });
+
   const initialLoad = useRef(true);
 
+  // =========================
+  // FETCH
+  // =========================
+
   const fetchAll = useCallback(async () => {
-    const { data } = await supabase.from("reservations").select("*").order("created_at", { ascending: false });
-    setItems(data ?? []);
-    const c: Record<string, number> = { pending: 0, accepted: 0, refused: 0 };
-    (data ?? []).forEach((r: R) => {
-      c[r.status] = (c[r.status] ?? 0) + 1;
+    const { data, error } = await supabase.from("reservations").select("*").order("created_at", {
+      ascending: false,
     });
-    setCounts(c);
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    const rows = data ?? [];
+
+    setItems(rows);
+
+    const nextCounts = {
+      pending: 0,
+      accepted: 0,
+      refused: 0,
+    };
+
+    rows.forEach((r: R) => {
+      if (r.status === "accepted") {
+        nextCounts.accepted++;
+      } else if (r.status === "refused") {
+        nextCounts.refused++;
+      } else {
+        nextCounts.pending++;
+      }
+    });
+
+    setCounts(nextCounts);
   }, []);
+
+  // =========================
+  // REALTIME
+  // =========================
 
   useEffect(() => {
     fetchAll();
 
     const ch = supabase
-      .channel("courses-rt")
+      .channel("courses-realtime")
 
-      // nouvelle réservation
+      // INSERT
       .on(
         "postgres_changes",
         {
@@ -49,21 +96,36 @@ function CoursesPage() {
           if (!initialLoad.current) {
             const n = payload.new as R;
 
+            // son
             try {
               new Audio("/notification.mp3").play().catch(() => {});
             } catch {}
 
+            // popup
             if (typeof window !== "undefined") {
-              const t = document.createElement("div");
+              const toast = document.createElement("div");
 
-              t.textContent = `🔔 Nouvelle réservation de ${n.client_name || n.nom}!`;
+              toast.textContent = `🔔 Nouvelle réservation de ${n.client_name || n.nom || "Client"}`;
 
-              t.style.cssText =
-                "position:fixed;top:20px;right:20px;background:#0ea5e9;color:#fff;padding:14px 20px;border-radius:12px;font-family:DM Sans,sans-serif;font-weight:600;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,0.3)";
+              toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #0ea5e9;
+                color: white;
+                padding: 14px 20px;
+                border-radius: 12px;
+                font-family: DM Sans, sans-serif;
+                font-weight: 700;
+                z-index: 9999;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+              `;
 
-              document.body.appendChild(t);
+              document.body.appendChild(toast);
 
-              setTimeout(() => t.remove(), 5000);
+              setTimeout(() => {
+                toast.remove();
+              }, 5000);
             }
           }
 
@@ -71,7 +133,7 @@ function CoursesPage() {
         },
       )
 
-      // update réservation
+      // UPDATE
       .on(
         "postgres_changes",
         {
@@ -93,10 +155,14 @@ function CoursesPage() {
     };
   }, [fetchAll]);
 
+  // =========================
+  // ACCEPT
+  // =========================
+
   const handleAccept = async (r: R) => {
     const trackingId = r.tracking_id || crypto.randomUUID();
 
-    await supabase
+    const { error } = await supabase
       .from("reservations")
       .update({
         status: "accepted",
@@ -105,14 +171,22 @@ function CoursesPage() {
       })
       .eq("id", r.id);
 
+    if (error) {
+      console.error(error);
+      return;
+    }
+
     const phone = r.client_phone || r.telephone;
+
     const name = r.client_name || r.nom;
+
     const email = r.client_email || r.email;
 
+    // ajout client
     if (phone) {
       const { data: existing } = await supabase
         .from("clients")
-        .select("id, total_courses")
+        .select("id,total_courses")
         .eq("phone", phone)
         .maybeSingle();
 
@@ -133,15 +207,18 @@ function CoursesPage() {
       }
     }
 
+    // son
     try {
-      const audio = new Audio("/notification.mp3");
-      audio.play().catch(() => {});
+      new Audio("/notification.mp3").play().catch(() => {});
     } catch {}
 
+    // popup tracking
     if (typeof window !== "undefined") {
       const url = `${window.location.origin}/tracking/${trackingId}`;
 
-      navigator.clipboard.writeText(url);
+      try {
+        await navigator.clipboard.writeText(url);
+      } catch {}
 
       alert(`Course acceptée ✅\n\nLien tracking copié :\n${url}`);
     }
@@ -149,39 +226,67 @@ function CoursesPage() {
     fetchAll();
   };
 
+  // =========================
+  // REFUSE
+  // =========================
+
   const handleRefuse = async (r: R) => {
-    await supabase
+    const { error } = await supabase
       .from("reservations")
-      .update({ status: "refused", updated_at: new Date().toISOString() })
+      .update({
+        status: "refused",
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", r.id);
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
     fetchAll();
   };
 
+  // =========================
+  // DATA
+  // =========================
+
   const filtered = items.filter((r) => r.status === tab);
+
   const simPrix = calculerPrix(simKm, simJour);
 
+  // =========================
+  // UI
+  // =========================
+
   return (
-    <div style={{ padding: "32px 24px", fontFamily: "'DM Sans',sans-serif" }}>
+    <div
+      style={{
+        padding: "32px 24px",
+        fontFamily: "'DM Sans',sans-serif",
+      }}
+    >
       <h1
         style={{
           fontFamily: "'Syne',sans-serif",
           fontSize: 30,
           fontWeight: 800,
           color: "#f8fafc",
-          margin: 0,
-          marginBottom: 20,
+          marginBottom: 24,
         }}
       >
         Courses
       </h1>
 
+      {/* SIMULATEUR */}
+
       <div
         style={{
           background: "rgba(255,255,255,0.04)",
           border: "1px solid rgba(255,255,255,0.08)",
-          borderRadius: 16,
-          padding: 16,
-          marginBottom: 20,
+          borderRadius: 18,
+          padding: 18,
+          marginBottom: 24,
         }}
       >
         <button
@@ -190,86 +295,110 @@ function CoursesPage() {
             background: "transparent",
             border: 0,
             color: "#0ea5e9",
-            fontWeight: 700,
             cursor: "pointer",
+            fontWeight: 700,
             fontSize: 14,
           }}
         >
           {simOpen ? "▼" : "▶"} Simulateur de tarif
         </button>
+
         {simOpen && (
-          <div style={{ marginTop: 12, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-            <label style={{ color: "#cbd5e1", fontSize: 13 }}>
-              Distance (km):
-              <input
-                type="number"
-                value={simKm}
-                onChange={(e) => setSimKm(Number(e.target.value))}
-                step="0.1"
+          <div
+            style={{
+              marginTop: 16,
+              display: "flex",
+              gap: 12,
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
+            <input
+              type="number"
+              value={simKm}
+              onChange={(e) => setSimKm(Number(e.target.value))}
+              style={{
+                padding: "10px 12px",
+                borderRadius: 10,
+                border: "1px solid rgba(255,255,255,0.1)",
+                background: "rgba(255,255,255,0.05)",
+                color: "#fff",
+              }}
+            />
+
+            <label
+              style={{
+                color: "#cbd5e1",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <input type="checkbox" checked={simJour} onChange={(e) => setSimJour(e.target.checked)} />
+              Tarif jour
+            </label>
+
+            <span
+              style={{
+                color: "#94a3b8",
+              }}
+            >
+              ≈{" "}
+              <b
                 style={{
-                  marginLeft: 6,
-                  padding: "6px 10px",
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  color: "#fff",
-                  borderRadius: 8,
-                  width: 90,
+                  color: "#0ea5e9",
                 }}
-              />
-            </label>
-            <label style={{ color: "#cbd5e1", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
-              <input type="checkbox" checked={simJour} onChange={(e) => setSimJour(e.target.checked)} /> Tarif jour
-            </label>
-            <span style={{ color: "#94a3b8", fontSize: 13 }}>
-              2.83 + {simKm} × {simJour ? "2.16" : "3.24"} = <b style={{ color: "#0ea5e9" }}>{simPrix} €</b>
+              >
+                {simPrix} €
+              </b>
             </span>
           </div>
         )}
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+      {/* TABS */}
+
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          marginBottom: 20,
+          flexWrap: "wrap",
+        }}
+      >
         {tabKeys.map((k) => (
           <button
             key={k}
             onClick={() => setTab(k)}
             style={{
-              padding: "8px 16px",
-              background: tab === k ? "rgba(14,165,233,0.15)" : "rgba(255,255,255,0.04)",
-              border: `1px solid ${tab === k ? "rgba(14,165,233,0.3)" : "rgba(255,255,255,0.08)"}`,
-              color: tab === k ? "#0ea5e9" : "#94a3b8",
-              borderRadius: 10,
+              padding: "10px 16px",
+              borderRadius: 12,
               cursor: "pointer",
-              fontWeight: 600,
-              fontSize: 13,
+              fontWeight: 700,
+              border: tab === k ? "1px solid rgba(14,165,233,0.4)" : "1px solid rgba(255,255,255,0.08)",
+              background: tab === k ? "rgba(14,165,233,0.15)" : "rgba(255,255,255,0.04)",
+              color: tab === k ? "#0ea5e9" : "#94a3b8",
             }}
           >
-            {tabLabels[k]}{" "}
-            <span
-              style={{
-                background: "rgba(255,255,255,0.1)",
-                padding: "2px 8px",
-                borderRadius: 99,
-                marginLeft: 6,
-                fontSize: 11,
-              }}
-            >
-              {counts[k] ?? 0}
-            </span>
+            {tabLabels[k]} ({counts[k]})
           </button>
         ))}
       </div>
 
+      {/* LISTE */}
+
       {filtered.map((r) => {
         const phone = r.client_phone || r.telephone;
+
         const email = r.client_email || r.email;
+
         const name = r.client_name || r.nom;
+
         const dest = r.destination || r.arrivee;
-        const dateAff =
-          r.date_course && r.heure_course
-            ? `${r.date_course} ${r.heure_course}`
-            : new Date(r.pickup_datetime || r.created_at).toLocaleString("fr-FR");
+
         const prix =
           r.prix_estime ?? (r.distance_km ? calculerPrix(Number(r.distance_km), r.tarif_jour ?? true) : null);
+
         return (
           <div
             key={r.id}
@@ -278,92 +407,133 @@ function CoursesPage() {
               border: "1px solid rgba(255,255,255,0.08)",
               borderRadius: 20,
               padding: 20,
-              marginBottom: 12,
+              marginBottom: 14,
             }}
           >
             <div
               style={{
                 display: "flex",
                 justifyContent: "space-between",
-                alignItems: "flex-start",
+                gap: 12,
                 flexWrap: "wrap",
-                gap: 8,
               }}
             >
-              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, color: "#f8fafc", fontSize: 16 }}>
-                {name}
-              </div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <span style={{ color: "#64748b", fontSize: 12 }}>{dateAff}</span>
-                <span
+              <div>
+                <div
                   style={{
-                    background: "rgba(14,165,233,0.15)",
-                    color: "#0ea5e9",
-                    padding: "2px 8px",
-                    borderRadius: 99,
-                    fontSize: 10,
+                    color: "#fff",
                     fontWeight: 700,
+                    fontSize: 18,
                   }}
                 >
-                  {r.source ?? "form"}
-                </span>
+                  {name}
+                </div>
+
+                <div
+                  style={{
+                    color: "#cbd5e1",
+                    marginTop: 8,
+                  }}
+                >
+                  🟢 {r.depart} → 📍 {dest}
+                </div>
               </div>
-            </div>
-            <div style={{ marginTop: 10, color: "#cbd5e1", fontSize: 14 }}>
-              🟢 {r.depart} → 📍 {dest}
-            </div>
-            <div style={{ marginTop: 6, color: "#94a3b8", fontSize: 13, display: "flex", flexWrap: "wrap", gap: 12 }}>
-              {r.distance_km && <span>{r.distance_km} km</span>}
-              {prix && <span>≈ {Number(prix).toFixed(2)} €</span>}
-              <span>👥 {r.nb_passagers ?? r.passagers ?? 1}</span>
-              <span
+
+              <div
                 style={{
-                  background: r.tarif_jour === false ? "rgba(99,102,241,0.15)" : "rgba(245,158,11,0.15)",
-                  color: r.tarif_jour === false ? "#818cf8" : "#f59e0b",
-                  padding: "2px 8px",
-                  borderRadius: 99,
-                  fontSize: 11,
+                  color: "#64748b",
+                  fontSize: 13,
                 }}
               >
-                {r.tarif_jour === false ? "Nuit" : "Jour"}
-              </span>
+                {new Date(r.created_at).toLocaleString("fr-FR")}
+              </div>
             </div>
-            <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+
+            <div
+              style={{
+                marginTop: 14,
+                display: "flex",
+                gap: 10,
+                flexWrap: "wrap",
+                color: "#94a3b8",
+                fontSize: 13,
+              }}
+            >
+              {r.distance_km && <span>🚕 {r.distance_km} km</span>}
+
+              {prix && <span>💰 ≈ {Number(prix).toFixed(2)} €</span>}
+
+              <span>👥 {r.nb_passagers || r.passagers || 1}</span>
+
+              <span>{r.tarif_jour === false ? "🌙 Nuit" : "☀️ Jour"}</span>
+            </div>
+
+            <div
+              style={{
+                marginTop: 14,
+                display: "flex",
+                gap: 14,
+                flexWrap: "wrap",
+              }}
+            >
               {phone && (
-                <a href={`tel:${phone}`} style={{ color: "#0ea5e9", fontSize: 13, textDecoration: "none" }}>
+                <a
+                  href={`tel:${phone}`}
+                  style={{
+                    color: "#0ea5e9",
+                    textDecoration: "none",
+                  }}
+                >
                   📞 {phone}
                 </a>
               )}
+
               {email && (
-                <a href={`mailto:${email}`} style={{ color: "#94a3b8", fontSize: 13, textDecoration: "none" }}>
+                <a
+                  href={`mailto:${email}`}
+                  style={{
+                    color: "#94a3b8",
+                    textDecoration: "none",
+                  }}
+                >
                   ✉️ {email}
                 </a>
               )}
             </div>
+
+            {/* BOUTONS */}
+
             {r.status === "pending" && (
-              <div style={{ marginTop: 14, display: "flex", gap: 10 }}>
+              <div
+                style={{
+                  marginTop: 18,
+                  display: "flex",
+                  gap: 10,
+                }}
+              >
                 <button
                   onClick={() => handleAccept(r)}
                   style={{
                     background: "#22c55e",
                     color: "#fff",
                     border: 0,
-                    padding: "10px 18px",
-                    borderRadius: 10,
+                    padding: "12px 18px",
+                    borderRadius: 12,
                     cursor: "pointer",
                     fontWeight: 700,
                   }}
                 >
                   ✓ Accepter
                 </button>
+
                 <button
                   onClick={() => handleRefuse(r)}
                   style={{
                     background: "#ef4444",
                     color: "#fff",
                     border: 0,
-                    padding: "10px 18px",
-                    borderRadius: 10,
+                    padding: "12px 18px",
+                    borderRadius: 12,
                     cursor: "pointer",
                     fontWeight: 700,
                   }}
@@ -375,8 +545,17 @@ function CoursesPage() {
           </div>
         );
       })}
+
       {filtered.length === 0 && (
-        <div style={{ textAlign: "center", color: "#475569", padding: 40 }}>Aucune réservation</div>
+        <div
+          style={{
+            textAlign: "center",
+            color: "#475569",
+            padding: 40,
+          }}
+        >
+          Aucune réservation
+        </div>
       )}
     </div>
   );
