@@ -277,6 +277,52 @@ function FlowCheckPage() {
         </div>
       </section>
 
+      <section style={{ background: "#0f172a", borderRadius: 16, padding: 20, marginBottom: 24, border: "1px solid rgba(255,255,255,0.06)" }}>
+        <h2 style={{ fontFamily: "'Syne',sans-serif", fontSize: 16, fontWeight: 800, marginTop: 0, marginBottom: 6 }}>Mode de tracking</h2>
+        <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 0, marginBottom: 14 }}>
+          <strong>Chauffeur unique</strong> : tous les clients voient la même position GPS (<code>driver_gps id='driver'</code>).<br />
+          <strong>Multi-courses</strong> : chaque course a sa propre ligne GPS (<code>id = tracking_id</code>) — pour plusieurs chauffeurs en parallèle.
+        </p>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {(["single", "multi"] as const).map(opt => {
+            const active = mode === opt;
+            return (
+              <button key={opt} onClick={() => updateMode(opt)} disabled={savingMode || active}
+                style={{ padding: "12px 18px", background: active ? "linear-gradient(135deg,#0ea5e9,#0369a1)" : "rgba(255,255,255,0.04)", border: `1px solid ${active ? "transparent" : "rgba(255,255,255,0.1)"}`, color: "#fff", borderRadius: 10, fontWeight: 700, cursor: active || savingMode ? "default" : "pointer", opacity: savingMode ? 0.6 : 1, fontFamily: "'Syne',sans-serif", fontSize: 13 }}>
+                {opt === "single" ? "🧑‍✈️ Chauffeur unique" : "🚕🚕 Multi-courses"}{active ? " · actif" : ""}
+              </button>
+            );
+          })}
+          {savingMode && <span style={{ fontSize: 12, color: "#94a3b8", alignSelf: "center" }}>Sauvegarde…</span>}
+        </div>
+      </section>
+
+      <section style={{ background: "#0f172a", borderRadius: 16, padding: 20, marginBottom: 24, border: "1px solid rgba(255,255,255,0.06)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+          <h2 style={{ fontFamily: "'Syne',sans-serif", fontSize: 16, fontWeight: 800, margin: 0 }}>Test scans simultanés</h2>
+          <button onClick={runSimulatedScans} disabled={simRunning || reservations.length === 0}
+            style={{ padding: "8px 14px", background: "rgba(14,165,233,0.15)", color: "#7dd3fc", border: "1px solid rgba(14,165,233,0.3)", borderRadius: 8, fontWeight: 700, cursor: simRunning ? "wait" : "pointer", fontSize: 12 }}>
+            {simRunning ? "Simulation…" : "▶ Lancer 5 scans en parallèle"}
+          </button>
+        </div>
+        <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 0, marginBottom: 12 }}>
+          Requêtes <code>reservations</code> + <code>driver_gps</code> en parallèle pour les 5 dernières courses, afin de vérifier le comportement du mode actif.
+        </p>
+        {simResults.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {simResults.map(r => (
+              <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "rgba(255,255,255,0.02)", borderRadius: 8, borderLeft: `3px solid ${r.ok ? "#22c55e" : "#ef4444"}` }}>
+                <span style={{ fontSize: 16 }}>{r.ok ? "✅" : "❌"}</span>
+                <div style={{ flex: 1, minWidth: 0, fontSize: 12 }}>
+                  <div style={{ fontFamily: "'JetBrains Mono',monospace", color: "#cbd5e1" }}>{r.tracking_id.slice(0, 8)}… <span style={{ color: "#64748b" }}>· {r.ms} ms</span></div>
+                  <div style={{ color: "#94a3b8", fontFamily: "'JetBrains Mono',monospace" }}>{r.detail}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
       <section style={{ background: "#0f172a", borderRadius: 16, padding: 20, border: "1px solid rgba(255,255,255,0.06)" }}>
         <h2 style={{ fontFamily: "'Syne',sans-serif", fontSize: 16, fontWeight: 800, marginTop: 0, marginBottom: 12 }}>Réservations récentes ({reservations.length})</h2>
         <div style={{ overflowX: "auto" }}>
