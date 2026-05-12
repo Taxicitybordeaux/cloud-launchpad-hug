@@ -60,6 +60,24 @@ export const Route = createFileRoute('/api/public/notify-reservation-client')({
         const recipient = data.email
         const messageId = crypto.randomUUID()
         const idempotencyKey = `client-confirm-${data.reservation_id}`
+
+        // Idempotency gate: insert the log row FIRST. The unique index on
+        // idempotency_key (where status <> 'failed') will reject duplicates
+        // atomically, so a double-click cannot trigger two sends.
+        const { error: logError } = await supabase.from('email_send_log').insert({
+          message_id: messageId,
+          template_name: TEMPLATE_NAME,
+          recipient_email: recipient,
+          status: 'pending',
+          idempotency_key: idempotencyKey,
+        })
+        if (logError) {
+          if ((logError as any).code === '23505') {
+            return Response.json({ success: true, deduped: true })
+          }
+          return Response.json({ error: 'log' }, { status: 500 })
+        }
+
         const element = React.createElement(tpl.component, data)
         const html = await render(element)
         const text = await render(element, { plainText: true })
@@ -82,10 +100,6 @@ export const Route = createFileRoute('/api/public/notify-reservation-client')({
           if (stored?.token) unsubscribeToken = stored.token
         }
 
-        await supabase.from('email_send_log').insert({
-          message_id: messageId, template_name: TEMPLATE_NAME, recipient_email: recipient, status: 'pending',
-        })
-
         const { error } = await supabase.rpc('enqueue_email', {
           queue_name: 'transactional_emails',
           payload: {
@@ -101,7 +115,13 @@ export const Route = createFileRoute('/api/public/notify-reservation-client')({
             queued_at: new Date().toISOString(),
           },
         })
-        if (error) return Response.json({ error: 'enqueue' }, { status: 500 })
+        if (error) {
+          // Mark as failed so the unique index allows a retry.
+          await supabase.from('email_send_log')
+            .update({ status: 'failed', error_message: 'enqueue' })
+            .eq('message_id', messageId)
+          return Response.json({ error: 'enqueue' }, { status: 500 })
+        }
         return Response.json({ success: true })
       },
     },

@@ -55,6 +55,22 @@ export const Route = createFileRoute('/api/public/notify-reservation')({
         const messageId = crypto.randomUUID()
         const idempotencyKey = `reservation-${reservationId}`
 
+        // Idempotency gate: insert log row first; the unique index on
+        // idempotency_key (where status <> 'failed') rejects duplicates.
+        const { error: logError } = await supabase.from('email_send_log').insert({
+          message_id: messageId,
+          template_name: TEMPLATE_NAME,
+          recipient_email: recipient,
+          status: 'pending',
+          idempotency_key: idempotencyKey,
+        })
+        if (logError) {
+          if ((logError as any).code === '23505') {
+            return Response.json({ success: true, deduped: true })
+          }
+          return Response.json({ error: 'log' }, { status: 500 })
+        }
+
         const element = React.createElement(template.component, data)
         const html = await render(element)
         const text = await render(element, { plainText: true })
@@ -86,13 +102,6 @@ export const Route = createFileRoute('/api/public/notify-reservation')({
           if (stored?.token) unsubscribeToken = stored.token
         }
 
-        await supabase.from('email_send_log').insert({
-          message_id: messageId,
-          template_name: TEMPLATE_NAME,
-          recipient_email: recipient,
-          status: 'pending',
-        })
-
         const { error: enqueueError } = await supabase.rpc('enqueue_email', {
           queue_name: 'transactional_emails',
           payload: {
@@ -112,13 +121,10 @@ export const Route = createFileRoute('/api/public/notify-reservation')({
         })
 
         if (enqueueError) {
-          await supabase.from('email_send_log').insert({
-            message_id: messageId,
-            template_name: TEMPLATE_NAME,
-            recipient_email: recipient,
-            status: 'failed',
-            error_message: 'Failed to enqueue',
-          })
+          // Mark as failed so the unique index allows a retry.
+          await supabase.from('email_send_log')
+            .update({ status: 'failed', error_message: 'Failed to enqueue' })
+            .eq('message_id', messageId)
           return Response.json({ error: 'Enqueue failed' }, { status: 500 })
         }
 
