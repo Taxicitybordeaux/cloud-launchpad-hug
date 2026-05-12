@@ -243,6 +243,7 @@ function FlowCheckPage() {
 
   return (
     <div style={{ padding: 28, fontFamily: "'DM Sans',sans-serif", color: "#f1f5f9" }}>
+      <SkeletonStyles />
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
         <div>
           <h1 style={{ fontFamily: "'Syne',sans-serif", fontWeight: 900, fontSize: 26, margin: 0 }}>🩺 Vérification du flow</h1>
