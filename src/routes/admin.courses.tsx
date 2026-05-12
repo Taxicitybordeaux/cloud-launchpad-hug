@@ -309,11 +309,21 @@ function CoursesPage() {
   // REFUSE
   // =========================
 
-  const handleRefuse = async (r: R) => {
+  const handleRefuse = async (r: R, motif: string) => {
+    const cleaned = motif.trim();
+    if (cleaned.length < 3) {
+      toast.error("Motif requis", { description: "Indiquez la raison du refus (3 caractères minimum)." });
+      return false;
+    }
+    if (cleaned.length > 500) {
+      toast.error("Motif trop long", { description: "500 caractères maximum." });
+      return false;
+    }
     const { error } = await supabase
       .from("reservations")
       .update({
         status: "refused",
+        refus_motif: cleaned,
         updated_at: new Date().toISOString(),
       })
       .eq("id", r.id);
@@ -321,11 +331,14 @@ function CoursesPage() {
     if (error) {
       console.error(error);
       toast.error("Échec du refus", { description: error.message });
-      return;
+      return false;
     }
 
-    toast.success(`Course refusée — ${r.client_name || r.nom || "client"}`);
+    toast.success(`Course refusée — ${r.client_name || r.nom || "client"}`, {
+      description: `Motif enregistré : « ${cleaned.slice(0, 80)}${cleaned.length > 80 ? "…" : ""} »`,
+    });
     fetchAll();
+    return true;
   };
 
   // =========================
