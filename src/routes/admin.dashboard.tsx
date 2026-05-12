@@ -122,6 +122,17 @@ function Dashboard() {
         <button onClick={fetchAll} style={{ padding: "8px 16px", background: "rgba(14,165,233,0.15)", border: "1px solid rgba(14,165,233,0.3)", color: "#0ea5e9", borderRadius: 10, cursor: "pointer", fontWeight: 600 }}>↻ Actualiser</button>
       </div>
 
+      <div style={{ ...card, marginBottom: 24, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ width: 48, height: 48, borderRadius: "50%", background: gpsActive ? "#22c55e" : "#475569", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: gpsActive ? "0 0 0 6px rgba(34,197,94,0.18)" : "none", transition: "all 0.2s" }}>📡</div>
+          <div>
+            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, color: "#f8fafc", fontSize: 16 }}>{gpsActive ? "GPS actif" : "GPS inactif"}</div>
+            <div style={{ color: "#94a3b8", fontSize: 12 }}>{gpsActive ? (gpsPos ? `${gpsPos.lat.toFixed(5)}, ${gpsPos.lng.toFixed(5)}` : "Acquisition de la position…") : "Vos clients ne peuvent pas vous suivre"}</div>
+          </div>
+        </div>
+        <button onClick={gpsActive ? stopGps : startGps} disabled={gpsBusy} style={{ padding: "12px 22px", background: gpsActive ? "#ef4444" : "#22c55e", color: "#fff", border: 0, borderRadius: 12, cursor: gpsBusy ? "wait" : "pointer", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, boxShadow: gpsActive ? "0 6px 18px rgba(239,68,68,0.3)" : "0 6px 18px rgba(34,197,94,0.3)", opacity: gpsBusy ? 0.7 : 1 }}>{gpsActive ? "⏹ Désactiver" : "📡 Activer mon GPS"}</button>
+      </div>
+
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 16, marginBottom: 24 }}>
         {[
           { i: "💶", v: `${caJ.toFixed(2)} €`, l: "CA aujourd'hui" },
