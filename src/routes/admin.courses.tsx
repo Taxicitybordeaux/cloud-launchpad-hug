@@ -635,7 +635,7 @@ function CoursesPage() {
         );
       })}
 
-      {filtered.length === 0 && (
+      {!loading && filtered.length === 0 && (
         <div
           style={{
             textAlign: "center",
