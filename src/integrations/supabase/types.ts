@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          id: number
+          tracking_mode: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          tracking_mode?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          tracking_mode?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           created_at: string
