@@ -12,6 +12,7 @@ export const Route = createFileRoute("/admin/gps")({
 function GpsPage() {
   const [isActive, setIsActive] = useState(false);
   const [destination, setDestination] = useState("");
+  const [loading, setLoading] = useState(true);
   const [prixEstime, setPrixEstime] = useState("");
   const [calcKm, setCalcKm] = useState(5);
   const [calcJour, setCalcJour] = useState(true);
