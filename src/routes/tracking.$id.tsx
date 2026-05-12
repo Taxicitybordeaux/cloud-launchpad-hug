@@ -99,9 +99,13 @@ function TrackingPage() {
     sessionStorage.setItem("sid", sessionId);
     supabase.from("site_analytics").insert({ event: "qr_click", session_id: sessionId });
 
+    const toastId = "qr-scan";
+    toast.loading("📷 QR code détecté", { id: toastId, description: "Lecture du code et connexion sécurisée…" });
+
     const init = async () => {
       // 1) Validate the QR code / tracking id against a reservation
       if (!id || id.length < 6) {
+        toast.error("QR code invalide", { id: toastId, description: "L'identifiant de course est manquant ou incorrect." });
         setError({ code: "invalid", title: "QR code invalide", message: "Le lien scanné ne contient pas d'identifiant de course valide. Vérifiez que vous scannez bien le QR code de Taxi City Bordeaux." });
         setLoading(false);
         return;
@@ -113,23 +117,27 @@ function TrackingPage() {
         .maybeSingle();
 
       if (resaErr || !resa) {
+        toast.error("Aucune course trouvée", { id: toastId, description: "Ce QR code ne correspond à aucune réservation." });
         setError({ code: "notfound", title: "Aucune course trouvée", message: "Ce QR code ne correspond à aucune course active. Demandez à l'administrateur d'accepter votre réservation, puis scannez à nouveau." });
         setLoading(false);
         return;
       }
       const status = (resa.status || "").toLowerCase();
       if (["refusee", "refused", "annulee", "cancelled", "canceled"].includes(status)) {
+        toast.error("Course annulée", { id: toastId, description: "Cette réservation n'est plus active." });
         setError({ code: "expired", title: "Course annulée ou refusée", message: "Cette course n'est plus active. Contactez-nous pour en créer une nouvelle." });
         setLoading(false);
         return;
       }
       if (["terminee", "terminée", "completed", "done"].includes(status)) {
+        toast.info("Course terminée", { id: toastId, description: "Merci d'avoir voyagé avec Taxi City Bordeaux." });
         setError({ code: "expired", title: "Course terminée", message: "Cette course est déjà terminée. Merci d'avoir voyagé avec Taxi City Bordeaux." });
         setLoading(false);
         return;
       }
       const createdAt = resa.created_at ? new Date(resa.created_at).getTime() : 0;
       if (createdAt && Date.now() - createdAt > 24 * 60 * 60 * 1000) {
+        toast.error("QR code expiré", { id: toastId, description: "Ce lien de suivi a plus de 24h." });
         setError({ code: "expired", title: "QR code expiré", message: "Ce lien de suivi a expiré (plus de 24h). Veuillez créer une nouvelle réservation." });
         setLoading(false);
         return;
@@ -149,6 +157,8 @@ function TrackingPage() {
       } else {
         await initMap(BORDEAUX_CENTER[0], BORDEAUX_CENTER[1]);
       }
+      const clientName = (resa.client_name || resa.nom || "").toString().trim();
+      toast.success("✅ Course trouvée", { id: toastId, description: clientName ? `Suivi en cours pour ${clientName}` : "Suivi en cours du chauffeur en temps réel.", duration: 4000 });
       setLoading(false);
 
       channelRef.current = supabase.channel("tracking-live").on("postgres_changes", { event: "UPDATE", schema: "public", table: "driver_gps" }, async (payload) => {
