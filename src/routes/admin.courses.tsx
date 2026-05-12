@@ -67,6 +67,7 @@ function CoursesPage() {
 
     if (error) {
       console.error(error);
+      setLoading(false);
       return;
     }
 
@@ -85,6 +86,7 @@ function CoursesPage() {
     });
 
     setCounts(nextCounts);
+    setLoading(false);
   }, []);
 
   // =========================
