@@ -179,6 +179,26 @@ function TrackingPage() {
 @keyframes spinTaxi{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
   );
 
+  if (error) {
+    const icon = error.code === "invalid" ? "⚠️" : error.code === "expired" ? "⏱️" : "🔍";
+    return (
+      <div style={{ minHeight: "100vh", background: "#0a0f1e", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, padding: 28, textAlign: "center" }}>
+        {styleTag}
+        <div style={{ width: 88, height: 88, borderRadius: "50%", background: "rgba(245,158,11,0.12)", border: "2px solid rgba(245,158,11,0.35)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 42 }}>{icon}</div>
+        <div style={{ maxWidth: 380 }}>
+          <h1 style={{ fontFamily: "'Syne',sans-serif", fontWeight: 900, fontSize: 22, color: "#f8fafc", margin: 0 }}>{error.title}</h1>
+          <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, color: "#94a3b8", marginTop: 10, lineHeight: 1.55 }}>{error.message}</p>
+          <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "#334155", marginTop: 12 }}>Code: {id?.slice(0, 12) || "—"}</p>
+        </div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center", marginTop: 6 }}>
+          <button onClick={() => setRetryNonce(n => n + 1)} style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 20px", background: "linear-gradient(135deg,#0ea5e9,#0369a1)", color: "#fff", border: "none", borderRadius: 12, fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, cursor: "pointer", boxShadow: "0 4px 14px rgba(14,165,233,0.35)" }}>🔄 Réessayer</button>
+          <button onClick={() => { if (window.history.length > 1) window.history.back(); else window.location.href = "/"; }} style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 20px", background: "rgba(255,255,255,0.06)", color: "#f1f5f9", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 12, fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>← Retour</button>
+          <a href="tel:0673072322" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 20px", background: "#22c55e", color: "#fff", borderRadius: 12, textDecoration: "none", fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, boxShadow: "0 4px 14px rgba(34,197,94,0.35)" }}>📞 Appeler</a>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     const steps = [
       { label: "Connexion sécurisée…", icon: "🔐" },
