@@ -92,11 +92,49 @@ function TrackingPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    setLoading(true);
+    setError(null);
     const sessionId = sessionStorage.getItem("sid") || Math.random().toString(36).slice(2);
     sessionStorage.setItem("sid", sessionId);
     supabase.from("site_analytics").insert({ event: "qr_click", session_id: sessionId });
 
     const init = async () => {
+      // 1) Validate the QR code / tracking id against a reservation
+      if (!id || id.length < 6) {
+        setError({ code: "invalid", title: "QR code invalide", message: "Le lien scanné ne contient pas d'identifiant de course valide. Vérifiez que vous scannez bien le QR code de Taxi City Bordeaux." });
+        setLoading(false);
+        return;
+      }
+      const { data: resa, error: resaErr } = await supabase
+        .from("reservations")
+        .select("id, status, tracking_id, created_at, client_name, nom")
+        .eq("tracking_id", id)
+        .maybeSingle();
+
+      if (resaErr || !resa) {
+        setError({ code: "notfound", title: "Aucune course trouvée", message: "Ce QR code ne correspond à aucune course active. Demandez à l'administrateur d'accepter votre réservation, puis scannez à nouveau." });
+        setLoading(false);
+        return;
+      }
+      const status = (resa.status || "").toLowerCase();
+      if (["refusee", "refused", "annulee", "cancelled", "canceled"].includes(status)) {
+        setError({ code: "expired", title: "Course annulée ou refusée", message: "Cette course n'est plus active. Contactez-nous pour en créer une nouvelle." });
+        setLoading(false);
+        return;
+      }
+      if (["terminee", "terminée", "completed", "done"].includes(status)) {
+        setError({ code: "expired", title: "Course terminée", message: "Cette course est déjà terminée. Merci d'avoir voyagé avec Taxi City Bordeaux." });
+        setLoading(false);
+        return;
+      }
+      const createdAt = resa.created_at ? new Date(resa.created_at).getTime() : 0;
+      if (createdAt && Date.now() - createdAt > 24 * 60 * 60 * 1000) {
+        setError({ code: "expired", title: "QR code expiré", message: "Ce lien de suivi a expiré (plus de 24h). Veuillez créer une nouvelle réservation." });
+        setLoading(false);
+        return;
+      }
+
+      // 2) Load driver GPS
       const { data } = await supabase.from("driver_gps").select("*").eq("id", "driver").single();
       if (data) {
         setDriverData(data as DriverData);
