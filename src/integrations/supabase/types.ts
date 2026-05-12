@@ -316,6 +316,7 @@ export type Database = {
           status: string
           tarif_jour: boolean | null
           telephone: string
+          tracking_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -343,6 +344,7 @@ export type Database = {
           status?: string
           tarif_jour?: boolean | null
           telephone: string
+          tracking_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -370,6 +372,7 @@ export type Database = {
           status?: string
           tarif_jour?: boolean | null
           telephone?: string
+          tracking_id?: string | null
           updated_at?: string | null
         }
         Relationships: []
