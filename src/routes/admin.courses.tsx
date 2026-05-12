@@ -35,7 +35,17 @@ function CoursesPage() {
     fetchAll();
     const ch = supabase
       .channel("courses-rt")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "reservations" }, (payload) => {
+      .on(
+  "postgres_changes",
+  {
+    event: "UPDATE",
+    schema: "public",
+    table: "reservations",
+  },
+  () => {
+    fetchAll();
+  }
+)
         if (!initialLoad.current) {
           const n = payload.new as R;
           try {
