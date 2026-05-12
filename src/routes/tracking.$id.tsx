@@ -77,6 +77,17 @@ function TrackingPage() {
   };
 
   useEffect(() => {
+    if (!loading) return;
+    const start = Date.now();
+    const t = setInterval(() => {
+      const s = Math.floor((Date.now() - start) / 1000);
+      setElapsed(s);
+      setLoadStep(s < 2 ? 0 : s < 5 ? 1 : s < 9 ? 2 : 3);
+    }, 200);
+    return () => clearInterval(t);
+  }, [loading]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
     const sessionId = sessionStorage.getItem("sid") || Math.random().toString(36).slice(2);
     sessionStorage.setItem("sid", sessionId);
