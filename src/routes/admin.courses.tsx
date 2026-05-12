@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix } from "@/lib/tarif";
+import { assertTrackingId, newTrackingId } from "@/lib/tracking-id";
 
 export const Route = createFileRoute("/admin/courses")({
   head: () => ({
