@@ -54,6 +54,7 @@ function CoursesPage() {
     r: R;
   } | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
+  const [refusalReason, setRefusalReason] = useState("");
 
   const initialLoad = useRef(true);
 
