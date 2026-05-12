@@ -166,8 +166,72 @@ function FlowCheckPage() {
     setRunning(false);
   };
 
+  // --- Mode (single chauffeur vs multi-courses) ---
+  const [mode, setMode] = useState<"single" | "multi" | null>(null);
+  const [savingMode, setSavingMode] = useState(false);
+
+  const loadMode = async () => {
+    const { data } = await supabase.from("app_settings").select("tracking_mode").eq("id", 1).maybeSingle();
+    setMode((data?.tracking_mode === "multi" ? "multi" : "single"));
+  };
+
+  const updateMode = async (next: "single" | "multi") => {
+    setSavingMode(true);
+    const { error } = await supabase.from("app_settings").update({ tracking_mode: next, updated_at: new Date().toISOString() }).eq("id", 1);
+    setSavingMode(false);
+    if (error) { alert("Échec mise à jour mode: " + error.message); return; }
+    setMode(next);
+  };
+
+  // --- Concurrent scan tests ---
+  const [simResults, setSimResults] = useState<{ id: string; tracking_id: string; ms: number; ok: boolean; detail: string }[]>([]);
+  const [simRunning, setSimRunning] = useState(false);
+
+  const runSimulatedScans = async () => {
+    setSimRunning(true);
+    setSimResults([]);
+    // Take up to 5 most recent reservations with valid tracking_id
+    const targets = reservations
+      .filter(r => r.tracking_id && trackingIdSchema.safeParse(r.tracking_id).success)
+      .slice(0, 5);
+
+    if (targets.length === 0) {
+      setSimResults([{ id: "none", tracking_id: "—", ms: 0, ok: false, detail: "Aucune réservation avec tracking_id UUID valide." }]);
+      setSimRunning(false);
+      return;
+    }
+
+    const settings = await supabase.from("app_settings").select("tracking_mode").eq("id", 1).maybeSingle();
+    const m = (settings.data?.tracking_mode === "multi" ? "multi" : "single");
+
+    const runOne = async (r: Reservation) => {
+      const start = performance.now();
+      const tid = r.tracking_id!;
+      const [resa, gps] = await Promise.all([
+        supabase.from("reservations").select("id, status, destination, arrivee, prix_estime").eq("tracking_id", tid).maybeSingle(),
+        supabase.from("driver_gps").select("id, latitude, longitude, is_active, updated_at").eq("id", m === "multi" ? tid : "driver").maybeSingle(),
+      ]);
+      const ms = Math.round(performance.now() - start);
+      const okResa = !resa.error && !!resa.data;
+      const okGps = !gps.error;
+      return {
+        id: r.id,
+        tracking_id: tid,
+        ms,
+        ok: okResa && okGps,
+        detail: `${okResa ? "✓ resa" : "✗ resa"} · ${okGps ? (gps.data ? "✓ gps " + (gps.data.is_active ? "actif" : "inactif") : "gps absent") : "✗ gps " + gps.error?.message}`,
+      };
+    };
+
+    // Fire all scans concurrently
+    const results = await Promise.all(targets.map(runOne));
+    setSimResults(results);
+    setSimRunning(false);
+  };
+
   useEffect(() => {
     runChecks();
+    loadMode();
   }, []);
 
   const summary = {
