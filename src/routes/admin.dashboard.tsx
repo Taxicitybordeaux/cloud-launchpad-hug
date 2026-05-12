@@ -21,6 +21,8 @@ function Dashboard() {
   const [qrImp, setQrImp] = useState(0);
   const [qrClick, setQrClick] = useState(0);
   const [reservs, setReservs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [gpsLoading, setGpsLoading] = useState(true);
   const [gpsActive, setGpsActive] = useState(false);
   const [gpsBusy, setGpsBusy] = useState(false);
   const [gpsPos, setGpsPos] = useState<{ lat: number; lng: number } | null>(null);
