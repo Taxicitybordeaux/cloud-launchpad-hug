@@ -25,6 +25,8 @@ function TrackingPage() {
   const [driverData, setDriverData] = useState<DriverData | null>(null);
   const [eta, setEta] = useState<ETA>({ minutes: null, km: null });
   const [loading, setLoading] = useState(true);
+  const [loadStep, setLoadStep] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
