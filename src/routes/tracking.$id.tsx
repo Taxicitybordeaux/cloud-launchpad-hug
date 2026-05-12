@@ -158,10 +158,24 @@ function TrackingPage() {
       <div style={{ height: "52vh", position: "relative" }}>
         <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
         {!driverData?.latitude && (
-          <div style={{ position: "absolute", inset: 0, background: "rgba(10,15,30,0.85)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
-            <span style={{ fontSize: 36 }}>📡</span>
-            <p style={{ color: "#94a3b8", fontSize: 14, fontWeight: 600, textAlign: "center" }}>En attente de la position<br />du chauffeur...</p>
-            <div style={{ display: "flex", gap: 6 }}>
+          <div style={{ position: "absolute", inset: 0, background: "rgba(10,15,30,0.92)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, padding: 24, textAlign: "center" }}>
+            <span style={{ fontSize: 44 }}>{driverData?.is_active ? "📡" : "🅿️"}</span>
+            <div>
+              <p style={{ color: "#f8fafc", fontFamily: "'Syne',sans-serif", fontSize: 18, fontWeight: 800, margin: 0 }}>
+                {driverData?.is_active ? "Acquisition de la position…" : "Le chauffeur n'est pas encore en course"}
+              </p>
+              <p style={{ color: "#94a3b8", fontSize: 13, marginTop: 8, lineHeight: 1.5 }}>
+                {driverData?.is_active
+                  ? "Le GPS est actif. La carte s'affichera dans un instant."
+                  : "Sa position s'affichera ici dès qu'il l'aura activée. En attendant, appelez-le directement pour réserver votre course."}
+              </p>
+            </div>
+            {!driverData?.is_active && (
+              <a href="tel:0673072322" style={{ marginTop: 6, display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 22px", background: "#22c55e", color: "#fff", borderRadius: 14, textDecoration: "none", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, boxShadow: "0 6px 18px rgba(34,197,94,0.35)" }}>
+                📞 06 73 07 23 22
+              </a>
+            )}
+            <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
               {[0, 1, 2].map(i => <span key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: "#0ea5e9", display: "inline-block", animation: `liveDot 1.2s ${i * 0.2}s infinite` }} />)}
             </div>
           </div>
