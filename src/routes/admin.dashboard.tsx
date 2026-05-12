@@ -20,6 +20,54 @@ function Dashboard() {
   const [qrImp, setQrImp] = useState(0);
   const [qrClick, setQrClick] = useState(0);
   const [reservs, setReservs] = useState<any[]>([]);
+  const [gpsActive, setGpsActive] = useState(false);
+  const [gpsBusy, setGpsBusy] = useState(false);
+  const [gpsPos, setGpsPos] = useState<{ lat: number; lng: number } | null>(null);
+  const watchIdRef = useRef<number | null>(null);
+
+  const ensureRow = async () => {
+    const { data } = await supabase.from("driver_gps").select("is_active,latitude,longitude").eq("id", "driver").maybeSingle();
+    if (!data) {
+      await supabase.from("driver_gps").insert({ id: "driver", is_active: false, latitude: 0, longitude: 0 });
+      return { is_active: false, latitude: 0, longitude: 0 };
+    }
+    return data;
+  };
+
+  const startGps = async () => {
+    if (!navigator.geolocation) { alert("Géolocalisation indisponible sur cet appareil."); return; }
+    setGpsBusy(true);
+    await ensureRow();
+    await supabase.from("driver_gps").update({ is_active: true, updated_at: new Date().toISOString() }).eq("id", "driver");
+    setGpsActive(true);
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      async (pos) => {
+        const { latitude, longitude, accuracy } = pos.coords;
+        setGpsPos({ lat: latitude, lng: longitude });
+        await supabase.from("driver_gps").update({ latitude, longitude, accuracy, updated_at: new Date().toISOString() }).eq("id", "driver");
+      },
+      (e) => console.error(e),
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 },
+    );
+    setGpsBusy(false);
+  };
+
+  const stopGps = async () => {
+    setGpsBusy(true);
+    if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+    watchIdRef.current = null;
+    await supabase.from("driver_gps").update({ is_active: false }).eq("id", "driver");
+    setGpsActive(false);
+    setGpsPos(null);
+    setGpsBusy(false);
+  };
+
+  useEffect(() => {
+    ensureRow().then((r) => setGpsActive(!!r.is_active));
+    return () => {
+      if (watchIdRef.current !== null && typeof navigator !== "undefined") navigator.geolocation.clearWatch(watchIdRef.current);
+    };
+  }, []);
 
   const fetchAll = useCallback(async () => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
