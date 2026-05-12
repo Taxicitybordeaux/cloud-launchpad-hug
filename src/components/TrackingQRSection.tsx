@@ -23,7 +23,7 @@ export function TrackingQRSection() {
     return () => clearInterval(t);
   }, []);
 
-  const trackingUrl = typeof window !== "undefined" && clientId ? `${window.location.origin}/tracking/${clientId}` : "";
+  const trackingUrl = typeof window !== "undefined" && clientId ? `${window.location.origin}/scan/${clientId}` : "";
   const qr = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(trackingUrl)}&margin=12&color=0a0f1e&bgcolor=ffffff&ecc=H`;
 
   const copy = async () => {
