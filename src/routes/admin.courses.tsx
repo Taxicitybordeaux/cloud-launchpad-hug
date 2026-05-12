@@ -240,7 +240,7 @@ function CoursesPage() {
 
     // popup tracking
     const url =
-      typeof window !== "undefined" ? `${window.location.origin}/tracking/${trackingId}` : "";
+      typeof window !== "undefined" ? `${window.location.origin}/scan/${trackingId}` : "";
 
     if (typeof window !== "undefined" && url) {
       try {
