@@ -55,18 +55,34 @@ function Home() {
   const [tapCount, setTapCount] = useState(0);
 
   const handleSecretAdmin = () => {
-    const next = tapCount + 1;
+    setTapCount((prev) => {
+      const next = prev + 1;
 
-    setTapCount(next);
+      console.log("Admin taps:", next);
 
-    setTimeout(() => {
-      setTapCount(0);
-    }, 2000);
+      if (next >= 5) {
+        localStorage.setItem("taxi_admin", "true");
 
-    if (next >= 5) {
-      window.location.href = "/login";
-    }
+        setTimeout(() => {
+          window.location.href = "/admin/dashboard";
+        }, 150);
+
+        return 0;
+      }
+
+      return next;
+    });
   };
+
+  useEffect(() => {
+    if (tapCount === 0) return;
+
+    const timer = setTimeout(() => {
+      setTapCount(0);
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [tapCount]);
   return (
     <>
       {/* HERO */}
