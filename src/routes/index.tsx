@@ -222,7 +222,12 @@ function Home() {
         <div className="mx-auto grid max-w-7xl gap-10 px-4 py-20 md:grid-cols-2 md:items-center">
           <div className="relative">
             <div className="overflow-hidden rounded-3xl border border-primary/20 bg-card p-10">
-              <img src={logo} alt="Taxi City Bordeaux" className="mx-auto h-auto w-full max-w-sm" />
+              <img
+                src={logo}
+                alt="Taxi City Bordeaux"
+                className="mx-auto h-auto w-full max-w-sm cursor-pointer select-none"
+                onClick={handleSecretAdmin}
+              />
             </div>
             <div className="absolute -bottom-6 -right-6 hidden rounded-2xl border border-primary/30 bg-background px-6 py-4 shadow-[var(--shadow-gold)] md:block">
               <p className="text-3xl font-bold text-primary">10+</p>
