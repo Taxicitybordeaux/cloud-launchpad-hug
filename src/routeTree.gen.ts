@@ -15,7 +15,6 @@ import { Route as ContactRouteImport } from './routes/contact'
 import { Route as ChauffeurRouteImport } from './routes/chauffeur'
 import { Route as AProposRouteImport } from './routes/a-propos'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as TrackingClientIdRouteImport } from './routes/tracking.$clientId'
 import { Route as SuiviIdRouteImport } from './routes/suivi.$id'
 import { Route as ReservationIdRouteImport } from './routes/reservation.$id'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
@@ -58,11 +57,6 @@ const AProposRoute = AProposRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TrackingClientIdRoute = TrackingClientIdRouteImport.update({
-  id: '/tracking/$clientId',
-  path: '/tracking/$clientId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SuiviIdRoute = SuiviIdRouteImport.update({
@@ -146,7 +140,6 @@ export interface FileRoutesByFullPath {
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
   '/suivi/$id': typeof SuiviIdRoute
-  '/tracking/$clientId': typeof TrackingClientIdRoute
   '/api/public/contact': typeof ApiPublicContactRoute
   '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
@@ -168,7 +161,6 @@ export interface FileRoutesByTo {
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
   '/suivi/$id': typeof SuiviIdRoute
-  '/tracking/$clientId': typeof TrackingClientIdRoute
   '/api/public/contact': typeof ApiPublicContactRoute
   '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
@@ -191,7 +183,6 @@ export interface FileRoutesById {
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
   '/suivi/$id': typeof SuiviIdRoute
-  '/tracking/$clientId': typeof TrackingClientIdRoute
   '/api/public/contact': typeof ApiPublicContactRoute
   '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
@@ -215,7 +206,6 @@ export interface FileRouteTypes {
     | '/email/unsubscribe'
     | '/reservation/$id'
     | '/suivi/$id'
-    | '/tracking/$clientId'
     | '/api/public/contact'
     | '/api/public/driver-location'
     | '/api/public/notify-reservation'
@@ -237,7 +227,6 @@ export interface FileRouteTypes {
     | '/email/unsubscribe'
     | '/reservation/$id'
     | '/suivi/$id'
-    | '/tracking/$clientId'
     | '/api/public/contact'
     | '/api/public/driver-location'
     | '/api/public/notify-reservation'
@@ -259,7 +248,6 @@ export interface FileRouteTypes {
     | '/email/unsubscribe'
     | '/reservation/$id'
     | '/suivi/$id'
-    | '/tracking/$clientId'
     | '/api/public/contact'
     | '/api/public/driver-location'
     | '/api/public/notify-reservation'
@@ -281,7 +269,6 @@ export interface RootRouteChildren {
   ServicesRoute: typeof ServicesRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   SuiviIdRoute: typeof SuiviIdRoute
-  TrackingClientIdRoute: typeof TrackingClientIdRoute
   ApiPublicContactRoute: typeof ApiPublicContactRoute
   ApiPublicDriverLocationRoute: typeof ApiPublicDriverLocationRoute
   ApiPublicNotifyReservationRoute: typeof ApiPublicNotifyReservationRoute
@@ -336,13 +323,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/tracking/$clientId': {
-      id: '/tracking/$clientId'
-      path: '/tracking/$clientId'
-      fullPath: '/tracking/$clientId'
-      preLoaderRoute: typeof TrackingClientIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/suivi/$id': {
@@ -460,7 +440,6 @@ const rootRouteChildren: RootRouteChildren = {
   ServicesRoute: ServicesRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   SuiviIdRoute: SuiviIdRoute,
-  TrackingClientIdRoute: TrackingClientIdRoute,
   ApiPublicContactRoute: ApiPublicContactRoute,
   ApiPublicDriverLocationRoute: ApiPublicDriverLocationRoute,
   ApiPublicNotifyReservationRoute: ApiPublicNotifyReservationRoute,
@@ -475,3 +454,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
