@@ -113,6 +113,10 @@ function GpsPage() {
         GPS Chauffeur
       </h1>
 
+      <SkeletonStyles />
+      {loading ? (
+        <GpsCardSkeleton />
+      ) : (
       <div
         style={{
           maxWidth: 540,
