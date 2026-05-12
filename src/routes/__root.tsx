@@ -1,7 +1,9 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import { SiteHeader } from "@/components/SiteHeader";
 import { I18nProvider } from "@/i18n/I18nProvider";
+import { supabase } from "@/integrations/supabase/client";
 
 import appCss from "../styles.css?url";
 
@@ -82,6 +84,12 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const sid = sessionStorage.getItem("sid") || Math.random().toString(36).slice(2);
+    sessionStorage.setItem("sid", sid);
+    supabase.from("site_analytics").insert({ event: "visit", session_id: sid });
+  }, []);
   return (
     <I18nProvider>
       <SiteHeader />

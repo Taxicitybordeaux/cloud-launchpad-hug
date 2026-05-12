@@ -14,6 +14,87 @@ export type Database = {
   }
   public: {
     Tables: {
+      clients: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          total_courses: number
+          total_depense: number
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          total_courses?: number
+          total_depense?: number
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          total_courses?: number
+          total_depense?: number
+        }
+        Relationships: []
+      }
+      courses: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          depart: string | null
+          destination: string | null
+          id: string
+          paiement: string
+          prix_final: number | null
+          reservation_id: string | null
+          status: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          depart?: string | null
+          destination?: string | null
+          id?: string
+          paiement?: string
+          prix_final?: number | null
+          reservation_id?: string | null
+          status?: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          depart?: string | null
+          destination?: string | null
+          id?: string
+          paiement?: string
+          prix_final?: number | null
+          reservation_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courses_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courses_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "reservations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cta_events: {
         Row: {
           created_at: string
@@ -53,31 +134,37 @@ export type Database = {
       driver_gps: {
         Row: {
           accuracy: number | null
+          destination: string | null
           heading: number | null
           id: string
           is_active: boolean
           latitude: number | null
           longitude: number | null
+          prix_estime: string | null
           speed: number | null
           updated_at: string
         }
         Insert: {
           accuracy?: number | null
+          destination?: string | null
           heading?: number | null
           id: string
           is_active?: boolean
           latitude?: number | null
           longitude?: number | null
+          prix_estime?: string | null
           speed?: number | null
           updated_at?: string
         }
         Update: {
           accuracy?: number | null
+          destination?: string | null
           heading?: number | null
           id?: string
           is_active?: boolean
           latitude?: number | null
           longitude?: number | null
+          prix_estime?: string | null
           speed?: number | null
           updated_at?: string
         }
@@ -207,47 +294,83 @@ export type Database = {
         Row: {
           arrivee: string
           bagages: number
+          client_email: string | null
+          client_name: string | null
+          client_phone: string | null
           created_at: string
+          date_course: string | null
           depart: string
+          destination: string | null
+          distance_km: number | null
           email: string | null
+          heure_course: string | null
           id: string
           message: string | null
+          nb_passagers: number | null
           nom: string
           passagers: number
           pickup_datetime: string
+          prix_estime: number | null
           service_type: string
+          source: string | null
           status: string
+          tarif_jour: boolean | null
           telephone: string
+          updated_at: string | null
         }
         Insert: {
           arrivee: string
           bagages?: number
+          client_email?: string | null
+          client_name?: string | null
+          client_phone?: string | null
           created_at?: string
+          date_course?: string | null
           depart: string
+          destination?: string | null
+          distance_km?: number | null
           email?: string | null
+          heure_course?: string | null
           id?: string
           message?: string | null
+          nb_passagers?: number | null
           nom: string
           passagers?: number
           pickup_datetime: string
+          prix_estime?: number | null
           service_type?: string
+          source?: string | null
           status?: string
+          tarif_jour?: boolean | null
           telephone: string
+          updated_at?: string | null
         }
         Update: {
           arrivee?: string
           bagages?: number
+          client_email?: string | null
+          client_name?: string | null
+          client_phone?: string | null
           created_at?: string
+          date_course?: string | null
           depart?: string
+          destination?: string | null
+          distance_km?: number | null
           email?: string | null
+          heure_course?: string | null
           id?: string
           message?: string | null
+          nb_passagers?: number | null
           nom?: string
           passagers?: number
           pickup_datetime?: string
+          prix_estime?: number | null
           service_type?: string
+          source?: string | null
           status?: string
+          tarif_jour?: boolean | null
           telephone?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -275,6 +398,27 @@ export type Database = {
           name?: string
           rating?: number
           text?: string
+        }
+        Relationships: []
+      }
+      site_analytics: {
+        Row: {
+          created_at: string
+          event: string
+          id: string
+          session_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event: string
+          id?: string
+          session_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event?: string
+          id?: string
+          session_id?: string | null
         }
         Relationships: []
       }
