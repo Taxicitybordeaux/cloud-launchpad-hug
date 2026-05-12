@@ -25,6 +25,7 @@ const BORDEAUX_CENTER: [number, number] = [44.8378, -0.5792];
 function TrackingPage() {
   const { id } = Route.useParams();
   const [driverData, setDriverData] = useState<DriverData | null>(null);
+  const [reservation, setReservation] = useState<{ client_name: string; depart: string | null; destination: string | null; prix_estime: string | null; pickup_datetime: string | null } | null>(null);
   const [eta, setEta] = useState<ETA>({ minutes: null, km: null });
   const [loading, setLoading] = useState(true);
   const [loadStep, setLoadStep] = useState(0);
