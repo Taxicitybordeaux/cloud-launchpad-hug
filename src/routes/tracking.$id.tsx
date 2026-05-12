@@ -163,8 +163,16 @@ function TrackingPage() {
         pickup_datetime: resa.pickup_datetime ?? null,
       });
 
-      // 2) Load driver GPS
-      const { data } = await supabase.from("driver_gps").select("*").eq("id", "driver").maybeSingle();
+      // 2) Load driver GPS — single mode shares 'driver' row, multi mode uses tracking_id
+      const { data: settings } = await supabase
+        .from("app_settings")
+        .select("tracking_mode")
+        .eq("id", 1)
+        .maybeSingle();
+      const mode = (settings?.tracking_mode === "multi" ? "multi" : "single") as "single" | "multi";
+      const gpsId = mode === "multi" ? trackingId : "driver";
+
+      const { data } = await supabase.from("driver_gps").select("*").eq("id", gpsId).maybeSingle();
       if (data) {
         setDriverData(data as DriverData);
         if (data.latitude && data.longitude) {
@@ -177,22 +185,30 @@ function TrackingPage() {
       } else {
         await initMap(BORDEAUX_CENTER[0], BORDEAUX_CENTER[1]);
       }
-      toast.success("✅ Course trouvée", { id: toastId, description: clientName ? `Suivi en cours pour ${clientName}` : "Suivi en cours du chauffeur en temps réel.", duration: 4000 });
+      toast.success("✅ Course trouvée", { id: toastId, description: `${clientName ? clientName + " — " : ""}mode ${mode === "multi" ? "multi-courses" : "chauffeur unique"}`, duration: 4000 });
       setLoading(false);
 
-      channelRef.current = supabase.channel("tracking-live").on("postgres_changes", { event: "UPDATE", schema: "public", table: "driver_gps" }, async (payload) => {
-        const d = payload.new as DriverData;
-        setDriverData(d);
-        setLastUpdate(new Date());
-        if (d.latitude && d.longitude) {
-          if (!mapInstanceRef.current) await initMap(d.latitude, d.longitude);
-          else {
-            markerRef.current?.setLatLng([d.latitude, d.longitude]);
-            mapInstanceRef.current.panTo([d.latitude, d.longitude], { animate: true, duration: 1.5 });
+      // Realtime channel — filter to the relevant GPS row when in multi-mode
+      const filter = mode === "multi" ? `id=eq.${gpsId}` : undefined;
+      channelRef.current = supabase.channel(`tracking-live-${gpsId}`).on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "driver_gps", ...(filter ? { filter } : {}) },
+        async (payload) => {
+          const d = payload.new as DriverData;
+          if (mode === "multi" && d.id !== gpsId) return; // safety guard
+          if (mode === "single" && d.id !== "driver") return;
+          setDriverData(d);
+          setLastUpdate(new Date());
+          if (d.latitude && d.longitude) {
+            if (!mapInstanceRef.current) await initMap(d.latitude, d.longitude);
+            else {
+              markerRef.current?.setLatLng([d.latitude, d.longitude]);
+              mapInstanceRef.current.panTo([d.latitude, d.longitude], { animate: true, duration: 1.5 });
+            }
+            await calculateETA(d.latitude, d.longitude);
           }
-          await calculateETA(d.latitude, d.longitude);
         }
-      }).subscribe();
+      ).subscribe();
     };
     init();
     return () => {
