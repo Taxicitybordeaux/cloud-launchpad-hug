@@ -22,11 +22,14 @@ type ETA = { minutes: number | null; km: string | null };
 const BORDEAUX_CENTER: [number, number] = [44.8378, -0.5792];
 
 function TrackingPage() {
+  const { id } = Route.useParams();
   const [driverData, setDriverData] = useState<DriverData | null>(null);
   const [eta, setEta] = useState<ETA>({ minutes: null, km: null });
   const [loading, setLoading] = useState(true);
   const [loadStep, setLoadStep] = useState(0);
   const [elapsed, setElapsed] = useState(0);
+  const [error, setError] = useState<null | { code: "invalid" | "expired" | "notfound"; title: string; message: string }>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
