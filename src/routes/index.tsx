@@ -93,6 +93,8 @@ function Home() {
           className="absolute inset-0 -z-10 h-full w-full object-cover"
           width={1920}
           height={1080}
+          fetchPriority="high"
+          decoding="async"
         />
         {/* Strong overlays so the headline & body copy stay readable in BOTH light/dark themes,
             with an extra bottom-up gradient on mobile where the text sits over the image. */}
@@ -241,6 +243,10 @@ function Home() {
               <img
                 src={logo}
                 alt="Taxi City Bordeaux"
+                width={512}
+                height={512}
+                loading="lazy"
+                decoding="async"
                 className="mx-auto h-auto w-full max-w-sm cursor-pointer select-none"
                 onClick={handleSecretAdmin}
               />
