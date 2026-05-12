@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix } from "@/lib/tarif";
+import { assertTrackingId, newTrackingId } from "@/lib/tracking-id";
 
 export const Route = createFileRoute("/admin/courses")({
   head: () => ({
@@ -160,7 +161,20 @@ function CoursesPage() {
   // =========================
 
   const handleAccept = async (r: R) => {
-    const trackingId = r.tracking_id || crypto.randomUUID();
+    // Validate tracking_id format BEFORE any DB write.
+    // - Reuse a valid existing id, otherwise generate a fresh UUID.
+    // - Refuse the update if the value cannot be normalized to a UUID.
+    let trackingId: string;
+    try {
+      trackingId = r.tracking_id ? assertTrackingId(r.tracking_id) : newTrackingId();
+      // Defensive: re-validate the generated id too.
+      assertTrackingId(trackingId);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "tracking_id invalide";
+      console.error("[admin.courses] tracking_id validation failed:", msg);
+      if (typeof window !== "undefined") alert(`❌ ${msg}`);
+      return;
+    }
 
     const { error } = await supabase
       .from("reservations")
