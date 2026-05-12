@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix } from "@/lib/tarif";
+import { GpsCardSkeleton, SkeletonStyles } from "@/components/admin/Skeleton";
 
 export const Route = createFileRoute("/admin/gps")({
   head: () => ({ meta: [{ title: "GPS — Admin" }, { name: "robots", content: "noindex" }] }),
