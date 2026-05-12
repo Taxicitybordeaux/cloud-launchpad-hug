@@ -52,6 +52,18 @@ export function TrackingQRSection() {
         </span>
         <h2 style={{ fontFamily: "'Syne',sans-serif", fontWeight: 900, fontSize: "clamp(28px,4vw,44px)", marginTop: 16, lineHeight: 1.1 }}>Scannez et suivez votre chauffeur en temps réel</h2>
         <p style={{ color: "#94a3b8", maxWidth: 560, margin: "14px auto 0", fontSize: 15 }}>Un QR unique généré pour chaque client. Scannez, ouvrez le lien sur votre téléphone, et suivez l'arrivée du taxi sur la carte.</p>
+
+        <div role="note" aria-label="Instructions de suivi" style={{ maxWidth: 720, margin: "26px auto 0", background: "linear-gradient(135deg, rgba(14,165,233,0.12), rgba(14,165,233,0.04))", border: "1px solid rgba(14,165,233,0.35)", borderRadius: 16, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, textAlign: "left" }}>
+          <div style={{ fontSize: 26, lineHeight: 1, flexShrink: 0 }}>📲</div>
+          <div>
+            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, color: "#f1f5f9" }}>
+              Ouvrez ce lien sur votre téléphone et flashez le QR code
+            </div>
+            <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#94a3b8", marginTop: 4, lineHeight: 1.5 }}>
+              Vous serez redirigé vers le suivi en temps réel de votre course (position du chauffeur, ETA, prix estimé). Aucune installation requise.
+            </div>
+          </div>
+        </div>
       </div>
 
       <div style={{ maxWidth: 1100, margin: "48px auto 0", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 28, alignItems: "center" }}>

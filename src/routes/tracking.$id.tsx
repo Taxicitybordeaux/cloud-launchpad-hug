@@ -299,6 +299,13 @@ function TrackingPage() {
         </div>
       </div>
 
+      <div style={{ background: "linear-gradient(135deg, rgba(14,165,233,0.14), rgba(14,165,233,0.04))", borderBottom: "1px solid rgba(14,165,233,0.25)", padding: "12px 20px", display: "flex", alignItems: "center", gap: 12 }}>
+        <span style={{ fontSize: 20, lineHeight: 1 }}>📲</span>
+        <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#cbd5e1", lineHeight: 1.45 }}>
+          <strong style={{ color: "#f1f5f9", fontFamily: "'Syne',sans-serif" }}>Suivi en temps réel.</strong> Gardez cette page ouverte sur votre téléphone — la position du chauffeur, l'ETA et le prix se mettent à jour automatiquement. Si vous fermez l'onglet, scannez à nouveau le QR code pour revenir.
+        </div>
+      </div>
+
       <div style={{ height: "52vh", position: "relative" }}>
         <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
         {!driverData?.latitude && (
