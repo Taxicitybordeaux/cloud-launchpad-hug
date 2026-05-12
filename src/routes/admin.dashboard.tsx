@@ -95,6 +95,7 @@ function Dashboard() {
     setQrImp(impR.count ?? 0);
     setQrClick(clkR.count ?? 0);
     setReservs(resR.data ?? []);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
