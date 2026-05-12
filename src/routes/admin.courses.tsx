@@ -268,7 +268,7 @@ function CoursesPage() {
   // DATA
   // =========================
 
-  const filtered = items.filter((r) => r.status === tab);
+  const filtered = items.filter((r) => normalizeStatus(r.status) === tab);
 
   const simPrix = calculerPrix(simKm, simJour);
 
