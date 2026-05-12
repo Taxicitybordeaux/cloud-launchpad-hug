@@ -52,7 +52,17 @@ function CoursesPage() {
         }
         fetchAll();
       })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "reservations" }, fetchAll)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "reservations",
+        },
+        () => {
+          fetchAll();
+        },
+      )
       .subscribe();
     initialLoad.current = false;
     return () => {
