@@ -154,18 +154,20 @@ function Dashboard() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 16, marginBottom: 24 }}>
-        {[
-          { i: "💶", v: `${caJ.toFixed(2)} €`, l: "CA aujourd'hui" },
-          { i: "📈", v: `${caM.toFixed(2)} €`, l: "CA ce mois" },
-          { i: "🚗", v: coursesJ, l: "Courses aujourd'hui" },
-          { i: "👥", v: clientsTotal, l: "Clients total" },
-        ].map((c, i) => (
-          <div key={i} style={card}>
-            <div style={{ fontSize: 26 }}>{c.i}</div>
-            <div style={valCss}>{c.v}</div>
-            <div style={labelCss}>{c.l}</div>
-          </div>
-        ))}
+        {loading
+          ? Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
+          : [
+              { i: "💶", v: `${caJ.toFixed(2)} €`, l: "CA aujourd'hui" },
+              { i: "📈", v: `${caM.toFixed(2)} €`, l: "CA ce mois" },
+              { i: "🚗", v: coursesJ, l: "Courses aujourd'hui" },
+              { i: "👥", v: clientsTotal, l: "Clients total" },
+            ].map((c, i) => (
+              <div key={i} style={card}>
+                <div style={{ fontSize: 26 }}>{c.i}</div>
+                <div style={valCss}>{c.v}</div>
+                <div style={labelCss}>{c.l}</div>
+              </div>
+            ))}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 16, marginBottom: 24 }}>
