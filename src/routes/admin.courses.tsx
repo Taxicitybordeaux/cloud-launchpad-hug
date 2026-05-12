@@ -624,6 +624,117 @@ function CoursesPage() {
           Aucune réservation
         </div>
       )}
+
+      {/* MODALE DE CONFIRMATION */}
+      {confirmAction && (
+        <div
+          onClick={() => !confirmBusy && setConfirmAction(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.65)",
+            backdropFilter: "blur(6px)",
+            zIndex: 9998,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#0f172a",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: 20,
+              padding: 28,
+              maxWidth: 440,
+              width: "100%",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+              fontFamily: "'DM Sans',sans-serif",
+            }}
+          >
+            <div style={{ fontSize: 38, marginBottom: 12 }}>
+              {confirmAction.type === "accept" ? "✅" : "❌"}
+            </div>
+            <h2
+              style={{
+                fontFamily: "'Syne',sans-serif",
+                fontSize: 22,
+                fontWeight: 800,
+                color: "#f8fafc",
+                margin: "0 0 8px",
+              }}
+            >
+              {confirmAction.type === "accept" ? "Accepter cette course ?" : "Refuser cette course ?"}
+            </h2>
+            <p style={{ color: "#94a3b8", fontSize: 14, lineHeight: 1.5, margin: "0 0 8px" }}>
+              <b style={{ color: "#cbd5e1" }}>
+                {confirmAction.r.client_name || confirmAction.r.nom}
+              </b>
+              {" — "}
+              {confirmAction.r.depart} → {confirmAction.r.destination || confirmAction.r.arrivee}
+            </p>
+            <p style={{ color: "#64748b", fontSize: 13, margin: "0 0 22px" }}>
+              {confirmAction.type === "accept"
+                ? "Le client recevra un email avec le lien de suivi en temps réel."
+                : "Cette action peut être modifiée plus tard depuis l'onglet Refusées."}
+            </p>
+
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
+              <button
+                onClick={() => setConfirmAction(null)}
+                disabled={confirmBusy}
+                style={{
+                  background: "rgba(255,255,255,0.06)",
+                  color: "#cbd5e1",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  padding: "12px 20px",
+                  borderRadius: 12,
+                  cursor: confirmBusy ? "not-allowed" : "pointer",
+                  fontWeight: 700,
+                  opacity: confirmBusy ? 0.5 : 1,
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={async () => {
+                  if (confirmBusy) return;
+                  setConfirmBusy(true);
+                  try {
+                    if (confirmAction.type === "accept") {
+                      await handleAccept(confirmAction.r);
+                    } else {
+                      await handleRefuse(confirmAction.r);
+                    }
+                    setConfirmAction(null);
+                  } finally {
+                    setConfirmBusy(false);
+                  }
+                }}
+                disabled={confirmBusy}
+                style={{
+                  background: confirmAction.type === "accept" ? "#22c55e" : "#ef4444",
+                  color: "#fff",
+                  border: 0,
+                  padding: "12px 22px",
+                  borderRadius: 12,
+                  cursor: confirmBusy ? "wait" : "pointer",
+                  fontWeight: 700,
+                  opacity: confirmBusy ? 0.7 : 1,
+                }}
+              >
+                {confirmBusy
+                  ? "..."
+                  : confirmAction.type === "accept"
+                    ? "✓ Accepter"
+                    : "✗ Refuser"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
