@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { trackingIdSchema } from "@/lib/tracking-id";
 
 export const Route = createFileRoute("/tracking/$id")({
   head: () => ({ meta: [{ title: "Suivi de votre course – Taxi City Bordeaux" }, { name: "description", content: "Suivez votre taxi en temps réel." }, { name: "robots", content: "noindex" }] }),
