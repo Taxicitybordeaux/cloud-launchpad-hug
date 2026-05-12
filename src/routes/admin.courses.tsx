@@ -230,14 +230,57 @@ function CoursesPage() {
     } catch {}
 
     // popup tracking
-    if (typeof window !== "undefined") {
-      const url = `${window.location.origin}/tracking/${trackingId}`;
+    const url =
+      typeof window !== "undefined" ? `${window.location.origin}/tracking/${trackingId}` : "";
 
+    if (typeof window !== "undefined" && url) {
       try {
         await navigator.clipboard.writeText(url);
       } catch {}
+    }
 
-      alert(`Course acceptée ✅\n\nLien tracking copié :\n${url}`);
+    // 📧 Notifie le client par email pour l'inviter à scanner / ouvrir le suivi
+    let emailStatus = "non envoyé (pas d'email client)";
+    if (email && url) {
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        const accessToken = sess?.session?.access_token;
+        if (!accessToken) {
+          emailStatus = "non envoyé (session admin expirée)";
+        } else {
+          const res = await fetch("/lovable/email/transactional/send", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({
+              templateName: "course-accepted",
+              recipientEmail: email,
+              idempotencyKey: `course-accepted-${r.id}`,
+              templateData: {
+                nom: name,
+                depart: r.depart,
+                arrivee: r.arrivee || r.destination,
+                pickup_datetime: r.pickup_datetime
+                  ? new Date(r.pickup_datetime).toLocaleString("fr-FR")
+                  : undefined,
+                tracking_url: url,
+              },
+            }),
+          });
+          emailStatus = res.ok ? "✉️ envoyé au client" : `échec (${res.status})`;
+        }
+      } catch (e) {
+        console.error("[admin.courses] email send failed:", e);
+        emailStatus = "échec (réseau)";
+      }
+    }
+
+    if (typeof window !== "undefined") {
+      alert(
+        `Course acceptée ✅\n\nLien tracking copié :\n${url}\n\nNotification client : ${emailStatus}`,
+      );
     }
 
     fetchAll();
