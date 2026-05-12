@@ -520,7 +520,7 @@ function CoursesPage() {
 
             {/* BOUTONS */}
 
-            {r.status === "pending" && (
+            {normalizeStatus(r.status) === "pending" && (
               <div
                 style={{
                   marginTop: 18,
