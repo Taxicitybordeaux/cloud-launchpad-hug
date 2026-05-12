@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { trackingIdSchema } from "@/lib/tracking-id";
 
 export const Route = createFileRoute("/scan/$id")({
   head: () => ({ meta: [{ title: "QR scanné – Taxi City Bordeaux" }, { name: "robots", content: "noindex" }] }),
