@@ -15,6 +15,15 @@ type R = any;
 
 const tabKeys = ["pending", "accepted", "refused"] as const;
 
+// Normalise les statuts venant de la base (par défaut "nouvelle") vers les
+// 3 onglets de l'admin. Tout ce qui n'est pas explicitement accepted/refused
+// est considéré comme en attente.
+const normalizeStatus = (s: unknown): (typeof tabKeys)[number] => {
+  if (s === "accepted") return "accepted";
+  if (s === "refused") return "refused";
+  return "pending";
+};
+
 const tabLabels: Record<string, string> = {
   pending: "En attente",
   accepted: "Acceptées",
