@@ -1,5 +1,9 @@
 import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+
 import { useEffect, useState } from "react";
+
+import { supabase } from "@/integrations/supabase/client";
+
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 export const Route = createFileRoute("/admin")({
