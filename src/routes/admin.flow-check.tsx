@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { trackingIdSchema } from "@/lib/tracking-id";
+import { SkeletonStyles, CardSkeleton, LineSkeleton, ButtonSkeleton, ReservationRowSkeleton } from "@/components/admin/Skeleton";
 
 export const Route = createFileRoute("/admin/flow-check")({
   head: () => ({ meta: [{ title: "Vérification du flow — Admin" }, { name: "robots", content: "noindex" }] }),
