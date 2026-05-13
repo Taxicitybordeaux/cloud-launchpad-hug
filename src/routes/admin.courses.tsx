@@ -733,6 +733,25 @@ function CoursesPage() {
               {" — "}
               {confirmAction.r.depart} → {confirmAction.r.destination || confirmAction.r.arrivee}
             </p>
+            {(() => {
+              const ph = confirmAction.r.client_phone || confirmAction.r.telephone;
+              const em = confirmAction.r.client_email || confirmAction.r.email;
+              if (!ph && !em) return null;
+              return (
+                <div style={{ display: "flex", gap: 14, flexWrap: "wrap", margin: "0 0 14px", fontSize: 14 }}>
+                  {ph && (
+                    <a href={`tel:${ph}`} style={{ color: "#0ea5e9", textDecoration: "none", fontWeight: 600 }}>
+                      📞 {ph}
+                    </a>
+                  )}
+                  {em && (
+                    <a href={`mailto:${em}`} style={{ color: "#94a3b8", textDecoration: "none" }}>
+                      ✉️ {em}
+                    </a>
+                  )}
+                </div>
+              );
+            })()}
             <p style={{ color: "#64748b", fontSize: 13, margin: "0 0 22px" }}>
               {confirmAction.type === "accept"
                 ? "Le client recevra un email avec le lien de suivi en temps réel."
