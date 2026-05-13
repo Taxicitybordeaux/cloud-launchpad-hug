@@ -255,7 +255,7 @@ function TrackingPage() {
       { label: "Récupération de la position GPS…", icon: "📡" },
       { label: "Calcul de l'itinéraire…", icon: "🗺️" },
     ];
-    const pct = Math.min(95, (loadStep + 1) * 24 + Math.min(elapsed * 2, 10));
+    const pct = [20, 45, 70, 95][loadStep] ?? 20;
     return (
       <div style={{ minHeight: "100vh", background: "#0a0f1e", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 22, padding: 24 }}>
         {styleTag}
