@@ -175,6 +175,11 @@ function ReservationPage() {
       }).catch(() => {});
     }
 
+    toast.success("✅ Votre demande a bien été envoyée !", {
+      description: "Nous traitons votre réservation et revenons vers vous très vite.",
+      duration: 6000,
+    });
+
     navigate({ to: "/reservation/$id", params: { id: inserted.id } });
   };
 
