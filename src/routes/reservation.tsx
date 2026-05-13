@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, ShieldCheck } from "lucide-react";
+import { toast } from "sonner";
 import { COUNTRIES, normalizePhone, type CountryCode } from "@/lib/phone";
 import { usePublishReservationDraft } from "@/lib/reservation-draft";
 import { useT, useI18n } from "@/i18n/I18nProvider";
@@ -173,6 +174,11 @@ function ReservationPage() {
         }),
       }).catch(() => {});
     }
+
+    toast.success("✅ Votre demande a bien été envoyée !", {
+      description: "Nous traitons votre réservation et revenons vers vous très vite.",
+      duration: 6000,
+    });
 
     navigate({ to: "/reservation/$id", params: { id: inserted.id } });
   };
