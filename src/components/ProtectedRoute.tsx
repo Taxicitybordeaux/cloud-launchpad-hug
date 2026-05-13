@@ -1,4 +1,4 @@
-mport { Navigate } from "@tanstack/react-router";
+import { Navigate } from "@tanstack/react-router";
 
 /**
  * Gate admin routes.
@@ -6,9 +6,7 @@ mport { Navigate } from "@tanstack/react-router";
  * (pas de dépendance Supabase auth / Google)
  */
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const isAdmin =
-    typeof window !== "undefined" &&
-    sessionStorage.getItem("admin_pin_ok") === "1";
+  const isAdmin = typeof window !== "undefined" && sessionStorage.getItem("admin_pin_ok") === "1";
 
   if (!isAdmin) {
     return <Navigate to="/login" replace />;
