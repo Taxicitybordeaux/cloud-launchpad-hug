@@ -86,10 +86,8 @@ function TrackingPage() {
     if (!loading) return;
     const start = Date.now();
     const t = setInterval(() => {
-      const s = Math.floor((Date.now() - start) / 1000);
-      setElapsed(s);
-      setLoadStep(s < 2 ? 0 : s < 5 ? 1 : s < 9 ? 2 : 3);
-    }, 200);
+      setElapsed(Math.floor((Date.now() - start) / 1000));
+    }, 250);
     return () => clearInterval(t);
   }, [loading]);
 
