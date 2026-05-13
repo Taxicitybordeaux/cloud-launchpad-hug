@@ -275,8 +275,21 @@ function TrackingPage() {
             </div>
           ))}
         </div>
-        {elapsed > 12 && (
+        {elapsed > 12 && elapsed <= 30 && (
           <p style={{ fontSize: 12, color: "#64748b", maxWidth: 300, textAlign: "center", marginTop: 4 }}>La connexion prend plus de temps que prévu, merci de patienter…</p>
+        )}
+        {elapsed > 30 && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, marginTop: 6, maxWidth: 320 }}>
+            <p style={{ fontSize: 13, color: "#fbbf24", textAlign: "center", margin: 0, lineHeight: 1.5 }}>
+              ⏱️ La récupération des informations prend trop de temps. Vérifiez votre connexion puis réessayez.
+            </p>
+            <button
+              onClick={() => { setError(null); setLoading(true); setElapsed(0); setLoadStep(0); setRetryNonce(n => n + 1); }}
+              style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 22px", background: "linear-gradient(135deg,#0ea5e9,#0369a1)", color: "#fff", border: "none", borderRadius: 12, fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, cursor: "pointer", boxShadow: "0 4px 14px rgba(14,165,233,0.35)" }}
+            >
+              🔄 Réessayer
+            </button>
+          </div>
         )}
       </div>
     );
