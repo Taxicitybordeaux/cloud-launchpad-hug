@@ -95,6 +95,7 @@ function TrackingPage() {
     if (typeof window === "undefined") return;
     setLoading(true);
     setError(null);
+    setLoadStep(0);
     const sessionId = sessionStorage.getItem("sid") || Math.random().toString(36).slice(2);
     sessionStorage.setItem("sid", sessionId);
     supabase.from("site_analytics").insert({ event: "qr_click", session_id: sessionId });
@@ -103,7 +104,7 @@ function TrackingPage() {
     toast.loading("📷 QR code détecté", { id: toastId, description: "Lecture du code et connexion sécurisée…" });
 
     const init = async () => {
-      // 1) Validate the QR code / tracking id format (must be a UUID v4)
+      // STEP 0 — Connexion sécurisée / validation du QR
       const parsed = trackingIdSchema.safeParse(id);
       if (!parsed.success) {
         const reason = parsed.error.issues[0]?.message ?? "Identifiant de course invalide";
@@ -118,6 +119,8 @@ function TrackingPage() {
       }
       const trackingId = parsed.data;
 
+      // STEP 1 — Recherche du chauffeur (réservation)
+      setLoadStep(1);
       const { data: resa, error: resaErr } = await supabase
         .from("reservations")
         .select("id, status, tracking_id, created_at, client_name, nom, depart, arrivee, destination, prix_estime, pickup_datetime")
@@ -151,7 +154,6 @@ function TrackingPage() {
         return;
       }
 
-      // Store reservation details (used for prix + destination affichés au client)
       const clientName = (resa.client_name || resa.nom || "").toString().trim();
       setReservation({
         client_name: clientName,
@@ -161,7 +163,8 @@ function TrackingPage() {
         pickup_datetime: resa.pickup_datetime ?? null,
       });
 
-      // 2) Load driver GPS — single mode shares 'driver' row, multi mode uses tracking_id
+      // STEP 2 — Récupération de la position GPS
+      setLoadStep(2);
       const { data: settings } = await supabase
         .from("app_settings")
         .select("tracking_mode")
@@ -171,6 +174,9 @@ function TrackingPage() {
       const gpsId = mode === "multi" ? trackingId : "driver";
 
       const { data } = await supabase.from("driver_gps").select("*").eq("id", gpsId).maybeSingle();
+
+      // STEP 3 — Calcul de l'itinéraire / init carte
+      setLoadStep(3);
       if (data) {
         setDriverData(data as DriverData);
         if (data.latitude && data.longitude) {
@@ -186,14 +192,13 @@ function TrackingPage() {
       toast.success("✅ Course trouvée", { id: toastId, description: `${clientName ? clientName + " — " : ""}mode ${mode === "multi" ? "multi-courses" : "chauffeur unique"}`, duration: 4000 });
       setLoading(false);
 
-      // Realtime channel — filter to the relevant GPS row when in multi-mode
       const filter = mode === "multi" ? `id=eq.${gpsId}` : undefined;
       channelRef.current = supabase.channel(`tracking-live-${gpsId}`).on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "driver_gps", ...(filter ? { filter } : {}) },
         async (payload) => {
           const d = payload.new as DriverData;
-          if (mode === "multi" && d.id !== gpsId) return; // safety guard
+          if (mode === "multi" && d.id !== gpsId) return;
           if (mode === "single" && d.id !== "driver") return;
           setDriverData(d);
           setLastUpdate(new Date());
