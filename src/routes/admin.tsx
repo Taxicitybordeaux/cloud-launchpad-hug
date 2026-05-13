@@ -1,9 +1,6 @@
 import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-
 import { useEffect, useState } from "react";
-
 import { supabase } from "@/integrations/supabase/client";
-
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 export const Route = createFileRoute("/admin")({
@@ -15,11 +12,19 @@ export const Route = createFileRoute("/admin")({
   ),
 });
 
+const NAV_LINKS = [
+  { to: "/admin/dashboard", icon: "📊", label: "Dashboard" },
+  { to: "/admin/courses", icon: "🚗", label: "Courses" },
+  { to: "/admin/clients", icon: "👥", label: "Clients" },
+  { to: "/admin/gps", icon: "📍", label: "GPS" },
+];
+
 function AdminLayout() {
   const navigate = useNavigate();
   const router = useRouterState();
   const [pending, setPending] = useState(0);
-  const [open, setOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const path = router.location.pathname;
 
   useEffect(() => {
     const fetchPending = async () => {
@@ -40,19 +45,14 @@ function AdminLayout() {
   }, []);
 
   const logout = () => {
-    localStorage.removeItem("taxi_admin");
-    navigate({ to: "/" });
+    sessionStorage.removeItem("admin_pin_ok");
+    navigate({ to: "/login" });
   };
 
-  const links = [
-    { to: "/admin/dashboard", icon: "📊", label: "Dashboard" },
-    { to: "/admin/courses", icon: "🚗", label: "Courses", badge: pending },
-    { to: "/admin/clients", icon: "👥", label: "Clients" },
-    { to: "/admin/gps", icon: "📍", label: "GPS" },
-    { to: "/admin/flow-check", icon: "🩺", label: "Vérif. du flow" },
-  ];
+  const allLinks = [...NAV_LINKS, { to: "/admin/flow-check", icon: "🩺", label: "Vérif. flow" }];
 
-  const Sidebar = () => (
+  /* ── Sidebar desktop ── */
+  const SidebarContent = ({ onClose }: { onClose?: () => void }) => (
     <aside
       style={{
         width: 240,
@@ -72,14 +72,15 @@ function AdminLayout() {
           <div style={{ fontSize: 11, color: "#64748b" }}>Administration</div>
         </div>
       </div>
+
       <nav style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
-        {links.map((l) => {
-          const active = router.location.pathname.startsWith(l.to);
+        {allLinks.map((l) => {
+          const active = path.startsWith(l.to);
           return (
             <Link
               key={l.to}
               to={l.to}
-              onClick={() => setOpen(false)}
+              onClick={onClose}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -95,18 +96,19 @@ function AdminLayout() {
             >
               <span>{l.icon}</span>
               <span style={{ flex: 1 }}>{l.label}</span>
-              {l.badge && l.badge > 0 ? (
+              {l.to === "/admin/courses" && pending > 0 && (
                 <span
                   style={{ background: "#ef4444", color: "#fff", borderRadius: 99, padding: "2px 8px", fontSize: 11 }}
                 >
-                  {l.badge}
+                  {pending}
                 </span>
-              ) : null}
+              )}
             </Link>
           );
         })}
       </nav>
-      <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 14, fontSize: 11, color: "#64748b" }}>
+
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 14 }}>
         <button
           onClick={logout}
           style={{
@@ -115,7 +117,7 @@ function AdminLayout() {
             background: "transparent",
             border: "1px solid rgba(255,255,255,0.1)",
             borderRadius: 8,
-            color: "#fff",
+            color: "#94a3b8",
             cursor: "pointer",
             fontSize: 12,
           }}
@@ -128,46 +130,131 @@ function AdminLayout() {
 
   return (
     <div style={{ display: "flex", background: "#0a0f1e", color: "#f1f5f9", minHeight: "100vh" }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');`}</style>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');
 
-      <div className="admin-desktop-show" style={{ display: "block" }}>
-        <Sidebar />
+        /* Desktop: sidebar visible, bottom nav hidden */
+        .admin-sidebar   { display: flex !important; }
+        .admin-bottom-nav { display: none !important; }
+        .admin-main      { padding-bottom: 0 !important; }
+
+        @media (max-width: 768px) {
+          .admin-sidebar    { display: none !important; }
+          .admin-bottom-nav { display: flex !important; }
+          /* leave room for fixed bottom nav */
+          .admin-main       { padding-bottom: 72px !important; }
+        }
+      `}</style>
+
+      {/* Desktop sidebar */}
+      <div className="admin-sidebar">
+        <SidebarContent />
       </div>
-      {open && (
+
+      {/* Mobile drawer overlay */}
+      {drawerOpen && (
         <div
-          style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.6)" }}
-          onClick={() => setOpen(false)}
+          style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.6)", display: "flex" }}
+          onClick={() => setDrawerOpen(false)}
         >
-          <div onClick={(e) => e.stopPropagation()}>
-            <Sidebar />
+          <div onClick={(e) => e.stopPropagation()} style={{ height: "100%" }}>
+            <SidebarContent onClose={() => setDrawerOpen(false)} />
           </div>
         </div>
       )}
-      <main style={{ flex: 1, minHeight: "100vh" }}>
+
+      {/* Main content */}
+      <main className="admin-main" style={{ flex: 1, minWidth: 0, overflowX: "hidden" }}>
+        <Outlet />
+      </main>
+
+      {/* ── Mobile bottom navigation ── */}
+      <nav
+        className="admin-bottom-nav"
+        style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 90,
+          background: "#0f172a",
+          borderTop: "1px solid rgba(255,255,255,0.08)",
+          display: "flex",
+          alignItems: "stretch",
+          height: 64,
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}
+      >
+        {NAV_LINKS.map((l) => {
+          const active = path.startsWith(l.to);
+          return (
+            <Link
+              key={l.to}
+              to={l.to}
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 3,
+                textDecoration: "none",
+                color: active ? "#0ea5e9" : "#64748b",
+                fontSize: 10,
+                fontWeight: 700,
+                fontFamily: "'DM Sans',sans-serif",
+                position: "relative",
+                borderTop: active ? "2px solid #0ea5e9" : "2px solid transparent",
+                transition: "color 0.15s",
+              }}
+            >
+              <span style={{ fontSize: 20 }}>{l.icon}</span>
+              <span>{l.label}</span>
+              {l.to === "/admin/courses" && pending > 0 && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: 6,
+                    right: "calc(50% - 18px)",
+                    background: "#ef4444",
+                    color: "#fff",
+                    borderRadius: 99,
+                    padding: "1px 5px",
+                    fontSize: 9,
+                    fontWeight: 800,
+                  }}
+                >
+                  {pending}
+                </span>
+              )}
+            </Link>
+          );
+        })}
+
+        {/* More button → opens drawer */}
         <button
-          onClick={() => setOpen(true)}
-          className="admin-burger"
+          onClick={() => setDrawerOpen(true)}
           style={{
-            display: "none",
-            margin: 14,
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            color: "#fff",
-            padding: "8px 12px",
-            borderRadius: 8,
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 3,
+            background: "none",
+            border: "none",
+            borderTop: "2px solid transparent",
+            color: "#64748b",
+            fontSize: 10,
+            fontWeight: 700,
+            fontFamily: "'DM Sans',sans-serif",
             cursor: "pointer",
           }}
         >
-          ☰
+          <span style={{ fontSize: 20 }}>☰</span>
+          <span>Plus</span>
         </button>
-        <Outlet />
-      </main>
-      <style>{`
-        @media (max-width: 768px) {
-          .admin-desktop-show { display: none !important; }
-          .admin-burger { display: inline-block !important; }
-        }
-      `}</style>
+      </nav>
     </div>
   );
 }
