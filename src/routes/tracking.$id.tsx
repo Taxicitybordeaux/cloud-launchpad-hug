@@ -244,6 +244,30 @@ function TrackingPage() {
           <button onClick={() => { if (window.history.length > 1) window.history.back(); else window.location.href = "/"; }} style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 20px", background: "rgba(255,255,255,0.06)", color: "#f1f5f9", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 12, fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>← Retour</button>
           <a href="tel:0673072322" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 20px", background: "#22c55e", color: "#fff", borderRadius: 12, textDecoration: "none", fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, boxShadow: "0 4px 14px rgba(34,197,94,0.35)" }}>📞 Appeler</a>
         </div>
+        <div style={{ marginTop: 14, padding: "14px 18px", background: "rgba(14,165,233,0.06)", border: "1px solid rgba(14,165,233,0.2)", borderRadius: 14, maxWidth: 380, textAlign: "center" }}>
+          <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#cbd5e1", marginBottom: 8 }}>
+            🆘 Besoin d'aide ?
+          </div>
+          <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: "#94a3b8", margin: "0 0 10px", lineHeight: 1.5 }}>
+            Notre équipe vous répond 7j/7 pour vous aider à retrouver votre course.
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+            <a
+              href={`https://wa.me/33673072322?text=${encodeURIComponent(`Bonjour, j'ai scanné un QR code mais j'obtiens l'erreur « ${error.title} ». Code : ${id?.slice(0, 12) || "—"}`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 16px", background: "#25D366", color: "#fff", borderRadius: 10, textDecoration: "none", fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13 }}
+            >
+              💬 WhatsApp
+            </a>
+            <a
+              href="/contact"
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 16px", background: "rgba(255,255,255,0.08)", color: "#f1f5f9", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, textDecoration: "none", fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13 }}
+            >
+              ✉️ Assistance
+            </a>
+          </div>
+        </div>
       </div>
     );
   }
