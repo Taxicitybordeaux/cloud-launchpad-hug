@@ -1,4 +1,4 @@
-import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { Outlet, Link, createRootRoute, HeadContent, Scripts, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Toaster } from "sonner";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
@@ -14,16 +14,14 @@ function NotFoundComponent() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
-        </p>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">Page introuvable</h2>
+        <p className="mt-2 text-sm text-muted-foreground">Cette page n'existe pas ou a été déplacée.</p>
         <div className="mt-6">
           <Link
             to="/"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Go home
+            Retour à l'accueil
           </Link>
         </div>
       </div>
@@ -37,14 +35,26 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Taxi City Bordeaux – Taxi 7j/7 à Bordeaux & en Gironde" },
-      { name: "description", content: "Réservez votre taxi à Bordeaux : aéroport Mérignac, gare Saint-Jean, vignobles, longues distances. Conventionné CPAM. Disponible 7j/7 24h/24." },
+      {
+        name: "description",
+        content:
+          "Réservez votre taxi à Bordeaux : aéroport Mérignac, gare Saint-Jean, vignobles, longues distances. Conventionné CPAM. Disponible 7j/7 24h/24.",
+      },
       { property: "og:title", content: "Taxi City Bordeaux – Taxi 7j/7 à Bordeaux & en Gironde" },
-      { property: "og:description", content: "Réservez votre taxi à Bordeaux : aéroport Mérignac, gare Saint-Jean, vignobles, longues distances. Conventionné CPAM. Disponible 7j/7 24h/24." },
+      {
+        property: "og:description",
+        content:
+          "Réservez votre taxi à Bordeaux : aéroport Mérignac, gare Saint-Jean, vignobles, longues distances. Conventionné CPAM. Disponible 7j/7 24h/24.",
+      },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://taxicitybordeaux.fr" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Taxi City Bordeaux – Taxi 7j/7 à Bordeaux & en Gironde" },
-      { name: "twitter:description", content: "Réservez votre taxi à Bordeaux : aéroport Mérignac, gare Saint-Jean, vignobles, longues distances. Conventionné CPAM. Disponible 7j/7 24h/24." },
+      {
+        name: "twitter:description",
+        content:
+          "Réservez votre taxi à Bordeaux : aéroport Mérignac, gare Saint-Jean, vignobles, longues distances. Conventionné CPAM. Disponible 7j/7 24h/24.",
+      },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -73,7 +83,7 @@ export const Route = createRootRoute({
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="fr">
       <head>
         <HeadContent />
       </head>
@@ -85,20 +95,30 @@ function RootShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Routes where the public header/footer/WhatsApp button must NOT appear */
+const SHELL_FREE_PREFIXES = ["/admin", "/login"];
+
 function RootComponent() {
+  const router = useRouterState();
+  const path = router.location.pathname;
+
+  // Track visits (public pages only)
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (SHELL_FREE_PREFIXES.some((p) => path.startsWith(p))) return;
     const sid = sessionStorage.getItem("sid") || Math.random().toString(36).slice(2);
     sessionStorage.setItem("sid", sid);
     supabase.from("site_analytics").insert({ event: "visit", session_id: sid });
-  }, []);
+  }, [path]);
+
+  const isShellFree = SHELL_FREE_PREFIXES.some((p) => path.startsWith(p));
+
   return (
     <I18nProvider>
-      <SiteHeader />
+      {!isShellFree && <SiteHeader />}
       <Outlet />
-      <SiteFooter />
-      {/* WhatsAppFloat renders its own auto-sized mobile spacer. */}
-      <WhatsAppFloat />
+      {!isShellFree && <SiteFooter />}
+      {!isShellFree && <WhatsAppFloat />}
       <Toaster position="top-right" theme="dark" richColors closeButton />
     </I18nProvider>
   );
