@@ -308,44 +308,40 @@ function CoursesPage() {
 
     const tarifLabel = tarif_nuit ? `Nuit (${TARIF_NUIT_LABEL})` : `Jour (${TARIF_JOUR_LABEL})`;
 
-    // 📧 Email client via Lovable transactional
+    // 📧 Email client — via /api/admin/send-course-email (bridge serveur)
+    // L'admin utilise un PIN custom (pas de session Supabase Auth), donc on passe
+    // par un endpoint serveur qui appelle l'infra email avec la service role key.
+    // VITE_LOVABLE_API_KEY est le secret partagé côté client (même valeur que LOVABLE_API_KEY côté serveur).
+    const adminSecret = import.meta.env.VITE_LOVABLE_API_KEY ?? "";
     let emailOk = false;
     let emailDetail = "Aucun email client renseigné";
     if (email && url) {
       try {
-        const { data: sess } = await supabase.auth.getSession();
-        const accessToken = sess?.session?.access_token;
-        if (!accessToken) {
-          emailDetail = "Session admin expirée — email non envoyé";
-        } else {
-          const res = await fetch("/lovable/email/transactional/send", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${accessToken}`,
+        const res = await fetch("/api/admin/send-course-email", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Admin-Secret": adminSecret,
+          },
+          body: JSON.stringify({
+            templateName: "course-accepted",
+            recipientEmail: email,
+            idempotencyKey: `course-accepted-${r.id}`,
+            templateData: {
+              nom: name,
+              depart: r.depart,
+              arrivee: r.arrivee || r.destination,
+              pickup_datetime: pickupFormatted,
+              prix: prixStr,
+              tarif: tarifLabel,
+              tracking_url: url,
             },
-            body: JSON.stringify({
-              templateName: "course-accepted",
-              recipientEmail: email,
-              idempotencyKey: `course-accepted-${r.id}`,
-              templateData: {
-                nom: name,
-                depart: r.depart,
-                arrivee: r.arrivee || r.destination,
-                pickup_datetime: pickupFormatted,
-                prix: prixStr,
-                tarif: tarifLabel,
-                // Lien cliquable direct — le client clique dans l'email, pas besoin de scanner
-                // Un seul lien permanent par client (tracking_id stable en base)
-                tracking_url: url,
-              },
-            }),
-          });
-          emailOk = res.ok;
-          emailDetail = res.ok
-            ? `✉️ Email envoyé à ${email}`
-            : `⚠️ Échec email (${res.status}) — vérifiez le template "course-accepted" dans Lovable`;
-        }
+          }),
+        });
+        emailOk = res.ok;
+        emailDetail = res.ok
+          ? `✉️ Email envoyé à ${email}`
+          : `⚠️ Échec email (${res.status}) — vérifiez le template "course-accepted" dans Lovable`;
       } catch {
         emailDetail = "⚠️ Échec email (réseau)";
       }
@@ -431,18 +427,14 @@ function CoursesPage() {
     const trackingUrl =
       r.tracking_id && typeof window !== "undefined" ? `${window.location.origin}/scan/${r.tracking_id}` : null;
 
+    // Même bridge serveur — secret partagé VITE_LOVABLE_API_KEY
+    const adminSecret = import.meta.env.VITE_LOVABLE_API_KEY ?? "";
     try {
-      const { data: sess } = await supabase.auth.getSession();
-      const accessToken = sess?.session?.access_token;
-      if (!accessToken) {
-        toast.error("Session expirée", { description: "Reconnectez-vous à l'admin." });
-        return;
-      }
-      const res = await fetch("/lovable/email/transactional/send", {
+      const res = await fetch("/api/admin/send-course-email", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
+          "X-Admin-Secret": adminSecret,
         },
         body: JSON.stringify({
           templateName: "course-accepted",
@@ -455,7 +447,6 @@ function CoursesPage() {
             pickup_datetime: pickupFormatted,
             prix: prixStr,
             tarif: tarif_nuit ? `Nuit (${TARIF_NUIT_LABEL})` : `Jour (${TARIF_JOUR_LABEL})`,
-            // Lien cliquable direct — tracking_id permanent, un seul lien par client
             tracking_url: trackingUrl ?? "",
           },
         }),
@@ -995,7 +986,7 @@ function CoursesPage() {
 
             <p style={{ color: "#64748b", fontSize: 13, margin: "0 0 22px" }}>
               {confirmAction.type === "accept"
-                ? "Le client recevra un WhatsApp + email avec le lien de suivi et le QR code (un seul QR permanent par client)."
+                ? "Le client recevra un WhatsApp + email avec le lien de suivi en temps réel."
                 : "Le motif sera enregistré. Visible dans l'onglet Refusées."}
             </p>
 
