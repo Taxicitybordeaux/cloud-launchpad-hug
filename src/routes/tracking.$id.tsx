@@ -302,6 +302,8 @@ function TrackingPage() {
   const gpsIdRef = useRef<string>("driver");
   const modeRef = useRef<"single" | "multi">("single");
   const destCoordsRef = useRef<[number, number] | null>(null);
+  const pickupCoordsRef = useRef<[number, number] | null>(null);
+  const approachLayerRef = useRef<any>(null);
 
   const notifScheduledRef = useRef(false);
   const schedulePickupNotification = useCallback((pickupDatetime: string) => {
@@ -371,41 +373,100 @@ function TrackingPage() {
         c[1],
         c[0],
       ]) ?? [a, b];
+
+      // Ligne grise = trajet total départ→destination
       if (routeLayerRef.current) {
         routeLayerRef.current.remove();
         routeLayerRef.current = null;
       }
       routeLayerRef.current = L.polyline(coords, {
-        color: "#0ea5e9",
+        color: "rgba(255,255,255,0.2)",
         weight: 5,
-        opacity: 0.85,
         lineCap: "round",
         lineJoin: "round",
+        dashArray: "8 6",
       }).addTo(map);
+
+      // Marqueur départ (prise en charge) 🟢
       const departIcon = L.divIcon({
         className: "",
-        html: `<div style="width:30px;height:30px;background:#22c55e;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:14px">🟢</div>`,
-        iconSize: [30, 30],
-        iconAnchor: [15, 15],
+        html: `<div style="width:34px;height:34px;background:#22c55e;border-radius:50%;border:3px solid white;box-shadow:0 2px 10px rgba(34,197,94,0.6);display:flex;align-items:center;justify-content:center;font-size:16px">🟢</div>`,
+        iconSize: [34, 34],
+        iconAnchor: [17, 17],
       });
+      // Marqueur destination 🏁
       const destIcon = L.divIcon({
         className: "",
-        html: `<div style="width:30px;height:30px;background:#ef4444;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:14px">📍</div>`,
-        iconSize: [30, 30],
-        iconAnchor: [15, 15],
+        html: `<div style="width:34px;height:34px;background:#ef4444;border-radius:50%;border:3px solid white;box-shadow:0 2px 10px rgba(239,68,68,0.6);display:flex;align-items:center;justify-content:center;font-size:16px">🏁</div>`,
+        iconSize: [34, 34],
+        iconAnchor: [17, 17],
       });
       if (departMarkerRef.current) departMarkerRef.current.remove();
       if (destMarkerRef.current) destMarkerRef.current.remove();
-      departMarkerRef.current = L.marker(a, { icon: departIcon }).addTo(map).bindPopup("Départ");
-      destMarkerRef.current = L.marker(b, { icon: destIcon }).addTo(map).bindPopup("Destination");
+      departMarkerRef.current = L.marker(a, { icon: departIcon }).addTo(map).bindPopup("📍 Prise en charge");
+      destMarkerRef.current = L.marker(b, { icon: destIcon }).addTo(map).bindPopup("🏁 Destination");
+
+      // Stocker coords utiles
       destCoordsRef.current = b;
+      pickupCoordsRef.current = a;
       const totalDist = data?.routes?.[0]?.distance;
       if (totalDist) setTotalKm(parseFloat((totalDist / 1000).toFixed(1)));
+
+      // Dessiner la ligne d'approche chauffeur→prise en charge si on a déjà le GPS
+      const driverPos = markerRef.current?.getLatLng();
+      if (driverPos) {
+        drawApproachLine(driverPos.lat, driverPos.lng, a);
+      }
+
       const all = [...coords];
       if (markerRef.current) all.push(markerRef.current.getLatLng());
       map.fitBounds(L.latLngBounds(all).pad(0.2));
     } catch {
       /* noop */
+    }
+  };
+
+  // Trace (ou met à jour) la ligne bleue chauffeur → point de prise en charge via OSRM
+  const drawApproachLine = async (driverLat: number, driverLng: number, pickup: [number, number]) => {
+    const map = mapInstanceRef.current;
+    const L = (window as any).L;
+    if (!map || !L) return;
+    try {
+      const res = await fetch(
+        `https://router.project-osrm.org/route/v1/driving/${driverLng},${driverLat};${pickup[1]},${pickup[0]}?overview=full&geometries=geojson`,
+      );
+      const data = await res.json();
+      const coords: [number, number][] = data?.routes?.[0]?.geometry?.coordinates?.map((c: [number, number]) => [
+        c[1],
+        c[0],
+      ]) ?? [[driverLat, driverLng], pickup];
+
+      if (approachLayerRef.current) {
+        // Mise à jour fluide sans supprimer/recréer
+        approachLayerRef.current.setLatLngs(coords);
+      } else {
+        approachLayerRef.current = L.polyline(coords, {
+          color: "#0ea5e9",
+          weight: 5,
+          opacity: 0.95,
+          lineCap: "round",
+          lineJoin: "round",
+        }).addTo(map);
+      }
+    } catch {
+      // Fallback ligne droite si OSRM échoue
+      const fallback: [number, number][] = [[driverLat, driverLng], pickup];
+      if (approachLayerRef.current) {
+        approachLayerRef.current.setLatLngs(fallback);
+      } else {
+        approachLayerRef.current = L.polyline(fallback, {
+          color: "#0ea5e9",
+          weight: 5,
+          opacity: 0.95,
+          lineCap: "round",
+          lineJoin: "round",
+        }).addTo(map);
+      }
     }
   };
 
@@ -489,6 +550,10 @@ function TrackingPage() {
           else {
             markerRef.current?.setLatLng([data.latitude, data.longitude]);
             mapInstanceRef.current.panTo([data.latitude, data.longitude], { animate: true, duration: 1.5 });
+            // Mettre à jour la ligne d'approche vers la prise en charge
+            if (pickupCoordsRef.current) {
+              drawApproachLine(data.latitude, data.longitude, pickupCoordsRef.current);
+            }
           }
           await calculateETA(data.latitude, data.longitude, destCoordsRef.current ?? undefined);
         }
@@ -541,6 +606,10 @@ function TrackingPage() {
               else {
                 markerRef.current?.setLatLng([d.latitude, d.longitude]);
                 mapInstanceRef.current.panTo([d.latitude, d.longitude], { animate: true, duration: 1.5 });
+                // Mettre à jour la ligne d'approche vers la prise en charge
+                if (pickupCoordsRef.current) {
+                  drawApproachLine(d.latitude, d.longitude, pickupCoordsRef.current);
+                }
               }
               await calculateETA(d.latitude, d.longitude, destCoordsRef.current ?? undefined);
             }
@@ -821,6 +890,10 @@ function TrackingPage() {
       channelRef.current = null;
       stopPolling();
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      if (approachLayerRef.current) {
+        approachLayerRef.current.remove();
+        approachLayerRef.current = null;
+      }
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
