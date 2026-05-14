@@ -463,6 +463,10 @@ function TrackingPage() {
     setTimeout(() => {
       map.invalidateSize({ animate: false });
     }, 300);
+    // Second invalidate après la transition CSS (0.4s)
+    setTimeout(() => {
+      map.invalidateSize({ animate: false });
+    }, 500);
   };
 
   const startPolling = useCallback(() => {
@@ -1344,10 +1348,20 @@ function TrackingPage() {
         </div>
       </div>
 
-      {/* FIX MOBILE: hauteur fixe calculée par JS, pas 52vh qui plante sur iOS Safari */}
-      <div style={{ height: mapHeight, position: "relative", flexShrink: 0 }}>
+      {/* Carte : div toujours dans le DOM pour que Leaflet puisse s'initialiser */}
+      <div
+        style={{
+          height: driverData?.is_active ? mapHeight : 0,
+          minHeight: driverData?.is_active ? mapHeight : 0,
+          position: "relative",
+          flexShrink: 0,
+          overflow: "hidden",
+          transition: "height 0.4s ease, min-height 0.4s ease",
+        }}
+      >
         <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
-        {!driverData?.latitude && (
+        {/* Overlay quand GPS actif mais position pas encore reçue */}
+        {driverData?.is_active && !driverData?.latitude && (
           <div
             style={{
               position: "absolute",
@@ -1357,45 +1371,18 @@ function TrackingPage() {
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              gap: 14,
+              gap: 12,
               padding: 24,
               textAlign: "center",
             }}
           >
-            <span style={{ fontSize: 44 }}>{driverData?.is_active ? "📡" : "🅿️"}</span>
-            <div>
-              <p
-                style={{ color: "#f8fafc", fontFamily: "'Syne',sans-serif", fontSize: 18, fontWeight: 800, margin: 0 }}
-              >
-                {driverData?.is_active ? "Acquisition de la position…" : "Le chauffeur n'est pas encore en course"}
-              </p>
-              <p style={{ color: "#94a3b8", fontSize: 13, marginTop: 8, lineHeight: 1.5 }}>
-                {driverData?.is_active
-                  ? "Le GPS est actif. La carte s'affichera dans un instant."
-                  : "Sa position s'affichera ici dès qu'il l'aura activée."}
-              </p>
-            </div>
-            {!driverData?.is_active && (
-              <a
-                href="tel:0673072322"
-                style={{
-                  marginTop: 6,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "12px 22px",
-                  background: "#22c55e",
-                  color: "#fff",
-                  borderRadius: 14,
-                  textDecoration: "none",
-                  fontFamily: "'Syne',sans-serif",
-                  fontWeight: 800,
-                  fontSize: 14,
-                }}
-              >
-                📞 06 73 07 23 22
-              </a>
-            )}
+            <span style={{ fontSize: 36 }}>📡</span>
+            <p style={{ color: "#f8fafc", fontFamily: "'Syne',sans-serif", fontSize: 16, fontWeight: 800, margin: 0 }}>
+              Acquisition de la position…
+            </p>
+            <p style={{ color: "#94a3b8", fontSize: 13, marginTop: 4, lineHeight: 1.5 }}>
+              Le GPS est actif. La carte s'affichera dans un instant.
+            </p>
             <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
               {[0, 1, 2].map((i) => (
                 <span
@@ -1413,7 +1400,7 @@ function TrackingPage() {
             </div>
           </div>
         )}
-        {lastUpdate && (
+        {lastUpdate && driverData?.is_active && (
           <div
             style={{
               position: "absolute",
@@ -1432,6 +1419,49 @@ function TrackingPage() {
           </div>
         )}
       </div>
+
+      {/* Bandeau compact quand GPS inactif */}
+      {!driverData?.is_active && (
+        <div
+          style={{
+            padding: "16px 20px",
+            background: "rgba(10,15,30,0.6)",
+            borderBottom: "1px solid rgba(255,255,255,0.05)",
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+          }}
+        >
+          <span style={{ fontSize: 28, flexShrink: 0 }}>🅿️</span>
+          <div style={{ flex: 1 }}>
+            <p style={{ color: "#f8fafc", fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, margin: 0 }}>
+              Le chauffeur n'est pas encore en course
+            </p>
+            <p style={{ color: "#64748b", fontSize: 12, marginTop: 3, lineHeight: 1.4 }}>
+              Sa position s'affichera ici dès qu'il l'aura activée.
+            </p>
+          </div>
+          <a
+            href="tel:0673072322"
+            style={{
+              flexShrink: 0,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "8px 14px",
+              background: "#22c55e",
+              color: "#fff",
+              borderRadius: 10,
+              textDecoration: "none",
+              fontFamily: "'Syne',sans-serif",
+              fontWeight: 800,
+              fontSize: 13,
+            }}
+          >
+            📞 Appeler
+          </a>
+        </div>
+      )}
 
       {/* Panneau bas */}
       <div
