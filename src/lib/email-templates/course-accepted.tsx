@@ -104,6 +104,7 @@ const row = { fontSize: "14px", color: "#222", margin: "5px 0", lineHeight: "1.6
 const rowLabel = { color: "#666", fontWeight: 600 as const };
 
 export const template = {
+  id: "course-accepted", // ← FIX : slug explicite pour le registry / routing admin
   component: Email,
   subject: "✅ Votre course est confirmée — Taxi City Bordeaux",
   displayName: "Course acceptée — confirmation complète",
