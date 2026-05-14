@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useLocation } from "@tanstack/react-router";
 import { MessageCircle } from "lucide-react";
 import { useReservationDraft } from "@/lib/reservation-draft";
 import { buildReservationMessage, whatsappLink } from "@/lib/whatsapp";
@@ -7,6 +8,8 @@ import { trackCtaClick } from "@/lib/analytics";
 
 export function WhatsAppFloat() {
   const { t, lang } = useI18n();
+  const location = useLocation();
+  const isTrackingPage = location.pathname.startsWith("/tracking/");
   const draft = useReservationDraft();
   const message = draft ? buildReservationMessage(draft, lang) : t("wa.default");
   const href = whatsappLink(message);
@@ -50,6 +53,8 @@ export function WhatsAppFloat() {
     };
   }, [label]);
 
+  if (isTrackingPage) return null;
+
   return (
     <>
       {/* Mobile: small floating icon button (bottom-right) */}
@@ -73,7 +78,6 @@ export function WhatsAppFloat() {
           </span>
         </a>
       </div>
-
 
       {/* Desktop: floating bubble bottom-right */}
       <a
