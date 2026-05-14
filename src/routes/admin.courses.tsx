@@ -309,11 +309,6 @@ function CoursesPage() {
     const tarifLabel = tarif_nuit ? `Nuit (${TARIF_NUIT_LABEL})` : `Jour (${TARIF_JOUR_LABEL})`;
 
     // 📧 Email client via Lovable transactional
-    // QR code image URL (260×260, stable, un seul lien par client via tracking_id)
-    const qrCodeImageUrl = url
-      ? `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(url)}`
-      : "";
-
     let emailOk = false;
     let emailDetail = "Aucun email client renseigné";
     if (email && url) {
@@ -340,9 +335,9 @@ function CoursesPage() {
                 pickup_datetime: pickupFormatted,
                 prix: prixStr,
                 tarif: tarifLabel,
+                // Lien cliquable direct — le client clique dans l'email, pas besoin de scanner
+                // Un seul lien permanent par client (tracking_id stable en base)
                 tracking_url: url,
-                // Image QR code intégrée dans l'email (un QR par client, lié au tracking_id permanent)
-                qr_code_url: qrCodeImageUrl,
               },
             }),
           });
@@ -436,11 +431,6 @@ function CoursesPage() {
     const trackingUrl =
       r.tracking_id && typeof window !== "undefined" ? `${window.location.origin}/scan/${r.tracking_id}` : null;
 
-    // QR code image — même URL stable que lors de l'acceptation (un seul QR par client)
-    const qrCodeImageUrl = trackingUrl
-      ? `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(trackingUrl)}`
-      : "";
-
     try {
       const { data: sess } = await supabase.auth.getSession();
       const accessToken = sess?.session?.access_token;
@@ -465,9 +455,8 @@ function CoursesPage() {
             pickup_datetime: pickupFormatted,
             prix: prixStr,
             tarif: tarif_nuit ? `Nuit (${TARIF_NUIT_LABEL})` : `Jour (${TARIF_JOUR_LABEL})`,
+            // Lien cliquable direct — tracking_id permanent, un seul lien par client
             tracking_url: trackingUrl ?? "",
-            // Même QR code que l'email initial — tracking_id permanent = un seul QR par client
-            qr_code_url: qrCodeImageUrl,
           },
         }),
       });
