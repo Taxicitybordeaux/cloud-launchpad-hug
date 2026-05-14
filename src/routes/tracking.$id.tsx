@@ -30,6 +30,8 @@ type ETA = { minutes: number | null; km: string | null };
 const BORDEAUX_CENTER: [number, number] = [44.8378, -0.5792];
 
 const shownIncompleteToast = new Set<string>();
+const TAXI_ICON_URI =
+  "data:image/jpeg;base64,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";
 
 function HelpPanel({ reservationId, onClose }: { reservationId: string; onClose: () => void }) {
   const [view, setView] = useState<"faq" | "contact">("faq");
@@ -251,6 +253,7 @@ function TrackingPage() {
     pickup_datetime: string | null;
   } | null>(null);
   const [eta, setEta] = useState<ETA>({ minutes: null, km: null });
+  const [totalKm, setTotalKm] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadStep, setLoadStep] = useState(0);
   const [elapsed, setElapsed] = useState(0);
@@ -293,14 +296,12 @@ function TrackingPage() {
   const markerRef = useRef<any>(null);
   const channelRef = useRef<any>(null);
   const routeLayerRef = useRef<any>(null);
-  const routeRemainingRef = useRef<any>(null); // portion restante en rouge/gris
   const departMarkerRef = useRef<any>(null);
   const destMarkerRef = useRef<any>(null);
   const resaIdRef = useRef<string>("");
   const gpsIdRef = useRef<string>("driver");
   const modeRef = useRef<"single" | "multi">("single");
-  const routeCoordsRef = useRef<[number, number][]>([]); // tous les points de la route OSRM
-  const destCoordsRef = useRef<[number, number] | null>(null); // coords destination pour ETA
+  const destCoordsRef = useRef<[number, number] | null>(null);
 
   const notifScheduledRef = useRef(false);
   const schedulePickupNotification = useCallback((pickupDatetime: string) => {
@@ -361,7 +362,6 @@ function TrackingPage() {
     if (!map || !L) return;
     const [a, b] = await Promise.all([geocode(depart), geocode(destination)]);
     if (!a || !b) return;
-    destCoordsRef.current = b;
     try {
       const res = await fetch(
         `https://router.project-osrm.org/route/v1/driving/${a[1]},${a[0]};${b[1]},${b[0]}?overview=full&geometries=geojson`,
@@ -371,95 +371,47 @@ function TrackingPage() {
         c[1],
         c[0],
       ]) ?? [a, b];
-
-      // Stocker la route complète pour animation progressive
-      routeCoordsRef.current = coords;
-
-      // Supprimer anciennes couches
       if (routeLayerRef.current) {
         routeLayerRef.current.remove();
         routeLayerRef.current = null;
       }
-      if (routeRemainingRef.current) {
-        routeRemainingRef.current.remove();
-        routeRemainingRef.current = null;
-      }
-
-      // Ligne complète grise (parcours total)
       routeLayerRef.current = L.polyline(coords, {
-        color: "rgba(148,163,184,0.3)",
-        weight: 6,
-        lineCap: "round",
-        lineJoin: "round",
-      }).addTo(map);
-
-      // Ligne restante bleue (sera mise à jour au fur et à mesure)
-      routeRemainingRef.current = L.polyline(coords, {
         color: "#0ea5e9",
         weight: 5,
-        opacity: 0.9,
+        opacity: 0.85,
         lineCap: "round",
         lineJoin: "round",
       }).addTo(map);
-
-      // Marqueur départ
       const departIcon = L.divIcon({
         className: "",
-        html: `<div style="width:32px;height:32px;background:#22c55e;border-radius:50%;border:3px solid white;box-shadow:0 2px 10px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:15px">🟢</div>`,
-        iconSize: [32, 32],
-        iconAnchor: [16, 16],
+        html: `<div style="width:30px;height:30px;background:#22c55e;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:14px">🟢</div>`,
+        iconSize: [30, 30],
+        iconAnchor: [15, 15],
       });
-      // Marqueur destination
       const destIcon = L.divIcon({
         className: "",
-        html: `<div style="width:32px;height:32px;background:#ef4444;border-radius:50%;border:3px solid white;box-shadow:0 2px 10px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:15px">🏁</div>`,
-        iconSize: [32, 32],
-        iconAnchor: [16, 16],
+        html: `<div style="width:30px;height:30px;background:#ef4444;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:14px">📍</div>`,
+        iconSize: [30, 30],
+        iconAnchor: [15, 15],
       });
-
       if (departMarkerRef.current) departMarkerRef.current.remove();
       if (destMarkerRef.current) destMarkerRef.current.remove();
-      departMarkerRef.current = L.marker(a, { icon: departIcon }).addTo(map).bindPopup(`📍 Départ : ${depart}`);
-      destMarkerRef.current = L.marker(b, { icon: destIcon }).addTo(map).bindPopup(`🏁 Destination : ${destination}`);
-
-      // Ajuster la vue pour tout voir
-      const allPts = [...coords];
-      if (markerRef.current) allPts.push(markerRef.current.getLatLng());
-      map.fitBounds(L.latLngBounds(allPts).pad(0.18));
+      departMarkerRef.current = L.marker(a, { icon: departIcon }).addTo(map).bindPopup("Départ");
+      destMarkerRef.current = L.marker(b, { icon: destIcon }).addTo(map).bindPopup("Destination");
+      destCoordsRef.current = b;
+      const totalDist = data?.routes?.[0]?.distance;
+      if (totalDist) setTotalKm(parseFloat((totalDist / 1000).toFixed(1)));
+      const all = [...coords];
+      if (markerRef.current) all.push(markerRef.current.getLatLng());
+      map.fitBounds(L.latLngBounds(all).pad(0.2));
     } catch {
       /* noop */
     }
   };
 
-  /** Met à jour la portion restante de la route depuis la position actuelle du taxi */
-  const updateRouteProgress = (taxiLat: number, taxiLng: number) => {
-    const L = (window as any).L;
-    const coords = routeCoordsRef.current;
-    if (!L || !coords.length || !routeRemainingRef.current) return;
-
-    // Trouver le point le plus proche du taxi sur la route
-    let minDist = Infinity;
-    let closestIdx = 0;
-    coords.forEach(([lat, lng], i) => {
-      const d = Math.hypot(lat - taxiLat, lng - taxiLng);
-      if (d < minDist) {
-        minDist = d;
-        closestIdx = i;
-      }
-    });
-
-    // Redessiner uniquement la portion restante (taxi → destination)
-    const remaining = coords.slice(closestIdx);
-    if (remaining.length >= 2) {
-      routeRemainingRef.current.setLatLngs(remaining);
-    }
-  };
-
-  const calculateETA = async (lat: number, lng: number) => {
+  const calculateETA = async (lat: number, lng: number, destCoords?: [number, number]) => {
     try {
-      // Utiliser la destination réelle si connue, sinon Bordeaux centre
-      const dest = destCoordsRef.current ?? BORDEAUX_CENTER;
-      const [dLat, dLng] = dest;
+      const [dLat, dLng] = destCoords ?? BORDEAUX_CENTER;
       const res = await fetch(
         `https://router.project-osrm.org/route/v1/driving/${lng},${lat};${dLng},${dLat}?overview=false`,
       );
@@ -506,46 +458,22 @@ function TrackingPage() {
     L.control.zoom({ position: "bottomright" }).addTo(map);
     const icon = L.divIcon({
       className: "",
-      html: `<div style="width:48px;height:48px;background:#0ea5e9;border-radius:50%;border:3px solid white;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 0 0 0 rgba(14,165,233,0.4);animation:driverPulse 2s infinite">🚕</div>`,
+      html: `<div style="width:48px;height:48px;border-radius:50%;border:3px solid #0ea5e9;overflow:hidden;box-shadow:0 0 0 0 rgba(14,165,233,0);animation:driverPulse 2s infinite"><img src="${TAXI_ICON_URI}" style="width:100%;height:100%;object-fit:cover" /></div>`,
       iconSize: [48, 48],
       iconAnchor: [24, 24],
     });
     markerRef.current = L.marker([lat, lng], { icon }).addTo(map);
     mapInstanceRef.current = map;
 
+    // FIX MOBILE: forcer invalidateSize après init pour que Leaflet
+    // recalcule ses dimensions réelles sur iPhone
     setTimeout(() => {
       map.invalidateSize({ animate: false });
     }, 300);
+    // Second invalidate après la transition CSS (0.4s)
     setTimeout(() => {
       map.invalidateSize({ animate: false });
-    }, 600);
-  };
-
-  /** Déplace le marqueur taxi en douceur vers la nouvelle position */
-  const animateMarkerTo = (lat: number, lng: number) => {
-    const marker = markerRef.current;
-    const map = mapInstanceRef.current;
-    if (!marker || !map) return;
-
-    const startLatLng = marker.getLatLng();
-    const startLat = startLatLng.lat;
-    const startLng = startLatLng.lng;
-    const duration = 1500; // ms
-    const startTime = performance.now();
-
-    const step = (now: number) => {
-      const t = Math.min((now - startTime) / duration, 1);
-      // Easing ease-out
-      const ease = 1 - Math.pow(1 - t, 3);
-      const newLat = startLat + (lat - startLat) * ease;
-      const newLng = startLng + (lng - startLng) * ease;
-      marker.setLatLng([newLat, newLng]);
-      if (t < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-
-    // Suivre le taxi avec la caméra
-    map.panTo([lat, lng], { animate: true, duration: 1.2 });
+    }, 500);
   };
 
   const startPolling = useCallback(() => {
@@ -557,13 +485,12 @@ function TrackingPage() {
         setDriverData(data as DriverData);
         setLastUpdate(new Date());
         if (data.latitude && data.longitude) {
-          if (!mapInstanceRef.current) {
-            await initMap(data.latitude, data.longitude);
-          } else {
-            animateMarkerTo(data.latitude, data.longitude);
-            updateRouteProgress(data.latitude, data.longitude);
+          if (!mapInstanceRef.current) await initMap(data.latitude, data.longitude);
+          else {
+            markerRef.current?.setLatLng([data.latitude, data.longitude]);
+            mapInstanceRef.current.panTo([data.latitude, data.longitude], { animate: true, duration: 1.5 });
           }
-          await calculateETA(data.latitude, data.longitude);
+          await calculateETA(data.latitude, data.longitude, destCoordsRef.current ?? undefined);
         }
       }
       const resaId = resaIdRef.current;
@@ -612,10 +539,10 @@ function TrackingPage() {
             if (d.latitude && d.longitude) {
               if (!mapInstanceRef.current) await initMap(d.latitude, d.longitude);
               else {
-                animateMarkerTo(d.latitude, d.longitude);
-                updateRouteProgress(d.latitude, d.longitude);
+                markerRef.current?.setLatLng([d.latitude, d.longitude]);
+                mapInstanceRef.current.panTo([d.latitude, d.longitude], { animate: true, duration: 1.5 });
               }
-              await calculateETA(d.latitude, d.longitude);
+              await calculateETA(d.latitude, d.longitude, destCoordsRef.current ?? undefined);
             }
           },
         )
@@ -862,13 +789,15 @@ function TrackingPage() {
       setLoadStep(3);
       if (data) {
         setDriverData(data as DriverData);
-        if (data.latitude && data.longitude && data.is_active) {
-          // GPS actif avec position réelle → init la carte
+        if (data.latitude && data.longitude) {
           await initMap(data.latitude, data.longitude);
-          await calculateETA(data.latitude, data.longitude);
+          await calculateETA(data.latitude, data.longitude, destCoordsRef.current ?? undefined);
           setLastUpdate(new Date());
+        } else {
+          await initMap(BORDEAUX_CENTER[0], BORDEAUX_CENTER[1]);
         }
-        // GPS inactif → on n'init pas la carte, elle restera cachée
+      } else {
+        await initMap(BORDEAUX_CENTER[0], BORDEAUX_CENTER[1]);
       }
 
       const destAddr = resa.destination ?? resa.arrivee ?? null;
@@ -1005,7 +934,19 @@ function TrackingPage() {
               style={{ transition: "stroke-dashoffset 0.4s ease" }}
             />
           </svg>
-          <span style={{ fontSize: 40, animation: "spinTaxi 2s linear infinite", display: "inline-block" }}>🚕</span>
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: "50%",
+              overflow: "hidden",
+              border: "3px solid #0ea5e9",
+              animation: "spinTaxi 2s linear infinite",
+              display: "inline-block",
+            }}
+          >
+            <img src={TAXI_ICON_URI} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="taxi" />
+          </div>
         </div>
         <div style={{ textAlign: "center" }}>
           <div
@@ -1324,7 +1265,18 @@ function TrackingPage() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 22 }}>🚕</span>
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              overflow: "hidden",
+              border: "2px solid #0ea5e9",
+              flexShrink: 0,
+            }}
+          >
+            <img src={TAXI_ICON_URI} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="taxi" />
+          </div>
           <div>
             <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, color: "#f8fafc" }}>
               Taxi City Bordeaux
@@ -1426,7 +1378,7 @@ function TrackingPage() {
         </div>
       </div>
 
-      {/* Carte : div toujours dans le DOM pour que Leaflet s'initialise correctement */}
+      {/* Carte : div toujours dans le DOM pour que Leaflet puisse s'initialiser */}
       <div
         style={{
           height: driverData?.is_active ? mapHeight : 0,
@@ -1438,8 +1390,7 @@ function TrackingPage() {
         }}
       >
         <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
-
-        {/* Overlay : GPS actif mais position pas encore reçue */}
+        {/* Overlay quand GPS actif mais position pas encore reçue */}
         {driverData?.is_active && !driverData?.latitude && (
           <div
             style={{
@@ -1479,7 +1430,6 @@ function TrackingPage() {
             </div>
           </div>
         )}
-
         {lastUpdate && driverData?.is_active && (
           <div
             style={{
@@ -1500,7 +1450,7 @@ function TrackingPage() {
         )}
       </div>
 
-      {/* Bandeau compact quand GPS inactif — zéro espace perdu */}
+      {/* Bandeau compact quand GPS inactif */}
       {!driverData?.is_active && (
         <div
           style={{
@@ -1518,7 +1468,7 @@ function TrackingPage() {
               Le chauffeur n'est pas encore en course
             </p>
             <p style={{ color: "#64748b", fontSize: 12, marginTop: 3, lineHeight: 1.4 }}>
-              Sa position apparaîtra ici dès qu'il l'aura activée.
+              Sa position s'affichera ici dès qu'il l'aura activée.
             </p>
           </div>
           <a
@@ -1609,6 +1559,131 @@ function TrackingPage() {
             </div>
           )}
         </div>
+
+        {/* ── Barre de trajet départ → destination ── */}
+        {(reservation?.depart || reservation?.destination) &&
+          (() => {
+            const kmLeft = eta.km ? parseFloat(eta.km) : null;
+            const pctDone =
+              totalKm && kmLeft !== null
+                ? Math.min(100, Math.max(0, Math.round(((totalKm - kmLeft) / totalKm) * 100)))
+                : null;
+            return (
+              <div
+                style={{
+                  marginTop: 12,
+                  background: "rgba(255,255,255,0.03)",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  borderRadius: 16,
+                  padding: "16px 16px 14px",
+                }}
+              >
+                {/* Marqueurs départ / destination */}
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                  <span style={{ fontSize: 18, lineHeight: 1 }}>🟢</span>
+                  <span style={{ fontSize: 18, lineHeight: 1 }}>🏁</span>
+                </div>
+
+                {/* Barre bleue uniquement */}
+                <div
+                  style={{
+                    position: "relative",
+                    height: 6,
+                    borderRadius: 3,
+                    overflow: "visible",
+                    background: "transparent",
+                  }}
+                >
+                  {/* Fond transparent — pas de ligne grise */}
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      height: "100%",
+                      width: pctDone !== null ? `${pctDone}%` : "0%",
+                      background: "#0ea5e9",
+                      borderRadius: 3,
+                      transition: "width 0.6s ease",
+                    }}
+                  />
+                  {/* Icône taxi sur la barre */}
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "50%",
+                      left: pctDone !== null ? `${pctDone}%` : "0%",
+                      transform: "translate(-50%, -50%)",
+                      transition: "left 0.6s ease",
+                      zIndex: 2,
+                      width: 28,
+                      height: 28,
+                      borderRadius: "50%",
+                      background: "#0ea5e9",
+                      border: "2px solid #fff",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 14,
+                      boxShadow: "0 2px 8px rgba(14,165,233,0.45)",
+                    }}
+                  >
+                    <img
+                      src={TAXI_ICON_URI}
+                      style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
+                      alt="taxi"
+                    />
+                  </div>
+                </div>
+
+                {/* Labels départ / destination */}
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14 }}>
+                  <span
+                    style={{
+                      fontFamily: "'DM Sans',sans-serif",
+                      fontSize: 12,
+                      color: "#475569",
+                      maxWidth: "45%",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {reservation?.depart || "—"}
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: "'DM Sans',sans-serif",
+                      fontSize: 12,
+                      color: "#475569",
+                      maxWidth: "45%",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      textAlign: "right",
+                    }}
+                  >
+                    {reservation?.destination || driverData?.destination || "—"}
+                  </span>
+                </div>
+
+                {/* Pourcentage parcouru */}
+                {pctDone !== null && (
+                  <div style={{ textAlign: "center", marginTop: 8 }}>
+                    <span
+                      style={{
+                        fontFamily: "'JetBrains Mono',monospace",
+                        fontSize: 11,
+                        color: "#0ea5e9",
+                      }}
+                    >
+                      {pctDone}% parcouru · {eta.km} km restants
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
         {reservation?.pickup_datetime &&
           (() => {
