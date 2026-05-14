@@ -29,10 +29,8 @@ type ETA = { minutes: number | null; km: string | null };
 
 const BORDEAUX_CENTER: [number, number] = [44.8378, -0.5792];
 
-// ─── Point 12 : toast "détails incomplets" affiché une seule fois par réservation ───
 const shownIncompleteToast = new Set<string>();
 
-// ─── Point 11 : FAQ / aide ───────────────────────────────────────────────────
 function HelpPanel({ reservationId, onClose }: { reservationId: string; onClose: () => void }) {
   const [view, setView] = useState<"faq" | "contact">("faq");
   const [msg, setMsg] = useState("");
@@ -263,14 +261,29 @@ function TrackingPage() {
   }>(null);
   const [retryNonce, setRetryNonce] = useState(0);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-
-  // ─── Point 11 : panneau d'aide ───────────────────────────────────────────
   const [showHelp, setShowHelp] = useState(false);
-
-  // ─── Point 10 : refresh manuel ──────────────────────────────────────────
   const [refreshing, setRefreshing] = useState(false);
 
-  // ─── Point 7 : reconnexion automatique ───────────────────────────────────
+  // FIX MOBILE: hauteur carte calculée dynamiquement
+  const [mapHeight, setMapHeight] = useState(260);
+
+  useEffect(() => {
+    const updateMapHeight = () => {
+      // Sur iPhone, window.innerHeight tient compte de la barre Safari
+      // On alloue ~40% de la hauteur visible, min 220px, max 380px
+      const h = Math.min(Math.max(Math.round(window.innerHeight * 0.4), 220), 380);
+      setMapHeight(h);
+    };
+    updateMapHeight();
+    window.addEventListener("resize", updateMapHeight);
+    // Sur iOS, la barre Safari change de taille au scroll
+    window.addEventListener("orientationchange", updateMapHeight);
+    return () => {
+      window.removeEventListener("resize", updateMapHeight);
+      window.removeEventListener("orientationchange", updateMapHeight);
+    };
+  }, []);
+
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const connectionStateRef = useRef<"connected" | "disconnected">("disconnected");
@@ -286,7 +299,6 @@ function TrackingPage() {
   const gpsIdRef = useRef<string>("driver");
   const modeRef = useRef<"single" | "multi">("single");
 
-  // ─── Point 5 : notification avant prise en charge ────────────────────────
   const notifScheduledRef = useRef(false);
   const schedulePickupNotification = useCallback((pickupDatetime: string) => {
     if (notifScheduledRef.current) return;
@@ -297,7 +309,6 @@ function TrackingPage() {
     const minutesBefore = 15;
     const notifMs = pickupMs - minutesBefore * 60_000;
 
-    // Toast immédiat si la prise en charge est dans moins de 30 min
     const diff = pickupMs - now;
     if (diff > 0 && diff <= 30 * 60_000) {
       const mins = Math.round(diff / 60_000);
@@ -307,7 +318,6 @@ function TrackingPage() {
       });
     }
 
-    // Notification navigateur 15 min avant
     if (notifMs > now) {
       if (typeof Notification !== "undefined" && Notification.permission === "default") {
         Notification.requestPermission();
@@ -447,9 +457,14 @@ function TrackingPage() {
     });
     markerRef.current = L.marker([lat, lng], { icon }).addTo(map);
     mapInstanceRef.current = map;
+
+    // FIX MOBILE: forcer invalidateSize après init pour que Leaflet
+    // recalcule ses dimensions réelles sur iPhone
+    setTimeout(() => {
+      map.invalidateSize({ animate: false });
+    }, 300);
   };
 
-  // ─── Point 7 : polling fallback ───────────────────────────────────────────
   const startPolling = useCallback(() => {
     if (pollingTimerRef.current) return;
     pollingTimerRef.current = setInterval(async () => {
@@ -467,7 +482,6 @@ function TrackingPage() {
           await calculateETA(data.latitude, data.longitude);
         }
       }
-      // Réservation
       const resaId = resaIdRef.current;
       if (resaId) {
         const { data: r } = await supabase
@@ -486,7 +500,7 @@ function TrackingPage() {
           }));
         }
       }
-    }, 10_000); // poll toutes les 10s
+    }, 10_000);
   }, []);
 
   const stopPolling = useCallback(() => {
@@ -521,7 +535,6 @@ function TrackingPage() {
             }
           },
         )
-        // ─── Point 7 : détection de déconnexion ───────────────────────────
         .on("system", {}, (status: any) => {
           const s = (status?.status || "").toLowerCase();
           if (s === "subscribed") {
@@ -539,7 +552,6 @@ function TrackingPage() {
                 duration: 5000,
               });
               startPolling();
-              // Tentative de reconnexion dans 8s
               reconnectTimerRef.current = setTimeout(() => {
                 stopPolling();
                 setRetryNonce((n) => n + 1);
@@ -608,7 +620,6 @@ function TrackingPage() {
     [startPolling, stopPolling],
   );
 
-  // ─── Point 10 : refresh manuel ──────────────────────────────────────────
   const handleManualRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -635,6 +646,10 @@ function TrackingPage() {
       if (data) {
         setDriverData(data as DriverData);
         setLastUpdate(new Date());
+      }
+      // FIX MOBILE: invalider la taille de la carte après refresh aussi
+      if (mapInstanceRef.current) {
+        setTimeout(() => mapInstanceRef.current?.invalidateSize({ animate: false }), 100);
       }
       toast.success("✅ Informations mises à jour");
     } catch {
@@ -727,7 +742,6 @@ function TrackingPage() {
       const clientName = (resa.client_name || resa.nom || "").toString().trim();
       resaIdRef.current = resa.id;
 
-      // ─── Point 8 : pickup_datetime toujours affiché ───────────────────
       setReservation({
         id: resa.id,
         client_name: clientName,
@@ -737,12 +751,10 @@ function TrackingPage() {
         pickup_datetime: resa.pickup_datetime ?? null,
       });
 
-      // ─── Point 5 : planifier notification prise en charge ────────────
       if (resa.pickup_datetime) {
         schedulePickupNotification(resa.pickup_datetime);
       }
 
-      // ─── Point 12 : toast incomplet affiché une seule fois ────────────
       const dep = resa.depart ?? null;
       const dest = resa.destination ?? resa.arrivee ?? null;
       const prix = resa.prix_estime;
@@ -815,14 +827,17 @@ function TrackingPage() {
       @keyframes spinTaxi{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
       @keyframes spin{to{transform:rotate(360deg)}}
       details summary::-webkit-details-marker { display: none; }
+      /* FIX MOBILE: empêche le double-tap zoom sur iOS */
+      button, a { touch-action: manipulation; }
+      /* FIX MOBILE: Leaflet canvas pleine taille dans son conteneur */
+      .leaflet-container { width: 100% !important; height: 100% !important; }
     `}</style>
   );
 
-  // ─── Point 6 : helper calendrier ─────────────────────────────────────────
   const addToCalendar = (type: "google" | "apple") => {
     if (!reservation?.pickup_datetime) return;
     const start = new Date(reservation.pickup_datetime);
-    const end = new Date(start.getTime() + 60 * 60_000); // +1h
+    const end = new Date(start.getTime() + 60 * 60_000);
     const title = encodeURIComponent("Course Taxi City Bordeaux");
     const details = encodeURIComponent(
       `Départ : ${reservation.depart || "—"}\nDestination : ${reservation.destination || "—"}\nChauffeur : 06 73 07 23 22`,
@@ -837,7 +852,6 @@ function TrackingPage() {
         "noopener,noreferrer",
       );
     } else {
-      // Apple / iCal — génère un fichier .ics
       const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
       const ics = [
         "BEGIN:VCALENDAR",
@@ -862,7 +876,6 @@ function TrackingPage() {
     }
   };
 
-  // ─── LOADING STATE ────────────────────────────────────────────────────────
   if (loading) {
     const steps = [
       { label: "Connexion sécurisée…", icon: "🔐" },
@@ -1010,7 +1023,6 @@ function TrackingPage() {
     );
   }
 
-  // ─── ERROR STATE ─────────────────────────────────────────────────────────
   if (error) {
     const icon = error.code === "invalid" ? "⚠️" : error.code === "expired" ? "⏱️" : "🔍";
     return (
@@ -1082,11 +1094,8 @@ function TrackingPage() {
           >
             🔄 Réessayer
           </button>
-          <button
-            onClick={() => {
-              if (window.history.length > 1) window.history.back();
-              else window.location.href = "/";
-            }}
+          <a
+            href="https://taxicitybordeaux.fr"
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -1099,11 +1108,11 @@ function TrackingPage() {
               fontFamily: "'Syne',sans-serif",
               fontWeight: 700,
               fontSize: 14,
-              cursor: "pointer",
+              textDecoration: "none",
             }}
           >
-            ← Retour
-          </button>
+            🏠 Site
+          </a>
           <a
             href="tel:0673072322"
             style={{
@@ -1123,7 +1132,6 @@ function TrackingPage() {
             📞 Appeler
           </a>
         </div>
-        {/* Point 11 : aide sur erreur */}
         <div
           style={{
             marginTop: 14,
@@ -1203,10 +1211,8 @@ function TrackingPage() {
     );
   }
 
-  // ─── Helpers UI ──────────────────────────────────────────────────────────
   const isIncomplete = reservation && !reservation.depart && !reservation.destination && !reservation.prix_estime;
 
-  // ─── MAIN TRACKING VIEW ───────────────────────────────────────────────────
   return (
     <div
       style={{
@@ -1245,7 +1251,25 @@ function TrackingPage() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {/* Point 10 : bouton refresh */}
+          {/* Bouton retour site */}
+          <a
+            href="https://taxicitybordeaux.fr"
+            style={{
+              width: 36,
+              height: 36,
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 16,
+              textDecoration: "none",
+            }}
+            title="Retour au site"
+          >
+            🏠
+          </a>
           <button
             onClick={handleManualRefresh}
             disabled={refreshing}
@@ -1320,8 +1344,8 @@ function TrackingPage() {
         </div>
       </div>
 
-      {/* Carte */}
-      <div style={{ height: "52vh", position: "relative" }}>
+      {/* FIX MOBILE: hauteur fixe calculée par JS, pas 52vh qui plante sur iOS Safari */}
+      <div style={{ height: mapHeight, position: "relative", flexShrink: 0 }}>
         <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
         {!driverData?.latitude && (
           <div
@@ -1476,7 +1500,6 @@ function TrackingPage() {
           )}
         </div>
 
-        {/* ─── Point 8 : heure de prise en charge toujours visible ──────────── */}
         {reservation?.pickup_datetime &&
           (() => {
             const d = new Date(reservation.pickup_datetime);
@@ -1524,7 +1547,6 @@ function TrackingPage() {
                     </div>
                   </div>
                 </div>
-                {/* ─── Point 6 : bouton ajouter au calendrier ──── */}
                 <div style={{ display: "flex", gap: 6 }}>
                   <button
                     onClick={() => addToCalendar("google")}
@@ -1563,7 +1585,6 @@ function TrackingPage() {
             );
           })()}
 
-        {/* ─── Points 9 + 11 : encart attente avec bouton aide ──────────────── */}
         {isIncomplete && (
           <div
             style={{
@@ -1575,7 +1596,6 @@ function TrackingPage() {
             }}
           >
             <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-              {/* ─── Point 9 : indicateur de chargement ───── */}
               <span style={{ fontSize: 22, lineHeight: 1, animation: "liveDot 2s infinite" }}>⏳</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, color: "#fde68a" }}>
@@ -1590,11 +1610,9 @@ function TrackingPage() {
                     lineHeight: 1.5,
                   }}
                 >
-                  Le départ, la destination et le prix seront disponibles très prochainement — les infos s'affichent
-                  automatiquement dès validation.
+                  Le départ, la destination et le prix seront disponibles très prochainement.
                 </p>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {/* Point 10 : refresh manuel */}
                   <button
                     onClick={handleManualRefresh}
                     disabled={refreshing}
@@ -1619,7 +1637,6 @@ function TrackingPage() {
                     </span>{" "}
                     Rafraîchir
                   </button>
-                  {/* Point 11 : bouton aide */}
                   <button
                     onClick={() => setShowHelp(true)}
                     style={{
@@ -1662,7 +1679,6 @@ function TrackingPage() {
           </div>
         )}
 
-        {/* Client */}
         {reservation?.client_name && (
           <div
             style={{
@@ -1703,7 +1719,6 @@ function TrackingPage() {
           </div>
         )}
 
-        {/* Départ */}
         {reservation?.depart && (
           <div
             style={{
@@ -1744,7 +1759,6 @@ function TrackingPage() {
           </div>
         )}
 
-        {/* Destination */}
         {(reservation?.destination || driverData?.destination) && (
           <div
             style={{
@@ -1785,7 +1799,6 @@ function TrackingPage() {
           </div>
         )}
 
-        {/* Chauffeur */}
         <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 12 }}>
           <div
             style={{
@@ -1851,7 +1864,6 @@ function TrackingPage() {
           📞 Appeler mon chauffeur
         </a>
 
-        {/* Point 11 : bouton aide permanent */}
         <button
           onClick={() => setShowHelp(true)}
           style={{
@@ -1875,11 +1887,32 @@ function TrackingPage() {
           🆘 Besoin d'aide ?
         </button>
 
+        {/* Bouton retour site — footer */}
+        <a
+          href="https://taxicitybordeaux.fr"
+          style={{
+            marginTop: 10,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            width: "100%",
+            height: 44,
+            background: "rgba(255,255,255,0.03)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            borderRadius: 14,
+            fontFamily: "'DM Sans',sans-serif",
+            fontWeight: 600,
+            fontSize: 14,
+            color: "#475569",
+            textDecoration: "none",
+          }}
+        >
+          🏠 Retour sur taxicitybordeaux.fr
+        </a>
+
         <div style={{ marginTop: 16, textAlign: "center" }}>
           <p style={{ fontSize: 11, color: "#1e293b" }}>Position mise à jour en temps réel · Sans application</p>
-          <a href="https://taxicitybordeaux.fr" style={{ fontSize: 11, color: "#334155", textDecoration: "none" }}>
-            taxicitybordeaux.fr
-          </a>
         </div>
       </div>
     </div>
