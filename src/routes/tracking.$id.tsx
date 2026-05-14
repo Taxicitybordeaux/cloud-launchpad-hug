@@ -256,7 +256,10 @@ function TrackingPage() {
     };
     init();
     return () => {
-      if (channelRef.current) supabase.removeChannel(channelRef.current);
+      const ch = channelRef.current;
+      if (Array.isArray(ch)) ch.forEach((c) => c && supabase.removeChannel(c));
+      else if (ch) supabase.removeChannel(ch);
+      channelRef.current = null;
       if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; markerRef.current = null; }
     };
   }, [id, retryNonce]);
