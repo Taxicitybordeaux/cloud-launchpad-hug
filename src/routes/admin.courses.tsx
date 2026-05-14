@@ -558,17 +558,49 @@ function CoursesPage() {
   // =========================
   return (
     <div style={{ padding: "32px 24px", fontFamily: "'DM Sans',sans-serif" }}>
-      <h1
+      <div
         style={{
-          fontFamily: "'Syne',sans-serif",
-          fontSize: 30,
-          fontWeight: 800,
-          color: "#f8fafc",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
           marginBottom: 24,
+          flexWrap: "wrap",
+          gap: 12,
         }}
       >
-        Courses
-      </h1>
+        <h1
+          style={{
+            fontFamily: "'Syne',sans-serif",
+            fontSize: 30,
+            fontWeight: 800,
+            color: "#f8fafc",
+            margin: 0,
+          }}
+        >
+          Courses
+        </h1>
+        <a
+          href="https://taxicitybordeaux.fr"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "10px 18px",
+            background: "rgba(255,255,255,0.06)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 12,
+            color: "#94a3b8",
+            fontFamily: "'DM Sans',sans-serif",
+            fontWeight: 700,
+            fontSize: 13,
+            textDecoration: "none",
+          }}
+        >
+          🏠 Retour sur le site
+        </a>
+      </div>
 
       {/* SIMULATEUR DE TARIF — jour ET nuit */}
       <div
