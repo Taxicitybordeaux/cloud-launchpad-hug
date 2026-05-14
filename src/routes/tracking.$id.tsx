@@ -2081,23 +2081,6 @@ function TrackingPage() {
             <div style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>Conventionné · Toutes assurances</div>
             <div style={{ fontSize: 11, color: "#334155", marginTop: 1 }}>Disponible 7j/7 · 24h/24</div>
           </div>
-          <a
-            href="tel:0673072322"
-            style={{
-              width: 44,
-              height: 44,
-              flexShrink: 0,
-              background: "#22c55e",
-              borderRadius: "50%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 18,
-              textDecoration: "none",
-            }}
-          >
-            📞
-          </a>
         </div>
 
         <a
@@ -2119,7 +2102,7 @@ function TrackingPage() {
             textDecoration: "none",
           }}
         >
-          📞 Appeler mon chauffeur
+          📞 Appeler mon taxi
         </a>
 
         <button
