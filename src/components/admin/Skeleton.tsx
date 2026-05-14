@@ -1,7 +1,7 @@
-mport type { CSSProperties } from "react";
- 
+import type { CSSProperties } from "react";
+
 export const skeletonKeyframes = `@keyframes adminSkelShimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}`;
- 
+
 const baseSkel: CSSProperties = {
   display: "block",
   background: "linear-gradient(90deg,rgba(255,255,255,0.04) 0%,rgba(255,255,255,0.10) 50%,rgba(255,255,255,0.04) 100%)",
@@ -9,7 +9,7 @@ const baseSkel: CSSProperties = {
   animation: "adminSkelShimmer 1.4s ease-in-out infinite",
   borderRadius: 8,
 };
- 
+
 export function Skeleton({
   width = "100%",
   height = 14,
@@ -28,11 +28,11 @@ export function Skeleton({
     />
   );
 }
- 
+
 export function SkeletonStyles() {
   return <style>{skeletonKeyframes}</style>;
 }
- 
+
 /* ─── Shared card style ─── */
 const cardSkel: CSSProperties = {
   background: "rgba(255,255,255,0.04)",
@@ -40,7 +40,7 @@ const cardSkel: CSSProperties = {
   borderRadius: 20,
   padding: 20,
 };
- 
+
 /* ─── Stat card — matches 2-col mobile / 4-col desktop KPI grid ─── */
 export function StatCardSkeleton() {
   return (
@@ -58,7 +58,7 @@ export function StatCardSkeleton() {
     </div>
   );
 }
- 
+
 /* ─── Table row — 6 or 7 cols ─── */
 export function ReservationRowSkeleton({ cols = 6 }: { cols?: number }) {
   return (
@@ -71,7 +71,7 @@ export function ReservationRowSkeleton({ cols = 6 }: { cols?: number }) {
     </tr>
   );
 }
- 
+
 /* ─── Course card — mobile list: matches exact card layout in admin/courses ─── */
 export function CourseCardSkeleton() {
   return (
@@ -85,7 +85,15 @@ export function CourseCardSkeleton() {
       }}
     >
       {/* Header row: name + date */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 12,
+          marginBottom: 10,
+        }}
+      >
         <Skeleton width={160} height={18} />
         <Skeleton width={100} height={13} />
       </div>
@@ -111,7 +119,7 @@ export function CourseCardSkeleton() {
     </div>
   );
 }
- 
+
 /* ─── Client row — matches card layout in admin/clients ─── */
 export function ClientRowSkeleton() {
   return (
@@ -143,16 +151,16 @@ export function ClientRowSkeleton() {
     </div>
   );
 }
- 
+
 /* ─── Generic primitives ─── */
 export function ButtonSkeleton({ width = 140, height = 38 }: { width?: number | string; height?: number }) {
   return <Skeleton width={width} height={height} radius={10} />;
 }
- 
+
 export function LineSkeleton({ width = "100%", height = 12 }: { width?: number | string; height?: number }) {
   return <Skeleton width={width} height={height} />;
 }
- 
+
 export function LinesSkeleton({ count = 3, gap = 8 }: { count?: number; gap?: number }) {
   return (
     <div style={{ display: "grid", gap }}>
@@ -162,7 +170,7 @@ export function LinesSkeleton({ count = 3, gap = 8 }: { count?: number; gap?: nu
     </div>
   );
 }
- 
+
 export function CardSkeleton({
   lines = 3,
   withTitle = true,
@@ -189,7 +197,7 @@ export function CardSkeleton({
     </div>
   );
 }
- 
+
 /* ─── GPS page card — matches exact GPS inactive layout ─── */
 export function GpsCardSkeleton() {
   return (
@@ -229,7 +237,7 @@ export function GpsCardSkeleton() {
     </div>
   );
 }
- 
+
 /* ─── Map skeleton (GPS acquisition) ─── */
 export function MapSkeleton() {
   return (
@@ -272,7 +280,7 @@ export function MapSkeleton() {
     </div>
   );
 }
- 
+
 /* ─── GPS updates list skeleton ─── */
 export function GpsUpdatesSkeleton({ lines = 3 }: { lines?: number }) {
   return (
@@ -287,7 +295,7 @@ export function GpsUpdatesSkeleton({ lines = 3 }: { lines?: number }) {
     </div>
   );
 }
- 
+
 /* ─── Global loading overlay ─── */
 export function GlobalLoadingOverlay({ visible }: { visible: boolean }) {
   if (!visible) return null;
