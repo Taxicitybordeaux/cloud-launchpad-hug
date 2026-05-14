@@ -236,6 +236,13 @@ function TrackingPage() {
       } else {
         await initMap(BORDEAUX_CENTER[0], BORDEAUX_CENTER[1]);
       }
+
+      // Trace l'itinéraire départ → destination
+      const destAddr = (resa.destination ?? resa.arrivee) ?? null;
+      if (resa.depart && destAddr) {
+        drawTripRoute(resa.depart, destAddr);
+      }
+
       toast.success("✅ Course trouvée", { id: toastId, description: `${clientName ? clientName + " — " : ""}mode ${mode === "multi" ? "multi-courses" : "chauffeur unique"}`, duration: 4000 });
       setLoading(false);
 
