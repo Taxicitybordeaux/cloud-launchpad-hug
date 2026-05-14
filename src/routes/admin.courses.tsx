@@ -297,9 +297,22 @@ function CoursesPage() {
       }
     }
 
+    // 💬 Lien WhatsApp prêt à envoyer au client avec l'URL /scan/{tracking_id}
+    const waPhone = (phone || "").replace(/[^\d]/g, "").replace(/^0/, "33");
+    const waMsg = encodeURIComponent(
+      `Bonjour ${name || ""},\n\n✅ Votre course Taxi City Bordeaux est confirmée.\n\n📲 Scannez ou cliquez sur ce lien pour suivre votre chauffeur en temps réel :\n${url}\n\n📞 06 73 07 23 22 (7j/7 · 24h/24)`
+    );
+    const waUrl = waPhone
+      ? `https://wa.me/${waPhone}?text=${waMsg}`
+      : `https://wa.me/?text=${waMsg}`;
+
     toast.success(`Course acceptée — ${name || "client"}`, {
       description: `${emailOk ? "✉️ " : ""}${emailDetail}. Lien tracking copié.`,
-      duration: 6000,
+      duration: 10000,
+      action: {
+        label: "💬 Envoyer WhatsApp",
+        onClick: () => window.open(waUrl, "_blank", "noopener,noreferrer"),
+      },
     });
 
     fetchAll();
