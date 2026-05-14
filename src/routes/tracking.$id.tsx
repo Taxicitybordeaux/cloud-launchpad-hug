@@ -462,6 +462,19 @@ function TrackingPage() {
           );
         })()}
 
+        {reservation && !reservation.depart && !reservation.destination && !driverData?.destination && !reservation.prix_estime && !driverData?.prix_estime && (
+          <div style={{ marginTop: 12, background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <span style={{ fontSize: 22, lineHeight: 1 }}>ℹ️</span>
+            <div>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800, color: "#fde68a" }}>Détails de la course en attente</div>
+              <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#cbd5e1", margin: "4px 0 0", lineHeight: 1.5 }}>
+                Le départ, la destination et le prix ne sont pas encore renseignés. Notre équipe finalise votre réservation — les infos s'afficheront automatiquement dès qu'elles seront disponibles.
+              </p>
+              <a href="tel:0673072322" style={{ display: "inline-block", marginTop: 8, fontFamily: "'Syne',sans-serif", fontSize: 12, fontWeight: 700, color: "#22c55e", textDecoration: "none" }}>📞 Nous appeler</a>
+            </div>
+          </div>
+        )}
+
         {reservation?.client_name && (
           <div style={{ marginTop: 12, background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.18)", borderRadius: 14, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
             <span style={{ fontSize: 20 }}>👋</span>
