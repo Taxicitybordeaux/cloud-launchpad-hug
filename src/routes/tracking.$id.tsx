@@ -293,11 +293,14 @@ function TrackingPage() {
   const markerRef = useRef<any>(null);
   const channelRef = useRef<any>(null);
   const routeLayerRef = useRef<any>(null);
+  const routeRemainingRef = useRef<any>(null); // portion restante en rouge/gris
   const departMarkerRef = useRef<any>(null);
   const destMarkerRef = useRef<any>(null);
   const resaIdRef = useRef<string>("");
   const gpsIdRef = useRef<string>("driver");
   const modeRef = useRef<"single" | "multi">("single");
+  const routeCoordsRef = useRef<[number, number][]>([]); // tous les points de la route OSRM
+  const destCoordsRef = useRef<[number, number] | null>(null); // coords destination pour ETA
 
   const notifScheduledRef = useRef(false);
   const schedulePickupNotification = useCallback((pickupDatetime: string) => {
@@ -358,6 +361,7 @@ function TrackingPage() {
     if (!map || !L) return;
     const [a, b] = await Promise.all([geocode(depart), geocode(destination)]);
     if (!a || !b) return;
+    destCoordsRef.current = b;
     try {
       const res = await fetch(
         `https://router.project-osrm.org/route/v1/driving/${a[1]},${a[0]};${b[1]},${b[0]}?overview=full&geometries=geojson`,
@@ -367,44 +371,95 @@ function TrackingPage() {
         c[1],
         c[0],
       ]) ?? [a, b];
+
+      // Stocker la route complète pour animation progressive
+      routeCoordsRef.current = coords;
+
+      // Supprimer anciennes couches
       if (routeLayerRef.current) {
         routeLayerRef.current.remove();
         routeLayerRef.current = null;
       }
+      if (routeRemainingRef.current) {
+        routeRemainingRef.current.remove();
+        routeRemainingRef.current = null;
+      }
+
+      // Ligne complète grise (parcours total)
       routeLayerRef.current = L.polyline(coords, {
-        color: "#0ea5e9",
-        weight: 5,
-        opacity: 0.85,
+        color: "rgba(148,163,184,0.3)",
+        weight: 6,
         lineCap: "round",
         lineJoin: "round",
       }).addTo(map);
+
+      // Ligne restante bleue (sera mise à jour au fur et à mesure)
+      routeRemainingRef.current = L.polyline(coords, {
+        color: "#0ea5e9",
+        weight: 5,
+        opacity: 0.9,
+        lineCap: "round",
+        lineJoin: "round",
+      }).addTo(map);
+
+      // Marqueur départ
       const departIcon = L.divIcon({
         className: "",
-        html: `<div style="width:30px;height:30px;background:#22c55e;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:14px">🟢</div>`,
-        iconSize: [30, 30],
-        iconAnchor: [15, 15],
+        html: `<div style="width:32px;height:32px;background:#22c55e;border-radius:50%;border:3px solid white;box-shadow:0 2px 10px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:15px">🟢</div>`,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
       });
+      // Marqueur destination
       const destIcon = L.divIcon({
         className: "",
-        html: `<div style="width:30px;height:30px;background:#ef4444;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:14px">📍</div>`,
-        iconSize: [30, 30],
-        iconAnchor: [15, 15],
+        html: `<div style="width:32px;height:32px;background:#ef4444;border-radius:50%;border:3px solid white;box-shadow:0 2px 10px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:15px">🏁</div>`,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
       });
+
       if (departMarkerRef.current) departMarkerRef.current.remove();
       if (destMarkerRef.current) destMarkerRef.current.remove();
-      departMarkerRef.current = L.marker(a, { icon: departIcon }).addTo(map).bindPopup("Départ");
-      destMarkerRef.current = L.marker(b, { icon: destIcon }).addTo(map).bindPopup("Destination");
-      const all = [...coords];
-      if (markerRef.current) all.push(markerRef.current.getLatLng());
-      map.fitBounds(L.latLngBounds(all).pad(0.2));
+      departMarkerRef.current = L.marker(a, { icon: departIcon }).addTo(map).bindPopup(`📍 Départ : ${depart}`);
+      destMarkerRef.current = L.marker(b, { icon: destIcon }).addTo(map).bindPopup(`🏁 Destination : ${destination}`);
+
+      // Ajuster la vue pour tout voir
+      const allPts = [...coords];
+      if (markerRef.current) allPts.push(markerRef.current.getLatLng());
+      map.fitBounds(L.latLngBounds(allPts).pad(0.18));
     } catch {
       /* noop */
     }
   };
 
+  /** Met à jour la portion restante de la route depuis la position actuelle du taxi */
+  const updateRouteProgress = (taxiLat: number, taxiLng: number) => {
+    const L = (window as any).L;
+    const coords = routeCoordsRef.current;
+    if (!L || !coords.length || !routeRemainingRef.current) return;
+
+    // Trouver le point le plus proche du taxi sur la route
+    let minDist = Infinity;
+    let closestIdx = 0;
+    coords.forEach(([lat, lng], i) => {
+      const d = Math.hypot(lat - taxiLat, lng - taxiLng);
+      if (d < minDist) {
+        minDist = d;
+        closestIdx = i;
+      }
+    });
+
+    // Redessiner uniquement la portion restante (taxi → destination)
+    const remaining = coords.slice(closestIdx);
+    if (remaining.length >= 2) {
+      routeRemainingRef.current.setLatLngs(remaining);
+    }
+  };
+
   const calculateETA = async (lat: number, lng: number) => {
     try {
-      const [dLat, dLng] = BORDEAUX_CENTER;
+      // Utiliser la destination réelle si connue, sinon Bordeaux centre
+      const dest = destCoordsRef.current ?? BORDEAUX_CENTER;
+      const [dLat, dLng] = dest;
       const res = await fetch(
         `https://router.project-osrm.org/route/v1/driving/${lng},${lat};${dLng},${dLat}?overview=false`,
       );
@@ -451,22 +506,46 @@ function TrackingPage() {
     L.control.zoom({ position: "bottomright" }).addTo(map);
     const icon = L.divIcon({
       className: "",
-      html: `<div style="width:48px;height:48px;background:#0ea5e9;border-radius:50%;border:3px solid white;display:flex;align-items:center;justify-content:center;font-size:22px;animation:driverPulse 2s infinite">🚕</div>`,
+      html: `<div style="width:48px;height:48px;background:#0ea5e9;border-radius:50%;border:3px solid white;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 0 0 0 rgba(14,165,233,0.4);animation:driverPulse 2s infinite">🚕</div>`,
       iconSize: [48, 48],
       iconAnchor: [24, 24],
     });
     markerRef.current = L.marker([lat, lng], { icon }).addTo(map);
     mapInstanceRef.current = map;
 
-    // FIX MOBILE: forcer invalidateSize après init pour que Leaflet
-    // recalcule ses dimensions réelles sur iPhone
     setTimeout(() => {
       map.invalidateSize({ animate: false });
     }, 300);
-    // Second invalidate après la transition CSS (0.4s)
     setTimeout(() => {
       map.invalidateSize({ animate: false });
-    }, 500);
+    }, 600);
+  };
+
+  /** Déplace le marqueur taxi en douceur vers la nouvelle position */
+  const animateMarkerTo = (lat: number, lng: number) => {
+    const marker = markerRef.current;
+    const map = mapInstanceRef.current;
+    if (!marker || !map) return;
+
+    const startLatLng = marker.getLatLng();
+    const startLat = startLatLng.lat;
+    const startLng = startLatLng.lng;
+    const duration = 1500; // ms
+    const startTime = performance.now();
+
+    const step = (now: number) => {
+      const t = Math.min((now - startTime) / duration, 1);
+      // Easing ease-out
+      const ease = 1 - Math.pow(1 - t, 3);
+      const newLat = startLat + (lat - startLat) * ease;
+      const newLng = startLng + (lng - startLng) * ease;
+      marker.setLatLng([newLat, newLng]);
+      if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+
+    // Suivre le taxi avec la caméra
+    map.panTo([lat, lng], { animate: true, duration: 1.2 });
   };
 
   const startPolling = useCallback(() => {
@@ -478,10 +557,11 @@ function TrackingPage() {
         setDriverData(data as DriverData);
         setLastUpdate(new Date());
         if (data.latitude && data.longitude) {
-          if (!mapInstanceRef.current) await initMap(data.latitude, data.longitude);
-          else {
-            markerRef.current?.setLatLng([data.latitude, data.longitude]);
-            mapInstanceRef.current.panTo([data.latitude, data.longitude], { animate: true, duration: 1.5 });
+          if (!mapInstanceRef.current) {
+            await initMap(data.latitude, data.longitude);
+          } else {
+            animateMarkerTo(data.latitude, data.longitude);
+            updateRouteProgress(data.latitude, data.longitude);
           }
           await calculateETA(data.latitude, data.longitude);
         }
@@ -532,8 +612,8 @@ function TrackingPage() {
             if (d.latitude && d.longitude) {
               if (!mapInstanceRef.current) await initMap(d.latitude, d.longitude);
               else {
-                markerRef.current?.setLatLng([d.latitude, d.longitude]);
-                mapInstanceRef.current.panTo([d.latitude, d.longitude], { animate: true, duration: 1.5 });
+                animateMarkerTo(d.latitude, d.longitude);
+                updateRouteProgress(d.latitude, d.longitude);
               }
               await calculateETA(d.latitude, d.longitude);
             }
@@ -782,15 +862,13 @@ function TrackingPage() {
       setLoadStep(3);
       if (data) {
         setDriverData(data as DriverData);
-        if (data.latitude && data.longitude) {
+        if (data.latitude && data.longitude && data.is_active) {
+          // GPS actif avec position réelle → init la carte
           await initMap(data.latitude, data.longitude);
           await calculateETA(data.latitude, data.longitude);
           setLastUpdate(new Date());
-        } else {
-          await initMap(BORDEAUX_CENTER[0], BORDEAUX_CENTER[1]);
         }
-      } else {
-        await initMap(BORDEAUX_CENTER[0], BORDEAUX_CENTER[1]);
+        // GPS inactif → on n'init pas la carte, elle restera cachée
       }
 
       const destAddr = resa.destination ?? resa.arrivee ?? null;
@@ -1348,7 +1426,7 @@ function TrackingPage() {
         </div>
       </div>
 
-      {/* Carte : div toujours dans le DOM pour que Leaflet puisse s'initialiser */}
+      {/* Carte : div toujours dans le DOM pour que Leaflet s'initialise correctement */}
       <div
         style={{
           height: driverData?.is_active ? mapHeight : 0,
@@ -1360,7 +1438,8 @@ function TrackingPage() {
         }}
       >
         <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
-        {/* Overlay quand GPS actif mais position pas encore reçue */}
+
+        {/* Overlay : GPS actif mais position pas encore reçue */}
         {driverData?.is_active && !driverData?.latitude && (
           <div
             style={{
@@ -1400,6 +1479,7 @@ function TrackingPage() {
             </div>
           </div>
         )}
+
         {lastUpdate && driverData?.is_active && (
           <div
             style={{
@@ -1420,7 +1500,7 @@ function TrackingPage() {
         )}
       </div>
 
-      {/* Bandeau compact quand GPS inactif */}
+      {/* Bandeau compact quand GPS inactif — zéro espace perdu */}
       {!driverData?.is_active && (
         <div
           style={{
@@ -1438,7 +1518,7 @@ function TrackingPage() {
               Le chauffeur n'est pas encore en course
             </p>
             <p style={{ color: "#64748b", fontSize: 12, marginTop: 3, lineHeight: 1.4 }}>
-              Sa position s'affichera ici dès qu'il l'aura activée.
+              Sa position apparaîtra ici dès qu'il l'aura activée.
             </p>
           </div>
           <a
