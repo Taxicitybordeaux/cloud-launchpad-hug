@@ -172,6 +172,8 @@ function CoursesPage() {
   const [confirmAction, setConfirmAction] = useState<{ type: "accept" | "refuse"; r: R } | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [refusalReason, setRefusalReason] = useState("");
+  const [autoKm, setAutoKm] = useState<number | null>(null);
+  const [kmLoading, setKmLoading] = useState(false);
   const [qrModal, setQrModal] = useState<{ url: string } | null>(null);
   const initialLoad = useRef(true);
 
@@ -228,6 +230,63 @@ function CoursesPage() {
   }, [fetchAll]);
 
   // =========================
+  // CALCUL DISTANCE AUTO — OpenRouteService (gratuit, 2000 req/jour, CORS ok)
+  // Clé : VITE_ORS_API_KEY — inscription gratuite sur openrouteservice.org
+  // =========================
+  const fetchDistanceKm = async (depart: string, arrivee: string): Promise<number> => {
+    const apiKey =
+      (import.meta.env.VITE_ORS_API_KEY as string | undefined) ||
+      "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImNhMGVmYTZiNGQ2MzQ3ZGJhZDJmMmY0ZDc2YjYyYTIwIiwiaCI6Im11cm11cjY0In0=";
+
+    // Étape 1 : géocoder les deux adresses via l'API Nominatim (OpenStreetMap) — 100% gratuit, sans clé
+    const geocode = async (address: string): Promise<{ lat: number; lng: number } | null> => {
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address + ", Bordeaux, France")}&format=json&limit=1`;
+        const res = await fetch(url, { headers: { "Accept-Language": "fr" } });
+        const data = await res.json();
+        if (data?.[0]) return { lat: Number(data[0].lat), lng: Number(data[0].lon) };
+      } catch {}
+      return null;
+    };
+
+    const [a, b] = await Promise.all([geocode(depart), geocode(arrivee)]);
+
+    // Étape 2 : distance réelle par la route via ORS (si clé dispo)
+    if (a && b && apiKey) {
+      try {
+        const res = await fetch("https://api.openrouteservice.org/v2/directions/driving-car", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: apiKey },
+          body: JSON.stringify({
+            coordinates: [
+              [a.lng, a.lat],
+              [b.lng, b.lat],
+            ],
+          }),
+        });
+        const data = await res.json();
+        const meters = data?.routes?.[0]?.summary?.distance;
+        if (meters && meters > 0) return Math.round((meters / 1000) * 10) / 10;
+      } catch {}
+    }
+
+    // Étape 3 : fallback Haversine × 1.3 si ORS échoue ou pas de clé
+    if (a && b) {
+      const R = 6371;
+      const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+      const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+      const sin2 =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+      const crow = R * 2 * Math.atan2(Math.sqrt(sin2), Math.sqrt(1 - sin2));
+      return Math.round((crow * 1.3) / 0.5) * 0.5;
+    }
+
+    // Dernier fallback
+    return 5;
+  };
+
+  // =========================
   // ACCEPT — avec WhatsApp + Email + QR
   // =========================
   const handleAccept = async (r: R) => {
@@ -242,9 +301,10 @@ function CoursesPage() {
     }
 
     // Calcul du prix selon tarif jour/nuit (heure de Paris)
+    // distance_km déjà en base → on l'utilise ; sinon autoKm calculé au moment de l'ouverture modale
     const tarif_nuit = r.pickup_datetime ? isNuit(r.pickup_datetime) : false;
-    const km = r.distance_km ? Number(r.distance_km) : null;
-    const prixCalcule = km ? calculerPrix(km, !tarif_nuit) : null;
+    const km = r.distance_km ? Number(r.distance_km) : (autoKm ?? 5);
+    const prixCalcule = calculerPrix(km, !tarif_nuit);
 
     const { error } = await supabase
       .from("reservations")
@@ -252,7 +312,8 @@ function CoursesPage() {
         status: "accepted",
         tracking_id: trackingId,
         tarif_jour: !tarif_nuit,
-        ...(prixCalcule ? { prix_estime: prixCalcule } : {}),
+        distance_km: km,
+        prix_estime: prixCalcule,
         updated_at: new Date().toISOString(),
       })
       .eq("id", r.id);
@@ -300,11 +361,7 @@ function CoursesPage() {
       ? formatParis(r.pickup_datetime, { dateStyle: "full", timeStyle: "short" })
       : undefined;
 
-    const prixStr = prixCalcule
-      ? `${Number(prixCalcule).toFixed(2)} €`
-      : r.prix_estime
-        ? `${r.prix_estime} €`
-        : "à confirmer";
+    const prixStr = `${Number(prixCalcule).toFixed(2)} €`;
 
     const tarifLabel = tarif_nuit ? `Nuit (${TARIF_NUIT_LABEL})` : `Jour (${TARIF_JOUR_LABEL})`;
 
@@ -353,13 +410,13 @@ function CoursesPage() {
 
     const waMsg = encodeURIComponent(
       `Bonjour ${name || ""},\n\n` +
-        `✅ Votre course Taxi City Bordeaux est *confirmée*.\n\n` +
-        `🕐 Prise en charge : ${pickupStr}\n` +
-        `📍 Départ : ${r.depart}\n` +
-        `🏁 Arrivée : ${r.arrivee || r.destination || "—"}\n` +
-        `💰 Prix estimé : ${prixStr} (tarif ${tarif_nuit ? "nuit" : "jour"})\n\n` +
-        `📲 Suivez votre chauffeur en temps réel :\n${url}\n\n` +
-        `📞 06 73 07 23 22 (7j/7 · 24h/24)`,
+        `Votre course Taxi City Bordeaux est *confirmee*.\n\n` +
+        `Prise en charge : ${pickupStr}\n` +
+        `Depart : ${r.depart}\n` +
+        `Arrivee : ${r.arrivee || r.destination || "—"}\n` +
+        `Prix estime : ${prixStr} (tarif ${tarif_nuit ? "nuit" : "jour"})\n\n` +
+        `Suivez votre chauffeur en temps reel :\n${url}\n\n` +
+        `Tel : 06 73 07 23 22 (7j/7 - 24h/24)`,
     );
     const waUrl = waPhone ? `https://wa.me/${waPhone}?text=${waMsg}` : `https://wa.me/?text=${waMsg}`;
 
@@ -416,10 +473,10 @@ function CoursesPage() {
     const tarif_nuit = r.pickup_datetime ? isNuit(r.pickup_datetime) : r.tarif_jour === false;
     const km = r.distance_km ? Number(r.distance_km) : null;
     const prixCalcule = km ? calculerPrix(km, !tarif_nuit) : null;
-    const prixStr = prixCalcule
-      ? `${Number(prixCalcule).toFixed(2)} €`
-      : r.prix_estime
-        ? `${Number(r.prix_estime).toFixed(2)} €`
+    const prixStr = r.prix_estime
+      ? `${Number(r.prix_estime).toFixed(2)} €`
+      : prixCalcule
+        ? `${Number(prixCalcule).toFixed(2)} €`
         : "à confirmer";
     const pickupFormatted = r.pickup_datetime
       ? formatParis(r.pickup_datetime, { dateStyle: "full", timeStyle: "short" })
@@ -615,7 +672,9 @@ function CoursesPage() {
           const name = r.client_name || r.nom;
           const dest = r.destination || r.arrivee;
           const tarif_nuit_card = r.pickup_datetime ? isNuit(r.pickup_datetime) : r.tarif_jour === false;
-          const prix = r.prix_estime ?? (r.distance_km ? calculerPrix(Number(r.distance_km), !tarif_nuit_card) : null);
+          const km_card = r.distance_km ? Number(r.distance_km) : null;
+          const prix =
+            r.prix_estime != null ? Number(r.prix_estime) : km_card ? calculerPrix(km_card, !tarif_nuit_card) : null;
 
           const pickupFormatted = r.pickup_datetime
             ? formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })
@@ -753,7 +812,20 @@ function CoursesPage() {
                 {normalizeStatus(r.status) === "pending" && (
                   <>
                     <button
-                      onClick={() => setConfirmAction({ type: "accept", r })}
+                      onClick={async () => {
+                        setAutoKm(r.distance_km ? Number(r.distance_km) : null);
+                        setConfirmAction({ type: "accept", r });
+                        // Lance le calcul auto si pas encore de distance en base
+                        if (!r.distance_km && r.depart && (r.arrivee || r.destination)) {
+                          setKmLoading(true);
+                          try {
+                            const km = await fetchDistanceKm(r.depart, r.arrivee || r.destination);
+                            setAutoKm(km);
+                          } finally {
+                            setKmLoading(false);
+                          }
+                        }
+                      }}
                       style={{
                         background: "#22c55e",
                         color: "#fff",
@@ -812,12 +884,19 @@ function CoursesPage() {
                       const pickupStr = r.pickup_datetime
                         ? formatParis(r.pickup_datetime, { dateStyle: "full", timeStyle: "short" })
                         : "—";
-                      const prixStr = r.prix_estime ? `${Number(r.prix_estime).toFixed(2)} €` : "à confirmer";
+                      const tarif_nuit_wa = r.pickup_datetime ? isNuit(r.pickup_datetime) : r.tarif_jour === false;
+                      const km_wa = r.distance_km ? Number(r.distance_km) : null;
+                      const prixNum = r.prix_estime
+                        ? Number(r.prix_estime)
+                        : km_wa
+                          ? calculerPrix(km_wa, !tarif_nuit_wa)
+                          : null;
+                      const prixStr = prixNum ? `${prixNum.toFixed(2)} €` : "a confirmer";
                       const waMsg = encodeURIComponent(
-                        `Bonjour ${name || ""},\n\n✅ Votre course Taxi City Bordeaux est *confirmée*.\n\n` +
-                          `🕐 Prise en charge : ${pickupStr}\n📍 Départ : ${r.depart}\n🏁 Arrivée : ${dest || "—"}\n💰 Prix : ${prixStr}\n\n` +
-                          (trackingUrl ? `📲 Suivre le chauffeur :\n${trackingUrl}\n\n` : "") +
-                          `📞 06 73 07 23 22`,
+                        `Bonjour ${name || ""},\n\nVotre course Taxi City Bordeaux est *confirmee*.\n\n` +
+                          `Prise en charge : ${pickupStr}\nDepart : ${r.depart}\nArrivee : ${dest || "—"}\nPrix : ${prixStr}\n\n` +
+                          (trackingUrl ? `Suivre le chauffeur :\n${trackingUrl}\n\n` : "") +
+                          `Tel : 06 73 07 23 22`,
                       );
                       window.open(`https://wa.me/${waPhone}?text=${waMsg}`, "_blank", "noopener,noreferrer");
                     }}
@@ -938,31 +1017,58 @@ function CoursesPage() {
               </div>
             )}
 
-            {/* Prix estimé dans la modale */}
-            {(() => {
-              const r = confirmAction.r;
-              const tarif_nuit = r.pickup_datetime ? isNuit(r.pickup_datetime) : false;
-              const km = r.distance_km ? Number(r.distance_km) : null;
-              const prix = r.prix_estime ?? (km ? calculerPrix(km, !tarif_nuit) : null);
-              if (!prix) return null;
-              return (
-                <div
-                  style={{
-                    background: "rgba(14,165,233,0.08)",
-                    border: "1px solid rgba(14,165,233,0.2)",
-                    borderRadius: 10,
-                    padding: "8px 12px",
-                    fontSize: 15,
-                    color: "#0ea5e9",
-                    fontWeight: 800,
-                    marginBottom: 10,
-                    fontFamily: "'Syne',sans-serif",
-                  }}
-                >
-                  💰 {Number(prix).toFixed(2)} €
-                </div>
-              );
-            })()}
+            {/* Prix estimé dans la modale — calculé automatiquement */}
+            {confirmAction.type === "accept" && (
+              <div
+                style={{
+                  background: "rgba(14,165,233,0.08)",
+                  border: "1px solid rgba(14,165,233,0.2)",
+                  borderRadius: 10,
+                  padding: "12px 14px",
+                  marginBottom: 10,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 10,
+                  flexWrap: "wrap",
+                }}
+              >
+                {kmLoading ? (
+                  <>
+                    <span style={{ color: "#94a3b8", fontSize: 13 }}>📡 Calcul de la distance…</span>
+                    <span style={{ color: "#475569", fontSize: 12, fontStyle: "italic" }}>via Google Maps</span>
+                  </>
+                ) : (
+                  (() => {
+                    const r = confirmAction.r;
+                    const tarif_nuit = r.pickup_datetime ? isNuit(r.pickup_datetime) : false;
+                    const km = r.distance_km ? Number(r.distance_km) : (autoKm ?? 5);
+                    const prix = calculerPrix(km, !tarif_nuit);
+                    return (
+                      <>
+                        <div>
+                          <div style={{ color: "#94a3b8", fontSize: 12, marginBottom: 2 }}>Distance estimée</div>
+                          <div style={{ color: "#cbd5e1", fontWeight: 700, fontSize: 15 }}>{km} km</div>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ color: "#94a3b8", fontSize: 12, marginBottom: 2 }}>Prix calculé</div>
+                          <div
+                            style={{
+                              color: "#0ea5e9",
+                              fontFamily: "'Syne',sans-serif",
+                              fontWeight: 800,
+                              fontSize: 22,
+                            }}
+                          >
+                            {prix.toFixed(2)} €
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()
+                )}
+              </div>
+            )}
 
             {(() => {
               const ph = confirmAction.r.client_phone || confirmAction.r.telephone;
