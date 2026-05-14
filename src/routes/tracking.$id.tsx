@@ -300,6 +300,9 @@ function TrackingPage() {
                 toast.info("📍 Destination mise à jour", { description: next.destination });
               }
             }
+            if (next.depart && next.destination && (prev?.depart !== next.depart || prev?.destination !== next.destination)) {
+              drawTripRoute(next.depart, next.destination);
+            }
             return next;
           });
         }
