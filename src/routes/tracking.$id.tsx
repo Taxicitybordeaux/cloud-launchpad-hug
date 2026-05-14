@@ -212,10 +212,54 @@ function TrackingPage() {
           }
         }
       ).subscribe();
+
+      // Realtime sync of reservation fields (price, destination, status…)
+      const resaChannel = supabase.channel(`tracking-resa-${resa.id}`).on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "reservations", filter: `id=eq.${resa.id}` },
+        (payload) => {
+          const r = payload.new as any;
+          const newStatus = (r.status || "").toLowerCase();
+          if (["refusee", "refused", "annulee", "cancelled", "canceled"].includes(newStatus)) {
+            toast.error("Course annulée", { description: "Cette réservation n'est plus active." });
+            setError({ code: "expired", title: "Course annulée ou refusée", message: "Cette course n'est plus active. Contactez-nous pour en créer une nouvelle." });
+            return;
+          }
+          if (["terminee", "terminée", "completed", "done"].includes(newStatus)) {
+            toast.info("Course terminée", { description: "Merci d'avoir voyagé avec Taxi City Bordeaux." });
+            setError({ code: "expired", title: "Course terminée", message: "Cette course est déjà terminée. Merci d'avoir voyagé avec Taxi City Bordeaux." });
+            return;
+          }
+          setReservation((prev) => {
+            const next = {
+              client_name: (r.client_name || r.nom || prev?.client_name || "").toString().trim(),
+              depart: r.depart ?? prev?.depart ?? null,
+              destination: (r.destination ?? r.arrivee) ?? prev?.destination ?? null,
+              prix_estime: r.prix_estime != null ? `${r.prix_estime} €` : prev?.prix_estime ?? null,
+              pickup_datetime: r.pickup_datetime ?? prev?.pickup_datetime ?? null,
+            };
+            if (prev) {
+              if (prev.prix_estime !== next.prix_estime && next.prix_estime) {
+                toast.info("💶 Prix mis à jour", { description: next.prix_estime });
+              }
+              if (prev.destination !== next.destination && next.destination) {
+                toast.info("📍 Destination mise à jour", { description: next.destination });
+              }
+            }
+            return next;
+          });
+        }
+      ).subscribe();
+
+      const gpsChannel = channelRef.current;
+      channelRef.current = [gpsChannel, resaChannel];
     };
     init();
     return () => {
-      if (channelRef.current) supabase.removeChannel(channelRef.current);
+      const ch = channelRef.current;
+      if (Array.isArray(ch)) ch.forEach((c) => c && supabase.removeChannel(c));
+      else if (ch) supabase.removeChannel(ch);
+      channelRef.current = null;
       if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; markerRef.current = null; }
     };
   }, [id, retryNonce]);
