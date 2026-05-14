@@ -558,49 +558,17 @@ function CoursesPage() {
   // =========================
   return (
     <div style={{ padding: "32px 24px", fontFamily: "'DM Sans',sans-serif" }}>
-      <div
+      <h1
         style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
+          fontFamily: "'Syne',sans-serif",
+          fontSize: 30,
+          fontWeight: 800,
+          color: "#f8fafc",
           marginBottom: 24,
-          flexWrap: "wrap",
-          gap: 12,
         }}
       >
-        <h1
-          style={{
-            fontFamily: "'Syne',sans-serif",
-            fontSize: 30,
-            fontWeight: 800,
-            color: "#f8fafc",
-            margin: 0,
-          }}
-        >
-          Courses
-        </h1>
-        <a
-          href="https://taxicitybordeaux.fr"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "10px 18px",
-            background: "rgba(255,255,255,0.06)",
-            border: "1px solid rgba(255,255,255,0.12)",
-            borderRadius: 12,
-            color: "#94a3b8",
-            fontFamily: "'DM Sans',sans-serif",
-            fontWeight: 700,
-            fontSize: 13,
-            textDecoration: "none",
-          }}
-        >
-          🏠 Retour sur le site
-        </a>
-      </div>
+        Courses
+      </h1>
 
       {/* SIMULATEUR DE TARIF — jour ET nuit */}
       <div
@@ -923,25 +891,6 @@ function CoursesPage() {
                       ✗ Refuser
                     </button>
                   </>
-                )}
-
-                {/* QR Code — visible dès que tracking_id existe */}
-                {trackingUrl && (
-                  <button
-                    onClick={() => setQrModal({ url: trackingUrl })}
-                    style={{
-                      background: "rgba(139,92,246,0.15)",
-                      border: "1px solid rgba(139,92,246,0.35)",
-                      color: "#a78bfa",
-                      padding: "12px 18px",
-                      borderRadius: 12,
-                      cursor: "pointer",
-                      fontWeight: 700,
-                      fontSize: 13,
-                    }}
-                  >
-                    📲 QR Code client
-                  </button>
                 )}
 
                 {/* WhatsApp rapide — courses acceptées */}
