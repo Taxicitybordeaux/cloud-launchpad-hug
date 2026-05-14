@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import React from "react";
 
 export const skeletonKeyframes = `@keyframes adminSkelShimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}`;
 
