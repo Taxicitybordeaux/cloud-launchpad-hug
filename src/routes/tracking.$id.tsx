@@ -302,6 +302,7 @@ function TrackingPage() {
   const gpsIdRef = useRef<string>("driver");
   const modeRef = useRef<"single" | "multi">("single");
   const destCoordsRef = useRef<[number, number] | null>(null);
+  const geoWatchIdRef = useRef<number | null>(null);
   const pickupCoordsRef = useRef<[number, number] | null>(null);
   const approachLayerRef = useRef<any>(null);
 
@@ -536,6 +537,60 @@ function TrackingPage() {
       map.invalidateSize({ animate: false });
     }, 500);
   };
+
+  // GPS automatique et permanent : démarre watchPosition dès le chargement
+  const startGeoTracking = useCallback((gpsId: string) => {
+    if (!navigator.geolocation) {
+      toast.warning("GPS non disponible", { description: "Votre navigateur ne supporte pas la géolocalisation." });
+      return;
+    }
+    if (geoWatchIdRef.current !== null) return; // déjà actif
+
+    const watchId = navigator.geolocation.watchPosition(
+      async (pos) => {
+        const { latitude, longitude, accuracy } = pos.coords;
+        setLastUpdate(new Date());
+
+        // Mise à jour Supabase
+        await supabase.from("driver_gps").upsert({
+          id: gpsId,
+          latitude,
+          longitude,
+          accuracy,
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        });
+
+        // Mise à jour carte
+        if (!mapInstanceRef.current) {
+          await initMap(latitude, longitude);
+        } else {
+          markerRef.current?.setLatLng([latitude, longitude]);
+          mapInstanceRef.current.panTo([latitude, longitude], { animate: true, duration: 1.5 });
+        }
+        if (pickupCoordsRef.current) {
+          drawApproachLine(latitude, longitude, pickupCoordsRef.current);
+        }
+        await calculateETA(latitude, longitude, destCoordsRef.current ?? undefined);
+        setDriverData((prev) => (prev ? { ...prev, latitude, longitude, accuracy, is_active: true } : null));
+      },
+      (err) => {
+        console.warn("GPS error:", err.message);
+        if (err.code === 1) {
+          toast.error("GPS refusé", { description: "Autorisez la localisation pour le suivi en temps réel." });
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+    );
+    geoWatchIdRef.current = watchId;
+  }, []);
+
+  const stopGeoTracking = useCallback(() => {
+    if (geoWatchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(geoWatchIdRef.current);
+      geoWatchIdRef.current = null;
+    }
+  }, []);
 
   const startPolling = useCallback(() => {
     if (pollingTimerRef.current) return;
@@ -880,6 +935,9 @@ function TrackingPage() {
       setLoading(false);
 
       subscribeRealtime(gpsId, resa.id, resa, mode);
+
+      // Démarrer le GPS automatique (chauffeur = cette page ouverte sur le téléphone du chauffeur)
+      startGeoTracking(gpsId);
     };
 
     init();
@@ -889,6 +947,7 @@ function TrackingPage() {
       else if (ch) supabase.removeChannel(ch);
       channelRef.current = null;
       stopPolling();
+      stopGeoTracking();
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       if (approachLayerRef.current) {
         approachLayerRef.current.remove();
@@ -900,7 +959,7 @@ function TrackingPage() {
         markerRef.current = null;
       }
     };
-  }, [id, retryNonce, subscribeRealtime, stopPolling, schedulePickupNotification]);
+  }, [id, retryNonce, subscribeRealtime, stopPolling, stopGeoTracking, startGeoTracking, schedulePickupNotification]);
 
   const styleTag = (
     <style>{`
@@ -1431,6 +1490,33 @@ function TrackingPage() {
               {driverData?.is_active ? "En route" : "En attente"}
             </span>
           </div>
+          {geoWatchIdRef.current !== null && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "5px 10px",
+                background: "rgba(34,197,94,0.1)",
+                border: "1px solid rgba(34,197,94,0.25)",
+                borderRadius: 99,
+              }}
+            >
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  background: "#22c55e",
+                  display: "inline-block",
+                  animation: "liveDot 1.5s infinite",
+                }}
+              />
+              <span style={{ fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 700, color: "#22c55e" }}>
+                GPS
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
