@@ -3,7 +3,6 @@ import { Link, useLocation } from "@tanstack/react-router";
 export function SiteFooter() {
   const { pathname } = useLocation();
 
-  // Pas de footer sur admin, login et page tracking client
   if (
     pathname.startsWith("/admin") ||
     pathname.startsWith("/login") ||
@@ -22,53 +21,170 @@ export function SiteFooter() {
       style={{
         background: "#0a0f1e",
         color: "#cbd5e1",
-        padding: "56px 24px 28px",
+        /* Reduced top padding on mobile */
+        padding: "40px 16px 24px",
         fontFamily: "'DM Sans',sans-serif",
         borderTop: "1px solid rgba(255,255,255,0.06)",
       }}
     >
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&display=swap');`}</style>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&display=swap');
 
-      <div
-        style={{
-          maxWidth: 1200,
-          margin: "0 auto",
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
-          gap: 40,
-        }}
-      >
+        /* Footer responsive grid */
+        .footer-grid {
+          max-width: 1200px;
+          margin: 0 auto;
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 32px;
+        }
+        @media (min-width: 640px) {
+          .footer-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 36px;
+          }
+        }
+        @media (min-width: 1024px) {
+          .footer-grid {
+            grid-template-columns: repeat(4, 1fr);
+            gap: 40px;
+          }
+        }
+
+        /* Footer brand col spans full width on small, half on sm */
+        .footer-brand {
+          grid-column: 1 / -1;
+        }
+        @media (min-width: 1024px) {
+          .footer-brand {
+            grid-column: 1 / 2;
+          }
+        }
+
+        /* Bottom bar */
+        .footer-bottom {
+          max-width: 1200px;
+          margin: 32px auto 0;
+          padding-top: 20px;
+          border-top: 1px solid rgba(255,255,255,0.06);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 12px;
+          font-size: 12px;
+          color: #64748b;
+          text-align: center;
+        }
+        @media (min-width: 640px) {
+          .footer-bottom {
+            flex-direction: row;
+            justify-content: space-between;
+            text-align: left;
+          }
+        }
+
+        /* Social buttons: bigger tap target on mobile */
+        .footer-social-btn {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          background: rgba(255,255,255,0.05);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          text-decoration: none;
+          font-size: 18px;
+          transition: background 0.2s;
+        }
+        .footer-social-btn:active {
+          background: rgba(255,255,255,0.12);
+        }
+
+        /* Footer links: bigger tap area */
+        .footer-link {
+          color: #cbd5e1;
+          text-decoration: none;
+          font-size: 15px;
+          padding: 3px 0;
+          display: inline-block;
+        }
+        @media (min-width: 1024px) {
+          .footer-link { font-size: 14px; }
+        }
+        .footer-link-sm {
+          color: #cbd5e1;
+          text-decoration: none;
+          font-size: 12px;
+        }
+
+        .footer-li-text {
+          font-size: 15px;
+          color: #94a3b8;
+          padding: 3px 0;
+        }
+        @media (min-width: 1024px) {
+          .footer-li-text { font-size: 14px; }
+        }
+
+        .footer-col-title {
+          font-family: 'Syne', sans-serif;
+          font-size: 13px;
+          font-weight: 800;
+          color: #f8fafc;
+          margin: 0 0 14px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        .footer-ul {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+      `}</style>
+
+      <div className="footer-grid">
         {/* Brand */}
-        <div>
+        <div className="footer-brand">
           <div
             style={{
               fontFamily: "'Syne',sans-serif",
               fontWeight: 900,
-              fontSize: 22,
+              fontSize: 20,
               color: "#f8fafc",
               marginBottom: 10,
             }}
           >
             🚕 Taxi City Bordeaux
           </div>
-          <p style={{ fontSize: 14, lineHeight: 1.6, color: "#94a3b8", margin: 0 }}>
+          <p style={{ fontSize: 14, lineHeight: 1.6, color: "#94a3b8", margin: 0, maxWidth: 280 }}>
             Votre taxi conventionné à Bordeaux et en Gironde. Disponible 7j/7 — 24h/24.
           </p>
           <div style={{ marginTop: 14, display: "flex", gap: 10 }}>
             <a
               href="https://wa.me/33673072322"
               aria-label="WhatsApp"
-              style={socialBtn("#25D366")}
+              className="footer-social-btn"
+              style={{ border: "1px solid #25D36640" }}
             >
               💬
             </a>
-            <a href="tel:0673072322" aria-label="Appeler" style={socialBtn("#0ea5e9")}>
+            <a
+              href="tel:0673072322"
+              aria-label="Appeler"
+              className="footer-social-btn"
+              style={{ border: "1px solid #0ea5e940" }}
+            >
               📞
             </a>
             <a
               href="mailto:contact@taxicitybordeaux.fr"
               aria-label="Email"
-              style={socialBtn("#94a3b8")}
+              className="footer-social-btn"
+              style={{ border: "1px solid #94a3b840" }}
             >
               ✉️
             </a>
@@ -77,90 +193,90 @@ export function SiteFooter() {
 
         {/* Navigation */}
         <div>
-          <h3 style={colTitle}>Navigation</h3>
-          <ul style={ul}>
-            <li>
-              <Link to="/" style={linkStyle}>
-                Accueil
-              </Link>
-            </li>
-            <li>
-              <Link to="/services" style={linkStyle}>
-                Services
-              </Link>
-            </li>
-            <li>
-              <Link to="/reserver" style={linkStyle}>
-                Réserver
-              </Link>
-            </li>
-            <li>
-              <Link to="/a-propos" style={linkStyle}>
-                À propos
-              </Link>
-            </li>
-            <li>
-              <Link to="/contact" style={linkStyle}>
-                Contact
-              </Link>
-            </li>
+          <h3 className="footer-col-title">Navigation</h3>
+          <ul className="footer-ul">
+            {[
+              { to: "/", label: "Accueil" },
+              { to: "/services", label: "Services" },
+              { to: "/reserver", label: "Réserver" },
+              { to: "/a-propos", label: "À propos" },
+              { to: "/contact", label: "Contact" },
+            ].map((l) => (
+              <li key={l.to}>
+                <Link to={l.to} className="footer-link">
+                  {l.label}
+                </Link>
+              </li>
+            ))}
           </ul>
         </div>
 
         {/* Services */}
         <div>
-          <h3 style={colTitle}>Nos courses</h3>
-          <ul style={ul}>
-            <li style={liText}>✈️ Aéroport Mérignac</li>
-            <li style={liText}>🚉 Gare Saint-Jean</li>
-            <li style={liText}>🍷 Vignobles & châteaux</li>
-            <li style={liText}>🏥 Transport conventionné CPAM</li>
-            <li style={liText}>🛣️ Longues distances</li>
+          <h3 className="footer-col-title">Nos courses</h3>
+          <ul className="footer-ul">
+            {[
+              "✈️ Aéroport Mérignac",
+              "🚉 Gare Saint-Jean",
+              "🍷 Vignobles & châteaux",
+              "🏥 Transport conventionné CPAM",
+              "🛣️ Longues distances",
+            ].map((item) => (
+              <li key={item} className="footer-li-text">
+                {item}
+              </li>
+            ))}
           </ul>
         </div>
 
         {/* Contact */}
         <div>
-          <h3 style={colTitle}>Contact</h3>
-          <ul style={ul}>
-            <li style={liText}>
-              <a href="tel:0673072322" style={linkStyle}>
+          <h3 className="footer-col-title">Contact</h3>
+          <ul className="footer-ul">
+            <li>
+              <a href="tel:0673072322" className="footer-link">
                 📞 06 73 07 23 22
               </a>
             </li>
-            <li style={liText}>
-              <a href="mailto:contact@taxicitybordeaux.fr" style={linkStyle}>
+            <li>
+              <a href="mailto:contact@taxicitybordeaux.fr" className="footer-link" style={{ wordBreak: "break-all" }}>
                 ✉️ contact@taxicitybordeaux.fr
               </a>
             </li>
-            <li style={liText}>📍 Bordeaux & Gironde</li>
-            <li style={liText}>🕒 7j/7 · 24h/24</li>
+            <li className="footer-li-text">📍 Bordeaux & Gironde</li>
+            <li className="footer-li-text">🕒 7j/7 · 24h/24</li>
           </ul>
+
+          {/* CTA call button — visible and tappable on mobile */}
+          <a
+            href="tel:0673072322"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              marginTop: 20,
+              background: "#1d4ed8",
+              color: "#fff",
+              borderRadius: 10,
+              padding: "10px 18px",
+              fontWeight: 700,
+              fontSize: 15,
+              textDecoration: "none",
+            }}
+          >
+            📞 Appeler maintenant
+          </a>
         </div>
       </div>
 
       {/* Bottom bar */}
-      <div
-        style={{
-          maxWidth: 1200,
-          margin: "40px auto 0",
-          paddingTop: 20,
-          borderTop: "1px solid rgba(255,255,255,0.06)",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 12,
-          fontSize: 12,
-          color: "#64748b",
-        }}
-      >
+      <div className="footer-bottom">
         <div>© {year} Taxi City Bordeaux. Tous droits réservés.</div>
-        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-          <Link to="/contact" style={{ ...linkStyle, fontSize: 12 }}>
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "center" }}>
+          <Link to="/contact" className="footer-link-sm">
             Mentions légales
           </Link>
-          <Link to="/contact" style={{ ...linkStyle, fontSize: 12 }}>
+          <Link to="/contact" className="footer-link-sm">
             Confidentialité
           </Link>
         </div>
@@ -168,46 +284,5 @@ export function SiteFooter() {
     </footer>
   );
 }
-
-const colTitle = {
-  fontFamily: "'Syne',sans-serif",
-  fontSize: 14,
-  fontWeight: 800,
-  color: "#f8fafc",
-  margin: "0 0 14px",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.05em",
-};
-
-const ul = {
-  listStyle: "none",
-  padding: 0,
-  margin: 0,
-  display: "flex",
-  flexDirection: "column" as const,
-  gap: 10,
-};
-
-const linkStyle = {
-  color: "#cbd5e1",
-  textDecoration: "none",
-  fontSize: 14,
-  transition: "color 0.2s",
-};
-
-const liText = { fontSize: 14, color: "#94a3b8" };
-
-const socialBtn = (color: string) => ({
-  width: 36,
-  height: 36,
-  borderRadius: "50%",
-  background: "rgba(255,255,255,0.05)",
-  border: `1px solid ${color}40`,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  textDecoration: "none",
-  fontSize: 16,
-});
 
 export default SiteFooter;
