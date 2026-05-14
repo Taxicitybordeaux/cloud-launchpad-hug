@@ -416,6 +416,8 @@ function CoursesPage() {
               prix: prixStr,
               tarif: tarifLabel,
               tracking_url: url,
+              passagers: r.nb_passagers || r.passagers || 1,
+              bagages: r.bagages ?? 0,
             },
           }),
         });
@@ -428,19 +430,22 @@ function CoursesPage() {
       }
     }
 
-    // 💬 WhatsApp — ouvre dans un nouvel onglet
+    // 💬 WhatsApp
     const waPhone = (phone || "").replace(/[^\d]/g, "").replace(/^0/, "33");
     const pickupStr = pickupFormatted ?? "—";
+    const refId = `TCB-${r.id.slice(0, 8).toUpperCase()}`;
+    const paxLine = `${r.nb_passagers || r.passagers || 1} passager(s)${(r.bagages ?? 0) > 0 ? ` · ${r.bagages} bagage(s)` : ""}`;
 
     const waMsg = encodeURIComponent(
       `Bonjour ${name || ""},\n\n` +
-        `Votre course Taxi City Bordeaux est *confirmee*.\n\n` +
-        `Prise en charge : ${pickupStr}\n` +
-        `Depart : ${r.depart}\n` +
-        `Arrivee : ${r.arrivee || r.destination || "—"}\n` +
-        `Prix estime : ${prixStr} (tarif ${tarif_nuit ? "nuit" : "jour"})\n\n` +
-        `Suivez votre chauffeur en temps reel :\n${url}\n\n` +
-        `Tel : 06 73 07 23 22 (7j/7 - 24h/24)`,
+        `✅ Votre course *${refId}* est confirmée !\n\n` +
+        `🕐 Prise en charge : ${pickupStr}\n` +
+        `📍 Départ : ${r.depart}\n` +
+        `🏁 Arrivée : ${r.arrivee || r.destination || "—"}\n` +
+        `👥 ${paxLine}\n` +
+        `💰 Prix estimé : *${prixStr}* (tarif ${tarif_nuit ? "nuit" : "jour"})\n\n` +
+        `📲 Suivez votre chauffeur en temps réel :\n${url}\n\n` +
+        `📞 06 73 07 23 22 (7j/7 · 24h/24)`,
     );
     const waUrl = waPhone ? `https://wa.me/${waPhone}?text=${waMsg}` : `https://wa.me/?text=${waMsg}`;
 
@@ -922,12 +927,19 @@ function CoursesPage() {
                         : km_wa
                           ? calculerPrix(km_wa, !tarif_nuit_wa)
                           : null;
-                      const prixStr = prixNum ? `${prixNum.toFixed(2)} €` : "a confirmer";
+                      const prixStr = prixNum ? `${prixNum.toFixed(2)} €` : "à confirmer";
+                      const refId = `TCB-${r.id.slice(0, 8).toUpperCase()}`;
+                      const paxLine = `${r.nb_passagers || r.passagers || 1} passager(s)${(r.bagages ?? 0) > 0 ? ` · ${r.bagages} bagage(s)` : ""}`;
                       const waMsg = encodeURIComponent(
-                        `Bonjour ${name || ""},\n\nVotre course Taxi City Bordeaux est *confirmee*.\n\n` +
-                          `Prise en charge : ${pickupStr}\nDepart : ${r.depart}\nArrivee : ${dest || "—"}\nPrix : ${prixStr}\n\n` +
-                          (trackingUrl ? `Suivre le chauffeur :\n${trackingUrl}\n\n` : "") +
-                          `Tel : 06 73 07 23 22`,
+                        `Bonjour ${name || ""},\n\n` +
+                          `✅ Votre course *${refId}* est confirmée !\n\n` +
+                          `🕐 Prise en charge : ${pickupStr}\n` +
+                          `📍 Départ : ${r.depart}\n` +
+                          `🏁 Arrivée : ${dest || "—"}\n` +
+                          `👥 ${paxLine}\n` +
+                          `💰 Prix estimé : *${prixStr}* (tarif ${tarif_nuit_wa ? "nuit" : "jour"})\n\n` +
+                          (trackingUrl ? `📲 Suivez votre chauffeur :\n${trackingUrl}\n\n` : "") +
+                          `📞 06 73 07 23 22 (7j/7 · 24h/24)`,
                       );
                       window.open(`https://wa.me/${waPhone}?text=${waMsg}`, "_blank", "noopener,noreferrer");
                     }}
