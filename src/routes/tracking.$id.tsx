@@ -251,11 +251,8 @@ function TrackingPage() {
         }
       ).subscribe();
 
-      const prevCleanup = channelRef.current;
-      channelRef.current = {
-        _channels: [prevCleanup, resaChannel],
-        unsubscribe: () => {},
-      };
+      const gpsChannel = channelRef.current;
+      channelRef.current = [gpsChannel, resaChannel];
     };
     init();
     return () => {
