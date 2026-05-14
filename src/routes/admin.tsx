@@ -16,7 +16,6 @@ const NAV_LINKS = [
   { to: "/admin/dashboard", icon: "📊", label: "Dashboard" },
   { to: "/admin/courses", icon: "🚗", label: "Courses" },
   { to: "/admin/clients", icon: "👥", label: "Clients" },
-  { to: "/admin/gps", icon: "📍", label: "GPS" },
 ];
 
 function AdminLayout() {
