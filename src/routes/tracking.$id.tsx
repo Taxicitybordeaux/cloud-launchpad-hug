@@ -166,7 +166,7 @@ function TrackingPage() {
       const dep = resa.depart ?? null;
       const dest = (resa.destination ?? resa.arrivee) ?? null;
       const prix = resa.prix_estime;
-      if (!dep && !dest && (prix == null || prix === "")) {
+      if (!dep && !dest && prix == null) {
         toast.warning("ℹ️ Détails de la course incomplets", {
           description: "Le départ, la destination et le prix ne sont pas encore renseignés. Notre équipe finalise votre réservation.",
           duration: 7000,
