@@ -254,22 +254,43 @@ function Dashboard() {
         <h1 style={{ fontFamily: "'Syne',sans-serif", fontSize: 26, fontWeight: 800, color: "#f8fafc", margin: 0 }}>
           Dashboard
         </h1>
-        <button
-          onClick={fetchAll}
-          style={{
-            padding: "8px 14px",
-            background: "rgba(14,165,233,0.15)",
-            border: "1px solid rgba(14,165,233,0.3)",
-            color: "#0ea5e9",
-            borderRadius: 10,
-            cursor: "pointer",
-            fontWeight: 600,
-            fontSize: 13,
-            whiteSpace: "nowrap",
-          }}
-        >
-          ↻ Actualiser
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <a
+            href="/"
+            style={{
+              padding: "8px 14px",
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              color: "#94a3b8",
+              borderRadius: 10,
+              fontWeight: 600,
+              fontSize: 13,
+              whiteSpace: "nowrap",
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            ← Retour au site
+          </a>
+          <button
+            onClick={fetchAll}
+            style={{
+              padding: "8px 14px",
+              background: "rgba(14,165,233,0.15)",
+              border: "1px solid rgba(14,165,233,0.3)",
+              color: "#0ea5e9",
+              borderRadius: 10,
+              cursor: "pointer",
+              fontWeight: 600,
+              fontSize: 13,
+              whiteSpace: "nowrap",
+            }}
+          >
+            ↻ Actualiser
+          </button>
+        </div>
       </div>
 
       {/* ── PROCHAINE COURSE ACCEPTÉE ── */}
@@ -626,81 +647,6 @@ function Dashboard() {
             </div>
           );
         })()}
-
-      {/* GPS card */}
-      <div style={{ ...card, marginBottom: 20 }}>
-        {gpsLoading ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <Skeleton width={48} height={48} radius="50%" />
-            <div style={{ flex: 1, display: "grid", gap: 8 }}>
-              <Skeleton width="50%" height={16} />
-              <Skeleton width="80%" height={12} />
-            </div>
-          </div>
-        ) : (
-          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 14 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: "50%",
-                  flexShrink: 0,
-                  background: gpsActive ? "#22c55e" : "#475569",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 20,
-                  boxShadow: gpsActive ? "0 0 0 6px rgba(34,197,94,0.18)" : "none",
-                  transition: "all 0.2s",
-                }}
-              >
-                📡
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, color: "#f8fafc", fontSize: 15 }}>
-                  {gpsActive ? "GPS actif" : "GPS inactif"}
-                </div>
-                <div
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: 12,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {gpsActive
-                    ? gpsPos
-                      ? `${gpsPos.lat.toFixed(5)}, ${gpsPos.lng.toFixed(5)}`
-                      : "Acquisition…"
-                    : "Vos clients ne peuvent pas vous suivre"}
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={gpsActive ? stopGps : startGps}
-              disabled={gpsBusy}
-              style={{
-                padding: "11px 20px",
-                width: "100%",
-                background: gpsActive ? "#ef4444" : "#22c55e",
-                color: "#fff",
-                border: 0,
-                borderRadius: 12,
-                cursor: gpsBusy ? "wait" : "pointer",
-                fontFamily: "'Syne',sans-serif",
-                fontWeight: 800,
-                fontSize: 14,
-                opacity: gpsBusy ? 0.7 : 1,
-                boxShadow: gpsActive ? "0 6px 18px rgba(239,68,68,0.3)" : "0 6px 18px rgba(34,197,94,0.3)",
-              }}
-            >
-              {gpsActive ? "⏹ Désactiver le GPS" : "📡 Activer mon GPS"}
-            </button>
-          </div>
-        )}
-      </div>
 
       {/* KPI stat cards — 2 colonnes sur mobile, 4 sur desktop */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, marginBottom: 14 }}>
