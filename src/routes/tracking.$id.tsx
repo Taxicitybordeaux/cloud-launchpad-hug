@@ -393,6 +393,21 @@ function TrackingPage() {
           )}
         </div>
 
+        {reservation?.pickup_datetime && (() => {
+          const d = new Date(reservation.pickup_datetime);
+          const formatted = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+          const time = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+          return (
+            <div style={{ marginTop: 12, background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 14, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 20 }}>🕒</span>
+              <div>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#334155", letterSpacing: "0.08em" }}>PRISE EN CHARGE</div>
+                <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 15, fontWeight: 700, color: "#f1f5f9", marginTop: 3, textTransform: "capitalize" }}>{formatted} · {time}</div>
+              </div>
+            </div>
+          );
+        })()}
+
         {reservation?.client_name && (
           <div style={{ marginTop: 12, background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.18)", borderRadius: 14, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
             <span style={{ fontSize: 20 }}>👋</span>
