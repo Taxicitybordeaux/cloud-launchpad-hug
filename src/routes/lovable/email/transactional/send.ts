@@ -41,8 +41,10 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
           return Response.json({ error: "Server configuration error" }, { status: 500 });
         }
 
-        // Verify the caller has a valid Supabase auth token.
-        // In TanStack, there is no Supabase gateway — we validate the JWT ourselves.
+        // Verify the caller is authorized.
+        // Accepts either:
+        //   1. A valid Supabase user JWT (standard auth flow)
+        //   2. The service role key (internal admin calls — PIN-based admin has no Supabase session)
         const authHeader = request.headers.get("Authorization");
         if (!authHeader?.startsWith("Bearer ")) {
           return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -50,13 +52,18 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
 
         const token = authHeader.slice("Bearer ".length).trim();
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
-        const {
-          data: { user },
-          error: authError,
-        } = await supabase.auth.getUser(token);
 
-        if (authError || !user) {
-          return Response.json({ error: "Unauthorized" }, { status: 401 });
+        // Fast-path: internal admin call authenticated with the service role key
+        const isServiceRoleCall = token === supabaseServiceKey;
+        if (!isServiceRoleCall) {
+          // Normal path: validate as a Supabase user JWT
+          const {
+            data: { user },
+            error: authError,
+          } = await supabase.auth.getUser(token);
+          if (authError || !user) {
+            return Response.json({ error: "Unauthorized" }, { status: 401 });
+          }
         }
 
         // Parse request body
