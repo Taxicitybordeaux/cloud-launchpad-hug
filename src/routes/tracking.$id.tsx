@@ -38,6 +38,43 @@ function TrackingPage() {
   const mapInstanceRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
   const channelRef = useRef<any>(null);
+  const routeLayerRef = useRef<any>(null);
+  const departMarkerRef = useRef<any>(null);
+  const destMarkerRef = useRef<any>(null);
+
+  const geocode = async (q: string): Promise<[number, number] | null> => {
+    try {
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q + ", Bordeaux, France")}`, { headers: { Accept: "application/json" } });
+      const j = await r.json();
+      if (Array.isArray(j) && j[0]) return [parseFloat(j[0].lat), parseFloat(j[0].lon)];
+      return null;
+    } catch { return null; }
+  };
+
+  const drawTripRoute = async (depart: string, destination: string) => {
+    const map = mapInstanceRef.current;
+    const L = (window as any).L;
+    if (!map || !L) return;
+    const [a, b] = await Promise.all([geocode(depart), geocode(destination)]);
+    if (!a || !b) return;
+    try {
+      const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${a[1]},${a[0]};${b[1]},${b[0]}?overview=full&geometries=geojson`);
+      const data = await res.json();
+      const coords: [number, number][] = data?.routes?.[0]?.geometry?.coordinates?.map((c: [number, number]) => [c[1], c[0]]) ?? [a, b];
+      if (routeLayerRef.current) { routeLayerRef.current.remove(); routeLayerRef.current = null; }
+      routeLayerRef.current = L.polyline(coords, { color: "#0ea5e9", weight: 5, opacity: 0.85, lineCap: "round", lineJoin: "round" }).addTo(map);
+      const departIcon = L.divIcon({ className: "", html: `<div style="width:30px;height:30px;background:#22c55e;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:14px">🟢</div>`, iconSize: [30, 30], iconAnchor: [15, 15] });
+      const destIcon = L.divIcon({ className: "", html: `<div style="width:30px;height:30px;background:#ef4444;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:14px">📍</div>`, iconSize: [30, 30], iconAnchor: [15, 15] });
+      if (departMarkerRef.current) departMarkerRef.current.remove();
+      if (destMarkerRef.current) destMarkerRef.current.remove();
+      departMarkerRef.current = L.marker(a, { icon: departIcon }).addTo(map).bindPopup("Départ");
+      destMarkerRef.current = L.marker(b, { icon: destIcon }).addTo(map).bindPopup("Destination");
+      const all = [...coords];
+      if (markerRef.current) all.push(markerRef.current.getLatLng());
+      map.fitBounds(L.latLngBounds(all).pad(0.2));
+    } catch { /* noop */ }
+  };
+
 
   const calculateETA = async (lat: number, lng: number) => {
     try {
