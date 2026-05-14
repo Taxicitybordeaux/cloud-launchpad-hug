@@ -29,6 +29,10 @@ const tabLabels: Record<string, string> = {
   refused: "Refusées",
 };
 
+// Tarifs officiels Bordeaux
+const TARIF_JOUR_LABEL = "2,16 €/km";
+const TARIF_NUIT_LABEL = "3,26 €/km";
+
 /** Formate une date ISO en heure de Paris (Europe/Paris) */
 function formatParis(iso: string, opts?: Intl.DateTimeFormatOptions) {
   return new Date(iso).toLocaleString("fr-FR", {
@@ -40,14 +44,17 @@ function formatParis(iso: string, opts?: Intl.DateTimeFormatOptions) {
 /** Détecte si une heure ISO tombe en tarif nuit (20h-6h, heure de Paris) */
 function isNuit(iso: string): boolean {
   const h = parseInt(
-    new Date(iso).toLocaleString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", hour12: false }),
+    new Date(iso).toLocaleString("fr-FR", {
+      timeZone: "Europe/Paris",
+      hour: "2-digit",
+      hour12: false,
+    }),
     10,
   );
   return h >= 20 || h < 6;
 }
 
-// ─── QR Code SVG généré côté client (sans dépendance externe) ───
-// Utilise l'API de qrserver.com pour générer l'image QR
+// ─── Modal QR Code ───
 function QrModal({ url, onClose }: { url: string; onClose: () => void }) {
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(url)}`;
   return (
@@ -289,7 +296,19 @@ function CoursesPage() {
       } catch {}
     }
 
-    // 📧 Email client
+    const pickupFormatted = r.pickup_datetime
+      ? formatParis(r.pickup_datetime, { dateStyle: "full", timeStyle: "short" })
+      : undefined;
+
+    const prixStr = prixCalcule
+      ? `${Number(prixCalcule).toFixed(2)} €`
+      : r.prix_estime
+        ? `${r.prix_estime} €`
+        : "à confirmer";
+
+    const tarifLabel = tarif_nuit ? `Nuit (${TARIF_NUIT_LABEL})` : `Jour (${TARIF_JOUR_LABEL})`;
+
+    // 📧 Email client via Lovable transactional
     let emailOk = false;
     let emailDetail = "Aucun email client renseigné";
     if (email && url) {
@@ -297,14 +316,14 @@ function CoursesPage() {
         const { data: sess } = await supabase.auth.getSession();
         const accessToken = sess?.session?.access_token;
         if (!accessToken) {
-          emailDetail = "Session admin expirée";
+          emailDetail = "Session admin expirée — email non envoyé";
         } else {
-          const pickupFormatted = r.pickup_datetime
-            ? formatParis(r.pickup_datetime, { dateStyle: "full", timeStyle: "short" })
-            : undefined;
           const res = await fetch("/lovable/email/transactional/send", {
             method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${accessToken}`,
+            },
             body: JSON.stringify({
               templateName: "course-accepted",
               recipientEmail: email,
@@ -314,34 +333,25 @@ function CoursesPage() {
                 depart: r.depart,
                 arrivee: r.arrivee || r.destination,
                 pickup_datetime: pickupFormatted,
-                prix: prixCalcule
-                  ? `${Number(prixCalcule).toFixed(2)} €`
-                  : r.prix_estime
-                    ? `${r.prix_estime} €`
-                    : undefined,
-                tarif: tarif_nuit ? "Nuit (3,26 €/km)" : "Jour (2,50 €/km)",
+                prix: prixStr,
+                tarif: tarifLabel,
                 tracking_url: url,
               },
             }),
           });
           emailOk = res.ok;
-          emailDetail = res.ok ? `Email envoyé à ${email}` : `Échec envoi email (${res.status})`;
+          emailDetail = res.ok
+            ? `✉️ Email envoyé à ${email}`
+            : `⚠️ Échec email (${res.status}) — vérifiez le template "course-accepted" dans Lovable`;
         }
-      } catch (e) {
-        emailDetail = "Échec envoi email (réseau)";
+      } catch {
+        emailDetail = "⚠️ Échec email (réseau)";
       }
     }
 
-    // 💬 WhatsApp — ouvre directement dans l'onglet
+    // 💬 WhatsApp — ouvre dans un nouvel onglet
     const waPhone = (phone || "").replace(/[^\d]/g, "").replace(/^0/, "33");
-    const pickupStr = r.pickup_datetime
-      ? formatParis(r.pickup_datetime, { dateStyle: "full", timeStyle: "short" })
-      : "—";
-    const prixStr = prixCalcule
-      ? `${Number(prixCalcule).toFixed(2)} €`
-      : r.prix_estime
-        ? `${r.prix_estime} €`
-        : "à confirmer";
+    const pickupStr = pickupFormatted ?? "—";
 
     const waMsg = encodeURIComponent(
       `Bonjour ${name || ""},\n\n` +
@@ -355,13 +365,12 @@ function CoursesPage() {
     );
     const waUrl = waPhone ? `https://wa.me/${waPhone}?text=${waMsg}` : `https://wa.me/?text=${waMsg}`;
 
-    // Ouvre WhatsApp automatiquement
     if (typeof window !== "undefined") {
       window.open(waUrl, "_blank", "noopener,noreferrer");
     }
 
     toast.success(`Course acceptée — ${name || "client"}`, {
-      description: `${emailOk ? "✉️ " : "⚠️ "}${emailDetail} · 💬 WhatsApp ouvert`,
+      description: `${emailDetail} · 💬 WhatsApp ouvert`,
       duration: 8000,
       action: {
         label: "📲 QR Code",
@@ -396,8 +405,73 @@ function CoursesPage() {
     return true;
   };
 
+  // =========================
+  // RENVOYER EMAIL (sur une course acceptée)
+  // =========================
+  const handleSendEmail = async (r: R) => {
+    const email = r.client_email || r.email;
+    const name = r.client_name || r.nom;
+    if (!email) {
+      toast.error("Pas d'email", { description: "Aucune adresse email pour ce client." });
+      return;
+    }
+    const tarif_nuit = r.pickup_datetime ? isNuit(r.pickup_datetime) : r.tarif_jour === false;
+    const km = r.distance_km ? Number(r.distance_km) : null;
+    const prixCalcule = km ? calculerPrix(km, !tarif_nuit) : null;
+    const prixStr = prixCalcule
+      ? `${Number(prixCalcule).toFixed(2)} €`
+      : r.prix_estime
+        ? `${Number(r.prix_estime).toFixed(2)} €`
+        : "à confirmer";
+    const pickupFormatted = r.pickup_datetime
+      ? formatParis(r.pickup_datetime, { dateStyle: "full", timeStyle: "short" })
+      : undefined;
+    const trackingUrl =
+      r.tracking_id && typeof window !== "undefined" ? `${window.location.origin}/scan/${r.tracking_id}` : null;
+
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const accessToken = sess?.session?.access_token;
+      if (!accessToken) {
+        toast.error("Session expirée", { description: "Reconnectez-vous à l'admin." });
+        return;
+      }
+      const res = await fetch("/lovable/email/transactional/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          templateName: "course-accepted",
+          recipientEmail: email,
+          idempotencyKey: `course-accepted-resend-${r.id}-${Date.now()}`,
+          templateData: {
+            nom: name,
+            depart: r.depart,
+            arrivee: r.arrivee || r.destination,
+            pickup_datetime: pickupFormatted,
+            prix: prixStr,
+            tarif: tarif_nuit ? `Nuit (${TARIF_NUIT_LABEL})` : `Jour (${TARIF_JOUR_LABEL})`,
+            tracking_url: trackingUrl ?? "",
+          },
+        }),
+      });
+      if (res.ok) {
+        toast.success(`Email envoyé à ${email}`);
+      } else {
+        toast.error(`Échec envoi email (${res.status})`, {
+          description: 'Vérifiez le template "course-accepted" dans Lovable.',
+        });
+      }
+    } catch {
+      toast.error("Erreur réseau", { description: "Impossible d'envoyer l'email." });
+    }
+  };
+
   const filtered = items.filter((r) => normalizeStatus(r.status) === tab);
-  const simPrix = calculerPrix(simKm, simJour);
+  const simPrixJour = calculerPrix(simKm, true);
+  const simPrixNuit = calculerPrix(simKm, false);
 
   // =========================
   // UI
@@ -457,15 +531,14 @@ function CoursesPage() {
                 }}
               />
               <span style={{ color: "#94a3b8" }}>km</span>
-              <label style={{ color: "#cbd5e1", display: "flex", alignItems: "center", gap: 8 }}>
-                <input type="checkbox" checked={simJour} onChange={(e) => setSimJour(e.target.checked)} />
-                Tarif jour
-              </label>
-              <span style={{ color: "#94a3b8" }}>
-                ≈ <b style={{ color: "#0ea5e9" }}>{simPrix} €</b>
+              <span style={{ color: "#fbbf24" }}>
+                ☀️ Jour : <b style={{ color: "#0ea5e9" }}>{simPrixJour} €</b>
+              </span>
+              <span style={{ color: "#818cf8" }}>
+                🌙 Nuit : <b style={{ color: "#0ea5e9" }}>{simPrixNuit} €</b>
               </span>
             </div>
-            {/* Rappel des tarifs */}
+            {/* Rappel des tarifs officiels */}
             <div
               style={{
                 display: "flex",
@@ -486,7 +559,7 @@ function CoursesPage() {
                   fontWeight: 700,
                 }}
               >
-                ☀️ Jour : 2,50 €/km
+                ☀️ Jour : {TARIF_JOUR_LABEL} — 6h → 20h
               </span>
               <span
                 style={{
@@ -497,10 +570,10 @@ function CoursesPage() {
                   fontWeight: 700,
                 }}
               >
-                🌙 Nuit : 3,26 €/km
+                🌙 Nuit : {TARIF_NUIT_LABEL} — 20h → 6h
               </span>
               <span style={{ color: "#475569", fontSize: 11, alignSelf: "center" }}>
-                Nuit = 20h00 → 06h00 (heure de Paris)
+                + Prise en charge 2,83 € · Heure de Paris
               </span>
             </div>
           </div>
@@ -534,8 +607,11 @@ function CoursesPage() {
         <>
           <CourseCardSkeleton />
           <CourseCardSkeleton />
-          <CourseCardSkeleton />
         </>
+      )}
+
+      {!loading && filtered.length === 0 && (
+        <div style={{ textAlign: "center", color: "#475569", padding: 40 }}>Aucune réservation</div>
       )}
 
       {!loading &&
@@ -596,8 +672,24 @@ function CoursesPage() {
                 }}
               >
                 {r.distance_km && <span>🚕 {r.distance_km} km</span>}
-                {prix && <span style={{ color: "#0ea5e9", fontWeight: 700 }}>💰 {Number(prix).toFixed(2)} €</span>}
+                {prix !== null && prix !== undefined && (
+                  <span style={{ color: "#0ea5e9", fontWeight: 700 }}>💰 {Number(prix).toFixed(2)} €</span>
+                )}
                 <span>👥 {r.nb_passagers || r.passagers || 1} passager(s)</span>
+                {r.bagages > 0 && <span>🧳 {r.bagages} bagage(s)</span>}
+                {r.service_type && r.service_type !== "standard" && (
+                  <span
+                    style={{
+                      background: "rgba(14,165,233,0.1)",
+                      color: "#38bdf8",
+                      padding: "2px 8px",
+                      borderRadius: 99,
+                      fontWeight: 600,
+                    }}
+                  >
+                    🚖 {r.service_type}
+                  </span>
+                )}
                 <span
                   style={{
                     background: tarif_nuit_card ? "rgba(99,102,241,0.15)" : "rgba(250,204,21,0.12)",
@@ -607,7 +699,7 @@ function CoursesPage() {
                     fontWeight: 700,
                   }}
                 >
-                  {tarif_nuit_card ? "🌙 Nuit 3,26€/km" : "☀️ Jour 2,50€/km"}
+                  {tarif_nuit_card ? `🌙 Nuit ${TARIF_NUIT_LABEL}` : `☀️ Jour ${TARIF_JOUR_LABEL}`}
                 </span>
               </div>
 
@@ -632,7 +724,7 @@ function CoursesPage() {
               {/* Contacts */}
               <div style={{ marginTop: 14, display: "flex", gap: 14, flexWrap: "wrap" }}>
                 {phone && (
-                  <a href={`tel:${phone}`} style={{ color: "#0ea5e9", textDecoration: "none" }}>
+                  <a href={`tel:${phone}`} style={{ color: "#0ea5e9", textDecoration: "none", fontWeight: 600 }}>
                     📞 {phone}
                   </a>
                 )}
@@ -644,7 +736,7 @@ function CoursesPage() {
               </div>
 
               {/* Motif refus */}
-              {normalizeStatus(r.status) === "refused" && (r as any).refus_motif && (
+              {normalizeStatus(r.status) === "refused" && r.refus_motif && (
                 <div
                   style={{
                     marginTop: 14,
@@ -657,12 +749,13 @@ function CoursesPage() {
                     lineHeight: 1.5,
                   }}
                 >
-                  <span style={{ fontWeight: 700, color: "#fca5a5" }}>Motif du refus :</span> {(r as any).refus_motif}
+                  <span style={{ fontWeight: 700, color: "#fca5a5" }}>Motif du refus :</span> {r.refus_motif}
                 </div>
               )}
 
-              {/* BOUTONS */}
-              <div style={{ marginTop: 18, display: "flex", gap: 10, flexWrap: "wrap" }}>
+              {/* BOUTONS D'ACTION */}
+              <div style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {/* Accepter / Refuser — uniquement sur pending */}
                 {normalizeStatus(r.status) === "pending" && (
                   <>
                     <button
@@ -675,6 +768,7 @@ function CoursesPage() {
                         borderRadius: 12,
                         cursor: "pointer",
                         fontWeight: 700,
+                        fontSize: 13,
                       }}
                     >
                       ✓ Accepter
@@ -689,6 +783,7 @@ function CoursesPage() {
                         borderRadius: 12,
                         cursor: "pointer",
                         fontWeight: 700,
+                        fontSize: 13,
                       }}
                     >
                       ✗ Refuser
@@ -696,7 +791,7 @@ function CoursesPage() {
                   </>
                 )}
 
-                {/* Bouton QR Code — visible sur courses acceptées ET pending si tracking_id existe */}
+                {/* QR Code — visible dès que tracking_id existe */}
                 {trackingUrl && (
                   <button
                     onClick={() => setQrModal({ url: trackingUrl })}
@@ -715,8 +810,8 @@ function CoursesPage() {
                   </button>
                 )}
 
-                {/* Bouton WhatsApp rapide sur courses acceptées */}
-                {normalizeStatus(r.status) === "accepted" && phone && trackingUrl && (
+                {/* WhatsApp rapide — courses acceptées */}
+                {normalizeStatus(r.status) === "accepted" && phone && (
                   <button
                     onClick={() => {
                       const waPhone = (phone || "").replace(/[^\d]/g, "").replace(/^0/, "33");
@@ -727,7 +822,8 @@ function CoursesPage() {
                       const waMsg = encodeURIComponent(
                         `Bonjour ${name || ""},\n\n✅ Votre course Taxi City Bordeaux est *confirmée*.\n\n` +
                           `🕐 Prise en charge : ${pickupStr}\n📍 Départ : ${r.depart}\n🏁 Arrivée : ${dest || "—"}\n💰 Prix : ${prixStr}\n\n` +
-                          `📲 Suivre le chauffeur :\n${trackingUrl}\n\n📞 06 73 07 23 22`,
+                          (trackingUrl ? `📲 Suivre le chauffeur :\n${trackingUrl}\n\n` : "") +
+                          `📞 06 73 07 23 22`,
                       );
                       window.open(`https://wa.me/${waPhone}?text=${waMsg}`, "_blank", "noopener,noreferrer");
                     }}
@@ -745,14 +841,29 @@ function CoursesPage() {
                     💬 WhatsApp
                   </button>
                 )}
+
+                {/* ✉️ Bouton Email — toutes les courses avec un email */}
+                {email && (
+                  <button
+                    onClick={() => handleSendEmail(r)}
+                    style={{
+                      background: "rgba(14,165,233,0.12)",
+                      border: "1px solid rgba(14,165,233,0.3)",
+                      color: "#38bdf8",
+                      padding: "12px 18px",
+                      borderRadius: 12,
+                      cursor: "pointer",
+                      fontWeight: 700,
+                      fontSize: 13,
+                    }}
+                  >
+                    ✉️ Email client
+                  </button>
+                )}
               </div>
             </div>
           );
         })}
-
-      {!loading && filtered.length === 0 && (
-        <div style={{ textAlign: "center", color: "#475569", padding: 40 }}>Aucune réservation</div>
-      )}
 
       {/* MODALE DE CONFIRMATION */}
       {confirmAction && (
@@ -826,10 +937,38 @@ function CoursesPage() {
                     fontWeight: 700,
                   }}
                 >
-                  {isNuit(confirmAction.r.pickup_datetime) ? "🌙 Tarif nuit 3,26€/km" : "☀️ Tarif jour 2,50€/km"}
+                  {isNuit(confirmAction.r.pickup_datetime)
+                    ? `🌙 Tarif nuit ${TARIF_NUIT_LABEL}`
+                    : `☀️ Tarif jour ${TARIF_JOUR_LABEL}`}
                 </span>
               </div>
             )}
+
+            {/* Prix estimé dans la modale */}
+            {(() => {
+              const r = confirmAction.r;
+              const tarif_nuit = r.pickup_datetime ? isNuit(r.pickup_datetime) : false;
+              const km = r.distance_km ? Number(r.distance_km) : null;
+              const prix = r.prix_estime ?? (km ? calculerPrix(km, !tarif_nuit) : null);
+              if (!prix) return null;
+              return (
+                <div
+                  style={{
+                    background: "rgba(14,165,233,0.08)",
+                    border: "1px solid rgba(14,165,233,0.2)",
+                    borderRadius: 10,
+                    padding: "8px 12px",
+                    fontSize: 15,
+                    color: "#0ea5e9",
+                    fontWeight: 800,
+                    marginBottom: 10,
+                    fontFamily: "'Syne',sans-serif",
+                  }}
+                >
+                  💰 {Number(prix).toFixed(2)} €
+                </div>
+              );
+            })()}
 
             {(() => {
               const ph = confirmAction.r.client_phone || confirmAction.r.telephone;
