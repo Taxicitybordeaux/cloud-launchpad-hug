@@ -17,14 +17,14 @@ import {
   HelpCircle,
 } from "lucide-react";
 import logo from "@/assets/logo.jpeg";
-import heroCar from "@/assets/pont_chaban_bordeaux.jpg";
-import destGare from "@/assets/gare_st_jean.jpg";
+import heroCar from "@/assets/hero-bordeaux.jpg";
+import destGare from "@/assets/dest-gare.jpg";
 import destAeroport from "@/assets/dest-aeroport.jpg";
 import destVignobles from "@/assets/dest-vignobles.jpg";
 import bestCiteVin from "@/assets/best-cite-vin.jpg";
 import bestDunePilat from "@/assets/best-dune-pilat.jpg";
 import bestSaintEmilion from "@/assets/best-saint-emilion.jpg";
-import bestMiroirEau from "@/assets/mirroir_d_eau.jpg";
+import bestMiroirEau from "@/assets/best-miroir-eau.jpg";
 import { useT } from "@/i18n/I18nProvider";
 import { FareSimulator } from "@/components/FareSimulator";
 import { ReviewForm } from "@/components/ReviewForm";
