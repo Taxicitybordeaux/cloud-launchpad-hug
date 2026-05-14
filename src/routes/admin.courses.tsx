@@ -174,6 +174,8 @@ function CoursesPage() {
   const [refusalReason, setRefusalReason] = useState("");
   const [autoKm, setAutoKm] = useState<number | null>(null);
   const [kmLoading, setKmLoading] = useState(false);
+  const [cardKm, setCardKm] = useState<Record<string, number>>({}); // id → km calculé
+  const [cardKmLoading, setCardKmLoading] = useState<Record<string, boolean>>({});
   const [qrModal, setQrModal] = useState<{ url: string } | null>(null);
   const initialLoad = useRef(true);
 
@@ -196,6 +198,8 @@ function CoursesPage() {
     });
     setCounts(nextCounts);
     setLoading(false);
+    // Calcule et sauvegarde automatiquement les prix manquants
+    repairMissingPrices(rows);
   }, []);
 
   // =========================
@@ -228,6 +232,26 @@ function CoursesPage() {
       supabase.removeChannel(ch);
     };
   }, [fetchAll]);
+
+  // Répare automatiquement le prix des courses acceptées sans prix_estime
+  const repairMissingPrices = useCallback(async (rows: R[]) => {
+    const toRepair = rows.filter(
+      (r) =>
+        normalizeStatus(r.status) === "accepted" && r.prix_estime == null && r.depart && (r.arrivee || r.destination),
+    );
+    for (const r of toRepair) {
+      setCardKmLoading((prev) => ({ ...prev, [r.id]: true }));
+      try {
+        const km = await fetchDistanceKm(r.depart, r.arrivee || r.destination);
+        const tarif_nuit = r.pickup_datetime ? isNuit(r.pickup_datetime) : false;
+        const prix = calculerPrix(km, !tarif_nuit);
+        // Sauvegarde en base pour ne plus avoir à recalculer
+        await supabase.from("reservations").update({ distance_km: km, prix_estime: prix }).eq("id", r.id);
+        setCardKm((prev) => ({ ...prev, [r.id]: km }));
+      } catch {}
+      setCardKmLoading((prev) => ({ ...prev, [r.id]: false }));
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // =========================
   // CALCUL DISTANCE AUTO — OpenRouteService (gratuit, 2000 req/jour, CORS ok)
@@ -672,9 +696,14 @@ function CoursesPage() {
           const name = r.client_name || r.nom;
           const dest = r.destination || r.arrivee;
           const tarif_nuit_card = r.pickup_datetime ? isNuit(r.pickup_datetime) : r.tarif_jour === false;
-          const km_card = r.distance_km ? Number(r.distance_km) : null;
+          const km_card = r.distance_km ? Number(r.distance_km) : (cardKm[r.id] ?? null);
           const prix =
-            r.prix_estime != null ? Number(r.prix_estime) : km_card ? calculerPrix(km_card, !tarif_nuit_card) : null;
+            r.prix_estime != null
+              ? Number(r.prix_estime)
+              : km_card != null
+                ? calculerPrix(km_card, !tarif_nuit_card)
+                : null;
+          const isPrixLoading = cardKmLoading[r.id] ?? false;
 
           const pickupFormatted = r.pickup_datetime
             ? formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })
@@ -725,9 +754,11 @@ function CoursesPage() {
                 }}
               >
                 {r.distance_km && <span>🚕 {r.distance_km} km</span>}
-                {prix !== null && prix !== undefined && (
+                {isPrixLoading ? (
+                  <span style={{ color: "#64748b", fontStyle: "italic" }}>📡 calcul prix…</span>
+                ) : prix !== null && prix !== undefined ? (
                   <span style={{ color: "#0ea5e9", fontWeight: 700 }}>💰 {Number(prix).toFixed(2)} €</span>
-                )}
+                ) : null}
                 <span>👥 {r.nb_passagers || r.passagers || 1} passager(s)</span>
                 {r.bagages > 0 && <span>🧳 {r.bagages} bagage(s)</span>}
                 {r.service_type && r.service_type !== "standard" && (
