@@ -396,6 +396,7 @@ function TrackingPage() {
       if (moved < 8 && elapsed < 4000) return; // bruit GPS → on ignore
     }
     lastAppliedPosRef.current = { lat, lng, t: now };
+    lastDriverPosRef.current = { lat, lng };
 
     // Recharge la trace OSRM toutes les 15s pour rester aligné aux rues
     if (pickupCoordsRef.current && now - lastApproachAtRef.current > 15000) {
@@ -404,27 +405,46 @@ function TrackingPage() {
     }
     // Animation fluide du marqueur + grignotage de la polyline
     animateMarkerTo(lat, lng);
-    // Suivi "intelligent" : on ne bouge la carte que si le taxi approche du bord
-    // (zone morte = 60% centrale du viewport). Évite les saccades quand il est déjà au centre.
+
+    // Suivi "intelligent" :
+    // - désactivé si l'utilisateur a déplacé la map (jusqu'à clic "Recentrer")
+    // - seuil minimal de 15 m de mouvement réel pour déclencher un panTo
+    // - panTo seulement si le taxi sort de la zone morte (% configurable)
+    if (userPannedRef.current) {
+      await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
+      return;
+    }
+    const distFromCenter = (() => {
+      try {
+        const c = map.getCenter();
+        return distMeters({ lat: c.lat, lng: c.lng }, { lat, lng });
+      } catch { return 0; }
+    })();
+    if (distFromCenter < 15) {
+      await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
+      return;
+    }
     try {
       const bounds = map.getBounds();
       const sw = bounds.getSouthWest();
       const ne = bounds.getNorthEast();
-      const padLat = (ne.lat - sw.lat) * 0.2; // 20% de marge → zone morte 60%
-      const padLng = (ne.lng - sw.lng) * 0.2;
+      const margin = (1 - deadZonePct / 100) / 2; // 60% → 0.2
+      const padLat = (ne.lat - sw.lat) * margin;
+      const padLng = (ne.lng - sw.lng) * margin;
       const outside =
         lat < sw.lat + padLat ||
         lat > ne.lat - padLat ||
         lng < sw.lng + padLng ||
         lng > ne.lng - padLng;
       if (outside) {
-        map.panTo([lat, lng], { animate: true, duration: 1.4, easeLinearity: 0.25 });
+        // panTo SANS modifier le zoom — on garde le zoom utilisateur
+        map.panTo([lat, lng], { animate: true, duration: 1.4, easeLinearity: 0.25, noMoveStart: true });
       }
     } catch {
       /* noop */
     }
     await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
-  }, []);
+  }, [deadZonePct]);
 
 
   const notifScheduledRef = useRef(false);
