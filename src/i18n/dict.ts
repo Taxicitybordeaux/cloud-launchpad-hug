@@ -393,7 +393,7 @@ const fr: Dict = {
   "wa.aria.hint": "Ouvre une conversation WhatsApp dans un nouvel onglet.",
   "wa.aria.draftReady": "Votre demande de réservation est prête à être envoyée sur WhatsApp.",
   "wa.default":
-    "Bonjour, je souhaite réserver un taxi avec Taxi City Bordeaux. Pouvez-vous me confirmer la disponibilité ? Merci.",
+    "Bonjour, je souhaite réserver un taxi. Pouvez-vous me confirmer la disponibilité ? Merci.",
   // Tracking page
   "suivi.title": "Suivi de votre chauffeur",
   "suivi.hello": "Bonjour",
