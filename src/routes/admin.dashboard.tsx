@@ -750,24 +750,44 @@ function Dashboard() {
                       })}
                     </span>
                     <span
+                      role="status"
+                      aria-label={
+                        prix !== null
+                          ? `Prix estimé : ${prix.toFixed(2)} euros`
+                          : "Prix non disponible"
+                      }
                       style={{
                         display: "inline-flex",
                         alignItems: "baseline",
-                        gap: 6,
-                        background: "rgba(14,165,233,0.12)",
-                        border: "1px solid rgba(14,165,233,0.3)",
-                        color: "#0ea5e9",
+                        gap: 8,
+                        background: "#0ea5e9",
+                        border: "1px solid #38bdf8",
+                        color: "#ffffff",
                         fontWeight: 800,
-                        fontSize: 15,
-                        padding: "4px 10px",
+                        fontSize: "clamp(15px, 4.2vw, 18px)",
+                        lineHeight: 1.2,
+                        padding: "6px 12px",
                         borderRadius: 999,
                         whiteSpace: "nowrap",
+                        boxShadow: "0 2px 8px rgba(14,165,233,0.35)",
                       }}
                     >
-                      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#7dd3fc" }}>
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          fontSize: "clamp(10px, 2.8vw, 12px)",
+                          fontWeight: 800,
+                          letterSpacing: "0.08em",
+                          textTransform: "uppercase",
+                          color: "#ffffff",
+                          opacity: 0.95,
+                        }}
+                      >
                         Prix
                       </span>
-                      {prix !== null ? `${prix.toFixed(2)} €` : "—"}
+                      <span aria-hidden="true">
+                        {prix !== null ? `${prix.toFixed(2)} €` : "—"}
+                      </span>
                     </span>
                   </div>
                   {r.status === "pending" && (
