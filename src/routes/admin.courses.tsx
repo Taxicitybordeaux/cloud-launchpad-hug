@@ -430,8 +430,11 @@ function CoursesPage() {
       }
     }
 
-    // 💬 WhatsApp
-    const waPhone = (phone || "").replace(/[^\d]/g, "").replace(/^0/, "33");
+    // 💬 WhatsApp — uniquement si on a un numéro client valide ≠ taxi
+    const TAXI_WA = "33673072322";
+    let waPhone = (phone || "").replace(/[^\d]/g, "");
+    if (waPhone.startsWith("0")) waPhone = "33" + waPhone.slice(1);
+    if (waPhone.startsWith("330")) waPhone = "33" + waPhone.slice(3);
     const pickupStr = pickupFormatted ?? "—";
     const refId = `TCB-${r.id.slice(0, 8).toUpperCase()}`;
     const paxLine = `${r.nb_passagers || r.passagers || 1} passager(s)${(r.bagages ?? 0) > 0 ? ` · ${r.bagages} bagage(s)` : ""}`;
@@ -447,10 +450,16 @@ function CoursesPage() {
         `📲 Suivez votre chauffeur en temps réel :\n${url}\n\n` +
         `📞 06 73 07 23 22 (7j/7 · 24h/24)`,
     );
-    const waUrl = waPhone ? `https://wa.me/${waPhone}?text=${waMsg}` : `https://wa.me/?text=${waMsg}`;
 
+    const validClientPhone = waPhone.length >= 10 && waPhone !== TAXI_WA;
     if (typeof window !== "undefined") {
-      window.open(waUrl, "_blank", "noopener,noreferrer");
+      if (validClientPhone) {
+        window.open(`https://wa.me/${waPhone}?text=${waMsg}`, "_blank", "noopener,noreferrer");
+      } else {
+        toast.warning("WhatsApp non envoyé", {
+          description: "Aucun numéro client valide pour cette réservation.",
+        });
+      }
     }
 
     toast.success(`Course acceptée — ${name || "client"}`, {
