@@ -96,8 +96,6 @@ function Dashboard() {
   const [coursesJ, setCoursesJ] = useState(0);
   const [clientsTotal, setClientsTotal] = useState(0);
   const [visitors, setVisitors] = useState(0);
-  const [qrImp, setQrImp] = useState(0);
-  const [qrClick, setQrClick] = useState(0);
   const [reservs, setReservs] = useState<any[]>([]);
   const [nextCourse, setNextCourse] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
