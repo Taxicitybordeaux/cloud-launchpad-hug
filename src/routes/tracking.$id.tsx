@@ -305,6 +305,48 @@ function TrackingPage() {
   const geoWatchIdRef = useRef<number | null>(null);
   const pickupCoordsRef = useRef<[number, number] | null>(null);
   const approachLayerRef = useRef<any>(null);
+  const lastAppliedPosRef = useRef<{ lat: number; lng: number; t: number } | null>(null);
+  const lastApproachAtRef = useRef<number>(0);
+
+  // Distance approx en mètres entre 2 coords (formule équirectangulaire — suffisant pour anti-jitter)
+  const distMeters = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+    const R = 6371000;
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const x = (toRad(b.lng) - toRad(a.lng)) * Math.cos(toRad((a.lat + b.lat) / 2));
+    const y = toRad(b.lat) - toRad(a.lat);
+    return Math.sqrt(x * x + y * y) * R;
+  };
+
+  // Applique une position chauffeur sur la carte avec anti-jitter :
+  // - ignore les déplacements < 8 m (bruit GPS) sauf si > 4 s écoulées
+  // - throttle l'appel OSRM d'approche à une fois toutes les 15 s
+  const applyDriverPosition = useCallback(async (lat: number, lng: number) => {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    const map = mapInstanceRef.current;
+    if (!map) {
+      await initMap(lat, lng);
+      lastAppliedPosRef.current = { lat, lng, t: Date.now() };
+      return;
+    }
+    const now = Date.now();
+    const last = lastAppliedPosRef.current;
+    if (last) {
+      const moved = distMeters(last, { lat, lng });
+      const elapsed = now - last.t;
+      if (moved < 8 && elapsed < 4000) return; // bruit GPS → on ignore
+    }
+    lastAppliedPosRef.current = { lat, lng, t: now };
+
+    if (markerRef.current) {
+      markerRef.current.setLatLng([lat, lng]);
+      map.panTo([lat, lng], { animate: true, duration: 1.5 });
+    }
+    if (pickupCoordsRef.current && now - lastApproachAtRef.current > 15000) {
+      lastApproachAtRef.current = now;
+      drawApproachLine(lat, lng, pickupCoordsRef.current);
+    }
+    await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
+  }, []);
 
   const notifScheduledRef = useRef(false);
   const schedulePickupNotification = useCallback((pickupDatetime: string) => {
