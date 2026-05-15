@@ -270,11 +270,28 @@ function TrackingPage() {
   // FIX MOBILE: hauteur carte calculée dynamiquement
   const [mapHeight, setMapHeight] = useState(260);
 
-  // Suivi carte : zone morte ajustable (% du viewport hors duquel on recentre)
-  const [deadZonePct, setDeadZonePct] = useState(60); // 30 = collant, 90 = très lâche
+  // Suivi carte : zone morte ajustable + auto-resume — persistés dans localStorage
+  const [deadZonePct, setDeadZonePct] = useState<number>(() => {
+    if (typeof window === "undefined") return 60;
+    const v = Number(window.localStorage.getItem("tcb_tracking_deadzone"));
+    return Number.isFinite(v) && v >= 30 && v <= 90 ? v : 60;
+  });
+  const [autoResume, setAutoResume] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem("tcb_tracking_autoresume") !== "0";
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem("tcb_tracking_deadzone", String(deadZonePct)); } catch { /* noop */ }
+  }, [deadZonePct]);
+  useEffect(() => {
+    try { window.localStorage.setItem("tcb_tracking_autoresume", autoResume ? "1" : "0"); } catch { /* noop */ }
+  }, [autoResume]);
+
   const [userPanned, setUserPanned] = useState(false); // l'utilisateur a déplacé la map → on arrête le suivi auto
   const userPannedRef = useRef(false);
   useEffect(() => { userPannedRef.current = userPanned; }, [userPanned]);
+  const autoResumeRef = useRef(true);
+  useEffect(() => { autoResumeRef.current = autoResume; }, [autoResume]);
   const lastDriverPosRef = useRef<{ lat: number; lng: number } | null>(null);
   const initialZoomRef = useRef<number | null>(null);
 
