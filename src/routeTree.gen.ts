@@ -33,6 +33,7 @@ import { Route as ApiPublicNotifyReservationClientRouteImport } from './routes/a
 import { Route as ApiPublicNotifyReservationRouteImport } from './routes/api/public/notify-reservation'
 import { Route as ApiPublicDriverLocationRouteImport } from './routes/api/public/driver-location'
 import { Route as ApiPublicContactRouteImport } from './routes/api/public/contact'
+import { Route as ApiAdminSendCourseEmailRouteImport } from './routes/api/admin/send-course-email'
 import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
@@ -161,6 +162,11 @@ const ApiPublicContactRoute = ApiPublicContactRouteImport.update({
   path: '/api/public/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminSendCourseEmailRoute = ApiAdminSendCourseEmailRouteImport.update({
+  id: '/api/admin/send-course-email',
+  path: '/api/admin/send-course-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LovableEmailTransactionalSendRoute =
   LovableEmailTransactionalSendRouteImport.update({
     id: '/lovable/email/transactional/send',
@@ -210,6 +216,7 @@ export interface FileRoutesByFullPath {
   '/scan/$id': typeof ScanIdRoute
   '/suivi/$id': typeof SuiviIdRoute
   '/tracking/$id': typeof TrackingIdRoute
+  '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
   '/api/public/contact': typeof ApiPublicContactRoute
   '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
@@ -241,6 +248,7 @@ export interface FileRoutesByTo {
   '/scan/$id': typeof ScanIdRoute
   '/suivi/$id': typeof SuiviIdRoute
   '/tracking/$id': typeof TrackingIdRoute
+  '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
   '/api/public/contact': typeof ApiPublicContactRoute
   '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
@@ -273,6 +281,7 @@ export interface FileRoutesById {
   '/scan/$id': typeof ScanIdRoute
   '/suivi/$id': typeof SuiviIdRoute
   '/tracking/$id': typeof TrackingIdRoute
+  '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
   '/api/public/contact': typeof ApiPublicContactRoute
   '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
@@ -306,6 +315,7 @@ export interface FileRouteTypes {
     | '/scan/$id'
     | '/suivi/$id'
     | '/tracking/$id'
+    | '/api/admin/send-course-email'
     | '/api/public/contact'
     | '/api/public/driver-location'
     | '/api/public/notify-reservation'
@@ -337,6 +347,7 @@ export interface FileRouteTypes {
     | '/scan/$id'
     | '/suivi/$id'
     | '/tracking/$id'
+    | '/api/admin/send-course-email'
     | '/api/public/contact'
     | '/api/public/driver-location'
     | '/api/public/notify-reservation'
@@ -368,6 +379,7 @@ export interface FileRouteTypes {
     | '/scan/$id'
     | '/suivi/$id'
     | '/tracking/$id'
+    | '/api/admin/send-course-email'
     | '/api/public/contact'
     | '/api/public/driver-location'
     | '/api/public/notify-reservation'
@@ -394,6 +406,7 @@ export interface RootRouteChildren {
   ScanIdRoute: typeof ScanIdRoute
   SuiviIdRoute: typeof SuiviIdRoute
   TrackingIdRoute: typeof TrackingIdRoute
+  ApiAdminSendCourseEmailRoute: typeof ApiAdminSendCourseEmailRoute
   ApiPublicContactRoute: typeof ApiPublicContactRoute
   ApiPublicDriverLocationRoute: typeof ApiPublicDriverLocationRoute
   ApiPublicNotifyReservationRoute: typeof ApiPublicNotifyReservationRoute
@@ -576,6 +589,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicContactRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/send-course-email': {
+      id: '/api/admin/send-course-email'
+      path: '/api/admin/send-course-email'
+      fullPath: '/api/admin/send-course-email'
+      preLoaderRoute: typeof ApiAdminSendCourseEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/lovable/email/transactional/send': {
       id: '/lovable/email/transactional/send'
       path: '/lovable/email/transactional/send'
@@ -658,6 +678,7 @@ const rootRouteChildren: RootRouteChildren = {
   ScanIdRoute: ScanIdRoute,
   SuiviIdRoute: SuiviIdRoute,
   TrackingIdRoute: TrackingIdRoute,
+  ApiAdminSendCourseEmailRoute: ApiAdminSendCourseEmailRoute,
   ApiPublicContactRoute: ApiPublicContactRoute,
   ApiPublicDriverLocationRoute: ApiPublicDriverLocationRoute,
   ApiPublicNotifyReservationRoute: ApiPublicNotifyReservationRoute,
