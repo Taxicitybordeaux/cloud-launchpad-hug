@@ -270,6 +270,14 @@ function TrackingPage() {
   // FIX MOBILE: hauteur carte calculée dynamiquement
   const [mapHeight, setMapHeight] = useState(260);
 
+  // Suivi carte : zone morte ajustable (% du viewport hors duquel on recentre)
+  const [deadZonePct, setDeadZonePct] = useState(60); // 30 = collant, 90 = très lâche
+  const [userPanned, setUserPanned] = useState(false); // l'utilisateur a déplacé la map → on arrête le suivi auto
+  const userPannedRef = useRef(false);
+  useEffect(() => { userPannedRef.current = userPanned; }, [userPanned]);
+  const lastDriverPosRef = useRef<{ lat: number; lng: number } | null>(null);
+  const initialZoomRef = useRef<number | null>(null);
+
   useEffect(() => {
     const updateMapHeight = () => {
       // Sur iPhone, window.innerHeight tient compte de la barre Safari
