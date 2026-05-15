@@ -11,7 +11,7 @@ import {
   Clock,
   Star,
   Wallet,
-  Car,
+  Wallet,
   ArrowRight,
   Quote,
   HelpCircle,
