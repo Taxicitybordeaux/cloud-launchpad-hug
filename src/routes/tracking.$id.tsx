@@ -936,8 +936,9 @@ function TrackingPage() {
 
       subscribeRealtime(gpsId, resa.id, resa, mode);
 
-      // Démarrer le GPS automatique (chauffeur = cette page ouverte sur le téléphone du chauffeur)
-      startGeoTracking(gpsId);
+      // NE PAS démarrer le GPS ici : cette page est consultée par le client.
+      // Le GPS chauffeur est envoyé depuis /chauffeur ou /admin/gps.
+      // Démarrer watchPosition ici écraserait driver_gps avec la position du client.
     };
 
     init();
