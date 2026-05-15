@@ -165,11 +165,20 @@ function RootComponent() {
 
     sessionStorage.setItem("sid", sid);
 
-    supabase.from("page_views").insert({
-      session_id: sid,
-      page: path,
-      referrer: document.referrer || null,
-    });
+    supabase
+      .from("page_views")
+      .insert({
+        session_id: sid,
+        page: path,
+        referrer: document.referrer || null,
+      })
+      .then(({ error, status, statusText }) => {
+        if (error) {
+          console.error("❌ page_views insert error:", error.message, error.details, error.hint, "code:", error.code);
+        } else {
+          console.log("✅ page_views insert OK — status:", status, statusText);
+        }
+      });
   }, [path]);
 
   const isShellFree = SHELL_FREE_PREFIXES.some((p) => path.startsWith(p));
