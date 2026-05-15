@@ -166,9 +166,6 @@ function CoursesPage() {
   const [items, setItems] = useState<R[]>([]);
   const [loading, setLoading] = useState(true);
   const [counts, setCounts] = useState({ pending: 0, accepted: 0, refused: 0 });
-  const [simKm, setSimKm] = useState(5);
-  const [simJour, setSimJour] = useState(true);
-  const [simOpen, setSimOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ type: "accept" | "refuse"; r: R } | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [refusalReason, setRefusalReason] = useState("");
