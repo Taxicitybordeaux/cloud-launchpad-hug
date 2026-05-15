@@ -76,15 +76,16 @@ interface AddressFieldProps {
   id: string;
   label: string;
   icon: ReactNode;
-  value: string;
   onChange: (val: string) => void;
   onSelect: (result: NominatimResult) => void;
 }
 
-function AddressField({ id, label, icon, value, onChange, onSelect }: AddressFieldProps) {
+function AddressField({ id, label, icon, onChange, onSelect }: AddressFieldProps) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const { results, loading } = useNominatim(value);
+  const { results, loading } = useNominatim(query);
 
   useEffect(() => {
     const handler = (e: globalThis.MouseEvent) => {
@@ -95,12 +96,15 @@ function AddressField({ id, label, icon, value, onChange, onSelect }: AddressFie
   }, []);
 
   const handleChange = (v: string) => {
+    setQuery(v);
     onChange(v);
     setOpen(true);
   };
 
   const handleSelect = (r: NominatimResult) => {
     const short = r.display_name.split(",").slice(0, 3).join(", ");
+    if (inputRef.current) inputRef.current.value = short;
+    setQuery(short);
     onChange(short);
     onSelect(r);
     setOpen(false);
@@ -114,10 +118,11 @@ function AddressField({ id, label, icon, value, onChange, onSelect }: AddressFie
       <div className="relative flex items-center">
         <span className="pointer-events-none absolute left-3 text-primary">{icon}</span>
         <input
+          ref={inputRef}
           id={id}
           type="text"
           autoComplete="off"
-          value={value}
+          defaultValue=""
           onChange={(e) => handleChange(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
           placeholder="Tapez une adresse…"
@@ -234,7 +239,6 @@ export function FareSimulator() {
             id="sim-from"
             label="Adresse de départ"
             icon={<Navigation className="h-4 w-4" />}
-            value={fromAddr}
             onChange={(v) => {
               setFromAddr(v);
               if (!v) setFromCoord(null);
@@ -246,7 +250,6 @@ export function FareSimulator() {
             id="sim-to"
             label="Adresse de destination"
             icon={<MapPin className="h-4 w-4" />}
-            value={toAddr}
             onChange={(v) => {
               setToAddr(v);
               if (!v) setToCoord(null);
