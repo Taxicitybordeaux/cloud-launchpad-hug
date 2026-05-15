@@ -165,9 +165,10 @@ function RootComponent() {
 
     sessionStorage.setItem("sid", sid);
 
-    supabase.from("site_analytics").insert({
-      event: "visit",
+    supabase.from("page_views").insert({
       session_id: sid,
+      page: path,
+      referrer: document.referrer || null,
     });
   }, [path]);
 
