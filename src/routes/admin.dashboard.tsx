@@ -198,8 +198,6 @@ function Dashboard() {
   const [coursesJ, setCoursesJ] = useState(0);
   const [clientsTotal, setClientsTotal] = useState(0);
   const [visitors, setVisitors] = useState(0);
-  const [qrImp, setQrImp] = useState(0);
-  const [qrClick, setQrClick] = useState(0);
   const [reservs, setReservs] = useState<any[]>([]);
   const [nextCourse, setNextCourse] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -212,22 +210,12 @@ function Dashboard() {
     const monthIso = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
     const nowIso = new Date().toISOString();
 
-    const [caJR, caMR, cJR, cliR, visR, impR, clkR, resR, nextR] = await Promise.all([
+    const [caJR, caMR, cJR, cliR, visR, resR, nextR] = await Promise.all([
       supabase.from("courses").select("prix_final").gte("created_at", todayIso),
       supabase.from("courses").select("prix_final").gte("created_at", monthIso),
-      supabase.from("courses").select("id", { count: "exact", head: true }).gte("created_at", todayIso),
+      supabase.from("reservations").select("id", { count: "exact", head: true }).gte("created_at", todayIso),
       supabase.from("clients").select("id", { count: "exact", head: true }),
-      supabase.from("site_analytics").select("session_id").eq("event", "visit").gte("created_at", todayIso),
-      supabase
-        .from("site_analytics")
-        .select("id", { count: "exact", head: true })
-        .eq("event", "qr_impression")
-        .gte("created_at", todayIso),
-      supabase
-        .from("site_analytics")
-        .select("id", { count: "exact", head: true })
-        .eq("event", "qr_click")
-        .gte("created_at", todayIso),
+      supabase.from("site_analytics").select("*").gte("created_at", todayIso).limit(20),
       supabase.from("reservations").select("*").order("created_at", { ascending: false }).limit(10),
       // Prochaine course acceptée dans le futur
       supabase
@@ -239,13 +227,18 @@ function Dashboard() {
         .limit(1),
     ]);
 
+    // 🔍 DEBUG — à supprimer après diagnostic
+    console.log("=== site_analytics (aujourd'hui) ===");
+    console.log("error:", visR.error);
+    console.log("data:", visR.data);
+    console.log("events distincts:", [...new Set((visR.data ?? []).map((v: any) => v.event))]);
+    console.log("colonnes dispo:", visR.data?.[0] ? Object.keys(visR.data[0]) : "aucune ligne");
+
     setCaJ((caJR.data ?? []).reduce((s: number, c: any) => s + (Number(c.prix_final) || 0), 0));
     setCaM((caMR.data ?? []).reduce((s: number, c: any) => s + (Number(c.prix_final) || 0), 0));
     setCoursesJ(cJR.count ?? 0);
     setClientsTotal(cliR.count ?? 0);
-    setVisitors(new Set((visR.data ?? []).map((v: any) => v.session_id)).size);
-    setQrImp(impR.count ?? 0);
-    setQrClick(clkR.count ?? 0);
+    setVisitors(new Set((visR.data ?? []).map((v: any) => v.session_id ?? v.id)).size);
     setReservs(resR.data ?? []);
     setNextCourse((nextR.data ?? [])[0] ?? null);
     setLoading(false);
@@ -690,38 +683,15 @@ function Dashboard() {
         })()}
 
       {/* KPI stat cards — 2 colonnes sur mobile, 4 sur desktop */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, marginBottom: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, marginBottom: 20 }}>
         {loading
-          ? Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
+          ? Array.from({ length: 5 }).map((_, i) => <StatCardSkeleton key={i} />)
           : [
               { i: "💶", v: `${caJ.toFixed(2)} €`, l: "CA aujourd'hui" },
               { i: "📈", v: `${caM.toFixed(2)} €`, l: "CA ce mois" },
               { i: "🚗", v: String(coursesJ), l: "Courses auj." },
               { i: "👥", v: String(clientsTotal), l: "Clients total" },
-            ].map((c, i) => (
-              <div key={i} style={card}>
-                <div style={{ fontSize: 22 }}>{c.i}</div>
-                <div style={valCss}>{c.v}</div>
-                <div style={labelCss}>{c.l}</div>
-              </div>
-            ))}
-      </div>
-
-      {/* Analytics cards */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))",
-          gap: 12,
-          marginBottom: 20,
-        }}
-      >
-        {loading
-          ? Array.from({ length: 3 }).map((_, i) => <StatCardSkeleton key={i} />)
-          : [
               { i: "👁️", v: String(visitors), l: "Visiteurs auj." },
-              { i: "📱", v: String(qrImp), l: "Scans QR auj." },
-              { i: "🔗", v: String(qrClick), l: "Clics QR auj." },
             ].map((c, i) => (
               <div key={i} style={card}>
                 <div style={{ fontSize: 22 }}>{c.i}</div>
