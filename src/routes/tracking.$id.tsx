@@ -305,6 +305,48 @@ function TrackingPage() {
   const geoWatchIdRef = useRef<number | null>(null);
   const pickupCoordsRef = useRef<[number, number] | null>(null);
   const approachLayerRef = useRef<any>(null);
+  const lastAppliedPosRef = useRef<{ lat: number; lng: number; t: number } | null>(null);
+  const lastApproachAtRef = useRef<number>(0);
+
+  // Distance approx en mètres entre 2 coords (formule équirectangulaire — suffisant pour anti-jitter)
+  const distMeters = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+    const R = 6371000;
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const x = (toRad(b.lng) - toRad(a.lng)) * Math.cos(toRad((a.lat + b.lat) / 2));
+    const y = toRad(b.lat) - toRad(a.lat);
+    return Math.sqrt(x * x + y * y) * R;
+  };
+
+  // Applique une position chauffeur sur la carte avec anti-jitter :
+  // - ignore les déplacements < 8 m (bruit GPS) sauf si > 4 s écoulées
+  // - throttle l'appel OSRM d'approche à une fois toutes les 15 s
+  const applyDriverPosition = useCallback(async (lat: number, lng: number) => {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    const map = mapInstanceRef.current;
+    if (!map) {
+      await initMap(lat, lng);
+      lastAppliedPosRef.current = { lat, lng, t: Date.now() };
+      return;
+    }
+    const now = Date.now();
+    const last = lastAppliedPosRef.current;
+    if (last) {
+      const moved = distMeters(last, { lat, lng });
+      const elapsed = now - last.t;
+      if (moved < 8 && elapsed < 4000) return; // bruit GPS → on ignore
+    }
+    lastAppliedPosRef.current = { lat, lng, t: now };
+
+    if (markerRef.current) {
+      markerRef.current.setLatLng([lat, lng]);
+      map.panTo([lat, lng], { animate: true, duration: 1.5 });
+    }
+    if (pickupCoordsRef.current && now - lastApproachAtRef.current > 15000) {
+      lastApproachAtRef.current = now;
+      drawApproachLine(lat, lng, pickupCoordsRef.current);
+    }
+    await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
+  }, []);
 
   const notifScheduledRef = useRef(false);
   const schedulePickupNotification = useCallback((pickupDatetime: string) => {
@@ -391,9 +433,14 @@ function TrackingPage() {
       // Marqueur départ (prise en charge) 🟢
       const departIcon = L.divIcon({
         className: "",
-        html: `<div style="width:34px;height:34px;background:#22c55e;border-radius:50%;border:3px solid white;box-shadow:0 2px 10px rgba(34,197,94,0.6);display:flex;align-items:center;justify-content:center;font-size:16px">🟢</div>`,
-        iconSize: [34, 34],
-        iconAnchor: [17, 17],
+        html: `<div style="position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center">
+          <span style="position:absolute;inset:0;border-radius:50%;background:rgba(34,197,94,0.35);animation:tcb-pulse 1.6s ease-out infinite"></span>
+          <span style="position:absolute;inset:6px;border-radius:50%;background:rgba(34,197,94,0.5);animation:tcb-pulse 1.6s ease-out infinite;animation-delay:.4s"></span>
+          <div style="position:relative;width:30px;height:30px;background:#22c55e;border-radius:50%;border:3px solid white;box-shadow:0 4px 14px rgba(34,197,94,0.7);display:flex;align-items:center;justify-content:center;font-size:15px">📍</div>
+        </div>
+        <style>@keyframes tcb-pulse{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.6);opacity:0}}</style>`,
+        iconSize: [44, 44],
+        iconAnchor: [22, 22],
       });
       // Marqueur destination 🏁
       const destIcon = L.divIcon({
@@ -601,16 +648,7 @@ function TrackingPage() {
         setDriverData(data as DriverData);
         setLastUpdate(new Date());
         if (data.latitude && data.longitude) {
-          if (!mapInstanceRef.current) await initMap(data.latitude, data.longitude);
-          else {
-            markerRef.current?.setLatLng([data.latitude, data.longitude]);
-            mapInstanceRef.current.panTo([data.latitude, data.longitude], { animate: true, duration: 1.5 });
-            // Mettre à jour la ligne d'approche vers la prise en charge
-            if (pickupCoordsRef.current) {
-              drawApproachLine(data.latitude, data.longitude, pickupCoordsRef.current);
-            }
-          }
-          await calculateETA(data.latitude, data.longitude, destCoordsRef.current ?? undefined);
+          await applyDriverPosition(data.latitude, data.longitude);
         }
       }
       const resaId = resaIdRef.current;
@@ -657,16 +695,7 @@ function TrackingPage() {
             setDriverData(d);
             setLastUpdate(new Date());
             if (d.latitude && d.longitude) {
-              if (!mapInstanceRef.current) await initMap(d.latitude, d.longitude);
-              else {
-                markerRef.current?.setLatLng([d.latitude, d.longitude]);
-                mapInstanceRef.current.panTo([d.latitude, d.longitude], { animate: true, duration: 1.5 });
-                // Mettre à jour la ligne d'approche vers la prise en charge
-                if (pickupCoordsRef.current) {
-                  drawApproachLine(d.latitude, d.longitude, pickupCoordsRef.current);
-                }
-              }
-              await calculateETA(d.latitude, d.longitude, destCoordsRef.current ?? undefined);
+              await applyDriverPosition(d.latitude, d.longitude);
             }
           },
         )
