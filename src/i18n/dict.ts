@@ -144,18 +144,21 @@ const fr: Dict = {
   // Home — comment réserver
   "home.how.eyebrow": "Comment ça marche",
   "home.how.title": "Réserver, c'est simple comme un appel",
-  "home.how.intro": "Pas de file d'attente, pas de robot. Juste un échange direct avec votre chauffeur — on confirme, on arrive, on vous emmène.",
+  "home.how.intro":
+    "Pas de file d'attente, pas de robot. Juste un échange direct avec votre chauffeur — on confirme, on arrive, on vous emmène.",
   "home.how.s1.t": "Vous nous contactez",
   "home.how.s1.d": "Un appel, un message WhatsApp ou le formulaire en ligne — choisissez le plus pratique pour vous.",
   "home.how.s2.t": "On confirme ensemble",
-  "home.how.s2.d": "On vérifie l'horaire, l'adresse et les détails (vol, bagages, CPAM…) pour qu'il n'y ait aucune surprise.",
+  "home.how.s2.d":
+    "On vérifie l'horaire, l'adresse et les détails (vol, bagages, CPAM…) pour qu'il n'y ait aucune surprise.",
   "home.how.s3.t": "Le chauffeur arrive",
   "home.how.s3.d": "Pile à l'heure, voiture propre et chauffeur souriant. Vous montez, on s'occupe du reste.",
   "home.how.s4.t": "Trajet et règlement",
   "home.how.s4.d": "Tarif annoncé respecté. Carte, espèces, virement ou bon CPAM — comme vous préférez.",
   "sim.eyebrow": "Simulateur de tarif",
   "sim.title": "Estimez le prix de votre course",
-  "sim.intro": "Indiquez la distance approximative de votre trajet et la période, on vous donne une fourchette indicative.",
+  "sim.intro":
+    "Indiquez la distance approximative de votre trajet et la période, on vous donne une fourchette indicative.",
   "sim.distance": "Distance approximative",
   "sim.km": "km",
   "sim.period": "Période",
@@ -164,7 +167,8 @@ const fr: Dict = {
   "sim.pickup": "Prise en charge",
   "sim.perkm": "Tarif au km",
   "sim.estimate": "Tarif estimé",
-  "sim.disclaimer": "Estimation indicative basée sur nos tarifs officiels. Le prix réel peut varier selon le trajet exact, les conditions de circulation (bouchons, déviations) et les éventuels suppléments.",
+  "sim.disclaimer":
+    "Estimation indicative basée sur nos tarifs officiels. Le prix réel peut varier selon le trajet exact, les conditions de circulation (bouchons, déviations) et les éventuels suppléments.",
   "sim.cta_call": "Confirmer par téléphone",
   "sim.cta_book": "Réserver maintenant",
   "home.cta.title": "Prêt à réserver votre course ?",
@@ -175,8 +179,7 @@ const fr: Dict = {
   // Services page
   "services.eyebrow": "Nos prestations",
   "services.title": "Un service taxi pour chaque besoin",
-  "services.intro":
-    "À Bordeaux, en Gironde et partout en France — un seul interlocuteur, un service haut de gamme.",
+  "services.intro": "À Bordeaux, en Gironde et partout en France — un seul interlocuteur, un service haut de gamme.",
   "services.cta": "Réserver",
   "services.b1": "7j/7 – 24h/24",
   "services.b2": "Jusqu'à 4 passagers",
@@ -188,20 +191,17 @@ const fr: Dict = {
   "svcp.airport.p2": "Suivi des vols",
   "svcp.airport.p3": "Aller-retour possible",
   "svcp.train.title": "Gare Saint-Jean & gares TGV",
-  "svcp.train.desc":
-    "Transferts depuis ou vers la gare de Bordeaux Saint-Jean et toutes les gares de la région.",
+  "svcp.train.desc": "Transferts depuis ou vers la gare de Bordeaux Saint-Jean et toutes les gares de la région.",
   "svcp.train.p1": "Accueil sur demande",
   "svcp.train.p2": "Prise en charge ponctuelle",
   "svcp.train.p3": "Disponible 24h/24",
   "svcp.business.title": "Déplacements professionnels",
-  "svcp.business.desc":
-    "Service discret et premium pour vos rendez-vous, séminaires et déplacements d'affaires.",
+  "svcp.business.desc": "Service discret et premium pour vos rendez-vous, séminaires et déplacements d'affaires.",
   "svcp.business.p1": "Facturation entreprise",
   "svcp.business.p2": "Wifi à bord",
   "svcp.business.p3": "Discrétion garantie",
   "svcp.wedding.title": "Assistance dépannage voiture",
-  "svcp.wedding.desc":
-    "En cas de panne, on vient vous récupérer rapidement et on vous emmène à destination.",
+  "svcp.wedding.desc": "En cas de panne, on vient vous récupérer rapidement et on vous emmène à destination.",
   "svcp.wedding.p1": "Intervention rapide",
   "svcp.wedding.p2": "Toutes zones Gironde",
   "svcp.wedding.p3": "Disponible 24h/24",
@@ -212,8 +212,7 @@ const fr: Dict = {
   "svcp.cpam.p2": "Bon de transport toutes distances",
   "svcp.cpam.p3": "Hôpitaux & cliniques",
   "svcp.long.title": "Longues distances",
-  "svcp.long.desc":
-    "Trajets toutes distances en France et en Europe.",
+  "svcp.long.desc": "Trajets toutes distances en France et en Europe.",
   "svcp.long.p1": "Tarifs réglementés",
   "svcp.long.p2": "Tarif au kilomètre",
   "svcp.long.p3": "Confort longue durée",
@@ -227,8 +226,7 @@ const fr: Dict = {
   "tarifs.col.to": "Arrivée",
   "tarifs.col.day": "Tarif jour",
   "tarifs.col.night": "Tarif nuit / dim",
-  "tarifs.note":
-    "Tarifs nuit appliqués de 19h à 7h, dimanches et jours fériés.",
+  "tarifs.note": "Tarifs nuit appliqués de 19h à 7h, dimanches et jours fériés.",
   "tarifs.cpam.title": "🏥 Conventionné CPAM",
   "tarifs.cpam.desc":
     "Sur présentation d'un bon de transport, prise en charge directe par l'Assurance Maladie. Tiers payant ou ALD — bon de transport toutes distances.",
@@ -264,15 +262,13 @@ const fr: Dict = {
   "about.b3.d":
     "Station officielle à Bordeaux. Toute la métropole, l'aéroport, les gares et toute la France sur réservation.",
   "about.b4.t": "Conventionné CPAM",
-  "about.b4.d":
-    "Transport assis professionnalisé pris en charge par l'Assurance Maladie.",
+  "about.b4.d": "Transport assis professionnalisé pris en charge par l'Assurance Maladie.",
   "about.cta": "Réserver une course",
 
   // Contact page
   "contact.eyebrow": "Contact",
   "contact.title": "Nous contacter",
-  "contact.intro":
-    "Disponible 7j/7 — un appel suffit, ou envoyez-nous un message.",
+  "contact.intro": "Disponible 7j/7 — un appel suffit, ou envoyez-nous un message.",
   "contact.phone": "Téléphone",
   "contact.phone.sub": "Réponse immédiate",
   "contact.wa.title": "WhatsApp",
@@ -297,14 +293,11 @@ const fr: Dict = {
   "contact.form.message.ph": "Détaillez votre demande…",
   "contact.form.send": "Envoyer le message",
   "contact.form.sending": "Envoi…",
-  "contact.form.error":
-    "Une erreur est survenue. Merci de nous appeler directement au 06 73 07 23 22.",
+  "contact.form.error": "Une erreur est survenue. Merci de nous appeler directement au 06 73 07 23 22.",
   "contact.form.success.title": "Message envoyé !",
-  "contact.form.success.desc":
-    "Merci de nous avoir contactés. Nous vous répondons rapidement par email.",
+  "contact.form.success.desc": "Merci de nous avoir contactés. Nous vous répondons rapidement par email.",
   "contact.form.success.again": "Envoyer un autre message",
-  "contact.form.note":
-    "Pour une course, utilisez plutôt le formulaire de réservation.",
+  "contact.form.note": "Pour une course, utilisez plutôt le formulaire de réservation.",
   "contact.err.name": "Nom requis",
   "contact.err.email": "Email invalide",
   "contact.err.message": "Message trop court (10 caractères min)",
@@ -347,10 +340,8 @@ const fr: Dict = {
   "res.f.message.ph": "Numéro de vol, âge des enfants, précisions…",
   "res.send": "Envoyer ma demande",
   "res.sending": "Envoi…",
-  "res.note":
-    "Pour une course immédiate, appelez-nous directement au 06 73 07 23 22",
-  "res.err.global":
-    "Erreur lors de l'envoi. Merci de nous appeler au 06 73 07 23 22.",
+  "res.note": "Pour une course immédiate, appelez-nous directement au 06 73 07 23 22",
+  "res.err.global": "Erreur lors de l'envoi. Merci de nous appeler au 06 73 07 23 22.",
   "res.err.phone": "Numéro de téléphone invalide",
   "res.err.name": "Nom requis",
   "res.err.pickup": "Date/heure requise",
@@ -363,8 +354,7 @@ const fr: Dict = {
   "conf.cancelled.title": "Réservation annulée",
   "conf.cancelled.desc": "Cette réservation a bien été annulée.",
   "conf.ok.title": "Demande enregistrée !",
-  "conf.ok.desc":
-    "Nous vous rappelons rapidement pour confirmer votre course.",
+  "conf.ok.desc": "Nous vous rappelons rapidement pour confirmer votre course.",
   "conf.ref.label": "N° de réservation",
   "conf.ref.note": "À conserver pour toute modification ou annulation.",
   "conf.summary": "Récapitulatif",
@@ -383,8 +373,7 @@ const fr: Dict = {
   "conf.cancel.keep": "Garder ma réservation",
   "conf.back": "← Retour à l'accueil",
   "conf.notfound.title": "Réservation introuvable",
-  "conf.notfound.desc":
-    "Le lien semble invalide ou la réservation a été supprimée.",
+  "conf.notfound.desc": "Le lien semble invalide ou la réservation a été supprimée.",
   "conf.notfound.cta": "Faire une nouvelle réservation",
 
   // WhatsApp float
@@ -392,8 +381,7 @@ const fr: Dict = {
   "wa.float.label": "Réserver sur WhatsApp",
   "wa.aria.hint": "Ouvre une conversation WhatsApp dans un nouvel onglet.",
   "wa.aria.draftReady": "Votre demande de réservation est prête à être envoyée sur WhatsApp.",
-  "wa.default":
-    "Bonjour je souhaite reserver un taxi . pouvez vous me confirmer la disponibilitè merci .",
+  "wa.default": "Bonjour je souhaite reserver un taxi . pouvez vous me confirmer la disponibilitè merci .",
   // Tracking page
   "suivi.title": "Suivi de votre chauffeur",
   "suivi.hello": "Bonjour",
@@ -414,11 +402,14 @@ const fr: Dict = {
   "faqx.title": "Questions fréquentes",
   "faqx.intro": "Tout ce qu'il faut savoir avant votre course.",
   "faqx.tracking.q": "Comment fonctionne le suivi en temps réel de mon vol ou de mon train ?",
-  "faqx.tracking.a": "Dès que vous nous communiquez votre numéro de vol ou de train, nous le suivons automatiquement. Si l'arrivée est avancée ou retardée, l'heure de prise en charge est ajustée — vous n'avez rien à faire, le chauffeur sera là quand vous sortirez.",
+  "faqx.tracking.a":
+    "Dès que vous nous communiquez votre numéro de vol ou de train, nous le suivons automatiquement. Si l'arrivée est avancée ou retardée, l'heure de prise en charge est ajustée — vous n'avez rien à faire, le chauffeur sera là quand vous sortirez.",
   "faqx.wait.q": "Combien de temps le chauffeur attend-il après l'atterrissage ?",
-  "faqx.wait.a": "Le chauffeur se présente après l'atterrissage réel (et non l'horaire prévu). Le temps nécessaire pour récupérer vos bagages et passer la douane est pris en compte. Au-delà, le temps d'attente supplémentaire est facturé au tarif réglementé en vigueur, en toute transparence.",
+  "faqx.wait.a":
+    "Le chauffeur se présente après l'atterrissage réel (et non l'horaire prévu). Le temps nécessaire pour récupérer vos bagages et passer la douane est pris en compte. Au-delà, le temps d'attente supplémentaire est facturé au tarif réglementé en vigueur, en toute transparence.",
   "faqx.cpam.q": "Comment se passe la prise en charge CPAM / ALD ?",
-  "faqx.cpam.a": "Munissez-vous de la prescription médicale de transport remise par votre médecin. Sur présentation de ce bon de transport, nous appliquons le tiers payant : la course est directement prise en charge par l'Assurance Maladie. En ALD (affection longue durée), la prise en charge est intégrale et valable pour toutes les distances — y compris les longs trajets vers un centre spécialisé.",
+  "faqx.cpam.a":
+    "Munissez-vous de la prescription médicale de transport remise par votre médecin. Sur présentation de ce bon de transport, nous appliquons le tiers payant : la course est directement prise en charge par l'Assurance Maladie. En ALD (affection longue durée), la prise en charge est intégrale et valable pour toutes les distances — y compris les longs trajets vers un centre spécialisé.",
 };
 
 const en: Dict = {
@@ -446,8 +437,7 @@ const en: Dict = {
 
   "home.dest.eyebrow": "Destinations",
   "home.dest.title": "Where we drive you",
-  "home.dest.intro":
-    "A few routes our customers book every day — a smooth arrival is what we do best.",
+  "home.dest.intro": "A few routes our customers book every day — a smooth arrival is what we do best.",
   "home.dest.gare.title": "Bordeaux Saint-Jean station",
   "home.dest.gare.sub": "Meet & greet on request at arrival.",
   "home.dest.airport.title": "Bordeaux airport",
@@ -498,23 +488,18 @@ const en: Dict = {
 
   "home.test.eyebrow": "They trusted us",
   "home.test.title": "What our clients say",
-  "home.test.t1":
-    "Very punctual driver, spotless car. Dropped off at Mérignac with no stress, highly recommend.",
-  "home.test.t2":
-    "Easy booking, exact price as quoted. Perfect for my weekly business trips.",
-  "home.test.t3":
-    "Picked up at the station with my kids, the driver was so kind. We'll book again.",
+  "home.test.t1": "Very punctual driver, spotless car. Dropped off at Mérignac with no stress, highly recommend.",
+  "home.test.t2": "Easy booking, exact price as quoted. Perfect for my weekly business trips.",
+  "home.test.t3": "Picked up at the station with my kids, the driver was so kind. We'll book again.",
 
   "home.faq.eyebrow": "Your questions",
   "home.faq.title": "Honest answers",
-  "home.faq.intro":
-    "A few answers to the questions we get most often. If you can't find yours, just give us a call.",
+  "home.faq.intro": "A few answers to the questions we get most often. If you can't find yours, just give us a call.",
   "faq.q1": "Are you CPAM-certified for medical transport?",
   "faq.a1":
     "Yes, we are certified by the CPAM for health transport (consultations, dialysis, hospital stays…). Just ask your doctor for the medical transport prescription, and we take care of the rest. With a transport voucher, direct billing to the French health insurance. Third-party payment or ALD — transport voucher for all distances.",
   "faq.q2": "What if my flight at Mérignac is delayed?",
-  "faq.a2":
-    "We track your flight in real time. If your plane lands early or late, we adjust the pick-up time.",
+  "faq.a2": "We track your flight in real time. If your plane lands early or late, we adjust the pick-up time.",
   "faq.q3": "How can I cancel or change my booking?",
   "faq.a3":
     "A simple call or WhatsApp message is enough. Cancellation is free up to 2 hours before the ride. For a change (time, address, passengers), let us know as soon as possible — we'll arrange it.",
@@ -551,43 +536,38 @@ const en: Dict = {
   "sim.pickup": "Pickup fee",
   "sim.perkm": "Per-km rate",
   "sim.estimate": "Estimated fare",
-  "sim.disclaimer": "Indicative estimate based on our official rates. The actual price may vary depending on the exact route, traffic conditions (jams, detours) and any extras.",
+  "sim.disclaimer":
+    "Indicative estimate based on our official rates. The actual price may vary depending on the exact route, traffic conditions (jams, detours) and any extras.",
   "sim.cta_call": "Confirm by phone",
   "sim.cta_book": "Book now",
   "home.cta.title": "Ready to book your ride?",
-  "home.cta.desc":
-    "Quick confirmation, professional driver and transparent price — call us or book online.",
+  "home.cta.desc": "Quick confirmation, professional driver and transparent price — call us or book online.",
   "home.cta.online": "Book online",
 
   "services.eyebrow": "Our services",
   "services.title": "A taxi service for every need",
-  "services.intro":
-    "In Bordeaux, across Gironde and all over France — one contact, premium service.",
+  "services.intro": "In Bordeaux, across Gironde and all over France — one contact, premium service.",
   "services.cta": "Book",
   "services.b1": "24/7",
   "services.b2": "Up to 4 passengers",
   "services.b3": "Professional driver",
   "svcp.airport.title": "Mérignac airport transfers",
-  "svcp.airport.desc":
-    "On-time pick-up for your flights, real-time tracking, meet & greet on request.",
+  "svcp.airport.desc": "On-time pick-up for your flights, real-time tracking, meet & greet on request.",
   "svcp.airport.p1": "Meet & greet on request",
   "svcp.airport.p2": "Flight tracking",
   "svcp.airport.p3": "Round-trip available",
   "svcp.train.title": "Saint-Jean & TGV stations",
-  "svcp.train.desc":
-    "Transfers to or from Bordeaux Saint-Jean and any station in the region.",
+  "svcp.train.desc": "Transfers to or from Bordeaux Saint-Jean and any station in the region.",
   "svcp.train.p1": "Meet & greet on request",
   "svcp.train.p2": "On-time pick-up",
   "svcp.train.p3": "Available 24/7",
   "svcp.business.title": "Business travel",
-  "svcp.business.desc":
-    "Discreet, premium service for meetings, seminars and business trips.",
+  "svcp.business.desc": "Discreet, premium service for meetings, seminars and business trips.",
   "svcp.business.p1": "Company invoicing",
   "svcp.business.p2": "Onboard Wi-Fi",
   "svcp.business.p3": "Guaranteed discretion",
   "svcp.wedding.title": "Car breakdown assistance",
-  "svcp.wedding.desc":
-    "If your car breaks down, we pick you up quickly and drive you to your destination.",
+  "svcp.wedding.desc": "If your car breaks down, we pick you up quickly and drive you to your destination.",
   "svcp.wedding.p1": "Quick response",
   "svcp.wedding.p2": "Across Gironde",
   "svcp.wedding.p3": "Available 24/7",
@@ -605,14 +585,12 @@ const en: Dict = {
 
   "tarifs.eyebrow": "Pricing",
   "tarifs.title": "Transparent prices",
-  "tarifs.intro":
-    "Indicative prices based on the prefectoral regulations. An exact price is confirmed at booking.",
+  "tarifs.intro": "Indicative prices based on the prefectoral regulations. An exact price is confirmed at booking.",
   "tarifs.col.from": "From",
   "tarifs.col.to": "To",
   "tarifs.col.day": "Day rate",
   "tarifs.col.night": "Night / Sun. rate",
-  "tarifs.note":
-    "Night rates apply 7pm–7am, Sundays and bank holidays.",
+  "tarifs.note": "Night rates apply 7pm–7am, Sundays and bank holidays.",
   "tarifs.cpam.title": "🏥 CPAM medical transport",
   "tarifs.cpam.desc":
     "With a medical transport voucher, direct billing to the French health insurance. Direct billing or ALD — voucher accepted any distance.",
@@ -636,25 +614,20 @@ const en: Dict = {
     "is an independent taxi business in Bordeaux. We aim to deliver a service worthy of Bordeaux's elegance: punctuality, comfort and discretion.",
   "about.p2":
     "Whether you're a private customer heading to the airport, a professional on the move, or a patient needing medical transport, we adapt our service to your need.",
-  "about.p3":
-    "Our air-conditioned and carefully maintained car guarantees a pleasant ride in any situation.",
+  "about.p3": "Our air-conditioned and carefully maintained car guarantees a pleasant ride in any situation.",
   "about.b1.t": "Professional driver",
-  "about.b1.d":
-    "Official taxi card, ongoing training, deep knowledge of Bordeaux and Gironde.",
+  "about.b1.d": "Official taxi card, ongoing training, deep knowledge of Bordeaux and Gironde.",
   "about.b2.t": "Available 24/7",
   "about.b2.d": "Day and night, weekends and bank holidays included.",
   "about.b3.t": "Bordeaux & Gironde",
-  "about.b3.d":
-    "Official station in Bordeaux. Whole metropolitan area, airport, stations and all France on booking.",
+  "about.b3.d": "Official station in Bordeaux. Whole metropolitan area, airport, stations and all France on booking.",
   "about.b4.t": "CPAM medical transport",
-  "about.b4.d":
-    "Seated professional transport covered by the French health insurance.",
+  "about.b4.d": "Seated professional transport covered by the French health insurance.",
   "about.cta": "Book a ride",
 
   "contact.eyebrow": "Contact",
   "contact.title": "Get in touch",
-  "contact.intro":
-    "Available 24/7 — one call is enough, or send us a message.",
+  "contact.intro": "Available 24/7 — one call is enough, or send us a message.",
   "contact.phone": "Phone",
   "contact.phone.sub": "Immediate answer",
   "contact.wa.title": "WhatsApp",
@@ -668,8 +641,7 @@ const en: Dict = {
   "contact.zone.sub": "Long-distance trips across France on request.",
   "contact.form.eyebrow": "Form",
   "contact.form.title": "Send us a message",
-  "contact.form.intro":
-    "For a question or a special request — we reply as soon as possible.",
+  "contact.form.intro": "For a question or a special request — we reply as soon as possible.",
   "contact.form.name": "Full name *",
   "contact.form.email": "Email *",
   "contact.form.phone": "Phone (optional)",
@@ -679,14 +651,11 @@ const en: Dict = {
   "contact.form.message.ph": "Tell us about your request…",
   "contact.form.send": "Send message",
   "contact.form.sending": "Sending…",
-  "contact.form.error":
-    "An error occurred. Please call us directly at +33 6 73 07 23 22.",
+  "contact.form.error": "An error occurred. Please call us directly at +33 6 73 07 23 22.",
   "contact.form.success.title": "Message sent!",
-  "contact.form.success.desc":
-    "Thanks for reaching out. We'll get back to you by email shortly.",
+  "contact.form.success.desc": "Thanks for reaching out. We'll get back to you by email shortly.",
   "contact.form.success.again": "Send another message",
-  "contact.form.note":
-    "For a ride, please use the booking form instead.",
+  "contact.form.note": "For a ride, please use the booking form instead.",
   "contact.err.name": "Name required",
   "contact.err.email": "Invalid email",
   "contact.err.message": "Message too short (10 characters min)",
@@ -728,10 +697,8 @@ const en: Dict = {
   "res.f.message.ph": "Flight number, kids' age, details…",
   "res.send": "Send my request",
   "res.sending": "Sending…",
-  "res.note":
-    "For an immediate ride, call us directly at +33 6 73 07 23 22",
-  "res.err.global":
-    "Sending failed. Please call us at +33 6 73 07 23 22.",
+  "res.note": "For an immediate ride, call us directly at +33 6 73 07 23 22",
+  "res.err.global": "Sending failed. Please call us at +33 6 73 07 23 22.",
   "res.err.phone": "Invalid phone number",
   "res.err.name": "Name required",
   "res.err.pickup": "Date/time required",
@@ -755,23 +722,20 @@ const en: Dict = {
   "conf.luggage": "luggage piece(s)",
   "conf.wa": "Confirm on WhatsApp",
   "conf.modify.title": "Change or cancel",
-  "conf.modify.desc":
-    "To change your request, contact us by phone or WhatsApp with your booking number.",
+  "conf.modify.desc": "To change your request, contact us by phone or WhatsApp with your booking number.",
   "conf.cancel": "Cancel my booking",
   "conf.cancel.confirm": "Confirm cancellation",
   "conf.cancel.keep": "Keep my booking",
   "conf.back": "← Back to home",
   "conf.notfound.title": "Booking not found",
-  "conf.notfound.desc":
-    "The link looks invalid or the booking was deleted.",
+  "conf.notfound.desc": "The link looks invalid or the booking was deleted.",
   "conf.notfound.cta": "Make a new booking",
 
   "wa.float.send": "Send my request",
   "wa.float.label": "Book on WhatsApp",
   "wa.aria.hint": "Opens a WhatsApp conversation in a new tab.",
   "wa.aria.draftReady": "Your booking request is ready to send on WhatsApp.",
-  "wa.default":
-    "Hello, I'd like to book a taxi. Could you confirm availability? Thanks.",
+  "wa.default": "Hello, I'd like to book a taxi. Could you confirm availability? Thanks.",
   "suivi.title": "Track your driver",
   "suivi.hello": "Hello",
   "suivi.pickup_at": "pickup at",
@@ -790,11 +754,14 @@ const en: Dict = {
   "faqx.title": "Frequently asked questions",
   "faqx.intro": "Everything you need to know before your ride.",
   "faqx.tracking.q": "How does real-time flight or train tracking work?",
-  "faqx.tracking.a": "As soon as you share your flight or train number, we track it automatically. If your arrival is early or delayed, the pick-up time is adjusted — you don't need to do anything, your driver will be waiting when you come out.",
+  "faqx.tracking.a":
+    "As soon as you share your flight or train number, we track it automatically. If your arrival is early or delayed, the pick-up time is adjusted — you don't need to do anything, your driver will be waiting when you come out.",
   "faqx.wait.q": "How long does the driver wait after landing?",
-  "faqx.wait.a": "The driver shows up based on actual landing time (not the scheduled one), and we account for the time needed to collect your luggage and clear customs. Beyond that, additional waiting time is billed at the official regulated rate, in full transparency.",
+  "faqx.wait.a":
+    "The driver shows up based on actual landing time (not the scheduled one), and we account for the time needed to collect your luggage and clear customs. Beyond that, additional waiting time is billed at the official regulated rate, in full transparency.",
   "faqx.cpam.q": "How does CPAM / ALD coverage work?",
-  "faqx.cpam.a": "Bring the medical transport prescription given by your doctor. With this transport voucher we apply third-party payment: the ride is billed directly to the French health insurance. Under ALD (long-term illness), coverage is full and valid for all distances — including long trips to a specialised centre.",
+  "faqx.cpam.a":
+    "Bring the medical transport prescription given by your doctor. With this transport voucher we apply third-party payment: the ride is billed directly to the French health insurance. Under ALD (long-term illness), coverage is full and valid for all distances — including long trips to a specialised centre.",
 };
 
 const es: Dict = {
@@ -832,6 +799,19 @@ const es: Dict = {
   "home.dest.vine.sub": "Médoc, Saint-Émilion, Sauternes — por jornada.",
   "home.dest.cta": "Reservar",
 
+  // Home — best sellers Bordeaux
+  "home.best.eyebrow": "Imprescindibles",
+  "home.best.title": "Los imprescindibles de Burdeos",
+  "home.best.intro": "Los lugares que nuestros clientes adoran visitar — le llevamos con total tranquilidad.",
+  "home.best.miroir.title": "Espejo de Agua",
+  "home.best.miroir.sub": "Plaza de la Bolsa, el icono bordelés.",
+  "home.best.cite.title": "Ciudad del Vino",
+  "home.best.cite.sub": "Un viaje al corazón de los viñedos.",
+  "home.best.emilion.title": "Saint-Émilion",
+  "home.best.emilion.sub": "Villa medieval y Grand Cru classé.",
+  "home.best.pilat.title": "Duna del Pilat",
+  "home.best.pilat.sub": "La duna más alta de Europa.",
+
   "home.why.eyebrow": "Por qué nosotros",
   "home.why.title": "Un servicio sencillo, humano y fiable.",
   "home.why.desc":
@@ -862,12 +842,9 @@ const es: Dict = {
 
   "home.test.eyebrow": "Confiaron en nosotros",
   "home.test.title": "Lo que dicen nuestros clientes",
-  "home.test.t1":
-    "Chófer muy puntual, coche impecable. Llegué a Mérignac sin estrés, lo recomiendo.",
-  "home.test.t2":
-    "Reserva sencilla, precio anunciado respetado. Perfecto para mis viajes de negocio semanales.",
-  "home.test.t3":
-    "Nos recogió en la estación con mis hijos, el chófer fue muy amable. Volveremos a llamar.",
+  "home.test.t1": "Chófer muy puntual, coche impecable. Llegué a Mérignac sin estrés, lo recomiendo.",
+  "home.test.t2": "Reserva sencilla, precio anunciado respetado. Perfecto para mis viajes de negocio semanales.",
+  "home.test.t3": "Nos recogió en la estación con mis hijos, el chófer fue muy amable. Volveremos a llamar.",
 
   "home.faq.eyebrow": "Sus preguntas",
   "home.faq.title": "Respondemos con franqueza",
@@ -877,8 +854,7 @@ const es: Dict = {
   "faq.a1":
     "Sí, estamos concertados con la CPAM para transportes médicos (consultas, diálisis, hospitalizaciones…). Pida a su médico la prescripción de transporte y nos encargamos del resto. Con un bono de transporte, facturación directa a la Seguridad Social. Tercer pagador o ALD — bono de transporte para todas las distancias.",
   "faq.q2": "¿Y si mi vuelo se retrasa en Mérignac?",
-  "faq.a2":
-    "Seguimos su vuelo en tiempo real. Si el avión llega antes o después, ajustamos la hora de recogida.",
+  "faq.a2": "Seguimos su vuelo en tiempo real. Si el avión llega antes o después, ajustamos la hora de recogida.",
   "faq.q3": "¿Cómo cancelo o modifico mi reserva?",
   "faq.a3":
     "Una llamada o WhatsApp es suficiente. La cancelación es gratuita hasta 2 horas antes. Para cualquier cambio (hora, dirección, pasajeros), avísenos cuanto antes.",
@@ -895,7 +871,8 @@ const es: Dict = {
   // Home — cómo reservar
   "home.how.eyebrow": "Cómo funciona",
   "home.how.title": "Reservar es tan simple como una llamada",
-  "home.how.intro": "Sin colas, sin robots. Una conversación directa con su conductor — confirmamos, llegamos, le llevamos.",
+  "home.how.intro":
+    "Sin colas, sin robots. Una conversación directa con su conductor — confirmamos, llegamos, le llevamos.",
   "home.how.s1.t": "Nos contacta",
   "home.how.s1.d": "Llamada, WhatsApp o formulario en línea — elija lo que le resulte más cómodo.",
   "home.how.s2.t": "Confirmamos juntos",
@@ -915,43 +892,38 @@ const es: Dict = {
   "sim.pickup": "Bajada de bandera",
   "sim.perkm": "Tarifa por km",
   "sim.estimate": "Tarifa estimada",
-  "sim.disclaimer": "Estimación orientativa basada en nuestras tarifas oficiales. El precio real puede variar según el trayecto exacto, el tráfico (atascos, desvíos) y posibles suplementos.",
+  "sim.disclaimer":
+    "Estimación orientativa basada en nuestras tarifas oficiales. El precio real puede variar según el trayecto exacto, el tráfico (atascos, desvíos) y posibles suplementos.",
   "sim.cta_call": "Confirmar por teléfono",
   "sim.cta_book": "Reservar ahora",
   "home.cta.title": "¿Listo para reservar su carrera?",
-  "home.cta.desc":
-    "Confirmación rápida, chófer profesional y precio transparente — llámenos o reserve en línea.",
+  "home.cta.desc": "Confirmación rápida, chófer profesional y precio transparente — llámenos o reserve en línea.",
   "home.cta.online": "Reservar en línea",
 
   "services.eyebrow": "Nuestros servicios",
   "services.title": "Un servicio de taxi para cada necesidad",
-  "services.intro":
-    "En Burdeos, en la Gironda y en toda Francia — un único interlocutor, servicio premium.",
+  "services.intro": "En Burdeos, en la Gironda y en toda Francia — un único interlocutor, servicio premium.",
   "services.cta": "Reservar",
   "services.b1": "24/7",
   "services.b2": "Hasta 4 pasajeros",
   "services.b3": "Chófer profesional",
   "svcp.airport.title": "Traslados al aeropuerto de Mérignac",
-  "svcp.airport.desc":
-    "Recogida puntual para sus vuelos, seguimiento en tiempo real, recibimiento a petición.",
+  "svcp.airport.desc": "Recogida puntual para sus vuelos, seguimiento en tiempo real, recibimiento a petición.",
   "svcp.airport.p1": "Recibimiento a petición",
   "svcp.airport.p2": "Seguimiento de vuelos",
   "svcp.airport.p3": "Ida y vuelta posible",
   "svcp.train.title": "Estación Saint-Jean y estaciones TGV",
-  "svcp.train.desc":
-    "Traslados desde o hacia Bordeaux Saint-Jean y todas las estaciones de la región.",
+  "svcp.train.desc": "Traslados desde o hacia Bordeaux Saint-Jean y todas las estaciones de la región.",
   "svcp.train.p1": "Recibimiento a petición",
   "svcp.train.p2": "Recogida puntual",
   "svcp.train.p3": "Disponible 24/7",
   "svcp.business.title": "Viajes profesionales",
-  "svcp.business.desc":
-    "Servicio discreto y premium para reuniones, seminarios y desplazamientos de negocio.",
+  "svcp.business.desc": "Servicio discreto y premium para reuniones, seminarios y desplazamientos de negocio.",
   "svcp.business.p1": "Facturación a empresa",
   "svcp.business.p2": "Wifi a bordo",
   "svcp.business.p3": "Discreción garantizada",
   "svcp.wedding.title": "Asistencia avería coche",
-  "svcp.wedding.desc":
-    "En caso de avería, le recogemos rápidamente y le llevamos a su destino.",
+  "svcp.wedding.desc": "En caso de avería, le recogemos rápidamente y le llevamos a su destino.",
   "svcp.wedding.p1": "Intervención rápida",
   "svcp.wedding.p2": "Toda la Gironda",
   "svcp.wedding.p3": "Disponible 24/7",
@@ -962,28 +934,24 @@ const es: Dict = {
   "svcp.cpam.p2": "Bono todas distancias",
   "svcp.cpam.p3": "Hospitales y clínicas",
   "svcp.long.title": "Larga distancia",
-  "svcp.long.desc":
-    "Trayectos a cualquier distancia en Francia y Europa.",
+  "svcp.long.desc": "Trayectos a cualquier distancia en Francia y Europa.",
   "svcp.long.p1": "Tarifas reguladas",
   "svcp.long.p2": "Tarifa por kilómetro",
   "svcp.long.p3": "Confort larga duración",
 
   "tarifs.eyebrow": "Tarifas",
   "tarifs.title": "Precios transparentes",
-  "tarifs.intro":
-    "Tarifas indicativas según la regulación prefectoral. Un precio exacto se confirma al reservar.",
+  "tarifs.intro": "Tarifas indicativas según la regulación prefectoral. Un precio exacto se confirma al reservar.",
   "tarifs.col.from": "Origen",
   "tarifs.col.to": "Destino",
   "tarifs.col.day": "Tarifa día",
   "tarifs.col.night": "Tarifa noche / dom",
-  "tarifs.note":
-    "Tarifa nocturna de 19 h a 7 h, domingos y festivos.",
+  "tarifs.note": "Tarifa nocturna de 19 h a 7 h, domingos y festivos.",
   "tarifs.cpam.title": "🏥 Concertado CPAM",
   "tarifs.cpam.desc":
     "Con bono de transporte, pago directo a la Seguridad Social francesa. Pago directo o ALD — bono todas distancias.",
   "tarifs.event.title": "🚗 Asistencia avería coche",
-  "tarifs.event.desc":
-    "En caso de avería, le recogemos rápidamente y le llevamos a su destino. Disponible 7/7.",
+  "tarifs.event.desc": "En caso de avería, le recogemos rápidamente y le llevamos a su destino. Disponible 7/7.",
   "tarifs.cta": "Reservar",
   "city.bdx_centre": "Burdeos centro",
   "city.cenon": "Cenon / Floirac",
@@ -1004,22 +972,19 @@ const es: Dict = {
   "about.p3":
     "Nuestro vehículo reciente, climatizado y cuidado, garantiza un trayecto agradable en toda circunstancia.",
   "about.b1.t": "Chófer profesional",
-  "about.b1.d":
-    "Tarjeta profesional de taxi, formación continua, perfecto conocimiento de Burdeos y la Gironda.",
+  "about.b1.d": "Tarjeta profesional de taxi, formación continua, perfecto conocimiento de Burdeos y la Gironda.",
   "about.b2.t": "Disponible 24/7",
   "about.b2.d": "Día y noche, fines de semana y festivos incluidos.",
   "about.b3.t": "Burdeos y Gironda",
   "about.b3.d":
     "Parada oficial en Burdeos. Toda la metrópoli, el aeropuerto, las estaciones y toda Francia con reserva.",
   "about.b4.t": "Concertado CPAM",
-  "about.b4.d":
-    "Transporte sentado profesional cubierto por la Seguridad Social francesa.",
+  "about.b4.d": "Transporte sentado profesional cubierto por la Seguridad Social francesa.",
   "about.cta": "Reservar un viaje",
 
   "contact.eyebrow": "Contacto",
   "contact.title": "Contáctenos",
-  "contact.intro":
-    "Disponible 24/7 — basta una llamada, o envíenos un mensaje.",
+  "contact.intro": "Disponible 24/7 — basta una llamada, o envíenos un mensaje.",
   "contact.phone": "Teléfono",
   "contact.phone.sub": "Respuesta inmediata",
   "contact.wa.title": "WhatsApp",
@@ -1033,8 +998,7 @@ const es: Dict = {
   "contact.zone.sub": "Viajes de larga distancia por toda Francia con reserva.",
   "contact.form.eyebrow": "Formulario",
   "contact.form.title": "Envíenos un mensaje",
-  "contact.form.intro":
-    "Para una pregunta o una petición especial — respondemos lo antes posible.",
+  "contact.form.intro": "Para una pregunta o una petición especial — respondemos lo antes posible.",
   "contact.form.name": "Nombre completo *",
   "contact.form.email": "Email *",
   "contact.form.phone": "Teléfono (opcional)",
@@ -1044,14 +1008,11 @@ const es: Dict = {
   "contact.form.message.ph": "Detalle su solicitud…",
   "contact.form.send": "Enviar mensaje",
   "contact.form.sending": "Enviando…",
-  "contact.form.error":
-    "Ha ocurrido un error. Llámenos directamente al +33 6 73 07 23 22.",
+  "contact.form.error": "Ha ocurrido un error. Llámenos directamente al +33 6 73 07 23 22.",
   "contact.form.success.title": "¡Mensaje enviado!",
-  "contact.form.success.desc":
-    "Gracias por contactarnos. Le respondemos pronto por email.",
+  "contact.form.success.desc": "Gracias por contactarnos. Le respondemos pronto por email.",
   "contact.form.success.again": "Enviar otro mensaje",
-  "contact.form.note":
-    "Para un viaje, utilice mejor el formulario de reserva.",
+  "contact.form.note": "Para un viaje, utilice mejor el formulario de reserva.",
   "contact.err.name": "Nombre obligatorio",
   "contact.err.email": "Email no válido",
   "contact.err.message": "Mensaje demasiado corto (mín. 10 caracteres)",
@@ -1093,10 +1054,8 @@ const es: Dict = {
   "res.f.message.ph": "Número de vuelo, edad de los niños, detalles…",
   "res.send": "Enviar mi solicitud",
   "res.sending": "Enviando…",
-  "res.note":
-    "Para un viaje inmediato, llámenos directamente al +33 6 73 07 23 22",
-  "res.err.global":
-    "Error de envío. Llámenos al +33 6 73 07 23 22.",
+  "res.note": "Para un viaje inmediato, llámenos directamente al +33 6 73 07 23 22",
+  "res.err.global": "Error de envío. Llámenos al +33 6 73 07 23 22.",
   "res.err.phone": "Número de teléfono no válido",
   "res.err.name": "Nombre obligatorio",
   "res.err.pickup": "Fecha/hora obligatoria",
@@ -1120,23 +1079,20 @@ const es: Dict = {
   "conf.luggage": "maleta(s)",
   "conf.wa": "Confirmar por WhatsApp",
   "conf.modify.title": "Modificar o cancelar",
-  "conf.modify.desc":
-    "Para modificar su solicitud, contáctenos por teléfono o WhatsApp con su número de reserva.",
+  "conf.modify.desc": "Para modificar su solicitud, contáctenos por teléfono o WhatsApp con su número de reserva.",
   "conf.cancel": "Cancelar mi reserva",
   "conf.cancel.confirm": "Confirmar la cancelación",
   "conf.cancel.keep": "Mantener mi reserva",
   "conf.back": "← Volver al inicio",
   "conf.notfound.title": "Reserva no encontrada",
-  "conf.notfound.desc":
-    "El enlace parece no válido o la reserva fue eliminada.",
+  "conf.notfound.desc": "El enlace parece no válido o la reserva fue eliminada.",
   "conf.notfound.cta": "Hacer una nueva reserva",
 
   "wa.float.send": "Enviar mi solicitud",
   "wa.float.label": "Reservar por WhatsApp",
   "wa.aria.hint": "Abre una conversación de WhatsApp en una nueva pestaña.",
   "wa.aria.draftReady": "Tu solicitud de reserva está lista para enviarse por WhatsApp.",
-  "wa.default":
-    "Hola, quisiera reservar un taxi. ¿Podría confirmarme la disponibilidad? Gracias.",
+  "wa.default": "Hola, quisiera reservar un taxi. ¿Podría confirmarme la disponibilidad? Gracias.",
   "suivi.title": "Sigue a tu conductor",
   "suivi.hello": "Hola",
   "suivi.pickup_at": "recogida a las",
@@ -1155,11 +1111,14 @@ const es: Dict = {
   "faqx.title": "Preguntas frecuentes",
   "faqx.intro": "Todo lo que debe saber antes de su trayecto.",
   "faqx.tracking.q": "¿Cómo funciona el seguimiento en tiempo real de mi vuelo o tren?",
-  "faqx.tracking.a": "En cuanto nos facilita su número de vuelo o tren, lo seguimos automáticamente. Si la llegada se adelanta o se retrasa, ajustamos la hora de recogida — no tiene que hacer nada, el conductor le esperará a la salida.",
+  "faqx.tracking.a":
+    "En cuanto nos facilita su número de vuelo o tren, lo seguimos automáticamente. Si la llegada se adelanta o se retrasa, ajustamos la hora de recogida — no tiene que hacer nada, el conductor le esperará a la salida.",
   "faqx.wait.q": "¿Cuánto tiempo espera el conductor tras el aterrizaje?",
-  "faqx.wait.a": "El conductor llega según la hora real de aterrizaje (no la prevista), e incluimos el tiempo necesario para recoger el equipaje y pasar la aduana. A partir de ahí, el tiempo de espera adicional se factura según la tarifa oficial regulada, con total transparencia.",
+  "faqx.wait.a":
+    "El conductor llega según la hora real de aterrizaje (no la prevista), e incluimos el tiempo necesario para recoger el equipaje y pasar la aduana. A partir de ahí, el tiempo de espera adicional se factura según la tarifa oficial regulada, con total transparencia.",
   "faqx.cpam.q": "¿Cómo funciona la cobertura CPAM / ALD?",
-  "faqx.cpam.a": "Traiga la prescripción médica de transporte entregada por su médico. Con este bono de transporte aplicamos el tercero pagador: el trayecto lo abona directamente la Seguridad Social francesa. En ALD (enfermedad de larga duración), la cobertura es total y válida para todas las distancias, incluidos los traslados largos a centros especializados.",
+  "faqx.cpam.a":
+    "Traiga la prescripción médica de transporte entregada por su médico. Con este bono de transporte aplicamos el tercero pagador: el trayecto lo abona directamente la Seguridad Social francesa. En ALD (enfermedad de larga duración), la cobertura es total y válida para todas las distancias, incluidos los traslados largos a centros especializados.",
 };
 
 const it: Dict = {
@@ -1197,6 +1156,19 @@ const it: Dict = {
   "home.dest.vine.sub": "Médoc, Saint-Émilion, Sauternes — giornate intere.",
   "home.dest.cta": "Prenota",
 
+  // Home — best sellers Bordeaux
+  "home.best.eyebrow": "Da non perdere",
+  "home.best.title": "I must-see di Bordeaux",
+  "home.best.intro": "I luoghi che i nostri clienti amano visitare — ti ci portiamo in tutta tranquillità.",
+  "home.best.miroir.title": "Specchio d'acqua",
+  "home.best.miroir.sub": "Place de la Bourse, l'icona di Bordeaux.",
+  "home.best.cite.title": "Cité du Vin",
+  "home.best.cite.sub": "Un viaggio nel cuore dei vigneti.",
+  "home.best.emilion.title": "Saint-Émilion",
+  "home.best.emilion.sub": "Borgo medievale e Grand Cru classé.",
+  "home.best.pilat.title": "Duna del Pilat",
+  "home.best.pilat.sub": "La duna più alta d'Europa.",
+
   "home.why.eyebrow": "Perché noi",
   "home.why.title": "Un servizio semplice, umano e affidabile.",
   "home.why.desc":
@@ -1227,17 +1199,13 @@ const it: Dict = {
 
   "home.test.eyebrow": "Si sono affidati a noi",
   "home.test.title": "Cosa dicono i nostri clienti",
-  "home.test.t1":
-    "Autista molto puntuale, auto impeccabile. Arrivata a Mérignac senza stress, vivamente consigliato.",
-  "home.test.t2":
-    "Prenotazione semplice, prezzo come annunciato. Perfetto per i miei viaggi di lavoro settimanali.",
-  "home.test.t3":
-    "Recuperati in stazione con i bambini, autista molto gentile. Prenoteremo di nuovo.",
+  "home.test.t1": "Autista molto puntuale, auto impeccabile. Arrivata a Mérignac senza stress, vivamente consigliato.",
+  "home.test.t2": "Prenotazione semplice, prezzo come annunciato. Perfetto per i miei viaggi di lavoro settimanali.",
+  "home.test.t3": "Recuperati in stazione con i bambini, autista molto gentile. Prenoteremo di nuovo.",
 
   "home.faq.eyebrow": "Le tue domande",
   "home.faq.title": "Rispondiamo onestamente",
-  "home.faq.intro":
-    "Alcune risposte alle domande più frequenti. Se non trovi la tua, una telefonata basta.",
+  "home.faq.intro": "Alcune risposte alle domande più frequenti. Se non trovi la tua, una telefonata basta.",
   "faq.q1": "Siete convenzionati CPAM per il trasporto medico?",
   "faq.a1":
     "Sì, siamo convenzionati per il trasporto medico assicurato (esami, dialisi, ospedale…). Fatevi rilasciare la prescrizione di trasporto dal medico, ci occupiamo del resto. Con un buono di trasporto, fatturazione diretta all'assicurazione sanitaria. Terzo pagante o ALD — buono di trasporto per tutte le distanze.",
@@ -1260,7 +1228,8 @@ const it: Dict = {
   // Home — come prenotare
   "home.how.eyebrow": "Come funziona",
   "home.how.title": "Prenotare è semplice come una telefonata",
-  "home.how.intro": "Niente code, niente robot. Una chiacchierata diretta con il tuo autista — confermiamo, arriviamo, ti portiamo.",
+  "home.how.intro":
+    "Niente code, niente robot. Una chiacchierata diretta con il tuo autista — confermiamo, arriviamo, ti portiamo.",
   "home.how.s1.t": "Ci contatti",
   "home.how.s1.d": "Telefono, WhatsApp o modulo online — scegli quello che ti è più comodo.",
   "home.how.s2.t": "Confermiamo insieme",
@@ -1280,43 +1249,38 @@ const it: Dict = {
   "sim.pickup": "Diritto di chiamata",
   "sim.perkm": "Tariffa al km",
   "sim.estimate": "Tariffa stimata",
-  "sim.disclaimer": "Stima indicativa basata sulle nostre tariffe ufficiali. Il prezzo reale può variare in base al percorso esatto, al traffico (ingorghi, deviazioni) ed eventuali supplementi.",
+  "sim.disclaimer":
+    "Stima indicativa basata sulle nostre tariffe ufficiali. Il prezzo reale può variare in base al percorso esatto, al traffico (ingorghi, deviazioni) ed eventuali supplementi.",
   "sim.cta_call": "Conferma per telefono",
   "sim.cta_book": "Prenota ora",
   "home.cta.title": "Pronto a prenotare la tua corsa?",
-  "home.cta.desc":
-    "Conferma rapida, autista professionale e prezzo trasparente: chiamateci o prenotate online.",
+  "home.cta.desc": "Conferma rapida, autista professionale e prezzo trasparente: chiamateci o prenotate online.",
   "home.cta.online": "Prenota online",
 
   "services.eyebrow": "I nostri servizi",
   "services.title": "Un servizio taxi per ogni esigenza",
-  "services.intro":
-    "A Bordeaux, in Gironda e in tutta la Francia: un solo interlocutore, servizio premium.",
+  "services.intro": "A Bordeaux, in Gironda e in tutta la Francia: un solo interlocutore, servizio premium.",
   "services.cta": "Prenota",
   "services.b1": "24/7",
   "services.b2": "Fino a 4 persone",
   "services.b3": "Autista professionale",
   "svcp.airport.title": "Trasferimenti Aeroporto Mérignac",
-  "svcp.airport.desc":
-    "Prelievo puntuale per i vostri voli, monitoraggio in tempo reale, accoglienza su richiesta.",
+  "svcp.airport.desc": "Prelievo puntuale per i vostri voli, monitoraggio in tempo reale, accoglienza su richiesta.",
   "svcp.airport.p1": "Accoglienza su richiesta",
   "svcp.airport.p2": "Monitoraggio volo",
   "svcp.airport.p3": "Andata e ritorno possibili",
   "svcp.train.title": "Stazione Saint-Jean & TGV",
-  "svcp.train.desc":
-    "Trasferimenti da o per la stazione di Bordeaux Saint-Jean e tutte le stazioni della regione.",
+  "svcp.train.desc": "Trasferimenti da o per la stazione di Bordeaux Saint-Jean e tutte le stazioni della regione.",
   "svcp.train.p1": "Accoglienza su richiesta",
   "svcp.train.p2": "Prelievo puntuale",
   "svcp.train.p3": "Disponibile 24/7",
   "svcp.business.title": "Trasferte aziendali",
-  "svcp.business.desc":
-    "Servizio premium e discreto per appuntamenti, riunioni e viaggi di lavoro.",
+  "svcp.business.desc": "Servizio premium e discreto per appuntamenti, riunioni e viaggi di lavoro.",
   "svcp.business.p1": "Fattura aziendale",
   "svcp.business.p2": "Wi-Fi a bordo",
   "svcp.business.p3": "Discrezione garantita",
   "svcp.wedding.title": "Soccorso auto in panne",
-  "svcp.wedding.desc":
-    "In caso di guasto, veniamo a recuperarvi rapidamente e vi portiamo a destinazione.",
+  "svcp.wedding.desc": "In caso di guasto, veniamo a recuperarvi rapidamente e vi portiamo a destinazione.",
   "svcp.wedding.p1": "Intervento rapido",
   "svcp.wedding.p2": "Tutta la Gironda",
   "svcp.wedding.p3": "Disponibile 24/7",
@@ -1327,22 +1291,19 @@ const it: Dict = {
   "svcp.cpam.p2": "Buono qualsiasi distanza",
   "svcp.cpam.p3": "Cliniche e ospedali",
   "svcp.long.title": "Lunga distanza",
-  "svcp.long.desc":
-    "Corse di qualsiasi distanza in Francia ed Europa.",
+  "svcp.long.desc": "Corse di qualsiasi distanza in Francia ed Europa.",
   "svcp.long.p1": "Tariffe regolamentate",
   "svcp.long.p2": "Tariffa al km",
   "svcp.long.p3": "Comfort sulle lunghe distanze",
 
   "tarifs.eyebrow": "Tariffe",
   "tarifs.title": "Tariffe trasparenti",
-  "tarifs.intro":
-    "Tariffe indicative secondo le norme prefettizie. Un prezzo preciso è confermato alla prenotazione.",
+  "tarifs.intro": "Tariffe indicative secondo le norme prefettizie. Un prezzo preciso è confermato alla prenotazione.",
   "tarifs.col.from": "Partenza",
   "tarifs.col.to": "Destinazione",
   "tarifs.col.day": "Tariffa diurna",
   "tarifs.col.night": "Notturna / Dom.",
-  "tarifs.note":
-    "Tariffa notturna dalle 19 alle 7, domeniche e festivi.",
+  "tarifs.note": "Tariffa notturna dalle 19 alle 7, domeniche e festivi.",
   "tarifs.cpam.title": "🏥 Trasporto medico CPAM",
   "tarifs.cpam.desc":
     "Con prescrizione, pagamento diretto con la cassa malattia francese. Pagamento diretto o ALD — buono qualsiasi distanza.",
@@ -1366,25 +1327,21 @@ const it: Dict = {
     "è un'azienda di taxi indipendente a Bordeaux. Vogliamo offrire un servizio all'altezza dell'eleganza di Bordeaux: puntualità, comfort e discrezione.",
   "about.p2":
     "Privato in partenza per l'aeroporto, professionista in trasferta o paziente in trasporto medico: adattiamo il nostro servizio alle vostre esigenze.",
-  "about.p3":
-    "Il nostro veicolo climatizzato e curato, garantisce un viaggio piacevole in qualsiasi circostanza.",
+  "about.p3": "Il nostro veicolo climatizzato e curato, garantisce un viaggio piacevole in qualsiasi circostanza.",
   "about.b1.t": "Autista professionale",
-  "about.b1.d":
-    "Licenza taxi ufficiale, formazione continua, perfetta conoscenza di Bordeaux e della Gironda.",
+  "about.b1.d": "Licenza taxi ufficiale, formazione continua, perfetta conoscenza di Bordeaux e della Gironda.",
   "about.b2.t": "Disponibile 24/7",
   "about.b2.d": "Giorno e notte, weekend e festivi inclusi.",
   "about.b3.t": "Bordeaux & Gironda",
   "about.b3.d":
     "Stazionamento ufficiale a Bordeaux. Tutta l'agglomerazione, l'aeroporto, le stazioni e tutta la Francia su prenotazione.",
   "about.b4.t": "Convenzionato CPAM",
-  "about.b4.d":
-    "Trasporto sanitario seduto professionale, rimborsato dall'assicurazione sanitaria.",
+  "about.b4.d": "Trasporto sanitario seduto professionale, rimborsato dall'assicurazione sanitaria.",
   "about.cta": "Prenota una corsa",
 
   "contact.eyebrow": "Contatti",
   "contact.title": "Contattateci",
-  "contact.intro":
-    "Disponibili 24/7: una telefonata basta, oppure inviateci un messaggio.",
+  "contact.intro": "Disponibili 24/7: una telefonata basta, oppure inviateci un messaggio.",
   "contact.phone": "Telefono",
   "contact.phone.sub": "Risposta immediata",
   "contact.wa.title": "WhatsApp",
@@ -1398,8 +1355,7 @@ const it: Dict = {
   "contact.zone.sub": "Lunghe distanze in tutta la Francia su prenotazione.",
   "contact.form.eyebrow": "Modulo",
   "contact.form.title": "Inviateci un messaggio",
-  "contact.form.intro":
-    "Per una domanda o una richiesta particolare — vi rispondiamo al più presto.",
+  "contact.form.intro": "Per una domanda o una richiesta particolare — vi rispondiamo al più presto.",
   "contact.form.name": "Nome completo *",
   "contact.form.email": "Email *",
   "contact.form.phone": "Telefono (opzionale)",
@@ -1409,14 +1365,11 @@ const it: Dict = {
   "contact.form.message.ph": "Descrivete la vostra richiesta…",
   "contact.form.send": "Invia il messaggio",
   "contact.form.sending": "Invio…",
-  "contact.form.error":
-    "Si è verificato un errore. Chiamateci direttamente: +33 6 73 07 23 22.",
+  "contact.form.error": "Si è verificato un errore. Chiamateci direttamente: +33 6 73 07 23 22.",
   "contact.form.success.title": "Messaggio inviato!",
-  "contact.form.success.desc":
-    "Grazie per la vostra richiesta. Vi rispondiamo a breve via email.",
+  "contact.form.success.desc": "Grazie per la vostra richiesta. Vi rispondiamo a breve via email.",
   "contact.form.success.again": "Invia un altro messaggio",
-  "contact.form.note":
-    "Per una corsa, usate il modulo di prenotazione.",
+  "contact.form.note": "Per una corsa, usate il modulo di prenotazione.",
   "contact.err.name": "Nome richiesto",
   "contact.err.email": "Email non valida",
   "contact.err.message": "Messaggio troppo corto (min. 10 caratteri)",
@@ -1458,10 +1411,8 @@ const it: Dict = {
   "res.f.message.ph": "Numero di volo, età dei bambini, dettagli…",
   "res.send": "Invia la mia richiesta",
   "res.sending": "Invio…",
-  "res.note":
-    "Per una corsa immediata, chiamateci direttamente: +33 6 73 07 23 22",
-  "res.err.global":
-    "Invio fallito. Chiamateci: +33 6 73 07 23 22.",
+  "res.note": "Per una corsa immediata, chiamateci direttamente: +33 6 73 07 23 22",
+  "res.err.global": "Invio fallito. Chiamateci: +33 6 73 07 23 22.",
   "res.err.phone": "Numero di telefono non valido",
   "res.err.name": "Nome richiesto",
   "res.err.pickup": "Data/ora richiesta",
@@ -1492,16 +1443,14 @@ const it: Dict = {
   "conf.cancel.keep": "Mantieni la prenotazione",
   "conf.back": "← Torna alla home",
   "conf.notfound.title": "Prenotazione non trovata",
-  "conf.notfound.desc":
-    "Il link sembra non valido o la prenotazione è stata cancellata.",
+  "conf.notfound.desc": "Il link sembra non valido o la prenotazione è stata cancellata.",
   "conf.notfound.cta": "Effettua una nuova prenotazione",
 
   "wa.float.send": "Invia la mia richiesta",
   "wa.float.label": "Prenota su WhatsApp",
   "wa.aria.hint": "Apre una conversazione WhatsApp in una nuova scheda.",
   "wa.aria.draftReady": "La tua richiesta di prenotazione è pronta per essere inviata su WhatsApp.",
-  "wa.default":
-    "Salve, vorrei prenotare un taxi. Potete confermarmi la disponibilità? Grazie.",
+  "wa.default": "Salve, vorrei prenotare un taxi. Potete confermarmi la disponibilità? Grazie.",
   "suivi.title": "Segui il tuo autista",
   "suivi.hello": "Ciao",
   "suivi.pickup_at": "prelievo alle",
@@ -1520,11 +1469,14 @@ const it: Dict = {
   "faqx.title": "Domande frequenti",
   "faqx.intro": "Tutto quello che c'è da sapere prima della corsa.",
   "faqx.tracking.q": "Come funziona il tracciamento in tempo reale del volo o del treno?",
-  "faqx.tracking.a": "Appena ci comunica il numero del volo o del treno, lo seguiamo automaticamente. Se l'arrivo è in anticipo o in ritardo, l'orario di prelievo viene aggiornato — non deve fare nulla, l'autista la aspetterà all'uscita.",
+  "faqx.tracking.a":
+    "Appena ci comunica il numero del volo o del treno, lo seguiamo automaticamente. Se l'arrivo è in anticipo o in ritardo, l'orario di prelievo viene aggiornato — non deve fare nulla, l'autista la aspetterà all'uscita.",
   "faqx.wait.q": "Quanto tempo attende l'autista dopo l'atterraggio?",
-  "faqx.wait.a": "L'autista si presenta in base all'orario reale di atterraggio (non a quello previsto) e teniamo conto del tempo per ritirare i bagagli e passare la dogana. Oltre, l'attesa supplementare è fatturata secondo la tariffa ufficiale regolamentata, in totale trasparenza.",
+  "faqx.wait.a":
+    "L'autista si presenta in base all'orario reale di atterraggio (non a quello previsto) e teniamo conto del tempo per ritirare i bagagli e passare la dogana. Oltre, l'attesa supplementare è fatturata secondo la tariffa ufficiale regolamentata, in totale trasparenza.",
   "faqx.cpam.q": "Come funziona la copertura CPAM / ALD?",
-  "faqx.cpam.a": "Porti la prescrizione medica di trasporto rilasciata dal medico. Con questo buono di trasporto applichiamo il pagamento diretto: la corsa è a carico dell'Assicurazione Sanitaria francese. In ALD (malattia di lunga durata) la copertura è totale e valida per tutte le distanze, anche per lunghi trasferimenti verso centri specializzati.",
+  "faqx.cpam.a":
+    "Porti la prescrizione medica di trasporto rilasciata dal medico. Con questo buono di trasporto applichiamo il pagamento diretto: la corsa è a carico dell'Assicurazione Sanitaria francese. In ALD (malattia di lunga durata) la copertura è totale e valida per tutte le distanze, anche per lunghi trasferimenti verso centri specializzati.",
 };
 
 // Dictionnaire arabe — traductions clés ; fallback automatique sur le français pour les clés manquantes.
@@ -1562,9 +1514,23 @@ const ar: Dict = {
   "home.dest.vine.sub": "ميدوك، سان إيميليون، سوتيرن — رحلات يوم كامل.",
   "home.dest.cta": "احجز",
 
+  // Home — best sellers Bordeaux
+  "home.best.eyebrow": "لا يُفوَّت",
+  "home.best.title": "أبرز معالم بوردو",
+  "home.best.intro": "الأماكن التي يعشق عملاؤنا زيارتها — نأخذك إليها بكل راحة وأمان.",
+  "home.best.miroir.title": "مرآة الماء",
+  "home.best.miroir.sub": "ساحة البورصة، رمز بوردو الأيقوني.",
+  "home.best.cite.title": "مدينة النبيذ",
+  "home.best.cite.sub": "رحلة إلى قلب كروم العنب.",
+  "home.best.emilion.title": "سان إيميليون",
+  "home.best.emilion.sub": "قرية قروسطية وتراث Grand Cru الفاخر.",
+  "home.best.pilat.title": "كثيب بيلا",
+  "home.best.pilat.sub": "أعلى كثيب رملي في أوروبا.",
+
   "home.why.eyebrow": "لماذا نحن",
   "home.why.title": "خدمة بسيطة، إنسانية، موثوقة.",
-  "home.why.desc": "تاكسي سيتي بوردو يعني سائقاً محلياً، وسيارة مُعتنى بها، ورغبة حقيقية في إتقان العمل. لا مفاجآت في الفاتورة، لا انتظار طويل — نؤكد، نصل، ونوصلك.",
+  "home.why.desc":
+    "تاكسي سيتي بوردو يعني سائقاً محلياً، وسيارة مُعتنى بها، ورغبة حقيقية في إتقان العمل. لا مفاجآت في الفاتورة، لا انتظار طويل — نؤكد، نصل، ونوصلك.",
   "home.why.years": "سنوات من الخبرة",
   "home.why.f1.t": "دقة مضمونة في المواعيد",
   "home.why.f1.d": "تتبع الرحلات والقطارات، هامش لتفادي التأخير.",
@@ -1599,15 +1565,19 @@ const ar: Dict = {
   "home.faq.title": "إجابات صادقة",
   "home.faq.intro": "بعض الإجابات على الأسئلة الأكثر تكراراً. إذا لم تجد سؤالك، اتصل بنا.",
   "faq.q1": "هل أنتم معتمدون من CPAM للنقل الطبي؟",
-  "faq.a1": "نعم، نحن معتمدون من CPAM للنقل الصحي (الاستشارات، غسيل الكلى، الإقامة في المستشفى…). فقط اطلب وصفة النقل الطبي من طبيبك، ونحن نتولى الباقي. عند تقديم بون النقل، التغطية المباشرة من التأمين الصحي. الدفع من طرف ثالث أو ALD — بون نقل لجميع المسافات.",
+  "faq.a1":
+    "نعم، نحن معتمدون من CPAM للنقل الصحي (الاستشارات، غسيل الكلى، الإقامة في المستشفى…). فقط اطلب وصفة النقل الطبي من طبيبك، ونحن نتولى الباقي. عند تقديم بون النقل، التغطية المباشرة من التأمين الصحي. الدفع من طرف ثالث أو ALD — بون نقل لجميع المسافات.",
   "faq.q2": "ماذا لو تأخرت رحلتي في ميرينياك؟",
   "faq.a2": "نتتبع رحلتك في الوقت الفعلي. إذا هبطت طائرتك مبكراً أو متأخراً، نضبط وقت الاستقبال.",
   "faq.q3": "كيف ألغي أو أعدل حجزي؟",
-  "faq.a3": "مكالمة بسيطة أو رسالة واتساب تكفي. الإلغاء مجاني حتى ساعتين قبل الرحلة. للتعديل (الوقت، العنوان، الركاب)، أعلمنا في أقرب وقت — سنرتب الأمر.",
+  "faq.a3":
+    "مكالمة بسيطة أو رسالة واتساب تكفي. الإلغاء مجاني حتى ساعتين قبل الرحلة. للتعديل (الوقت، العنوان، الركاب)، أعلمنا في أقرب وقت — سنرتب الأمر.",
   "faq.q4": "ما هي طرق الدفع المقبولة؟",
-  "faq.a4": "البطاقة (تلامسي، Apple Pay، Google Pay)، النقد، والتحويل البنكي للحسابات التجارية. نقدم إيصالاً في نهاية الرحلة، عند الطلب لتقارير المصاريف.",
+  "faq.a4":
+    "البطاقة (تلامسي، Apple Pay، Google Pay)، النقد، والتحويل البنكي للحسابات التجارية. نقدم إيصالاً في نهاية الرحلة، عند الطلب لتقارير المصاريف.",
   "faq.q5": "هل يجب الحجز مسبقاً؟",
-  "faq.a5": "ليس إلزامياً — نقبل أيضاً الرحلات الفورية إذا كنا متاحين. لقطار مبكر أو رحلة طيران أو اجتماع مهم، يفضل الحجز قبل يوم.",
+  "faq.a5":
+    "ليس إلزامياً — نقبل أيضاً الرحلات الفورية إذا كنا متاحين. لقطار مبكر أو رحلة طيران أو اجتماع مهم، يفضل الحجز قبل يوم.",
   "faq.q6": "كم من الأمتعة يمكنني حملها؟",
   "faq.a6": "السيارة تتسع بسهولة لـ 3-4 حقائب و4 ركاب. للمجموعات أو الأمتعة الكبيرة، أعلمنا عند الحجز ونكيف السيارة.",
 
@@ -1634,7 +1604,8 @@ const ar: Dict = {
   "sim.pickup": "أجرة الانطلاق",
   "sim.perkm": "السعر لكل كم",
   "sim.estimate": "السعر التقديري",
-  "sim.disclaimer": "تقدير إرشادي بناءً على أسعارنا الرسمية. قد يختلف السعر الفعلي حسب المسار الدقيق وحالة المرور (الازدحام، التحويلات) والإضافات المحتملة.",
+  "sim.disclaimer":
+    "تقدير إرشادي بناءً على أسعارنا الرسمية. قد يختلف السعر الفعلي حسب المسار الدقيق وحالة المرور (الازدحام، التحويلات) والإضافات المحتملة.",
   "sim.cta_call": "التأكيد عبر الهاتف",
   "sim.cta_book": "احجز الآن",
   "home.cta.title": "جاهز لحجز رحلتك؟",
@@ -1705,7 +1676,8 @@ const ar: Dict = {
   "about.title": "عن تاكسي سيتي بوردو",
   "about.p1.brand": "تاكسي سيتي بوردو",
   "about.p1": "شركة تاكسي مستقلة في بوردو. نهدف لتقديم خدمة تليق بأناقة بوردو: دقة، راحة، وتكتم.",
-  "about.p2": "سواء كنت عميلاً خاصاً متجهاً للمطار، أو محترفاً في تنقل، أو مريضاً يحتاج نقلاً طبياً، نكيف خدمتنا حسب حاجتك.",
+  "about.p2":
+    "سواء كنت عميلاً خاصاً متجهاً للمطار، أو محترفاً في تنقل، أو مريضاً يحتاج نقلاً طبياً، نكيف خدمتنا حسب حاجتك.",
   "about.p3": "سيارتنا الحديثة المكيفة والمعتنى بها بدقة تضمن رحلة ممتعة في كل الأحوال.",
   "about.b1.t": "سائق محترف",
   "about.b1.d": "بطاقة تاكسي رسمية، تدريب مستمر، معرفة عميقة ببوردو وجيروند.",
@@ -1842,11 +1814,14 @@ const ar: Dict = {
   "faqx.title": "الأسئلة الشائعة",
   "faqx.intro": "كل ما تحتاج معرفته قبل رحلتك.",
   "faqx.tracking.q": "كيف يعمل التتبع المباشر لرحلتي الجوية أو القطار؟",
-  "faqx.tracking.a": "بمجرد إعطائنا رقم الرحلة أو القطار، نتابعه تلقائيًا. إذا وصلت مبكرًا أو متأخرًا، نعدّل وقت الاستقبال — لا داعي لفعل أي شيء، السائق سينتظرك عند الخروج.",
+  "faqx.tracking.a":
+    "بمجرد إعطائنا رقم الرحلة أو القطار، نتابعه تلقائيًا. إذا وصلت مبكرًا أو متأخرًا، نعدّل وقت الاستقبال — لا داعي لفعل أي شيء، السائق سينتظرك عند الخروج.",
   "faqx.wait.q": "كم من الوقت ينتظر السائق بعد الهبوط؟",
-  "faqx.wait.a": "يحضر السائق وفقًا لوقت الهبوط الفعلي (وليس المجدول)، ونحسب الوقت اللازم لاستلام الأمتعة وإجراءات الجمارك. بعد ذلك، يُحتسب وقت الانتظار الإضافي وفق التعرفة الرسمية المعتمدة، بكل شفافية.",
+  "faqx.wait.a":
+    "يحضر السائق وفقًا لوقت الهبوط الفعلي (وليس المجدول)، ونحسب الوقت اللازم لاستلام الأمتعة وإجراءات الجمارك. بعد ذلك، يُحتسب وقت الانتظار الإضافي وفق التعرفة الرسمية المعتمدة، بكل شفافية.",
   "faqx.cpam.q": "كيف تتم التغطية CPAM / ALD؟",
-  "faqx.cpam.a": "أحضر وصفة النقل الطبي من طبيبك. بتقديم بون النقل، نطبّق نظام الدفع المباشر: تتولى التأمين الصحي الفرنسي تكاليف الرحلة مباشرة. في حالة ALD (مرض طويل الأمد)، التغطية كاملة وصالحة لجميع المسافات — بما في ذلك الرحلات الطويلة إلى المراكز المتخصصة.",
+  "faqx.cpam.a":
+    "أحضر وصفة النقل الطبي من طبيبك. بتقديم بون النقل، نطبّق نظام الدفع المباشر: تتولى التأمين الصحي الفرنسي تكاليف الرحلة مباشرة. في حالة ALD (مرض طويل الأمد)، التغطية كاملة وصالحة لجميع المسافات — بما في ذلك الرحلات الطويلة إلى المراكز المتخصصة.",
 };
 
 const pt: Dict = {
@@ -1886,6 +1861,19 @@ const pt: Dict = {
   "home.dest.vine.title": "Castelos e vinhas",
   "home.dest.vine.sub": "Médoc, Saint-Émilion, Sauternes — dia inteiro.",
   "home.dest.cta": "Reservar",
+
+  // Home — best sellers Bordeaux
+  "home.best.eyebrow": "Imperdíveis",
+  "home.best.title": "Os must-see de Bordéus",
+  "home.best.intro": "Os lugares que os nossos clientes adoram visitar — levamo-los com toda a tranquilidade.",
+  "home.best.miroir.title": "Espelho de Água",
+  "home.best.miroir.sub": "Place de la Bourse, o ícone de Bordéus.",
+  "home.best.cite.title": "Cidade do Vinho",
+  "home.best.cite.sub": "Uma viagem ao coração dos vinhedos.",
+  "home.best.emilion.title": "Saint-Émilion",
+  "home.best.emilion.sub": "Vila medieval e Grand Cru classé.",
+  "home.best.pilat.title": "Duna do Pilat",
+  "home.best.pilat.sub": "A duna mais alta da Europa.",
 
   // Home — why us
   "home.why.eyebrow": "Porquê nós",
@@ -1930,8 +1918,7 @@ const pt: Dict = {
   // Home — FAQ
   "home.faq.eyebrow": "As suas questões",
   "home.faq.title": "Respondemos com franqueza",
-  "home.faq.intro":
-    "Algumas respostas às perguntas mais frequentes. Se não encontrar, basta um telefonema.",
+  "home.faq.intro": "Algumas respostas às perguntas mais frequentes. Se não encontrar, basta um telefonema.",
   "faq.q1": "Estão convencionados com a CPAM?",
   "faq.a1":
     "Sim, somos convencionados com a CPAM para transportes de saúde (consultas, diálises, hospitalizações…). Peça ao seu médico a prescrição médica de transporte e nós tratamos do resto. Mediante apresentação do voucher de transporte, cobertura direta pelo Seguro de Saúde. Terceiro pagador ou ALD — voucher de transporte para todas as distâncias.",
@@ -1955,7 +1942,8 @@ const pt: Dict = {
   // Home — como reservar
   "home.how.eyebrow": "Como funciona",
   "home.how.title": "Reservar é tão simples como um telefonema",
-  "home.how.intro": "Sem filas, sem robôs. Apenas uma conversa direta com o seu motorista — confirmamos, chegamos, levamo-lo.",
+  "home.how.intro":
+    "Sem filas, sem robôs. Apenas uma conversa direta com o seu motorista — confirmamos, chegamos, levamo-lo.",
   "home.how.s1.t": "Entra em contacto",
   "home.how.s1.d": "Telefone, WhatsApp ou formulário online — escolha o que for mais prático.",
   "home.how.s2.t": "Confirmamos juntos",
@@ -1975,44 +1963,39 @@ const pt: Dict = {
   "sim.pickup": "Bandeirada",
   "sim.perkm": "Tarifa por km",
   "sim.estimate": "Tarifa estimada",
-  "sim.disclaimer": "Estimativa indicativa baseada nas nossas tarifas oficiais. O preço real pode variar consoante o trajeto exato, o trânsito (engarrafamentos, desvios) e eventuais suplementos.",
+  "sim.disclaimer":
+    "Estimativa indicativa baseada nas nossas tarifas oficiais. O preço real pode variar consoante o trajeto exato, o trânsito (engarrafamentos, desvios) e eventuais suplementos.",
   "sim.cta_call": "Confirmar por telefone",
   "sim.cta_book": "Reservar agora",
   "home.cta.title": "Pronto para reservar a sua corrida?",
-  "home.cta.desc":
-    "Confirmação rápida, motorista profissional e preço transparente — telefone-nos ou reserve online.",
+  "home.cta.desc": "Confirmação rápida, motorista profissional e preço transparente — telefone-nos ou reserve online.",
   "home.cta.online": "Reservar online",
 
   // Services page
   "services.eyebrow": "Os nossos serviços",
   "services.title": "Um serviço de táxi para cada necessidade",
-  "services.intro":
-    "Em Bordéus, na Gironde e em toda a França — um único interlocutor, um serviço de alta qualidade.",
+  "services.intro": "Em Bordéus, na Gironde e em toda a França — um único interlocutor, um serviço de alta qualidade.",
   "services.cta": "Reservar",
   "services.b1": "7d/7 – 24h/24",
   "services.b2": "Até 4 passageiros",
   "services.b3": "Motorista profissional",
   "svcp.airport.title": "Transferes Aeroporto Mérignac",
-  "svcp.airport.desc":
-    "Recolha pontual para os seus voos, acompanhamento em tempo real, receção a pedido.",
+  "svcp.airport.desc": "Recolha pontual para os seus voos, acompanhamento em tempo real, receção a pedido.",
   "svcp.airport.p1": "Receção a pedido",
   "svcp.airport.p2": "Acompanhamento de voos",
   "svcp.airport.p3": "Ida e volta possível",
   "svcp.train.title": "Estação Saint-Jean e estações TGV",
-  "svcp.train.desc":
-    "Transferes de e para a estação de Bordeaux Saint-Jean e todas as estações da região.",
+  "svcp.train.desc": "Transferes de e para a estação de Bordeaux Saint-Jean e todas as estações da região.",
   "svcp.train.p1": "Receção a pedido",
   "svcp.train.p2": "Recolha pontual",
   "svcp.train.p3": "Disponível 24h/24",
   "svcp.business.title": "Deslocações profissionais",
-  "svcp.business.desc":
-    "Serviço discreto e premium para as suas reuniões, seminários e viagens de negócios.",
+  "svcp.business.desc": "Serviço discreto e premium para as suas reuniões, seminários e viagens de negócios.",
   "svcp.business.p1": "Faturação a empresas",
   "svcp.business.p2": "Wifi a bordo",
   "svcp.business.p3": "Discrição garantida",
   "svcp.wedding.title": "Assistência em avaria automóvel",
-  "svcp.wedding.desc":
-    "Em caso de avaria, vamos buscá-lo rapidamente e levamo-lo ao destino.",
+  "svcp.wedding.desc": "Em caso de avaria, vamos buscá-lo rapidamente e levamo-lo ao destino.",
   "svcp.wedding.p1": "Intervenção rápida",
   "svcp.wedding.p2": "Toda a Gironde",
   "svcp.wedding.p3": "Disponível 24h/24",
@@ -2031,20 +2014,17 @@ const pt: Dict = {
   // Tarifs page
   "tarifs.eyebrow": "Tarifas",
   "tarifs.title": "Preços transparentes",
-  "tarifs.intro":
-    "Tarifas indicativas baseadas na regulamentação prefeitoral. O preço exato é confirmado na reserva.",
+  "tarifs.intro": "Tarifas indicativas baseadas na regulamentação prefeitoral. O preço exato é confirmado na reserva.",
   "tarifs.col.from": "Partida",
   "tarifs.col.to": "Chegada",
   "tarifs.col.day": "Tarifa diurna",
   "tarifs.col.night": "Tarifa noturna / dom",
-  "tarifs.note":
-    "Tarifa noturna aplicada das 19h às 7h, domingos e feriados.",
+  "tarifs.note": "Tarifa noturna aplicada das 19h às 7h, domingos e feriados.",
   "tarifs.cpam.title": "🏥 Convencionado CPAM",
   "tarifs.cpam.desc":
     "Mediante apresentação do voucher de transporte, cobertura direta pelo Seguro de Saúde. Terceiro pagador ou ALD — voucher de transporte para todas as distâncias.",
   "tarifs.event.title": "🚗 Assistência em avaria automóvel",
-  "tarifs.event.desc":
-    "Em caso de avaria, vamos buscá-lo rapidamente e levamo-lo ao destino. Disponível 7d/7.",
+  "tarifs.event.desc": "Em caso de avaria, vamos buscá-lo rapidamente e levamo-lo ao destino. Disponível 7d/7.",
   "tarifs.cta": "Reservar",
   "city.bdx_centre": "Centro de Bordéus",
   "city.cenon": "Cenon / Floirac",
@@ -2066,23 +2046,19 @@ const pt: Dict = {
   "about.p3":
     "O nosso veículo climatizado e cuidadosamente mantido, garante uma viagem agradável em todas as circunstâncias.",
   "about.b1.t": "Motorista profissional",
-  "about.b1.d":
-    "Cartão profissional de táxi, formação contínua, perfeito conhecimento de Bordéus e da Gironde.",
+  "about.b1.d": "Cartão profissional de táxi, formação contínua, perfeito conhecimento de Bordéus e da Gironde.",
   "about.b2.t": "Disponível 7d/7",
   "about.b2.d": "De dia e de noite, fins de semana e feriados incluídos.",
   "about.b3.t": "Bordéus e Gironde",
-  "about.b3.d":
-    "Estação oficial em Bordéus. Toda a metrópole, aeroporto, estações e toda a França mediante reserva.",
+  "about.b3.d": "Estação oficial em Bordéus. Toda a metrópole, aeroporto, estações e toda a França mediante reserva.",
   "about.b4.t": "Convencionado CPAM",
-  "about.b4.d":
-    "Transporte sentado profissionalizado coberto pelo Seguro de Saúde.",
+  "about.b4.d": "Transporte sentado profissionalizado coberto pelo Seguro de Saúde.",
   "about.cta": "Reservar uma corrida",
 
   // Contact page
   "contact.eyebrow": "Contacto",
   "contact.title": "Fale connosco",
-  "contact.intro":
-    "Disponível 7d/7 — basta uma chamada, ou envie-nos uma mensagem.",
+  "contact.intro": "Disponível 7d/7 — basta uma chamada, ou envie-nos uma mensagem.",
   "contact.phone": "Telefone",
   "contact.phone.sub": "Resposta imediata",
   "contact.wa.title": "WhatsApp",
@@ -2096,8 +2072,7 @@ const pt: Dict = {
   "contact.zone.sub": "Longas distâncias por toda a França mediante reserva.",
   "contact.form.eyebrow": "Formulário",
   "contact.form.title": "Envie-nos uma mensagem",
-  "contact.form.intro":
-    "Para uma questão ou pedido especial — respondemos o mais rapidamente possível.",
+  "contact.form.intro": "Para uma questão ou pedido especial — respondemos o mais rapidamente possível.",
   "contact.form.name": "Nome completo *",
   "contact.form.email": "Email *",
   "contact.form.phone": "Telefone (opcional)",
@@ -2107,14 +2082,11 @@ const pt: Dict = {
   "contact.form.message.ph": "Detalhe o seu pedido…",
   "contact.form.send": "Enviar mensagem",
   "contact.form.sending": "A enviar…",
-  "contact.form.error":
-    "Ocorreu um erro. Por favor ligue diretamente para 06 73 07 23 22.",
+  "contact.form.error": "Ocorreu um erro. Por favor ligue diretamente para 06 73 07 23 22.",
   "contact.form.success.title": "Mensagem enviada!",
-  "contact.form.success.desc":
-    "Obrigado por nos contactar. Responderemos rapidamente por email.",
+  "contact.form.success.desc": "Obrigado por nos contactar. Responderemos rapidamente por email.",
   "contact.form.success.again": "Enviar outra mensagem",
-  "contact.form.note":
-    "Para uma corrida, utilize antes o formulário de reserva.",
+  "contact.form.note": "Para uma corrida, utilize antes o formulário de reserva.",
   "contact.err.name": "Nome obrigatório",
   "contact.err.email": "Email inválido",
   "contact.err.message": "Mensagem demasiado curta (mín. 10 caracteres)",
@@ -2157,10 +2129,8 @@ const pt: Dict = {
   "res.f.message.ph": "Número de voo, idade das crianças, observações…",
   "res.send": "Enviar pedido",
   "res.sending": "A enviar…",
-  "res.note":
-    "Para uma corrida imediata, ligue diretamente para 06 73 07 23 22",
-  "res.err.global":
-    "Erro no envio. Por favor ligue para 06 73 07 23 22.",
+  "res.note": "Para uma corrida imediata, ligue diretamente para 06 73 07 23 22",
+  "res.err.global": "Erro no envio. Por favor ligue para 06 73 07 23 22.",
   "res.err.phone": "Número de telefone inválido",
   "res.err.name": "Nome obrigatório",
   "res.err.pickup": "Data/hora obrigatória",
@@ -2173,8 +2143,7 @@ const pt: Dict = {
   "conf.cancelled.title": "Reserva cancelada",
   "conf.cancelled.desc": "Esta reserva foi cancelada com sucesso.",
   "conf.ok.title": "Pedido registado!",
-  "conf.ok.desc":
-    "Ligamos brevemente para confirmar a sua corrida.",
+  "conf.ok.desc": "Ligamos brevemente para confirmar a sua corrida.",
   "conf.ref.label": "Nº de reserva",
   "conf.ref.note": "A guardar para qualquer alteração ou cancelamento.",
   "conf.summary": "Resumo",
@@ -2186,15 +2155,13 @@ const pt: Dict = {
   "conf.luggage": "bagagem(s)",
   "conf.wa": "Confirmar via WhatsApp",
   "conf.modify.title": "Alterar ou cancelar",
-  "conf.modify.desc":
-    "Para alterar o pedido, contacte-nos por telefone ou WhatsApp com o seu número de reserva.",
+  "conf.modify.desc": "Para alterar o pedido, contacte-nos por telefone ou WhatsApp com o seu número de reserva.",
   "conf.cancel": "Cancelar a minha reserva",
   "conf.cancel.confirm": "Confirmar cancelamento",
   "conf.cancel.keep": "Manter a minha reserva",
   "conf.back": "← Voltar ao início",
   "conf.notfound.title": "Reserva não encontrada",
-  "conf.notfound.desc":
-    "O link parece inválido ou a reserva foi removida.",
+  "conf.notfound.desc": "O link parece inválido ou a reserva foi removida.",
   "conf.notfound.cta": "Fazer nova reserva",
 
   // WhatsApp float
@@ -2202,8 +2169,7 @@ const pt: Dict = {
   "wa.float.label": "Reservar pelo WhatsApp",
   "wa.aria.hint": "Abre uma conversa no WhatsApp num novo separador.",
   "wa.aria.draftReady": "O seu pedido de reserva está pronto para ser enviado pelo WhatsApp.",
-  "wa.default":
-    "Olá, gostaria de reservar um táxi. Pode confirmar a disponibilidade? Obrigado.",
+  "wa.default": "Olá, gostaria de reservar um táxi. Pode confirmar a disponibilidade? Obrigado.",
   // Tracking page
   "suivi.title": "Acompanhamento do seu motorista",
   "suivi.hello": "Olá",
@@ -2224,11 +2190,14 @@ const pt: Dict = {
   "faqx.title": "Perguntas frequentes",
   "faqx.intro": "Tudo o que precisa de saber antes da sua corrida.",
   "faqx.tracking.q": "Como funciona o acompanhamento em tempo real do meu voo ou comboio?",
-  "faqx.tracking.a": "Assim que nos comunica o número do voo ou comboio, acompanhamo-lo automaticamente. Se a chegada for adiantada ou atrasada, ajustamos a hora de recolha — não tem de fazer nada, o motorista estará à sua espera à saída.",
+  "faqx.tracking.a":
+    "Assim que nos comunica o número do voo ou comboio, acompanhamo-lo automaticamente. Se a chegada for adiantada ou atrasada, ajustamos a hora de recolha — não tem de fazer nada, o motorista estará à sua espera à saída.",
   "faqx.wait.q": "Quanto tempo espera o motorista após a aterragem?",
-  "faqx.wait.a": "O motorista apresenta-se com base na hora real de aterragem (não a prevista) e contamos o tempo necessário para recolher a bagagem e passar a alfândega. Para além disso, o tempo de espera adicional é cobrado segundo a tarifa oficial regulamentada, com total transparência.",
+  "faqx.wait.a":
+    "O motorista apresenta-se com base na hora real de aterragem (não a prevista) e contamos o tempo necessário para recolher a bagagem e passar a alfândega. Para além disso, o tempo de espera adicional é cobrado segundo a tarifa oficial regulamentada, com total transparência.",
   "faqx.cpam.q": "Como funciona a cobertura CPAM / ALD?",
-  "faqx.cpam.a": "Traga a prescrição médica de transporte entregue pelo seu médico. Com este voucher de transporte aplicamos o terceiro pagador: a corrida é faturada diretamente ao Seguro de Saúde francês. Em ALD (doença de longa duração), a cobertura é total e válida para todas as distâncias — incluindo trajetos longos para um centro especializado.",
+  "faqx.cpam.a":
+    "Traga a prescrição médica de transporte entregue pelo seu médico. Com este voucher de transporte aplicamos o terceiro pagador: a corrida é faturada diretamente ao Seguro de Saúde francês. Em ALD (doença de longa duração), a cobertura é total e válida para todas as distâncias — incluindo trajetos longos para um centro especializado.",
 };
 
 export const DICTS: Record<Lang, Dict> = { fr, en, es, pt, it, ar };
