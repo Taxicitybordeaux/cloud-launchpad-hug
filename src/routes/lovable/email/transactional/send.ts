@@ -4,13 +4,8 @@ import { createClient } from "@supabase/supabase-js";
 import { createFileRoute } from "@tanstack/react-router";
 import { TEMPLATES } from "@/lib/email-templates/registry";
 
-// Configuration baked in at scaffold time
 const SITE_NAME = "Taxi City Bordeaux";
-// SENDER_DOMAIN is the verified sender subdomain FQDN (e.g., "notify.example.com").
-// It MUST match the subdomain delegated to Lovable's nameservers. NEVER use the root domain.
 const SENDER_DOMAIN = "notify.taxicitybordeaux.fr";
-// FROM_DOMAIN is the domain shown in the From: header (e.g., "example.com").
-// Can be the root domain when display_from_root is enabled — this is cosmetic only.
 const FROM_DOMAIN = "taxicitybordeaux.fr";
 
 function redactEmail(email: string | null | undefined): string {
@@ -20,7 +15,6 @@ function redactEmail(email: string | null | undefined): string {
   return `${localPart[0]}***@${domain}`;
 }
 
-// Generate a cryptographically random 32-byte hex token
 function generateToken(): string {
   const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);
@@ -35,38 +29,50 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
       POST: async ({ request }) => {
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const lovableApiKey = process.env.LOVABLE_API_KEY ?? "";
 
         if (!supabaseUrl || !supabaseServiceKey) {
           console.error("Missing required environment variables");
           return Response.json({ error: "Server configuration error" }, { status: 500 });
         }
 
-        // Verify the caller is authorized.
-        // Accepts either:
-        //   1. A valid Supabase user JWT (standard auth flow)
-        //   2. The service role key (internal admin calls — PIN-based admin has no Supabase session)
+        // ── Auth ──────────────────────────────────────────────────────────────
+        // Accepts any of:
+        //   1. X-Admin-Secret: <LOVABLE_API_KEY>   ← PIN-based admin (no Supabase session)
+        //   2. Authorization: Bearer <LOVABLE_API_KEY>
+        //   3. Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>
+        //   4. Authorization: Bearer <valid Supabase user JWT>
+        const adminSecretHeader = request.headers.get("X-Admin-Secret");
         const authHeader = request.headers.get("Authorization");
-        if (!authHeader?.startsWith("Bearer ")) {
-          return Response.json({ error: "Unauthorized" }, { status: 401 });
-        }
 
-        const token = authHeader.slice("Bearer ".length).trim();
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        let authorized = false;
 
-        // Fast-path: internal admin call authenticated with the service role key
-        const isServiceRoleCall = token === supabaseServiceKey;
-        if (!isServiceRoleCall) {
-          // Normal path: validate as a Supabase user JWT
-          const {
-            data: { user },
-            error: authError,
-          } = await supabase.auth.getUser(token);
-          if (authError || !user) {
-            return Response.json({ error: "Unauthorized" }, { status: 401 });
+        if (adminSecretHeader) {
+          // Path 1 — X-Admin-Secret header (bridge from PIN admin)
+          authorized = lovableApiKey.length > 0 && adminSecretHeader === lovableApiKey;
+        } else if (authHeader?.startsWith("Bearer ")) {
+          const token = authHeader.slice("Bearer ".length).trim();
+          if (token === supabaseServiceKey || (lovableApiKey && token === lovableApiKey)) {
+            // Path 2 & 3 — service role key or LOVABLE_API_KEY as bearer
+            authorized = true;
+          } else {
+            // Path 4 — Supabase user JWT
+            const supabase = createClient(supabaseUrl, supabaseServiceKey);
+            const {
+              data: { user },
+              error,
+            } = await supabase.auth.getUser(token);
+            authorized = !error && !!user;
           }
         }
 
-        // Parse request body
+        if (!authorized) {
+          return Response.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
         let templateName: string;
         let recipientEmail: string;
         let idempotencyKey: string;
@@ -89,34 +95,23 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
           return Response.json({ error: "templateName is required" }, { status: 400 });
         }
 
-        // 1. Look up template from registry (early — needed to resolve recipient)
         const template = TEMPLATES[templateName];
-
         if (!template) {
           console.error("Template not found in registry", { templateName });
           return Response.json(
-            {
-              error: `Template '${templateName}' not found. Available: ${Object.keys(TEMPLATES).join(", ")}`,
-            },
+            { error: `Template '${templateName}' not found. Available: ${Object.keys(TEMPLATES).join(", ")}` },
             { status: 404 },
           );
         }
 
-        // Resolve effective recipient: template-level `to` takes precedence over
-        // the caller-provided recipientEmail. This allows notification templates
-        // to always send to a fixed address (e.g., site owner from env var).
         const effectiveRecipient = template.to || recipientEmail;
-
         if (!effectiveRecipient) {
           return Response.json(
-            {
-              error: "recipientEmail is required (unless the template defines a fixed recipient)",
-            },
+            { error: "recipientEmail is required (unless the template defines a fixed recipient)" },
             { status: 400 },
           );
         }
 
-        // 2. Check suppression list (fail-closed: if we can't verify, don't send)
         const { data: suppressed, error: suppressionError } = await supabase
           .from("suppressed_emails")
           .select("id")
@@ -124,34 +119,23 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
           .maybeSingle();
 
         if (suppressionError) {
-          console.error("Suppression check failed — refusing to send", {
-            error: suppressionError,
-            recipient_redacted: redactEmail(effectiveRecipient),
-          });
+          console.error("Suppression check failed", { error: suppressionError });
           return Response.json({ error: "Failed to verify suppression status" }, { status: 500 });
         }
 
         if (suppressed) {
-          // Log the suppressed attempt
           await supabase.from("email_send_log").insert({
             message_id: messageId,
             template_name: templateName,
             recipient_email: effectiveRecipient,
             status: "suppressed",
           });
-
-          console.log("Email suppressed", {
-            templateName,
-            recipient_redacted: redactEmail(effectiveRecipient),
-          });
           return Response.json({ success: false, reason: "email_suppressed" });
         }
 
-        // 3. Get or create unsubscribe token (one token per email address)
         const normalizedEmail = effectiveRecipient.toLowerCase();
         let unsubscribeToken: string;
 
-        // Check for existing token for this email
         const { data: existingToken, error: tokenLookupError } = await supabase
           .from("email_unsubscribe_tokens")
           .select("token, used_at")
@@ -159,10 +143,6 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
           .maybeSingle();
 
         if (tokenLookupError) {
-          console.error("Token lookup failed", {
-            error: tokenLookupError,
-            email_redacted: redactEmail(normalizedEmail),
-          });
           await supabase.from("email_send_log").insert({
             message_id: messageId,
             template_name: templateName,
@@ -174,10 +154,8 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
         }
 
         if (existingToken && !existingToken.used_at) {
-          // Reuse existing unused token
           unsubscribeToken = existingToken.token;
         } else if (!existingToken) {
-          // Create new token — upsert handles concurrent inserts gracefully
           unsubscribeToken = generateToken();
           const { error: tokenError } = await supabase
             .from("email_unsubscribe_tokens")
@@ -187,9 +165,6 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
             );
 
           if (tokenError) {
-            console.error("Failed to create unsubscribe token", {
-              error: tokenError,
-            });
             await supabase.from("email_send_log").insert({
               message_id: messageId,
               template_name: templateName,
@@ -200,8 +175,6 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
             return Response.json({ error: "Failed to prepare email" }, { status: 500 });
           }
 
-          // If another request raced us, our upsert was silently ignored.
-          // Re-read to get the actual stored token.
           const { data: storedToken, error: reReadError } = await supabase
             .from("email_unsubscribe_tokens")
             .select("token")
@@ -209,10 +182,6 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
             .maybeSingle();
 
           if (reReadError || !storedToken) {
-            console.error("Failed to read back unsubscribe token after upsert", {
-              error: reReadError,
-              email_redacted: redactEmail(normalizedEmail),
-            });
             await supabase.from("email_send_log").insert({
               message_id: messageId,
               template_name: templateName,
@@ -224,11 +193,6 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
           }
           unsubscribeToken = storedToken.token;
         } else {
-          // Token exists but is already used — email should have been caught by suppression check above.
-          // This is a safety fallback; log and skip sending.
-          console.warn("Unsubscribe token already used but email not suppressed", {
-            email_redacted: redactEmail(normalizedEmail),
-          });
           await supabase.from("email_send_log").insert({
             message_id: messageId,
             template_name: templateName,
@@ -239,19 +203,13 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
           return Response.json({ success: false, reason: "email_suppressed" });
         }
 
-        // 4. Render React Email template to HTML and plain text
         const element = React.createElement(template.component, templateData);
         const html = await render(element);
         const plainText = await render(element, { plainText: true });
 
-        // Resolve subject — supports static string or dynamic function
         const resolvedSubject =
           typeof template.subject === "function" ? template.subject(templateData) : template.subject;
 
-        // 5. Enqueue the pre-rendered email for async processing by the dispatcher.
-        // The dispatcher (process-email-queue) handles sending, retries, and rate-limit backoff.
-
-        // Log pending BEFORE enqueue so we have a record even if enqueue crashes
         await supabase.from("email_send_log").insert({
           message_id: messageId,
           template_name: templateName,
@@ -278,12 +236,7 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
         });
 
         if (enqueueError) {
-          console.error("Failed to enqueue email", {
-            error: enqueueError,
-            templateName,
-            recipient_redacted: redactEmail(effectiveRecipient),
-          });
-
+          console.error("Failed to enqueue email", { error: enqueueError, templateName });
           await supabase.from("email_send_log").insert({
             message_id: messageId,
             template_name: templateName,
@@ -291,7 +244,6 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
             status: "failed",
             error_message: "Failed to enqueue email",
           });
-
           return Response.json({ error: "Failed to enqueue email" }, { status: 500 });
         }
 
