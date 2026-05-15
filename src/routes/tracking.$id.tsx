@@ -1796,6 +1796,18 @@ function TrackingPage() {
               aria-label="Zone morte du suivi auto"
             />
             <span style={{ opacity: 0.8, minWidth: 28, textAlign: "right" }}>{deadZonePct}%</span>
+            <label
+              style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", paddingLeft: 6, borderLeft: "1px solid rgba(255,255,255,0.15)" }}
+              title="Réactive le suivi auto si le taxi revient dans la zone visible"
+            >
+              <input
+                type="checkbox"
+                checked={autoResume}
+                onChange={(e) => setAutoResume(e.target.checked)}
+                style={{ accentColor: "#0ea5e9", margin: 0 }}
+              />
+              <span style={{ opacity: 0.85 }}>auto</span>
+            </label>
           </div>
         )}
         {/* Overlay quand GPS actif mais position pas encore reçue */}
