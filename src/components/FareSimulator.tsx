@@ -83,16 +83,11 @@ interface AddressFieldProps {
 
 function AddressField({ id, label, icon, value, onChange, onSelect }: AddressFieldProps) {
   const [open, setOpen] = useState(false);
-  const [inputVal, setInputVal] = useState(value);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const { results, loading } = useNominatim(inputVal);
+  const { results, loading } = useNominatim(value);
 
   useEffect(() => {
-    setInputVal(value);
-  }, [value]);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
+    const handler = (e: globalThis.MouseEvent) => {
       if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener("mousedown", handler);
@@ -100,14 +95,12 @@ function AddressField({ id, label, icon, value, onChange, onSelect }: AddressFie
   }, []);
 
   const handleChange = (v: string) => {
-    setInputVal(v);
     onChange(v);
     setOpen(true);
   };
 
   const handleSelect = (r: NominatimResult) => {
     const short = r.display_name.split(",").slice(0, 3).join(", ");
-    setInputVal(short);
     onChange(short);
     onSelect(r);
     setOpen(false);
@@ -124,7 +117,7 @@ function AddressField({ id, label, icon, value, onChange, onSelect }: AddressFie
           id={id}
           type="text"
           autoComplete="off"
-          value={inputVal}
+          value={value}
           onChange={(e) => handleChange(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
           placeholder="Tapez une adresse…"
@@ -239,7 +232,7 @@ export function FareSimulator() {
         <div className="space-y-6">
           <AddressField
             id="sim-from"
-            label={t("sim.departure") ?? "Adresse de départ"}
+            label="Adresse de départ"
             icon={<Navigation className="h-4 w-4" />}
             value={fromAddr}
             onChange={(v) => {
@@ -251,7 +244,7 @@ export function FareSimulator() {
 
           <AddressField
             id="sim-to"
-            label={t("sim.destination") ?? "Adresse de destination"}
+            label="Adresse de destination"
             icon={<MapPin className="h-4 w-4" />}
             value={toAddr}
             onChange={(v) => {
