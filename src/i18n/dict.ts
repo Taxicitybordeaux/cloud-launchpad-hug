@@ -393,7 +393,7 @@ const fr: Dict = {
   "wa.aria.hint": "Ouvre une conversation WhatsApp dans un nouvel onglet.",
   "wa.aria.draftReady": "Votre demande de réservation est prête à être envoyée sur WhatsApp.",
   "wa.default":
-    "Bonjour, je souhaite réserver un taxi avec Taxi City Bordeaux. Pouvez-vous me confirmer la disponibilité ? Merci.",
+    "Bonjour, je souhaite réserver un taxi. Pouvez-vous me confirmer la disponibilité ? Merci.",
   // Tracking page
   "suivi.title": "Suivi de votre chauffeur",
   "suivi.hello": "Bonjour",
@@ -759,7 +759,7 @@ const en: Dict = {
   "wa.aria.hint": "Opens a WhatsApp conversation in a new tab.",
   "wa.aria.draftReady": "Your booking request is ready to send on WhatsApp.",
   "wa.default":
-    "Hello, I'd like to book a taxi with Taxi City Bordeaux. Could you confirm availability? Thanks.",
+    "Hello, I'd like to book a taxi. Could you confirm availability? Thanks.",
   "suivi.title": "Track your driver",
   "suivi.hello": "Hello",
   "suivi.pickup_at": "pickup at",
@@ -1124,7 +1124,7 @@ const es: Dict = {
   "wa.aria.hint": "Abre una conversación de WhatsApp en una nueva pestaña.",
   "wa.aria.draftReady": "Tu solicitud de reserva está lista para enviarse por WhatsApp.",
   "wa.default":
-    "Hola, quisiera reservar un taxi con Taxi City Bordeaux. ¿Podría confirmarme la disponibilidad? Gracias.",
+    "Hola, quisiera reservar un taxi. ¿Podría confirmarme la disponibilidad? Gracias.",
   "suivi.title": "Sigue a tu conductor",
   "suivi.hello": "Hola",
   "suivi.pickup_at": "recogida a las",
@@ -1489,7 +1489,7 @@ const it: Dict = {
   "wa.aria.hint": "Apre una conversazione WhatsApp in una nuova scheda.",
   "wa.aria.draftReady": "La tua richiesta di prenotazione è pronta per essere inviata su WhatsApp.",
   "wa.default":
-    "Salve, vorrei prenotare un taxi con Taxi City Bordeaux. Potete confermarmi la disponibilità? Grazie.",
+    "Salve, vorrei prenotare un taxi. Potete confermarmi la disponibilità? Grazie.",
   "suivi.title": "Segui il tuo autista",
   "suivi.hello": "Ciao",
   "suivi.pickup_at": "prelievo alle",
@@ -1811,7 +1811,7 @@ const ar: Dict = {
   "wa.float.label": "احجز عبر واتساب",
   "wa.aria.hint": "يفتح محادثة واتساب في علامة تبويب جديدة.",
   "wa.aria.draftReady": "طلب الحجز جاهز للإرسال عبر واتساب.",
-  "wa.default": "مرحباً، أود حجز سيارة أجرة مع تاكسي سيتي بوردو. هل يمكنك تأكيد التوفر؟ شكراً.",
+  "wa.default": "مرحباً، أود حجز سيارة أجرة. هل يمكنك تأكيد التوفر؟ شكراً.",
   "suivi.title": "تتبع سائقك",
   "suivi.hello": "مرحباً",
   "suivi.pickup_at": "الاستقبال في",
@@ -2191,7 +2191,7 @@ const pt: Dict = {
   "wa.aria.hint": "Abre uma conversa no WhatsApp num novo separador.",
   "wa.aria.draftReady": "O seu pedido de reserva está pronto para ser enviado pelo WhatsApp.",
   "wa.default":
-    "Olá, gostaria de reservar um táxi com Taxi City Bordeaux. Pode confirmar a disponibilidade? Obrigado.",
+    "Olá, gostaria de reservar um táxi. Pode confirmar a disponibilidade? Obrigado.",
   // Tracking page
   "suivi.title": "Acompanhamento do seu motorista",
   "suivi.hello": "Olá",

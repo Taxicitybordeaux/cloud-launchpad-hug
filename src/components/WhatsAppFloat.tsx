@@ -9,7 +9,11 @@ import { trackCtaClick } from "@/lib/analytics";
 export function WhatsAppFloat() {
   const { t, lang } = useI18n();
   const location = useLocation();
-  const isTrackingPage = location.pathname.startsWith("/tracking/");
+  const isTrackingPage =
+    location.pathname.startsWith("/tracking/") ||
+    location.pathname.startsWith("/suivi/") ||
+    location.pathname.startsWith("/reservation/") ||
+    location.pathname.startsWith("/scan/");
   const draft = useReservationDraft();
   const message = draft ? buildReservationMessage(draft, lang) : t("wa.default");
   const href = whatsappLink(message);
