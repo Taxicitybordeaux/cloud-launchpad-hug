@@ -185,6 +185,9 @@ function ReservationPage() {
           fontSize: 14,
           fontFamily: "'DM Sans',sans-serif",
           boxSizing: "border-box",
+          background: "#ffffff",
+          color: "#0f172a",
+          colorScheme: "light",
         }}
         {...rest}
       />
