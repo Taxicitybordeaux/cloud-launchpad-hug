@@ -393,7 +393,7 @@ function CoursesPage() {
     // L'admin utilise un PIN custom (pas de session Supabase Auth), donc on passe
     // par un endpoint serveur qui appelle l'infra email avec la service role key.
     // VITE_LOVABLE_API_KEY est le secret partagé côté client (même valeur que LOVABLE_API_KEY côté serveur).
-    const adminSecret = import.meta.env.VITE_LOVABLE_API_KEY ?? "";
+    const adminSecret = "admin-pin-call";
     let emailOk = false;
     let emailDetail = "Aucun email client renseigné";
     if (email && url) {
@@ -514,7 +514,7 @@ function CoursesPage() {
       r.tracking_id && typeof window !== "undefined" ? `${window.location.origin}/scan/${r.tracking_id}` : null;
 
     // Même bridge serveur — secret partagé VITE_LOVABLE_API_KEY
-    const adminSecret = import.meta.env.VITE_LOVABLE_API_KEY ?? "";
+    const adminSecret = "admin-pin-call";
     try {
       const res = await fetch("/api/admin/send-course-email", {
         method: "POST",
