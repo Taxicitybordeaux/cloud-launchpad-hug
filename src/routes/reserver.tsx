@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef, useMemo, useState, useCallback } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix, TARIFS } from "@/lib/tarif";
 
@@ -267,12 +268,14 @@ function AddressInput({ fieldKey, value, onChange, onCoordSelect, placeholder, e
               >
                 <span style={{ color: "#0ea5e9", marginTop: 2, flexShrink: 0 }}>📍</span>
                 <span
-                  style={{
-                    overflow: "hidden",
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                  }}
+                  style={
+                    {
+                      overflow: "hidden",
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical",
+                    } as CSSProperties
+                  }
                 >
                   {r.display_name}
                 </span>
@@ -305,10 +308,12 @@ function useAutoDistance(from: [number, number] | null, to: [number, number] | n
   useEffect(() => {
     if (!from || !to) {
       setKm(null);
+      setLoading(false);
       return;
     }
 
     if (!ORS_API_KEY) {
+      setLoading(false);
       setKm(Math.round(haversineKm(from, to) * 1.3 * 10) / 10);
       return;
     }
