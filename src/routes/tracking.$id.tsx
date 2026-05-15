@@ -278,6 +278,15 @@ function TrackingPage() {
   const lastDriverPosRef = useRef<{ lat: number; lng: number } | null>(null);
   const initialZoomRef = useRef<number | null>(null);
 
+  const recenterOnDriver = useCallback(() => {
+    const map = mapInstanceRef.current;
+    const pos = lastDriverPosRef.current;
+    if (!map || !pos) return;
+    const zoom = initialZoomRef.current ?? map.getZoom();
+    map.setView([pos.lat, pos.lng], zoom, { animate: true, duration: 0.8 });
+    setUserPanned(false);
+  }, []);
+
   useEffect(() => {
     const updateMapHeight = () => {
       // Sur iPhone, window.innerHeight tient compte de la barre Safari
