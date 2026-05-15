@@ -159,6 +159,12 @@ function Dashboard() {
     fetchAll();
   };
 
+  const deleteReservation = async (id: string) => {
+    if (!confirm("Supprimer définitivement cette réservation ?")) return;
+    await supabase.from("reservations").delete().eq("id", id);
+    fetchAll();
+  };
+
   /* ── Render ── */
   return (
     <div
