@@ -1700,6 +1700,67 @@ function TrackingPage() {
         }}
       >
         <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
+        {/* Bouton "Recentrer" : visible quand l'utilisateur a déplacé la carte */}
+        {driverData?.is_active && driverData?.latitude && userPanned && (
+          <button
+            type="button"
+            onClick={recenterOnDriver}
+            style={{
+              position: "absolute",
+              top: 12,
+              right: 12,
+              zIndex: 1000,
+              padding: "8px 12px",
+              borderRadius: 999,
+              border: "1px solid rgba(255,255,255,0.15)",
+              background: "rgba(14,165,233,0.95)",
+              color: "white",
+              fontWeight: 600,
+              fontSize: 13,
+              boxShadow: "0 4px 14px rgba(14,165,233,0.5)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            🎯 Recentrer
+          </button>
+        )}
+        {/* Réglage zone morte (suivi auto plus ou moins serré) */}
+        {driverData?.is_active && driverData?.latitude && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: 12,
+              left: 12,
+              zIndex: 1000,
+              padding: "6px 10px",
+              borderRadius: 10,
+              background: "rgba(10,15,30,0.7)",
+              backdropFilter: "blur(6px)",
+              color: "white",
+              fontSize: 11,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              maxWidth: 220,
+            }}
+          >
+            <span style={{ opacity: 0.8 }}>Suivi</span>
+            <input
+              type="range"
+              min={30}
+              max={90}
+              step={5}
+              value={deadZonePct}
+              onChange={(e) => setDeadZonePct(Number(e.target.value))}
+              style={{ flex: 1, accentColor: "#0ea5e9" }}
+              aria-label="Zone morte du suivi auto"
+            />
+            <span style={{ opacity: 0.8, minWidth: 28, textAlign: "right" }}>{deadZonePct}%</span>
+          </div>
+        )}
         {/* Overlay quand GPS actif mais position pas encore reçue */}
         {driverData?.is_active && !driverData?.latitude && (
           <div
