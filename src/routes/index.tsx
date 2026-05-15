@@ -106,8 +106,6 @@ function Home() {
               {t("home.hero.subtitle")}
             </p>
 
-
-
             {/* Trust badges — wrap on very small screens */}
             <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-white/80 sm:mt-8 sm:gap-x-7 sm:text-sm">
               <span className="inline-flex items-center gap-1.5">
