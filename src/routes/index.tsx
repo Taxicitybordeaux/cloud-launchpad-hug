@@ -107,25 +107,7 @@ function Home() {
               {t("home.hero.subtitle")}
             </p>
 
-            {/* CTA box: stacked on mobile, row on sm+ */}
-            <div className="mt-6 flex flex-col gap-2.5 rounded-2xl border border-white/15 bg-black/40 p-3 backdrop-blur-md sm:mt-8 sm:flex-row sm:items-center sm:p-2">
-              <div className="flex flex-1 items-center gap-3 px-3 py-1.5 text-sm text-white/80 sm:py-2">
-                <Car className="h-5 w-5 shrink-0 text-primary" />
-                <span>{t("home.hero.need_taxi")}</span>
-              </div>
-              <a
-                href={`tel:${PHONE}`}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition active:scale-95"
-              >
-                <Phone className="h-4 w-4" /> {PHONE_DISPLAY}
-              </a>
-              <Link
-                to="/reservation"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-gold)] transition active:scale-95"
-              >
-                {t("home.hero.book_now")} <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
+
 
             {/* Trust badges — wrap on very small screens */}
             <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-white/80 sm:mt-8 sm:gap-x-7 sm:text-sm">
