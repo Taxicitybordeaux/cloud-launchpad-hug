@@ -661,6 +661,13 @@ function TrackingPage() {
     const L = (window as any).L;
     if (!mapRef.current || mapInstanceRef.current) return;
     const map = L.map(mapRef.current, { center: [lat, lng], zoom: 14, zoomControl: false });
+    initialZoomRef.current = 14;
+    // Détection interaction utilisateur → désactive le suivi auto jusqu'au "Recentrer"
+    map.on("dragstart", () => setUserPanned(true));
+    map.on("zoomstart", (e: any) => {
+      // si le zoom vient d'une action utilisateur (pas de notre panTo), on lock
+      if (e?.hard !== false) setUserPanned(true);
+    });
     L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
       attribution: "© OpenStreetMap © CARTO",
       maxZoom: 19,
