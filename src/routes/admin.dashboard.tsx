@@ -696,7 +696,8 @@ function Dashboard() {
             reservs.map((r) => {
               const prix = getPrix(r);
               return (
-                <div key={r.id} style={{ padding: "14px 16px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                <SwipeRow key={r.id} onDelete={() => deleteReservation(r.id)}>
+                <div style={{ padding: "14px 16px" }}>
                   <div
                     style={{
                       display: "flex",
