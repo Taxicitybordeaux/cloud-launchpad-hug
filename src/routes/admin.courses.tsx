@@ -556,8 +556,6 @@ function CoursesPage() {
   };
 
   const filtered = items.filter((r) => normalizeStatus(r.status) === tab);
-  const simPrixJour = calculerPrix(simKm, true);
-  const simPrixNuit = calculerPrix(simKm, false);
 
   // =========================
   // UI
