@@ -197,27 +197,36 @@ function Dashboard() {
   const [caM, setCaM] = useState(0);
   const [coursesJ, setCoursesJ] = useState(0);
   const [clientsTotal, setClientsTotal] = useState(0);
-  const [visitors, setVisitors] = useState(0);
+  const [visitorsJ, setVisitorsJ] = useState(0);
+  const [visitorsSem, setVisitorsSem] = useState(0);
+  const [visitorsM, setVisitorsM] = useState(0);
+  const [visitorsAn, setVisitorsAn] = useState(0);
   const [reservs, setReservs] = useState<any[]>([]);
   const [nextCourse, setNextCourse] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
-  /* ── Data fetch ── */
   const fetchAll = useCallback(async () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayIso = today.toISOString();
     const monthIso = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
+    const yearIso = new Date(today.getFullYear(), 0, 1).toISOString();
+    const weekAgo = new Date(today);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekIso = weekAgo.toISOString();
     const nowIso = new Date().toISOString();
 
-    const [caJR, caMR, cJR, cliR, visR, resR, nextR] = await Promise.all([
+    const [caJR, caMR, cJR, cliR, visJR, visSemR, visMR, visAnR, resR, nextR] = await Promise.all([
       supabase.from("courses").select("prix_final").gte("created_at", todayIso),
       supabase.from("courses").select("prix_final").gte("created_at", monthIso),
       supabase.from("reservations").select("id", { count: "exact", head: true }).gte("created_at", todayIso),
       supabase.from("clients").select("id", { count: "exact", head: true }),
-      supabase.from("site_analytics").select("*").gte("created_at", todayIso).limit(20),
+      // Visiteurs uniques par période — table site_analytics, event "visit"
+      supabase.from("site_analytics").select("session_id").eq("event", "visit").gte("created_at", todayIso),
+      supabase.from("site_analytics").select("session_id").eq("event", "visit").gte("created_at", weekIso),
+      supabase.from("site_analytics").select("session_id").eq("event", "visit").gte("created_at", monthIso),
+      supabase.from("site_analytics").select("session_id").eq("event", "visit").gte("created_at", yearIso),
       supabase.from("reservations").select("*").order("created_at", { ascending: false }).limit(10),
-      // Prochaine course acceptée dans le futur
       supabase
         .from("reservations")
         .select("*")
@@ -227,18 +236,16 @@ function Dashboard() {
         .limit(1),
     ]);
 
-    // 🔍 DEBUG — à supprimer après diagnostic
-    console.log("=== site_analytics (aujourd'hui) ===");
-    console.log("error:", visR.error);
-    console.log("data:", visR.data);
-    console.log("events distincts:", [...new Set((visR.data ?? []).map((v: any) => v.event))]);
-    console.log("colonnes dispo:", visR.data?.[0] ? Object.keys(visR.data[0]) : "aucune ligne");
+    const uniq = (data: any[]) => new Set(data.map((v) => v.session_id)).size;
 
     setCaJ((caJR.data ?? []).reduce((s: number, c: any) => s + (Number(c.prix_final) || 0), 0));
     setCaM((caMR.data ?? []).reduce((s: number, c: any) => s + (Number(c.prix_final) || 0), 0));
     setCoursesJ(cJR.count ?? 0);
     setClientsTotal(cliR.count ?? 0);
-    setVisitors(new Set((visR.data ?? []).map((v: any) => v.session_id ?? v.id)).size);
+    setVisitorsJ(uniq(visJR.data ?? []));
+    setVisitorsSem(uniq(visSemR.data ?? []));
+    setVisitorsM(uniq(visMR.data ?? []));
+    setVisitorsAn(uniq(visAnR.data ?? []));
     setReservs(resR.data ?? []);
     setNextCourse((nextR.data ?? [])[0] ?? null);
     setLoading(false);
@@ -682,16 +689,15 @@ function Dashboard() {
           );
         })()}
 
-      {/* KPI stat cards — 2 colonnes sur mobile, 4 sur desktop */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, marginBottom: 20 }}>
+      {/* KPI stat cards — 2 colonnes */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, marginBottom: 12 }}>
         {loading
-          ? Array.from({ length: 5 }).map((_, i) => <StatCardSkeleton key={i} />)
+          ? Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
           : [
               { i: "💶", v: `${caJ.toFixed(2)} €`, l: "CA aujourd'hui" },
               { i: "📈", v: `${caM.toFixed(2)} €`, l: "CA ce mois" },
               { i: "🚗", v: String(coursesJ), l: "Courses auj." },
               { i: "👥", v: String(clientsTotal), l: "Clients total" },
-              { i: "👁️", v: String(visitors), l: "Visiteurs auj." },
             ].map((c, i) => (
               <div key={i} style={card}>
                 <div style={{ fontSize: 22 }}>{c.i}</div>
@@ -699,6 +705,78 @@ function Dashboard() {
                 <div style={labelCss}>{c.l}</div>
               </div>
             ))}
+      </div>
+
+      {/* Visiteurs du site public */}
+      <div style={{ ...card, marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+          <span style={{ fontSize: 18 }}>👁️</span>
+          <span
+            style={{
+              fontFamily: "'Syne',sans-serif",
+              fontWeight: 800,
+              fontSize: 14,
+              color: "#f8fafc",
+            }}
+          >
+            Visiteurs du site
+          </span>
+          <span
+            style={{
+              marginLeft: "auto",
+              fontSize: 10,
+              color: "#475569",
+              fontFamily: "'JetBrains Mono',monospace",
+              letterSpacing: "0.06em",
+            }}
+          >
+            sessions uniques
+          </span>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+          {loading
+            ? Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
+            : [
+                { v: String(visitorsJ), l: "Aujourd'hui", c: "#0ea5e9" },
+                { v: String(visitorsSem), l: "7 derniers jours", c: "#8b5cf6" },
+                { v: String(visitorsM), l: "Ce mois", c: "#22c55e" },
+                { v: String(visitorsAn), l: "Cette année", c: "#f59e0b" },
+              ].map((s, i) => (
+                <div
+                  key={i}
+                  style={{
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.06)",
+                    borderRadius: 12,
+                    padding: "10px 8px",
+                    textAlign: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontFamily: "'Syne',sans-serif",
+                      fontWeight: 800,
+                      fontSize: 22,
+                      color: s.c,
+                    }}
+                  >
+                    {s.v}
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "'JetBrains Mono',monospace",
+                      fontSize: 9,
+                      color: "#64748b",
+                      letterSpacing: "0.05em",
+                      marginTop: 4,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {s.l}
+                  </div>
+                </div>
+              ))}
+        </div>
       </div>
 
       {/* Réservations — cards sur mobile, table sur desktop */}
