@@ -1034,6 +1034,10 @@ function TrackingPage() {
       stopPolling();
       stopGeoTracking();
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      if (animFrameRef.current !== null) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = null;
+      }
       if (approachLayerRef.current) {
         approachLayerRef.current.remove();
         approachLayerRef.current = null;
