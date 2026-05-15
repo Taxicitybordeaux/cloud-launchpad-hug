@@ -82,34 +82,35 @@ function isNuit(iso: string): boolean {
 /** Card mobile avec swipe-to-delete (glisser à gauche) */
 function SwipeableCard({ children, onDelete }: { children: React.ReactNode; onDelete: () => void }) {
   const [offsetX, setOffsetX] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
+  const isDragging = useRef(false); // ← ref pour éviter les valeurs stale dans les event handlers
   const startX = useRef(0);
-  const currentX = useRef(0);
+  const offsetRef = useRef(0); // ← mirror de offsetX pour onTouchEnd
   const THRESHOLD = 80; // px pour déclencher la suppression
   const MAX_SLIDE = 90; // largeur du bouton révélé
 
   const onTouchStart = (e: React.TouchEvent) => {
     startX.current = e.touches[0].clientX;
-    currentX.current = e.touches[0].clientX;
-    setIsDragging(true);
+    isDragging.current = true;
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging) return;
+    if (!isDragging.current) return;
     const dx = e.touches[0].clientX - startX.current;
-    currentX.current = e.touches[0].clientX;
     // Seulement vers la gauche (dx négatif)
     const clamped = Math.max(-MAX_SLIDE, Math.min(0, dx));
+    offsetRef.current = clamped;
     setOffsetX(clamped);
   };
 
   const onTouchEnd = () => {
-    setIsDragging(false);
-    if (offsetX < -THRESHOLD) {
+    isDragging.current = false;
+    if (offsetRef.current < -THRESHOLD) {
       // Révéler complètement le bouton
+      offsetRef.current = -MAX_SLIDE;
       setOffsetX(-MAX_SLIDE);
     } else {
       // Revenir à la position initiale
+      offsetRef.current = 0;
       setOffsetX(0);
     }
   };
@@ -147,7 +148,7 @@ function SwipeableCard({ children, onDelete }: { children: React.ReactNode; onDe
         onTouchEnd={onTouchEnd}
         style={{
           transform: `translateX(${offsetX}px)`,
-          transition: isDragging ? "none" : "transform 0.25s cubic-bezier(0.25,1,0.5,1)",
+          transition: "transform 0.25s cubic-bezier(0.25,1,0.5,1)",
           background: "var(--card-bg, #0f172a)",
           position: "relative",
           zIndex: 1,
@@ -223,10 +224,10 @@ function Dashboard() {
       supabase.from("courses").select("prix_final").gte("created_at", monthIso),
       supabase.from("reservations").select("id", { count: "exact", head: true }).gte("created_at", todayIso),
       supabase.from("clients").select("id", { count: "exact", head: true }),
-      supabase.from("page_views").select("session_id").gte("created_at", todayIso),
-      supabase.from("page_views").select("session_id").gte("created_at", weekIso),
-      supabase.from("page_views").select("session_id").gte("created_at", monthIso),
-      supabase.from("page_views").select("session_id").gte("created_at", yearIso),
+      supabase.from("site_analytics").select("session_id").eq("event", "visit").gte("created_at", todayIso),
+      supabase.from("site_analytics").select("session_id").eq("event", "visit").gte("created_at", weekIso),
+      supabase.from("site_analytics").select("session_id").eq("event", "visit").gte("created_at", monthIso),
+      supabase.from("site_analytics").select("session_id").eq("event", "visit").gte("created_at", yearIso),
       supabase.from("reservations").select("*").order("created_at", { ascending: false }).limit(10),
       supabase
         .from("reservations")
@@ -259,7 +260,7 @@ function Dashboard() {
     const ch = supabase
       .channel(`dash-${Date.now()}-${Math.random().toString(36).slice(2)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "reservations" }, fetchAll)
-      .on("postgres_changes", { event: "*", schema: "public", table: "page_views" }, fetchAll)
+      .on("postgres_changes", { event: "*", schema: "public", table: "site_analytics" }, fetchAll)
       .subscribe();
     // Polling toutes les 30s (fallback si realtime non activé)
     const poll = setInterval(fetchAll, 30_000);
