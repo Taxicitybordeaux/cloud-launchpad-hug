@@ -233,6 +233,7 @@ function ReservationPage() {
       `}</style>
 
       <div
+        className="form-sticky-submit"
         style={{
           maxWidth: 720,
           margin: "0 auto",
