@@ -58,6 +58,61 @@ function StatusBadge({ s }: { s: string }) {
   );
 }
 
+/** Carte avec swipe-to-delete (glisser vers la gauche pour révéler le bouton supprimer) */
+function SwipeRow({ onDelete, children }: { onDelete: () => void; children: React.ReactNode }) {
+  const [dx, setDx] = useState(0);
+  const startX = useRef<number | null>(null);
+  const REVEAL = 88;
+  const open = dx <= -REVEAL / 2;
+  return (
+    <div style={{ position: "relative", overflow: "hidden", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+      <button
+        onClick={onDelete}
+        aria-label="Supprimer"
+        style={{
+          position: "absolute",
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: REVEAL,
+          background: "#ef4444",
+          color: "#fff",
+          border: 0,
+          fontSize: 22,
+          cursor: "pointer",
+          fontWeight: 700,
+        }}
+      >
+        🗑
+      </button>
+      <div
+        onTouchStart={(e) => {
+          startX.current = e.touches[0].clientX - dx;
+        }}
+        onTouchMove={(e) => {
+          if (startX.current === null) return;
+          const next = e.touches[0].clientX - startX.current;
+          if (next <= 0 && next >= -REVEAL) setDx(next);
+        }}
+        onTouchEnd={() => {
+          setDx(dx < -REVEAL / 2 ? -REVEAL : 0);
+          startX.current = null;
+        }}
+        onClick={() => {
+          if (open) setDx(0);
+        }}
+        style={{
+          transform: `translateX(${dx}px)`,
+          transition: startX.current === null ? "transform 0.2s ease" : "none",
+          background: "#0a0f1e",
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 /** Formate une date ISO en heure de Paris */
 function formatParis(iso: string, opts?: Intl.DateTimeFormatOptions) {
   return new Date(iso).toLocaleString("fr-FR", {
