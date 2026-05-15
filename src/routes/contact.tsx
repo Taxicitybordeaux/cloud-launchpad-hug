@@ -49,9 +49,9 @@ function ContactPage() {
         >
           <MessageCircle className="h-7 w-7 shrink-0 text-green-500 sm:h-8 sm:w-8" />
           <div>
-            <h2 className="font-display text-lg font-semibold sm:mt-3 sm:text-xl">{t("contact.wa.title")}</h2>
-            <p className="font-semibold sm:mt-1 sm:text-lg">{t("contact.wa.line")}</p>
-            <p className="mt-0.5 text-sm text-muted-foreground sm:mt-1">{t("contact.wa.sub")}</p>
+            <h2 className="font-display text-lg font-semibold sm:mt-3 sm:text-xl">WhatsApp</h2>
+            <p className="font-semibold text-green-500 sm:mt-1 sm:text-lg">Discutons sur WhatsApp</p>
+            <p className="mt-0.5 text-sm text-muted-foreground sm:mt-1">Messagerie instantanée</p>
           </div>
         </a>
 
@@ -70,10 +70,12 @@ function ContactPage() {
         <div className="flex flex-row items-center gap-4 rounded-2xl border border-border bg-card p-5 sm:flex-col sm:items-start sm:p-6">
           <MapPin className="h-7 w-7 shrink-0 text-primary sm:h-8 sm:w-8" />
           <div>
-            <h2 className="font-display text-lg font-semibold sm:mt-3 sm:text-xl">{t("contact.zone.title")}</h2>
-            <p className="font-semibold sm:mt-1">{t("contact.zone.line1")}</p>
-            <p className="text-sm text-muted-foreground">{t("contact.zone.line2")}</p>
-            <p className="mt-1 text-sm text-muted-foreground sm:mt-2">{t("contact.zone.sub")}</p>
+            <h2 className="font-display text-lg font-semibold sm:mt-3 sm:text-xl">Zone d'intervention</h2>
+            <p className="font-semibold sm:mt-1">Bordeaux &amp; Métropole</p>
+            <p className="text-sm text-muted-foreground">Toute la Gironde (33)</p>
+            <p className="mt-1 text-sm text-muted-foreground sm:mt-2">
+              Longues distances sur toute la France et en Europe sur réservation.
+            </p>
           </div>
         </div>
       </div>
