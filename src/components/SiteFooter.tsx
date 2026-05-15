@@ -165,22 +165,6 @@ export function SiteFooter() {
           </p>
           <div style={{ marginTop: 14, display: "flex", gap: 10 }}>
             <a
-              href="https://wa.me/33673072322"
-              aria-label="WhatsApp"
-              className="footer-social-btn"
-              style={{ border: "1px solid #25D36640" }}
-            >
-              💬
-            </a>
-            <a
-              href="tel:0673072322"
-              aria-label="Appeler"
-              className="footer-social-btn"
-              style={{ border: "1px solid #0ea5e940" }}
-            >
-              📞
-            </a>
-            <a
               href="mailto:contact@taxicitybordeaux.fr"
               aria-label="Email"
               className="footer-social-btn"
@@ -247,25 +231,6 @@ export function SiteFooter() {
             <li className="footer-li-text">🕒 7j/7 · 24h/24</li>
           </ul>
 
-          {/* CTA call button — visible and tappable on mobile */}
-          <a
-            href="tel:0673072322"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              marginTop: 20,
-              background: "#1d4ed8",
-              color: "#fff",
-              borderRadius: 10,
-              padding: "10px 18px",
-              fontWeight: 700,
-              fontSize: 15,
-              textDecoration: "none",
-            }}
-          >
-            📞 Appeler maintenant
-          </a>
         </div>
       </div>
 

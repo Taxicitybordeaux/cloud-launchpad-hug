@@ -1,53 +1,45 @@
 import { useEffect, useRef, useState } from "react";
-import { useLocation } from "@tanstack/react-router";
-import { MessageCircle } from "lucide-react";
+import { useLocation, Link } from "@tanstack/react-router";
+import { MessageCircle, Phone, FileText } from "lucide-react";
 import { useReservationDraft } from "@/lib/reservation-draft";
 import { buildReservationMessage, whatsappLink } from "@/lib/whatsapp";
 import { useI18n } from "@/i18n/I18nProvider";
 import { trackCtaClick } from "@/lib/analytics";
 
+const PHONE = "0673072322";
+
 export function WhatsAppFloat() {
   const { t, lang } = useI18n();
   const location = useLocation();
-  const isTrackingPage =
+  const isHiddenPage =
     location.pathname.startsWith("/tracking/") ||
     location.pathname.startsWith("/suivi/") ||
     location.pathname.startsWith("/reservation/") ||
-    location.pathname.startsWith("/scan/");
+    location.pathname.startsWith("/scan/") ||
+    location.pathname.startsWith("/admin");
   const draft = useReservationDraft();
   const message = draft ? buildReservationMessage(draft, lang) : t("wa.default");
-  const href = whatsappLink(message);
-  const label = draft ? t("wa.float.send") : t("wa.float.label");
-  const hint = t("wa.aria.hint");
-  // Combined accessible name read by screen readers (visible text + extra context).
-  const ariaLabel = `${label}. ${hint}`;
-  // Announced politely when the draft becomes available, so SR users know
-  // the CTA now sends their filled-in reservation rather than a generic message.
-  const liveMessage = draft ? t("wa.aria.draftReady") : "";
+  const waHref = whatsappLink(message);
 
-  const handleClick = (variant: "mobile_sticky" | "desktop_float") => () => {
+  const handleClick = (action: "whatsapp" | "call" | "quote", variant: "mobile_sticky" | "desktop_float") => () => {
     trackCtaClick({
-      event_type: "whatsapp_click",
+      event_type: action === "whatsapp" ? "whatsapp_click" : action === "call" ? "call_click" : "quote_click",
       variant,
       has_draft: Boolean(draft),
       lang,
     });
   };
 
-  // Measure the mobile sticky bar so the page-content spacer below
-  // always matches its real height (label length, line wraps, safe-area
-  // inset, dynamic font sizes…) on every screen size.
-  const mobileBarRef = useRef<HTMLDivElement | null>(null);
-  const [mobileBarHeight, setMobileBarHeight] = useState<number>(0);
+  const barRef = useRef<HTMLDivElement | null>(null);
+  const [barHeight, setBarHeight] = useState<number>(0);
 
   useEffect(() => {
-    const el = mobileBarRef.current;
+    const el = barRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
-    const update = () => setMobileBarHeight(el.getBoundingClientRect().height);
+    const update = () => setBarHeight(el.getBoundingClientRect().height);
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
-    // Also re-measure on viewport changes (orientation, dynamic toolbar, font scale).
     window.addEventListener("resize", update);
     window.addEventListener("orientationchange", update);
     return () => {
@@ -55,55 +47,163 @@ export function WhatsAppFloat() {
       window.removeEventListener("resize", update);
       window.removeEventListener("orientationchange", update);
     };
-  }, [label]);
+  }, []);
 
-  if (isTrackingPage) return null;
+  // Expose the bar height as a CSS var so pages can add bottom padding if needed
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.documentElement.style.setProperty("--mobile-action-bar-h", `${barHeight}px`);
+  }, [barHeight]);
+
+  if (isHiddenPage) return null;
+
+  const btnBase: React.CSSProperties = {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    padding: "10px 6px",
+    borderRadius: 12,
+    fontWeight: 700,
+    fontSize: "clamp(11px, 3.2vw, 13px)",
+    textDecoration: "none",
+    color: "#fff",
+    minHeight: 56,
+    lineHeight: 1.1,
+  };
 
   return (
     <>
-      {/* Mobile: small floating icon button (bottom-right) */}
+      {/* Mobile: fixed 3-button action bar */}
       <div
-        ref={mobileBarRef}
-        className="fixed bottom-3 right-3 z-50 pb-[max(env(safe-area-inset-bottom),0px)] sm:hidden"
+        ref={barRef}
+        className="sm:hidden"
+        style={{
+          position: "fixed",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 50,
+          background: "rgba(15,23,42,0.96)",
+          backdropFilter: "blur(10px)",
+          borderTop: "1px solid rgba(148,163,184,0.2)",
+          padding: "8px 10px calc(8px + env(safe-area-inset-bottom)) 10px",
+          display: "flex",
+          gap: 8,
+        }}
+        role="navigation"
+        aria-label="Actions de contact rapides"
       >
         <a
-          href={href}
+          href={waHref}
           target="_blank"
           rel="noopener noreferrer"
-          aria-label={ariaLabel}
-          title={label}
-          onClick={handleClick("mobile_sticky")}
-          onAuxClick={handleClick("mobile_sticky")}
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-[#25D366] text-white shadow-xl shadow-black/40 ring-2 ring-[#25D366]/30 transition active:scale-95"
+          onClick={handleClick("whatsapp", "mobile_sticky")}
+          style={{ ...btnBase, background: "#25D366" }}
+          aria-label="Contacter sur WhatsApp"
         >
-          <span aria-hidden="true" className="relative flex h-6 w-6 items-center justify-center">
-            <span className="absolute inset-0 animate-ping rounded-full bg-white/40" />
-            <MessageCircle className="relative h-6 w-6" />
-          </span>
+          <MessageCircle size={20} aria-hidden="true" />
+          <span>WhatsApp</span>
         </a>
+        <a
+          href={`tel:${PHONE}`}
+          onClick={handleClick("call", "mobile_sticky")}
+          style={{ ...btnBase, background: "#1d4ed8" }}
+          aria-label="Appeler le taxi"
+        >
+          <Phone size={20} aria-hidden="true" />
+          <span>Appeler</span>
+        </a>
+        <Link
+          to="/reserver"
+          onClick={handleClick("quote", "mobile_sticky")}
+          style={{ ...btnBase, background: "#0ea5e9" }}
+          aria-label="Demander un devis"
+        >
+          <FileText size={20} aria-hidden="true" />
+          <span>Devis</span>
+        </Link>
       </div>
 
-      {/* Desktop: floating bubble bottom-right */}
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label={ariaLabel}
-        onClick={handleClick("desktop_float")}
-        onAuxClick={handleClick("desktop_float")}
-        className="group fixed bottom-6 right-6 z-50 hidden items-center gap-3 rounded-full bg-[#25D366] px-7 py-5 text-lg font-bold text-white shadow-2xl shadow-black/40 ring-4 ring-[#25D366]/30 transition hover:scale-105 hover:bg-[#20bd5a] hover:ring-[#25D366]/50 sm:inline-flex"
+      {/* Desktop: floating cluster bottom-right */}
+      <div
+        className="hidden sm:flex"
+        style={{
+          position: "fixed",
+          right: 24,
+          bottom: 24,
+          zIndex: 50,
+          flexDirection: "column",
+          gap: 12,
+        }}
       >
-        <span aria-hidden="true" className="relative flex h-8 w-8 items-center justify-center">
-          <span className="absolute inset-0 animate-ping rounded-full bg-white/40" />
-          <MessageCircle className="relative h-8 w-8" />
-        </span>
-        <span>{label}</span>
-      </a>
-
-      {/* Polite live region: announces when the CTA switches from
-          "send a generic message" to "send the user's filled draft". */}
-      <div role="status" aria-live="polite" className="sr-only">
-        {liveMessage}
+        <a
+          href={waHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={handleClick("whatsapp", "desktop_float")}
+          aria-label="Contacter sur WhatsApp"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
+            background: "#25D366",
+            color: "#fff",
+            padding: "12px 18px",
+            borderRadius: 999,
+            fontWeight: 700,
+            fontSize: 15,
+            textDecoration: "none",
+            boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
+          }}
+        >
+          <MessageCircle size={20} aria-hidden="true" />
+          WhatsApp
+        </a>
+        <a
+          href={`tel:${PHONE}`}
+          onClick={handleClick("call", "desktop_float")}
+          aria-label="Appeler le taxi"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
+            background: "#1d4ed8",
+            color: "#fff",
+            padding: "12px 18px",
+            borderRadius: 999,
+            fontWeight: 700,
+            fontSize: 15,
+            textDecoration: "none",
+            boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
+          }}
+        >
+          <Phone size={20} aria-hidden="true" />
+          Appeler
+        </a>
+        <Link
+          to="/reserver"
+          onClick={handleClick("quote", "desktop_float")}
+          aria-label="Demander un devis"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
+            background: "#0ea5e9",
+            color: "#fff",
+            padding: "12px 18px",
+            borderRadius: 999,
+            fontWeight: 700,
+            fontSize: 15,
+            textDecoration: "none",
+            boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
+          }}
+        >
+          <FileText size={20} aria-hidden="true" />
+          Devis
+        </Link>
       </div>
     </>
   );
