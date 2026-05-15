@@ -67,36 +67,43 @@ function formatParis(iso: string, opts?: Intl.DateTimeFormatOptions) {
 }
 
 /** Détecte si une heure ISO tombe en tarif nuit (20h-6h, heure de Paris) */
-function isNuit(iso: string): boolean {
-  const h = parseInt(
-    new Date(iso).toLocaleString("fr-FR", {
+function isNuit(iso: string | null | undefined): boolean {
+  if (!iso) return false;
+  // Utilise getHours() sur la date UTC convertie en heure de Paris via Intl
+  // pour éviter le bug Firefox qui renvoie "24" au lieu de "00" pour minuit.
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return false;
+  const h = Number(
+    new Intl.DateTimeFormat("fr-FR", {
       timeZone: "Europe/Paris",
-      hour: "2-digit",
+      hour: "numeric",
       hour12: false,
-    }),
-    10,
+    }).format(d),
   );
-  return h >= 20 || h < 6;
+  // h peut valoir 24 sur certains moteurs (minuit) → traité comme 0
+  const hNorm = h === 24 ? 0 : h;
+  return hNorm >= 20 || hNorm < 6;
 }
 
 /** Card mobile avec swipe-to-delete (glisser à gauche) */
 function SwipeableCard({ children, onDelete }: { children: React.ReactNode; onDelete: () => void }) {
   const [offsetX, setOffsetX] = useState(0);
-  const isDragging = useRef(false); // ← ref pour éviter les valeurs stale dans les event handlers
+  const [isSettling, setIsSettling] = useState(false); // true uniquement lors du snap (pas du drag)
+  const isDragging = useRef(false);
   const startX = useRef(0);
-  const offsetRef = useRef(0); // ← mirror de offsetX pour onTouchEnd
-  const THRESHOLD = 80; // px pour déclencher la suppression
-  const MAX_SLIDE = 90; // largeur du bouton révélé
+  const offsetRef = useRef(0);
+  const THRESHOLD = 80;
+  const MAX_SLIDE = 90;
 
   const onTouchStart = (e: React.TouchEvent) => {
     startX.current = e.touches[0].clientX;
     isDragging.current = true;
+    setIsSettling(false); // pas de transition pendant le drag
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
     if (!isDragging.current) return;
     const dx = e.touches[0].clientX - startX.current;
-    // Seulement vers la gauche (dx négatif)
     const clamped = Math.max(-MAX_SLIDE, Math.min(0, dx));
     offsetRef.current = clamped;
     setOffsetX(clamped);
@@ -104,18 +111,20 @@ function SwipeableCard({ children, onDelete }: { children: React.ReactNode; onDe
 
   const onTouchEnd = () => {
     isDragging.current = false;
+    setIsSettling(true); // transition uniquement pour le snap final
     if (offsetRef.current < -THRESHOLD) {
-      // Révéler complètement le bouton
       offsetRef.current = -MAX_SLIDE;
       setOffsetX(-MAX_SLIDE);
     } else {
-      // Revenir à la position initiale
       offsetRef.current = 0;
       setOffsetX(0);
     }
   };
 
-  const reset = () => setOffsetX(0);
+  const reset = () => {
+    setIsSettling(true);
+    setOffsetX(0);
+  };
 
   return (
     <div style={{ position: "relative", overflow: "hidden", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
@@ -148,7 +157,7 @@ function SwipeableCard({ children, onDelete }: { children: React.ReactNode; onDe
         onTouchEnd={onTouchEnd}
         style={{
           transform: `translateX(${offsetX}px)`,
-          transition: "transform 0.25s cubic-bezier(0.25,1,0.5,1)",
+          transition: isSettling ? "transform 0.25s cubic-bezier(0.25,1,0.5,1)" : "none",
           background: "var(--card-bg, #0f172a)",
           position: "relative",
           zIndex: 1,
@@ -184,8 +193,8 @@ function SwipeableCard({ children, onDelete }: { children: React.ReactNode; onDe
 
 /** Calcule le prix estimé d'une réservation selon distance + tarif heure Paris */
 function getPrix(r: any): number | null {
-  if (r.prix_final) return Number(r.prix_final);
-  if (r.prix_estime) return Number(r.prix_estime);
+  if (r.prix_final != null && r.prix_final !== "") return Number(r.prix_final);
+  if (r.prix_estime != null && r.prix_estime !== "") return Number(r.prix_estime);
   if (r.distance_km) {
     const nuit = r.pickup_datetime ? isNuit(r.pickup_datetime) : r.tarif_jour === false;
     return calculerPrix(Number(r.distance_km), !nuit);
@@ -301,14 +310,27 @@ function Dashboard() {
   }, [fetchAll]);
 
   const updateStatus = async (id: string, status: string) => {
-    await supabase.from("reservations").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
-    fetchAll();
+    const { error } = await supabase
+      .from("reservations")
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) {
+      console.error("[updateStatus] Supabase error:", error);
+      alert(`Erreur lors de la mise à jour du statut : ${error.message}`);
+      return;
+    }
+    await fetchAll();
   };
 
   const deleteReservation = async (id: string) => {
     if (!window.confirm("Supprimer définitivement cette réservation ?")) return;
-    await supabase.from("reservations").delete().eq("id", id);
-    fetchAll();
+    const { error } = await supabase.from("reservations").delete().eq("id", id);
+    if (error) {
+      console.error("[deleteReservation] Supabase error:", error);
+      alert(`Erreur lors de la suppression : ${error.message}`);
+      return;
+    }
+    await fetchAll();
   };
 
   /* ── Render ── */
@@ -379,16 +401,15 @@ function Dashboard() {
       {!loading &&
         nextCourse &&
         (() => {
-          const nuit = isNuit(nextCourse.pickup_datetime);
+          const nuit = nextCourse.pickup_datetime ? isNuit(nextCourse.pickup_datetime) : false;
           const prix = getPrix(nextCourse);
           const phone = nextCourse.telephone || nextCourse.client_phone;
           const email = nextCourse.email || nextCourse.client_email;
           const name = nextCourse.nom || nextCourse.client_name;
           const arrivee = nextCourse.arrivee || nextCourse.destination;
-          const trackingUrl =
-            nextCourse.tracking_id && typeof window !== "undefined"
-              ? `${window.location.origin}/scan/${nextCourse.tracking_id}`
-              : null;
+          const trackingUrl = nextCourse.tracking_id
+            ? `${window.location.origin}/scan/${nextCourse.tracking_id}`
+            : null;
 
           return (
             <div
@@ -786,8 +807,8 @@ function Dashboard() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ background: "rgba(255,255,255,0.03)", color: "#64748b", textAlign: "left" }}>
-                  {["Prise en charge", "Client", "Trajet", "Prix", "Tarif", "Message", "Statut", ""].map((h) => (
-                    <th key={h} style={{ padding: "10px 14px", fontWeight: 600, whiteSpace: "nowrap" }}>
+                  {["Prise en charge", "Client", "Trajet", "Prix", "Tarif", "Message", "Statut", ""].map((h, i) => (
+                    <th key={i} style={{ padding: "10px 14px", fontWeight: 600, whiteSpace: "nowrap" }}>
                       {h}
                     </th>
                   ))}
