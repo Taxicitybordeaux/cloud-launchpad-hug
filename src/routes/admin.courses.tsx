@@ -566,14 +566,14 @@ function CoursesPage() {
   // UI
   // =========================
   return (
-    <div style={{ padding: "32px 24px", fontFamily: "'DM Sans',sans-serif" }}>
+    <div style={{ padding: "20px clamp(12px, 4vw, 24px)", fontFamily: "'DM Sans',sans-serif", maxWidth: "100%", boxSizing: "border-box" }}>
       <h1
         style={{
           fontFamily: "'Syne',sans-serif",
-          fontSize: 30,
+          fontSize: "clamp(22px, 5vw, 30px)",
           fontWeight: 800,
           color: "#f8fafc",
-          marginBottom: 24,
+          marginBottom: 20,
         }}
       >
         Courses
