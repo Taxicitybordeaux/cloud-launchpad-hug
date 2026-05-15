@@ -34,25 +34,16 @@ export function FareSimulator() {
   return (
     <section className="mx-auto max-w-7xl px-4 py-20">
       <div className="text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">
-          {t("sim.eyebrow")}
-        </p>
-        <h2 className="mt-3 font-display text-4xl font-bold md:text-5xl">
-          {t("sim.title")}
-        </h2>
-        <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-          {t("sim.intro")}
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">{t("sim.eyebrow")}</p>
+        <h2 className="mt-3 font-display text-4xl font-bold md:text-5xl">{t("sim.title")}</h2>
+        <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">{t("sim.intro")}</p>
       </div>
 
       <div className="mx-auto mt-12 grid max-w-5xl gap-6 rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-elegant)] sm:p-8 md:grid-cols-2">
         {/* Inputs */}
         <div className="space-y-6">
           <div>
-            <label
-              htmlFor="sim-distance"
-              className="block text-sm font-semibold text-foreground"
-            >
+            <label htmlFor="sim-distance" className="block text-sm font-semibold text-foreground">
               {t("sim.distance")}
             </label>
             <div className="mt-2 flex items-center gap-3">
@@ -66,17 +57,17 @@ export function FareSimulator() {
                 onChange={(e) => {
                   // Strip leading zeros so users typing on mobile never end up with "0365".
                   const cleaned = e.target.value.replace(/^0+(?=\d)/, "");
-                  if (cleaned === "") { setDistance(0); return; }
+                  if (cleaned === "") {
+                    setDistance(0);
+                    return;
+                  }
                   const v = parseFloat(cleaned);
                   setDistance(Number.isFinite(v) ? Math.max(0, v) : 0);
                 }}
                 className="w-32 rounded-xl border border-border bg-background px-4 py-3 font-display text-lg font-semibold focus:border-primary focus:outline-none"
                 aria-describedby="sim-distance-hint"
               />
-              <span
-                id="sim-distance-hint"
-                className="text-sm text-muted-foreground"
-              >
+              <span id="sim-distance-hint" className="text-sm text-muted-foreground">
                 {t("sim.km")}
               </span>
             </div>
@@ -93,9 +84,7 @@ export function FareSimulator() {
           </div>
 
           <fieldset>
-            <legend className="block text-sm font-semibold text-foreground">
-              {t("sim.period")}
-            </legend>
+            <legend className="block text-sm font-semibold text-foreground">{t("sim.period")}</legend>
             <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
               {(["day", "night"] as const).map((p) => {
                 const active = period === p;
@@ -117,7 +106,7 @@ export function FareSimulator() {
                       className="sr-only"
                     />
                     <span className="font-medium">
-                      {t(p === "day" ? "sim.day" : "sim.night")}
+                      {p === "day" ? "☀️ Jour (7h–19h)" : "🌙 Soirée / Dimanche / Jours fériés (19h–7h)"}
                     </span>
                     <span className="mt-1 block text-xs">
                       {formatEUR(p === "day" ? RATE_DAY : RATE_NIGHT)} / {t("sim.km")}
@@ -136,12 +125,12 @@ export function FareSimulator() {
               <Calculator className="h-4 w-4 text-primary" />
               {t("sim.estimate")}
             </div>
-            <div
-              className="mt-3 font-display text-5xl font-bold text-primary"
-              aria-live="polite"
-            >
+            <div className="mt-3 font-display text-5xl font-bold text-red-600" aria-live="polite">
               {formatEUR(total)}
             </div>
+            <p className="mt-2 text-xs font-bold text-red-600">
+              <strong>*</strong> Des frais de réservation peuvent être appliqués
+            </p>
 
             <dl className="mt-6 space-y-2 text-sm">
               <div className="flex items-center justify-between">
