@@ -759,7 +759,7 @@ const en: Dict = {
   "wa.aria.hint": "Opens a WhatsApp conversation in a new tab.",
   "wa.aria.draftReady": "Your booking request is ready to send on WhatsApp.",
   "wa.default":
-    "Hello, I'd like to book a taxi with Taxi City Bordeaux. Could you confirm availability? Thanks.",
+    "Hello, I'd like to book a taxi. Could you confirm availability? Thanks.",
   "suivi.title": "Track your driver",
   "suivi.hello": "Hello",
   "suivi.pickup_at": "pickup at",
