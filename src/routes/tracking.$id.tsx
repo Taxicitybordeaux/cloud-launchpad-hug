@@ -437,6 +437,26 @@ function TrackingPage() {
     // - seuil minimal de 15 m de mouvement réel pour déclencher un panTo
     // - panTo seulement si le taxi sort de la zone morte (% configurable)
     if (userPannedRef.current) {
+      // Auto-resume : si activé ET le taxi est de nouveau dans la zone morte → on réactive le suivi
+      if (autoResumeRef.current) {
+        try {
+          const bounds = map.getBounds();
+          const sw = bounds.getSouthWest();
+          const ne = bounds.getNorthEast();
+          const margin = (1 - deadZonePct / 100) / 2;
+          const padLat = (ne.lat - sw.lat) * margin;
+          const padLng = (ne.lng - sw.lng) * margin;
+          const inside =
+            lat >= sw.lat + padLat &&
+            lat <= ne.lat - padLat &&
+            lng >= sw.lng + padLng &&
+            lng <= ne.lng - padLng;
+          if (inside) {
+            setUserPanned(false);
+            userPannedRef.current = false;
+          }
+        } catch { /* noop */ }
+      }
       await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
       return;
     }
