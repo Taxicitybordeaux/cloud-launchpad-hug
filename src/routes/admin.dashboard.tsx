@@ -58,6 +58,61 @@ function StatusBadge({ s }: { s: string }) {
   );
 }
 
+/** Carte avec swipe-to-delete (glisser vers la gauche pour révéler le bouton supprimer) */
+function SwipeRow({ onDelete, children }: { onDelete: () => void; children: React.ReactNode }) {
+  const [dx, setDx] = useState(0);
+  const startX = useRef<number | null>(null);
+  const REVEAL = 88;
+  const open = dx <= -REVEAL / 2;
+  return (
+    <div style={{ position: "relative", overflow: "hidden", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+      <button
+        onClick={onDelete}
+        aria-label="Supprimer"
+        style={{
+          position: "absolute",
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: REVEAL,
+          background: "#ef4444",
+          color: "#fff",
+          border: 0,
+          fontSize: 22,
+          cursor: "pointer",
+          fontWeight: 700,
+        }}
+      >
+        🗑
+      </button>
+      <div
+        onTouchStart={(e) => {
+          startX.current = e.touches[0].clientX - dx;
+        }}
+        onTouchMove={(e) => {
+          if (startX.current === null) return;
+          const next = e.touches[0].clientX - startX.current;
+          if (next <= 0 && next >= -REVEAL) setDx(next);
+        }}
+        onTouchEnd={() => {
+          setDx(dx < -REVEAL / 2 ? -REVEAL : 0);
+          startX.current = null;
+        }}
+        onClick={() => {
+          if (open) setDx(0);
+        }}
+        style={{
+          transform: `translateX(${dx}px)`,
+          transition: startX.current === null ? "transform 0.2s ease" : "none",
+          background: "#0a0f1e",
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 /** Formate une date ISO en heure de Paris */
 function formatParis(iso: string, opts?: Intl.DateTimeFormatOptions) {
   return new Date(iso).toLocaleString("fr-FR", {
@@ -96,8 +151,6 @@ function Dashboard() {
   const [coursesJ, setCoursesJ] = useState(0);
   const [clientsTotal, setClientsTotal] = useState(0);
   const [visitors, setVisitors] = useState(0);
-  const [qrImp, setQrImp] = useState(0);
-  const [qrClick, setQrClick] = useState(0);
   const [reservs, setReservs] = useState<any[]>([]);
   const [nextCourse, setNextCourse] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -109,23 +162,20 @@ function Dashboard() {
     const todayIso = today.toISOString();
     const monthIso = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
     const nowIso = new Date().toISOString();
+    const tomorrowIso = new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString();
 
-    const [caJR, caMR, cJR, cliR, visR, impR, clkR, resR, nextR] = await Promise.all([
+    const [caJR, caMR, cJR, cliR, visR, resR, nextR] = await Promise.all([
       supabase.from("courses").select("prix_final").gte("created_at", todayIso),
       supabase.from("courses").select("prix_final").gte("created_at", monthIso),
-      supabase.from("courses").select("id", { count: "exact", head: true }).gte("created_at", todayIso),
+      // Compte les réservations dont la prise en charge est aujourd'hui (hors refusées)
+      supabase
+        .from("reservations")
+        .select("id", { count: "exact", head: true })
+        .gte("pickup_datetime", todayIso)
+        .lt("pickup_datetime", tomorrowIso)
+        .neq("status", "refused"),
       supabase.from("clients").select("id", { count: "exact", head: true }),
       supabase.from("site_analytics").select("session_id").eq("event", "visit").gte("created_at", todayIso),
-      supabase
-        .from("site_analytics")
-        .select("id", { count: "exact", head: true })
-        .eq("event", "qr_impression")
-        .gte("created_at", todayIso),
-      supabase
-        .from("site_analytics")
-        .select("id", { count: "exact", head: true })
-        .eq("event", "qr_click")
-        .gte("created_at", todayIso),
       supabase.from("reservations").select("*").order("created_at", { ascending: false }).limit(10),
       // Prochaine course acceptée dans le futur
       supabase
@@ -142,8 +192,6 @@ function Dashboard() {
     setCoursesJ(cJR.count ?? 0);
     setClientsTotal(cliR.count ?? 0);
     setVisitors(new Set((visR.data ?? []).map((v: any) => v.session_id)).size);
-    setQrImp(impR.count ?? 0);
-    setQrClick(clkR.count ?? 0);
     setReservs(resR.data ?? []);
     setNextCourse((nextR.data ?? [])[0] ?? null);
     setLoading(false);
@@ -163,6 +211,12 @@ function Dashboard() {
 
   const updateStatus = async (id: string, status: string) => {
     await supabase.from("reservations").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
+    fetchAll();
+  };
+
+  const deleteReservation = async (id: string) => {
+    if (!confirm("Supprimer définitivement cette réservation ?")) return;
+    await supabase.from("reservations").delete().eq("id", id);
     fetchAll();
   };
 
@@ -609,11 +663,9 @@ function Dashboard() {
         }}
       >
         {loading
-          ? Array.from({ length: 3 }).map((_, i) => <StatCardSkeleton key={i} />)
+          ? Array.from({ length: 1 }).map((_, i) => <StatCardSkeleton key={i} />)
           : [
               { i: "👁️", v: String(visitors), l: "Visiteurs auj." },
-              { i: "📱", v: String(qrImp), l: "Scans QR auj." },
-              { i: "🔗", v: String(qrClick), l: "Clics QR auj." },
             ].map((c, i) => (
               <div key={i} style={card}>
                 <div style={{ fontSize: 22 }}>{c.i}</div>
@@ -644,7 +696,8 @@ function Dashboard() {
             reservs.map((r) => {
               const prix = getPrix(r);
               return (
-                <div key={r.id} style={{ padding: "14px 16px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                <SwipeRow key={r.id} onDelete={() => deleteReservation(r.id)}>
+                <div style={{ padding: "14px 16px" }}>
                   <div
                     style={{
                       display: "flex",
@@ -734,6 +787,7 @@ function Dashboard() {
                     </div>
                   )}
                 </div>
+                </SwipeRow>
               );
             })}
           {!loading && reservs.length === 0 && (
@@ -821,40 +875,58 @@ function Dashboard() {
                         <StatusBadge s={r.status} />
                       </td>
                       <td style={{ padding: "10px 14px" }}>
-                        {r.status === "pending" && (
-                          <span style={{ display: "flex", gap: 6 }}>
-                            <button
-                              onClick={() => updateStatus(r.id, "accepted")}
-                              style={{
-                                background: "#22c55e",
-                                color: "#fff",
-                                border: 0,
-                                padding: "5px 10px",
-                                borderRadius: 8,
-                                cursor: "pointer",
-                                fontSize: 11,
-                                fontWeight: 700,
-                              }}
-                            >
-                              ✓
-                            </button>
-                            <button
-                              onClick={() => updateStatus(r.id, "refused")}
-                              style={{
-                                background: "#ef4444",
-                                color: "#fff",
-                                border: 0,
-                                padding: "5px 10px",
-                                borderRadius: 8,
-                                cursor: "pointer",
-                                fontSize: 11,
-                                fontWeight: 700,
-                              }}
-                            >
-                              ✗
-                            </button>
-                          </span>
-                        )}
+                        <span style={{ display: "flex", gap: 6 }}>
+                          {r.status === "pending" && (
+                            <>
+                              <button
+                                onClick={() => updateStatus(r.id, "accepted")}
+                                style={{
+                                  background: "#22c55e",
+                                  color: "#fff",
+                                  border: 0,
+                                  padding: "5px 10px",
+                                  borderRadius: 8,
+                                  cursor: "pointer",
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                }}
+                              >
+                                ✓
+                              </button>
+                              <button
+                                onClick={() => updateStatus(r.id, "refused")}
+                                style={{
+                                  background: "#ef4444",
+                                  color: "#fff",
+                                  border: 0,
+                                  padding: "5px 10px",
+                                  borderRadius: 8,
+                                  cursor: "pointer",
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                }}
+                              >
+                                ✗
+                              </button>
+                            </>
+                          )}
+                          <button
+                            onClick={() => deleteReservation(r.id)}
+                            title="Supprimer"
+                            style={{
+                              background: "rgba(239,68,68,0.15)",
+                              color: "#ef4444",
+                              border: "1px solid rgba(239,68,68,0.3)",
+                              padding: "5px 10px",
+                              borderRadius: 8,
+                              cursor: "pointer",
+                              fontSize: 12,
+                              fontWeight: 700,
+                            }}
+                          >
+                            🗑
+                          </button>
+                        </span>
                       </td>
                     </tr>
                   );
