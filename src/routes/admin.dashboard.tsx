@@ -602,11 +602,9 @@ function Dashboard() {
         }}
       >
         {loading
-          ? Array.from({ length: 3 }).map((_, i) => <StatCardSkeleton key={i} />)
+          ? Array.from({ length: 1 }).map((_, i) => <StatCardSkeleton key={i} />)
           : [
               { i: "👁️", v: String(visitors), l: "Visiteurs auj." },
-              { i: "📱", v: String(qrImp), l: "Scans QR auj." },
-              { i: "🔗", v: String(qrClick), l: "Clics QR auj." },
             ].map((c, i) => (
               <div key={i} style={card}>
                 <div style={{ fontSize: 22 }}>{c.i}</div>
