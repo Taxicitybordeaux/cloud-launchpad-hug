@@ -223,10 +223,10 @@ function Dashboard() {
       supabase.from("courses").select("prix_final").gte("created_at", monthIso),
       supabase.from("reservations").select("id", { count: "exact", head: true }).gte("created_at", todayIso),
       supabase.from("clients").select("id", { count: "exact", head: true }),
-      supabase.from("site_analytics").select("session_id").eq("event", "visit").gte("created_at", todayIso),
-      supabase.from("site_analytics").select("session_id").eq("event", "visit").gte("created_at", weekIso),
-      supabase.from("site_analytics").select("session_id").eq("event", "visit").gte("created_at", monthIso),
-      supabase.from("site_analytics").select("session_id").eq("event", "visit").gte("created_at", yearIso),
+      supabase.from("page_views").select("session_id").gte("created_at", todayIso),
+      supabase.from("page_views").select("session_id").gte("created_at", weekIso),
+      supabase.from("page_views").select("session_id").gte("created_at", monthIso),
+      supabase.from("page_views").select("session_id").gte("created_at", yearIso),
       supabase.from("reservations").select("*").order("created_at", { ascending: false }).limit(10),
       supabase
         .from("reservations")
@@ -259,9 +259,9 @@ function Dashboard() {
     const ch = supabase
       .channel("dash")
       .on("postgres_changes", { event: "*", schema: "public", table: "reservations" }, fetchAll)
-      .on("postgres_changes", { event: "*", schema: "public", table: "site_analytics" }, fetchAll)
+      .on("postgres_changes", { event: "*", schema: "public", table: "page_views" }, fetchAll)
       .subscribe();
-    // Polling toutes les 30s (fallback si realtime non activé sur site_analytics)
+    // Polling toutes les 30s (fallback si realtime non activé)
     const poll = setInterval(fetchAll, 30_000);
     return () => {
       supabase.removeChannel(ch);
