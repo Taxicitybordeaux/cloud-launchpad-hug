@@ -541,6 +541,7 @@ function TrackingPage() {
         c[1],
         c[0],
       ]) ?? [[driverLat, driverLng], pickup];
+      approachCoordsRef.current = coords;
 
       if (approachLayerRef.current) {
         // Mise à jour fluide sans supprimer/recréer
