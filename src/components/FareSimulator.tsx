@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, useState, useCallback } from "react";
+import { useEffect, useRef, useMemo, useState, useCallback, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Calculator, Phone, ArrowRight, Info, MapPin, Loader2, Navigation } from "lucide-react";
 import { useT } from "@/i18n/I18nProvider";
@@ -75,7 +75,7 @@ function useNominatim(query: string) {
 interface AddressFieldProps {
   id: string;
   label: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   value: string;
   onChange: (val: string) => void;
   onSelect: (result: NominatimResult) => void;
