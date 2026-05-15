@@ -393,7 +393,7 @@ function CoursesPage() {
     // L'admin utilise un PIN custom (pas de session Supabase Auth), donc on passe
     // par un endpoint serveur qui appelle l'infra email avec la service role key.
     // VITE_LOVABLE_API_KEY est le secret partagé côté client (même valeur que LOVABLE_API_KEY côté serveur).
-    const adminSecret = "admin-pin-call";
+    const adminSecret = import.meta.env.VITE_LOVABLE_API_KEY ?? "";
     let emailOk = false;
     let emailDetail = "Aucun email client renseigné";
     if (email && url) {
@@ -514,7 +514,7 @@ function CoursesPage() {
       r.tracking_id && typeof window !== "undefined" ? `${window.location.origin}/scan/${r.tracking_id}` : null;
 
     // Même bridge serveur — secret partagé VITE_LOVABLE_API_KEY
-    const adminSecret = "admin-pin-call";
+    const adminSecret = import.meta.env.VITE_LOVABLE_API_KEY ?? "";
     try {
       const res = await fetch("/api/admin/send-course-email", {
         method: "POST",
@@ -937,6 +937,52 @@ function CoursesPage() {
                   >
                     💬 WhatsApp
                   </button>
+                )}
+
+                {/* 💬 SMS natif — ouvre l'app SMS du téléphone avec message pré-rempli */}
+                {phone && (
+                  <a
+                    href={(() => {
+                      const smsPhone = (phone || "").replace(/[^\d]/g, "").replace(/^0/, "+33");
+                      const pickupStr = r.pickup_datetime
+                        ? formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })
+                        : "—";
+                      const tarif_nuit_sms = r.pickup_datetime ? isNuit(r.pickup_datetime) : r.tarif_jour === false;
+                      const km_sms = r.distance_km ? Number(r.distance_km) : null;
+                      const prixNum = r.prix_estime
+                        ? Number(r.prix_estime)
+                        : km_sms
+                          ? calculerPrix(km_sms, !tarif_nuit_sms)
+                          : null;
+                      const prixStr = prixNum ? `${prixNum.toFixed(2)} €` : "à confirmer";
+                      const refId = `TCB-${r.id.slice(0, 8).toUpperCase()}`;
+                      const smsBody = encodeURIComponent(
+                        `Bonjour ${name || ""},\n` +
+                          `Course ${refId} confirmee !\n` +
+                          `${pickupStr} | ${r.depart} -> ${dest || "—"}\n` +
+                          `Prix: ${prixStr}\n` +
+                          (trackingUrl ? `Suivi: ${trackingUrl}\n` : "") +
+                          `Tel: 06 73 07 23 22`,
+                      );
+                      return `sms:${smsPhone}?body=${smsBody}`;
+                    })()}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      background: "rgba(168,85,247,0.12)",
+                      border: "1px solid rgba(168,85,247,0.3)",
+                      color: "#c084fc",
+                      padding: "12px 18px",
+                      borderRadius: 12,
+                      cursor: "pointer",
+                      fontWeight: 700,
+                      fontSize: 13,
+                      textDecoration: "none",
+                    }}
+                  >
+                    💬 SMS
+                  </a>
                 )}
 
                 {/* ✉️ Bouton Email — toutes les courses avec un email */}
