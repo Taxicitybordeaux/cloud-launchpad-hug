@@ -906,7 +906,16 @@ function CoursesPage() {
                 {normalizeStatus(r.status) === "accepted" && phone && (
                   <button
                     onClick={() => {
-                      const waPhone = (phone || "").replace(/[^\d]/g, "").replace(/^0/, "33");
+                      const TAXI_WA = "33673072322";
+                      let waPhone = (phone || "").replace(/[^\d]/g, "");
+                      if (waPhone.startsWith("0")) waPhone = "33" + waPhone.slice(1);
+                      if (waPhone.startsWith("330")) waPhone = "33" + waPhone.slice(3);
+                      if (waPhone.length < 10 || waPhone === TAXI_WA) {
+                        toast.warning("WhatsApp non envoyé", {
+                          description: "Aucun numéro client valide pour cette réservation.",
+                        });
+                        return;
+                      }
                       const pickupStr = r.pickup_datetime
                         ? formatParis(r.pickup_datetime, { dateStyle: "full", timeStyle: "short" })
                         : "—";
