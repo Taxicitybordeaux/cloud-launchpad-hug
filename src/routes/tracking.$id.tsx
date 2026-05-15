@@ -690,16 +690,7 @@ function TrackingPage() {
             setDriverData(d);
             setLastUpdate(new Date());
             if (d.latitude && d.longitude) {
-              if (!mapInstanceRef.current) await initMap(d.latitude, d.longitude);
-              else {
-                markerRef.current?.setLatLng([d.latitude, d.longitude]);
-                mapInstanceRef.current.panTo([d.latitude, d.longitude], { animate: true, duration: 1.5 });
-                // Mettre à jour la ligne d'approche vers la prise en charge
-                if (pickupCoordsRef.current) {
-                  drawApproachLine(d.latitude, d.longitude, pickupCoordsRef.current);
-                }
-              }
-              await calculateETA(d.latitude, d.longitude, destCoordsRef.current ?? undefined);
+              await applyDriverPosition(d.latitude, d.longitude);
             }
           },
         )
