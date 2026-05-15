@@ -30,16 +30,15 @@ const valCss: CSSProperties = {
   marginTop: 4,
 };
 
-// Tarifs officiels Bordeaux
 const TARIF_JOUR_LABEL = "2,16 €/km";
 const TARIF_NUIT_LABEL = "3,26 €/km";
 
-/* Status badge */
 const STATUS: Record<string, { bg: string; c: string; label: string }> = {
   pending: { bg: "rgba(245,158,11,0.15)", c: "#f59e0b", label: "En attente" },
   accepted: { bg: "rgba(34,197,94,0.15)", c: "#22c55e", label: "Acceptée" },
   refused: { bg: "rgba(239,68,68,0.15)", c: "#ef4444", label: "Refusée" },
 };
+
 function StatusBadge({ s }: { s: string }) {
   const v = STATUS[s] ?? { bg: "rgba(148,163,184,0.15)", c: "#94a3b8", label: s };
   return (
@@ -58,7 +57,6 @@ function StatusBadge({ s }: { s: string }) {
   );
 }
 
-/** Formate une date ISO en heure de Paris */
 function formatParis(iso: string, opts?: Intl.DateTimeFormatOptions) {
   return new Date(iso).toLocaleString("fr-FR", {
     timeZone: "Europe/Paris",
@@ -66,11 +64,8 @@ function formatParis(iso: string, opts?: Intl.DateTimeFormatOptions) {
   });
 }
 
-/** Détecte si une heure ISO tombe en tarif nuit (20h-6h, heure de Paris) */
 function isNuit(iso: string | null | undefined): boolean {
   if (!iso) return false;
-  // Utilise getHours() sur la date UTC convertie en heure de Paris via Intl
-  // pour éviter le bug Firefox qui renvoie "24" au lieu de "00" pour minuit.
   const d = new Date(iso);
   if (isNaN(d.getTime())) return false;
   const h = Number(
@@ -80,15 +75,13 @@ function isNuit(iso: string | null | undefined): boolean {
       hour12: false,
     }).format(d),
   );
-  // h peut valoir 24 sur certains moteurs (minuit) → traité comme 0
   const hNorm = h === 24 ? 0 : h;
   return hNorm >= 20 || hNorm < 6;
 }
 
-/** Card mobile avec swipe-to-delete (glisser à gauche) */
 function SwipeableCard({ children, onDelete }: { children: ReactNode; onDelete: () => void }) {
   const [offsetX, setOffsetX] = useState(0);
-  const [isSettling, setIsSettling] = useState(false); // true uniquement lors du snap (pas du drag)
+  const [isSettling, setIsSettling] = useState(false);
   const isDragging = useRef(false);
   const startX = useRef(0);
   const offsetRef = useRef(0);
@@ -98,7 +91,7 @@ function SwipeableCard({ children, onDelete }: { children: ReactNode; onDelete: 
   const onTouchStart = (e: TouchEvent) => {
     startX.current = e.touches[0].clientX;
     isDragging.current = true;
-    setIsSettling(false); // pas de transition pendant le drag
+    setIsSettling(false);
   };
 
   const onTouchMove = (e: TouchEvent) => {
@@ -111,7 +104,7 @@ function SwipeableCard({ children, onDelete }: { children: ReactNode; onDelete: 
 
   const onTouchEnd = () => {
     isDragging.current = false;
-    setIsSettling(true); // transition uniquement pour le snap final
+    setIsSettling(true);
     if (offsetRef.current < -THRESHOLD) {
       offsetRef.current = -MAX_SLIDE;
       setOffsetX(-MAX_SLIDE);
@@ -128,7 +121,6 @@ function SwipeableCard({ children, onDelete }: { children: ReactNode; onDelete: 
 
   return (
     <div style={{ position: "relative", overflow: "hidden", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-      {/* Fond rouge avec icône poubelle */}
       <div
         style={{
           position: "absolute",
@@ -150,7 +142,6 @@ function SwipeableCard({ children, onDelete }: { children: ReactNode; onDelete: 
         <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", letterSpacing: "0.04em" }}>SUPPR.</span>
       </div>
 
-      {/* Contenu glissable */}
       <div
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
@@ -164,7 +155,6 @@ function SwipeableCard({ children, onDelete }: { children: ReactNode; onDelete: 
           willChange: "transform",
         }}
       >
-        {/* Indicateur de swipe (flèche) visible seulement si pas encore glissé */}
         {offsetX === 0 && (
           <div
             style={{
@@ -181,7 +171,6 @@ function SwipeableCard({ children, onDelete }: { children: ReactNode; onDelete: 
             ‹‹
           </div>
         )}
-        {/* Overlay pour fermer le slide en cliquant sur le contenu */}
         {offsetX !== 0 && (
           <div onClick={reset} style={{ position: "absolute", inset: 0, zIndex: 2, cursor: "pointer" }} />
         )}
@@ -191,8 +180,30 @@ function SwipeableCard({ children, onDelete }: { children: ReactNode; onDelete: 
   );
 }
 
-/** Calcule le prix estimé d'une réservation selon distance + tarif heure Paris */
-function getPrix(r: any): number | null {
+// ── Types ──
+interface Reservation {
+  id: string;
+  created_at: string;
+  pickup_datetime?: string | null;
+  status: string;
+  depart?: string;
+  destination?: string;
+  arrivee?: string;
+  nom?: string;
+  client_name?: string;
+  telephone?: string;
+  client_phone?: string;
+  email?: string;
+  client_email?: string;
+  message?: string;
+  prix_final?: number | string | null;
+  prix_estime?: number | string | null;
+  distance_km?: number | string | null;
+  tarif_jour?: boolean;
+  tracking_id?: string;
+}
+
+function getPrix(r: Reservation): number | null {
   if (r.prix_final != null && r.prix_final !== "") return Number(r.prix_final);
   if (r.prix_estime != null && r.prix_estime !== "") return Number(r.prix_estime);
   if (r.distance_km) {
@@ -200,6 +211,243 @@ function getPrix(r: any): number | null {
     return calculerPrix(Number(r.distance_km), !nuit);
   }
   return null;
+}
+
+// ── Sous-composant extrait pour éviter l'IIFE dans le JSX ──
+function ProchaineCourse({ nextCourse }: { nextCourse: Reservation }) {
+  const nuit = nextCourse.pickup_datetime ? isNuit(nextCourse.pickup_datetime) : false;
+  const prix = getPrix(nextCourse);
+  const phone = nextCourse.telephone || nextCourse.client_phone;
+  const email = nextCourse.email || nextCourse.client_email;
+  const name = nextCourse.nom || nextCourse.client_name;
+  const arrivee = nextCourse.arrivee || nextCourse.destination;
+  const trackingUrl = nextCourse.tracking_id ? `${window.location.origin}/scan/${nextCourse.tracking_id}` : null;
+
+  return (
+    <div
+      style={{
+        ...card,
+        marginBottom: 20,
+        border: "1px solid rgba(34,197,94,0.35)",
+        background: "rgba(34,197,94,0.06)",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+        <span style={{ fontSize: 22 }}>🚖</span>
+        <h2
+          style={{
+            fontFamily: "'Syne',sans-serif",
+            fontSize: 16,
+            fontWeight: 800,
+            color: "#22c55e",
+            margin: 0,
+          }}
+        >
+          Prochaine course
+        </h2>
+        <span
+          style={{
+            marginLeft: "auto",
+            background: nuit ? "rgba(99,102,241,0.2)" : "rgba(250,204,21,0.15)",
+            color: nuit ? "#818cf8" : "#fbbf24",
+            padding: "3px 10px",
+            borderRadius: 99,
+            fontSize: 11,
+            fontWeight: 700,
+          }}
+        >
+          {nuit ? `🌙 Nuit ${TARIF_NUIT_LABEL}` : `☀️ Jour ${TARIF_JOUR_LABEL}`}
+        </span>
+      </div>
+      <div style={{ display: "grid", gap: 10 }}>
+        <div
+          style={{
+            background: "rgba(14,165,233,0.08)",
+            border: "1px solid rgba(14,165,233,0.2)",
+            borderRadius: 12,
+            padding: "10px 14px",
+          }}
+        >
+          <div
+            style={{
+              color: "#64748b",
+              fontSize: 11,
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              marginBottom: 4,
+            }}
+          >
+            🕐 Prise en charge
+          </div>
+          <div style={{ color: "#f8fafc", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 17 }}>
+            {formatParis(nextCourse.pickup_datetime!, { dateStyle: "full", timeStyle: "short" })}
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div
+            style={{
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 12,
+              padding: "10px 14px",
+            }}
+          >
+            <div
+              style={{
+                color: "#64748b",
+                fontSize: 11,
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                marginBottom: 4,
+              }}
+            >
+              🟢 Départ
+            </div>
+            <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 600, wordBreak: "break-word" }}>
+              {nextCourse.depart}
+            </div>
+          </div>
+          <div
+            style={{
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 12,
+              padding: "10px 14px",
+            }}
+          >
+            <div
+              style={{
+                color: "#64748b",
+                fontSize: 11,
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                marginBottom: 4,
+              }}
+            >
+              📍 Arrivée
+            </div>
+            <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 600, wordBreak: "break-word" }}>
+              {arrivee || "—"}
+            </div>
+          </div>
+        </div>
+        {prix !== null && (
+          <div
+            style={{
+              background: "rgba(14,165,233,0.1)",
+              border: "1px solid rgba(14,165,233,0.25)",
+              borderRadius: 12,
+              padding: "10px 16px",
+            }}
+          >
+            <div
+              style={{
+                color: "#64748b",
+                fontSize: 11,
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                marginBottom: 4,
+              }}
+            >
+              💰 Prix estimé
+            </div>
+            <div style={{ color: "#0ea5e9", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20 }}>
+              {prix.toFixed(2)} €
+            </div>
+          </div>
+        )}
+        <div
+          style={{
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 12,
+            padding: "10px 14px",
+          }}
+        >
+          <div
+            style={{
+              color: "#64748b",
+              fontSize: 11,
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              marginBottom: 8,
+            }}
+          >
+            👤 Client
+          </div>
+          <div style={{ color: "#f8fafc", fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{name || "—"}</div>
+          <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+            {phone && (
+              <a
+                href={`tel:${phone}`}
+                style={{ color: "#0ea5e9", textDecoration: "none", fontWeight: 700, fontSize: 14 }}
+              >
+                📞 {phone}
+              </a>
+            )}
+            {email && (
+              <a href={`mailto:${email}`} style={{ color: "#94a3b8", textDecoration: "none", fontSize: 13 }}>
+                ✉️ {email}
+              </a>
+            )}
+          </div>
+        </div>
+        {nextCourse.message && (
+          <div
+            style={{
+              background: "rgba(14,165,233,0.06)",
+              border: "1px solid rgba(14,165,233,0.15)",
+              borderRadius: 12,
+              padding: "10px 14px",
+            }}
+          >
+            <div
+              style={{
+                color: "#64748b",
+                fontSize: 11,
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                marginBottom: 6,
+              }}
+            >
+              💬 Message client
+            </div>
+            <div style={{ color: "#94a3b8", fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-line" }}>
+              {nextCourse.message}
+            </div>
+          </div>
+        )}
+        {trackingUrl && (
+          <a
+            href={trackingUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              background: "rgba(139,92,246,0.15)",
+              border: "1px solid rgba(139,92,246,0.3)",
+              color: "#a78bfa",
+              padding: "10px 16px",
+              borderRadius: 12,
+              fontWeight: 700,
+              fontSize: 13,
+              textDecoration: "none",
+            }}
+          >
+            📲 Lien de suivi client
+          </a>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function Dashboard() {
@@ -212,22 +460,17 @@ function Dashboard() {
   const [visitorsSem, setVisitorsSem] = useState(0);
   const [visitorsM, setVisitorsM] = useState(0);
   const [visitorsAn, setVisitorsAn] = useState(0);
-  const [reservs, setReservs] = useState<any[]>([]);
-  const [nextCourse, setNextCourse] = useState<any | null>(null);
+  const [reservs, setReservs] = useState<Reservation[]>([]);
+  const [nextCourse, setNextCourse] = useState<Reservation | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
   const fetchAll = useCallback(async () => {
-    // ── Calcul des bornes en heure de Paris ──
-    // Approche fiable : on parse la date locale Paris et on reconstruit le timestamp UTC
     const now = new Date();
-    // Récupère "YYYY-MM-DD" en heure de Paris (fr-CA → ISO date par convention locale)
-    const parisDateStr = now.toLocaleDateString("fr-CA", { timeZone: "Europe/Paris" }); // "YYYY-MM-DD" en heure de Paris
+    const parisDateStr = now.toLocaleDateString("fr-CA", { timeZone: "Europe/Paris" });
     const [year, month] = parisDateStr.split("-").map(Number);
-    // new Date("2025-05-15T00:00:00") interprète en heure locale navigateur, pas Paris
-    // On force l'offset Paris en construisant la string avec l'offset courant Paris
+
     const getParisOffsetMin = () => {
-      // Offset Paris en minutes par rapport à UTC au moment actuel (gère l'heure d'été)
       const utcStr = now.toLocaleString("en-US", { timeZone: "UTC" });
       const parisStr = now.toLocaleString("en-US", { timeZone: "Europe/Paris" });
       return (new Date(parisStr).getTime() - new Date(utcStr).getTime()) / 60000;
@@ -238,9 +481,8 @@ function Dashboard() {
     const sign = offsetMin >= 0 ? "+" : "-";
     const pad = (n: number) => String(n).padStart(2, "0");
     const offsetStr = `${sign}${pad(offsetH)}:${pad(offsetM)}`;
-    // "2025-05-15T00:00:00+02:00" → minuit Paris exact
-    const todayIso = new Date(`${parisDateStr}T00:00:00${offsetStr}`).toISOString();
 
+    const todayIso = new Date(`${parisDateStr}T00:00:00${offsetStr}`).toISOString();
     const monthIso = new Date(`${year}-${pad(month)}-01T00:00:00${offsetStr}`).toISOString();
     const yearIso = new Date(`${year}-01-01T00:00:00${offsetStr}`).toISOString();
     const weekAgo = new Date(todayIso);
@@ -277,31 +519,33 @@ function Dashboard() {
         .limit(1),
     ]);
 
-    const uniq = (data: any[]) => new Set((data ?? []).map((v) => v.session_id)).size;
+    const uniq = (data: { session_id: string }[] | null) => new Set((data ?? []).map((v) => v.session_id)).size;
 
-    setCaJ((caJR.data ?? []).reduce((s: number, c: any) => s + (Number(c.prix_final) || 0), 0));
-    setCaM((caMR.data ?? []).reduce((s: number, c: any) => s + (Number(c.prix_final) || 0), 0));
+    setCaJ(
+      (caJR.data ?? []).reduce((s: number, c: { prix_final: number | null }) => s + (Number(c.prix_final) || 0), 0),
+    );
+    setCaM(
+      (caMR.data ?? []).reduce((s: number, c: { prix_final: number | null }) => s + (Number(c.prix_final) || 0), 0),
+    );
     setCoursesJ(cJR.count ?? 0);
     setClientsTotal(cliR.count ?? 0);
-    setVisitorsJ(uniq(visJR.data ?? []));
-    setVisitorsSem(uniq(visSemR.data ?? []));
-    setVisitorsM(uniq(visMR.data ?? []));
-    setVisitorsAn(uniq(visAnR.data ?? []));
-    setReservs(resR.data ?? []);
-    setNextCourse((nextR.data ?? [])[0] ?? null);
+    setVisitorsJ(uniq(visJR.data));
+    setVisitorsSem(uniq(visSemR.data));
+    setVisitorsM(uniq(visMR.data));
+    setVisitorsAn(uniq(visAnR.data));
+    setReservs((resR.data ?? []) as Reservation[]);
+    setNextCourse(((nextR.data ?? [])[0] as Reservation) ?? null);
     setLastUpdate(new Date());
     setLoading(false);
   }, []);
 
   useEffect(() => {
     fetchAll();
-    // Realtime Supabase
     const ch = supabase
       .channel(`dash-${Date.now()}-${Math.random().toString(36).slice(2)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "reservations" }, fetchAll)
       .on("postgres_changes", { event: "*", schema: "public", table: "site_analytics" }, fetchAll)
       .subscribe();
-    // Polling toutes les 30s (fallback si realtime non activé)
     const poll = setInterval(fetchAll, 30_000);
     return () => {
       supabase.removeChannel(ch);
@@ -333,14 +577,13 @@ function Dashboard() {
     await fetchAll();
   };
 
-  /* ── Render ── */
   return (
     <div
       style={{ padding: "20px 16px", fontFamily: "'DM Sans',sans-serif", maxWidth: "100%", boxSizing: "border-box" }}
     >
       <SkeletonStyles />
 
-      {/* Header row */}
+      {/* Header */}
       <div
         style={{
           display: "flex",
@@ -355,7 +598,6 @@ function Dashboard() {
           Dashboard
         </h1>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {/* Indicateur dernière MAJ */}
           <span style={{ fontSize: 10, color: "#475569", fontFamily: "'JetBrains Mono',monospace" }}>
             ↻ {lastUpdate.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
           </span>
@@ -397,248 +639,10 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* ── PROCHAINE COURSE ACCEPTÉE ── */}
-      {!loading &&
-        nextCourse &&
-        (() => {
-          const nuit = nextCourse.pickup_datetime ? isNuit(nextCourse.pickup_datetime) : false;
-          const prix = getPrix(nextCourse);
-          const phone = nextCourse.telephone || nextCourse.client_phone;
-          const email = nextCourse.email || nextCourse.client_email;
-          const name = nextCourse.nom || nextCourse.client_name;
-          const arrivee = nextCourse.arrivee || nextCourse.destination;
-          const trackingUrl = nextCourse.tracking_id
-            ? `${window.location.origin}/scan/${nextCourse.tracking_id}`
-            : null;
+      {/* ── PROCHAINE COURSE — composant dédié, plus d'IIFE ── */}
+      {!loading && nextCourse && <ProchaineCourse nextCourse={nextCourse} />}
 
-          return (
-            <div
-              style={{
-                ...card,
-                marginBottom: 20,
-                border: "1px solid rgba(34,197,94,0.35)",
-                background: "rgba(34,197,94,0.06)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                <span style={{ fontSize: 22 }}>🚖</span>
-                <h2
-                  style={{
-                    fontFamily: "'Syne',sans-serif",
-                    fontSize: 16,
-                    fontWeight: 800,
-                    color: "#22c55e",
-                    margin: 0,
-                  }}
-                >
-                  Prochaine course
-                </h2>
-                <span
-                  style={{
-                    marginLeft: "auto",
-                    background: nuit ? "rgba(99,102,241,0.2)" : "rgba(250,204,21,0.15)",
-                    color: nuit ? "#818cf8" : "#fbbf24",
-                    padding: "3px 10px",
-                    borderRadius: 99,
-                    fontSize: 11,
-                    fontWeight: 700,
-                  }}
-                >
-                  {nuit ? `🌙 Nuit ${TARIF_NUIT_LABEL}` : `☀️ Jour ${TARIF_JOUR_LABEL}`}
-                </span>
-              </div>
-              <div style={{ display: "grid", gap: 10 }}>
-                <div
-                  style={{
-                    background: "rgba(14,165,233,0.08)",
-                    border: "1px solid rgba(14,165,233,0.2)",
-                    borderRadius: 12,
-                    padding: "10px 14px",
-                  }}
-                >
-                  <div
-                    style={{
-                      color: "#64748b",
-                      fontSize: 11,
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                      marginBottom: 4,
-                    }}
-                  >
-                    🕐 Prise en charge
-                  </div>
-                  <div style={{ color: "#f8fafc", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 17 }}>
-                    {formatParis(nextCourse.pickup_datetime, { dateStyle: "full", timeStyle: "short" })}
-                  </div>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <div
-                    style={{
-                      background: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      borderRadius: 12,
-                      padding: "10px 14px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        color: "#64748b",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.06em",
-                        marginBottom: 4,
-                      }}
-                    >
-                      🟢 Départ
-                    </div>
-                    <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 600, wordBreak: "break-word" }}>
-                      {nextCourse.depart}
-                    </div>
-                  </div>
-                  <div
-                    style={{
-                      background: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      borderRadius: 12,
-                      padding: "10px 14px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        color: "#64748b",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.06em",
-                        marginBottom: 4,
-                      }}
-                    >
-                      📍 Arrivée
-                    </div>
-                    <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 600, wordBreak: "break-word" }}>
-                      {arrivee || "—"}
-                    </div>
-                  </div>
-                </div>
-                {prix !== null && (
-                  <div
-                    style={{
-                      background: "rgba(14,165,233,0.1)",
-                      border: "1px solid rgba(14,165,233,0.25)",
-                      borderRadius: 12,
-                      padding: "10px 16px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        color: "#64748b",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.06em",
-                        marginBottom: 4,
-                      }}
-                    >
-                      💰 Prix estimé
-                    </div>
-                    <div style={{ color: "#0ea5e9", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20 }}>
-                      {prix.toFixed(2)} €
-                    </div>
-                  </div>
-                )}
-                <div
-                  style={{
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    borderRadius: 12,
-                    padding: "10px 14px",
-                  }}
-                >
-                  <div
-                    style={{
-                      color: "#64748b",
-                      fontSize: 11,
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                      marginBottom: 8,
-                    }}
-                  >
-                    👤 Client
-                  </div>
-                  <div style={{ color: "#f8fafc", fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{name || "—"}</div>
-                  <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-                    {phone && (
-                      <a
-                        href={`tel:${phone}`}
-                        style={{ color: "#0ea5e9", textDecoration: "none", fontWeight: 700, fontSize: 14 }}
-                      >
-                        📞 {phone}
-                      </a>
-                    )}
-                    {email && (
-                      <a href={`mailto:${email}`} style={{ color: "#94a3b8", textDecoration: "none", fontSize: 13 }}>
-                        ✉️ {email}
-                      </a>
-                    )}
-                  </div>
-                </div>
-                {nextCourse.message && (
-                  <div
-                    style={{
-                      background: "rgba(14,165,233,0.06)",
-                      border: "1px solid rgba(14,165,233,0.15)",
-                      borderRadius: 12,
-                      padding: "10px 14px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        color: "#64748b",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.06em",
-                        marginBottom: 6,
-                      }}
-                    >
-                      💬 Message client
-                    </div>
-                    <div style={{ color: "#94a3b8", fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-line" }}>
-                      {nextCourse.message}
-                    </div>
-                  </div>
-                )}
-                {trackingUrl && (
-                  <a
-                    href={trackingUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 8,
-                      background: "rgba(139,92,246,0.15)",
-                      border: "1px solid rgba(139,92,246,0.3)",
-                      color: "#a78bfa",
-                      padding: "10px 16px",
-                      borderRadius: 12,
-                      fontWeight: 700,
-                      fontSize: 13,
-                      textDecoration: "none",
-                    }}
-                  >
-                    📲 Lien de suivi client
-                  </a>
-                )}
-              </div>
-            </div>
-          );
-        })()}
-
-      {/* KPI stat cards — 2 colonnes */}
+      {/* KPI stat cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, marginBottom: 20 }}>
         {loading
           ? Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
@@ -656,7 +660,7 @@ function Dashboard() {
             ))}
       </div>
 
-      {/* ── ONGLETS ── */}
+      {/* Onglets */}
       <div style={{ display: "flex", gap: 4, marginBottom: 16 }}>
         {(["reservations", "visiteurs"] as const).map((t) => {
           const labels = { reservations: "📋 Réservations", visiteurs: "👁️ Visiteurs" };
@@ -683,7 +687,7 @@ function Dashboard() {
         })}
       </div>
 
-      {/* ── ONGLET RÉSERVATIONS ── */}
+      {/* Onglet réservations */}
       {tab === "reservations" && (
         <div style={{ ...card, padding: 0, overflow: "hidden" }}>
           <h2
@@ -692,7 +696,7 @@ function Dashboard() {
             Dernières réservations
           </h2>
 
-          {/* Mobile : cards swipeables */}
+          {/* Mobile */}
           <div className="reserv-cards" style={{ display: "none" }}>
             {loading &&
               Array.from({ length: 3 }).map((_, i) => (
@@ -802,7 +806,7 @@ function Dashboard() {
             )}
           </div>
 
-          {/* Desktop : table */}
+          {/* Desktop */}
           <div className="reserv-table" style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
@@ -945,10 +949,9 @@ function Dashboard() {
         </div>
       )}
 
-      {/* ── ONGLET VISITEURS ── */}
+      {/* Onglet visiteurs */}
       {tab === "visiteurs" && (
         <div style={{ display: "grid", gap: 16 }}>
-          {/* 4 compteurs */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12 }}>
             {loading
               ? Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
@@ -975,7 +978,6 @@ function Dashboard() {
                   </div>
                 ))}
           </div>
-          {/* Info */}
           <div style={{ ...card, background: "rgba(14,165,233,0.05)", border: "1px solid rgba(14,165,233,0.15)" }}>
             <div style={{ color: "#64748b", fontSize: 12, lineHeight: 1.7 }}>
               <span style={{ color: "#0ea5e9", fontWeight: 700 }}>Sessions uniques</span> — chaque visiteur est compté
@@ -987,7 +989,6 @@ function Dashboard() {
         </div>
       )}
 
-      {/* Responsive switch */}
       <style>{`
         @media (max-width: 640px) {
           .reserv-cards { display: block !important; }
