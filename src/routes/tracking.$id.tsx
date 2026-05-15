@@ -305,10 +305,12 @@ function TrackingPage() {
   const geoWatchIdRef = useRef<number | null>(null);
   const pickupCoordsRef = useRef<[number, number] | null>(null);
   const approachLayerRef = useRef<any>(null);
+  const approachCoordsRef = useRef<[number, number][]>([]);
   const lastAppliedPosRef = useRef<{ lat: number; lng: number; t: number } | null>(null);
   const lastApproachAtRef = useRef<number>(0);
+  const animFrameRef = useRef<number | null>(null);
 
-  // Distance approx en mètres entre 2 coords (formule équirectangulaire — suffisant pour anti-jitter)
+  // Distance approx en mètres entre 2 coords (formule équirectangulaire)
   const distMeters = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
     const R = 6371000;
     const toRad = (d: number) => (d * Math.PI) / 180;
@@ -317,9 +319,59 @@ function TrackingPage() {
     return Math.sqrt(x * x + y * y) * R;
   };
 
-  // Applique une position chauffeur sur la carte avec anti-jitter :
-  // - ignore les déplacements < 8 m (bruit GPS) sauf si > 4 s écoulées
-  // - throttle l'appel OSRM d'approche à une fois toutes les 15 s
+  // Trouve l'index du point de la trace le plus proche du marqueur,
+  // pour "manger" la polyline derrière lui (effet Uber).
+  const closestIndexOnRoute = (lat: number, lng: number, coords: [number, number][]) => {
+    let best = 0;
+    let bestD = Infinity;
+    for (let i = 0; i < coords.length; i++) {
+      const d = distMeters({ lat, lng }, { lat: coords[i][0], lng: coords[i][1] });
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+    return best;
+  };
+
+  // Anime le taxi de sa position courante vers (lat,lng) sur ~1.4s,
+  // raccourcit la polyline d'approche au fur et à mesure (style Uber).
+  const animateMarkerTo = (toLat: number, toLng: number) => {
+    const map = mapInstanceRef.current;
+    const marker = markerRef.current;
+    if (!map || !marker) return;
+    const fromLatLng = marker.getLatLng();
+    const fromLat = fromLatLng.lat;
+    const fromLng = fromLatLng.lng;
+    const dist = distMeters({ lat: fromLat, lng: fromLng }, { lat: toLat, lng: toLng });
+    const duration = Math.min(2200, Math.max(700, dist * 25)); // 700ms-2.2s selon distance
+    const startT = performance.now();
+    if (animFrameRef.current !== null) cancelAnimationFrame(animFrameRef.current);
+    const ease = (t: number) => 1 - Math.pow(1 - t, 3); // easeOutCubic
+
+    const step = (now: number) => {
+      const t = Math.min(1, (now - startT) / duration);
+      const k = ease(t);
+      const lat = fromLat + (toLat - fromLat) * k;
+      const lng = fromLng + (toLng - fromLng) * k;
+      marker.setLatLng([lat, lng]);
+      // Raccourcit la polyline d'approche derrière le marqueur
+      const route = approachCoordsRef.current;
+      if (route.length > 1 && approachLayerRef.current) {
+        const idx = closestIndexOnRoute(lat, lng, route);
+        const tail: [number, number][] = [[lat, lng], ...route.slice(idx + 1)];
+        if (tail.length >= 2) approachLayerRef.current.setLatLngs(tail);
+      }
+      if (t < 1) {
+        animFrameRef.current = requestAnimationFrame(step);
+      } else {
+        animFrameRef.current = null;
+      }
+    };
+    animFrameRef.current = requestAnimationFrame(step);
+  };
+
+  // Applique une position chauffeur sur la carte (style Uber).
   const applyDriverPosition = useCallback(async (lat: number, lng: number) => {
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
     const map = mapInstanceRef.current;
@@ -337,16 +389,17 @@ function TrackingPage() {
     }
     lastAppliedPosRef.current = { lat, lng, t: now };
 
-    if (markerRef.current) {
-      markerRef.current.setLatLng([lat, lng]);
-      map.panTo([lat, lng], { animate: true, duration: 1.5 });
-    }
+    // Recharge la trace OSRM toutes les 15s pour rester aligné aux rues
     if (pickupCoordsRef.current && now - lastApproachAtRef.current > 15000) {
       lastApproachAtRef.current = now;
       drawApproachLine(lat, lng, pickupCoordsRef.current);
     }
+    // Animation fluide du marqueur + grignotage de la polyline
+    animateMarkerTo(lat, lng);
+    map.panTo([lat, lng], { animate: true, duration: 1.4 });
     await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
   }, []);
+
 
   const notifScheduledRef = useRef(false);
   const schedulePickupNotification = useCallback((pickupDatetime: string) => {
