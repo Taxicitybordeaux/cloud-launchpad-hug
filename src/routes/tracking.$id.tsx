@@ -433,9 +433,14 @@ function TrackingPage() {
       // Marqueur départ (prise en charge) 🟢
       const departIcon = L.divIcon({
         className: "",
-        html: `<div style="width:34px;height:34px;background:#22c55e;border-radius:50%;border:3px solid white;box-shadow:0 2px 10px rgba(34,197,94,0.6);display:flex;align-items:center;justify-content:center;font-size:16px">🟢</div>`,
-        iconSize: [34, 34],
-        iconAnchor: [17, 17],
+        html: `<div style="position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center">
+          <span style="position:absolute;inset:0;border-radius:50%;background:rgba(34,197,94,0.35);animation:tcb-pulse 1.6s ease-out infinite"></span>
+          <span style="position:absolute;inset:6px;border-radius:50%;background:rgba(34,197,94,0.5);animation:tcb-pulse 1.6s ease-out infinite;animation-delay:.4s"></span>
+          <div style="position:relative;width:30px;height:30px;background:#22c55e;border-radius:50%;border:3px solid white;box-shadow:0 4px 14px rgba(34,197,94,0.7);display:flex;align-items:center;justify-content:center;font-size:15px">📍</div>
+        </div>
+        <style>@keyframes tcb-pulse{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.6);opacity:0}}</style>`,
+        iconSize: [44, 44],
+        iconAnchor: [22, 22],
       });
       // Marqueur destination 🏁
       const destIcon = L.divIcon({
