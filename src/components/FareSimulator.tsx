@@ -166,18 +166,19 @@ export function FareSimulator() {
             <span>{t("sim.disclaimer")}</span>
           </p>
 
-          <div className="mt-5 flex flex-wrap gap-2">
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <a
               href={`tel:${PHONE}`}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-3 text-sm font-semibold transition hover:border-primary"
+              className="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-border bg-background px-4 py-3 text-sm font-semibold transition hover:border-primary sm:flex-1"
             >
-              <Phone className="h-4 w-4" /> {PHONE_DISPLAY}
+              <Phone className="h-4 w-4 shrink-0" />
+              <span className="whitespace-nowrap">{PHONE_DISPLAY}</span>
             </a>
             <Link
               to="/reservation"
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-gold)]"
+              className="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-gold)] sm:flex-1"
             >
-              {t("sim.cta_book")} <ArrowRight className="h-4 w-4" />
+              {t("sim.cta_book")} <ArrowRight className="h-4 w-4 shrink-0" />
             </Link>
           </div>
         </div>
