@@ -875,40 +875,58 @@ function Dashboard() {
                         <StatusBadge s={r.status} />
                       </td>
                       <td style={{ padding: "10px 14px" }}>
-                        {r.status === "pending" && (
-                          <span style={{ display: "flex", gap: 6 }}>
-                            <button
-                              onClick={() => updateStatus(r.id, "accepted")}
-                              style={{
-                                background: "#22c55e",
-                                color: "#fff",
-                                border: 0,
-                                padding: "5px 10px",
-                                borderRadius: 8,
-                                cursor: "pointer",
-                                fontSize: 11,
-                                fontWeight: 700,
-                              }}
-                            >
-                              ✓
-                            </button>
-                            <button
-                              onClick={() => updateStatus(r.id, "refused")}
-                              style={{
-                                background: "#ef4444",
-                                color: "#fff",
-                                border: 0,
-                                padding: "5px 10px",
-                                borderRadius: 8,
-                                cursor: "pointer",
-                                fontSize: 11,
-                                fontWeight: 700,
-                              }}
-                            >
-                              ✗
-                            </button>
-                          </span>
-                        )}
+                        <span style={{ display: "flex", gap: 6 }}>
+                          {r.status === "pending" && (
+                            <>
+                              <button
+                                onClick={() => updateStatus(r.id, "accepted")}
+                                style={{
+                                  background: "#22c55e",
+                                  color: "#fff",
+                                  border: 0,
+                                  padding: "5px 10px",
+                                  borderRadius: 8,
+                                  cursor: "pointer",
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                }}
+                              >
+                                ✓
+                              </button>
+                              <button
+                                onClick={() => updateStatus(r.id, "refused")}
+                                style={{
+                                  background: "#ef4444",
+                                  color: "#fff",
+                                  border: 0,
+                                  padding: "5px 10px",
+                                  borderRadius: 8,
+                                  cursor: "pointer",
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                }}
+                              >
+                                ✗
+                              </button>
+                            </>
+                          )}
+                          <button
+                            onClick={() => deleteReservation(r.id)}
+                            title="Supprimer"
+                            style={{
+                              background: "rgba(239,68,68,0.15)",
+                              color: "#ef4444",
+                              border: "1px solid rgba(239,68,68,0.3)",
+                              padding: "5px 10px",
+                              borderRadius: 8,
+                              cursor: "pointer",
+                              fontSize: 12,
+                              fontWeight: 700,
+                            }}
+                          >
+                            🗑
+                          </button>
+                        </span>
                       </td>
                     </tr>
                   );
