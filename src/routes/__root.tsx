@@ -166,18 +166,15 @@ function RootComponent() {
     sessionStorage.setItem("sid", sid);
 
     supabase
-      .from("page_views")
+      .from("site_analytics")
       .insert({
         session_id: sid,
+        event: "visit",
         page: path,
         referrer: document.referrer || null,
       })
-      .then(({ error, status, statusText }) => {
-        if (error) {
-          console.error("❌ page_views insert error:", error.message, error.details, error.hint, "code:", error.code);
-        } else {
-          console.log("✅ page_views insert OK — status:", status, statusText);
-        }
+      .then(({ error }) => {
+        if (error) console.error("❌ site_analytics insert error:", error.message, error.code);
       });
   }, [path]);
 
