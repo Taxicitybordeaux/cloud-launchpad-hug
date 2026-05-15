@@ -787,6 +787,7 @@ function Dashboard() {
                     </div>
                   )}
                 </div>
+                </SwipeRow>
               );
             })}
           {!loading && reservs.length === 0 && (
