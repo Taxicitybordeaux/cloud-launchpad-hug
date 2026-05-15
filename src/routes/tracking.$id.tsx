@@ -558,6 +558,7 @@ function TrackingPage() {
     } catch {
       // Fallback ligne droite si OSRM échoue
       const fallback: [number, number][] = [[driverLat, driverLng], pickup];
+      approachCoordsRef.current = fallback;
       if (approachLayerRef.current) {
         approachLayerRef.current.setLatLngs(fallback);
       } else {
