@@ -12,8 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as ReserverRouteImport } from './routes/reserver'
 import { Route as ReservationRouteImport } from './routes/reservation'
+import { Route as MentionsLegalesRouteImport } from './routes/mentions-legales'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as ConfidentialiteRouteImport } from './routes/confidentialite'
 import { Route as ChauffeurRouteImport } from './routes/chauffeur'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AProposRouteImport } from './routes/a-propos'
@@ -55,6 +57,11 @@ const ReservationRoute = ReservationRouteImport.update({
   path: '/reservation',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MentionsLegalesRoute = MentionsLegalesRouteImport.update({
+  id: '/mentions-legales',
+  path: '/mentions-legales',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -63,6 +70,11 @@ const LoginRoute = LoginRouteImport.update({
 const ContactRoute = ContactRouteImport.update({
   id: '/contact',
   path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfidentialiteRoute = ConfidentialiteRouteImport.update({
+  id: '/confidentialite',
+  path: '/confidentialite',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChauffeurRoute = ChauffeurRouteImport.update({
@@ -201,8 +213,10 @@ export interface FileRoutesByFullPath {
   '/a-propos': typeof AProposRoute
   '/admin': typeof AdminRouteWithChildren
   '/chauffeur': typeof ChauffeurRoute
+  '/confidentialite': typeof ConfidentialiteRoute
   '/contact': typeof ContactRoute
   '/login': typeof LoginRoute
+  '/mentions-legales': typeof MentionsLegalesRoute
   '/reservation': typeof ReservationRouteWithChildren
   '/reserver': typeof ReserverRoute
   '/services': typeof ServicesRoute
@@ -233,8 +247,10 @@ export interface FileRoutesByTo {
   '/a-propos': typeof AProposRoute
   '/admin': typeof AdminRouteWithChildren
   '/chauffeur': typeof ChauffeurRoute
+  '/confidentialite': typeof ConfidentialiteRoute
   '/contact': typeof ContactRoute
   '/login': typeof LoginRoute
+  '/mentions-legales': typeof MentionsLegalesRoute
   '/reservation': typeof ReservationRouteWithChildren
   '/reserver': typeof ReserverRoute
   '/services': typeof ServicesRoute
@@ -266,8 +282,10 @@ export interface FileRoutesById {
   '/a-propos': typeof AProposRoute
   '/admin': typeof AdminRouteWithChildren
   '/chauffeur': typeof ChauffeurRoute
+  '/confidentialite': typeof ConfidentialiteRoute
   '/contact': typeof ContactRoute
   '/login': typeof LoginRoute
+  '/mentions-legales': typeof MentionsLegalesRoute
   '/reservation': typeof ReservationRouteWithChildren
   '/reserver': typeof ReserverRoute
   '/services': typeof ServicesRoute
@@ -300,8 +318,10 @@ export interface FileRouteTypes {
     | '/a-propos'
     | '/admin'
     | '/chauffeur'
+    | '/confidentialite'
     | '/contact'
     | '/login'
+    | '/mentions-legales'
     | '/reservation'
     | '/reserver'
     | '/services'
@@ -332,8 +352,10 @@ export interface FileRouteTypes {
     | '/a-propos'
     | '/admin'
     | '/chauffeur'
+    | '/confidentialite'
     | '/contact'
     | '/login'
+    | '/mentions-legales'
     | '/reservation'
     | '/reserver'
     | '/services'
@@ -364,8 +386,10 @@ export interface FileRouteTypes {
     | '/a-propos'
     | '/admin'
     | '/chauffeur'
+    | '/confidentialite'
     | '/contact'
     | '/login'
+    | '/mentions-legales'
     | '/reservation'
     | '/reserver'
     | '/services'
@@ -397,8 +421,10 @@ export interface RootRouteChildren {
   AProposRoute: typeof AProposRoute
   AdminRoute: typeof AdminRouteWithChildren
   ChauffeurRoute: typeof ChauffeurRoute
+  ConfidentialiteRoute: typeof ConfidentialiteRoute
   ContactRoute: typeof ContactRoute
   LoginRoute: typeof LoginRoute
+  MentionsLegalesRoute: typeof MentionsLegalesRoute
   ReservationRoute: typeof ReservationRouteWithChildren
   ReserverRoute: typeof ReserverRoute
   ServicesRoute: typeof ServicesRoute
@@ -442,6 +468,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReservationRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mentions-legales': {
+      id: '/mentions-legales'
+      path: '/mentions-legales'
+      fullPath: '/mentions-legales'
+      preLoaderRoute: typeof MentionsLegalesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -454,6 +487,13 @@ declare module '@tanstack/react-router' {
       path: '/contact'
       fullPath: '/contact'
       preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/confidentialite': {
+      id: '/confidentialite'
+      path: '/confidentialite'
+      fullPath: '/confidentialite'
+      preLoaderRoute: typeof ConfidentialiteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/chauffeur': {
@@ -669,8 +709,10 @@ const rootRouteChildren: RootRouteChildren = {
   AProposRoute: AProposRoute,
   AdminRoute: AdminRouteWithChildren,
   ChauffeurRoute: ChauffeurRoute,
+  ConfidentialiteRoute: ConfidentialiteRoute,
   ContactRoute: ContactRoute,
   LoginRoute: LoginRoute,
+  MentionsLegalesRoute: MentionsLegalesRoute,
   ReservationRoute: ReservationRouteWithChildren,
   ReserverRoute: ReserverRoute,
   ServicesRoute: ServicesRoute,
@@ -693,3 +735,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
