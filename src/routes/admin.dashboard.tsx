@@ -79,6 +79,108 @@ function isNuit(iso: string): boolean {
   return h >= 20 || h < 6;
 }
 
+/** Card mobile avec swipe-to-delete (glisser à gauche) */
+function SwipeableCard({ children, onDelete }: { children: React.ReactNode; onDelete: () => void }) {
+  const [offsetX, setOffsetX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const startX = useRef(0);
+  const currentX = useRef(0);
+  const THRESHOLD = 80; // px pour déclencher la suppression
+  const MAX_SLIDE = 90; // largeur du bouton révélé
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    startX.current = e.touches[0].clientX;
+    currentX.current = e.touches[0].clientX;
+    setIsDragging(true);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return;
+    const dx = e.touches[0].clientX - startX.current;
+    currentX.current = e.touches[0].clientX;
+    // Seulement vers la gauche (dx négatif)
+    const clamped = Math.max(-MAX_SLIDE, Math.min(0, dx));
+    setOffsetX(clamped);
+  };
+
+  const onTouchEnd = () => {
+    setIsDragging(false);
+    if (offsetX < -THRESHOLD) {
+      // Révéler complètement le bouton
+      setOffsetX(-MAX_SLIDE);
+    } else {
+      // Revenir à la position initiale
+      setOffsetX(0);
+    }
+  };
+
+  const reset = () => setOffsetX(0);
+
+  return (
+    <div style={{ position: "relative", overflow: "hidden", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+      {/* Fond rouge avec icône poubelle */}
+      <div
+        style={{
+          position: "absolute",
+          right: 0,
+          top: 0,
+          bottom: 0,
+          width: MAX_SLIDE,
+          background: "#ef4444",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexDirection: "column",
+          gap: 4,
+          cursor: "pointer",
+        }}
+        onClick={onDelete}
+      >
+        <span style={{ fontSize: 20 }}>🗑</span>
+        <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", letterSpacing: "0.04em" }}>SUPPR.</span>
+      </div>
+
+      {/* Contenu glissable */}
+      <div
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        style={{
+          transform: `translateX(${offsetX}px)`,
+          transition: isDragging ? "none" : "transform 0.25s cubic-bezier(0.25,1,0.5,1)",
+          background: "var(--card-bg, #0f172a)",
+          position: "relative",
+          zIndex: 1,
+          willChange: "transform",
+        }}
+      >
+        {/* Indicateur de swipe (flèche) visible seulement si pas encore glissé */}
+        {offsetX === 0 && (
+          <div
+            style={{
+              position: "absolute",
+              right: 10,
+              top: "50%",
+              transform: "translateY(-50%)",
+              color: "rgba(239,68,68,0.35)",
+              fontSize: 16,
+              pointerEvents: "none",
+              userSelect: "none",
+            }}
+          >
+            ‹‹
+          </div>
+        )}
+        {/* Overlay pour fermer le slide en cliquant sur le contenu */}
+        {offsetX !== 0 && (
+          <div onClick={reset} style={{ position: "absolute", inset: 0, zIndex: 2, cursor: "pointer" }} />
+        )}
+        <div style={{ padding: "14px 16px" }}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
 /** Calcule le prix estimé d'une réservation selon distance + tarif heure Paris */
 function getPrix(r: any): number | null {
   if (r.prix_final) return Number(r.prix_final);
@@ -163,6 +265,12 @@ function Dashboard() {
 
   const updateStatus = async (id: string, status: string) => {
     await supabase.from("reservations").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
+    fetchAll();
+  };
+
+  const deleteReservation = async (id: string) => {
+    if (!window.confirm("Supprimer définitivement cette réservation ?")) return;
+    await supabase.from("reservations").delete().eq("id", id);
     fetchAll();
   };
 
@@ -644,7 +752,7 @@ function Dashboard() {
             reservs.map((r) => {
               const prix = getPrix(r);
               return (
-                <div key={r.id} style={{ padding: "14px 16px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                <SwipeableCard key={r.id} onDelete={() => deleteReservation(r.id)}>
                   <div
                     style={{
                       display: "flex",
@@ -733,7 +841,7 @@ function Dashboard() {
                       </button>
                     </div>
                   )}
-                </div>
+                </SwipeableCard>
               );
             })}
           {!loading && reservs.length === 0 && (
@@ -821,40 +929,58 @@ function Dashboard() {
                         <StatusBadge s={r.status} />
                       </td>
                       <td style={{ padding: "10px 14px" }}>
-                        {r.status === "pending" && (
-                          <span style={{ display: "flex", gap: 6 }}>
-                            <button
-                              onClick={() => updateStatus(r.id, "accepted")}
-                              style={{
-                                background: "#22c55e",
-                                color: "#fff",
-                                border: 0,
-                                padding: "5px 10px",
-                                borderRadius: 8,
-                                cursor: "pointer",
-                                fontSize: 11,
-                                fontWeight: 700,
-                              }}
-                            >
-                              ✓
-                            </button>
-                            <button
-                              onClick={() => updateStatus(r.id, "refused")}
-                              style={{
-                                background: "#ef4444",
-                                color: "#fff",
-                                border: 0,
-                                padding: "5px 10px",
-                                borderRadius: 8,
-                                cursor: "pointer",
-                                fontSize: 11,
-                                fontWeight: 700,
-                              }}
-                            >
-                              ✗
-                            </button>
-                          </span>
-                        )}
+                        <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                          {r.status === "pending" && (
+                            <>
+                              <button
+                                onClick={() => updateStatus(r.id, "accepted")}
+                                style={{
+                                  background: "#22c55e",
+                                  color: "#fff",
+                                  border: 0,
+                                  padding: "5px 10px",
+                                  borderRadius: 8,
+                                  cursor: "pointer",
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                }}
+                              >
+                                ✓
+                              </button>
+                              <button
+                                onClick={() => updateStatus(r.id, "refused")}
+                                style={{
+                                  background: "#ef4444",
+                                  color: "#fff",
+                                  border: 0,
+                                  padding: "5px 10px",
+                                  borderRadius: 8,
+                                  cursor: "pointer",
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                }}
+                              >
+                                ✗
+                              </button>
+                            </>
+                          )}
+                          <button
+                            onClick={() => deleteReservation(r.id)}
+                            title="Supprimer"
+                            style={{
+                              background: "rgba(239,68,68,0.12)",
+                              color: "#ef4444",
+                              border: "1px solid rgba(239,68,68,0.3)",
+                              padding: "5px 8px",
+                              borderRadius: 8,
+                              cursor: "pointer",
+                              fontSize: 13,
+                              lineHeight: 1,
+                            }}
+                          >
+                            🗑
+                          </button>
+                        </span>
                       </td>
                     </tr>
                   );
