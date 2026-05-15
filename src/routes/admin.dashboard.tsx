@@ -736,19 +736,39 @@ function Dashboard() {
                       justifyContent: "space-between",
                       alignItems: "center",
                       gap: 8,
-                      marginTop: 6,
+                      marginTop: 10,
+                      paddingTop: 8,
+                      borderTop: "1px dashed rgba(255,255,255,0.06)",
                     }}
                   >
                     <span style={{ color: "#64748b", fontSize: 11 }}>
+                      Reçu&nbsp;:{" "}
                       {new Date(r.created_at).toLocaleString("fr-FR", {
                         timeZone: "Europe/Paris",
                         dateStyle: "short",
                         timeStyle: "short",
                       })}
                     </span>
-                    {prix !== null && (
-                      <span style={{ color: "#0ea5e9", fontWeight: 700, fontSize: 13 }}>{prix.toFixed(2)} €</span>
-                    )}
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "baseline",
+                        gap: 6,
+                        background: "rgba(14,165,233,0.12)",
+                        border: "1px solid rgba(14,165,233,0.3)",
+                        color: "#0ea5e9",
+                        fontWeight: 800,
+                        fontSize: 15,
+                        padding: "4px 10px",
+                        borderRadius: 999,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#7dd3fc" }}>
+                        Prix
+                      </span>
+                      {prix !== null ? `${prix.toFixed(2)} €` : "—"}
+                    </span>
                   </div>
                   {r.status === "pending" && (
                     <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
