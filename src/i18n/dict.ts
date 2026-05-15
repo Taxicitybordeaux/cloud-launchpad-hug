@@ -1124,7 +1124,7 @@ const es: Dict = {
   "wa.aria.hint": "Abre una conversación de WhatsApp en una nueva pestaña.",
   "wa.aria.draftReady": "Tu solicitud de reserva está lista para enviarse por WhatsApp.",
   "wa.default":
-    "Hola, quisiera reservar un taxi con Taxi City Bordeaux. ¿Podría confirmarme la disponibilidad? Gracias.",
+    "Hola, quisiera reservar un taxi. ¿Podría confirmarme la disponibilidad? Gracias.",
   "suivi.title": "Sigue a tu conductor",
   "suivi.hello": "Hola",
   "suivi.pickup_at": "recogida a las",
