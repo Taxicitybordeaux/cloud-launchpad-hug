@@ -10,7 +10,7 @@ export const Route = createFileRoute("/services")({
       {
         name: "description",
         content:
-          "Découvrez tous nos services taxi à Bordeaux : transferts aéroport Mérignac, gare Saint-Jean, transport conventionné CPAM, mariages, business, longues distances.",
+          "Découvrez tous nos services taxi à Bordeaux : transferts aéroport de Bordeaux, gare Saint-Jean, transport conventionné CPAM, mariages, business, longues distances.",
       },
     ],
   }),
