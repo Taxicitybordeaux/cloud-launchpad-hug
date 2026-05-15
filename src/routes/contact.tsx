@@ -182,10 +182,10 @@ function ContactPage() {
         ) : (
           <form
             onSubmit={handleSubmit}
-            className="mx-auto mt-8 max-w-2xl space-y-4 rounded-2xl border border-border bg-card p-5 sm:mt-10 sm:space-y-5 md:p-8"
+            className="form-sticky-submit form-mobile-spaced mx-auto mt-8 max-w-2xl space-y-4 rounded-2xl border border-border bg-card p-5 sm:mt-10 sm:space-y-5 md:p-8"
           >
-            {/* Stack fields vertically on mobile, 2-col on md */}
-            <div className="grid gap-4 sm:gap-5 md:grid-cols-2">
+            {/* 1 colonne sur mobile, 2 colonnes sur md+ */}
+            <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
               <Field
                 label={t("contact.form.name")}
                 name="nom"
@@ -210,7 +210,7 @@ function ContactPage() {
                   name="country"
                   value={form.country}
                   onChange={handleChange}
-                  className="h-12 rounded-md border border-border bg-input px-2 text-base"
+                  className="h-12 w-[7.5rem] shrink-0 rounded-md border border-border bg-input px-2 text-base"
                   aria-label="country"
                 >
                   {COUNTRIES.map((c) => (
@@ -225,7 +225,7 @@ function ContactPage() {
                   value={form.telephone_raw}
                   onChange={handleChange}
                   placeholder="6 73 07 23 22"
-                  className="h-12 flex-1 rounded-md border border-border bg-input px-3 text-base focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="h-12 min-w-0 flex-1 rounded-md border border-border bg-input px-3 text-base focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
               {errors.telephone_raw && <p className="mt-1 text-xs text-destructive">{errors.telephone_raw}</p>}
@@ -257,21 +257,23 @@ function ContactPage() {
               <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{errors._global}</p>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-4 font-semibold text-primary-foreground shadow-[var(--shadow-gold)] transition active:scale-95 disabled:opacity-60 sm:rounded-md sm:py-3.5"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-5 w-5 animate-spin" /> {t("contact.form.sending")}
-                </>
-              ) : (
-                <>
-                  <Send className="h-4 w-4" /> {t("contact.form.send")}
-                </>
-              )}
-            </button>
+            <div className="sticky-submit-bar">
+              <button
+                type="submit"
+                disabled={loading}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-4 font-semibold text-primary-foreground shadow-[var(--shadow-gold)] transition active:scale-95 disabled:opacity-60 sm:rounded-md sm:py-3.5"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" /> {t("contact.form.sending")}
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4" /> {t("contact.form.send")}
+                  </>
+                )}
+              </button>
+            </div>
 
             <p className="text-center text-xs text-muted-foreground">{t("contact.form.note")}</p>
           </form>

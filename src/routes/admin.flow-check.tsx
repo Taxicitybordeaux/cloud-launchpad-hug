@@ -534,7 +534,7 @@ function FlowCheckPage() {
           Réservations récentes ({resasLoading ? "…" : reservations.length})
         </h2>
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <table className="table-cards" style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
             <thead>
               <tr style={{ color: "#64748b", textAlign: "left", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                 {["Client", "Statut", "Tracking ID", "UUID ?", "Destination", "Prix", "Lien"].map((h) => (
@@ -560,8 +560,8 @@ function FlowCheckPage() {
                   const url = r.tracking_id ? `/scan/${r.tracking_id}` : null;
                   return (
                     <tr key={r.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
-                      <td style={{ padding: 8 }}>{r.client_name || r.nom || "—"}</td>
-                      <td style={{ padding: 8 }}>
+                      <td data-label="Client" style={{ padding: 8 }}>{r.client_name || r.nom || "—"}</td>
+                      <td data-label="Statut" style={{ padding: 8 }}>
                         <span
                           style={{
                             padding: "2px 8px",
@@ -575,13 +575,13 @@ function FlowCheckPage() {
                           {r.status}
                         </span>
                       </td>
-                      <td style={{ padding: 8, fontFamily: "'JetBrains Mono',monospace", color: "#94a3b8" }}>
+                      <td data-label="Tracking ID" style={{ padding: 8, fontFamily: "'JetBrains Mono',monospace", color: "#94a3b8" }}>
                         {r.tracking_id || "—"}
                       </td>
-                      <td style={{ padding: 8 }}>{r.tracking_id ? (valid ? "✅" : "❌") : "—"}</td>
-                      <td style={{ padding: 8 }}>{r.destination || r.arrivee || "—"}</td>
-                      <td style={{ padding: 8 }}>{r.prix_estime != null ? `${r.prix_estime} €` : "—"}</td>
-                      <td style={{ padding: 8 }}>
+                      <td data-label="UUID ?" style={{ padding: 8 }}>{r.tracking_id ? (valid ? "✅" : "❌") : "—"}</td>
+                      <td data-label="Destination" style={{ padding: 8 }}>{r.destination || r.arrivee || "—"}</td>
+                      <td data-label="Prix" style={{ padding: 8 }}>{r.prix_estime != null ? `${r.prix_estime} €` : "—"}</td>
+                      <td data-label="Lien" style={{ padding: 8 }}>
                         {url ? (
                           <a href={url} target="_blank" rel="noreferrer" style={{ color: "#0ea5e9" }}>
                             ouvrir
