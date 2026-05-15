@@ -273,10 +273,10 @@ export function SiteFooter() {
       <div className="footer-bottom">
         <div>© {year} Taxi City Bordeaux. Tous droits réservés.</div>
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "center" }}>
-          <Link to="/contact" className="footer-link-sm">
+          <Link to="/mentions-legales" className="footer-link-sm">
             Mentions légales
           </Link>
-          <Link to="/contact" className="footer-link-sm">
+          <Link to="/confidentialite" className="footer-link-sm">
             Confidentialité
           </Link>
         </div>
