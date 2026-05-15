@@ -4,28 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix } from "@/lib/tarif";
 import { Skeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
 
-/** Retourne un nombre de visiteurs uniques (distinct session_id) pour une fenêtre temporelle.
- *  On utilise .select("session_id") + dédoublonnage JS car Supabase REST ne supporte pas
- *  COUNT DISTINCT nativement. Pour éviter la limite 1000 lignes, on désactive la pagination. */
-async function countUniqueVisitors(from: string): Promise<number> {
-  let allIds: string[] = [];
-  let page = 0;
-  const PAGE = 1000;
-  while (true) {
-    const { data, error } = await supabase
-      .from("site_analytics")
-      .select("session_id")
-      .eq("event", "visit")
-      .gte("created_at", from)
-      .range(page * PAGE, (page + 1) * PAGE - 1);
-    if (error || !data || data.length === 0) break;
-    allIds = allIds.concat(data.map((r) => r.session_id));
-    if (data.length < PAGE) break;
-    page++;
-  }
-  return new Set(allIds).size;
-}
-
 export const Route = createFileRoute("/admin/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Admin" }, { name: "robots", content: "noindex" }] }),
   component: Dashboard,
@@ -231,29 +209,55 @@ function Dashboard() {
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
   const fetchAll = useCallback(async () => {
+    // ── Calcul des bornes en heure de Paris ──
+    // Approche fiable : on parse la date locale Paris et on reconstruit le timestamp UTC
     const now = new Date();
+    // Récupère "YYYY-MM-DD" en heure de Paris (fr-CA → ISO date par convention locale)
+    const parisDateStr = now.toLocaleDateString("fr-CA", { timeZone: "Europe/Paris" }); // "YYYY-MM-DD" en heure de Paris
+    const [year, month] = parisDateStr.split("-").map(Number);
+    // new Date("2025-05-15T00:00:00") interprète en heure locale navigateur, pas Paris
+    // On force l'offset Paris en construisant la string avec l'offset courant Paris
+    const getParisOffsetMin = () => {
+      // Offset Paris en minutes par rapport à UTC au moment actuel (gère l'heure d'été)
+      const utcStr = now.toLocaleString("en-US", { timeZone: "UTC" });
+      const parisStr = now.toLocaleString("en-US", { timeZone: "Europe/Paris" });
+      return (new Date(parisStr).getTime() - new Date(utcStr).getTime()) / 60000;
+    };
+    const offsetMin = getParisOffsetMin();
+    const offsetH = Math.floor(Math.abs(offsetMin) / 60);
+    const offsetM = Math.abs(offsetMin) % 60;
+    const sign = offsetMin >= 0 ? "+" : "-";
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const offsetStr = `${sign}${pad(offsetH)}:${pad(offsetM)}`;
+    // "2025-05-15T00:00:00+02:00" → minuit Paris exact
+    const todayIso = new Date(`${parisDateStr}T00:00:00${offsetStr}`).toISOString();
+
+    const monthIso = new Date(`${year}-${pad(month)}-01T00:00:00${offsetStr}`).toISOString();
+    const yearIso = new Date(`${year}-01-01T00:00:00${offsetStr}`).toISOString();
+    const weekAgo = new Date(todayIso);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekIso = weekAgo.toISOString();
     const nowIso = now.toISOString();
 
-    // "Aujourd'hui" = depuis minuit heure de Paris (correctement localisé)
-    const todayParis = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
-    todayParis.setHours(0, 0, 0, 0);
-    const todayIso = todayParis.toISOString();
-
-    // Mois courant = 1er du mois à minuit Paris
-    const monthIso = new Date(todayParis.getFullYear(), todayParis.getMonth(), 1).toISOString();
-
-    // Année courante
-    const yearIso = new Date(todayParis.getFullYear(), 0, 1).toISOString();
-
-    // 7 jours glissants depuis maintenant (pas depuis minuit il y a 7 jours — bug corrigé)
-    const weekIso = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-
-    // Requêtes réservations + courses + clients en parallèle
-    const [caJR, caMR, cJR, cliR, resR, nextR] = await Promise.all([
+    const [caJR, caMR, cJR, cliR, visJR, visSemR, visMR, visAnR, resR, nextR] = await Promise.all([
       supabase.from("courses").select("prix_final").gte("created_at", todayIso),
       supabase.from("courses").select("prix_final").gte("created_at", monthIso),
       supabase.from("reservations").select("id", { count: "exact", head: true }).gte("created_at", todayIso),
       supabase.from("clients").select("id", { count: "exact", head: true }),
+      supabase
+        .from("site_analytics")
+        .select("session_id")
+        .eq("event", "visit")
+        .gte("created_at", todayIso)
+        .limit(10000),
+      supabase.from("site_analytics").select("session_id").eq("event", "visit").gte("created_at", weekIso).limit(10000),
+      supabase
+        .from("site_analytics")
+        .select("session_id")
+        .eq("event", "visit")
+        .gte("created_at", monthIso)
+        .limit(10000),
+      supabase.from("site_analytics").select("session_id").eq("event", "visit").gte("created_at", yearIso).limit(10000),
       supabase.from("reservations").select("*").order("created_at", { ascending: false }).limit(10),
       supabase
         .from("reservations")
@@ -264,22 +268,16 @@ function Dashboard() {
         .limit(1),
     ]);
 
-    // Visiteurs : pagination pour éviter la limite 1000 lignes de Supabase (bug corrigé)
-    const [vJ, vSem, vM, vAn] = await Promise.all([
-      countUniqueVisitors(todayIso),
-      countUniqueVisitors(weekIso),
-      countUniqueVisitors(monthIso),
-      countUniqueVisitors(yearIso),
-    ]);
+    const uniq = (data: any[]) => new Set((data ?? []).map((v) => v.session_id)).size;
 
     setCaJ((caJR.data ?? []).reduce((s: number, c: any) => s + (Number(c.prix_final) || 0), 0));
     setCaM((caMR.data ?? []).reduce((s: number, c: any) => s + (Number(c.prix_final) || 0), 0));
     setCoursesJ(cJR.count ?? 0);
     setClientsTotal(cliR.count ?? 0);
-    setVisitorsJ(vJ);
-    setVisitorsSem(vSem);
-    setVisitorsM(vM);
-    setVisitorsAn(vAn);
+    setVisitorsJ(uniq(visJR.data ?? []));
+    setVisitorsSem(uniq(visSemR.data ?? []));
+    setVisitorsM(uniq(visMR.data ?? []));
+    setVisitorsAn(uniq(visAnR.data ?? []));
     setReservs(resR.data ?? []);
     setNextCourse((nextR.data ?? [])[0] ?? null);
     setLastUpdate(new Date());
@@ -288,24 +286,15 @@ function Dashboard() {
 
   useEffect(() => {
     fetchAll();
-
-    // Debounce pour éviter de spammer fetchAll quand plusieurs events analytics arrivent en rafale
-    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-    const debouncedFetch = () => {
-      if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => fetchAll(), 1500);
-    };
-
+    // Realtime Supabase
     const ch = supabase
       .channel(`dash-${Date.now()}-${Math.random().toString(36).slice(2)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "reservations" }, fetchAll)
-      .on("postgres_changes", { event: "*", schema: "public", table: "site_analytics" }, debouncedFetch)
+      .on("postgres_changes", { event: "*", schema: "public", table: "site_analytics" }, fetchAll)
       .subscribe();
-
     // Polling toutes les 30s (fallback si realtime non activé)
     const poll = setInterval(fetchAll, 30_000);
     return () => {
-      if (debounceTimer) clearTimeout(debounceTimer);
       supabase.removeChannel(ch);
       clearInterval(poll);
     };
@@ -313,13 +302,13 @@ function Dashboard() {
 
   const updateStatus = async (id: string, status: string) => {
     await supabase.from("reservations").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
-    await fetchAll();
+    fetchAll();
   };
 
   const deleteReservation = async (id: string) => {
     if (!window.confirm("Supprimer définitivement cette réservation ?")) return;
     await supabase.from("reservations").delete().eq("id", id);
-    await fetchAll();
+    fetchAll();
   };
 
   /* ── Render ── */
