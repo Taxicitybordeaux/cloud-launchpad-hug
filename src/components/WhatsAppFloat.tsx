@@ -120,10 +120,10 @@ export function WhatsAppFloat() {
           to="/reserver"
           onClick={handleClick("quote", "mobile_sticky")}
           style={{ ...btnBase, background: "#0ea5e9" }}
-          aria-label="Demander un devis"
+          aria-label="Réservation devis"
         >
           <FileText size={20} aria-hidden="true" />
-          <span>Devis</span>
+          <span>Réservation devis</span>
         </Link>
       </div>
 
@@ -186,7 +186,7 @@ export function WhatsAppFloat() {
         <Link
           to="/reserver"
           onClick={handleClick("quote", "desktop_float")}
-          aria-label="Demander un devis"
+          aria-label="Réservation devis"
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -202,7 +202,7 @@ export function WhatsAppFloat() {
           }}
         >
           <FileText size={20} aria-hidden="true" />
-          Devis
+          Réservation devis
         </Link>
       </div>
     </>

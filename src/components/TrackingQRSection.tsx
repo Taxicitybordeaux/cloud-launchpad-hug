@@ -15,14 +15,17 @@ const CORNER_BASE: React.CSSProperties = {
 };
 
 export function TrackingQRSection() {
-  // ✅ Initialisé directement pour éviter le rendu avec URL vide
-  const [clientId, setClientId] = useState(() => generateId());
+  // SSR-safe: start empty so server and first client render match, then hydrate after mount
+  const [clientId, setClientId] = useState<string>("");
   const [count, setCount] = useState(30);
   const [copied, setCopied] = useState(false);
   const sidRef = useRef<string>("");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+
+    // Generate the first id only on the client to avoid hydration mismatch
+    setClientId(generateId());
 
     // Session id
     const sid = sessionStorage.getItem("sid") || Math.random().toString(36).slice(2);

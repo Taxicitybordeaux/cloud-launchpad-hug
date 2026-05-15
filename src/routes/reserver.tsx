@@ -185,6 +185,9 @@ function ReservationPage() {
           fontSize: 14,
           fontFamily: "'DM Sans',sans-serif",
           boxSizing: "border-box",
+          background: "#ffffff",
+          color: "#0f172a",
+          colorScheme: "light",
         }}
         {...rest}
       />
@@ -200,6 +203,8 @@ function ReservationPage() {
         background: "#f8fafc",
         padding: "clamp(16px,5vw,40px) clamp(12px,4vw,16px)",
         fontFamily: "'DM Sans',sans-serif",
+        color: "#0f172a",
+        colorScheme: "light",
       }}
     >
       <style>{`
@@ -323,6 +328,8 @@ function ReservationPage() {
                     fontSize: 14,
                     width: "100%",
                     boxSizing: "border-box",
+                    background: "#ffffff",
+                    color: "#0f172a",
                   }}
                 >
                   {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
@@ -385,7 +392,7 @@ function ReservationPage() {
                   step="0.1"
                   value={f.distance}
                   onChange={(e) => set("distance", Number(e.target.value))}
-                  style={{ width: 80, padding: 6, border: "1px solid #cbd5e1", borderRadius: 8 }}
+                  style={{ width: 80, padding: 6, border: "1px solid #cbd5e1", borderRadius: 8, background: "#ffffff", color: "#0f172a" }}
                 />{" "}
                 km
               </div>
