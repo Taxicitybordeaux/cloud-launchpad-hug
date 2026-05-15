@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import {
   Phone,
   Plane,
@@ -267,7 +267,7 @@ function Home() {
         </div>
 
         {(() => {
-          const scrollTo = (id: string) => (e: React.MouseEvent) => {
+          const scrollTo = (id: string) => (e: MouseEvent) => {
             const el = typeof document !== "undefined" ? document.getElementById(id) : null;
             if (!el) return;
             e.preventDefault();
