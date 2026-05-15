@@ -11,7 +11,6 @@ import {
   Clock,
   Star,
   Wallet,
-  Wallet,
   ArrowRight,
   Quote,
   HelpCircle,
