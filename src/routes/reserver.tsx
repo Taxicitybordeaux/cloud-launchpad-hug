@@ -474,86 +474,86 @@ function ReservationPage() {
               </div>
             )}
 
-            {mode === "form" && (
-              /* Point 2: spinner + disabled state during sending */
-              <button
-                disabled={sending}
-                onClick={submitForm}
-                style={{
-                  width: "100%",
-                  height: 56,
-                  background: sending
-                    ? "linear-gradient(135deg,#7dd3fc,#38bdf8)"
-                    : "linear-gradient(135deg,#0ea5e9,#0369a1)",
-                  color: "#fff",
-                  border: 0,
-                  borderRadius: 14,
-                  fontFamily: "'Syne',sans-serif",
-                  fontWeight: 800,
-                  fontSize: "clamp(14px,4vw,16px)",
-                  cursor: sending ? "wait" : "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                  transition: "background 0.2s",
-                }}
-              >
-                {sending ? (
-                  <>
-                    <span className="resa-spinner" />
-                    Envoi en cours…
-                  </>
-                ) : (
-                  "📨 Envoyer ma demande"
-                )}
-              </button>
-            )}
+            <div className="sticky-submit-bar">
+              {mode === "form" && (
+                <button
+                  disabled={sending}
+                  onClick={submitForm}
+                  style={{
+                    width: "100%",
+                    height: 56,
+                    background: sending
+                      ? "linear-gradient(135deg,#7dd3fc,#38bdf8)"
+                      : "linear-gradient(135deg,#0ea5e9,#0369a1)",
+                    color: "#fff",
+                    border: 0,
+                    borderRadius: 14,
+                    fontFamily: "'Syne',sans-serif",
+                    fontWeight: 800,
+                    fontSize: "clamp(14px,4vw,16px)",
+                    cursor: sending ? "wait" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    transition: "background 0.2s",
+                  }}
+                >
+                  {sending ? (
+                    <>
+                      <span className="resa-spinner" />
+                      Envoi en cours…
+                    </>
+                  ) : (
+                    "📨 Envoyer ma demande"
+                  )}
+                </button>
+              )}
 
-            {mode === "email" && (
-              <a
-                href={`mailto:contact@taxicitybordeaux.fr?subject=Réservation taxi&body=${buildEmailText()}`}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  height: 56,
-                  background: "#0ea5e9",
-                  color: "#fff",
-                  borderRadius: 14,
-                  fontFamily: "'Syne',sans-serif",
-                  fontWeight: 800,
-                  textDecoration: "none",
-                  fontSize: "clamp(14px,4vw,16px)",
-                }}
-              >
-                ✉️ Envoyer par email
-              </a>
-            )}
+              {mode === "email" && (
+                <a
+                  href={`mailto:contact@taxicitybordeaux.fr?subject=Réservation taxi&body=${buildEmailText()}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    height: 56,
+                    background: "#0ea5e9",
+                    color: "#fff",
+                    borderRadius: 14,
+                    fontFamily: "'Syne',sans-serif",
+                    fontWeight: 800,
+                    textDecoration: "none",
+                    fontSize: "clamp(14px,4vw,16px)",
+                  }}
+                >
+                  ✉️ Envoyer par email
+                </a>
+              )}
 
-            {mode === "whatsapp" && (
-              /* Point 16: message with first name */
-              <a
-                href={`https://wa.me/33673072322?text=${buildWhatsAppText()}`}
-                target="_blank"
-                rel="noreferrer"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  height: 56,
-                  background: "#25D366",
-                  color: "#fff",
-                  borderRadius: 14,
-                  fontFamily: "'Syne',sans-serif",
-                  fontWeight: 800,
-                  textDecoration: "none",
-                  fontSize: "clamp(14px,4vw,16px)",
-                }}
-              >
-                💬 Envoyer sur WhatsApp
-              </a>
-            )}
+              {mode === "whatsapp" && (
+                <a
+                  href={`https://wa.me/33673072322?text=${buildWhatsAppText()}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    height: 56,
+                    background: "#25D366",
+                    color: "#fff",
+                    borderRadius: 14,
+                    fontFamily: "'Syne',sans-serif",
+                    fontWeight: 800,
+                    textDecoration: "none",
+                    fontSize: "clamp(14px,4vw,16px)",
+                  }}
+                >
+                  💬 Envoyer sur WhatsApp
+                </a>
+              )}
+            </div>
           </>
         )}
       </div>
