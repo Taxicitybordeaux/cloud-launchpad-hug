@@ -155,16 +155,11 @@ interface AddressInputProps {
 
 function AddressInput({ fieldKey, value, onChange, onCoordSelect, placeholder, error }: AddressInputProps) {
   const [open, setOpen] = useState(false);
-  const [inputVal, setInputVal] = useState(value);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const { results, loading } = useNominatim(inputVal);
+  const { results, loading } = useNominatim(value);
 
   useEffect(() => {
-    setInputVal(value);
-  }, [value]);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
+    const handler = (e: globalThis.MouseEvent) => {
       if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener("mousedown", handler);
@@ -172,14 +167,12 @@ function AddressInput({ fieldKey, value, onChange, onCoordSelect, placeholder, e
   }, []);
 
   const handleChange = (v: string) => {
-    setInputVal(v);
     onChange(fieldKey, v);
     setOpen(true);
   };
 
   const handleSelect = (r: NominatimResult) => {
     const short = r.display_name.split(",").slice(0, 3).join(", ");
-    setInputVal(short);
     onChange(fieldKey, short);
     onCoordSelect([parseFloat(r.lon), parseFloat(r.lat)]);
     setOpen(false);
@@ -191,7 +184,7 @@ function AddressInput({ fieldKey, value, onChange, onCoordSelect, placeholder, e
         <input
           type="text"
           autoComplete="off"
-          value={inputVal}
+          value={value}
           onChange={(e) => handleChange(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
           placeholder={placeholder}
