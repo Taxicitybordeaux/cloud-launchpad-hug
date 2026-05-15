@@ -13,8 +13,95 @@ export const Route = createFileRoute("/reserver")({
   component: ReservationPage,
 });
 
+// ─────────────────────────────────────────────────────────────
+// ✅ FIX CLAVIER MOBILE : Input défini EN DEHORS du composant
+// parent. Si défini à l'intérieur, React recrée la fonction à
+// chaque render → le champ est démonté/remonté → perte de focus.
+// ─────────────────────────────────────────────────────────────
+interface InputProps {
+  k: string;
+  value: any;
+  onChange: (k: string, v: any) => void;
+  type?: string;
+  placeholder?: string;
+  error?: string;
+  min?: string | number;
+  max?: string | number;
+  step?: string | number;
+}
+
+function Input({ k, value, onChange, type = "text", placeholder, error, min, max, step }: InputProps) {
+  return (
+    <div>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(k, type === "number" ? Number(e.target.value) : e.target.value)}
+        placeholder={placeholder}
+        min={min}
+        max={max}
+        step={step}
+        // ✅ fontSize 16px minimum sur mobile pour éviter le zoom auto iOS
+        style={{
+          width: "100%",
+          padding: "12px 14px",
+          borderRadius: 12,
+          border: `1px solid ${error ? "#ef4444" : "#e2e8f0"}`,
+          fontSize: 16,
+          fontFamily: "'DM Sans',sans-serif",
+          boxSizing: "border-box",
+          background: "#ffffff",
+          color: "#0f172a",
+          colorScheme: "light",
+          WebkitAppearance: "none",
+        }}
+      />
+      {error && <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{error}</div>}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Même chose pour Select — sorti du composant
+// ─────────────────────────────────────────────────────────────
+interface SelectFieldProps {
+  value: number;
+  onChange: (v: number) => void;
+  options: { value: number; label: string }[];
+}
+
+function SelectField({ value, onChange, options }: SelectFieldProps) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(Number(e.target.value))}
+      style={{
+        padding: "12px 14px",
+        borderRadius: 12,
+        border: "1px solid #e2e8f0",
+        fontSize: 16,
+        width: "100%",
+        boxSizing: "border-box",
+        background: "#ffffff",
+        color: "#0f172a",
+        WebkitAppearance: "none",
+      }}
+    >
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Composant principal
+// ─────────────────────────────────────────────────────────────
 function ReservationPage() {
   const today = new Date().toISOString().split("T")[0];
+
   const [f, setF] = useState({
     prenom: "",
     nom: "",
@@ -25,15 +112,18 @@ function ReservationPage() {
     date: today,
     heure: "",
     passagers: 1,
+    bagages: 0, // ✅ Nouveau champ bagages
     tarifJour: true,
     distance: 5,
   });
+
   const [mode, setMode] = useState<"form" | "email" | "whatsapp">("form");
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [sending, setSending] = useState(false); // point 2
+  const [sending, setSending] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [submitError, setSubmitError] = useState(""); // point 4
+  const [submitError, setSubmitError] = useState("");
 
+  // ✅ Tarif nuit corrigé à 3,26€/km (via tarif.ts mis à jour)
   const prix = useMemo(() => calculerPrix(Number(f.distance) || 0, f.tarifJour), [f.distance, f.tarifJour]);
 
   useEffect(() => {
@@ -42,6 +132,7 @@ function ReservationPage() {
     supabase.from("site_analytics").insert({ event: "visit", session_id: sid || null });
   }, []);
 
+  // Setter stable — ne recrée pas à chaque render
   const set = (k: string, v: any) => setF((p) => ({ ...p, [k]: v }));
 
   const validate = () => {
@@ -58,7 +149,6 @@ function ReservationPage() {
     return Object.keys(e).length === 0;
   };
 
-  // Point 16: WhatsApp message with first name or generic greeting
   const buildWhatsAppText = () => {
     const greeting = f.prenom ? `Bonjour, je m'appelle ${f.prenom}` : "Bonjour";
     return encodeURIComponent(
@@ -67,15 +157,15 @@ function ReservationPage() {
         `Destination : ${f.destination || "À préciser"}\n` +
         `Date : ${f.date} ${f.heure}\n` +
         `Passagers : ${f.passagers}\n` +
+        `Bagages : ${f.bagages}\n` +
         `Tarif : ${f.tarifJour ? "Jour" : "Nuit"}\n` +
         `Prix estimé : ${prix} €`,
     );
   };
 
   const buildEmailText = () =>
-    `Réservation taxi%0A%0AClient: ${f.prenom} ${f.nom}%0ATél: ${f.phone}%0AEmail: ${f.email}%0A%0ADépart: ${f.depart}%0ADestination: ${f.destination}%0ADate: ${f.date} ${f.heure}%0APassagers: ${f.passagers}%0ATarif: ${f.tarifJour ? "Jour" : "Nuit"}%0APrix estimé: ${prix} €`;
+    `Réservation taxi%0A%0AClient: ${f.prenom} ${f.nom}%0ATél: ${f.phone}%0AEmail: ${f.email}%0A%0ADépart: ${f.depart}%0ADestination: ${f.destination}%0ADate: ${f.date} ${f.heure}%0APassagers: ${f.passagers}%0ABagages: ${f.bagages}%0ATarif: ${f.tarifJour ? "Jour" : "Nuit"}%0APrix estimé: ${prix} €`;
 
-  // Points 2, 3, 4
   const submitForm = async () => {
     if (!validate()) return;
     setSending(true);
@@ -113,6 +203,7 @@ function ReservationPage() {
         arrivee: f.destination,
         pickup_datetime: pickup,
         passagers: f.passagers,
+        bagages: f.bagages, // ✅ Bagages envoyés en base
         client_name: fullName,
         client_phone: f.phone,
         client_email: f.email,
@@ -129,7 +220,7 @@ function ReservationPage() {
 
       if (insertError) throw new Error(insertError.message);
 
-      // Point 3: send confirmation email to client
+      // Email de confirmation client
       try {
         const { data: sess } = await supabase.auth.getSession();
         const accessToken = sess?.session?.access_token;
@@ -149,54 +240,39 @@ function ReservationPage() {
                 date: f.date,
                 heure: f.heure,
                 passagers: f.passagers,
+                bagages: f.bagages,
                 prix_estime: prix,
-                tarif: f.tarifJour ? "Jour (6h–21h)" : "Nuit (21h–6h)",
+                // ✅ Libellé tarif corrigé avec 3,26€/km
+                tarif: f.tarifJour ? "Jour (6h–20h) — 2,16 €/km" : "Nuit (20h–6h) — 3,26 €/km",
               },
             }),
           });
         }
       } catch {
-        // email failure is non-blocking
+        // email failure non-bloquant
       }
 
       const sid = typeof window !== "undefined" ? sessionStorage.getItem("sid") : null;
       await supabase.from("site_analytics").insert({ event: "reservation_attempt", session_id: sid });
       setSuccess(true);
     } catch (err: any) {
-      // Point 4: show error with retry button
       setSubmitError(err?.message || "Une erreur est survenue. Veuillez réessayer.");
     } finally {
       setSending(false);
     }
   };
 
-  const Input = ({ k, type = "text", placeholder, ...rest }: any) => (
-    <div>
-      <input
-        type={type}
-        value={(f as any)[k]}
-        onChange={(e) => set(k, type === "number" ? Number(e.target.value) : e.target.value)}
-        placeholder={placeholder}
-        style={{
-          width: "100%",
-          padding: "12px 14px",
-          borderRadius: 12,
-          border: `1px solid ${errors[k] ? "#ef4444" : "#e2e8f0"}`,
-          fontSize: 14,
-          fontFamily: "'DM Sans',sans-serif",
-          boxSizing: "border-box",
-          background: "#ffffff",
-          color: "#0f172a",
-          colorScheme: "light",
-        }}
-        {...rest}
-      />
-      {errors[k] && <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{errors[k]}</div>}
-    </div>
-  );
+  const passagerOptions = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({
+    value: n,
+    label: `${n} passager${n > 1 ? "s" : ""}`,
+  }));
+
+  const bagagesOptions = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => ({
+    value: n,
+    label: n === 0 ? "0 bagage" : `${n} bagage${n > 1 ? "s" : ""}`,
+  }));
 
   return (
-    // Point 19: responsive layout — padding adapté mobile
     <div
       style={{
         minHeight: "100vh",
@@ -209,21 +285,21 @@ function ReservationPage() {
     >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap');
- 
-        /* Point 19: mobile-first responsive overrides */
+
         .resa-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .resa-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+        .resa-grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
         .resa-mode-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
         .tarif-row { display: flex; gap: 12px; }
- 
+
         @media (max-width: 480px) {
           .resa-grid-2 { grid-template-columns: 1fr; }
           .resa-grid-3 { grid-template-columns: 1fr 1fr; }
+          .resa-grid-4 { grid-template-columns: 1fr 1fr; }
           .resa-mode-grid { grid-template-columns: 1fr; }
           .tarif-row { flex-direction: column; }
         }
- 
-        /* Point 2: spinner animation */
+
         @keyframes resaSpin { to { transform: rotate(360deg); } }
         .resa-spinner {
           display: inline-block;
@@ -285,6 +361,7 @@ function ReservationPage() {
           </div>
         ) : (
           <>
+            {/* ── Coordonnées ── */}
             <h3
               style={{
                 fontFamily: "'Syne',sans-serif",
@@ -296,12 +373,13 @@ function ReservationPage() {
               Vos coordonnées
             </h3>
             <div className="resa-grid-2">
-              <Input k="prenom" placeholder="Prénom" />
-              <Input k="nom" placeholder="Nom" />
-              <Input k="phone" type="tel" placeholder="Téléphone" />
-              <Input k="email" type="email" placeholder="Email" />
+              <Input k="prenom" value={f.prenom} onChange={set} placeholder="Prénom" error={errors.prenom} />
+              <Input k="nom" value={f.nom} onChange={set} placeholder="Nom" error={errors.nom} />
+              <Input k="phone" value={f.phone} onChange={set} type="tel" placeholder="Téléphone" error={errors.phone} />
+              <Input k="email" value={f.email} onChange={set} type="email" placeholder="Email" error={errors.email} />
             </div>
 
+            {/* ── Course ── */}
             <h3
               style={{
                 fontFamily: "'Syne',sans-serif",
@@ -313,62 +391,83 @@ function ReservationPage() {
               Votre course
             </h3>
             <div style={{ display: "grid", gap: 12 }}>
-              <Input k="depart" placeholder="Adresse de départ" />
-              <Input k="destination" placeholder="Adresse de destination" />
-              <div className="resa-grid-3">
-                <Input k="date" type="date" min={today} />
-                <Input k="heure" type="time" />
-                <select
-                  value={f.passagers}
-                  onChange={(e) => set("passagers", Number(e.target.value))}
-                  style={{
-                    padding: "12px 14px",
-                    borderRadius: 12,
-                    border: "1px solid #e2e8f0",
-                    fontSize: 14,
-                    width: "100%",
-                    boxSizing: "border-box",
-                    background: "#ffffff",
-                    color: "#0f172a",
-                  }}
-                >
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-                    <option key={n} value={n}>
-                      {n} passager{n > 1 ? "s" : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="tarif-row">
-                <label
-                  style={{
-                    flex: 1,
-                    padding: 12,
-                    border: `2px solid ${f.tarifJour ? "#0ea5e9" : "#e2e8f0"}`,
-                    borderRadius: 12,
-                    cursor: "pointer",
-                    fontSize: 14,
-                  }}
-                >
-                  <input type="radio" checked={f.tarifJour} onChange={() => set("tarifJour", true)} /> Jour (6h-21h) —
-                  2.16 €/km
-                </label>
-                <label
-                  style={{
-                    flex: 1,
-                    padding: 12,
-                    border: `2px solid ${!f.tarifJour ? "#0ea5e9" : "#e2e8f0"}`,
-                    borderRadius: 12,
-                    cursor: "pointer",
-                    fontSize: 14,
-                  }}
-                >
-                  <input type="radio" checked={!f.tarifJour} onChange={() => set("tarifJour", false)} /> Nuit (21h-6h) —
-                  3.24 €/km
-                </label>
+              <Input k="depart" value={f.depart} onChange={set} placeholder="Adresse de départ" error={errors.depart} />
+              <Input
+                k="destination"
+                value={f.destination}
+                onChange={set}
+                placeholder="Adresse de destination"
+                error={errors.destination}
+              />
+
+              {/* Date, heure, passagers, bagages — 4 colonnes desktop / 2 mobile */}
+              <div className="resa-grid-4">
+                <Input k="date" value={f.date} onChange={set} type="date" min={today} error={errors.date} />
+                <Input k="heure" value={f.heure} onChange={set} type="time" error={errors.heure} />
+                <SelectField value={f.passagers} onChange={(v) => set("passagers", v)} options={passagerOptions} />
+                {/* ✅ Nouveau champ bagages */}
+                <SelectField value={f.bagages} onChange={(v) => set("bagages", v)} options={bagagesOptions} />
               </div>
             </div>
 
+            {/* ── Tarif ── */}
+            <h3
+              style={{
+                fontFamily: "'Syne',sans-serif",
+                marginTop: 24,
+                color: "#0f172a",
+                fontSize: "clamp(14px,4vw,16px)",
+              }}
+            >
+              Tarif
+            </h3>
+            <div className="tarif-row">
+              {/* ✅ Tarif nuit corrigé : 3,26€/km */}
+              <label
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  border: `2px solid ${f.tarifJour ? "#0ea5e9" : "#e2e8f0"}`,
+                  borderRadius: 12,
+                  cursor: "pointer",
+                  fontSize: 14,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <input
+                  type="radio"
+                  checked={f.tarifJour}
+                  onChange={() => set("tarifJour", true)}
+                  style={{ accentColor: "#0ea5e9" }}
+                />
+                ☀️ Jour (6h–20h) — 2,16 €/km
+              </label>
+              <label
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  border: `2px solid ${!f.tarifJour ? "#818cf8" : "#e2e8f0"}`,
+                  borderRadius: 12,
+                  cursor: "pointer",
+                  fontSize: 14,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <input
+                  type="radio"
+                  checked={!f.tarifJour}
+                  onChange={() => set("tarifJour", false)}
+                  style={{ accentColor: "#818cf8" }}
+                />
+                🌙 Nuit (20h–6h) — 3,26 €/km
+              </label>
+            </div>
+
+            {/* ── Simulateur de prix ── */}
             <div style={{ marginTop: 24, padding: 20, background: "#f1f5f9", borderRadius: 16 }}>
               <h3
                 style={{
@@ -384,7 +483,14 @@ function ReservationPage() {
                 Prise en charge : {TARIFS.PRISE_EN_CHARGE} €
               </div>
               <div
-                style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", fontSize: 14 }}
+                style={{
+                  marginTop: 6,
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 8,
+                  alignItems: "center",
+                  fontSize: 14,
+                }}
               >
                 Distance estimée :
                 <input
@@ -392,12 +498,20 @@ function ReservationPage() {
                   step="0.1"
                   value={f.distance}
                   onChange={(e) => set("distance", Number(e.target.value))}
-                  style={{ width: 80, padding: 6, border: "1px solid #cbd5e1", borderRadius: 8, background: "#ffffff", color: "#0f172a" }}
+                  style={{
+                    width: 80,
+                    padding: 6,
+                    border: "1px solid #cbd5e1",
+                    borderRadius: 8,
+                    background: "#ffffff",
+                    color: "#0f172a",
+                    fontSize: 16,
+                  }}
                 />{" "}
                 km
               </div>
               <div style={{ fontSize: 14, color: "#475569", marginTop: 6 }}>
-                Tarif au km : {f.tarifJour ? "2.16" : "3.24"} €
+                Tarif au km : {f.tarifJour ? "2,16" : "3,26"} €
               </div>
               <div
                 style={{
@@ -413,6 +527,7 @@ function ReservationPage() {
               <div style={{ fontSize: 11, color: "#94a3b8" }}>Prix indicatif — le compteur fait foi</div>
             </div>
 
+            {/* ── Mode de réservation ── */}
             <h3
               style={{
                 fontFamily: "'Syne',sans-serif",
@@ -443,7 +558,7 @@ function ReservationPage() {
               ))}
             </div>
 
-            {/* Point 4: error banner with retry */}
+            {/* Bandeau d'erreur avec retry */}
             {submitError && (
               <div
                 style={{
@@ -481,6 +596,7 @@ function ReservationPage() {
               </div>
             )}
 
+            {/* ── Bouton d'envoi ── */}
             <div className="sticky-submit-bar">
               {mode === "form" && (
                 <button
