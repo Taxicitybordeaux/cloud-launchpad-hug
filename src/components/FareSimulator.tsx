@@ -106,7 +106,7 @@ export function FareSimulator() {
                       className="sr-only"
                     />
                     <span className="font-medium">
-                      {p === "day" ? "☀️ Jour (7h–19h)" : "🌙 Soirée / Dimanche / Jours fériés (19h–7h)"}
+                      {p === "day" ? "☀️ Jour (7h–19h)" : "🌙 Soirée / Dimanche / Jours fériés (19h–6h)"}
                     </span>
                     <span className="mt-1 block text-xs">
                       {formatEUR(p === "day" ? RATE_DAY : RATE_NIGHT)} / {t("sim.km")}
