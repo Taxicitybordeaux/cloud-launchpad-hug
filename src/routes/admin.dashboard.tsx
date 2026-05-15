@@ -3,7 +3,7 @@ import type { CSSProperties, ReactNode, TouchEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 
-// --- Types ---
+// 1. Définition d'une interface pour éviter les erreurs de type 'any'
 interface Reservation {
   id: string;
   status: string;
@@ -16,10 +16,10 @@ interface Reservation {
   prix_final?: number | string | null;
   prix_estime?: number | string | null;
   distance_km?: number | string | null;
-  created_at?: string;
+  created_at: string;
 }
 
-// --- Styles ---
+// Styles
 const card: CSSProperties = {
   background: "rgba(255,255,255,0.04)",
   border: "1px solid rgba(255,255,255,0.08)",
@@ -36,7 +36,6 @@ const STATUS: Record<string, { bg: string; c: string; label: string }> = {
   refused: { bg: "rgba(239,68,68,0.15)", c: "#ef4444", label: "Refusée" },
 };
 
-// --- Helpers ---
 function StatusBadge({ s }: { s: string }) {
   const v = STATUS[s] || { bg: "rgba(148,163,184,0.15)", c: "#94a3b8", label: s };
   return (
@@ -48,38 +47,37 @@ function StatusBadge({ s }: { s: string }) {
   );
 }
 
-const formatParis = (iso?: string | null) => {
+function formatParis(iso?: string | null) {
   if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleString("fr-FR", {
-      timeZone: "Europe/Paris",
-      dateStyle: "short",
-      timeStyle: "short",
-    });
-  } catch {
-    return "—";
-  }
-};
+  return new Date(iso).toLocaleString("fr-FR", {
+    timeZone: "Europe/Paris",
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+}
 
-const isNuit = (iso?: string | null) => {
+function isNuit(iso?: string | null) {
   if (!iso) return false;
   const d = new Date(iso);
   if (isNaN(d.getTime())) return false;
-  const h = d.getHours(); // Plus simple et robuste pour le build
+  const h = d.getHours();
   return h >= 20 || h < 6;
-};
+}
 
-const getPrix = (r: Reservation) => {
+function calculerPrix(km: number, jour: boolean) {
+  return km * (jour ? 2.16 : 3.26);
+}
+
+function getPrix(r: Reservation) {
   if (r.prix_final) return Number(r.prix_final);
   if (r.prix_estime) return Number(r.prix_estime);
   if (r.distance_km) {
     const nuit = isNuit(r.pickup_datetime);
-    return Number(r.distance_km) * (nuit ? 3.26 : 2.16);
+    return calculerPrix(Number(r.distance_km), !nuit);
   }
   return null;
-};
+}
 
-// --- Composants ---
 function SwipeableCard({ children, onDelete }: { children: ReactNode; onDelete: () => void }) {
   const [offsetX, setOffsetX] = useState(0);
   const [isSettling, setIsSettling] = useState(false);
@@ -105,11 +103,11 @@ function SwipeableCard({ children, onDelete }: { children: ReactNode; onDelete: 
     isDragging.current = false;
     setIsSettling(true);
     if (offsetRef.current < -80) {
-      setOffsetX(-90);
       offsetRef.current = -90;
+      setOffsetX(-90);
     } else {
-      setOffsetX(0);
       offsetRef.current = 0;
+      setOffsetX(0);
     }
   };
 
@@ -128,6 +126,7 @@ function SwipeableCard({ children, onDelete }: { children: ReactNode; onDelete: 
           alignItems: "center",
           justifyContent: "center",
           color: "#fff",
+          fontWeight: 700,
           cursor: "pointer",
         }}
       >
@@ -151,10 +150,15 @@ function SwipeableCard({ children, onDelete }: { children: ReactNode; onDelete: 
   );
 }
 
-function DashboardComponent() {
+// 2. Le composant est déclaré AVANT la route pour une meilleure inférence de type
+function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [reservs, setReservs] = useState<Reservation[]>([]);
-  const [stats, setStats] = useState({ caJ: 0, caM: 0, coursesJ: 0, clientsTotal: 0, visitorsJ: 0 });
+  const [caJ, setCaJ] = useState(0);
+  const [caM, setCaM] = useState(0);
+  const [coursesJ, setCoursesJ] = useState(0);
+  const [clientsTotal, setClientsTotal] = useState(0);
+  const [visitorsJ, setVisitorsJ] = useState(0);
   const [tab, setTab] = useState("reservations");
 
   const fetchAll = useCallback(async () => {
@@ -180,14 +184,11 @@ function DashboardComponent() {
         supabase.from("reservations").select("*").order("created_at", { ascending: false }).limit(10),
       ]);
 
-      setStats({
-        caJ: (caJR.data || []).reduce((s, c) => s + (Number(c.prix_final) || 0), 0),
-        caM: (caMR.data || []).reduce((s, c) => s + (Number(c.prix_final) || 0), 0),
-        coursesJ: cJR.count || 0,
-        clientsTotal: cliR.count || 0,
-        visitorsJ: new Set((visJR.data || []).map((v: any) => v.session_id)).size,
-      });
-
+      setCaJ((caJR.data || []).reduce((s, c) => s + (Number(c.prix_final) || 0), 0));
+      setCaM((caMR.data || []).reduce((s, c) => s + (Number(c.prix_final) || 0), 0));
+      setCoursesJ(cJR.count || 0);
+      setClientsTotal(cliR.count || 0);
+      setVisitorsJ(new Set((visJR.data || []).map((v: any) => v.session_id)).size);
       setReservs((resR.data as Reservation[]) || []);
     } catch (e) {
       console.error(e);
@@ -208,44 +209,39 @@ function DashboardComponent() {
   };
 
   const deleteReservation = async (id: string) => {
-    if (window.confirm("Supprimer ?")) {
-      await supabase.from("reservations").delete().eq("id", id);
-      fetchAll();
-    }
+    if (!window.confirm("Supprimer ?")) return;
+    await supabase.from("reservations").delete().eq("id", id);
+    fetchAll();
   };
 
   return (
-    <div style={{ padding: 20, fontFamily: "sans-serif", background: "#0f172a", minHeight: "100vh", color: "#f8fafc" }}>
-      <h1 style={{ marginBottom: 20 }}>Dashboard</h1>
+    <div style={{ padding: 20, fontFamily: "sans-serif", background: "#0f172a", minHeight: "100vh" }}>
+      <h1 style={{ color: "#f8fafc", marginBottom: 20 }}>Dashboard</h1>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
-        <div style={card}>
-          <div style={valCss}>{stats.caJ.toFixed(2)}€</div>
-          <div style={labelCss}>Aujourd'hui</div>
-        </div>
-        <div style={card}>
-          <div style={valCss}>{stats.caM.toFixed(2)}€</div>
-          <div style={labelCss}>Ce mois</div>
-        </div>
-        <div style={card}>
-          <div style={valCss}>{stats.coursesJ}</div>
-          <div style={labelCss}>Réservations J</div>
-        </div>
-        <div style={card}>
-          <div style={valCss}>{stats.clientsTotal}</div>
-          <div style={labelCss}>Clients</div>
-        </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, marginBottom: 20 }}>
+        {[
+          { i: "💶", v: `${caJ.toFixed(2)} €`, l: "CA aujourd'hui" },
+          { i: "📈", v: `${caM.toFixed(2)} €`, l: "CA ce mois" },
+          { i: "🚗", v: String(coursesJ), l: "Courses" },
+          { i: "👥", v: String(clientsTotal), l: "Clients" },
+        ].map((c, i) => (
+          <div key={i} style={card}>
+            <div style={{ fontSize: 22 }}>{c.i}</div>
+            <div style={valCss}>{c.v}</div>
+            <div style={labelCss}>{c.l}</div>
+          </div>
+        ))}
       </div>
 
       <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
         <button
           onClick={() => setTab("reservations")}
           style={{
-            background: tab === "reservations" ? "#0ea5e9" : "#1e293b",
-            color: "white",
-            border: 0,
             padding: "8px 15px",
             borderRadius: 8,
+            border: 0,
+            background: tab === "reservations" ? "#0ea5e9" : "#1e293b",
+            color: "white",
           }}
         >
           Réservations
@@ -253,11 +249,11 @@ function DashboardComponent() {
         <button
           onClick={() => setTab("visiteurs")}
           style={{
-            background: tab === "visiteurs" ? "#0ea5e9" : "#1e293b",
-            color: "white",
-            border: 0,
             padding: "8px 15px",
             borderRadius: 8,
+            border: 0,
+            background: tab === "visiteurs" ? "#0ea5e9" : "#1e293b",
+            color: "white",
           }}
         >
           Visiteurs
@@ -265,34 +261,34 @@ function DashboardComponent() {
       </div>
 
       {tab === "reservations" ? (
-        <div style={{ ...card, padding: 0 }}>
+        <div style={{ ...card, padding: 0, overflow: "hidden" }}>
           {loading ? (
-            <p style={{ padding: 20 }}>Chargement...</p>
+            <div style={{ padding: 20, color: "#64748b" }}>Chargement...</div>
           ) : (
             reservs.map((r) => (
               <SwipeableCard key={r.id} onDelete={() => deleteReservation(r.id)}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <strong>{r.client_name || r.nom || "Client"}</strong>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                  <strong style={{ color: "#f8fafc" }}>{r.client_name || r.nom || "Client"}</strong>
                   <StatusBadge s={r.status} />
                 </div>
-                <div style={{ fontSize: 13, color: "#cbd5e1", margin: "5px 0" }}>
+                <div style={{ color: "#cbd5e1", marginBottom: 6 }}>
                   {r.depart} → {r.destination || r.arrivee}
                 </div>
-                <div style={{ fontSize: 11, color: "#64748b" }}>{formatParis(r.pickup_datetime)}</div>
-                {getPrix(r) && (
-                  <div style={{ color: "#0ea5e9", fontWeight: "bold", marginTop: 5 }}>{getPrix(r)?.toFixed(2)} €</div>
+                <div style={{ color: "#64748b", fontSize: 12 }}>{formatParis(r.pickup_datetime)}</div>
+                {getPrix(r) !== null && (
+                  <div style={{ marginTop: 8, color: "#0ea5e9", fontWeight: 700 }}>{getPrix(r)?.toFixed(2)} €</div>
                 )}
                 {r.status === "pending" && (
-                  <div style={{ marginTop: 10, display: "flex", gap: 10 }}>
+                  <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                     <button
+                      style={{ background: "#22c55e", color: "white", border: 0, padding: "5px 10px", borderRadius: 6 }}
                       onClick={() => updateStatus(r.id, "accepted")}
-                      style={{ background: "#22c55e", color: "white", border: 0, padding: "4px 8px", borderRadius: 4 }}
                     >
                       Accepter
                     </button>
                     <button
+                      style={{ background: "#ef4444", color: "white", border: 0, padding: "5px 10px", borderRadius: 6 }}
                       onClick={() => updateStatus(r.id, "refused")}
-                      style={{ background: "#ef4444", color: "white", border: 0, padding: "4px 8px", borderRadius: 4 }}
                     >
                       Refuser
                     </button>
@@ -304,7 +300,7 @@ function DashboardComponent() {
         </div>
       ) : (
         <div style={card}>
-          <div style={valCss}>👁️ {stats.visitorsJ}</div>
+          <div style={{ color: "#f8fafc", fontSize: 22, fontWeight: 800 }}>👁️ {visitorsJ}</div>
           <div style={labelCss}>Visiteurs aujourd'hui</div>
         </div>
       )}
@@ -312,6 +308,7 @@ function DashboardComponent() {
   );
 }
 
+// Export de la route à la fin
 export const Route = createFileRoute("/admin/dashboard")({
-  component: DashboardComponent,
+  component: Dashboard,
 });
