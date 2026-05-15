@@ -1,0 +1,1 @@
+CREATE POLICY "Public can delete reservations" ON public.reservations FOR DELETE USING (true);
