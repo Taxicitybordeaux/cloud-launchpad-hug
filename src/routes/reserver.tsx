@@ -117,7 +117,7 @@ function ReservationPage() {
     distance: 5,
   });
 
-  const [mode, setMode] = useState<"form" | "email" | "whatsapp">("form");
+  const [mode, setMode] = useState<"form" | "email" | "whatsapp" | "sms">("form");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -243,7 +243,7 @@ function ReservationPage() {
                 bagages: f.bagages,
                 prix_estime: prix,
                 // ✅ Libellé tarif corrigé avec 3,26€/km
-                tarif: f.tarifJour ? "Jour (6h–20h) — 2,16 €/km" : "Nuit (20h–6h) — 3,26 €/km",
+                tarif: f.tarifJour ? "Jour (7h–19h) — 2,16 €/km" : "Nuit (19h–7h) — 3,24 €/km",
               },
             }),
           });
@@ -289,14 +289,14 @@ function ReservationPage() {
         .resa-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .resa-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
         .resa-grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
-        .resa-mode-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+        .resa-mode-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; }
         .tarif-row { display: flex; gap: 12px; }
 
         @media (max-width: 480px) {
           .resa-grid-2 { grid-template-columns: 1fr; }
           .resa-grid-3 { grid-template-columns: 1fr 1fr; }
           .resa-grid-4 { grid-template-columns: 1fr 1fr; }
-          .resa-mode-grid { grid-template-columns: 1fr; }
+          .resa-mode-grid { grid-template-columns: 1fr 1fr; }
           .tarif-row { flex-direction: column; }
         }
 
@@ -402,11 +402,67 @@ function ReservationPage() {
 
               {/* Date, heure, passagers, bagages — 4 colonnes desktop / 2 mobile */}
               <div className="resa-grid-4">
-                <Input k="date" value={f.date} onChange={set} type="date" min={today} error={errors.date} />
-                <Input k="heure" value={f.heure} onChange={set} type="time" error={errors.heure} />
-                <SelectField value={f.passagers} onChange={(v) => set("passagers", v)} options={passagerOptions} />
-                {/* ✅ Nouveau champ bagages */}
-                <SelectField value={f.bagages} onChange={(v) => set("bagages", v)} options={bagagesOptions} />
+                <div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "#64748b",
+                      marginBottom: 4,
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    Date
+                  </div>
+                  <Input k="date" value={f.date} onChange={set} type="date" min={today} error={errors.date} />
+                </div>
+                <div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "#64748b",
+                      marginBottom: 4,
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    Heure
+                  </div>
+                  <Input k="heure" value={f.heure} onChange={set} type="time" error={errors.heure} />
+                </div>
+                <div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "#64748b",
+                      marginBottom: 4,
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    Passagers
+                  </div>
+                  <SelectField value={f.passagers} onChange={(v) => set("passagers", v)} options={passagerOptions} />
+                </div>
+                <div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "#64748b",
+                      marginBottom: 4,
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    Bagages
+                  </div>
+                  {/* ✅ Nouveau champ bagages */}
+                  <SelectField value={f.bagages} onChange={(v) => set("bagages", v)} options={bagagesOptions} />
+                </div>
               </div>
             </div>
 
@@ -442,7 +498,7 @@ function ReservationPage() {
                   onChange={() => set("tarifJour", true)}
                   style={{ accentColor: "#0ea5e9" }}
                 />
-                ☀️ Jour (6h–20h) — 2,16 €/km
+                ☀️ Jour (7h–19h) — 2,16 €/km
               </label>
               <label
                 style={{
@@ -463,7 +519,7 @@ function ReservationPage() {
                   onChange={() => set("tarifJour", false)}
                   style={{ accentColor: "#818cf8" }}
                 />
-                🌙 Nuit (20h–6h) — 3,26 €/km
+                🌙 Nuit (19h–7h) — 3,24 €/km
               </label>
             </div>
 
@@ -495,9 +551,12 @@ function ReservationPage() {
                 Distance estimée :
                 <input
                   type="number"
+                  inputMode="decimal"
+                  pattern="[0-9]*"
+                  min="0"
                   step="0.1"
-                  value={f.distance}
-                  onChange={(e) => set("distance", Number(e.target.value))}
+                  value={f.distance === 0 ? "" : f.distance}
+                  onChange={(e) => set("distance", e.target.value === "" ? 0 : Number(e.target.value))}
                   style={{
                     width: 80,
                     padding: 6,
@@ -511,20 +570,41 @@ function ReservationPage() {
                 km
               </div>
               <div style={{ fontSize: 14, color: "#475569", marginTop: 6 }}>
-                Tarif au km : {f.tarifJour ? "2,16" : "3,26"} €
+                Tarif au km : {f.tarifJour ? "2,16" : "3,24"} €
               </div>
               <div
                 style={{
                   marginTop: 12,
-                  fontFamily: "'Syne',sans-serif",
-                  fontSize: "clamp(24px,6vw,32px)",
-                  fontWeight: 900,
-                  color: "#0ea5e9",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 2,
                 }}
               >
-                TOTAL ESTIMÉ : {prix} €
+                <div
+                  style={{
+                    fontFamily: "'Syne',sans-serif",
+                    fontSize: "clamp(13px,3.5vw,14px)",
+                    fontWeight: 700,
+                    color: "#0f172a",
+                  }}
+                >
+                  TOTAL ESTIMÉ
+                </div>
+                <div
+                  style={{
+                    fontFamily: "'Syne',sans-serif",
+                    fontSize: "clamp(24px,6vw,32px)",
+                    fontWeight: 900,
+                    color: "#dc2626",
+                  }}
+                >
+                  {prix} €
+                </div>
               </div>
-              <div style={{ fontSize: 11, color: "#94a3b8" }}>Prix indicatif — le compteur fait foi</div>
+              <div style={{ fontSize: 12, color: "#dc2626", fontWeight: 700, marginTop: 4 }}>
+                <strong>*</strong> Des frais de réservation peuvent être appliqués
+              </div>
+              <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>Prix indicatif — le compteur fait foi</div>
             </div>
 
             {/* ── Mode de réservation ── */}
@@ -539,7 +619,7 @@ function ReservationPage() {
               Mode de réservation
             </h3>
             <div className="resa-mode-grid" style={{ marginBottom: 16 }}>
-              {(["form", "email", "whatsapp"] as const).map((m) => (
+              {(["form", "email", "whatsapp", "sms"] as const).map((m) => (
                 <button
                   key={m}
                   onClick={() => setMode(m)}
@@ -550,10 +630,16 @@ function ReservationPage() {
                     borderRadius: 12,
                     cursor: "pointer",
                     fontWeight: 600,
-                    fontSize: "clamp(12px,3vw,13px)",
+                    fontSize: "clamp(11px,2.8vw,13px)",
                   }}
                 >
-                  {m === "form" ? "📝 Formulaire" : m === "email" ? "✉️ Email" : "💬 WhatsApp"}
+                  {m === "form"
+                    ? "📝 Formulaire"
+                    : m === "email"
+                      ? "✉️ Email"
+                      : m === "whatsapp"
+                        ? "💬 WhatsApp"
+                        : "💬 SMS"}
                 </button>
               ))}
             </div>
@@ -674,6 +760,27 @@ function ReservationPage() {
                   }}
                 >
                   💬 Envoyer sur WhatsApp
+                </a>
+              )}
+
+              {mode === "sms" && (
+                <a
+                  href={`sms:0673072322?body=${buildWhatsAppText()}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    height: 56,
+                    background: "#6366f1",
+                    color: "#fff",
+                    borderRadius: 14,
+                    fontFamily: "'Syne',sans-serif",
+                    fontWeight: 800,
+                    textDecoration: "none",
+                    fontSize: "clamp(14px,4vw,16px)",
+                  }}
+                >
+                  💬 Envoyer par SMS
                 </a>
               )}
             </div>
