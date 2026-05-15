@@ -396,7 +396,25 @@ function TrackingPage() {
     }
     // Animation fluide du marqueur + grignotage de la polyline
     animateMarkerTo(lat, lng);
-    map.panTo([lat, lng], { animate: true, duration: 1.4 });
+    // Suivi "intelligent" : on ne bouge la carte que si le taxi approche du bord
+    // (zone morte = 60% centrale du viewport). Évite les saccades quand il est déjà au centre.
+    try {
+      const bounds = map.getBounds();
+      const sw = bounds.getSouthWest();
+      const ne = bounds.getNorthEast();
+      const padLat = (ne.lat - sw.lat) * 0.2; // 20% de marge → zone morte 60%
+      const padLng = (ne.lng - sw.lng) * 0.2;
+      const outside =
+        lat < sw.lat + padLat ||
+        lat > ne.lat - padLat ||
+        lng < sw.lng + padLng ||
+        lng > ne.lng - padLng;
+      if (outside) {
+        map.panTo([lat, lng], { animate: true, duration: 1.4, easeLinearity: 0.25 });
+      }
+    } catch {
+      /* noop */
+    }
     await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
   }, []);
 
