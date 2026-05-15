@@ -243,7 +243,7 @@ function ReservationPage() {
                 bagages: f.bagages,
                 prix_estime: prix,
                 // ✅ Libellé tarif corrigé avec 3,26€/km
-                tarif: f.tarifJour ? "Jour (7h–19h) — 2,16 €/km" : "Nuit (19h–7h) — 3,24 €/km",
+                tarif: f.tarifJour ? "Jour (7h–19h) — 2,16 €/km" : "Nuit (19h–6h) — 3,24 €/km",
               },
             }),
           });
@@ -519,7 +519,7 @@ function ReservationPage() {
                   onChange={() => set("tarifJour", false)}
                   style={{ accentColor: "#818cf8" }}
                 />
-                🌙 Nuit (19h–7h) — 3,24 €/km
+                🌙 Nuit (19h–6h) — 3,24 €/km
               </label>
             </div>
 
