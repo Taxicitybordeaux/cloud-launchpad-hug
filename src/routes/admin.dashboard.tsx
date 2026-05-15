@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { type CSSProperties, type ReactNode, type TouchEvent, useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix } from "@/lib/tarif";
 import { Skeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
@@ -9,20 +9,20 @@ export const Route = createFileRoute("/admin/dashboard")({
   component: Dashboard,
 });
 
-const card: React.CSSProperties = {
+const card: CSSProperties = {
   background: "rgba(255,255,255,0.04)",
   border: "1px solid rgba(255,255,255,0.08)",
   borderRadius: 20,
   padding: 20,
 };
-const labelCss: React.CSSProperties = {
+const labelCss: CSSProperties = {
   fontFamily: "'JetBrains Mono',monospace",
   fontSize: 11,
   color: "#64748b",
   letterSpacing: "0.08em",
   marginTop: 6,
 };
-const valCss: React.CSSProperties = {
+const valCss: CSSProperties = {
   fontFamily: "'Syne',sans-serif",
   fontWeight: 800,
   fontSize: 26,
@@ -86,7 +86,7 @@ function isNuit(iso: string | null | undefined): boolean {
 }
 
 /** Card mobile avec swipe-to-delete (glisser à gauche) */
-function SwipeableCard({ children, onDelete }: { children: React.ReactNode; onDelete: () => void }) {
+function SwipeableCard({ children, onDelete }: { children: ReactNode; onDelete: () => void }) {
   const [offsetX, setOffsetX] = useState(0);
   const [isSettling, setIsSettling] = useState(false); // true uniquement lors du snap (pas du drag)
   const isDragging = useRef(false);
@@ -95,13 +95,13 @@ function SwipeableCard({ children, onDelete }: { children: React.ReactNode; onDe
   const THRESHOLD = 80;
   const MAX_SLIDE = 90;
 
-  const onTouchStart = (e: React.TouchEvent) => {
+  const onTouchStart = (e: TouchEvent) => {
     startX.current = e.touches[0].clientX;
     isDragging.current = true;
     setIsSettling(false); // pas de transition pendant le drag
   };
 
-  const onTouchMove = (e: React.TouchEvent) => {
+  const onTouchMove = (e: TouchEvent) => {
     if (!isDragging.current) return;
     const dx = e.touches[0].clientX - startX.current;
     const clamped = Math.max(-MAX_SLIDE, Math.min(0, dx));
