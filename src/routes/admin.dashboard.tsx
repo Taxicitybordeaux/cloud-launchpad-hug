@@ -4,6 +4,28 @@ import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix } from "@/lib/tarif";
 import { Skeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
 
+/** Retourne un nombre de visiteurs uniques (distinct session_id) pour une fenêtre temporelle.
+ *  On utilise .select("session_id") + dédoublonnage JS car Supabase REST ne supporte pas
+ *  COUNT DISTINCT nativement. Pour éviter la limite 1000 lignes, on désactive la pagination. */
+async function countUniqueVisitors(from: string): Promise<number> {
+  let allIds: string[] = [];
+  let page = 0;
+  const PAGE = 1000;
+  while (true) {
+    const { data, error } = await supabase
+      .from("site_analytics")
+      .select("session_id")
+      .eq("event", "visit")
+      .gte("created_at", from)
+      .range(page * PAGE, (page + 1) * PAGE - 1);
+    if (error || !data || data.length === 0) break;
+    allIds = allIds.concat(data.map((r) => r.session_id));
+    if (data.length < PAGE) break;
+    page++;
+  }
+  return new Set(allIds).size;
+}
+
 export const Route = createFileRoute("/admin/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Admin" }, { name: "robots", content: "noindex" }] }),
   component: Dashboard,
@@ -209,25 +231,29 @@ function Dashboard() {
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
   const fetchAll = useCallback(async () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayIso = today.toISOString();
-    const monthIso = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
-    const yearIso = new Date(today.getFullYear(), 0, 1).toISOString();
-    const weekAgo = new Date(today);
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    const weekIso = weekAgo.toISOString();
-    const nowIso = new Date().toISOString();
+    const now = new Date();
+    const nowIso = now.toISOString();
 
-    const [caJR, caMR, cJR, cliR, visJR, visSemR, visMR, visAnR, resR, nextR] = await Promise.all([
+    // "Aujourd'hui" = depuis minuit heure de Paris (correctement localisé)
+    const todayParis = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+    todayParis.setHours(0, 0, 0, 0);
+    const todayIso = todayParis.toISOString();
+
+    // Mois courant = 1er du mois à minuit Paris
+    const monthIso = new Date(todayParis.getFullYear(), todayParis.getMonth(), 1).toISOString();
+
+    // Année courante
+    const yearIso = new Date(todayParis.getFullYear(), 0, 1).toISOString();
+
+    // 7 jours glissants depuis maintenant (pas depuis minuit il y a 7 jours — bug corrigé)
+    const weekIso = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    // Requêtes réservations + courses + clients en parallèle
+    const [caJR, caMR, cJR, cliR, resR, nextR] = await Promise.all([
       supabase.from("courses").select("prix_final").gte("created_at", todayIso),
       supabase.from("courses").select("prix_final").gte("created_at", monthIso),
       supabase.from("reservations").select("id", { count: "exact", head: true }).gte("created_at", todayIso),
       supabase.from("clients").select("id", { count: "exact", head: true }),
-      supabase.from("site_analytics").select("session_id").eq("event", "visit").gte("created_at", todayIso),
-      supabase.from("site_analytics").select("session_id").eq("event", "visit").gte("created_at", weekIso),
-      supabase.from("site_analytics").select("session_id").eq("event", "visit").gte("created_at", monthIso),
-      supabase.from("site_analytics").select("session_id").eq("event", "visit").gte("created_at", yearIso),
       supabase.from("reservations").select("*").order("created_at", { ascending: false }).limit(10),
       supabase
         .from("reservations")
@@ -238,16 +264,22 @@ function Dashboard() {
         .limit(1),
     ]);
 
-    const uniq = (data: any[]) => new Set((data ?? []).map((v) => v.session_id)).size;
+    // Visiteurs : pagination pour éviter la limite 1000 lignes de Supabase (bug corrigé)
+    const [vJ, vSem, vM, vAn] = await Promise.all([
+      countUniqueVisitors(todayIso),
+      countUniqueVisitors(weekIso),
+      countUniqueVisitors(monthIso),
+      countUniqueVisitors(yearIso),
+    ]);
 
     setCaJ((caJR.data ?? []).reduce((s: number, c: any) => s + (Number(c.prix_final) || 0), 0));
     setCaM((caMR.data ?? []).reduce((s: number, c: any) => s + (Number(c.prix_final) || 0), 0));
     setCoursesJ(cJR.count ?? 0);
     setClientsTotal(cliR.count ?? 0);
-    setVisitorsJ(uniq(visJR.data ?? []));
-    setVisitorsSem(uniq(visSemR.data ?? []));
-    setVisitorsM(uniq(visMR.data ?? []));
-    setVisitorsAn(uniq(visAnR.data ?? []));
+    setVisitorsJ(vJ);
+    setVisitorsSem(vSem);
+    setVisitorsM(vM);
+    setVisitorsAn(vAn);
     setReservs(resR.data ?? []);
     setNextCourse((nextR.data ?? [])[0] ?? null);
     setLastUpdate(new Date());
@@ -256,15 +288,24 @@ function Dashboard() {
 
   useEffect(() => {
     fetchAll();
-    // Realtime Supabase
+
+    // Debounce pour éviter de spammer fetchAll quand plusieurs events analytics arrivent en rafale
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const debouncedFetch = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => fetchAll(), 1500);
+    };
+
     const ch = supabase
       .channel(`dash-${Date.now()}-${Math.random().toString(36).slice(2)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "reservations" }, fetchAll)
-      .on("postgres_changes", { event: "*", schema: "public", table: "site_analytics" }, fetchAll)
+      .on("postgres_changes", { event: "*", schema: "public", table: "site_analytics" }, debouncedFetch)
       .subscribe();
+
     // Polling toutes les 30s (fallback si realtime non activé)
     const poll = setInterval(fetchAll, 30_000);
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       supabase.removeChannel(ch);
       clearInterval(poll);
     };
@@ -272,13 +313,13 @@ function Dashboard() {
 
   const updateStatus = async (id: string, status: string) => {
     await supabase.from("reservations").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
-    fetchAll();
+    await fetchAll();
   };
 
   const deleteReservation = async (id: string) => {
     if (!window.confirm("Supprimer définitivement cette réservation ?")) return;
     await supabase.from("reservations").delete().eq("id", id);
-    fetchAll();
+    await fetchAll();
   };
 
   /* ── Render ── */
