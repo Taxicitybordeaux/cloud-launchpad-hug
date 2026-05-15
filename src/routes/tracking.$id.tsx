@@ -270,6 +270,23 @@ function TrackingPage() {
   // FIX MOBILE: hauteur carte calculée dynamiquement
   const [mapHeight, setMapHeight] = useState(260);
 
+  // Suivi carte : zone morte ajustable (% du viewport hors duquel on recentre)
+  const [deadZonePct, setDeadZonePct] = useState(60); // 30 = collant, 90 = très lâche
+  const [userPanned, setUserPanned] = useState(false); // l'utilisateur a déplacé la map → on arrête le suivi auto
+  const userPannedRef = useRef(false);
+  useEffect(() => { userPannedRef.current = userPanned; }, [userPanned]);
+  const lastDriverPosRef = useRef<{ lat: number; lng: number } | null>(null);
+  const initialZoomRef = useRef<number | null>(null);
+
+  const recenterOnDriver = useCallback(() => {
+    const map = mapInstanceRef.current;
+    const pos = lastDriverPosRef.current;
+    if (!map || !pos) return;
+    const zoom = initialZoomRef.current ?? map.getZoom();
+    map.setView([pos.lat, pos.lng], zoom, { animate: true, duration: 0.8 });
+    setUserPanned(false);
+  }, []);
+
   useEffect(() => {
     const updateMapHeight = () => {
       // Sur iPhone, window.innerHeight tient compte de la barre Safari
@@ -388,6 +405,7 @@ function TrackingPage() {
       if (moved < 8 && elapsed < 4000) return; // bruit GPS → on ignore
     }
     lastAppliedPosRef.current = { lat, lng, t: now };
+    lastDriverPosRef.current = { lat, lng };
 
     // Recharge la trace OSRM toutes les 15s pour rester aligné aux rues
     if (pickupCoordsRef.current && now - lastApproachAtRef.current > 15000) {
@@ -396,27 +414,46 @@ function TrackingPage() {
     }
     // Animation fluide du marqueur + grignotage de la polyline
     animateMarkerTo(lat, lng);
-    // Suivi "intelligent" : on ne bouge la carte que si le taxi approche du bord
-    // (zone morte = 60% centrale du viewport). Évite les saccades quand il est déjà au centre.
+
+    // Suivi "intelligent" :
+    // - désactivé si l'utilisateur a déplacé la map (jusqu'à clic "Recentrer")
+    // - seuil minimal de 15 m de mouvement réel pour déclencher un panTo
+    // - panTo seulement si le taxi sort de la zone morte (% configurable)
+    if (userPannedRef.current) {
+      await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
+      return;
+    }
+    const distFromCenter = (() => {
+      try {
+        const c = map.getCenter();
+        return distMeters({ lat: c.lat, lng: c.lng }, { lat, lng });
+      } catch { return 0; }
+    })();
+    if (distFromCenter < 15) {
+      await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
+      return;
+    }
     try {
       const bounds = map.getBounds();
       const sw = bounds.getSouthWest();
       const ne = bounds.getNorthEast();
-      const padLat = (ne.lat - sw.lat) * 0.2; // 20% de marge → zone morte 60%
-      const padLng = (ne.lng - sw.lng) * 0.2;
+      const margin = (1 - deadZonePct / 100) / 2; // 60% → 0.2
+      const padLat = (ne.lat - sw.lat) * margin;
+      const padLng = (ne.lng - sw.lng) * margin;
       const outside =
         lat < sw.lat + padLat ||
         lat > ne.lat - padLat ||
         lng < sw.lng + padLng ||
         lng > ne.lng - padLng;
       if (outside) {
-        map.panTo([lat, lng], { animate: true, duration: 1.4, easeLinearity: 0.25 });
+        // panTo SANS modifier le zoom — on garde le zoom utilisateur
+        map.panTo([lat, lng], { animate: true, duration: 1.4, easeLinearity: 0.25, noMoveStart: true });
       }
     } catch {
       /* noop */
     }
     await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
-  }, []);
+  }, [deadZonePct]);
 
 
   const notifScheduledRef = useRef(false);
@@ -633,6 +670,13 @@ function TrackingPage() {
     const L = (window as any).L;
     if (!mapRef.current || mapInstanceRef.current) return;
     const map = L.map(mapRef.current, { center: [lat, lng], zoom: 14, zoomControl: false });
+    initialZoomRef.current = 14;
+    // Détection interaction utilisateur → désactive le suivi auto jusqu'au "Recentrer"
+    map.on("dragstart", () => setUserPanned(true));
+    map.on("zoomstart", (e: any) => {
+      // si le zoom vient d'une action utilisateur (pas de notre panTo), on lock
+      if (e?.hard !== false) setUserPanned(true);
+    });
     L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
       attribution: "© OpenStreetMap © CARTO",
       maxZoom: 19,
@@ -1656,6 +1700,67 @@ function TrackingPage() {
         }}
       >
         <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
+        {/* Bouton "Recentrer" : visible quand l'utilisateur a déplacé la carte */}
+        {driverData?.is_active && driverData?.latitude && userPanned && (
+          <button
+            type="button"
+            onClick={recenterOnDriver}
+            style={{
+              position: "absolute",
+              top: 12,
+              right: 12,
+              zIndex: 1000,
+              padding: "8px 12px",
+              borderRadius: 999,
+              border: "1px solid rgba(255,255,255,0.15)",
+              background: "rgba(14,165,233,0.95)",
+              color: "white",
+              fontWeight: 600,
+              fontSize: 13,
+              boxShadow: "0 4px 14px rgba(14,165,233,0.5)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            🎯 Recentrer
+          </button>
+        )}
+        {/* Réglage zone morte (suivi auto plus ou moins serré) */}
+        {driverData?.is_active && driverData?.latitude && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: 12,
+              left: 12,
+              zIndex: 1000,
+              padding: "6px 10px",
+              borderRadius: 10,
+              background: "rgba(10,15,30,0.7)",
+              backdropFilter: "blur(6px)",
+              color: "white",
+              fontSize: 11,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              maxWidth: 220,
+            }}
+          >
+            <span style={{ opacity: 0.8 }}>Suivi</span>
+            <input
+              type="range"
+              min={30}
+              max={90}
+              step={5}
+              value={deadZonePct}
+              onChange={(e) => setDeadZonePct(Number(e.target.value))}
+              style={{ flex: 1, accentColor: "#0ea5e9" }}
+              aria-label="Zone morte du suivi auto"
+            />
+            <span style={{ opacity: 0.8, minWidth: 28, textAlign: "right" }}>{deadZonePct}%</span>
+          </div>
+        )}
         {/* Overlay quand GPS actif mais position pas encore reçue */}
         {driverData?.is_active && !driverData?.latitude && (
           <div
