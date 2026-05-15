@@ -107,23 +107,20 @@ function Dashboard() {
     const todayIso = today.toISOString();
     const monthIso = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
     const nowIso = new Date().toISOString();
+    const tomorrowIso = new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString();
 
-    const [caJR, caMR, cJR, cliR, visR, impR, clkR, resR, nextR] = await Promise.all([
+    const [caJR, caMR, cJR, cliR, visR, resR, nextR] = await Promise.all([
       supabase.from("courses").select("prix_final").gte("created_at", todayIso),
       supabase.from("courses").select("prix_final").gte("created_at", monthIso),
-      supabase.from("courses").select("id", { count: "exact", head: true }).gte("created_at", todayIso),
+      // Compte les réservations dont la prise en charge est aujourd'hui (hors refusées)
+      supabase
+        .from("reservations")
+        .select("id", { count: "exact", head: true })
+        .gte("pickup_datetime", todayIso)
+        .lt("pickup_datetime", tomorrowIso)
+        .neq("status", "refused"),
       supabase.from("clients").select("id", { count: "exact", head: true }),
       supabase.from("site_analytics").select("session_id").eq("event", "visit").gte("created_at", todayIso),
-      supabase
-        .from("site_analytics")
-        .select("id", { count: "exact", head: true })
-        .eq("event", "qr_impression")
-        .gte("created_at", todayIso),
-      supabase
-        .from("site_analytics")
-        .select("id", { count: "exact", head: true })
-        .eq("event", "qr_click")
-        .gte("created_at", todayIso),
       supabase.from("reservations").select("*").order("created_at", { ascending: false }).limit(10),
       // Prochaine course acceptée dans le futur
       supabase
@@ -140,8 +137,6 @@ function Dashboard() {
     setCoursesJ(cJR.count ?? 0);
     setClientsTotal(cliR.count ?? 0);
     setVisitors(new Set((visR.data ?? []).map((v: any) => v.session_id)).size);
-    setQrImp(impR.count ?? 0);
-    setQrClick(clkR.count ?? 0);
     setReservs(resR.data ?? []);
     setNextCourse((nextR.data ?? [])[0] ?? null);
     setLoading(false);
