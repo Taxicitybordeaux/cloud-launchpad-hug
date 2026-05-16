@@ -18,6 +18,7 @@ export function WhatsAppFloat() {
     location.pathname.startsWith("/reservation/") ||
     location.pathname.startsWith("/scan/") ||
     location.pathname.startsWith("/admin");
+
   const draft = useReservationDraft();
   const message = draft ? buildReservationMessage(draft, lang) : t("wa.default");
   const waHref = whatsappLink(message);
@@ -50,7 +51,6 @@ export function WhatsAppFloat() {
     };
   }, []);
 
-  // Expose the bar height as a CSS var so pages can add bottom padding if needed
   useEffect(() => {
     if (typeof document === "undefined") return;
     document.documentElement.style.setProperty("--mobile-action-bar-h", `${barHeight}px`);
@@ -77,27 +77,7 @@ export function WhatsAppFloat() {
 
   const content = (
     <>
-      {/* Mobile: fixed 3-button action bar */}
-      <div
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    padding: "10px 6px",
-    borderRadius: 12,
-    fontWeight: 700,
-    fontSize: "clamp(11px, 3.2vw, 13px)",
-    textDecoration: "none",
-    color: "#fff",
-    minHeight: 56,
-    lineHeight: 1.1,
-  };
-
-  return (
-    <>
-      {/* Mobile: fixed 3-button action bar */}
+      {/* Mobile : barre fixe 3 boutons */}
       <div
         ref={barRef}
         className="sm:hidden"
@@ -106,7 +86,7 @@ export function WhatsAppFloat() {
           left: 0,
           right: 0,
           bottom: 0,
-          zIndex: 50,
+          zIndex: 9999,
           background: "rgba(15,23,42,0.96)",
           backdropFilter: "blur(10px)",
           borderTop: "1px solid rgba(148,163,184,0.2)",
@@ -148,14 +128,14 @@ export function WhatsAppFloat() {
         </Link>
       </div>
 
-      {/* Desktop: floating cluster bottom-right */}
+      {/* Desktop : cluster flottant bas-droite */}
       <div
         className="hidden sm:flex"
         style={{
           position: "fixed",
           right: 24,
           bottom: 24,
-          zIndex: 50,
+          zIndex: 9999,
           flexDirection: "column",
           gap: 12,
         }}
@@ -229,7 +209,5 @@ export function WhatsAppFloat() {
     </>
   );
 
-  return typeof document !== "undefined"
-    ? createPortal(content, document.body)
-    : null;
+  return typeof document !== "undefined" ? createPortal(content, document.body) : null;
 }
