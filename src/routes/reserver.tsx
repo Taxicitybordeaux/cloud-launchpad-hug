@@ -646,7 +646,16 @@ function ReservationPage() {
             <div style={{ display: "grid", gap: 12 }}>
               {/* Adresse de départ avec autocomplete */}
               <div>
-                <div style={{ fontSize: 11, color: "#64748b", marginBottom: 4, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "#64748b",
+                    marginBottom: 4,
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                  }}
+                >
                   Adresse de départ
                 </div>
                 <AddressInput
@@ -661,7 +670,16 @@ function ReservationPage() {
 
               {/* Adresse de destination avec autocomplete */}
               <div>
-                <div style={{ fontSize: 11, color: "#64748b", marginBottom: 4, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "#64748b",
+                    marginBottom: 4,
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                  }}
+                >
                   Adresse de destination
                 </div>
                 <AddressInput
@@ -704,7 +722,14 @@ function ReservationPage() {
                   >
                     Heure
                   </div>
-                  <Input k="heure" value={f.heure} onChange={set} type="time" placeholder="Ex : 14:30" error={errors.heure} />
+                  <Input
+                    k="heure"
+                    value={f.heure}
+                    onChange={set}
+                    type="time"
+                    placeholder="Ex : 14:30"
+                    error={errors.heure}
+                  />
                 </div>
                 <div>
                   <div
@@ -791,7 +816,7 @@ function ReservationPage() {
                   onChange={() => set("tarifJour", false)}
                   style={{ accentColor: "#818cf8" }}
                 />
-                🌙 Nuit (19h–7h) — du lundi au dimanche & jours fériés — 3,24 €/km
+                🌙 Nuit (19h–7h) — dimanche & jours fériés — 3,24 €/km
               </label>
             </div>
 
@@ -806,12 +831,10 @@ function ReservationPage() {
             >
               Moyen de paiement
             </h3>
-            <div className="resa-grid-4">
+            <div className="resa-grid-2">
               {[
-                { v: "especes", l: "💶 Espèces" },
-                { v: "cb", l: "💳 CB" },
-                { v: "virement", l: "🏦 Virement" },
-                { v: "cheque", l: "📝 Chèque" },
+                { v: "especes", l: "💵 Espèces" },
+                { v: "cb", l: "💳 Carte bancaire" },
               ].map((opt) => (
                 <label
                   key={opt.v}
