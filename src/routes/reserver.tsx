@@ -644,54 +644,6 @@ function ReservationPage() {
               Votre course
             </h3>
             <div style={{ display: "grid", gap: 12 }}>
-              {/* Adresse de départ avec autocomplete */}
-              <div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: "#64748b",
-                    marginBottom: 4,
-                    fontWeight: 600,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  Adresse de départ
-                </div>
-                <AddressInput
-                  fieldKey="depart"
-                  value={f.depart}
-                  onChange={set}
-                  onCoordSelect={setFromCoord}
-                  placeholder="Ex : 12 rue Sainte-Catherine, Bordeaux"
-                  error={errors.depart}
-                />
-              </div>
-
-              {/* Adresse de destination avec autocomplete */}
-              <div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: "#64748b",
-                    marginBottom: 4,
-                    fontWeight: 600,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  Adresse de destination
-                </div>
-                <AddressInput
-                  fieldKey="destination"
-                  value={f.destination}
-                  onChange={set}
-                  onCoordSelect={setToCoord}
-                  placeholder="Ex : Aéroport de Bordeaux"
-                  error={errors.destination}
-                />
-              </div>
-
               {/* Date, heure, passagers, bagages */}
               <div className="resa-grid-4">
                 <div>
@@ -880,24 +832,51 @@ function ReservationPage() {
                 Simulateur de prix
               </h3>
 
-              {/* ── Résumé départ / destination ── */}
-              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14 }}>
-                  <span style={{ color: "#0ea5e9", flexShrink: 0 }}>🟢</span>
-                  <span style={{ color: f.depart ? "#0f172a" : "#94a3b8", fontStyle: f.depart ? "normal" : "italic" }}>
-                    {f.depart || "Départ non renseigné — saisissez l'adresse ci-dessus"}
-                  </span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14 }}>
-                  <span style={{ color: "#dc2626", flexShrink: 0 }}>🔴</span>
-                  <span
+              {/* ── Champs départ / destination dans le simulateur ── */}
+              <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
+                <div>
+                  <div
                     style={{
-                      color: f.destination ? "#0f172a" : "#94a3b8",
-                      fontStyle: f.destination ? "normal" : "italic",
+                      fontSize: 11,
+                      color: "#64748b",
+                      marginBottom: 4,
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
                     }}
                   >
-                    {f.destination || "Destination non renseignée — saisissez l'adresse ci-dessus"}
-                  </span>
+                    🟢 Adresse de départ
+                  </div>
+                  <AddressInput
+                    fieldKey="depart"
+                    value={f.depart}
+                    onChange={set}
+                    onCoordSelect={setFromCoord}
+                    placeholder="Ex : 12 rue Sainte-Catherine, Bordeaux"
+                    error={errors.depart}
+                  />
+                </div>
+                <div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "#64748b",
+                      marginBottom: 4,
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    🔴 Adresse de destination
+                  </div>
+                  <AddressInput
+                    fieldKey="destination"
+                    value={f.destination}
+                    onChange={set}
+                    onCoordSelect={setToCoord}
+                    placeholder="Ex : Aéroport de Bordeaux"
+                    error={errors.destination}
+                  />
                 </div>
               </div>
 
