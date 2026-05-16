@@ -891,13 +891,14 @@ function ReservationPage() {
                 </div>
                 <div
                   style={{
-                    fontFamily: "'Syne',sans-serif",
+                    fontFamily: "'DM Sans', system-ui, sans-serif",
                     fontSize: "clamp(24px,6vw,32px)",
-                    fontWeight: 900,
+                    fontWeight: 700,
                     color: "#dc2626",
+                    fontVariantNumeric: "tabular-nums",
                   }}
                 >
-                  {prix} €
+                  {prix.toFixed(2)} €
                 </div>
               </div>
               <div style={{ fontSize: 12, color: "#dc2626", fontWeight: 700, marginTop: 4 }}>
