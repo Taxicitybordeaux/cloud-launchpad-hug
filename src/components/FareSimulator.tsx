@@ -282,7 +282,7 @@ export function FareSimulator() {
                     <span className="font-medium">
                       {p === "day"
                         ? "☀️ Jour (7h–19h) — du lundi au samedi"
-                        : "🌙 Nuit (19h–7h) — du lundi au dimanche & jours fériés"}
+                        : "🌙 Nuit (19h–7h) — dimanche & jours fériés"}
                     </span>
                     <span className="mt-1 block text-xs">{formatEUR(p === "day" ? RATE_DAY : RATE_NIGHT)} / km</span>
                   </label>
@@ -307,7 +307,11 @@ export function FareSimulator() {
               </div>
             ) : total != null ? (
               <>
-                <div className="mt-3 text-5xl font-bold text-red-600 tabular-nums" style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }} aria-live="polite">
+                <div
+                  className="mt-3 text-5xl font-bold text-red-600 tabular-nums"
+                  style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}
+                  aria-live="polite"
+                >
                   {formatEUR(total)}
                 </div>
                 <p className="mt-2 text-xs font-bold text-red-600">
