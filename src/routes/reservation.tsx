@@ -19,10 +19,18 @@ export const Route = createFileRoute("/reservation")({
 });
 
 const initial = {
-  nom: "", telephone_raw: "", country: "FR" as CountryCode, email: "",
-  pickup_datetime: "", trip_type: "aller", return_datetime: "",
-  depart: "", arrivee: "",
-  passagers: "1", bagages: "0", service_type: "standard",
+  nom: "",
+  telephone_raw: "",
+  country: "FR" as CountryCode,
+  email: "",
+  pickup_datetime: "",
+  trip_type: "aller",
+  return_datetime: "",
+  depart: "",
+  arrivee: "",
+  passagers: "1",
+  bagages: "0",
+  service_type: "standard",
   needs_cpam: false,
   message: "",
 };
@@ -35,34 +43,47 @@ function ReservationPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const baseSchema = z.object({
-    nom: z.string().trim().min(2, t("res.err.name")).max(100),
-    telephone_e164: z.string().regex(/^\+\d{7,15}$/, t("res.err.phone")),
-    email: z.string().trim().email().max(255).optional().or(z.literal("")),
-    pickup_datetime: z.string().min(1, t("res.err.pickup"))
-      .refine((v) => new Date(v).getTime() > Date.now() - 60_000, t("res.err.future")),
-    trip_type: z.enum(["aller", "aller_retour"]),
-    return_datetime: z.string().optional(),
-    depart: z.string().trim().min(2, t("res.err.from")).max(200),
-    arrivee: z.string().trim().min(2, t("res.err.to")).max(200),
-    passagers: z.coerce.number().int().min(1).max(8),
-    bagages: z.coerce.number().int().min(0).max(10),
-    service_type: z.string().max(50),
-    needs_cpam: z.boolean(),
-    message: z.string().max(1000).optional(),
-  }).refine(
-    (d) => d.trip_type !== "aller_retour" || (d.return_datetime && new Date(d.return_datetime) > new Date(d.pickup_datetime)),
-    { path: ["return_datetime"], message: t("res.err.return") }
-  );
+  const baseSchema = z
+    .object({
+      nom: z.string().trim().min(2, t("res.err.name")).max(100),
+      telephone_e164: z.string().regex(/^\+\d{7,15}$/, t("res.err.phone")),
+      email: z.string().trim().email().max(255).optional().or(z.literal("")),
+      pickup_datetime: z
+        .string()
+        .min(1, t("res.err.pickup"))
+        .refine((v) => new Date(v).getTime() > Date.now() - 60_000, t("res.err.future")),
+      trip_type: z.enum(["aller", "aller_retour"]),
+      return_datetime: z.string().optional(),
+      depart: z.string().trim().min(2, t("res.err.from")).max(200),
+      arrivee: z.string().trim().min(2, t("res.err.to")).max(200),
+      passagers: z.coerce.number().int().min(1).max(8),
+      bagages: z.coerce.number().int().min(0).max(10),
+      service_type: z.string().max(50),
+      needs_cpam: z.boolean(),
+      message: z.string().max(1000).optional(),
+    })
+    .refine(
+      (d) =>
+        d.trip_type !== "aller_retour" ||
+        (d.return_datetime && new Date(d.return_datetime) > new Date(d.pickup_datetime)),
+      { path: ["return_datetime"], message: t("res.err.return") },
+    );
 
   const draft = useMemo(() => {
     const e164 = normalizePhone(form.telephone_raw, form.country) ?? form.telephone_raw;
     return {
-      nom: form.nom, telephone: e164,
-      pickup_datetime: form.pickup_datetime, return_datetime: form.return_datetime,
-      trip_type: form.trip_type, depart: form.depart, arrivee: form.arrivee,
-      passagers: form.passagers, bagages: form.bagages, service_type: form.service_type,
-      needs_cpam: form.needs_cpam, message: form.message,
+      nom: form.nom,
+      telephone: e164,
+      pickup_datetime: form.pickup_datetime,
+      return_datetime: form.return_datetime,
+      trip_type: form.trip_type,
+      depart: form.depart,
+      arrivee: form.arrivee,
+      passagers: form.passagers,
+      bagages: form.bagages,
+      service_type: form.service_type,
+      needs_cpam: form.needs_cpam,
+      message: form.message,
     };
   }, [form]);
   usePublishReservationDraft(draft);
@@ -110,7 +131,9 @@ function ReservationPage() {
       .limit(1);
     if (!conflictErr && conflicts && conflicts.length > 0) {
       setLoading(false);
-      setErrors({ pickup_datetime: t("res.err.conflict") || "Ce créneau est déjà réservé. Choisissez un autre horaire (±30 min)." });
+      setErrors({
+        pickup_datetime: t("res.err.conflict") || "Ce créneau est déjà réservé. Choisissez un autre horaire (±30 min).",
+      });
       return;
     }
 
@@ -119,23 +142,35 @@ function ReservationPage() {
 
     const composedMessage = [
       parsed.data.trip_type === "aller_retour"
-        ? `${t("res.f.trip.round")} — ${new Date(parsed.data.return_datetime!).toLocaleString()}`
+        ? `${t("res.f.trip.round")} — ${new Date(parsed.data.return_datetime!).toLocaleString("fr-FR", {
+            dateStyle: "full",
+            timeStyle: "short",
+            timeZone: "Europe/Paris", // ✅ Format français + heure de Paris
+          })}`
         : null,
       extras.length ? `${t("res.f.needs")}: ${extras.join(", ")}` : null,
       parsed.data.message,
-    ].filter(Boolean).join("\n");
+    ]
+      .filter(Boolean)
+      .join("\n");
 
-    const reservationId = (typeof crypto !== "undefined" && "randomUUID" in crypto)
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const reservationId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
     const { error } = await supabase.from("reservations").insert({
       id: reservationId,
-      nom: parsed.data.nom, telephone: e164, email: parsed.data.email || null,
+      nom: parsed.data.nom,
+      telephone: e164,
+      email: parsed.data.email || null,
       pickup_datetime: new Date(parsed.data.pickup_datetime).toISOString(),
-      depart: parsed.data.depart, arrivee: parsed.data.arrivee,
-      passagers: parsed.data.passagers, bagages: parsed.data.bagages,
-      service_type: parsed.data.service_type, message: composedMessage || null,
+      depart: parsed.data.depart,
+      arrivee: parsed.data.arrivee,
+      passagers: parsed.data.passagers,
+      bagages: parsed.data.bagages,
+      service_type: parsed.data.service_type,
+      message: composedMessage || null,
     });
 
     setLoading(false);
@@ -150,11 +185,16 @@ function ReservationPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        nom: parsed.data.nom, telephone: e164, email: parsed.data.email || null,
+        nom: parsed.data.nom,
+        telephone: e164,
+        email: parsed.data.email || null,
         pickup_datetime: parsed.data.pickup_datetime,
-        depart: parsed.data.depart, arrivee: parsed.data.arrivee,
-        passagers: parsed.data.passagers, bagages: parsed.data.bagages,
-        service_type: parsed.data.service_type, message: composedMessage || null,
+        depart: parsed.data.depart,
+        arrivee: parsed.data.arrivee,
+        passagers: parsed.data.passagers,
+        bagages: parsed.data.bagages,
+        service_type: parsed.data.service_type,
+        message: composedMessage || null,
         reservation_id: inserted.id,
       }),
     }).catch(() => {});
@@ -168,8 +208,10 @@ function ReservationPage() {
           nom: parsed.data.nom,
           email: parsed.data.email,
           pickup_datetime: parsed.data.pickup_datetime,
-          depart: parsed.data.depart, arrivee: parsed.data.arrivee,
-          passagers: parsed.data.passagers, bagages: parsed.data.bagages,
+          depart: parsed.data.depart,
+          arrivee: parsed.data.arrivee,
+          passagers: parsed.data.passagers,
+          bagages: parsed.data.bagages,
           reservation_id: inserted.id,
         }),
       }).catch(() => {});
@@ -198,21 +240,40 @@ function ReservationPage() {
           <div>
             <label className="mb-1.5 block text-sm font-medium">{t("res.f.phone")}</label>
             <div className="flex gap-2">
-              <select name="country" value={form.country} onChange={handleChange}
-                className="h-11 rounded-md border border-border bg-input px-2 text-sm" aria-label="country">
+              <select
+                name="country"
+                value={form.country}
+                onChange={handleChange}
+                className="h-11 rounded-md border border-border bg-input px-2 text-sm"
+                aria-label="country"
+              >
                 {COUNTRIES.map((c) => (
-                  <option key={c.code} value={c.code}>{c.flag} {c.dial}</option>
+                  <option key={c.code} value={c.code}>
+                    {c.flag} {c.dial}
+                  </option>
                 ))}
               </select>
-              <input name="telephone_raw" type="tel" value={form.telephone_raw} onChange={handleChange}
+              <input
+                name="telephone_raw"
+                type="tel"
+                value={form.telephone_raw}
+                onChange={handleChange}
                 placeholder="6 73 07 23 22"
-                className="h-11 flex-1 rounded-md border border-border bg-input px-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
+                className="h-11 flex-1 rounded-md border border-border bg-input px-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
             </div>
             {errors.telephone_raw && <p className="mt-1 text-xs text-destructive">{errors.telephone_raw}</p>}
           </div>
         </div>
 
-        <Field label={t("res.f.email")} name="email" type="email" value={form.email} onChange={handleChange} error={errors.email} />
+        <Field
+          label={t("res.f.email")}
+          name="email"
+          type="email"
+          value={form.email}
+          onChange={handleChange}
+          error={errors.email}
+        />
 
         <div>
           <label className="mb-1.5 block text-sm font-medium">{t("res.f.trip")}</label>
@@ -221,35 +282,96 @@ function ReservationPage() {
               { v: "aller", l: t("res.f.trip.one") },
               { v: "aller_retour", l: t("res.f.trip.round") },
             ].map((o) => (
-              <label key={o.v}
+              <label
+                key={o.v}
                 className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-md border px-4 py-2.5 text-sm font-medium transition ${
-                  form.trip_type === o.v ? "border-primary bg-primary/10 text-primary" : "border-border bg-input text-muted-foreground hover:border-primary/40"
-                }`}>
-                <input type="radio" name="trip_type" value={o.v} checked={form.trip_type === o.v} onChange={handleChange} className="sr-only" />
+                  form.trip_type === o.v
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-input text-muted-foreground hover:border-primary/40"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="trip_type"
+                  value={o.v}
+                  checked={form.trip_type === o.v}
+                  onChange={handleChange}
+                  className="sr-only"
+                />
                 {o.l}
               </label>
             ))}
           </div>
         </div>
 
-        <Field label={t("res.f.pickup")} name="pickup_datetime" type="datetime-local" value={form.pickup_datetime} onChange={handleChange} error={errors.pickup_datetime} />
+        <Field
+          label={t("res.f.pickup")}
+          name="pickup_datetime"
+          type="datetime-local"
+          value={form.pickup_datetime}
+          onChange={handleChange}
+          error={errors.pickup_datetime}
+        />
 
         {form.trip_type === "aller_retour" && (
-          <Field label={t("res.f.return")} name="return_datetime" type="datetime-local" value={form.return_datetime} onChange={handleChange} error={errors.return_datetime} />
+          <Field
+            label={t("res.f.return")}
+            name="return_datetime"
+            type="datetime-local"
+            value={form.return_datetime}
+            onChange={handleChange}
+            error={errors.return_datetime}
+          />
         )}
 
         <div className="grid gap-5 md:grid-cols-2">
-          <Field label={t("res.f.from")} name="depart" value={form.depart} onChange={handleChange} error={errors.depart} placeholder={t("res.f.from.ph")} />
-          <Field label={t("res.f.to")} name="arrivee" value={form.arrivee} onChange={handleChange} error={errors.arrivee} placeholder={t("res.f.to.ph")} />
+          <Field
+            label={t("res.f.from")}
+            name="depart"
+            value={form.depart}
+            onChange={handleChange}
+            error={errors.depart}
+            placeholder={t("res.f.from.ph")}
+          />
+          <Field
+            label={t("res.f.to")}
+            name="arrivee"
+            value={form.arrivee}
+            onChange={handleChange}
+            error={errors.arrivee}
+            placeholder={t("res.f.to.ph")}
+          />
         </div>
 
         <div className="grid gap-5 md:grid-cols-3">
-          <Field label={t("res.f.passengers")} name="passagers" type="number" min={1} max={8} value={form.passagers} onChange={handleChange} error={errors.passagers} />
-          <Field label={t("res.f.luggage")} name="bagages" type="number" min={0} max={10} value={form.bagages} onChange={handleChange} error={errors.bagages} />
+          <Field
+            label={t("res.f.passengers")}
+            name="passagers"
+            type="number"
+            min={1}
+            max={8}
+            value={form.passagers}
+            onChange={handleChange}
+            error={errors.passagers}
+          />
+          <Field
+            label={t("res.f.luggage")}
+            name="bagages"
+            type="number"
+            min={0}
+            max={10}
+            value={form.bagages}
+            onChange={handleChange}
+            error={errors.bagages}
+          />
           <div>
             <label className="mb-1.5 block text-sm font-medium">{t("res.f.kind")}</label>
-            <select name="service_type" value={form.service_type} onChange={handleChange}
-              className="h-11 w-full rounded-md border border-border bg-input px-3 text-sm">
+            <select
+              name="service_type"
+              value={form.service_type}
+              onChange={handleChange}
+              className="h-11 w-full rounded-md border border-border bg-input px-3 text-sm"
+            >
               <option value="standard">{t("res.f.kind.standard")}</option>
               <option value="aeroport">{t("res.f.kind.airport")}</option>
               <option value="gare">{t("res.f.kind.train")}</option>
@@ -263,16 +385,32 @@ function ReservationPage() {
 
         <div>
           <label className="mb-1.5 block text-sm font-medium">{t("res.f.message")}</label>
-          <textarea name="message" value={form.message} onChange={handleChange} rows={4}
+          <textarea
+            name="message"
+            value={form.message}
+            onChange={handleChange}
+            rows={4}
             placeholder={t("res.f.message.ph")}
-            className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm" />
+            className="w-full rounded-md border border-border bg-input px-3 py-2 text-sm"
+          />
         </div>
 
-        {errors._global && <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{errors._global}</p>}
+        {errors._global && (
+          <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{errors._global}</p>
+        )}
 
-        <button type="submit" disabled={loading}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-6 py-3.5 font-semibold text-primary-foreground shadow-[var(--shadow-gold)] transition hover:opacity-90 disabled:opacity-60">
-          {loading ? <><Loader2 className="h-5 w-5 animate-spin" /> {t("res.sending")}</> : t("res.send")}
+        <button
+          type="submit"
+          disabled={loading}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-6 py-3.5 font-semibold text-primary-foreground shadow-[var(--shadow-gold)] transition hover:opacity-90 disabled:opacity-60"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" /> {t("res.sending")}
+            </>
+          ) : (
+            t("res.send")
+          )}
         </button>
 
         <p className="text-center text-xs text-muted-foreground">{t("res.note")}</p>
@@ -281,29 +419,48 @@ function ReservationPage() {
   );
 }
 
-function Field({ label, error, ...props }: { label: string; error?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+function Field({
+  label,
+  error,
+  ...props
+}: { label: string; error?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <div>
       <label className="mb-1.5 block text-sm font-medium">{label}</label>
-      <input {...props}
-        className="h-11 w-full rounded-md border border-border bg-input px-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
+      <input
+        {...props}
+        className="h-11 w-full rounded-md border border-border bg-input px-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+      />
       {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
     </div>
   );
 }
 
-function Extra({ icon: Icon, name, checked, onChange, label, hint }: {
+function Extra({
+  icon: Icon,
+  name,
+  checked,
+  onChange,
+  label,
+  hint,
+}: {
   icon: React.ComponentType<{ className?: string }>;
-  name: string; checked: boolean;
+  name: string;
+  checked: boolean;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  label: string; hint: string;
+  label: string;
+  hint: string;
 }) {
   return (
-    <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
-      checked ? "border-primary bg-primary/5" : "border-border bg-input/40 hover:border-primary/40"
-    }`}>
+    <label
+      className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
+        checked ? "border-primary bg-primary/5" : "border-border bg-input/40 hover:border-primary/40"
+      }`}
+    >
       <input type="checkbox" name={name} checked={checked} onChange={onChange} className="sr-only" />
-      <span className={`mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${checked ? "bg-primary text-primary-foreground" : "bg-background text-primary"}`}>
+      <span
+        className={`mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${checked ? "bg-primary text-primary-foreground" : "bg-background text-primary"}`}
+      >
         <Icon className="h-4 w-4" />
       </span>
       <span className="flex-1">
