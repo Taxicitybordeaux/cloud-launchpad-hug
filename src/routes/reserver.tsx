@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -121,8 +121,9 @@ function useNominatim(query: string) {
         const url = new URL("https://nominatim.openstreetmap.org/search");
         url.searchParams.set("q", query);
         url.searchParams.set("format", "json");
-        url.searchParams.set("limit", "5");
+        url.searchParams.set("limit", "12");
         url.searchParams.set("countrycodes", "fr");
+        url.searchParams.set("addressdetails", "1");
         const res = await fetch(url.toString(), { headers: { "Accept-Language": "fr" } });
         setResults(await res.json());
       } catch {
@@ -144,12 +145,11 @@ interface AddressInputProps {
   fieldKey: "depart" | "destination";
   value: string;
   onChange: (k: string, v: string) => void;
-  onCoordSelect: (coord: [number, number]) => void;
   placeholder: string;
   error?: string;
 }
 
-function AddressInput({ fieldKey, value: _value, onChange, onCoordSelect, placeholder, error }: AddressInputProps) {
+function AddressInput({ fieldKey, value: _value, onChange, placeholder, error }: AddressInputProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -175,7 +175,6 @@ function AddressInput({ fieldKey, value: _value, onChange, onCoordSelect, placeh
     if (inputRef.current) inputRef.current.value = short;
     setQuery(short);
     onChange(fieldKey, short);
-    onCoordSelect([parseFloat(r.lon), parseFloat(r.lat)]);
     setOpen(false);
   };
 
@@ -341,13 +340,12 @@ function ReservationPage() {
         `Date : ${f.date} ${f.heure}\n` +
         `Passagers : ${f.passagers}\n` +
         `Bagages : ${f.bagages}\n` +
-        `Tarif : ${f.tarifJour ? "Jour" : "Nuit"}\n` +
-        `Distance estimée : non calculée`,
+        `Tarif : ${f.tarifJour ? "Jour" : "Nuit"}`,
     );
   };
 
   const buildEmailText = () =>
-    `Réservation taxi%0A%0AClient: ${f.prenom} ${f.nom}%0ATél: ${f.phone}%0AEmail: ${f.email}%0A%0ADépart: ${f.depart}%0ADestination: ${f.destination}%0ADate: ${f.date} ${f.heure}%0APassagers: ${f.passagers}%0ABagages: ${f.bagages}%0ATarif: ${f.tarifJour ? "Jour" : "Nuit"}%0ADistance: non calculée`;
+    `Réservation taxi%0A%0AClient: ${f.prenom} ${f.nom}%0ATél: ${f.phone}%0AEmail: ${f.email}%0A%0ADépart: ${f.depart}%0ADestination: ${f.destination}%0ADate: ${f.date} ${f.heure}%0APassagers: ${f.passagers}%0ABagages: ${f.bagages}%0ATarif: ${f.tarifJour ? "Jour" : "Nuit"}`;
 
   const submitForm = async () => {
     if (!validate()) return;
@@ -391,7 +389,7 @@ function ReservationPage() {
         client_phone: f.phone,
         client_email: f.email,
         destination: f.destination,
-        distance_km: distance,
+        distance_km: null,
         date_course: f.date,
         heure_course: f.heure,
         nb_passagers: f.passagers,
@@ -583,6 +581,50 @@ function ReservationPage() {
               Votre course
             </h3>
             <div style={{ display: "grid", gap: 12 }}>
+              {/* Adresses */}
+              <div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "#64748b",
+                    marginBottom: 4,
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  🟢 Adresse de départ
+                </div>
+                <AddressInput
+                  fieldKey="depart"
+                  value={f.depart}
+                  onChange={set}
+                  placeholder="Ex : 12 rue Sainte-Catherine, Bordeaux"
+                  error={errors.depart}
+                />
+              </div>
+              <div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "#64748b",
+                    marginBottom: 4,
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  🏁 Adresse de destination
+                </div>
+                <AddressInput
+                  fieldKey="destination"
+                  value={f.destination}
+                  onChange={set}
+                  placeholder="Ex : Aéroport de Bordeaux"
+                  error={errors.destination}
+                />
+              </div>
+
               {/* Date, heure, passagers, bagages */}
               <div className="resa-grid-4">
                 <div>
