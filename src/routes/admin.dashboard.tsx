@@ -32,7 +32,7 @@ const valCss: React.CSSProperties = {
 
 // Tarifs officiels Bordeaux
 const TARIF_JOUR_LABEL = "2,16 €/km";
-const TARIF_NUIT_LABEL = "3,24 €/km";
+const TARIF_NUIT_LABEL = "3,26 €/km";
 
 /* Status badge */
 const STATUS: Record<string, { bg: string; c: string; label: string }> = {
@@ -189,13 +189,13 @@ function Dashboard() {
       supabase.from("clients").select("id", { count: "exact", head: true }),
       supabase.from("site_analytics").select("session_id").eq("event", "visit").gte("created_at", todayIso),
       supabase.from("reservations").select("*").order("created_at", { ascending: false }).limit(10),
-      // Prochaine course acceptée dans le futur
+      // Prochaine course acceptée : dans le futur, pickup_datetime null, ou dans les 2h passées
       supabase
         .from("reservations")
         .select("*")
         .eq("status", "accepted")
-        .gte("pickup_datetime", nowIso)
-        .order("pickup_datetime", { ascending: true })
+        .or(`pickup_datetime.is.null,pickup_datetime.gte.${new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()}`)
+        .order("pickup_datetime", { ascending: true, nullsFirst: true })
         .limit(1),
     ]);
 
@@ -304,7 +304,7 @@ function Dashboard() {
           const arrivee = nextCourse.arrivee || nextCourse.destination;
           const trackingUrl =
             nextCourse.tracking_id && typeof window !== "undefined"
-              ? `${window.location.origin}/scan/${nextCourse.tracking_id}`
+              ? `${window.location.origin}/tracking/${nextCourse.tracking_id}`
               : null;
 
           return (
