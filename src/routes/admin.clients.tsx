@@ -28,19 +28,13 @@ export const Route = createFileRoute("/admin/clients")({
 function SwipeRow({ onDelete, children }: { onDelete: () => void; children: React.ReactNode }) {
   const [dx, setDx] = useState(0);
   const startX = useRef<number | null>(null);
-  const REVEAL = 88;
+  const REVEAL = 80;
   const isOpen = dx <= -REVEAL / 2;
 
   return (
-    <div
-      style={{
-        position: "relative",
-        overflow: "hidden",
-        borderTop: "1px solid rgba(255,255,255,0.05)",
-        borderRadius: 20,
-      }}
-    >
-      {/* Bouton rouge révélé au swipe */}
+    // Wrapper : clip le débordement, fond neutre pour que le rouge ne "fuite" pas
+    <div style={{ position: "relative", overflow: "hidden", borderRadius: 20 }}>
+      {/* Bouton rouge — caché à droite, révélé uniquement quand la carte glisse */}
       <button
         onClick={onDelete}
         aria-label="Supprimer"
@@ -56,13 +50,15 @@ function SwipeRow({ onDelete, children }: { onDelete: () => void; children: Reac
           fontSize: 22,
           cursor: "pointer",
           fontWeight: 700,
-          borderRadius: "0 20px 20px 0",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
         🗑
       </button>
 
-      {/* Contenu glissable (touch seulement, comme le dashboard) */}
+      {/* Carte glissable — couvre le bouton rouge par défaut */}
       <div
         onTouchStart={(e) => {
           startX.current = e.touches[0].clientX - dx;
@@ -82,10 +78,12 @@ function SwipeRow({ onDelete, children }: { onDelete: () => void; children: Reac
         style={{
           transform: `translateX(${dx}px)`,
           transition: startX.current === null ? "transform 0.2s ease" : "none",
-          background: "rgba(255,255,255,0.04)",
+          background: "#0f172a", // fond plein opaque — masque le rouge derrière
           border: "1px solid rgba(255,255,255,0.08)",
           borderRadius: 20,
           padding: 20,
+          position: "relative", // reste au-dessus du bouton
+          zIndex: 1,
         }}
       >
         {children}
@@ -345,6 +343,26 @@ function ClientsPage() {
                       </div>
                     )}
                   </div>
+
+                  {/* Bouton supprimer desktop (visible uniquement en large) */}
+                  <button
+                    onClick={() => deleteClient(c.id)}
+                    title="Supprimer ce client"
+                    className="client-delete-btn"
+                    style={{
+                      background: "rgba(239,68,68,0.15)",
+                      color: "#ef4444",
+                      border: "1px solid rgba(239,68,68,0.3)",
+                      padding: "5px 10px",
+                      borderRadius: 8,
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      flexShrink: 0,
+                    }}
+                  >
+                    🗑
+                  </button>
                 </div>
 
                 {/* Dernière course */}
@@ -696,6 +714,13 @@ function ClientsPage() {
             );
           })}
       </div>
+
+      {/* Responsive : bouton 🗑 masqué sur mobile (swipe suffit), visible sur desktop */}
+      <style>{`
+        @media (max-width: 640px) {
+          .client-delete-btn { display: none !important; }
+        }
+      `}</style>
     </div>
   );
 }
