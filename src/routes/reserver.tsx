@@ -703,7 +703,7 @@ function ReservationPage() {
                   >
                     Heure
                   </div>
-                  <Input k="heure" value={f.heure} onChange={set} type="time" error={errors.heure} />
+                  <Input k="heure" value={f.heure} onChange={set} type="time" placeholder="Ex : 14:30" error={errors.heure} />
                 </div>
                 <div>
                   <div
