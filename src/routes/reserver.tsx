@@ -353,6 +353,7 @@ function ReservationPage() {
     passagers: 1,
     bagages: 0,
     tarifJour: true,
+    paiement: "especes",
   });
 
   const [fromCoord, setFromCoord] = useState<[number, number] | null>(null);
@@ -459,6 +460,7 @@ function ReservationPage() {
         prix_estime: prix,
         status: "pending",
         source: "form",
+        paiement: f.paiement,
       });
 
       if (insertError) throw new Error(insertError.message);
@@ -643,24 +645,34 @@ function ReservationPage() {
             </h3>
             <div style={{ display: "grid", gap: 12 }}>
               {/* Adresse de départ avec autocomplete */}
-              <AddressInput
-                fieldKey="depart"
-                value={f.depart}
-                onChange={set}
-                onCoordSelect={setFromCoord}
-                placeholder="Adresse de départ"
-                error={errors.depart}
-              />
+              <div>
+                <div style={{ fontSize: 11, color: "#64748b", marginBottom: 4, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Adresse de départ
+                </div>
+                <AddressInput
+                  fieldKey="depart"
+                  value={f.depart}
+                  onChange={set}
+                  onCoordSelect={setFromCoord}
+                  placeholder="Ex : 12 rue Sainte-Catherine, Bordeaux"
+                  error={errors.depart}
+                />
+              </div>
 
               {/* Adresse de destination avec autocomplete */}
-              <AddressInput
-                fieldKey="destination"
-                value={f.destination}
-                onChange={set}
-                onCoordSelect={setToCoord}
-                placeholder="Adresse de destination"
-                error={errors.destination}
-              />
+              <div>
+                <div style={{ fontSize: 11, color: "#64748b", marginBottom: 4, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Adresse de destination
+                </div>
+                <AddressInput
+                  fieldKey="destination"
+                  value={f.destination}
+                  onChange={set}
+                  onCoordSelect={setToCoord}
+                  placeholder="Ex : Aéroport de Bordeaux"
+                  error={errors.destination}
+                />
+              </div>
 
               {/* Date, heure, passagers, bagages */}
               <div className="resa-grid-4">
@@ -692,7 +704,7 @@ function ReservationPage() {
                   >
                     Heure
                   </div>
-                  <Input k="heure" value={f.heure} onChange={set} type="time" error={errors.heure} />
+                  <Input k="heure" value={f.heure} onChange={set} type="time" placeholder="Ex : 14:30" error={errors.heure} />
                 </div>
                 <div>
                   <div
@@ -758,7 +770,7 @@ function ReservationPage() {
                   onChange={() => set("tarifJour", true)}
                   style={{ accentColor: "#0ea5e9" }}
                 />
-                ☀️ Jour (7h–19h) — 2,16 €/km
+                ☀️ Jour (7h–19h) — du lundi au samedi — 2,16 €/km
               </label>
               <label
                 style={{
@@ -779,8 +791,55 @@ function ReservationPage() {
                   onChange={() => set("tarifJour", false)}
                   style={{ accentColor: "#818cf8" }}
                 />
-                🌙 Nuit (19h–7h) — 3,24 €/km
+                🌙 Nuit (19h–7h) — du lundi au dimanche & jours fériés — 3,24 €/km
               </label>
+            </div>
+
+            {/* ── Moyen de paiement ── */}
+            <h3
+              style={{
+                fontFamily: "'Syne',sans-serif",
+                marginTop: 24,
+                color: "#0f172a",
+                fontSize: "clamp(14px,4vw,16px)",
+              }}
+            >
+              Moyen de paiement
+            </h3>
+            <div className="resa-grid-4">
+              {[
+                { v: "especes", l: "💶 Espèces" },
+                { v: "cb", l: "💳 CB" },
+                { v: "virement", l: "🏦 Virement" },
+                { v: "cheque", l: "📝 Chèque" },
+              ].map((opt) => (
+                <label
+                  key={opt.v}
+                  style={{
+                    padding: 12,
+                    border: `2px solid ${f.paiement === opt.v ? "#0ea5e9" : "#e2e8f0"}`,
+                    borderRadius: 12,
+                    cursor: "pointer",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    background: f.paiement === opt.v ? "#f0f9ff" : "#fff",
+                    color: "#0f172a",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="paiement"
+                    checked={f.paiement === opt.v}
+                    onChange={() => set("paiement", opt.v)}
+                    style={{ accentColor: "#0ea5e9", display: "none" }}
+                  />
+                  {opt.l}
+                </label>
+              ))}
             </div>
 
             {/* ── Simulateur de prix ── */}
@@ -833,13 +892,14 @@ function ReservationPage() {
                 </div>
                 <div
                   style={{
-                    fontFamily: "'Syne',sans-serif",
+                    fontFamily: "'DM Sans', system-ui, sans-serif",
                     fontSize: "clamp(24px,6vw,32px)",
-                    fontWeight: 900,
+                    fontWeight: 700,
                     color: "#dc2626",
+                    fontVariantNumeric: "tabular-nums",
                   }}
                 >
-                  {prix} €
+                  {prix.toFixed(2)} €
                 </div>
               </div>
               <div style={{ fontSize: 12, color: "#dc2626", fontWeight: 700, marginTop: 4 }}>
