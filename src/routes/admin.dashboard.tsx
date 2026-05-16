@@ -451,7 +451,7 @@ function Dashboard() {
                       </div>
                       <div
                         style={{
-                          color: "#0ea5e9",
+                          color: "#ef4444", // ✅ Rouge
                           fontFamily: "'Syne',sans-serif",
                           fontWeight: 800,
                           fontSize: 20,
@@ -786,8 +786,8 @@ function Dashboard() {
                           display: "inline-flex",
                           alignItems: "baseline",
                           gap: 8,
-                          background: "#0ea5e9",
-                          border: "1px solid #38bdf8",
+                          background: "#ef4444", // ✅ Rouge
+                          border: "1px solid #f87171",
                           color: "#ffffff",
                           fontWeight: 800,
                           fontSize: "clamp(15px, 4.2vw, 18px)",
@@ -795,7 +795,7 @@ function Dashboard() {
                           padding: "6px 12px",
                           borderRadius: 999,
                           whiteSpace: "nowrap",
-                          boxShadow: "0 2px 8px rgba(14,165,233,0.35)",
+                          boxShadow: "0 2px 8px rgba(239,68,68,0.35)",
                         }}
                       >
                         <span
@@ -909,7 +909,7 @@ function Dashboard() {
                       >
                         {r.depart} → {r.destination || r.arrivee}
                       </td>
-                      <td style={{ padding: "10px 14px", whiteSpace: "nowrap", color: "#0ea5e9", fontWeight: 700 }}>
+                      <td style={{ padding: "10px 14px", whiteSpace: "nowrap", color: "#ef4444", fontWeight: 700 }}>
                         {prix !== null ? `${prix.toFixed(2)} €` : "—"}
                       </td>
                       <td style={{ padding: "10px 14px", whiteSpace: "nowrap", color: "#cbd5e1", fontSize: 12 }}>
