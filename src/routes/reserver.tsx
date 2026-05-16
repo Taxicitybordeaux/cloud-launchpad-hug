@@ -768,7 +768,7 @@ function ReservationPage() {
                   onChange={() => set("tarifJour", false)}
                   style={{ accentColor: "#818cf8" }}
                 />
-                🌙 Nuit (19h–7h) — du lundi au dimanche & jours fériés — 3,24 €/km
+                🌙 Nuit (19h–7h) — dimanches & jours fériés — 3,24 €/km
               </label>
             </div>
 
@@ -787,8 +787,6 @@ function ReservationPage() {
               {[
                 { v: "especes", l: "💶 Espèces" },
                 { v: "cb", l: "💳 CB" },
-                { v: "virement", l: "🏦 Virement" },
-                { v: "cheque", l: "📝 Chèque" },
               ].map((opt) => (
                 <label
                   key={opt.v}
