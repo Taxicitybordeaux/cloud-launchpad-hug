@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useLocation, Link } from "@tanstack/react-router";
 import { MessageCircle, Phone, FileText } from "lucide-react";
 import { useReservationDraft } from "@/lib/reservation-draft";
@@ -58,6 +59,26 @@ export function WhatsAppFloat() {
   if (isHiddenPage) return null;
 
   const btnBase: React.CSSProperties = {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    padding: "10px 6px",
+    borderRadius: 12,
+    fontWeight: 700,
+    fontSize: "clamp(11px, 3.2vw, 13px)",
+    textDecoration: "none",
+    color: "#fff",
+    minHeight: 56,
+    lineHeight: 1.1,
+  };
+
+  const content = (
+    <>
+      {/* Mobile: fixed 3-button action bar */}
+      <div
     flex: 1,
     display: "flex",
     flexDirection: "column",
@@ -207,4 +228,8 @@ export function WhatsAppFloat() {
       </div>
     </>
   );
+
+  return typeof document !== "undefined"
+    ? createPortal(content, document.body)
+    : null;
 }
