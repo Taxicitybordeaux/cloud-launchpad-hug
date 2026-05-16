@@ -23,11 +23,7 @@ export const reservationDraftStore = {
 };
 
 export function useReservationDraft(): ReservationLite | null {
-  return useSyncExternalStore(
-    reservationDraftStore.subscribe,
-    reservationDraftStore.get,
-    () => null,
-  );
+  return useSyncExternalStore(reservationDraftStore.subscribe, reservationDraftStore.get, () => null);
 }
 
 /** Helper hook for the reservation form to publish/clear the draft. */
