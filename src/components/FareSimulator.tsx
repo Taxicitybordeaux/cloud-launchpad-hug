@@ -307,7 +307,7 @@ export function FareSimulator() {
               </div>
             ) : total != null ? (
               <>
-                <div className="mt-3 font-display text-5xl font-bold text-red-600" aria-live="polite">
+                <div className="mt-3 text-5xl font-bold text-red-600 tabular-nums" style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }} aria-live="polite">
                   {formatEUR(total)}
                 </div>
                 <p className="mt-2 text-xs font-bold text-red-600">
