@@ -816,7 +816,7 @@ function ReservationPage() {
                   onChange={() => set("tarifJour", false)}
                   style={{ accentColor: "#818cf8" }}
                 />
-                🌙 Nuit (19h–7h) — dimanche & jours fériés — 3,24 €/km
+                🌙 Nuit (19h–7h) — du lundi au dimanche & jours fériés — 3,24 €/km
               </label>
             </div>
 
@@ -831,10 +831,12 @@ function ReservationPage() {
             >
               Moyen de paiement
             </h3>
-            <div className="resa-grid-2">
+            <div className="resa-grid-4">
               {[
-                { v: "especes", l: "💵 Espèces" },
-                { v: "cb", l: "💳 Carte bancaire" },
+                { v: "especes", l: "💶 Espèces" },
+                { v: "cb", l: "💳 CB" },
+                { v: "virement", l: "🏦 Virement" },
+                { v: "cheque", l: "📝 Chèque" },
               ].map((opt) => (
                 <label
                   key={opt.v}
@@ -878,6 +880,27 @@ function ReservationPage() {
                 Simulateur de prix
               </h3>
 
+              {/* ── Résumé départ / destination ── */}
+              <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14 }}>
+                  <span style={{ color: "#0ea5e9", flexShrink: 0 }}>🟢</span>
+                  <span style={{ color: f.depart ? "#0f172a" : "#94a3b8", fontStyle: f.depart ? "normal" : "italic" }}>
+                    {f.depart || "Départ non renseigné — saisissez l'adresse ci-dessus"}
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14 }}>
+                  <span style={{ color: "#dc2626", flexShrink: 0 }}>🔴</span>
+                  <span
+                    style={{
+                      color: f.destination ? "#0f172a" : "#94a3b8",
+                      fontStyle: f.destination ? "normal" : "italic",
+                    }}
+                  >
+                    {f.destination || "Destination non renseignée — saisissez l'adresse ci-dessus"}
+                  </span>
+                </div>
+              </div>
+
               <div style={{ marginTop: 12, fontSize: 14, color: "#475569" }}>
                 Prise en charge : {TARIFS.PRISE_EN_CHARGE} €
               </div>
@@ -893,7 +916,9 @@ function ReservationPage() {
                   </span>
                 ) : (
                   <span style={{ color: "#94a3b8" }}>
-                    Entrez départ + destination pour calculer la distance automatiquement.
+                    {f.depart && f.destination
+                      ? "⏳ Calcul en cours…"
+                      : "Entrez départ + destination pour calculer la distance automatiquement."}
                   </span>
                 )}
               </div>
