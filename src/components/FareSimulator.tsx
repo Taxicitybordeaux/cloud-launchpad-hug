@@ -280,7 +280,9 @@ export function FareSimulator() {
                       className="sr-only"
                     />
                     <span className="font-medium">
-                      {p === "day" ? "☀️ Jour (7h–19h)" : "🌙 Nuit / Dimanche / Jours fériés (19h–7h)"}
+                      {p === "day"
+                        ? "☀️ Jour (7h–19h) — du lundi au samedi"
+                        : "🌙 Nuit (19h–7h) — du lundi au dimanche & jours fériés"}
                     </span>
                     <span className="mt-1 block text-xs">{formatEUR(p === "day" ? RATE_DAY : RATE_NIGHT)} / km</span>
                   </label>
