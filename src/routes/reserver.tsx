@@ -644,24 +644,34 @@ function ReservationPage() {
             </h3>
             <div style={{ display: "grid", gap: 12 }}>
               {/* Adresse de départ avec autocomplete */}
-              <AddressInput
-                fieldKey="depart"
-                value={f.depart}
-                onChange={set}
-                onCoordSelect={setFromCoord}
-                placeholder="Adresse de départ"
-                error={errors.depart}
-              />
+              <div>
+                <div style={{ fontSize: 11, color: "#64748b", marginBottom: 4, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Adresse de départ
+                </div>
+                <AddressInput
+                  fieldKey="depart"
+                  value={f.depart}
+                  onChange={set}
+                  onCoordSelect={setFromCoord}
+                  placeholder="Ex : 12 rue Sainte-Catherine, Bordeaux"
+                  error={errors.depart}
+                />
+              </div>
 
               {/* Adresse de destination avec autocomplete */}
-              <AddressInput
-                fieldKey="destination"
-                value={f.destination}
-                onChange={set}
-                onCoordSelect={setToCoord}
-                placeholder="Adresse de destination"
-                error={errors.destination}
-              />
+              <div>
+                <div style={{ fontSize: 11, color: "#64748b", marginBottom: 4, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Adresse de destination
+                </div>
+                <AddressInput
+                  fieldKey="destination"
+                  value={f.destination}
+                  onChange={set}
+                  onCoordSelect={setToCoord}
+                  placeholder="Ex : Aéroport de Bordeaux"
+                  error={errors.destination}
+                />
+              </div>
 
               {/* Date, heure, passagers, bagages */}
               <div className="resa-grid-4">
