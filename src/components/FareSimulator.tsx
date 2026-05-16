@@ -52,12 +52,12 @@ function useNominatim(query: string) {
         const url = new URL("https://nominatim.openstreetmap.org/search");
         url.searchParams.set("q", query);
         url.searchParams.set("format", "json");
-        url.searchParams.set("limit", "5");
+        url.searchParams.set("limit", "12");
         url.searchParams.set("countrycodes", "fr");
-        const res = await fetch(url.toString(), {
-          headers: { "Accept-Language": "fr" },
-        });
-        setResults(await res.json());
+        url.searchParams.set("addressdetails", "1");
+        const res = await fetch(url.toString(), { headers: { "Accept-Language": "fr" } });
+        const data: NominatimResult[] = await res.json();
+        setResults(data);
       } catch {
         setResults([]);
       } finally {
