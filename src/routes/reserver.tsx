@@ -867,7 +867,7 @@ function ReservationPage() {
                       letterSpacing: "0.05em",
                     }}
                   >
-                    🔴 Adresse de destination
+                    🏁 Adresse de destination
                   </div>
                   <AddressInput
                     fieldKey="destination"
@@ -893,13 +893,7 @@ function ReservationPage() {
                     Distance estimée : <strong style={{ color: "#0f172a" }}>{autoKm} km</strong>
                     {!ORS_API_KEY && <span style={{ color: "#94a3b8", fontSize: 12 }}> (estimation)</span>}
                   </span>
-                ) : (
-                  <span style={{ color: "#94a3b8" }}>
-                    {f.depart && f.destination
-                      ? "⏳ Calcul en cours…"
-                      : "Entrez départ + destination pour calculer la distance automatiquement."}
-                  </span>
-                )}
+                ) : null}
               </div>
 
               <div style={{ fontSize: 14, color: "#475569", marginTop: 6 }}>
