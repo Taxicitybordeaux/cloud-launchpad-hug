@@ -353,6 +353,7 @@ function ReservationPage() {
     passagers: 1,
     bagages: 0,
     tarifJour: true,
+    paiement: "especes",
   });
 
   const [fromCoord, setFromCoord] = useState<[number, number] | null>(null);
