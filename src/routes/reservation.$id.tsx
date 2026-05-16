@@ -1,25 +1,41 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { CheckCircle2, Calendar, MapPin, Phone, MessageCircle, Loader2, XCircle, AlertTriangle, Navigation } from "lucide-react";
+import {
+  CheckCircle2,
+  Calendar,
+  MapPin,
+  Phone,
+  MessageCircle,
+  Loader2,
+  XCircle,
+  AlertTriangle,
+  Navigation,
+} from "lucide-react";
 import { buildReservationMessage, whatsappLink } from "@/lib/whatsapp";
 import { useT, useI18n } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/reservation/$id")({
   head: () => ({
-    meta: [
-      { title: "Confirmation – Taxi City Bordeaux" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Confirmation – Taxi City Bordeaux" }, { name: "robots", content: "noindex" }],
   }),
   component: ConfirmationPage,
 });
 
 type Reservation = {
-  id: string; nom: string; telephone: string; email: string | null;
-  pickup_datetime: string; depart: string; arrivee: string;
-  passagers: number; bagages: number; service_type: string;
-  message: string | null; status: string; created_at: string;
+  id: string;
+  nom: string;
+  telephone: string;
+  email: string | null;
+  pickup_datetime: string;
+  depart: string;
+  arrivee: string;
+  passagers: number;
+  bagages: number;
+  service_type: string;
+  message: string | null;
+  status: string;
+  created_at: string;
 };
 
 function ConfirmationPage() {
@@ -42,7 +58,9 @@ function ConfirmationPage() {
       else setReservation(data[0] as Reservation);
       setLoading(false);
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   const handleCancel = async () => {
@@ -69,8 +87,10 @@ function ConfirmationPage() {
         <AlertTriangle className="mx-auto h-16 w-16 text-destructive" />
         <h1 className="mt-6 font-display text-3xl font-bold">{t("conf.notfound.title")}</h1>
         <p className="mt-3 text-muted-foreground">{t("conf.notfound.desc")}</p>
-        <button onClick={() => navigate({ to: "/reservation" })}
-          className="mt-6 rounded-md bg-primary px-6 py-3 font-semibold text-primary-foreground">
+        <button
+          onClick={() => navigate({ to: "/reservation" })}
+          className="mt-6 rounded-md bg-primary px-6 py-3 font-semibold text-primary-foreground"
+        >
           {t("conf.notfound.cta")}
         </button>
       </div>
@@ -80,15 +100,21 @@ function ConfirmationPage() {
   const refNumber = `TCB-${reservation.id.slice(0, 8).toUpperCase()}`;
   const isCancelled = reservation.status === "annulee";
 
-  const waMessage = buildReservationMessage({
-    nom: reservation.nom, telephone: reservation.telephone,
-    pickup_datetime: reservation.pickup_datetime,
-    depart: reservation.depart, arrivee: reservation.arrivee,
-    passagers: reservation.passagers, bagages: reservation.bagages,
-    service_type: reservation.service_type,
-    message: reservation.message ?? undefined,
-    reservation_id: reservation.id,
-  }, lang);
+  const waMessage = buildReservationMessage(
+    {
+      nom: reservation.nom,
+      telephone: reservation.telephone,
+      pickup_datetime: reservation.pickup_datetime,
+      depart: reservation.depart,
+      arrivee: reservation.arrivee,
+      passagers: reservation.passagers,
+      bagages: reservation.bagages,
+      service_type: reservation.service_type,
+      message: reservation.message ?? undefined,
+      reservation_id: reservation.id,
+    },
+    lang,
+  );
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-16">
@@ -116,35 +142,54 @@ function ConfirmationPage() {
 
       <div className="mt-6 rounded-2xl border border-border bg-card p-6 space-y-4">
         <h2 className="font-display text-lg font-semibold">{t("conf.summary")}</h2>
-        <Row icon={Calendar} label={t("conf.row.pickup")}
-             value={new Date(reservation.pickup_datetime).toLocaleString(undefined, { dateStyle: "full", timeStyle: "short" })} />
+        <Row
+          icon={Calendar}
+          label={t("conf.row.pickup")}
+          value={new Date(reservation.pickup_datetime).toLocaleString("fr-FR", {
+            dateStyle: "full",
+            timeStyle: "short",
+            timeZone: "Europe/Paris", // ✅ Format français + heure de Paris
+          })}
+        />
         <Row icon={MapPin} label={t("conf.row.from")} value={reservation.depart} />
         <Row icon={MapPin} label={t("conf.row.to")} value={reservation.arrivee} />
         <Row icon={Phone} label={t("conf.row.phone")} value={reservation.telephone} />
         <div className="text-sm text-muted-foreground">
-          {reservation.passagers} {t("conf.passengers")} • {reservation.bagages} {t("conf.luggage")} • {reservation.service_type}
+          {reservation.passagers} {t("conf.passengers")} • {reservation.bagages} {t("conf.luggage")} •{" "}
+          {reservation.service_type}
         </div>
         {reservation.message && (
-          <p className="rounded-md border border-border bg-input/40 p-3 text-sm whitespace-pre-line">{reservation.message}</p>
+          <p className="rounded-md border border-border bg-input/40 p-3 text-sm whitespace-pre-line">
+            {reservation.message}
+          </p>
         )}
       </div>
 
       {!isCancelled && (
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          <a href={whatsappLink(waMessage)} target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 rounded-md bg-[#25D366] px-5 py-3 font-semibold text-white shadow transition hover:opacity-90">
+          <a
+            href={whatsappLink(waMessage)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 rounded-md bg-[#25D366] px-5 py-3 font-semibold text-white shadow transition hover:opacity-90"
+          >
             <MessageCircle className="h-5 w-5" /> {t("conf.wa")}
           </a>
-          <a href="tel:0673072322"
-            className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-background px-5 py-3 font-semibold transition hover:border-primary">
+          <a
+            href="tel:0673072322"
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-background px-5 py-3 font-semibold transition hover:border-primary"
+          >
             <Phone className="h-5 w-5" /> 06 73 07 23 22
           </a>
         </div>
       )}
 
       {!isCancelled && (
-        <Link to="/suivi/$id" params={{ id: reservation.id }}
-          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 font-semibold text-primary-foreground shadow transition hover:opacity-90">
+        <Link
+          to="/suivi/$id"
+          params={{ id: reservation.id }}
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 font-semibold text-primary-foreground shadow transition hover:opacity-90"
+        >
           <Navigation className="h-5 w-5" /> {t("conf.track")}
         </Link>
       )}
@@ -155,19 +200,26 @@ function ConfirmationPage() {
           <p className="mt-1 text-sm text-muted-foreground">{t("conf.modify.desc")}</p>
           {confirmCancel ? (
             <div className="mt-4 flex flex-wrap gap-2">
-              <button onClick={handleCancel} disabled={cancelling}
-                className="inline-flex items-center gap-2 rounded-md bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground disabled:opacity-60">
+              <button
+                onClick={handleCancel}
+                disabled={cancelling}
+                className="inline-flex items-center gap-2 rounded-md bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground disabled:opacity-60"
+              >
                 {cancelling && <Loader2 className="h-4 w-4 animate-spin" />}
                 {t("conf.cancel.confirm")}
               </button>
-              <button onClick={() => setConfirmCancel(false)}
-                className="rounded-md border border-border px-4 py-2 text-sm font-semibold">
+              <button
+                onClick={() => setConfirmCancel(false)}
+                className="rounded-md border border-border px-4 py-2 text-sm font-semibold"
+              >
                 {t("conf.cancel.keep")}
               </button>
             </div>
           ) : (
-            <button onClick={() => setConfirmCancel(true)}
-              className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-destructive hover:underline">
+            <button
+              onClick={() => setConfirmCancel(true)}
+              className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-destructive hover:underline"
+            >
               <XCircle className="h-4 w-4" /> {t("conf.cancel")}
             </button>
           )}
@@ -175,13 +227,23 @@ function ConfirmationPage() {
       )}
 
       <div className="mt-8 text-center">
-        <Link to="/" className="text-sm text-muted-foreground hover:text-primary">{t("conf.back")}</Link>
+        <Link to="/" className="text-sm text-muted-foreground hover:text-primary">
+          {t("conf.back")}
+        </Link>
       </div>
     </div>
   );
 }
 
-function Row({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string }) {
+function Row({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+}) {
   return (
     <div className="flex items-start gap-3">
       <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
