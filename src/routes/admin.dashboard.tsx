@@ -40,6 +40,18 @@ const STATUS: Record<string, { bg: string; c: string; label: string }> = {
   accepted: { bg: "rgba(34,197,94,0.15)", c: "#22c55e", label: "Acceptée" },
   refused: { bg: "rgba(239,68,68,0.15)", c: "#ef4444", label: "Refusée" },
 };
+/** Formate le moyen de paiement stocké en BDD */
+function paiementLabel(p: string | null | undefined): string {
+  if (!p) return "";
+  const map: Record<string, string> = {
+    especes: "💵 Espèces",
+    cb: "💳 CB",
+    virement: "🏦 Virement",
+    cheque: "📝 Chèque",
+  };
+  return map[p.toLowerCase()] ?? p;
+}
+
 function StatusBadge({ s }: { s: string }) {
   const v = STATUS[s] ?? { bg: "rgba(148,163,184,0.15)", c: "#94a3b8", label: s };
   return (
@@ -505,6 +517,23 @@ function Dashboard() {
                   )}
                 </div>
 
+                {/* Moyen de paiement */}
+                {nextCourse.paiement && (
+                  <div
+                    style={{
+                      background: "rgba(34,197,94,0.06)",
+                      border: "1px solid rgba(34,197,94,0.2)",
+                      borderRadius: 12,
+                      padding: "8px 14px",
+                      color: "#22c55e",
+                      fontSize: 13,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {paiementLabel(nextCourse.paiement)}
+                  </div>
+                )}
+
                 {/* Type de service */}
                 {nextCourse.service_type && nextCourse.service_type !== "standard" && (
                   <div
@@ -664,9 +693,7 @@ function Dashboard() {
       >
         {loading
           ? Array.from({ length: 1 }).map((_, i) => <StatCardSkeleton key={i} />)
-          : [
-              { i: "👁️", v: String(visitors), l: "Visiteurs auj." },
-            ].map((c, i) => (
+          : [{ i: "👁️", v: String(visitors), l: "Visiteurs auj." }].map((c, i) => (
               <div key={i} style={card}>
                 <div style={{ fontSize: 22 }}>{c.i}</div>
                 <div style={valCss}>{c.v}</div>
@@ -697,136 +724,133 @@ function Dashboard() {
               const prix = getPrix(r);
               return (
                 <SwipeRow key={r.id} onDelete={() => deleteReservation(r.id)}>
-                <div style={{ padding: "14px 16px" }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      gap: 8,
-                      marginBottom: 6,
-                    }}
-                  >
-                    <span style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 600 }}>
-                      {r.client_name || r.nom || "—"}
-                    </span>
-                    <StatusBadge s={r.status} />
-                  </div>
-                  <div style={{ color: "#94a3b8", fontSize: 12, marginBottom: 4 }}>
-                    {r.depart} → {r.destination || r.arrivee || "—"}
-                  </div>
-                  {r.pickup_datetime && (
-                    <div style={{ color: "#64748b", fontSize: 11, marginBottom: 4 }}>
-                      🕐 {formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })}
-                      {" · "}
-                      <span style={{ color: isNuit(r.pickup_datetime) ? "#818cf8" : "#fbbf24", fontWeight: 600 }}>
-                        {isNuit(r.pickup_datetime) ? `🌙 ${TARIF_NUIT_LABEL}` : `☀️ ${TARIF_JOUR_LABEL}`}
-                      </span>
-                    </div>
-                  )}
-                  {r.message && (
-                    <div style={{ color: "#64748b", fontSize: 11, marginBottom: 4, fontStyle: "italic" }}>
-                      💬 {r.message.slice(0, 60)}
-                      {r.message.length > 60 ? "…" : ""}
-                    </div>
-                  )}
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      gap: 8,
-                      marginTop: 10,
-                      paddingTop: 8,
-                      borderTop: "1px dashed rgba(255,255,255,0.06)",
-                    }}
-                  >
-                    <span style={{ color: "#64748b", fontSize: 11 }}>
-                      Reçu&nbsp;:{" "}
-                      {new Date(r.created_at).toLocaleString("fr-FR", {
-                        timeZone: "Europe/Paris",
-                        dateStyle: "short",
-                        timeStyle: "short",
-                      })}
-                    </span>
-                    <span
-                      role="status"
-                      aria-label={
-                        prix !== null
-                          ? `Prix estimé : ${prix.toFixed(2)} euros`
-                          : "Prix non disponible"
-                      }
+                  <div style={{ padding: "14px 16px" }}>
+                    <div
                       style={{
-                        display: "inline-flex",
-                        alignItems: "baseline",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
                         gap: 8,
-                        background: "#0ea5e9",
-                        border: "1px solid #38bdf8",
-                        color: "#ffffff",
-                        fontWeight: 800,
-                        fontSize: "clamp(15px, 4.2vw, 18px)",
-                        lineHeight: 1.2,
-                        padding: "6px 12px",
-                        borderRadius: 999,
-                        whiteSpace: "nowrap",
-                        boxShadow: "0 2px 8px rgba(14,165,233,0.35)",
+                        marginBottom: 6,
                       }}
                     >
-                      <span
-                        aria-hidden="true"
-                        style={{
-                          fontSize: "clamp(10px, 2.8vw, 12px)",
-                          fontWeight: 800,
-                          letterSpacing: "0.08em",
-                          textTransform: "uppercase",
-                          color: "#ffffff",
-                          opacity: 0.95,
-                        }}
-                      >
-                        Prix
+                      <span style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 600 }}>
+                        {r.client_name || r.nom || "—"}
                       </span>
-                      <span aria-hidden="true">
-                        {prix !== null ? `${prix.toFixed(2)} €` : "—"}
-                      </span>
-                    </span>
-                  </div>
-                  {r.status === "pending" && (
-                    <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                      <button
-                        onClick={() => updateStatus(r.id, "accepted")}
-                        style={{
-                          flex: 1,
-                          padding: "8px 0",
-                          background: "#22c55e",
-                          color: "#fff",
-                          border: 0,
-                          borderRadius: 8,
-                          cursor: "pointer",
-                          fontWeight: 700,
-                          fontSize: 13,
-                        }}
-                      >
-                        ✓ Accepter
-                      </button>
-                      <button
-                        onClick={() => updateStatus(r.id, "refused")}
-                        style={{
-                          flex: 1,
-                          padding: "8px 0",
-                          background: "#ef4444",
-                          color: "#fff",
-                          border: 0,
-                          borderRadius: 8,
-                          cursor: "pointer",
-                          fontWeight: 700,
-                          fontSize: 13,
-                        }}
-                      >
-                        ✗ Refuser
-                      </button>
+                      <StatusBadge s={r.status} />
                     </div>
-                  )}
-                </div>
+                    <div style={{ color: "#94a3b8", fontSize: 12, marginBottom: 4 }}>
+                      {r.depart} → {r.destination || r.arrivee || "—"}
+                    </div>
+                    {r.paiement && (
+                      <div style={{ color: "#64748b", fontSize: 11, marginBottom: 4 }}>{paiementLabel(r.paiement)}</div>
+                    )}
+                    {r.pickup_datetime && (
+                      <div style={{ color: "#64748b", fontSize: 11, marginBottom: 4 }}>
+                        🕐 {formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })}
+                        {" · "}
+                        <span style={{ color: isNuit(r.pickup_datetime) ? "#818cf8" : "#fbbf24", fontWeight: 600 }}>
+                          {isNuit(r.pickup_datetime) ? `🌙 ${TARIF_NUIT_LABEL}` : `☀️ ${TARIF_JOUR_LABEL}`}
+                        </span>
+                      </div>
+                    )}
+                    {r.message && (
+                      <div style={{ color: "#64748b", fontSize: 11, marginBottom: 4, fontStyle: "italic" }}>
+                        💬 {r.message.slice(0, 60)}
+                        {r.message.length > 60 ? "…" : ""}
+                      </div>
+                    )}
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 8,
+                        marginTop: 10,
+                        paddingTop: 8,
+                        borderTop: "1px dashed rgba(255,255,255,0.06)",
+                      }}
+                    >
+                      <span style={{ color: "#64748b", fontSize: 11 }}>
+                        Reçu&nbsp;:{" "}
+                        {new Date(r.created_at).toLocaleString("fr-FR", {
+                          timeZone: "Europe/Paris",
+                          dateStyle: "short",
+                          timeStyle: "short",
+                        })}
+                      </span>
+                      <span
+                        role="status"
+                        aria-label={prix !== null ? `Prix estimé : ${prix.toFixed(2)} euros` : "Prix non disponible"}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "baseline",
+                          gap: 8,
+                          background: "#0ea5e9",
+                          border: "1px solid #38bdf8",
+                          color: "#ffffff",
+                          fontWeight: 800,
+                          fontSize: "clamp(15px, 4.2vw, 18px)",
+                          lineHeight: 1.2,
+                          padding: "6px 12px",
+                          borderRadius: 999,
+                          whiteSpace: "nowrap",
+                          boxShadow: "0 2px 8px rgba(14,165,233,0.35)",
+                        }}
+                      >
+                        <span
+                          aria-hidden="true"
+                          style={{
+                            fontSize: "clamp(10px, 2.8vw, 12px)",
+                            fontWeight: 800,
+                            letterSpacing: "0.08em",
+                            textTransform: "uppercase",
+                            color: "#ffffff",
+                            opacity: 0.95,
+                          }}
+                        >
+                          Prix
+                        </span>
+                        <span aria-hidden="true">{prix !== null ? `${prix.toFixed(2)} €` : "—"}</span>
+                      </span>
+                    </div>
+                    {r.status === "pending" && (
+                      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                        <button
+                          onClick={() => updateStatus(r.id, "accepted")}
+                          style={{
+                            flex: 1,
+                            padding: "8px 0",
+                            background: "#22c55e",
+                            color: "#fff",
+                            border: 0,
+                            borderRadius: 8,
+                            cursor: "pointer",
+                            fontWeight: 700,
+                            fontSize: 13,
+                          }}
+                        >
+                          ✓ Accepter
+                        </button>
+                        <button
+                          onClick={() => updateStatus(r.id, "refused")}
+                          style={{
+                            flex: 1,
+                            padding: "8px 0",
+                            background: "#ef4444",
+                            color: "#fff",
+                            border: 0,
+                            borderRadius: 8,
+                            cursor: "pointer",
+                            fontWeight: 700,
+                            fontSize: 13,
+                          }}
+                        >
+                          ✗ Refuser
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </SwipeRow>
               );
             })}
@@ -840,11 +864,13 @@ function Dashboard() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "rgba(255,255,255,0.03)", color: "#64748b", textAlign: "left" }}>
-                {["Prise en charge", "Client", "Trajet", "Prix", "Tarif", "Message", "Statut", ""].map((h) => (
-                  <th key={h} style={{ padding: "10px 14px", fontWeight: 600, whiteSpace: "nowrap" }}>
-                    {h}
-                  </th>
-                ))}
+                {["Prise en charge", "Client", "Trajet", "Prix", "Paiement", "Tarif", "Message", "Statut", ""].map(
+                  (h) => (
+                    <th key={h} style={{ padding: "10px 14px", fontWeight: 600, whiteSpace: "nowrap" }}>
+                      {h}
+                    </th>
+                  ),
+                )}
               </tr>
             </thead>
             <tbody>
@@ -885,6 +911,9 @@ function Dashboard() {
                       </td>
                       <td style={{ padding: "10px 14px", whiteSpace: "nowrap", color: "#0ea5e9", fontWeight: 700 }}>
                         {prix !== null ? `${prix.toFixed(2)} €` : "—"}
+                      </td>
+                      <td style={{ padding: "10px 14px", whiteSpace: "nowrap", color: "#cbd5e1", fontSize: 12 }}>
+                        {paiementLabel(r.paiement) || <span style={{ color: "#475569" }}>—</span>}
                       </td>
                       <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
                         <span
@@ -973,7 +1002,7 @@ function Dashboard() {
                 })}
               {!loading && reservs.length === 0 && (
                 <tr>
-                  <td colSpan={8} style={{ padding: 30, textAlign: "center", color: "#475569" }}>
+                  <td colSpan={9} style={{ padding: 30, textAlign: "center", color: "#475569" }}>
                     Aucune réservation
                   </td>
                 </tr>
