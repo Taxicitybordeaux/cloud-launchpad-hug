@@ -32,7 +32,7 @@ const valCss: React.CSSProperties = {
 
 // Tarifs officiels Bordeaux
 const TARIF_JOUR_LABEL = "2,16 €/km";
-const TARIF_NUIT_LABEL = "3,26 €/km";
+const TARIF_NUIT_LABEL = "3,24 €/km";
 
 /* Status badge */
 const STATUS: Record<string, { bg: string; c: string; label: string }> = {
