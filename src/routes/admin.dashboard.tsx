@@ -45,7 +45,7 @@ function paiementLabel(p: string | null | undefined): string {
   if (!p) return "";
   const map: Record<string, string> = {
     especes: "💵 Espèces",
-    cb: "💳 CB",
+    cb: "💳 Carte bancaire",
     virement: "🏦 Virement",
     cheque: "📝 Chèque",
   };
