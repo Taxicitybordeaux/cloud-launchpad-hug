@@ -2,10 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { calculerPrix, TARIFS } from "@/lib/tarif";
-
-// Clé ORS gratuite (optionnelle) — https://openrouteservice.org/dev/#/signup
-const ORS_API_KEY = import.meta.env.VITE_ORS_API_KEY ?? "";
 
 export const Route = createFileRoute("/reserver")({
   head: () => ({
@@ -288,54 +284,6 @@ function AddressInput({ fieldKey, value: _value, onChange, onCoordSelect, placeh
 }
 
 // ─────────────────────────────────────────────────────────────
-// Calcul de distance (haversine ×1.3 ou ORS)
-// ─────────────────────────────────────────────────────────────
-function haversineKm([lon1, lat1]: [number, number], [lon2, lat2]: [number, number]): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function useAutoDistance(from: [number, number] | null, to: [number, number] | null) {
-  const [km, setKm] = useState<number | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!from || !to) {
-      setKm(null);
-      setLoading(false);
-      return;
-    }
-
-    if (!ORS_API_KEY) {
-      setLoading(false);
-      setKm(Math.round(haversineKm(from, to) * 1.3 * 10) / 10);
-      return;
-    }
-
-    setLoading(true);
-    fetch("https://api.openrouteservice.org/v2/directions/driving-car", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: ORS_API_KEY },
-      body: JSON.stringify({ coordinates: [from, to] }),
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        const m: number | undefined = data?.routes?.[0]?.summary?.distance;
-        setKm(m != null ? Math.round((m / 1000) * 10) / 10 : null);
-      })
-      .catch(() => setKm(null))
-      .finally(() => setLoading(false));
-  }, [from, to]);
-
-  return { km, loading };
-}
-
-// ─────────────────────────────────────────────────────────────
 // Composant principal
 // ─────────────────────────────────────────────────────────────
 function ReservationPage() {
@@ -356,19 +304,11 @@ function ReservationPage() {
     paiement: "especes",
   });
 
-  const [fromCoord, setFromCoord] = useState<[number, number] | null>(null);
-  const [toCoord, setToCoord] = useState<[number, number] | null>(null);
-  const { km: autoKm, loading: distLoading } = useAutoDistance(fromCoord, toCoord);
-
   const [mode, setMode] = useState<"form" | "email" | "whatsapp" | "sms">("form");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
   const [success, setSuccess] = useState(false);
   const [submitError, setSubmitError] = useState("");
-
-  // Distance effective : automatique si disponible, sinon 0
-  const distance = autoKm ?? 0;
-  const prix = useMemo(() => calculerPrix(distance, f.tarifJour), [distance, f.tarifJour]);
 
   useEffect(() => {
     const sid = typeof window !== "undefined" && (sessionStorage.getItem("sid") || Math.random().toString(36).slice(2));
@@ -402,13 +342,12 @@ function ReservationPage() {
         `Passagers : ${f.passagers}\n` +
         `Bagages : ${f.bagages}\n` +
         `Tarif : ${f.tarifJour ? "Jour" : "Nuit"}\n` +
-        `Distance estimée : ${autoKm != null ? autoKm + " km" : "non calculée"}\n` +
-        `Prix estimé : ${prix} €`,
+        `Distance estimée : non calculée`,
     );
   };
 
   const buildEmailText = () =>
-    `Réservation taxi%0A%0AClient: ${f.prenom} ${f.nom}%0ATél: ${f.phone}%0AEmail: ${f.email}%0A%0ADépart: ${f.depart}%0ADestination: ${f.destination}%0ADate: ${f.date} ${f.heure}%0APassagers: ${f.passagers}%0ABagages: ${f.bagages}%0ATarif: ${f.tarifJour ? "Jour" : "Nuit"}%0ADistance: ${autoKm != null ? autoKm + " km" : "non calculée"}%0APrix estimé: ${prix} €`;
+    `Réservation taxi%0A%0AClient: ${f.prenom} ${f.nom}%0ATél: ${f.phone}%0AEmail: ${f.email}%0A%0ADépart: ${f.depart}%0ADestination: ${f.destination}%0ADate: ${f.date} ${f.heure}%0APassagers: ${f.passagers}%0ABagages: ${f.bagages}%0ATarif: ${f.tarifJour ? "Jour" : "Nuit"}%0ADistance: non calculée`;
 
   const submitForm = async () => {
     if (!validate()) return;
@@ -457,7 +396,7 @@ function ReservationPage() {
         heure_course: f.heure,
         nb_passagers: f.passagers,
         tarif_jour: f.tarifJour,
-        prix_estime: prix,
+        prix_estime: null,
         status: "pending",
         source: "form",
         paiement: f.paiement,
@@ -488,7 +427,7 @@ function ReservationPage() {
                 heure: f.heure,
                 passagers: f.passagers,
                 bagages: f.bagages,
-                prix_estime: prix,
+                prix_estime: null,
                 tarif: f.tarifJour ? "Jour (7h–19h) — 2,16 €/km" : "Nuit (19h–7h) — 3,24 €/km",
               },
             }),
@@ -815,116 +754,6 @@ function ReservationPage() {
                   {opt.l}
                 </label>
               ))}
-            </div>
-
-            {/* ── Simulateur de prix ── */}
-            <div style={{ marginTop: 24, padding: 20, background: "#f1f5f9", borderRadius: 16 }}>
-              <h3
-                style={{
-                  fontFamily: "'Syne',sans-serif",
-                  margin: 0,
-                  color: "#0f172a",
-                  fontSize: "clamp(14px,4vw,16px)",
-                }}
-              >
-                Simulateur de prix
-              </h3>
-
-              {/* ── Champs départ / destination dans le simulateur ── */}
-              <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
-                <div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: "#64748b",
-                      marginBottom: 4,
-                      fontWeight: 600,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                    }}
-                  >
-                    🟢 Adresse de départ
-                  </div>
-                  <AddressInput
-                    fieldKey="depart"
-                    value={f.depart}
-                    onChange={set}
-                    onCoordSelect={setFromCoord}
-                    placeholder="Ex : 12 rue Sainte-Catherine, Bordeaux"
-                    error={errors.depart}
-                  />
-                </div>
-                <div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: "#64748b",
-                      marginBottom: 4,
-                      fontWeight: 600,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                    }}
-                  >
-                    🏁 Adresse de destination
-                  </div>
-                  <AddressInput
-                    fieldKey="destination"
-                    value={f.destination}
-                    onChange={set}
-                    onCoordSelect={setToCoord}
-                    placeholder="Ex : Aéroport de Bordeaux"
-                    error={errors.destination}
-                  />
-                </div>
-              </div>
-
-              <div style={{ marginTop: 12, fontSize: 14, color: "#475569" }}>
-                Prise en charge : {TARIFS.PRISE_EN_CHARGE} €
-              </div>
-
-              {/* Distance calculée automatiquement */}
-              <div style={{ marginTop: 8, fontSize: 14, color: "#475569" }}>
-                {distLoading ? (
-                  <span>⏳ Calcul de la distance en cours…</span>
-                ) : autoKm != null ? (
-                  <span>
-                    Distance estimée : <strong style={{ color: "#0f172a" }}>{autoKm} km</strong>
-                    {!ORS_API_KEY && <span style={{ color: "#94a3b8", fontSize: 12 }}> (estimation)</span>}
-                  </span>
-                ) : null}
-              </div>
-
-              <div style={{ fontSize: 14, color: "#475569", marginTop: 6 }}>
-                Tarif au km : {f.tarifJour ? "2,16" : "3,24"} €
-              </div>
-
-              <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 2 }}>
-                <div
-                  style={{
-                    fontFamily: "'Syne',sans-serif",
-                    fontSize: "clamp(13px,3.5vw,14px)",
-                    fontWeight: 700,
-                    color: "#0f172a",
-                  }}
-                >
-                  TOTAL ESTIMÉ
-                </div>
-                <div
-                  style={{
-                    fontFamily: "'DM Sans', system-ui, sans-serif",
-                    fontSize: "clamp(24px,6vw,32px)",
-                    fontWeight: 700,
-                    color: "#dc2626",
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  {prix.toFixed(2)} €
-                </div>
-              </div>
-              <div style={{ fontSize: 12, color: "#dc2626", fontWeight: 700, marginTop: 4 }}>
-                <strong>*</strong> Des frais de réservation peuvent être appliqués
-              </div>
-              <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>Prix indicatif — le compteur fait foi</div>
             </div>
 
             {/* ── Mode de réservation ── */}
