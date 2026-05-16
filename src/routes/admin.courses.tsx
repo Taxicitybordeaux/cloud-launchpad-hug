@@ -459,8 +459,22 @@ function CoursesPage() {
       }
     }
 
+    // 📱 SMS — lien sms: pour ouvrir l'appli SMS du téléphone avec le message pré-rempli
+    const smsBody = encodeURIComponent(
+      `Bonjour ${name || ""}, votre course Taxi City Bordeaux (${refId}) est confirmée !\n` +
+        `📅 ${pickupStr}\n` +
+        `📍 ${r.depart} → ${r.arrivee || r.destination || "—"}\n` +
+        `💰 Prix estimé : ${prixStr}\n` +
+        `📲 Suivi : ${url}\n` +
+        `📞 06 73 07 23 22`,
+    );
+    const rawPhone = (phone || "").replace(/[^\d+]/g, "");
+    if (typeof window !== "undefined" && rawPhone) {
+      window.open(`sms:${rawPhone}?body=${smsBody}`, "_blank", "noopener,noreferrer");
+    }
+
     toast.success(`Course acceptée — ${name || "client"}`, {
-      description: `${emailDetail} · 💬 WhatsApp ouvert`,
+      description: `${emailDetail} · 💬 WhatsApp · 📱 SMS ouverts`,
       duration: 8000,
       action: {
         label: "📲 QR Code",
@@ -561,7 +575,14 @@ function CoursesPage() {
   // UI
   // =========================
   return (
-    <div style={{ padding: "20px clamp(12px, 4vw, 24px)", fontFamily: "'DM Sans',sans-serif", maxWidth: "100%", boxSizing: "border-box" }}>
+    <div
+      style={{
+        padding: "20px clamp(12px, 4vw, 24px)",
+        fontFamily: "'DM Sans',sans-serif",
+        maxWidth: "100%",
+        boxSizing: "border-box",
+      }}
+    >
       <h1
         style={{
           fontFamily: "'Syne',sans-serif",
@@ -1001,7 +1022,7 @@ function CoursesPage() {
                 {" · "}
                 <span
                   style={{
-                    color: isNuit(confirmAction.r.pickup_datetime) ? "#818cf8" : "#fbbf24",
+                    color: "#ef4444", // ✅ Tarif toujours en rouge
                     fontWeight: 700,
                   }}
                 >
@@ -1087,7 +1108,7 @@ function CoursesPage() {
 
             <p style={{ color: "#64748b", fontSize: 13, margin: "0 0 22px" }}>
               {confirmAction.type === "accept"
-                ? "Le client recevra un WhatsApp + email avec le lien de suivi en temps réel."
+                ? "Le client recevra un WhatsApp + SMS + email avec le lien de suivi en temps réel."
                 : "Le motif sera enregistré. Visible dans l'onglet Refusées."}
             </p>
 
