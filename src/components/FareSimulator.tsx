@@ -302,46 +302,42 @@ export function FareSimulator() {
                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
                 <span className="text-sm">Calcul de la distance…</span>
               </div>
-            ) : total != null ? (
-              <>
-                <div
-                  className="mt-3 text-5xl font-bold text-red-600 tabular-nums"
-                  style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}
-                  aria-live="polite"
-                >
-                  {formatEUR(total)}
-                </div>
-                <p className="mt-2 text-xs font-bold text-red-600">
-                  <strong>*</strong> Des frais de réservation peuvent être appliqués
-                </p>
-              </>
             ) : (
-              <p className="mt-4 text-sm text-muted-foreground">
-                Entrez un départ et une destination pour obtenir une estimation.
-              </p>
+              <div
+                className="mt-3 text-5xl font-bold text-red-600 tabular-nums"
+                style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}
+                aria-live="polite"
+              >
+                {formatEUR(total ?? PICKUP_FEE)}
+              </div>
             )}
 
-            {km != null && (
-              <dl className="mt-6 space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <dt className="text-muted-foreground">{t("sim.pickup")}</dt>
-                  <dd className="font-medium">{formatEUR(PICKUP_FEE)}</dd>
-                </div>
-                <div className="flex items-center justify-between">
-                  <dt className="text-muted-foreground">{t("sim.perkm")}</dt>
-                  <dd className="font-medium">{formatEUR(rate)}</dd>
-                </div>
+            <p className="mt-2 text-xs font-bold text-red-600">* Des frais de réservation peuvent être appliqués</p>
+
+            <dl className="mt-6 space-y-2 text-sm">
+              <div className="flex items-center justify-between">
+                <dt className="text-muted-foreground">{t("sim.pickup")}</dt>
+                <dd className="font-medium">{formatEUR(PICKUP_FEE)}</dd>
+              </div>
+              <div className="flex items-center justify-between">
+                <dt className="text-muted-foreground">{t("sim.perkm")}</dt>
+                <dd className="font-medium">{formatEUR(rate)}</dd>
+              </div>
+              {km != null && (
                 <div className="flex items-center justify-between">
                   <dt className="text-muted-foreground">Distance estimée</dt>
                   <dd className="font-medium">{km} km</dd>
                 </div>
-              </dl>
-            )}
+              )}
+            </dl>
           </div>
 
           <p className="mt-6 flex items-start gap-2 rounded-lg border border-border/60 bg-background/60 p-3 text-xs text-muted-foreground">
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-            <span>{t("sim.disclaimer")}</span>
+            <span>
+              Estimation indicative basée sur nos tarifs officiels. Le prix réel peut varier selon le trajet exact, les
+              conditions de circulation (bouchons, déviations) et les éventuels suppléments.
+            </span>
           </p>
 
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
