@@ -769,7 +769,7 @@ function ReservationPage() {
                   onChange={() => set("tarifJour", true)}
                   style={{ accentColor: "#0ea5e9" }}
                 />
-                ☀️ Jour (7h–19h) — 2,16 €/km
+                ☀️ Jour (7h–19h) — du lundi au samedi — 2,16 €/km
               </label>
               <label
                 style={{
@@ -790,8 +790,55 @@ function ReservationPage() {
                   onChange={() => set("tarifJour", false)}
                   style={{ accentColor: "#818cf8" }}
                 />
-                🌙 Nuit (19h–7h) — 3,24 €/km
+                🌙 Nuit (19h–7h) — du lundi au dimanche & jours fériés — 3,24 €/km
               </label>
+            </div>
+
+            {/* ── Moyen de paiement ── */}
+            <h3
+              style={{
+                fontFamily: "'Syne',sans-serif",
+                marginTop: 24,
+                color: "#0f172a",
+                fontSize: "clamp(14px,4vw,16px)",
+              }}
+            >
+              Moyen de paiement
+            </h3>
+            <div className="resa-grid-4">
+              {[
+                { v: "especes", l: "💶 Espèces" },
+                { v: "cb", l: "💳 CB" },
+                { v: "virement", l: "🏦 Virement" },
+                { v: "cheque", l: "📝 Chèque" },
+              ].map((opt) => (
+                <label
+                  key={opt.v}
+                  style={{
+                    padding: 12,
+                    border: `2px solid ${f.paiement === opt.v ? "#0ea5e9" : "#e2e8f0"}`,
+                    borderRadius: 12,
+                    cursor: "pointer",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    background: f.paiement === opt.v ? "#f0f9ff" : "#fff",
+                    color: "#0f172a",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="paiement"
+                    checked={f.paiement === opt.v}
+                    onChange={() => set("paiement", opt.v)}
+                    style={{ accentColor: "#0ea5e9", display: "none" }}
+                  />
+                  {opt.l}
+                </label>
+              ))}
             </div>
 
             {/* ── Simulateur de prix ── */}
