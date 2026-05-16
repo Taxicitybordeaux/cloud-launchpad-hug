@@ -3,6 +3,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ClientRowSkeleton, SkeletonStyles } from "@/components/admin/Skeleton";
 
+/** Formate le moyen de paiement en label lisible + icône */
+function paiementLabel(p: string | null | undefined): string {
+  if (!p) return "—";
+  const map: Record<string, string> = {
+    especes: "💵 Espèces",
+    cb: "💳 Carte bancaire",
+    virement: "🏦 Virement",
+    cheque: "📝 Chèque",
+  };
+  return map[p.toLowerCase()] ?? p;
+}
+
 export const Route = createFileRoute("/admin/clients")({
   head: () => ({ meta: [{ title: "Clients — Admin" }, { name: "robots", content: "noindex" }] }),
   component: ClientsPage,
@@ -402,6 +414,9 @@ function ClientsPage() {
                           🔴 <strong>À :</strong> {lastDest}
                         </div>
                       )}
+                      {lastCourse?.paiement && (
+                        <div style={{ marginTop: 4, color: "#94a3b8" }}>{paiementLabel(lastCourse.paiement)}</div>
+                      )}
                     </>
                   ) : (
                     <span style={{ color: "#64748b" }}>Aucune course enregistrée</span>
@@ -523,7 +538,7 @@ function ClientsPage() {
                                 🔴 <span style={{ color: "#cbd5e1" }}>{co.destination}</span>
                               </div>
                             )}
-                            <div style={{ color: "#475569", marginTop: 2 }}>{co.paiement}</div>
+                            <div style={{ color: "#64748b", marginTop: 2 }}>{paiementLabel(co.paiement)}</div>
                           </div>
                         ))}
                       </div>
