@@ -460,6 +460,7 @@ function ReservationPage() {
         prix_estime: prix,
         status: "pending",
         source: "form",
+        paiement: f.paiement,
       });
 
       if (insertError) throw new Error(insertError.message);
