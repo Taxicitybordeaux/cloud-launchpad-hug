@@ -345,26 +345,6 @@ function ClientsPage() {
                       </div>
                     )}
                   </div>
-
-                  {/* Bouton supprimer desktop (visible uniquement en large) */}
-                  <button
-                    onClick={() => deleteClient(c.id)}
-                    title="Supprimer ce client"
-                    className="client-delete-btn"
-                    style={{
-                      background: "rgba(239,68,68,0.15)",
-                      color: "#ef4444",
-                      border: "1px solid rgba(239,68,68,0.3)",
-                      padding: "5px 10px",
-                      borderRadius: 8,
-                      cursor: "pointer",
-                      fontSize: 12,
-                      fontWeight: 700,
-                      flexShrink: 0,
-                    }}
-                  >
-                    🗑
-                  </button>
                 </div>
 
                 {/* Dernière course */}
@@ -716,13 +696,6 @@ function ClientsPage() {
             );
           })}
       </div>
-
-      {/* Responsive : bouton 🗑 masqué sur mobile (swipe suffit), visible sur desktop */}
-      <style>{`
-        @media (max-width: 640px) {
-          .client-delete-btn { display: none !important; }
-        }
-      `}</style>
     </div>
   );
 }
