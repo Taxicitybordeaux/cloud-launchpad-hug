@@ -142,11 +142,7 @@ function ReservationPage() {
 
     const composedMessage = [
       parsed.data.trip_type === "aller_retour"
-        ? `${t("res.f.trip.round")} — ${new Date(parsed.data.return_datetime!).toLocaleString("fr-FR", {
-            dateStyle: "full",
-            timeStyle: "short",
-            timeZone: "Europe/Paris", // ✅ Format français + heure de Paris
-          })}`
+        ? `${t("res.f.trip.round")} — ${new Date(parsed.data.return_datetime!).toLocaleString()}`
         : null,
       extras.length ? `${t("res.f.needs")}: ${extras.join(", ")}` : null,
       parsed.data.message,
@@ -161,12 +157,15 @@ function ReservationPage() {
 
     const { error } = await supabase.from("reservations").insert({
       id: reservationId,
+      tracking_id: crypto.randomUUID(),
+      status: "pending",
       nom: parsed.data.nom,
       telephone: e164,
       email: parsed.data.email || null,
       pickup_datetime: new Date(parsed.data.pickup_datetime).toISOString(),
       depart: parsed.data.depart,
       arrivee: parsed.data.arrivee,
+      destination: parsed.data.arrivee,
       passagers: parsed.data.passagers,
       bagages: parsed.data.bagages,
       service_type: parsed.data.service_type,
