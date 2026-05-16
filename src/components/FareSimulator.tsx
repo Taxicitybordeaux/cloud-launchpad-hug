@@ -1,6 +1,6 @@
-import { useEffect, useRef, useMemo, useState, useCallback, type ReactNode } from "react";
+import { useEffect, useRef, useMemo, useState, useCallback } from "react";
 import { Link } from "@tanstack/react-router";
-import { Calculator, Phone, ArrowRight, Info, MapPin, Loader2, Navigation } from "lucide-react";
+import { Calculator, Phone, ArrowRight, Info, MapPin, Loader2 } from "lucide-react";
 import { useT } from "@/i18n/I18nProvider";
 
 // ─── Config tarifs ────────────────────────────────────────────
@@ -75,12 +75,11 @@ function useNominatim(query: string) {
 interface AddressFieldProps {
   id: string;
   label: string;
-  icon: ReactNode;
   onChange: (val: string) => void;
   onSelect: (result: NominatimResult) => void;
 }
 
-function AddressField({ id, label, icon, onChange, onSelect }: AddressFieldProps) {
+function AddressField({ id, label, onChange, onSelect }: AddressFieldProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -113,10 +112,10 @@ function AddressField({ id, label, icon, onChange, onSelect }: AddressFieldProps
   return (
     <div ref={wrapRef} className="relative">
       <label htmlFor={id} className="block text-sm font-semibold text-foreground mb-2">
+        {id === "sim-from" ? "🟢 " : "🏁 "}
         {label}
       </label>
       <div className="relative flex items-center">
-        <span className="pointer-events-none absolute left-3 text-primary">{icon}</span>
         <input
           ref={inputRef}
           id={id}
@@ -126,7 +125,7 @@ function AddressField({ id, label, icon, onChange, onSelect }: AddressFieldProps
           onChange={(e) => handleChange(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
           placeholder="Tapez une adresse…"
-          className="w-full rounded-xl border border-border bg-background pl-9 pr-10 py-3 text-sm focus:border-primary focus:outline-none transition"
+          className="w-full rounded-xl border border-border bg-background px-4 pr-10 py-3 text-sm focus:border-primary focus:outline-none transition"
         />
         {loading && (
           <Loader2 className="pointer-events-none absolute right-3 h-4 w-4 animate-spin text-muted-foreground" />
@@ -238,7 +237,6 @@ export function FareSimulator() {
           <AddressField
             id="sim-from"
             label="Adresse de départ"
-            icon={<Navigation className="h-4 w-4" />}
             onChange={(v) => {
               setFromAddr(v);
               if (!v) setFromCoord(null);
@@ -249,7 +247,6 @@ export function FareSimulator() {
           <AddressField
             id="sim-to"
             label="Adresse de destination"
-            icon={<MapPin className="h-4 w-4" />}
             onChange={(v) => {
               setToAddr(v);
               if (!v) setToCoord(null);
@@ -282,7 +279,7 @@ export function FareSimulator() {
                     <span className="font-medium">
                       {p === "day"
                         ? "☀️ Jour (7h–19h) — du lundi au samedi"
-                        : "🌙 Nuit (19h–7h) — dimanche & jours fériés"}
+                        : "🌙 Nuit (19h–7h) — dimanches & jours fériés"}
                     </span>
                     <span className="mt-1 block text-xs">{formatEUR(p === "day" ? RATE_DAY : RATE_NIGHT)} / km</span>
                   </label>
