@@ -45,20 +45,28 @@ function calculerPrixMixte(departMs: number, dureeS: number, distanceKm: number)
   return Math.round((PRISE_EN_CHARGE + prixKm) * 100) / 100;
 }
 
-// ─── Géocodage silencieux via Photon (premier résultat) ───────
+// ─── Géocodage silencieux via Photon (premier résultat routable) ───────
 async function geocodeAdresse(query: string): Promise<[number, number] | null> {
   if (query.length < 3) return null;
   try {
     const url = new URL("https://photon.komoot.io/api/");
     url.searchParams.set("q", query);
-    url.searchParams.set("limit", "1");
+    url.searchParams.set("limit", "5"); // on récupère plusieurs candidats
     url.searchParams.set("lang", "fr");
     url.searchParams.set("lat", "44.8378");
     url.searchParams.set("lon", "-0.5792");
     const res = await fetch(url.toString());
     const data = await res.json();
-    const feat = data.features?.[0];
-    if (!feat) return null;
+    const features = data.features ?? [];
+    if (!features.length) return null;
+    // Priorité : house > street > district/city (meilleure précision = plus routable)
+    const PRIORITY = ["house", "street", "locality", "district", "city", "county", "state"];
+    const sorted = [...features].sort((a, b) => {
+      const ia = PRIORITY.indexOf(a.properties?.osm_value ?? "");
+      const ib = PRIORITY.indexOf(b.properties?.osm_value ?? "");
+      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+    });
+    const feat = sorted[0];
     return [feat.geometry.coordinates[0], feat.geometry.coordinates[1]]; // [lon, lat]
   } catch {
     return null;
@@ -78,12 +86,19 @@ async function getOrsRoute(from: [number, number], to: [number, number]): Promis
     const res = await fetch("https://api.openrouteservice.org/v2/directions/driving-car", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${ORS_KEY}` },
-      body: JSON.stringify({ coordinates: [from, to] }),
+      body: JSON.stringify({
+        coordinates: [from, to],
+        radiuses: [-1, -1], // snap au point routable le plus proche, sans limite de distance
+      }),
     });
     const data = await res.json();
+    if (data?.error) {
+      console.warn("[ORS] Erreur API:", data.error.code, data.error.message);
+      return null;
+    }
     const summary = data?.routes?.[0]?.summary;
     if (!summary) {
-      console.warn("[ORS] Pas de route dans la réponse:", JSON.stringify(data));
+      console.warn("[ORS] Pas de route:", JSON.stringify(data));
       return null;
     }
     return {
