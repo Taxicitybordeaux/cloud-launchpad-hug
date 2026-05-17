@@ -912,7 +912,7 @@ function ReservationPage() {
 
               {mode === "email" && (
                 <a
-                  href={`mailto:contact@taxicitybordeaux.fr?subject=Réservation taxi&body=${buildEmailText()}`}
+                  href={`mailto:taxi.city033@gmail.com?subject=Réservation taxi&body=${buildEmailText()}`}
                   style={{
                     display: "flex",
                     alignItems: "center",
