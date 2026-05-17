@@ -149,10 +149,19 @@ const STRINGS = {
 function fmtDate(iso: string | undefined, lang: Lang): string {
   if (!iso) return "";
   try {
+    // Date seule sans heure (ex: "2026-05-17") : on parse en local
+    // pour eviter le decalage UTC qui peut donner le jour d avant.
+    const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(iso);
+    if (dateOnly) {
+      const [y, m, d] = iso.split("-").map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString(LOCALE_MAP[lang], {
+        dateStyle: "full",
+      });
+    }
     return new Date(iso).toLocaleString(LOCALE_MAP[lang], {
       dateStyle: "full",
       timeStyle: "short",
-      timeZone: "Europe/Paris", // ✅ Heure de Paris
+      timeZone: "Europe/Paris",
     });
   } catch {
     return iso;
