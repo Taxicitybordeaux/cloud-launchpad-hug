@@ -234,6 +234,12 @@ function Dashboard() {
   const [gpsUpdateCount, setGpsUpdateCount] = useState(0);
   const watchIdRef = useRef<number | null>(null);
 
+  // ── Portefeuille clients ──
+  const [clients, setClients] = useState<any[]>([]);
+  const [clientsLoading, setClientsLoading] = useState(true);
+  const [clientSearch, setClientSearch] = useState("");
+  const [clientSort, setClientSort] = useState<"name" | "courses" | "ca" | "date">("date");
+
   // =========================
   // FETCH STATS
   // =========================
@@ -304,11 +310,40 @@ function Dashboard() {
     setAvisLoading(false);
   }, []);
 
+  // =========================
+  // FETCH CLIENTS
+  // =========================
+  const fetchClients = useCallback(async () => {
+    const { data: clientRows, error } = await supabase
+      .from("clients")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error || !clientRows) {
+      setClientsLoading(false);
+      return;
+    }
+    // Enrichir avec stats depuis reservations
+    const { data: resRows } = await supabase
+      .from("reservations")
+      .select("client_email, email, prix_estime, status")
+      .neq("status", "refused");
+    const resData = resRows ?? [];
+    const enriched = clientRows.map((c: any) => {
+      const email = (c.email || "").toLowerCase();
+      const matched = resData.filter((r: any) => (r.client_email || r.email || "").toLowerCase() === email);
+      const ca = matched.reduce((s: number, r: any) => s + (Number(r.prix_estime) || 0), 0);
+      return { ...c, nb_courses: matched.length, ca_total: ca };
+    });
+    setClients(enriched);
+    setClientsLoading(false);
+  }, []);
+
   const fetchAll = useCallback(() => {
     fetchStats();
     fetchCourses();
     fetchAvis();
-  }, [fetchStats, fetchCourses, fetchAvis]);
+    fetchClients();
+  }, [fetchStats, fetchCourses, fetchAvis, fetchClients]);
 
   // =========================
   // REALTIME
@@ -336,12 +371,13 @@ function Dashboard() {
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "reservations" }, () => fetchAll())
       .on("postgres_changes", { event: "*", schema: "public", table: "site_analytics" }, () => fetchStats())
       .on("postgres_changes", { event: "*", schema: "public", table: "avis" }, () => fetchAvis())
+      .on("postgres_changes", { event: "*", schema: "public", table: "clients" }, () => fetchClients())
       .subscribe();
     initialLoad.current = false;
     return () => {
       supabase.removeChannel(ch);
     };
-  }, [fetchAll, fetchStats]);
+  }, [fetchAll, fetchStats, fetchClients]);
 
   // =========================
   // GPS INIT
@@ -2721,6 +2757,232 @@ function Dashboard() {
             )}
           </div>
         )}
+      </div>
+
+      {/* ══════════════════════════════
+          SECTION PORTEFEUILLE CLIENTS
+      ══════════════════════════════ */}
+      <div style={{ marginTop: 48 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+          <h2 style={{ fontFamily: "'Syne',sans-serif", fontSize: 20, fontWeight: 800, color: "#f8fafc", margin: 0 }}>
+            👤 Portefeuille clients
+          </h2>
+          <span
+            style={{
+              background: "rgba(14,165,233,0.15)",
+              color: "#0ea5e9",
+              padding: "2px 10px",
+              borderRadius: 99,
+              fontSize: 12,
+              fontWeight: 700,
+            }}
+          >
+            {clients.length} clients
+          </span>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input
+              value={clientSearch}
+              onChange={(e) => setClientSearch(e.target.value)}
+              placeholder="Rechercher…"
+              style={{
+                padding: "7px 12px",
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: 10,
+                color: "#f1f5f9",
+                fontSize: 13,
+                outline: "none",
+                width: 180,
+                fontFamily: "'DM Sans',sans-serif",
+              }}
+            />
+            <select
+              value={clientSort}
+              onChange={(e) => setClientSort(e.target.value as any)}
+              style={{
+                padding: "7px 10px",
+                background: "#0f172a",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: 10,
+                color: "#94a3b8",
+                fontSize: 13,
+                cursor: "pointer",
+                fontFamily: "'DM Sans',sans-serif",
+              }}
+            >
+              <option value="date">Trier : récents</option>
+              <option value="name">Trier : nom A→Z</option>
+              <option value="courses">Trier : + de courses</option>
+              <option value="ca">Trier : + de CA</option>
+            </select>
+          </div>
+        </div>
+
+        {clientsLoading && (
+          <div style={{ textAlign: "center", color: "#475569", padding: 40 }}>Chargement des clients…</div>
+        )}
+
+        {!clientsLoading &&
+          (() => {
+            const q = clientSearch.toLowerCase().trim();
+            const filtered = clients.filter((c) => {
+              if (!q) return true;
+              return (
+                (c.nom || c.name || "").toLowerCase().includes(q) ||
+                (c.email || "").toLowerCase().includes(q) ||
+                (c.telephone || c.phone || "").includes(q)
+              );
+            });
+            const sorted = [...filtered].sort((a, b) => {
+              if (clientSort === "name") return (a.nom || a.name || "").localeCompare(b.nom || b.name || "");
+              if (clientSort === "courses") return (b.nb_courses ?? 0) - (a.nb_courses ?? 0);
+              if (clientSort === "ca") return (b.ca_total ?? 0) - (a.ca_total ?? 0);
+              return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+            });
+
+            if (sorted.length === 0)
+              return (
+                <div style={{ textAlign: "center", color: "#475569", padding: "30px 0", fontSize: 14 }}>
+                  {q ? "Aucun client ne correspond à la recherche" : "Aucun client enregistré"}
+                </div>
+              );
+
+            return (
+              <div style={{ display: "grid", gap: 10 }}>
+                {sorted.map((c) => {
+                  const name = c.nom || c.name || "—";
+                  const email = c.email || "";
+                  const phone = c.telephone || c.phone || "";
+                  const since = c.created_at
+                    ? new Date(c.created_at).toLocaleDateString("fr-FR", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })
+                    : null;
+                  return (
+                    <div
+                      key={c.id}
+                      style={{
+                        ...card,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 14,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      {/* Avatar initiales */}
+                      <div
+                        style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: "50%",
+                          background: "rgba(14,165,233,0.15)",
+                          border: "1px solid rgba(14,165,233,0.25)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontFamily: "'Syne',sans-serif",
+                          fontWeight: 800,
+                          fontSize: 16,
+                          color: "#0ea5e9",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {name.charAt(0).toUpperCase()}
+                      </div>
+
+                      {/* Infos principales */}
+                      <div style={{ flex: 1, minWidth: 120 }}>
+                        <div style={{ color: "#f8fafc", fontWeight: 700, fontSize: 15 }}>{name}</div>
+                        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 4 }}>
+                          {phone && (
+                            <a
+                              href={`tel:${phone}`}
+                              style={{ color: "#0ea5e9", textDecoration: "none", fontSize: 13, fontWeight: 600 }}
+                            >
+                              📞 {phone}
+                            </a>
+                          )}
+                          {email && (
+                            <a
+                              href={`mailto:${email}`}
+                              style={{ color: "#64748b", textDecoration: "none", fontSize: 13 }}
+                            >
+                              ✉️ {email}
+                            </a>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Stats */}
+                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                        <div
+                          style={{
+                            background: "rgba(255,255,255,0.04)",
+                            border: "1px solid rgba(255,255,255,0.08)",
+                            borderRadius: 10,
+                            padding: "6px 12px",
+                            textAlign: "center",
+                            minWidth: 60,
+                          }}
+                        >
+                          <div
+                            style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18, color: "#f8fafc" }}
+                          >
+                            {c.nb_courses ?? 0}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 10,
+                              color: "#64748b",
+                              fontFamily: "'JetBrains Mono',monospace",
+                              letterSpacing: "0.06em",
+                            }}
+                          >
+                            COURSES
+                          </div>
+                        </div>
+                        <div
+                          style={{
+                            background: "rgba(14,165,233,0.08)",
+                            border: "1px solid rgba(14,165,233,0.2)",
+                            borderRadius: 10,
+                            padding: "6px 12px",
+                            textAlign: "center",
+                            minWidth: 72,
+                          }}
+                        >
+                          <div
+                            style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18, color: "#0ea5e9" }}
+                          >
+                            {(c.ca_total ?? 0).toFixed(0)} €
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 10,
+                              color: "#64748b",
+                              fontFamily: "'JetBrains Mono',monospace",
+                              letterSpacing: "0.06em",
+                            }}
+                          >
+                            CA TOTAL
+                          </div>
+                        </div>
+                        {since && (
+                          <div style={{ color: "#475569", fontSize: 11, fontFamily: "'JetBrains Mono',monospace" }}>
+                            depuis
+                            <br />
+                            {since}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
       </div>
 
       {/* ── Modale confirmation ── */}
