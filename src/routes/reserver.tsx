@@ -301,6 +301,7 @@ function ReservationPage() {
     bagages: 0,
     tarifJour: true,
     paiement: "especes",
+    trajet: "aller" as "aller" | "aller-retour",
   });
 
   const [mode, setMode] = useState<"form" | "email" | "whatsapp" | "sms">("form");
