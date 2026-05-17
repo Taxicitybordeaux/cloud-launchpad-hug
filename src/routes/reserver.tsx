@@ -728,7 +728,7 @@ function ReservationPage() {
                   onChange={() => set("tarifJour", true)}
                   style={{ accentColor: "#0ea5e9" }}
                 />
-                ☀️ Jour (7h–19h) — du lundi au samedi — 2,16 €/km
+                ☀️ Jour (7h–19h) — 2,16 €/km
               </label>
               <label
                 style={{
