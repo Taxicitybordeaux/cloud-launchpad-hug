@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useLang } from "@/hooks/useLang";
+import { t } from "@/lib/dict";
 
 // ✅ Hors composant : référence stable, pas de recréation à chaque render
 function generateId() {
@@ -15,6 +17,7 @@ const CORNER_BASE: React.CSSProperties = {
 };
 
 export function TrackingQRSection() {
+  const lang = useLang();
   // SSR-safe: start empty so server and first client render match, then hydrate after mount
   const [clientId, setClientId] = useState<string>("");
   const [count, setCount] = useState(30);
@@ -106,7 +109,7 @@ export function TrackingQRSection() {
               animation: "pulse 1.5s infinite",
             }}
           />
-          SUIVI EN TEMPS RÉEL
+          {t(lang, "qr.badge")}
         </span>
 
         <h2
@@ -118,12 +121,9 @@ export function TrackingQRSection() {
             lineHeight: 1.15,
           }}
         >
-          Scannez et suivez votre chauffeur en temps réel
+          {t(lang, "qr.title")}
         </h2>
-        <p style={{ color: "#94a3b8", maxWidth: 560, margin: "14px auto 0", fontSize: 15 }}>
-          Un QR unique généré pour chaque client. Scannez, ouvrez le lien sur votre téléphone, et suivez l'arrivée du
-          taxi sur la carte.
-        </p>
+        <p style={{ color: "#94a3b8", maxWidth: 560, margin: "14px auto 0", fontSize: 15 }}>{t(lang, "qr.subtitle")}</p>
 
         {/* Bandeau info */}
         <div
@@ -143,10 +143,10 @@ export function TrackingQRSection() {
           <div style={{ fontSize: 24, lineHeight: 1, flexShrink: 0 }}>📲</div>
           <div>
             <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "#f1f5f9" }}>
-              Ouvrez ce lien sur votre téléphone et flashez le QR code
+              {t(lang, "qr.banner.title")}
             </div>
             <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 4, lineHeight: 1.5 }}>
-              Position du chauffeur, ETA, prix estimé. Aucune installation requise.
+              {t(lang, "qr.banner.desc")}
             </div>
           </div>
         </div>
@@ -211,7 +211,7 @@ export function TrackingQRSection() {
               textAlign: "center",
             }}
           >
-            Nouveau code dans {count}s
+            {t(lang, "qr.timer").replace("{count}", String(count))}
           </div>
           <button
             onClick={copy}
@@ -229,7 +229,7 @@ export function TrackingQRSection() {
               transition: "background 0.2s",
             }}
           >
-            {copied ? "✓ Lien copié !" : "🔗 Copier le lien"}
+            {copied ? t(lang, "qr.copied") : t(lang, "qr.copy")}
           </button>
         </div>
 
@@ -304,10 +304,10 @@ export function TrackingQRSection() {
           }}
         >
           {[
-            { e: "📱", t: "Réservez", d: "Formulaire, email ou WhatsApp" },
-            { e: "🔍", t: "Scannez votre QR", d: "Lien unique généré pour vous" },
-            { e: "🗺️", t: "Suivez en direct", d: "Carte, ETA, destination, prix" },
-            { e: "🚕", t: "Montez à bord !", d: "Coordonnées chauffeur en 1 clic" },
+            { e: "📱", t: t(lang, "qr.step1.t"), d: t(lang, "qr.step1.d") },
+            { e: "🔍", t: t(lang, "qr.step2.t"), d: t(lang, "qr.step2.d") },
+            { e: "🗺️", t: t(lang, "qr.step3.t"), d: t(lang, "qr.step3.d") },
+            { e: "🚕", t: t(lang, "qr.step4.t"), d: t(lang, "qr.step4.d") },
           ].map((s, i) => (
             <li key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
               <span
@@ -345,11 +345,11 @@ export function TrackingQRSection() {
         }}
       >
         {[
-          { e: "📍", t: "Position GPS", d: "Suivi temps réel" },
-          { e: "⏱️", t: "Temps d'arrivée", d: "Précision à la minute" },
-          { e: "💶", t: "Tarif estimé", d: "Fourchette transparente" },
-          { e: "📞", t: "Contact direct", d: "06 73 07 23 22" },
-          { e: "🔒", t: "QR unique", d: "Par client, par scan" },
+          { e: "📍", t: t(lang, "qr.feat1.t"), d: t(lang, "qr.feat1.d") },
+          { e: "⏱️", t: t(lang, "qr.feat2.t"), d: t(lang, "qr.feat2.d") },
+          { e: "💶", t: t(lang, "qr.feat3.t"), d: t(lang, "qr.feat3.d") },
+          { e: "📞", t: t(lang, "qr.feat4.t"), d: t(lang, "qr.feat4.d") },
+          { e: "🔒", t: t(lang, "qr.feat5.t"), d: t(lang, "qr.feat5.d") },
         ].map((f, i) => (
           <div
             key={i}
@@ -391,7 +391,7 @@ export function TrackingQRSection() {
             boxSizing: "border-box",
           }}
         >
-          📞 Réserver — 06 73 07 23 22
+          {t(lang, "qr.cta")}
         </a>
       </div>
     </section>
