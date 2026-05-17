@@ -22,14 +22,10 @@ const TARIF_NUIT = 3.24; // 19h–7h
 const getOrsKey = () => import.meta.env.VITE_ORS_API_KEY ?? "";
 
 // ─── Calcul mixte jour/nuit ───────────────────────────────────
-// Reçoit l'heure de départ (ms), la durée (s) et la distance (km)
-// Retourne le prix en tenant compte du basculement jour↔nuit en cours de trajet
 function calculerPrixMixte(departMs: number, dureeS: number, distanceKm: number): number {
   if (dureeS <= 0 || distanceKm <= 0) return PRISE_EN_CHARGE;
   const arriveeMs = departMs + dureeS * 1000;
-
-  // On découpe le trajet en tranches horaires de 1 minute
-  const STEP = 60_000; // 1 min
+  const STEP = 60_000;
   let prixKm = 0;
   let t = departMs;
   while (t < arriveeMs) {
@@ -41,17 +37,16 @@ function calculerPrixMixte(departMs: number, dureeS: number, distanceKm: number)
     prixKm += kmTranche * tarif;
     t = fin;
   }
-
   return Math.round((PRISE_EN_CHARGE + prixKm) * 100) / 100;
 }
 
-// ─── Géocodage silencieux via Photon (premier résultat routable) ───────
+// ─── Géocodage via Photon — priorité house > street > city ────
 async function geocodeAdresse(query: string): Promise<[number, number] | null> {
   if (query.length < 3) return null;
   try {
     const url = new URL("https://photon.komoot.io/api/");
     url.searchParams.set("q", query);
-    url.searchParams.set("limit", "5"); // on récupère plusieurs candidats
+    url.searchParams.set("limit", "5");
     url.searchParams.set("lang", "fr");
     url.searchParams.set("lat", "44.8378");
     url.searchParams.set("lon", "-0.5792");
@@ -59,7 +54,6 @@ async function geocodeAdresse(query: string): Promise<[number, number] | null> {
     const data = await res.json();
     const features = data.features ?? [];
     if (!features.length) return null;
-    // Priorité : house > street > district/city (meilleure précision = plus routable)
     const PRIORITY = ["house", "street", "locality", "district", "city", "county", "state"];
     const sorted = [...features].sort((a, b) => {
       const ia = PRIORITY.indexOf(a.properties?.osm_value ?? "");
@@ -67,7 +61,7 @@ async function geocodeAdresse(query: string): Promise<[number, number] | null> {
       return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
     });
     const feat = sorted[0];
-    return [feat.geometry.coordinates[0], feat.geometry.coordinates[1]]; // [lon, lat]
+    return [feat.geometry.coordinates[0], feat.geometry.coordinates[1]];
   } catch {
     return null;
   }
@@ -88,7 +82,7 @@ async function getOrsRoute(from: [number, number], to: [number, number]): Promis
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${ORS_KEY}` },
       body: JSON.stringify({
         coordinates: [from, to],
-        radiuses: [-1, -1], // snap au point routable le plus proche, sans limite de distance
+        radiuses: [-1, -1],
       }),
     });
     const data = await res.json();
@@ -219,9 +213,8 @@ function SelectField({ value, onChange, options }: SelectFieldProps) {
 function ReservationPage() {
   const { t, lang } = useI18n();
 
-  // ⚠️ Ne pas appeler new Date() dans useState : le rendu SSR et client
-  // divergent → erreur React #418. On initialise date à "" et on le fixe
-  // côté client uniquement dans un useEffect.
+  // FIX #418 — new Date() au render diverge entre SSR et client.
+  // On initialise à "" et on fixe côté client dans un useEffect.
   const [today, setToday] = useState("");
 
   const [f, setF] = useState({
@@ -231,7 +224,7 @@ function ReservationPage() {
     email: "",
     depart: "",
     destination: "",
-    date: "", // sera rempli par useEffect ci-dessous
+    date: "",
     heure: "",
     passagers: 1,
     bagages: 0,
@@ -239,13 +232,11 @@ function ReservationPage() {
     trajet: "aller" as "aller" | "aller-retour",
   });
 
-  // Coordonnées géocodées silencieusement
   const [fromCoord, setFromCoord] = useState<[number, number] | null>(null);
   const [toCoord, setToCoord] = useState<[number, number] | null>(null);
   const [geocodingDepart, setGeocodingDepart] = useState(false);
   const [geocodingDest, setGeocodingDest] = useState(false);
 
-  // Résultat ORS
   const [orsResult, setOrsResult] = useState<OrsResult | null>(null);
   const [calcLoading, setCalcLoading] = useState(false);
 
@@ -255,7 +246,7 @@ function ReservationPage() {
   const [success, setSuccess] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
-  // Fixe la date du jour côté client uniquement (après hydratation SSR)
+  // Fixe la date côté client uniquement (après hydratation)
   useEffect(() => {
     const d = new Date().toISOString().split("T")[0];
     setToday(d);
@@ -264,25 +255,56 @@ function ReservationPage() {
 
   const set = (k: string, v: any) => setF((p) => ({ ...p, [k]: v }));
 
-  // Géocode départ au blur
-  const handleDepartBlur = useCallback(async () => {
-    if (!f.depart) return;
+  // ── Géocodage : debounce 900ms sur frappe + blur en filet de sécurité ──
+  const departTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const destTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const triggerGeoDepart = useCallback(async (val: string) => {
+    if (!val || val.length < 3) return;
     setGeocodingDepart(true);
-    const coord = await geocodeAdresse(f.depart);
+    const coord = await geocodeAdresse(val);
     setFromCoord(coord);
     setGeocodingDepart(false);
-  }, [f.depart]);
+  }, []);
 
-  // Géocode destination au blur
-  const handleDestBlur = useCallback(async () => {
-    if (!f.destination) return;
+  const triggerGeoDest = useCallback(async (val: string) => {
+    if (!val || val.length < 3) return;
     setGeocodingDest(true);
-    const coord = await geocodeAdresse(f.destination);
+    const coord = await geocodeAdresse(val);
     setToCoord(coord);
     setGeocodingDest(false);
-  }, [f.destination]);
+  }, []);
 
-  // Lance ORS dès que les deux coordonnées sont disponibles
+  const handleDepartChange = useCallback(
+    (val: string) => {
+      set("depart", val);
+      setFromCoord(null);
+      setOrsResult(null);
+      if (departTimerRef.current) clearTimeout(departTimerRef.current);
+      departTimerRef.current = setTimeout(() => triggerGeoDepart(val), 900);
+    },
+    [triggerGeoDepart],
+  );
+
+  const handleDestChange = useCallback(
+    (val: string) => {
+      set("destination", val);
+      setToCoord(null);
+      setOrsResult(null);
+      if (destTimerRef.current) clearTimeout(destTimerRef.current);
+      destTimerRef.current = setTimeout(() => triggerGeoDest(val), 900);
+    },
+    [triggerGeoDest],
+  );
+
+  const handleDepartBlur = useCallback(() => {
+    triggerGeoDepart(f.depart);
+  }, [f.depart, triggerGeoDepart]);
+  const handleDestBlur = useCallback(() => {
+    triggerGeoDest(f.destination);
+  }, [f.destination, triggerGeoDest]);
+
+  // Lance ORS dès que les deux coords sont prêtes
   useEffect(() => {
     if (!fromCoord || !toCoord) {
       setOrsResult(null);
@@ -297,7 +319,6 @@ function ReservationPage() {
 
   // Calcul mixte
   const departMs = f.date && f.heure ? new Date(`${f.date}T${f.heure}:00`).getTime() : null;
-
   const heureNum = f.heure ? parseInt(f.heure.split(":")[0], 10) : 12;
   const tarifJourAuto = heureNum >= 7 && heureNum < 19;
 
@@ -308,7 +329,6 @@ function ReservationPage() {
         ? Math.round((PRISE_EN_CHARGE + orsResult.distanceKm * (tarifJourAuto ? TARIF_JOUR : TARIF_NUIT)) * 100) / 100
         : PRISE_EN_CHARGE;
 
-  // Portion jour/nuit pour affichage
   const partJourNuit =
     orsResult && departMs
       ? (() => {
@@ -469,6 +489,7 @@ function ReservationPage() {
 
   return (
     <div
+      suppressHydrationWarning
       style={{
         minHeight: "100vh",
         background: "#f8fafc",
@@ -589,18 +610,14 @@ function ReservationPage() {
             {/* ── Course ── */}
             {sectionLabel(t("res.loc.ride_section"))}
             <div style={{ display: "grid", gap: 12 }}>
-              {/* Départ — géocodage silencieux au blur */}
+              {/* Départ */}
               <div>
                 {fieldLabel(`🟢 ${t("res.loc.depart_label")}`)}
                 <div className="addr-wrap">
                   <input
                     type="text"
                     value={f.depart}
-                    onChange={(e) => {
-                      set("depart", e.target.value);
-                      setFromCoord(null);
-                      setOrsResult(null);
-                    }}
+                    onChange={(e) => handleDepartChange(e.target.value)}
                     onBlur={handleDepartBlur}
                     placeholder={t("res.f.from.ph")}
                     style={{
@@ -619,25 +636,16 @@ function ReservationPage() {
                   <span className="addr-badge">{geocodingDepart ? "⏳" : fromCoord ? "✅" : ""}</span>
                 </div>
                 {errors.depart && <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{errors.depart}</div>}
-                {!fromCoord && f.depart.length > 2 && !geocodingDepart && (
-                  <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 3 }}>
-                    Cliquez hors du champ pour localiser l'adresse
-                  </div>
-                )}
               </div>
 
-              {/* Destination — géocodage silencieux au blur */}
+              {/* Destination */}
               <div>
                 {fieldLabel(`🏁 ${t("res.loc.dest_label")}`)}
                 <div className="addr-wrap">
                   <input
                     type="text"
                     value={f.destination}
-                    onChange={(e) => {
-                      set("destination", e.target.value);
-                      setToCoord(null);
-                      setOrsResult(null);
-                    }}
+                    onChange={(e) => handleDestChange(e.target.value)}
                     onBlur={handleDestBlur}
                     placeholder={t("res.f.to.ph")}
                     style={{
@@ -657,11 +665,6 @@ function ReservationPage() {
                 </div>
                 {errors.destination && (
                   <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{errors.destination}</div>
-                )}
-                {!toCoord && f.destination.length > 2 && !geocodingDest && (
-                  <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 3 }}>
-                    Cliquez hors du champ pour localiser l'adresse
-                  </div>
                 )}
               </div>
 
@@ -773,7 +776,6 @@ function ReservationPage() {
             {/* ── Simulateur de prix ── */}
             {sectionLabel("Simulateur de prix")}
             <div style={{ padding: 20, background: "#f1f5f9", borderRadius: 16 }}>
-              {/* Tarif en vigueur */}
               <div
                 style={{
                   marginBottom: 10,
@@ -808,7 +810,6 @@ function ReservationPage() {
 
               <div style={{ fontSize: 14, color: "#475569" }}>Prise en charge : {PRISE_EN_CHARGE} €</div>
 
-              {/* Distance & durée */}
               <div style={{ marginTop: 8, fontSize: 14, color: "#475569" }}>
                 {calcLoading ? (
                   <span style={{ color: "#94a3b8" }}>⏳ Calcul de l'itinéraire…</span>
@@ -820,12 +821,11 @@ function ReservationPage() {
                   </span>
                 ) : (
                   <span style={{ color: "#94a3b8" }}>
-                    Saisissez le départ et la destination, puis cliquez hors des champs pour calculer.
+                    Saisissez le départ et la destination pour calculer automatiquement.
                   </span>
                 )}
               </div>
 
-              {/* Prix */}
               <div style={{ marginTop: 12 }}>
                 <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
                   TOTAL ESTIMÉ
@@ -881,7 +881,6 @@ function ReservationPage() {
               ))}
             </div>
 
-            {/* Erreur globale */}
             {submitError && (
               <div
                 style={{
@@ -918,7 +917,6 @@ function ReservationPage() {
               </div>
             )}
 
-            {/* ── Bouton d'envoi ── */}
             <div className="sticky-submit-bar">
               {mode === "form" && (
                 <button
