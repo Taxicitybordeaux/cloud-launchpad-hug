@@ -332,10 +332,13 @@ function ReservationPage() {
     return Object.keys(e).length === 0;
   };
 
+  const trajetLabel = (t: string) => (t === "aller-retour" ? "Aller-retour 🔁" : "Aller simple ➡️");
+
   const buildWhatsAppText = () => {
     const greeting = f.prenom ? `Bonjour, je m'appelle ${f.prenom}` : "Bonjour";
     return encodeURIComponent(
       `${greeting}, je souhaite réserver un taxi. Êtes-vous disponible ?\n\n` +
+        `Trajet : ${trajetLabel(f.trajet)}\n` +
         `Départ : ${f.depart || "À préciser"}\n` +
         `Destination : ${f.destination || "À préciser"}\n` +
         `Date : ${f.date} ${f.heure}\n` +
@@ -346,7 +349,7 @@ function ReservationPage() {
   };
 
   const buildEmailText = () =>
-    `Réservation taxi%0A%0AClient: ${f.prenom} ${f.nom}%0ATél: ${f.phone}%0AEmail: ${f.email}%0A%0ADépart: ${f.depart}%0ADestination: ${f.destination}%0ADate: ${f.date} ${f.heure}%0APassagers: ${f.passagers}%0ABagages: ${f.bagages}%0ATarif: ${f.tarifJour ? "Jour" : "Nuit"}`;
+    `Réservation taxi%0A%0AClient: ${f.prenom} ${f.nom}%0ATél: ${f.phone}%0AEmail: ${f.email}%0A%0ATrajet: ${trajetLabel(f.trajet)}%0ADépart: ${f.depart}%0ADestination: ${f.destination}%0ADate: ${f.date} ${f.heure}%0APassagers: ${f.passagers}%0ABagages: ${f.bagages}%0ATarif: ${f.tarifJour ? "Jour" : "Nuit"}`;
 
   const submitForm = async () => {
     if (!validate()) return;
