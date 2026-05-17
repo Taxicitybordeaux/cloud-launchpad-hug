@@ -164,7 +164,7 @@ export const template = {
   previewData: {
     lang: "fr",
     nom: "Jean Dupont",
-    pickup_datetime: "2026-05-10 14:30",
+    pickup_datetime: "05-10-2026 14:30",
     depart: "Bordeaux",
     arrivee: "Aéroport Mérignac",
     passagers: 2,
