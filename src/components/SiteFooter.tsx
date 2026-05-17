@@ -165,7 +165,7 @@ export function SiteFooter() {
           </p>
           <div style={{ marginTop: 14, display: "flex", gap: 10 }}>
             <a
-              href="mailto:contact@taxicitybordeaux.fr"
+              href="mailto:taxi.city033@gmail.com"
               aria-label="Email"
               className="footer-social-btn"
               style={{ border: "1px solid #94a3b840" }}
