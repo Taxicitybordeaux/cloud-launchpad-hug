@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { calculerPrixMixte } from "@/lib/tarif";
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,13 +14,19 @@ export const Route = createFileRoute("/reserver")({
 });
 
 // ─────────────────────────────────────────────────────────────
+// Constantes tarifs
+// ─────────────────────────────────────────────────────────────
+const TARIF_JOUR_KM = 2.16;
+const TARIF_NUIT_KM = 3.24;
+
+// ─────────────────────────────────────────────────────────────
 // Input simple — défini EN DEHORS du composant parent pour
 // éviter le démontage/remontage à chaque render (perte de focus).
 // ─────────────────────────────────────────────────────────────
 interface InputProps {
   k: string;
-  value: any;
-  onChange: (k: string, v: any) => void;
+  value: string | number;
+  onChange: (k: string, v: string | number) => void;
   type?: string;
   placeholder?: string;
   error?: string;
@@ -150,7 +155,7 @@ interface AddressInputProps {
   error?: string;
 }
 
-function AddressInput({ fieldKey, value: _value, onChange, placeholder, error }: AddressInputProps) {
+function AddressInput({ fieldKey, onChange, placeholder, error }: AddressInputProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -158,8 +163,10 @@ function AddressInput({ fieldKey, value: _value, onChange, placeholder, error }:
   const { results, loading } = useNominatim(query);
 
   useEffect(() => {
-    const handler = (e: globalThis.MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    const handler = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -286,10 +293,60 @@ function AddressInput({ fieldKey, value: _value, onChange, placeholder, error }:
 // ─────────────────────────────────────────────────────────────
 // Composant principal
 // ─────────────────────────────────────────────────────────────
-function ReservationPage() {
-  const today = new Date().toISOString().split("T")[0];
+type TrajetType = "aller" | "aller-retour";
+type ModeType = "form" | "email" | "whatsapp" | "sms";
 
-  const [f, setF] = useState({
+interface FormState {
+  prenom: string;
+  nom: string;
+  phone: string;
+  email: string;
+  depart: string;
+  destination: string;
+  date: string;
+  heure: string;
+  passagers: number;
+  bagages: number;
+  paiement: string;
+  trajet: TrajetType;
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <h3
+      style={{
+        fontFamily: "'Syne',sans-serif",
+        marginTop: 24,
+        color: "#0f172a",
+        fontSize: "clamp(14px,4vw,16px)",
+      }}
+    >
+      {children}
+    </h3>
+  );
+}
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        fontSize: 11,
+        color: "#64748b",
+        marginBottom: 4,
+        fontWeight: 600,
+        textTransform: "uppercase",
+        letterSpacing: "0.05em",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function ReservationPage() {
+  const today = new Date().toISOString().split("T")[0] ?? "";
+
+  const [f, setF] = useState<FormState>({
     prenom: "",
     nom: "",
     phone: "",
@@ -301,28 +358,29 @@ function ReservationPage() {
     passagers: 1,
     bagages: 0,
     paiement: "especes",
-    trajet: "aller" as "aller" | "aller-retour",
+    trajet: "aller",
   });
 
-  const [mode, setMode] = useState<"form" | "email" | "whatsapp" | "sms">("form");
+  const [mode, setMode] = useState<ModeType>("form");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
   const [success, setSuccess] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
   useEffect(() => {
-    const sid = typeof window !== "undefined" && (sessionStorage.getItem("sid") || Math.random().toString(36).slice(2));
-    if (sid && typeof window !== "undefined") sessionStorage.setItem("sid", sid as string);
-    supabase.from("site_analytics").insert({ event: "visit", session_id: sid || null });
+    const sid =
+      typeof window !== "undefined" ? (sessionStorage.getItem("sid") ?? Math.random().toString(36).slice(2)) : null;
+    if (sid && typeof window !== "undefined") sessionStorage.setItem("sid", sid);
+    void supabase.from("site_analytics").insert({ event: "visit", session_id: sid ?? null });
   }, []);
 
-  const set = (k: string, v: any) => setF((p) => ({ ...p, [k]: v }));
+  const set = (k: string, v: string | number) => setF((p) => ({ ...p, [k]: v }));
 
   // Calcul automatique du tarif selon l'heure de départ
-  const heureNum = f.heure ? parseInt(f.heure.split(":")[0], 10) : 12;
+  const heureNum = f.heure ? parseInt(f.heure.split(":")[0] ?? "12", 10) : 12;
   const tarifJourAuto = heureNum >= 7 && heureNum < 19;
 
-  const validate = () => {
+  const validate = (): boolean => {
     const e: Record<string, string> = {};
     if (!f.prenom) e.prenom = "Requis";
     if (!f.nom) e.nom = "Requis";
@@ -447,8 +505,9 @@ function ReservationPage() {
       const sid = typeof window !== "undefined" ? sessionStorage.getItem("sid") : null;
       await supabase.from("site_analytics").insert({ event: "reservation_attempt", session_id: sid });
       setSuccess(true);
-    } catch (err: any) {
-      setSubmitError(err?.message || "Une erreur est survenue. Veuillez réessayer.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Une erreur est survenue. Veuillez réessayer.";
+      setSubmitError(message);
     } finally {
       setSending(false);
     }
@@ -561,16 +620,7 @@ function ReservationPage() {
         ) : (
           <>
             {/* ── Coordonnées ── */}
-            <h3
-              style={{
-                fontFamily: "'Syne',sans-serif",
-                marginTop: 24,
-                color: "#0f172a",
-                fontSize: "clamp(14px,4vw,16px)",
-              }}
-            >
-              Vos coordonnées
-            </h3>
+            <SectionTitle>Vos coordonnées</SectionTitle>
             <div className="resa-grid-2">
               <Input k="prenom" value={f.prenom} onChange={set} placeholder="Prénom" error={errors.prenom} />
               <Input k="nom" value={f.nom} onChange={set} placeholder="Nom" error={errors.nom} />
@@ -579,31 +629,11 @@ function ReservationPage() {
             </div>
 
             {/* ── Course ── */}
-            <h3
-              style={{
-                fontFamily: "'Syne',sans-serif",
-                marginTop: 24,
-                color: "#0f172a",
-                fontSize: "clamp(14px,4vw,16px)",
-              }}
-            >
-              Votre course
-            </h3>
+            <SectionTitle>Votre course</SectionTitle>
             <div style={{ display: "grid", gap: 12 }}>
               {/* Adresses */}
               <div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: "#64748b",
-                    marginBottom: 4,
-                    fontWeight: 600,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  🟢 Adresse de départ
-                </div>
+                <FieldLabel>🟢 Adresse de départ</FieldLabel>
                 <AddressInput
                   fieldKey="depart"
                   value={f.depart}
@@ -613,18 +643,7 @@ function ReservationPage() {
                 />
               </div>
               <div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: "#64748b",
-                    marginBottom: 4,
-                    fontWeight: 600,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  🏁 Adresse de destination
-                </div>
+                <FieldLabel>🏁 Adresse de destination</FieldLabel>
                 <AddressInput
                   fieldKey="destination"
                   value={f.destination}
@@ -636,23 +655,14 @@ function ReservationPage() {
 
               {/* ── Type de trajet ── */}
               <div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: "#64748b",
-                    marginBottom: 4,
-                    fontWeight: 600,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  Type de trajet
-                </div>
+                <FieldLabel>Type de trajet</FieldLabel>
                 <div className="tarif-row">
-                  {([
-                    { v: "aller", l: "➡️ Aller simple" },
-                    { v: "aller-retour", l: "🔁 Aller-retour" },
-                  ] as const).map((opt) => (
+                  {(
+                    [
+                      { v: "aller", l: "➡️ Aller simple" },
+                      { v: "aller-retour", l: "🔁 Aller-retour" },
+                    ] as const
+                  ).map((opt) => (
                     <label
                       key={opt.v}
                       style={{
@@ -687,33 +697,11 @@ function ReservationPage() {
               {/* Date, heure, passagers, bagages */}
               <div className="resa-grid-4">
                 <div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: "#64748b",
-                      marginBottom: 4,
-                      fontWeight: 600,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                    }}
-                  >
-                    Date
-                  </div>
+                  <FieldLabel>Date</FieldLabel>
                   <Input k="date" value={f.date} onChange={set} type="date" min={today} error={errors.date} />
                 </div>
                 <div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: "#64748b",
-                      marginBottom: 4,
-                      fontWeight: 600,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                    }}
-                  >
-                    Heure
-                  </div>
+                  <FieldLabel>Heure</FieldLabel>
                   <Input
                     k="heure"
                     value={f.heure}
@@ -724,41 +712,18 @@ function ReservationPage() {
                   />
                 </div>
                 <div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: "#64748b",
-                      marginBottom: 4,
-                      fontWeight: 600,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                    }}
-                  >
-                    Passagers
-                  </div>
+                  <FieldLabel>Passagers</FieldLabel>
                   <SelectField value={f.passagers} onChange={(v) => set("passagers", v)} options={passagerOptions} />
                 </div>
                 <div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: "#64748b",
-                      marginBottom: 4,
-                      fontWeight: 600,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                    }}
-                  >
-                    Bagages
-                  </div>
+                  <FieldLabel>Bagages</FieldLabel>
                   <SelectField value={f.bagages} onChange={(v) => set("bagages", v)} options={bagagesOptions} />
                 </div>
               </div>
             </div>
 
             {/* ── Tarif ── */}
-                          Tarif
-            </h3>
+            <SectionTitle>Tarif</SectionTitle>
             <div
               style={{
                 padding: "12px 16px",
@@ -773,26 +738,25 @@ function ReservationPage() {
               }}
             >
               {tarifJourAuto ? (
-                <><span>☀️</span><span><strong>Tarif jour</strong> (7h–19h) — 2,16 €/km</span></>
+                <>
+                  <span>☀️</span>
+                  <span>
+                    <strong>Tarif jour</strong> (7h–19h) — {TARIF_JOUR_KM.toFixed(2).replace(".", ",")} €/km
+                  </span>
+                </>
               ) : (
-                <><span>🌙</span><span><strong>Tarif nuit</strong> (19h–7h) — 3,24 €/km</span></>
+                <>
+                  <span>🌙</span>
+                  <span>
+                    <strong>Tarif nuit</strong> (19h–7h) — {TARIF_NUIT_KM.toFixed(2).replace(".", ",")} €/km
+                  </span>
+                </>
               )}
-              <span style={{ marginLeft: "auto", fontSize: 12, color: "#64748b" }}>
-                Calculé automatiquement
-              </span>
+              <span style={{ marginLeft: "auto", fontSize: 12, color: "#64748b" }}>Calculé automatiquement</span>
             </div>
 
             {/* ── Moyen de paiement ── */}
-            <h3
-              style={{
-                fontFamily: "'Syne',sans-serif",
-                marginTop: 24,
-                color: "#0f172a",
-                fontSize: "clamp(14px,4vw,16px)",
-              }}
-            >
-              Moyen de paiement
-            </h3>
+            <SectionTitle>Moyen de paiement</SectionTitle>
             <div className="resa-grid-4">
               {[
                 { v: "especes", l: "💶 Espèces" },
@@ -828,16 +792,7 @@ function ReservationPage() {
             </div>
 
             {/* ── Mode de réservation ── */}
-            <h3
-              style={{
-                fontFamily: "'Syne',sans-serif",
-                marginTop: 24,
-                color: "#0f172a",
-                fontSize: "clamp(14px,4vw,16px)",
-              }}
-            >
-              Mode de réservation
-            </h3>
+            <SectionTitle>Mode de réservation</SectionTitle>
             <div className="resa-mode-grid" style={{ marginBottom: 16 }}>
               {(["form", "email", "whatsapp", "sms"] as const).map((m) => (
                 <button
@@ -884,7 +839,7 @@ function ReservationPage() {
               >
                 <span>❌ {submitError}</span>
                 <button
-                  onClick={submitForm}
+                  onClick={() => void submitForm()}
                   style={{
                     background: "#ef4444",
                     color: "#fff",
@@ -907,7 +862,7 @@ function ReservationPage() {
               {mode === "form" && (
                 <button
                   disabled={sending}
-                  onClick={submitForm}
+                  onClick={() => void submitForm()}
                   style={{
                     width: "100%",
                     height: 56,
