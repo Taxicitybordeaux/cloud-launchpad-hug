@@ -629,6 +629,56 @@ function ReservationPage() {
                 />
               </div>
 
+              {/* ── Type de trajet ── */}
+              <div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "#64748b",
+                    marginBottom: 4,
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  Type de trajet
+                </div>
+                <div className="tarif-row">
+                  {([
+                    { v: "aller", l: "➡️ Aller simple" },
+                    { v: "aller-retour", l: "🔁 Aller-retour" },
+                  ] as const).map((opt) => (
+                    <label
+                      key={opt.v}
+                      style={{
+                        flex: 1,
+                        padding: 12,
+                        border: `2px solid ${f.trajet === opt.v ? "#0ea5e9" : "#e2e8f0"}`,
+                        borderRadius: 12,
+                        cursor: "pointer",
+                        fontSize: 14,
+                        fontWeight: 600,
+                        background: f.trajet === opt.v ? "#f0f9ff" : "#fff",
+                        color: "#0f172a",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 8,
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="trajet"
+                        checked={f.trajet === opt.v}
+                        onChange={() => set("trajet", opt.v)}
+                        style={{ display: "none" }}
+                      />
+                      {opt.l}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               {/* Date, heure, passagers, bagages */}
               <div className="resa-grid-4">
                 <div>
