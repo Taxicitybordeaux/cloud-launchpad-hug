@@ -1,6 +1,6 @@
-import { useEffect, useRef, useMemo, useState, useCallback } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Calculator, Phone, ArrowRight, Info, MapPin, Loader2 } from "lucide-react";
+import { Calculator, Phone, ArrowRight, Info, MapPin, Loader2, Clock } from "lucide-react";
 import { useT } from "@/i18n/I18nProvider";
 
 // ─── Config tarifs ────────────────────────────────────────────
@@ -11,10 +11,6 @@ const PICKUP_FEE = 2.83;
 const RATE_DAY = 2.16; // 7h–19h
 const RATE_NIGHT = 3.24; // 19h–7h
 
-// Distance via OSRM — gratuit, sans clé, sans restriction de domaine
-
-type Period = "day" | "night";
-
 function formatEUR(value: number) {
   return new Intl.NumberFormat("fr-FR", {
     style: "currency",
@@ -23,7 +19,39 @@ function formatEUR(value: number) {
   }).format(value);
 }
 
-// ─── Types ────────────────────────────────────────────────────
+// ─── Tarif mixte ─────────────────────────────────────────────
+/**
+ * Étant donné une heure de départ et une durée de trajet (secondes),
+ * calcule le tarif kilométrique moyen pondéré entre jour et nuit.
+ * Découpe le trajet en tranches d'1 min pour déterminer chaque tarif.
+ */
+function computeMixedRate(departure: Date, durationSec: number): number {
+  if (durationSec <= 0) {
+    const h = departure.getHours();
+    return h >= 7 && h < 19 ? RATE_DAY : RATE_NIGHT;
+  }
+
+  const start = departure.getTime();
+  const end = start + durationSec * 1000;
+  const STEP = 60_000; // 1 minute
+  let dayMs = 0;
+  let nightMs = 0;
+  let cursor = start;
+
+  while (cursor < end) {
+    const slice = Math.min(STEP, end - cursor);
+    const h = new Date(cursor).getHours();
+    if (h >= 7 && h < 19) dayMs += slice;
+    else nightMs += slice;
+    cursor += slice;
+  }
+
+  const total = dayMs + nightMs;
+  if (total === 0) return RATE_DAY;
+  return (dayMs / total) * RATE_DAY + (nightMs / total) * RATE_NIGHT;
+}
+
+// ─── Types ───────────────────────────────────────────────────
 interface NominatimResult {
   place_id: number;
   display_name: string;
@@ -31,126 +59,92 @@ interface NominatimResult {
   lon: string;
 }
 
-// ─── Hook : suggestions d'adresses via Nominatim (OpenStreetMap) ─
-function useNominatim(query: string) {
-  const [results, setResults] = useState<NominatimResult[]>([]);
-  const [loading, setLoading] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
-  useEffect(() => {
-    clearTimeout(debounceRef.current);
-    if (query.length < 3) {
-      setResults([]);
-      return;
-    }
-
-    debounceRef.current = setTimeout(async () => {
-      setLoading(true);
-      try {
-        const url = new URL("https://nominatim.openstreetmap.org/search");
-        url.searchParams.set("q", query);
-        url.searchParams.set("format", "json");
-        url.searchParams.set("limit", "12");
-        url.searchParams.set("countrycodes", "fr");
-        url.searchParams.set("addressdetails", "1");
-        const res = await fetch(url.toString(), { headers: { "Accept-Language": "fr" } });
-        const data: NominatimResult[] = await res.json();
-        setResults(data);
-      } catch {
-        setResults([]);
-      } finally {
-        setLoading(false);
-      }
-    }, 380);
-
-    return () => clearTimeout(debounceRef.current);
-  }, [query]);
-
-  return { results, loading };
+// ─── Géocodage silencieux (1er résultat Nominatim) ───────────
+async function geocodeSilent(query: string): Promise<[number, number] | null> {
+  if (query.trim().length < 3) return null;
+  try {
+    const url = new URL("https://nominatim.openstreetmap.org/search");
+    url.searchParams.set("q", query.trim());
+    url.searchParams.set("format", "json");
+    url.searchParams.set("limit", "1");
+    url.searchParams.set("countrycodes", "fr");
+    const res = await fetch(url.toString(), { headers: { "Accept-Language": "fr" } });
+    const data: NominatimResult[] = await res.json();
+    if (!data[0]) return null;
+    return [parseFloat(data[0].lon), parseFloat(data[0].lat)];
+  } catch {
+    return null;
+  }
 }
 
-// ─── Champ adresse avec liste déroulante de suggestions ───────
+// ─── Champ adresse — saisie libre, géocodage silencieux au blur ──
 interface AddressFieldProps {
   id: string;
   label: string;
-  onChange: (val: string) => void;
-  onSelect: (result: NominatimResult) => void;
+  onCoord: (coord: [number, number] | null) => void;
 }
 
-function AddressField({ id, label, onChange, onSelect }: AddressFieldProps) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const { results, loading } = useNominatim(query);
-
-  useEffect(() => {
-    const handler = (e: globalThis.MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
+function AddressField({ id, label, onCoord }: AddressFieldProps) {
+  const [geocoding, setGeocoding] = useState(false);
+  const [ok, setOk] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const lastQuery = useRef("");
 
   const handleChange = (v: string) => {
-    setQuery(v);
-    onChange(v);
-    setOpen(true);
+    lastQuery.current = v;
+    // Invalide les coordonnées dès que l'utilisateur modifie le champ
+    onCoord(null);
+    setOk(false);
+    setFailed(false);
   };
 
-  const handleSelect = (r: NominatimResult) => {
-    const short = r.display_name.split(",").slice(0, 3).join(", ");
-    if (inputRef.current) inputRef.current.value = short;
-    setQuery(short);
-    onChange(short);
-    onSelect(r);
-    setOpen(false);
+  const handleBlur = async () => {
+    const q = lastQuery.current.trim();
+    if (q.length < 3) return;
+    setGeocoding(true);
+    const coord = await geocodeSilent(q);
+    setGeocoding(false);
+    if (coord) {
+      onCoord(coord);
+      setOk(true);
+      setFailed(false);
+    } else {
+      setOk(false);
+      setFailed(true);
+    }
   };
 
   return (
-    <div ref={wrapRef} className="relative">
+    <div>
       <label htmlFor={id} className="block text-sm font-semibold text-foreground mb-2">
         {id === "sim-from" ? "🟢 " : "🏁 "}
         {label}
       </label>
       <div className="relative flex items-center">
         <input
-          ref={inputRef}
           id={id}
           type="text"
           autoComplete="off"
-          defaultValue=""
           onChange={(e) => handleChange(e.target.value)}
-          onFocus={() => results.length > 0 && setOpen(true)}
-          placeholder="Tapez une adresse…"
-          className="w-full rounded-xl border border-border bg-background px-4 pr-10 py-3 text-sm focus:border-primary focus:outline-none transition"
+          onBlur={handleBlur}
+          placeholder="Adresse, ville, lieu-dit…"
+          className={`w-full rounded-xl border bg-background px-4 pr-10 py-3 text-sm focus:outline-none transition
+            ${failed ? "border-red-400 focus:border-red-400" : ""}
+            ${ok && !failed ? "border-primary focus:border-primary" : ""}
+            ${!ok && !failed ? "border-border focus:border-primary" : ""}
+          `}
         />
-        {loading && (
+        {geocoding && (
           <Loader2 className="pointer-events-none absolute right-3 h-4 w-4 animate-spin text-muted-foreground" />
         )}
+        {!geocoding && ok && <MapPin className="pointer-events-none absolute right-3 h-4 w-4 text-primary" />}
       </div>
-
-      {open && results.length > 0 && (
-        <ul className="absolute z-50 mt-1 w-full rounded-xl border border-border bg-background shadow-lg overflow-hidden">
-          {results.map((r) => (
-            <li key={r.place_id}>
-              <button
-                type="button"
-                onMouseDown={() => handleSelect(r)}
-                className="w-full px-4 py-2.5 text-left text-sm hover:bg-primary/10 transition flex items-start gap-2"
-              >
-                <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                <span className="line-clamp-2 text-foreground/90">{r.display_name}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      {failed && <p className="mt-1 text-xs text-red-500">Adresse introuvable — essayez d'être plus précis.</p>}
     </div>
   );
 }
 
-// ─── Calcul de distance (OSRM routing, fallback haversine ×1.3) ────
+// ─── Calcul distance + durée via OSRM ────────────────────────
 function haversineKm([lon1, lat1]: [number, number], [lon2, lat2]: [number, number]): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -161,60 +155,85 @@ function haversineKm([lon1, lat1]: [number, number], [lon2, lat2]: [number, numb
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function useDistance(from: [number, number] | null, to: [number, number] | null) {
-  const [km, setKm] = useState<number | null>(null);
+interface RouteResult {
+  km: number;
+  durationSec: number;
+}
+
+function useRoute(from: [number, number] | null, to: [number, number] | null) {
+  const [route, setRoute] = useState<RouteResult | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!from || !to) {
-      setKm(null);
+      setRoute(null);
       return;
     }
-
     setLoading(true);
-    // OSRM : format coords lon,lat;lon,lat
-    fetch(`https://router.project-osrm.org/route/v1/driving/${from[0]},${from[1]};${to[0]},${to[1]}?overview=false`)
+
+    fetch(
+      `https://router.project-osrm.org/route/v1/driving/` + `${from[0]},${from[1]};${to[0]},${to[1]}?overview=false`,
+    )
       .then((r) => r.json())
       .then((data) => {
-        if (data.code !== "Ok" || !data.routes?.[0]) {
-          // Fallback vol d'oiseau ×1.3 si OSRM échoue
-          setKm(Math.round(haversineKm(from, to) * 1.3 * 10) / 10);
-          return;
-        }
-        setKm(Math.round((data.routes[0].distance / 1000) * 10) / 10);
+        if (data.code !== "Ok" || !data.routes?.[0]) throw new Error("no route");
+        setRoute({
+          km: Math.round((data.routes[0].distance / 1000) * 10) / 10,
+          durationSec: Math.round(data.routes[0].duration),
+        });
       })
       .catch(() => {
-        // Fallback vol d'oiseau ×1.3
-        setKm(Math.round(haversineKm(from, to) * 1.3 * 10) / 10);
+        // Fallback haversine ×1.3, vitesse ~50 km/h pour la durée
+        const km = Math.round(haversineKm(from, to) * 1.3 * 10) / 10;
+        setRoute({ km, durationSec: Math.round((km / 50) * 3600) });
       })
       .finally(() => setLoading(false));
   }, [from, to]);
 
-  return { km, loading };
+  return { route, loading };
+}
+
+// ─── Formatage durée ──────────────────────────────────────────
+function formatDuration(sec: number): string {
+  if (sec >= 3600) {
+    const h = Math.floor(sec / 3600);
+    const min = Math.round((sec % 3600) / 60);
+    return `${h}h${String(min).padStart(2, "0")}`;
+  }
+  return `${Math.round(sec / 60)} min`;
 }
 
 // ─── Composant principal ──────────────────────────────────────
 export function FareSimulator() {
   const t = useT();
 
-  const [period, setPeriod] = useState<Period>("day");
-  const [fromAddr, setFromAddr] = useState("");
-  const [toAddr, setToAddr] = useState("");
   const [fromCoord, setFromCoord] = useState<[number, number] | null>(null);
   const [toCoord, setToCoord] = useState<[number, number] | null>(null);
 
-  const { km, loading: distLoading } = useDistance(fromCoord, toCoord);
-  const rate = period === "day" ? RATE_DAY : RATE_NIGHT;
+  const { route, loading: distLoading } = useRoute(fromCoord, toCoord);
 
-  const total = useMemo(() => (km != null ? PICKUP_FEE + km * rate : null), [km, rate]);
-
-  const handleFromSelect = useCallback((r: NominatimResult) => {
-    setFromCoord([parseFloat(r.lon), parseFloat(r.lat)]);
+  // Heure courante — mise à jour chaque minute pour que le badge reste exact
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
   }, []);
 
-  const handleToSelect = useCallback((r: NominatimResult) => {
-    setToCoord([parseFloat(r.lon), parseFloat(r.lat)]);
-  }, []);
+  const isDay = now.getHours() >= 7 && now.getHours() < 19;
+  const periodLabel = isDay
+    ? `☀️ Tarif jour (7h–19h) — ${formatEUR(RATE_DAY)} / km`
+    : `🌙 Tarif nuit (19h–7h) — ${formatEUR(RATE_NIGHT)} / km`;
+
+  // Taux mixte : pondéré sur la durée réelle du trajet depuis maintenant
+  const rate = useMemo(
+    () => (route ? computeMixedRate(now, route.durationSec) : isDay ? RATE_DAY : RATE_NIGHT),
+    [route, now, isDay],
+  );
+
+  // Tarif mixte si on chevauche une frontière 7h / 19h
+  const isMixed = route ? Math.abs(rate - RATE_DAY) > 0.01 && Math.abs(rate - RATE_NIGHT) > 0.01 : false;
+
+  const total = useMemo(() => (route ? PICKUP_FEE + route.km * rate : null), [route, rate]);
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-20">
@@ -227,57 +246,19 @@ export function FareSimulator() {
       <div className="mx-auto mt-12 grid max-w-5xl gap-6 rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-elegant)] sm:p-8 md:grid-cols-2">
         {/* ── Inputs ── */}
         <div className="space-y-6">
-          <AddressField
-            id="sim-from"
-            label="Adresse de départ"
-            onChange={(v) => {
-              setFromAddr(v);
-              if (!v) setFromCoord(null);
-            }}
-            onSelect={handleFromSelect}
-          />
+          <AddressField id="sim-from" label="Adresse de départ" onCoord={setFromCoord} />
+          <AddressField id="sim-to" label="Adresse de destination" onCoord={setToCoord} />
 
-          <AddressField
-            id="sim-to"
-            label="Adresse de destination"
-            onChange={(v) => {
-              setToAddr(v);
-              if (!v) setToCoord(null);
-            }}
-            onSelect={handleToSelect}
-          />
-
-          <fieldset>
-            <legend className="block text-sm font-semibold text-foreground">{t("sim.period")}</legend>
-            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {(["day", "night"] as const).map((p) => {
-                const active = period === p;
-                return (
-                  <label
-                    key={p}
-                    className={`cursor-pointer rounded-xl border px-4 py-3 text-sm transition ${
-                      active
-                        ? "border-primary bg-primary/10 text-foreground"
-                        : "border-border bg-background text-muted-foreground hover:border-primary/50"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="sim-period"
-                      value={p}
-                      checked={active}
-                      onChange={() => setPeriod(p)}
-                      className="sr-only"
-                    />
-                    <span className="font-medium">
-                      {p === "day" ? "☀️ Jour (7h–19h)" : "🌙 Nuit (19h–7h) — dimanches & jours fériés"}
-                    </span>
-                    <span className="mt-1 block text-xs">{formatEUR(p === "day" ? RATE_DAY : RATE_NIGHT)} / km</span>
-                  </label>
-                );
-              })}
-            </div>
-          </fieldset>
+          {/* Badge période — lecture seule, automatique */}
+          <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
+            <Clock className="h-4 w-4 shrink-0 text-primary" />
+            <span>{periodLabel}</span>
+            {isMixed && (
+              <span className="ml-auto shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                tarif mixte
+              </span>
+            )}
+          </div>
         </div>
 
         {/* ── Résultat ── */}
@@ -311,13 +292,19 @@ export function FareSimulator() {
                 <dd className="font-medium">{formatEUR(PICKUP_FEE)}</dd>
               </div>
               <div className="flex items-center justify-between">
-                <dt className="text-muted-foreground">{t("sim.perkm")}</dt>
-                <dd className="font-medium">{formatEUR(rate)}</dd>
+                <dt className="text-muted-foreground">{isMixed ? "Tarif moyen pondéré" : t("sim.perkm")}</dt>
+                <dd className="font-medium">{formatEUR(rate)} / km</dd>
               </div>
-              {km != null && (
+              {route && (
                 <div className="flex items-center justify-between">
                   <dt className="text-muted-foreground">Distance estimée</dt>
-                  <dd className="font-medium">{km} km</dd>
+                  <dd className="font-medium">{route.km} km</dd>
+                </div>
+              )}
+              {route && (
+                <div className="flex items-center justify-between">
+                  <dt className="text-muted-foreground">Durée estimée</dt>
+                  <dd className="font-medium">{formatDuration(route.durationSec)}</dd>
                 </div>
               )}
             </dl>
@@ -327,7 +314,7 @@ export function FareSimulator() {
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
             <span>
               Estimation indicative basée sur nos tarifs officiels. Le prix réel peut varier selon le trajet exact, les
-              conditions de circulation (bouchons, déviations) et les éventuels suppléments.
+              conditions de circulation et les éventuels suppléments.
             </span>
           </p>
 
@@ -337,7 +324,7 @@ export function FareSimulator() {
               className="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-border bg-background px-4 py-3 text-sm font-semibold transition hover:border-primary sm:flex-1"
             >
               <Phone className="h-4 w-4 shrink-0" />
-              <span className="whitespace-nowrap">{PHONE_DISPLAY}</span>
+              <span>{PHONE_DISPLAY}</span>
             </a>
             <Link
               to="/reservation"
