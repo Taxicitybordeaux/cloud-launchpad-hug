@@ -112,19 +112,19 @@ export function WhatsAppFloat() {
           href={`tel:${PHONE}`}
           onClick={handleClick("call", "mobile_sticky")}
           style={{ ...btnBase, background: "#1d4ed8" }}
-          aria-label="Appeler le taxi"
+          aria-label={t("wa.btn.call")}
         >
           <Phone size={20} aria-hidden="true" />
-          <span>Appeler</span>
+          <span>{t("wa.btn.call")}</span>
         </a>
         <Link
           to="/reserver"
           onClick={handleClick("quote", "mobile_sticky")}
           style={{ ...btnBase, background: "#0ea5e9" }}
-          aria-label="Réservation devis"
+          aria-label={t("wa.btn.quote")}
         >
           <FileText size={20} aria-hidden="true" />
-          <span>Réservation devis</span>
+          <span>{t("wa.btn.quote")}</span>
         </Link>
       </div>
 
@@ -166,7 +166,7 @@ export function WhatsAppFloat() {
         <a
           href={`tel:${PHONE}`}
           onClick={handleClick("call", "desktop_float")}
-          aria-label="Appeler le taxi"
+          aria-label={t("wa.btn.call")}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -182,12 +182,12 @@ export function WhatsAppFloat() {
           }}
         >
           <Phone size={20} aria-hidden="true" />
-          Appeler
+          {t("wa.btn.call")}
         </a>
         <Link
           to="/reserver"
           onClick={handleClick("quote", "desktop_float")}
-          aria-label="Réservation devis"
+          aria-label={t("wa.btn.quote")}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -203,7 +203,7 @@ export function WhatsAppFloat() {
           }}
         >
           <FileText size={20} aria-hidden="true" />
-          Réservation devis
+          {t("wa.btn.quote")}
         </Link>
       </div>
     </>
