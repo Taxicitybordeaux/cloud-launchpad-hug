@@ -3,8 +3,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix } from "@/lib/tarif";
-import { assertTrackingId, newTrackingId } from "@/lib/tracking-id";
-import { CourseCardSkeleton, Skeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
+import { assertTrackingId, newTrackingId, trackingIdSchema } from "@/lib/tracking-id";
+import {
+  CourseCardSkeleton,
+  GpsCardSkeleton,
+  Skeleton,
+  SkeletonStyles,
+  StatCardSkeleton,
+  CardSkeleton,
+  LineSkeleton,
+  ReservationRowSkeleton,
+} from "@/components/admin/Skeleton";
 
 export const Route = createFileRoute("/admin/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Admin" }, { name: "robots", content: "noindex" }] }),
@@ -222,6 +231,32 @@ function Dashboard() {
   const [avisLoading, setAvisLoading] = useState(true);
   const initialLoad = useRef(true);
 
+  // ── GPS ──
+  const [gpsActive, setGpsActive] = useState(false);
+  const [gpsDestination, setGpsDestination] = useState("");
+  const [gpsPrixEstime, setGpsPrixEstime] = useState("");
+  const [gpsLoading, setGpsLoading] = useState(true);
+  const [gpsCalcKm, setGpsCalcKm] = useState(5);
+  const [gpsCalcJour, setGpsCalcJour] = useState(true);
+  const [gpsPosition, setGpsPosition] = useState<{ lat: number; lng: number } | null>(null);
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
+  const [gpsUpdateCount, setGpsUpdateCount] = useState(0);
+  const watchIdRef = useRef<number | null>(null);
+
+  // ── Flow Check ──
+  const [flowChecks, setFlowChecks] = useState<
+    { id: string; label: string; status: "ok" | "warn" | "fail" | "pending"; detail?: string }[]
+  >([]);
+  const [flowResas, setFlowResas] = useState<any[]>([]);
+  const [flowRunning, setFlowRunning] = useState(false);
+  const [flowResasLoading, setFlowResasLoading] = useState(false);
+  const [trackingMode, setTrackingMode] = useState<"single" | "multi" | null>(null);
+  const [savingMode, setSavingMode] = useState(false);
+  const [simResults, setSimResults] = useState<
+    { id: string; tracking_id: string; ms: number; ok: boolean; detail: string }[]
+  >([]);
+  const [simRunning, setSimRunning] = useState(false);
+
   // =========================
   // FETCH STATS
   // =========================
@@ -330,6 +365,281 @@ function Dashboard() {
       supabase.removeChannel(ch);
     };
   }, [fetchAll, fetchStats]);
+
+  // =========================
+  // GPS INIT
+  // =========================
+  useEffect(() => {
+    const initGPS = async () => {
+      const { data, error } = await supabase.from("driver_gps").select("*").eq("id", "driver").single();
+      if (error || !data) {
+        await supabase.from("driver_gps").insert({ id: "driver", is_active: false, latitude: 0, longitude: 0 });
+        setGpsLoading(false);
+        return;
+      }
+      setGpsActive(!!data.is_active);
+      setGpsDestination(data.destination ?? "");
+      setGpsPrixEstime(data.prix_estime ?? "");
+      setGpsLoading(false);
+    };
+    initGPS();
+    return () => {
+      if (watchIdRef.current !== null && typeof navigator !== "undefined")
+        navigator.geolocation.clearWatch(watchIdRef.current);
+    };
+  }, []);
+
+  const startGPS = async () => {
+    if (!navigator.geolocation) return;
+    await supabase
+      .from("driver_gps")
+      .update({
+        is_active: true,
+        destination: gpsDestination || null,
+        prix_estime: gpsPrixEstime || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", "driver");
+    setGpsActive(true);
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      async (pos) => {
+        const { latitude, longitude, accuracy: acc } = pos.coords;
+        setGpsPosition({ lat: latitude, lng: longitude });
+        setGpsAccuracy(Math.round(acc));
+        setGpsUpdateCount((n) => n + 1);
+        await supabase
+          .from("driver_gps")
+          .update({
+            latitude,
+            longitude,
+            accuracy: acc,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", "driver");
+      },
+      (err) => console.error(err),
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 },
+    );
+  };
+
+  const stopGPS = async () => {
+    if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+    watchIdRef.current = null;
+    await supabase
+      .from("driver_gps")
+      .update({
+        is_active: false,
+        destination: null,
+        prix_estime: null,
+      })
+      .eq("id", "driver");
+    setGpsActive(false);
+    setGpsPosition(null);
+    setGpsAccuracy(null);
+    setGpsUpdateCount(0);
+  };
+
+  // =========================
+  // FLOW CHECK
+  // =========================
+  const runFlowChecks = async () => {
+    setFlowRunning(true);
+    setFlowResasLoading(true);
+    const results: typeof flowChecks = [];
+
+    const { data: gpsData, error: gpsErr } = await supabase
+      .from("driver_gps")
+      .select("*")
+      .eq("id", "driver")
+      .maybeSingle();
+    if (gpsErr) {
+      results.push({ id: "gps", label: "Driver GPS — lecture publique", status: "fail", detail: gpsErr.message });
+    } else if (!gpsData) {
+      results.push({
+        id: "gps",
+        label: "Driver GPS — ligne 'driver' absente",
+        status: "warn",
+        detail: "La ligne driver_gps id='driver' n'existe pas.",
+      });
+    } else {
+      const hasPos = gpsData.latitude != null && gpsData.longitude != null;
+      const fresh = gpsData.updated_at ? Date.now() - new Date(gpsData.updated_at).getTime() < 5 * 60 * 1000 : false;
+      results.push({
+        id: "gps",
+        label: `Driver GPS — ${gpsData.is_active ? "actif" : "inactif"}${hasPos ? " · position OK" : " · sans position"}${fresh ? " · récent" : " · ancien"}`,
+        status: gpsData.is_active && hasPos && fresh ? "ok" : "warn",
+        detail: `lat=${gpsData.latitude ?? "—"} lng=${gpsData.longitude ?? "—"} · maj ${gpsData.updated_at ?? "—"}`,
+      });
+    }
+
+    const { data: resas, error: resasErr } = await supabase
+      .from("reservations")
+      .select("id, tracking_id, status, client_name, nom, destination, arrivee, prix_estime, created_at")
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (resasErr) {
+      results.push({ id: "resas", label: "Réservations — lecture", status: "fail", detail: resasErr.message });
+    } else {
+      const list = resas ?? [];
+      setFlowResas(list);
+      setFlowResasLoading(false);
+      const accepted = list.filter((r: any) =>
+        ["acceptee", "acceptée", "accepted"].includes((r.status || "").toLowerCase()),
+      );
+      const withTid = list.filter((r: any) => r.tracking_id);
+      const validTid = withTid.filter((r: any) => trackingIdSchema.safeParse(r.tracking_id).success);
+      const invalidTid = withTid.length - validTid.length;
+      results.push({
+        id: "resas",
+        label: `Réservations — ${list.length} récentes · ${accepted.length} acceptées · ${withTid.length} avec tracking_id`,
+        status: list.length === 0 ? "warn" : "ok",
+      });
+      results.push({
+        id: "tid",
+        label: `Tracking IDs — ${validTid.length}/${withTid.length} au format UUID v4`,
+        status: invalidTid === 0 ? "ok" : "fail",
+        detail: invalidTid > 0 ? `${invalidTid} tracking_id invalides.` : undefined,
+      });
+    }
+
+    try {
+      const { error } = await supabase.from("reservations").select("id").limit(1);
+      results.push({
+        id: "rls-resa-read",
+        label: "RLS · reservations — lecture publique",
+        status: error ? "fail" : "ok",
+        detail: error?.message,
+      });
+    } catch (e: any) {
+      results.push({ id: "rls-resa-read", label: "RLS · reservations — lecture", status: "fail", detail: e.message });
+    }
+    try {
+      const { error } = await supabase.from("driver_gps").select("id").limit(1);
+      results.push({
+        id: "rls-gps-read",
+        label: "RLS · driver_gps — lecture publique",
+        status: error ? "fail" : "ok",
+        detail: error?.message,
+      });
+    } catch (e: any) {
+      results.push({ id: "rls-gps-read", label: "RLS · driver_gps — lecture", status: "fail", detail: e.message });
+    }
+    const { error: rolesErr } = await supabase.from("user_roles").select("id").limit(1);
+    results.push({
+      id: "rls-roles",
+      label: "RLS · user_roles",
+      status: "ok",
+      detail: rolesErr ? "Lecture refusée hors admin (attendu)." : "Vous êtes admin, lecture autorisée.",
+    });
+
+    try {
+      const { error } = await supabase
+        .from("site_analytics")
+        .insert({ event: "flow_check_ping", session_id: "flow-check" });
+      results.push({
+        id: "rls-analytics",
+        label: "RLS · site_analytics — écriture publique",
+        status: error ? "fail" : "ok",
+        detail: error?.message,
+      });
+    } catch (e: any) {
+      results.push({
+        id: "rls-analytics",
+        label: "RLS · site_analytics — écriture",
+        status: "fail",
+        detail: e.message,
+      });
+    }
+
+    const channel = supabase.channel("flow-check-rt");
+    const rtOk = await new Promise<boolean>((resolve) => {
+      const timeout = setTimeout(() => resolve(false), 3000);
+      channel
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "driver_gps" }, () => {})
+        .subscribe((status) => {
+          if (status === "SUBSCRIBED") {
+            clearTimeout(timeout);
+            resolve(true);
+          }
+        });
+    });
+    supabase.removeChannel(channel);
+    results.push({
+      id: "realtime",
+      label: "Realtime — abonnement driver_gps",
+      status: rtOk ? "ok" : "warn",
+      detail: rtOk ? undefined : "Canal realtime non confirmé en 3s.",
+    });
+
+    setFlowChecks(results);
+    setFlowRunning(false);
+  };
+
+  const loadTrackingMode = async () => {
+    const { data } = await supabase.from("app_settings").select("tracking_mode").eq("id", 1).maybeSingle();
+    setTrackingMode(data?.tracking_mode === "multi" ? "multi" : "single");
+  };
+
+  const updateTrackingMode = async (next: "single" | "multi") => {
+    setSavingMode(true);
+    const { error } = await supabase
+      .from("app_settings")
+      .update({ tracking_mode: next, updated_at: new Date().toISOString() })
+      .eq("id", 1);
+    setSavingMode(false);
+    if (error) {
+      alert("Échec mise à jour mode: " + error.message);
+      return;
+    }
+    setTrackingMode(next);
+  };
+
+  const runSimulatedScans = async () => {
+    setSimRunning(true);
+    setSimResults([]);
+    const targets = flowResas
+      .filter((r: any) => r.tracking_id && trackingIdSchema.safeParse(r.tracking_id).success)
+      .slice(0, 5);
+    if (targets.length === 0) {
+      setSimResults([
+        { id: "none", tracking_id: "—", ms: 0, ok: false, detail: "Aucune réservation avec tracking_id UUID valide." },
+      ]);
+      setSimRunning(false);
+      return;
+    }
+    const settings = await supabase.from("app_settings").select("tracking_mode").eq("id", 1).maybeSingle();
+    const m = settings.data?.tracking_mode === "multi" ? "multi" : "single";
+    const runOne = async (r: any) => {
+      const start = performance.now();
+      const tid = r.tracking_id!;
+      const [resa, gps] = await Promise.all([
+        supabase
+          .from("reservations")
+          .select("id, status, destination, arrivee, prix_estime")
+          .eq("tracking_id", tid)
+          .maybeSingle(),
+        supabase
+          .from("driver_gps")
+          .select("id, latitude, longitude, is_active, updated_at")
+          .eq("id", m === "multi" ? tid : "driver")
+          .maybeSingle(),
+      ]);
+      const ms = Math.round(performance.now() - start);
+      const okResa = !resa.error && !!resa.data;
+      const okGps = !gps.error;
+      return {
+        id: r.id,
+        tracking_id: tid,
+        ms,
+        ok: okResa && okGps,
+        detail: `${okResa ? "✓ resa" : "✗ resa"} · ${okGps ? (gps.data ? "✓ gps " + (gps.data.is_active ? "actif" : "inactif") : "gps absent") : "✗ gps " + gps.error?.message}`,
+      };
+    };
+    const results = await Promise.all(targets.map(runOne));
+    setSimResults(results);
+    setSimRunning(false);
+  };
 
   // =========================
   // CALCUL DISTANCE
@@ -2401,6 +2711,636 @@ function Dashboard() {
                   </p>
                 </div>
               ))}
+          </div>
+        )}
+      </div>
+
+      {/* ══════════════════════════════
+          SECTION GPS CHAUFFEUR
+      ══════════════════════════════ */}
+      <div style={{ marginTop: 48 }}>
+        <style>{`
+          @keyframes pulseDot {
+            0%,100% { box-shadow:0 0 0 0 rgba(34,197,94,0); }
+            50%      { box-shadow:0 0 0 14px rgba(34,197,94,0.2); }
+          }
+          .gps-input {
+            width: 100%; box-sizing: border-box; padding: 12px;
+            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px; color: #fff; font-size: 14px; outline: none;
+          }
+          .gps-input:focus { border-color: rgba(14,165,233,0.5); }
+        `}</style>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          <h2 style={{ fontFamily: "'Syne',sans-serif", fontSize: 20, fontWeight: 800, color: "#f8fafc", margin: 0 }}>
+            📡 GPS Chauffeur
+          </h2>
+          {gpsActive && (
+            <span
+              style={{
+                background: "rgba(34,197,94,0.15)",
+                color: "#22c55e",
+                padding: "2px 10px",
+                borderRadius: 99,
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+            >
+              Actif
+            </span>
+          )}
+        </div>
+
+        {gpsLoading ? (
+          <GpsCardSkeleton />
+        ) : (
+          <div
+            style={{
+              maxWidth: 540,
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 24,
+              padding: "24px 20px",
+              textAlign: "center",
+            }}
+          >
+            {!gpsActive ? (
+              <>
+                <div style={{ fontSize: 52 }}>📡</div>
+                <h3
+                  style={{
+                    fontFamily: "'Syne',sans-serif",
+                    color: "#f8fafc",
+                    marginTop: 10,
+                    fontSize: 18,
+                    fontWeight: 800,
+                  }}
+                >
+                  Votre position est inactive
+                </h3>
+                <p style={{ color: "#94a3b8", fontSize: 14 }}>Les clients ne peuvent pas vous suivre</p>
+                <div style={{ marginTop: 20, textAlign: "left", display: "flex", flexDirection: "column", gap: 10 }}>
+                  <input
+                    className="gps-input"
+                    value={gpsDestination}
+                    onChange={(e) => setGpsDestination(e.target.value)}
+                    placeholder="Destination du prochain client"
+                  />
+                  <input
+                    className="gps-input"
+                    value={gpsPrixEstime}
+                    onChange={(e) => setGpsPrixEstime(e.target.value)}
+                    placeholder='Prix estimé ex: "12.50 €"'
+                  />
+                  <div
+                    style={{
+                      background: "rgba(14,165,233,0.07)",
+                      border: "1px solid rgba(14,165,233,0.15)",
+                      borderRadius: 12,
+                      padding: 12,
+                    }}
+                  >
+                    <div style={{ color: "#94a3b8", fontSize: 12, marginBottom: 8 }}>Calcul rapide</div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      <input
+                        type="number"
+                        value={gpsCalcKm}
+                        onChange={(e) => setGpsCalcKm(Number(e.target.value))}
+                        step="0.1"
+                        style={{
+                          width: 80,
+                          padding: "6px 8px",
+                          background: "rgba(255,255,255,0.06)",
+                          border: "1px solid rgba(255,255,255,0.1)",
+                          color: "#fff",
+                          borderRadius: 8,
+                          fontSize: 14,
+                          boxSizing: "border-box",
+                        }}
+                      />
+                      <span style={{ color: "#cbd5e1", fontSize: 13 }}>km</span>
+                      <label style={{ color: "#cbd5e1", fontSize: 13, display: "flex", alignItems: "center", gap: 4 }}>
+                        <input
+                          type="checkbox"
+                          checked={gpsCalcJour}
+                          onChange={(e) => setGpsCalcJour(e.target.checked)}
+                        />{" "}
+                        Jour
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setGpsPrixEstime(`${calculerPrix(gpsCalcKm, gpsCalcJour)} €`)}
+                        style={{
+                          marginLeft: "auto",
+                          background: "#0ea5e9",
+                          color: "#fff",
+                          border: 0,
+                          padding: "7px 14px",
+                          borderRadius: 8,
+                          cursor: "pointer",
+                          fontSize: 13,
+                          fontWeight: 700,
+                        }}
+                      >
+                        = {calculerPrix(gpsCalcKm, gpsCalcJour)} €
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={startGPS}
+                  style={{
+                    marginTop: 20,
+                    width: "100%",
+                    height: 56,
+                    background: "#22c55e",
+                    color: "#fff",
+                    border: 0,
+                    borderRadius: 14,
+                    fontFamily: "'Syne',sans-serif",
+                    fontWeight: 800,
+                    fontSize: 16,
+                    cursor: "pointer",
+                    boxShadow: "0 8px 24px rgba(34,197,94,0.3)",
+                  }}
+                >
+                  📡 Activer mon GPS
+                </button>
+              </>
+            ) : (
+              <>
+                <div
+                  style={{
+                    width: 80,
+                    height: 80,
+                    background: "#22c55e",
+                    borderRadius: "50%",
+                    margin: "0 auto",
+                    animation: "pulseDot 2s infinite",
+                  }}
+                />
+                <h3
+                  style={{
+                    fontFamily: "'Syne',sans-serif",
+                    color: "#f8fafc",
+                    marginTop: 16,
+                    fontSize: 18,
+                    fontWeight: 800,
+                  }}
+                >
+                  Position active
+                </h3>
+                <p style={{ color: "#94a3b8", fontSize: 14 }}>Vos clients vous voient</p>
+                {gpsPosition && (
+                  <div
+                    style={{
+                      fontFamily: "'JetBrains Mono',monospace",
+                      fontSize: 12,
+                      color: "#cbd5e1",
+                      marginTop: 14,
+                      wordBreak: "break-all",
+                    }}
+                  >
+                    {gpsPosition.lat.toFixed(5)}, {gpsPosition.lng.toFixed(5)}
+                  </div>
+                )}
+                {gpsAccuracy !== null && (
+                  <div style={{ color: "#64748b", fontSize: 12, marginTop: 4 }}>
+                    Précision : ±{gpsAccuracy} m · {gpsUpdateCount} mises à jour
+                  </div>
+                )}
+                {gpsDestination && (
+                  <div style={{ marginTop: 14, color: "#cbd5e1", fontSize: 14 }}>📍 {gpsDestination}</div>
+                )}
+                {gpsPrixEstime && (
+                  <div
+                    style={{
+                      color: "#0ea5e9",
+                      fontFamily: "'Syne',sans-serif",
+                      fontSize: 22,
+                      fontWeight: 800,
+                      marginTop: 4,
+                    }}
+                  >
+                    {gpsPrixEstime}
+                  </div>
+                )}
+                <button
+                  onClick={stopGPS}
+                  style={{
+                    marginTop: 24,
+                    width: "100%",
+                    height: 52,
+                    background: "#ef4444",
+                    color: "#fff",
+                    border: 0,
+                    borderRadius: 14,
+                    fontFamily: "'Syne',sans-serif",
+                    fontWeight: 800,
+                    fontSize: 15,
+                    cursor: "pointer",
+                  }}
+                >
+                  ⏹ Terminer la course
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ══════════════════════════════
+          SECTION FLOW CHECK
+      ══════════════════════════════ */}
+      <div style={{ marginTop: 48 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 12,
+            marginBottom: 20,
+          }}
+        >
+          <div>
+            <h2 style={{ fontFamily: "'Syne',sans-serif", fontSize: 20, fontWeight: 800, color: "#f8fafc", margin: 0 }}>
+              🩺 Vérification du flow
+            </h2>
+            <p style={{ color: "#94a3b8", fontSize: 13, marginTop: 4, marginBottom: 0 }}>
+              Audit en direct : tracking IDs, GPS, RLS, realtime.
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              runFlowChecks();
+              loadTrackingMode();
+            }}
+            disabled={flowRunning}
+            style={{
+              padding: "10px 18px",
+              background: "linear-gradient(135deg,#0ea5e9,#0369a1)",
+              color: "#fff",
+              border: "none",
+              borderRadius: 10,
+              fontWeight: 700,
+              cursor: flowRunning ? "wait" : "pointer",
+              opacity: flowRunning ? 0.6 : 1,
+              fontSize: 13,
+            }}
+          >
+            {flowChecks.length === 0 && !flowRunning
+              ? "▶ Lancer l'audit"
+              : flowRunning
+                ? "Analyse en cours…"
+                : "🔄 Relancer"}
+          </button>
+        </div>
+
+        {/* Summary counters */}
+        {(flowRunning || flowChecks.length > 0) && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 12, marginBottom: 20 }}>
+            {(["ok", "warn", "fail"] as const).map((s) => (
+              <div
+                key={s}
+                style={{
+                  background: "#0f172a",
+                  border: `1px solid ${s === "ok" ? "#22c55e" : s === "warn" ? "#f59e0b" : "#ef4444"}33`,
+                  borderRadius: 14,
+                  padding: 16,
+                }}
+              >
+                <div style={{ fontSize: 11, color: "#64748b", letterSpacing: "0.1em" }}>{s.toUpperCase()}</div>
+                {flowRunning ? (
+                  <div style={{ marginTop: 8 }}>
+                    <CardSkeleton withTitle={false} lines={1} />
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      fontFamily: "'Syne',sans-serif",
+                      fontSize: 28,
+                      fontWeight: 900,
+                      color: s === "ok" ? "#22c55e" : s === "warn" ? "#f59e0b" : "#ef4444",
+                    }}
+                  >
+                    {flowChecks.filter((c) => c.status === s).length || 0}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Checks list */}
+        {(flowRunning || flowChecks.length > 0) && (
+          <div
+            style={{
+              background: "#0f172a",
+              borderRadius: 16,
+              padding: 20,
+              marginBottom: 20,
+              border: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            <h3
+              style={{
+                fontFamily: "'Syne',sans-serif",
+                fontSize: 15,
+                fontWeight: 800,
+                marginTop: 0,
+                marginBottom: 12,
+                color: "#f8fafc",
+              }}
+            >
+              Checks
+            </h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {flowRunning && flowChecks.length === 0 && (
+                <div style={{ display: "grid", gap: 8 }}>
+                  {Array.from({ length: 7 }).map((_, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "10px 12px",
+                        background: "rgba(255,255,255,0.02)",
+                        borderRadius: 10,
+                        borderLeft: "3px solid rgba(255,255,255,0.08)",
+                      }}
+                    >
+                      <LineSkeleton width={20} height={20} />
+                      <div style={{ flex: 1 }}>
+                        <LineSkeleton width={`${60 + ((i * 7) % 30)}%`} height={12} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {flowChecks.map((c) => (
+                <div
+                  key={c.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 10,
+                    padding: "10px 12px",
+                    background: "rgba(255,255,255,0.02)",
+                    borderRadius: 10,
+                    borderLeft: `3px solid ${c.status === "ok" ? "#22c55e" : c.status === "warn" ? "#f59e0b" : c.status === "fail" ? "#ef4444" : "#64748b"}`,
+                  }}
+                >
+                  <span style={{ fontSize: 18, lineHeight: "20px" }}>
+                    {c.status === "ok" ? "✅" : c.status === "warn" ? "⚠️" : c.status === "fail" ? "❌" : "⏳"}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: "#f1f5f9" }}>{c.label}</div>
+                    {c.detail && (
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: "#94a3b8",
+                          marginTop: 2,
+                          fontFamily: "'JetBrains Mono',monospace",
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        {c.detail}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Mode tracking */}
+        {trackingMode !== null && (
+          <div
+            style={{
+              background: "#0f172a",
+              borderRadius: 16,
+              padding: 20,
+              marginBottom: 20,
+              border: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            <h3
+              style={{
+                fontFamily: "'Syne',sans-serif",
+                fontSize: 15,
+                fontWeight: 800,
+                marginTop: 0,
+                marginBottom: 6,
+                color: "#f8fafc",
+              }}
+            >
+              Mode de tracking
+            </h3>
+            <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 0, marginBottom: 14 }}>
+              <strong>Chauffeur unique</strong> : tous les clients voient la même position GPS (
+              <code>driver_gps id='driver'</code>).
+              <br />
+              <strong>Multi-courses</strong> : chaque course a sa propre ligne GPS (<code>id = tracking_id</code>).
+            </p>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              {(["single", "multi"] as const).map((opt) => {
+                const active = trackingMode === opt;
+                return (
+                  <button
+                    key={opt}
+                    onClick={() => updateTrackingMode(opt)}
+                    disabled={savingMode || active}
+                    style={{
+                      padding: "12px 18px",
+                      background: active ? "linear-gradient(135deg,#0ea5e9,#0369a1)" : "rgba(255,255,255,0.04)",
+                      border: `1px solid ${active ? "transparent" : "rgba(255,255,255,0.1)"}`,
+                      color: "#fff",
+                      borderRadius: 10,
+                      fontWeight: 700,
+                      cursor: active || savingMode ? "default" : "pointer",
+                      opacity: savingMode ? 0.6 : 1,
+                      fontFamily: "'Syne',sans-serif",
+                      fontSize: 13,
+                    }}
+                  >
+                    {opt === "single" ? "🧑‍✈️ Chauffeur unique" : "🚕🚕 Multi-courses"}
+                    {active ? " · actif" : ""}
+                  </button>
+                );
+              })}
+              {savingMode && <span style={{ fontSize: 12, color: "#94a3b8", alignSelf: "center" }}>Sauvegarde…</span>}
+            </div>
+          </div>
+        )}
+
+        {/* Simulated scans */}
+        {flowResas.length > 0 && (
+          <div
+            style={{
+              background: "#0f172a",
+              borderRadius: 16,
+              padding: 20,
+              marginBottom: 20,
+              border: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: 8,
+                marginBottom: 12,
+              }}
+            >
+              <h3
+                style={{ fontFamily: "'Syne',sans-serif", fontSize: 15, fontWeight: 800, margin: 0, color: "#f8fafc" }}
+              >
+                Test scans simultanés
+              </h3>
+              <button
+                onClick={runSimulatedScans}
+                disabled={simRunning || flowResas.length === 0}
+                style={{
+                  padding: "8px 14px",
+                  background: "rgba(14,165,233,0.15)",
+                  color: "#7dd3fc",
+                  border: "1px solid rgba(14,165,233,0.3)",
+                  borderRadius: 8,
+                  fontWeight: 700,
+                  cursor: simRunning ? "wait" : "pointer",
+                  fontSize: 12,
+                }}
+              >
+                {simRunning ? "Simulation…" : "▶ Lancer 5 scans en parallèle"}
+              </button>
+            </div>
+            <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 0, marginBottom: 12 }}>
+              Requêtes <code>reservations</code> + <code>driver_gps</code> en parallèle pour les 5 dernières courses.
+            </p>
+            {simResults.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {simResults.map((r) => (
+                  <div
+                    key={r.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "8px 12px",
+                      background: "rgba(255,255,255,0.02)",
+                      borderRadius: 8,
+                      borderLeft: `3px solid ${r.ok ? "#22c55e" : "#ef4444"}`,
+                    }}
+                  >
+                    <span style={{ fontSize: 16 }}>{r.ok ? "✅" : "❌"}</span>
+                    <div style={{ flex: 1, minWidth: 0, fontSize: 12 }}>
+                      <div style={{ fontFamily: "'JetBrains Mono',monospace", color: "#cbd5e1" }}>
+                        {r.tracking_id.slice(0, 8)}… <span style={{ color: "#64748b" }}>· {r.ms} ms</span>
+                      </div>
+                      <div style={{ color: "#94a3b8", fontFamily: "'JetBrains Mono',monospace" }}>{r.detail}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Réservations récentes */}
+        {(flowResasLoading || flowResas.length > 0) && (
+          <div
+            style={{ background: "#0f172a", borderRadius: 16, padding: 20, border: "1px solid rgba(255,255,255,0.06)" }}
+          >
+            <h3
+              style={{
+                fontFamily: "'Syne',sans-serif",
+                fontSize: 15,
+                fontWeight: 800,
+                marginTop: 0,
+                marginBottom: 12,
+                color: "#f8fafc",
+              }}
+            >
+              Réservations récentes ({flowResasLoading ? "…" : flowResas.length})
+            </h3>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <thead>
+                  <tr style={{ color: "#64748b", textAlign: "left", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                    {["Client", "Statut", "Tracking ID", "UUID ?", "Destination", "Prix", "Lien"].map((h) => (
+                      <th key={h} style={{ padding: 8 }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {flowResasLoading ? (
+                    Array.from({ length: 4 }).map((_, i) => <ReservationRowSkeleton key={i} cols={7} />)
+                  ) : flowResas.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} style={{ padding: 20, textAlign: "center", color: "#64748b" }}>
+                        Aucune réservation récente.
+                      </td>
+                    </tr>
+                  ) : (
+                    flowResas.map((r: any) => {
+                      const valid = r.tracking_id ? trackingIdSchema.safeParse(r.tracking_id).success : false;
+                      const url = r.tracking_id ? `/scan/${r.tracking_id}` : null;
+                      return (
+                        <tr key={r.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
+                          <td style={{ padding: 8, color: "#cbd5e1" }}>{r.client_name || r.nom || "—"}</td>
+                          <td style={{ padding: 8 }}>
+                            <span
+                              style={{
+                                padding: "2px 8px",
+                                borderRadius: 99,
+                                background: "rgba(14,165,233,0.15)",
+                                color: "#0ea5e9",
+                                fontSize: 11,
+                                fontWeight: 700,
+                              }}
+                            >
+                              {r.status}
+                            </span>
+                          </td>
+                          <td
+                            style={{
+                              padding: 8,
+                              fontFamily: "'JetBrains Mono',monospace",
+                              color: "#94a3b8",
+                              fontSize: 11,
+                            }}
+                          >
+                            {r.tracking_id || "—"}
+                          </td>
+                          <td style={{ padding: 8 }}>{r.tracking_id ? (valid ? "✅" : "❌") : "—"}</td>
+                          <td style={{ padding: 8, color: "#cbd5e1" }}>{r.destination || r.arrivee || "—"}</td>
+                          <td style={{ padding: 8, color: "#cbd5e1" }}>
+                            {r.prix_estime != null ? `${r.prix_estime} €` : "—"}
+                          </td>
+                          <td style={{ padding: 8 }}>
+                            {url ? (
+                              <a href={url} target="_blank" rel="noreferrer" style={{ color: "#0ea5e9" }}>
+                                ouvrir
+                              </a>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
