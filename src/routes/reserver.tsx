@@ -218,7 +218,11 @@ function SelectField({ value, onChange, options }: SelectFieldProps) {
 // ─── Composant principal ──────────────────────────────────────
 function ReservationPage() {
   const { t, lang } = useI18n();
-  const today = new Date().toISOString().split("T")[0];
+
+  // ⚠️ Ne pas appeler new Date() dans useState : le rendu SSR et client
+  // divergent → erreur React #418. On initialise date à "" et on le fixe
+  // côté client uniquement dans un useEffect.
+  const [today, setToday] = useState("");
 
   const [f, setF] = useState({
     prenom: "",
@@ -227,7 +231,7 @@ function ReservationPage() {
     email: "",
     depart: "",
     destination: "",
-    date: today,
+    date: "", // sera rempli par useEffect ci-dessous
     heure: "",
     passagers: 1,
     bagages: 0,
@@ -250,6 +254,13 @@ function ReservationPage() {
   const [sending, setSending] = useState(false);
   const [success, setSuccess] = useState(false);
   const [submitError, setSubmitError] = useState("");
+
+  // Fixe la date du jour côté client uniquement (après hydratation SSR)
+  useEffect(() => {
+    const d = new Date().toISOString().split("T")[0];
+    setToday(d);
+    setF((p) => ({ ...p, date: p.date || d }));
+  }, []);
 
   const set = (k: string, v: any) => setF((p) => ({ ...p, [k]: v }));
 
