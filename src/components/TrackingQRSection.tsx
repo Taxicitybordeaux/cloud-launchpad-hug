@@ -3,42 +3,41 @@ import { supabase } from "@/integrations/supabase/client";
 import { useLang } from "@/hooks/useLang";
 import { t } from "@/lib/dict";
 
-// ✅ Hors composant : référence stable, pas de recréation à chaque render
+// ─── helpers ────────────────────────────────────────────────────────────────
+
 function generateId() {
   return `client-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-// ✅ Hors composant : constante stable
-const CORNER_BASE: React.CSSProperties = {
-  position: "absolute",
-  width: 22,
-  height: 22,
-  border: "3px solid #0ea5e9",
-};
+function buildQrSrc(url: string) {
+  return `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(url)}&margin=12&color=0a0f1e&bgcolor=ffffff&ecc=H`;
+}
+
+// ─── component ───────────────────────────────────────────────────────────────
 
 export function TrackingQRSection() {
   const lang = useLang();
-  // SSR-safe: start empty so server and first client render match, then hydrate after mount
-  const [clientId, setClientId] = useState<string>("");
+
+  // SSR-safe: empty on server, populated after mount
+  const [clientId, setClientId] = useState("");
   const [count, setCount] = useState(30);
   const [copied, setCopied] = useState(false);
-  const sidRef = useRef<string>("");
+  const sidRef = useRef("");
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    // Generate the first id only on the client to avoid hydration mismatch
+    // Generate first id client-side only (avoids hydration mismatch)
     setClientId(generateId());
 
-    // Session id
+    // Session tracking
     const sid = sessionStorage.getItem("sid") || Math.random().toString(36).slice(2);
     sessionStorage.setItem("sid", sid);
     sidRef.current = sid;
 
-    // Analytics impression (fire-and-forget, erreurs ignorées volontairement)
+    // Fire-and-forget analytics impression
     supabase.from("site_analytics").insert({ event: "qr_impression", session_id: sid });
 
-    const t = setInterval(() => {
+    // Countdown + rotate QR every 30 s
+    const timer = setInterval(() => {
       setCount((c) => {
         if (c <= 1) {
           setClientId(generateId());
@@ -48,351 +47,285 @@ export function TrackingQRSection() {
       });
     }, 1000);
 
-    return () => clearInterval(t);
+    return () => clearInterval(timer);
   }, []);
 
   const trackingUrl = typeof window !== "undefined" && clientId ? `${window.location.origin}/scan/${clientId}` : "";
 
-  const qrSrc = trackingUrl
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(trackingUrl)}&margin=12&color=0a0f1e&bgcolor=ffffff&ecc=H`
-    : "";
+  const qrSrc = trackingUrl ? buildQrSrc(trackingUrl) : "";
 
-  const copy = async () => {
+  const handleCopy = async () => {
     if (!trackingUrl) return;
     try {
       await navigator.clipboard.writeText(trackingUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2200);
       supabase.from("site_analytics").insert({ event: "qr_click", session_id: sidRef.current });
-    } catch {}
+    } catch {
+      // clipboard unavailable — silent fail
+    }
   };
 
+  // ── steps & features data ────────────────────────────────────────────────
+  const steps = [
+    { icon: "📱", title: t(lang, "qr.step1.t"), desc: t(lang, "qr.step1.d") },
+    { icon: "🔍", title: t(lang, "qr.step2.t"), desc: t(lang, "qr.step2.d") },
+    { icon: "🗺️", title: t(lang, "qr.step3.t"), desc: t(lang, "qr.step3.d") },
+    { icon: "🚕", title: t(lang, "qr.step4.t"), desc: t(lang, "qr.step4.d") },
+  ];
+
+  const features = [
+    { icon: "📍", title: t(lang, "qr.feat1.t"), desc: t(lang, "qr.feat1.d") },
+    { icon: "⏱️", title: t(lang, "qr.feat2.t"), desc: t(lang, "qr.feat2.d") },
+    { icon: "💶", title: t(lang, "qr.feat3.t"), desc: t(lang, "qr.feat3.d") },
+    { icon: "📞", title: t(lang, "qr.feat4.t"), desc: t(lang, "qr.feat4.d") },
+    { icon: "🔒", title: t(lang, "qr.feat5.t"), desc: t(lang, "qr.feat5.d") },
+  ];
+
+  // ─── render ────────────────────────────────────────────────────────────────
   return (
-    <section
-      style={{
-        background: "#0a0f1e",
-        // ✅ Padding réduit sur mobile via clamp
-        padding: "clamp(48px,8vw,88px) clamp(16px,5vw,40px)",
-        color: "#f1f5f9",
-        fontFamily: "'DM Sans',sans-serif",
-      }}
-    >
+    <section className="bg-[#0a0f1e] text-slate-100 font-sans">
+      {/* Keyframe animations */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');
-        @keyframes scanLine { 0%{top:0} 50%{top:calc(100% - 2px)} 100%{top:0} }
-        @keyframes pulse    { 0%,100%{opacity:1} 50%{opacity:0.3} }
-        @keyframes movePin  { 0%{transform:translate(0,0)} 50%{transform:translate(20px,-12px)} 100%{transform:translate(0,0)} }
+
+        @keyframes qr-scan {
+          0%   { top: 0 }
+          50%  { top: calc(100% - 2px) }
+          100% { top: 0 }
+        }
+        @keyframes qr-pulse {
+          0%, 100% { opacity: 1 }
+          50%       { opacity: 0.3 }
+        }
+        @keyframes qr-pin {
+          0%   { transform: translate(0, 0) }
+          50%  { transform: translate(20px, -12px) }
+          100% { transform: translate(0, 0) }
+        }
+
+        .qr-scan-line  { animation: qr-scan  2.5s linear infinite; }
+        .qr-live-dot   { animation: qr-pulse 1.5s ease-in-out infinite; }
+        .qr-pin-circle { animation: qr-pin   3s ease-in-out infinite; }
       `}</style>
 
-      {/* Header */}
-      <div style={{ maxWidth: 1200, margin: "0 auto", textAlign: "center" }}>
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            background: "rgba(14,165,233,0.12)",
-            color: "#0ea5e9",
-            padding: "6px 14px",
-            borderRadius: 99,
-            fontSize: 12,
-            fontWeight: 700,
-            fontFamily: "'JetBrains Mono',monospace",
-          }}
-        >
+      <div className="px-[clamp(16px,5vw,40px)] py-[clamp(48px,8vw,88px)]">
+        {/* ── Header ── */}
+        <div className="max-w-[1200px] mx-auto text-center">
+          {/* Badge */}
           <span
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold text-sky-400"
             style={{
-              width: 7,
-              height: 7,
-              borderRadius: "50%",
-              background: "#0ea5e9",
-              animation: "pulse 1.5s infinite",
+              background: "rgba(14,165,233,0.12)",
+              fontFamily: "'JetBrains Mono', monospace",
+              letterSpacing: "0.06em",
             }}
-          />
-          {t(lang, "qr.badge")}
-        </span>
+          >
+            <span className="qr-live-dot w-[7px] h-[7px] rounded-full bg-sky-400 shrink-0" />
+            {t(lang, "qr.badge")}
+          </span>
 
-        <h2
-          style={{
-            fontFamily: "'Syne',sans-serif",
-            fontWeight: 900,
-            fontSize: "clamp(24px,4vw,44px)",
-            marginTop: 16,
-            lineHeight: 1.15,
-          }}
-        >
-          {t(lang, "qr.title")}
-        </h2>
-        <p style={{ color: "#94a3b8", maxWidth: 560, margin: "14px auto 0", fontSize: 15 }}>{t(lang, "qr.subtitle")}</p>
+          {/* Title */}
+          <h2
+            className="mt-4 leading-[1.15] font-black text-slate-50"
+            style={{
+              fontFamily: "'Syne', sans-serif",
+              fontSize: "clamp(24px, 4vw, 44px)",
+            }}
+          >
+            {t(lang, "qr.title")}
+          </h2>
 
-        {/* Bandeau info */}
-        <div
-          style={{
-            maxWidth: 720,
-            margin: "26px auto 0",
-            background: "linear-gradient(135deg,rgba(14,165,233,0.12),rgba(14,165,233,0.04))",
-            border: "1px solid rgba(14,165,233,0.35)",
-            borderRadius: 16,
-            padding: "16px 20px",
-            display: "flex",
-            alignItems: "center",
-            gap: 14,
-            textAlign: "left",
-          }}
-        >
-          <div style={{ fontSize: 24, lineHeight: 1, flexShrink: 0 }}>📲</div>
-          <div>
-            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "#f1f5f9" }}>
-              {t(lang, "qr.banner.title")}
-            </div>
-            <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 4, lineHeight: 1.5 }}>
-              {t(lang, "qr.banner.desc")}
+          {/* Subtitle */}
+          <p className="mt-3.5 mx-auto text-slate-400 text-[15px] leading-relaxed" style={{ maxWidth: 560 }}>
+            {t(lang, "qr.subtitle")}
+          </p>
+
+          {/* Info banner */}
+          <div
+            className="mt-6 mx-auto flex items-center gap-3.5 text-left rounded-2xl px-5 py-4"
+            style={{
+              maxWidth: 720,
+              background: "linear-gradient(135deg,rgba(14,165,233,0.12),rgba(14,165,233,0.04))",
+              border: "1px solid rgba(14,165,233,0.35)",
+            }}
+          >
+            <span className="text-2xl leading-none shrink-0">📲</span>
+            <div>
+              <p className="text-sm font-extrabold text-slate-50" style={{ fontFamily: "'Syne', sans-serif" }}>
+                {t(lang, "qr.banner.title")}
+              </p>
+              <p className="mt-1 text-[13px] text-slate-400 leading-relaxed">{t(lang, "qr.banner.desc")}</p>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Grille principale — ✅ 1 colonne sur mobile, 3 sur desktop */}
-      <div
-        style={{
-          maxWidth: 1100,
-          margin: "40px auto 0",
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,260px),1fr))",
-          gap: 28,
-          alignItems: "center",
-        }}
-      >
-        {/* QR card */}
+        {/* ── Main grid: QR card | Phone mockup | Steps ── */}
         <div
+          className="max-w-[1100px] mx-auto mt-10 grid items-center gap-7"
           style={{
-            background: "#fff",
-            borderRadius: 24,
-            padding: 24,
-            maxWidth: 280,
-            width: "100%",
-            margin: "0 auto",
-            boxSizing: "border-box",
+            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))",
           }}
         >
-          <div
-            style={{
-              position: "relative",
-              width: 220,
-              height: 220,
-              margin: "0 auto",
-              overflow: "hidden",
-              borderRadius: 12,
-            }}
-          >
-            {qrSrc && <img src={qrSrc} alt="QR de suivi" width={220} height={220} style={{ display: "block" }} />}
-            <div
-              style={{
-                position: "absolute",
-                left: 0,
-                right: 0,
-                height: 2,
-                background: "linear-gradient(90deg,transparent,#0ea5e9,transparent)",
-                animation: "scanLine 2.5s linear infinite",
-              }}
-            />
-            {/* Coins décoratifs */}
-            <div style={{ ...CORNER_BASE, top: 0, left: 0, borderRight: 0, borderBottom: 0 }} />
-            <div style={{ ...CORNER_BASE, top: 0, right: 0, borderLeft: 0, borderBottom: 0 }} />
-            <div style={{ ...CORNER_BASE, bottom: 0, left: 0, borderRight: 0, borderTop: 0 }} />
-            <div style={{ ...CORNER_BASE, bottom: 0, right: 0, borderLeft: 0, borderTop: 0 }} />
-          </div>
-          <div
-            style={{
-              marginTop: 12,
-              fontFamily: "'JetBrains Mono',monospace",
-              fontSize: 11,
-              color: "#64748b",
-              textAlign: "center",
-            }}
-          >
-            {t(lang, "qr.timer").replace("{count}", String(count))}
-          </div>
-          <button
-            onClick={copy}
-            style={{
-              marginTop: 10,
-              width: "100%",
-              padding: "10px 12px",
-              background: copied ? "#22c55e" : "#0ea5e9",
-              color: "#fff",
-              border: 0,
-              borderRadius: 10,
-              cursor: "pointer",
-              fontWeight: 700,
-              fontSize: 13,
-              transition: "background 0.2s",
-            }}
-          >
-            {copied ? t(lang, "qr.copied") : t(lang, "qr.copy")}
-          </button>
-        </div>
+          {/* QR card */}
+          <div className="bg-white rounded-3xl p-6 mx-auto w-full" style={{ maxWidth: 280, boxSizing: "border-box" }}>
+            {/* QR frame */}
+            <div className="relative w-[220px] h-[220px] mx-auto overflow-hidden rounded-xl">
+              {qrSrc && <img src={qrSrc} alt="QR de suivi" width={220} height={220} className="block" />}
 
-        {/* Phone mockup */}
-        <div
-          style={{
-            width: 180,
-            height: 320,
-            background: "#1e293b",
-            borderRadius: 28,
-            padding: 8,
-            margin: "0 auto",
-            border: "3px solid #334155",
-          }}
-        >
-          <div
-            style={{
-              background: "#0a0f1e",
-              borderRadius: 22,
-              height: "100%",
-              overflow: "hidden",
-              position: "relative",
-            }}
-          >
-            <svg viewBox="0 0 180 220" width="100%" height="65%" style={{ background: "#1e293b" }}>
-              <path
-                d="M20 180 Q60 120 100 100 T160 30"
-                stroke="#0ea5e9"
-                strokeWidth="2"
-                strokeDasharray="4 4"
-                fill="none"
+              {/* Scan line */}
+              <div
+                className="qr-scan-line absolute left-0 right-0 h-0.5 pointer-events-none"
+                style={{
+                  background: "linear-gradient(90deg, transparent, #0ea5e9, transparent)",
+                }}
               />
-              <circle cx="20" cy="180" r="6" fill="#0ea5e9" style={{ animation: "movePin 3s infinite" }} />
-              <text x="150" y="40" fontSize="20">
-                📍
-              </text>
-            </svg>
+
+              {/* Corner decorations */}
+              {[
+                { top: 0, left: 0, borderRight: "none", borderBottom: "none" },
+                { top: 0, right: 0, borderLeft: "none", borderBottom: "none" },
+                { bottom: 0, left: 0, borderRight: "none", borderTop: "none" },
+                { bottom: 0, right: 0, borderLeft: "none", borderTop: "none" },
+              ].map((style, i) => (
+                <div
+                  key={i}
+                  className="absolute w-[22px] h-[22px] pointer-events-none"
+                  style={{ border: "3px solid #0ea5e9", ...style }}
+                />
+              ))}
+            </div>
+
+            {/* Timer */}
+            <p
+              className="mt-3 text-center text-[11px] text-slate-500"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              {t(lang, "qr.timer").replace("{count}", String(count))}
+            </p>
+
+            {/* Copy button */}
+            <button
+              onClick={handleCopy}
+              className="mt-2.5 w-full py-2.5 rounded-xl text-white text-[13px] font-bold transition-colors duration-200 cursor-pointer border-0"
+              style={{ background: copied ? "#22c55e" : "#0ea5e9" }}
+            >
+              {copied ? t(lang, "qr.copied") : t(lang, "qr.copy")}
+            </button>
+          </div>
+
+          {/* Phone mockup */}
+          <div
+            className="mx-auto rounded-[28px] p-2"
+            style={{
+              width: 180,
+              height: 320,
+              background: "#1e293b",
+              border: "3px solid #334155",
+              flexShrink: 0,
+            }}
+          >
+            <div className="relative rounded-[22px] h-full overflow-hidden" style={{ background: "#0a0f1e" }}>
+              {/* Map SVG */}
+              <svg viewBox="0 0 180 220" width="100%" height="65%" style={{ background: "#1e293b", display: "block" }}>
+                <path
+                  d="M20 180 Q60 120 100 100 T160 30"
+                  stroke="#0ea5e9"
+                  strokeWidth="2"
+                  strokeDasharray="4 4"
+                  fill="none"
+                />
+                <circle cx="20" cy="180" r="6" fill="#0ea5e9" className="qr-pin-circle" />
+                <text x="150" y="40" fontSize="20">
+                  📍
+                </text>
+              </svg>
+
+              {/* Live badge */}
+              <div
+                className="absolute top-2.5 right-2.5 text-white font-extrabold rounded-full px-2 py-0.5"
+                style={{ background: "rgba(239,68,68,0.85)", fontSize: 9 }}
+              >
+                ● {t(lang, "suivi.online").toUpperCase()}
+              </div>
+
+              {/* ETA + price */}
+              <div className="px-3 py-2 text-white font-black" style={{ fontFamily: "'Syne', sans-serif" }}>
+                <div className="text-xl">4 min</div>
+                <div
+                  className="text-[11px] text-slate-400 font-medium mt-0.5"
+                  style={{ fontFamily: "'DM Sans', sans-serif" }}
+                >
+                  12–18 €
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Steps list */}
+          <ol className="list-none p-0 mx-auto flex flex-col gap-3.5" style={{ maxWidth: 340 }}>
+            {steps.map((s, i) => (
+              <li key={i} className="flex gap-3 items-start">
+                <span
+                  className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full text-lg"
+                  style={{ background: "rgba(14,165,233,0.12)" }}
+                >
+                  {s.icon}
+                </span>
+                <div>
+                  <p className="font-bold text-slate-50 leading-snug" style={{ fontFamily: "'Syne', sans-serif" }}>
+                    {s.title}
+                  </p>
+                  <p className="text-[13px] text-slate-400 mt-0.5">{s.desc}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+
+        {/* ── Feature strip ── */}
+        <div
+          className="max-w-[1100px] mx-auto mt-12 grid gap-3"
+          style={{
+            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+          }}
+        >
+          {features.map((f, i) => (
             <div
+              key={i}
+              className="text-center rounded-2xl px-3 py-3.5"
               style={{
-                position: "absolute",
-                top: 10,
-                right: 10,
-                background: "rgba(239,68,68,0.85)",
-                color: "#fff",
-                fontSize: 9,
-                fontWeight: 800,
-                padding: "3px 8px",
-                borderRadius: 99,
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.06)",
               }}
             >
-              ● EN DIRECT
+              <div className="text-[22px]">{f.icon}</div>
+              <p className="mt-1.5 text-[13px] font-bold text-slate-50" style={{ fontFamily: "'Syne', sans-serif" }}>
+                {f.title}
+              </p>
+              <p className="text-[12px] text-slate-400 mt-0.5">{f.desc}</p>
             </div>
-            <div style={{ padding: 12, color: "#fff", fontFamily: "'Syne',sans-serif", fontWeight: 800 }}>
-              <div style={{ fontSize: 20 }}>4 min</div>
-              <div style={{ fontSize: 11, color: "#94a3b8", fontFamily: "'DM Sans',sans-serif", fontWeight: 500 }}>
-                12–18 €
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
 
-        {/* Étapes */}
-        <ol
-          style={{
-            listStyle: "none",
-            padding: 0,
-            margin: "0 auto",
-            maxWidth: 340,
-            display: "flex",
-            flexDirection: "column",
-            gap: 14,
-          }}
-        >
-          {[
-            { e: "📱", t: t(lang, "qr.step1.t"), d: t(lang, "qr.step1.d") },
-            { e: "🔍", t: t(lang, "qr.step2.t"), d: t(lang, "qr.step2.d") },
-            { e: "🗺️", t: t(lang, "qr.step3.t"), d: t(lang, "qr.step3.d") },
-            { e: "🚕", t: t(lang, "qr.step4.t"), d: t(lang, "qr.step4.d") },
-          ].map((s, i) => (
-            <li key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-              <span
-                style={{
-                  width: 36,
-                  height: 36,
-                  background: "rgba(14,165,233,0.12)",
-                  borderRadius: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 18,
-                  flexShrink: 0,
-                }}
-              >
-                {s.e}
-              </span>
-              <div>
-                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700 }}>{s.t}</div>
-                <div style={{ color: "#94a3b8", fontSize: 13 }}>{s.d}</div>
-              </div>
-            </li>
-          ))}
-        </ol>
-      </div>
-
-      {/* Feature strip — ✅ 2 colonnes sur mobile */}
-      <div
-        style={{
-          maxWidth: 1100,
-          margin: "48px auto 0",
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))",
-          gap: 12,
-        }}
-      >
-        {[
-          { e: "📍", t: t(lang, "qr.feat1.t"), d: t(lang, "qr.feat1.d") },
-          { e: "⏱️", t: t(lang, "qr.feat2.t"), d: t(lang, "qr.feat2.d") },
-          { e: "💶", t: t(lang, "qr.feat3.t"), d: t(lang, "qr.feat3.d") },
-          { e: "📞", t: t(lang, "qr.feat4.t"), d: t(lang, "qr.feat4.d") },
-          { e: "🔒", t: t(lang, "qr.feat5.t"), d: t(lang, "qr.feat5.d") },
-        ].map((f, i) => (
-          <div
-            key={i}
+        {/* ── CTA ── */}
+        <div className="mt-10 text-center">
+          <a
+            href="tel:0673072322"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl text-white no-underline font-black text-base"
             style={{
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.06)",
-              borderRadius: 14,
-              padding: "14px 12px",
-              textAlign: "center",
+              fontFamily: "'Syne', sans-serif",
+              height: 56,
+              padding: "0 28px",
+              minWidth: "min(300px, 100%)",
+              background: "linear-gradient(135deg, #0ea5e9, #0369a1)",
+              boxShadow: "0 8px 32px rgba(14,165,233,0.3)",
+              boxSizing: "border-box",
             }}
           >
-            <div style={{ fontSize: 22 }}>{f.e}</div>
-            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, marginTop: 6, fontSize: 13 }}>{f.t}</div>
-            <div style={{ color: "#94a3b8", fontSize: 12 }}>{f.d}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* CTA */}
-      <div style={{ textAlign: "center", marginTop: 40 }}>
-        <a
-          href="tel:0673072322"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-            height: 56,
-            padding: "0 28px",
-            minWidth: "min(300px,100%)",
-            background: "linear-gradient(135deg,#0ea5e9,#0369a1)",
-            color: "#fff",
-            textDecoration: "none",
-            borderRadius: 16,
-            fontFamily: "'Syne',sans-serif",
-            fontWeight: 700,
-            fontSize: 16,
-            boxShadow: "0 8px 32px rgba(14,165,233,0.3)",
-            boxSizing: "border-box",
-          }}
-        >
-          {t(lang, "qr.cta")}
-        </a>
+            {t(lang, "qr.cta")}
+          </a>
+        </div>
       </div>
     </section>
   );
