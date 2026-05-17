@@ -287,7 +287,7 @@ function Dashboard() {
   // FETCH AVIS
   // =========================
   const fetchAvis = useCallback(async () => {
-    const { data, error } = await supabase.from("avis").select("*").order("created_at", { ascending: false });
+    const { data, error } = await (supabase as any).from("avis").select("*").order("created_at", { ascending: false });
     if (!error) setAvis(data ?? []);
     setAvisLoading(false);
   }, []);
@@ -635,7 +635,7 @@ function Dashboard() {
   // VALIDER / REFUSER AVIS
   // =========================
   const handleAvisAction = async (id: string, action: "approved" | "refused") => {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("avis")
       .update({ status: action, updated_at: new Date().toISOString() })
       .eq("id", id);
@@ -648,7 +648,7 @@ function Dashboard() {
   };
 
   const handleDeleteAvis = async (id: string) => {
-    const { error } = await supabase.from("avis").delete().eq("id", id);
+    const { error } = await (supabase as any).from("avis").delete().eq("id", id);
     if (error) {
       toast.error("Suppression impossible", { description: error.message });
       return;
