@@ -11,9 +11,7 @@ const PICKUP_FEE = 2.83;
 const RATE_DAY = 2.16; // 7h–19h
 const RATE_NIGHT = 3.24; // 19h–7h
 
-// Clé ORS gratuite (optionnelle) — https://openrouteservice.org/dev/#/signup
-// Si absente, la distance est calculée à vol d'oiseau ×1.3
-const ORS_API_KEY = import.meta.env.VITE_ORS_API_KEY ?? "";
+// Distance via OSRM — gratuit, sans clé, sans restriction de domaine
 
 type Period = "day" | "night";
 
@@ -152,7 +150,7 @@ function AddressField({ id, label, onChange, onSelect }: AddressFieldProps) {
   );
 }
 
-// ─── Calcul de distance (haversine ×1.3 ou ORS routing) ───────
+// ─── Calcul de distance (OSRM routing, fallback haversine ×1.3) ────
 function haversineKm([lon1, lat1]: [number, number], [lon2, lat2]: [number, number]): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -173,27 +171,22 @@ function useDistance(from: [number, number] | null, to: [number, number] | null)
       return;
     }
 
-    if (!ORS_API_KEY) {
-      // Fallback : vol d'oiseau + correction routière 1.3
-      setKm(Math.round(haversineKm(from, to) * 1.3 * 10) / 10);
-      return;
-    }
-
     setLoading(true);
-    fetch("https://api.openrouteservice.org/v2/directions/driving-car", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: ORS_API_KEY,
-      },
-      body: JSON.stringify({ coordinates: [from, to] }),
-    })
+    // OSRM : format coords lon,lat;lon,lat
+    fetch(`https://router.project-osrm.org/route/v1/driving/${from[0]},${from[1]};${to[0]},${to[1]}?overview=false`)
       .then((r) => r.json())
       .then((data) => {
-        const meters: number | undefined = data?.routes?.[0]?.summary?.distance;
-        setKm(meters != null ? Math.round((meters / 1000) * 10) / 10 : null);
+        if (data.code !== "Ok" || !data.routes?.[0]) {
+          // Fallback vol d'oiseau ×1.3 si OSRM échoue
+          setKm(Math.round(haversineKm(from, to) * 1.3 * 10) / 10);
+          return;
+        }
+        setKm(Math.round((data.routes[0].distance / 1000) * 10) / 10);
       })
-      .catch(() => setKm(null))
+      .catch(() => {
+        // Fallback vol d'oiseau ×1.3
+        setKm(Math.round(haversineKm(from, to) * 1.3 * 10) / 10);
+      })
       .finally(() => setLoading(false));
   }, [from, to]);
 
@@ -277,9 +270,7 @@ export function FareSimulator() {
                       className="sr-only"
                     />
                     <span className="font-medium">
-                      {p === "day"
-                        ? "☀️ Jour (7h–19h)"
-                        : "🌙 Nuit (19h–7h) — dimanches & jours fériés"}
+                      {p === "day" ? "☀️ Jour (7h–19h)" : "🌙 Nuit (19h–7h) — dimanches & jours fériés"}
                     </span>
                     <span className="mt-1 block text-xs">{formatEUR(p === "day" ? RATE_DAY : RATE_NIGHT)} / km</span>
                   </label>
