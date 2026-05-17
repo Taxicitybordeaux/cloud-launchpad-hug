@@ -81,10 +81,12 @@ async function geocodeSilent(query: string): Promise<[number, number] | null> {
 interface AddressFieldProps {
   id: string;
   label: string;
+  placeholder: string;
+  errorMsg: string;
   onCoord: (coord: [number, number] | null) => void;
 }
 
-function AddressField({ id, label, onCoord }: AddressFieldProps) {
+function AddressField({ id, label, placeholder, errorMsg, onCoord }: AddressFieldProps) {
   const [geocoding, setGeocoding] = useState(false);
   const [ok, setOk] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -92,7 +94,6 @@ function AddressField({ id, label, onCoord }: AddressFieldProps) {
 
   const handleChange = (v: string) => {
     lastQuery.current = v;
-    // Invalide les coordonnées dès que l'utilisateur modifie le champ
     onCoord(null);
     setOk(false);
     setFailed(false);
@@ -127,7 +128,7 @@ function AddressField({ id, label, onCoord }: AddressFieldProps) {
           autoComplete="off"
           onChange={(e) => handleChange(e.target.value)}
           onBlur={handleBlur}
-          placeholder="Adresse, ville, lieu-dit…"
+          placeholder={placeholder}
           className={`w-full rounded-xl border bg-background px-4 pr-10 py-3 text-sm focus:outline-none transition
             ${failed ? "border-red-400 focus:border-red-400" : ""}
             ${ok && !failed ? "border-primary focus:border-primary" : ""}
@@ -139,7 +140,7 @@ function AddressField({ id, label, onCoord }: AddressFieldProps) {
         )}
         {!geocoding && ok && <MapPin className="pointer-events-none absolute right-3 h-4 w-4 text-primary" />}
       </div>
-      {failed && <p className="mt-1 text-xs text-red-500">Adresse introuvable — essayez d'être plus précis.</p>}
+      {failed && <p className="mt-1 text-xs text-red-500">{errorMsg}</p>}
     </div>
   );
 }
@@ -183,7 +184,6 @@ function useRoute(from: [number, number] | null, to: [number, number] | null) {
         });
       })
       .catch(() => {
-        // Fallback haversine ×1.3, vitesse ~50 km/h pour la durée
         const km = Math.round(haversineKm(from, to) * 1.3 * 10) / 10;
         setRoute({ km, durationSec: Math.round((km / 50) * 3600) });
       })
@@ -221,8 +221,8 @@ export function FareSimulator() {
 
   const isDay = now.getHours() >= 7 && now.getHours() < 19;
   const periodLabel = isDay
-    ? `☀️ Tarif jour (7h–19h) — ${formatEUR(RATE_DAY)} / km`
-    : `🌙 Tarif nuit (19h–7h) — ${formatEUR(RATE_NIGHT)} / km`;
+    ? `${t("sim.period_day")} ${formatEUR(RATE_DAY)} / km`
+    : `${t("sim.period_night")} ${formatEUR(RATE_NIGHT)} / km`;
 
   // Taux mixte : pondéré sur la durée réelle du trajet depuis maintenant
   const rate = useMemo(
@@ -246,8 +246,20 @@ export function FareSimulator() {
       <div className="mx-auto mt-12 grid max-w-5xl gap-6 rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-elegant)] sm:p-8 md:grid-cols-2">
         {/* ── Inputs ── */}
         <div className="space-y-6">
-          <AddressField id="sim-from" label="Adresse de départ" onCoord={setFromCoord} />
-          <AddressField id="sim-to" label="Adresse de destination" onCoord={setToCoord} />
+          <AddressField
+            id="sim-from"
+            label={t("sim.from_label")}
+            placeholder={t("sim.addr_placeholder")}
+            errorMsg={t("sim.addr_error")}
+            onCoord={setFromCoord}
+          />
+          <AddressField
+            id="sim-to"
+            label={t("sim.to_label")}
+            placeholder={t("sim.addr_placeholder")}
+            errorMsg={t("sim.addr_error")}
+            onCoord={setToCoord}
+          />
 
           {/* Badge période — lecture seule, automatique */}
           <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
@@ -255,7 +267,7 @@ export function FareSimulator() {
             <span>{periodLabel}</span>
             {isMixed && (
               <span className="ml-auto shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                tarif mixte
+                {t("sim.badge_mixed")}
               </span>
             )}
           </div>
@@ -272,7 +284,7 @@ export function FareSimulator() {
             {distLoading ? (
               <div className="mt-4 flex items-center gap-2 text-muted-foreground">
                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                <span className="text-sm">Calcul de la distance…</span>
+                <span className="text-sm">{t("sim.dist_loading")}</span>
               </div>
             ) : (
               <div
@@ -284,7 +296,7 @@ export function FareSimulator() {
               </div>
             )}
 
-            <p className="mt-2 text-xs font-bold text-red-600">* Des frais de réservation peuvent être appliqués</p>
+            <p className="mt-2 text-xs font-bold text-red-600">{t("sim.booking_fee_note")}</p>
 
             <dl className="mt-6 space-y-2 text-sm">
               <div className="flex items-center justify-between">
@@ -292,18 +304,18 @@ export function FareSimulator() {
                 <dd className="font-medium">{formatEUR(PICKUP_FEE)}</dd>
               </div>
               <div className="flex items-center justify-between">
-                <dt className="text-muted-foreground">{isMixed ? "Tarif moyen pondéré" : t("sim.perkm")}</dt>
+                <dt className="text-muted-foreground">{isMixed ? t("sim.perkm_mixed") : t("sim.perkm")}</dt>
                 <dd className="font-medium">{formatEUR(rate)} / km</dd>
               </div>
               {route && (
                 <div className="flex items-center justify-between">
-                  <dt className="text-muted-foreground">Distance estimée</dt>
+                  <dt className="text-muted-foreground">{t("sim.dist_label")}</dt>
                   <dd className="font-medium">{route.km} km</dd>
                 </div>
               )}
               {route && (
                 <div className="flex items-center justify-between">
-                  <dt className="text-muted-foreground">Durée estimée</dt>
+                  <dt className="text-muted-foreground">{t("sim.duration_label")}</dt>
                   <dd className="font-medium">{formatDuration(route.durationSec)}</dd>
                 </div>
               )}
@@ -312,10 +324,7 @@ export function FareSimulator() {
 
           <p className="mt-6 flex items-start gap-2 rounded-lg border border-border/60 bg-background/60 p-3 text-xs text-muted-foreground">
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-            <span>
-              Estimation indicative basée sur nos tarifs officiels. Le prix réel peut varier selon le trajet exact, les
-              conditions de circulation et les éventuels suppléments.
-            </span>
+            <span>{t("sim.disclaimer")}</span>
           </p>
 
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
