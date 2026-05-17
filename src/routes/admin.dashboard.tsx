@@ -4,11 +4,17 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix } from "@/lib/tarif";
 import { assertTrackingId, newTrackingId } from "@/lib/tracking-id";
-import { CourseCardSkeleton, Skeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
+import {
+  CourseCardSkeleton,
+  Skeleton,
+  SkeletonStyles,
+  StatCardSkeleton,
+  ClientRowSkeleton,
+} from "@/components/admin/Skeleton";
 
 export const Route = createFileRoute("/admin/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Admin" }, { name: "robots", content: "noindex" }] }),
-  component: Dashboard,
+  component: AdminPage,
 });
 
 // ─── Styles communs ───
@@ -33,7 +39,6 @@ const valCss: React.CSSProperties = {
   marginTop: 4,
 };
 
-// Tarifs officiels Bordeaux
 const TARIF_JOUR_LABEL = "2,16 €/km";
 const TARIF_NUIT_LABEL = "3,26 €/km";
 
@@ -59,7 +64,7 @@ const STATUS: Record<string, { bg: string; c: string; label: string }> = {
 };
 
 function paiementLabel(p: string | null | undefined): string {
-  if (!p) return "";
+  if (!p) return "—";
   const map: Record<string, string> = {
     especes: "💵 Espèces",
     cb: "💳 Carte bancaire",
@@ -191,8 +196,160 @@ function QrModal({ url, onClose }: { url: string; onClose: () => void }) {
   );
 }
 
-function Dashboard() {
-  // ── KPI stats ──
+// ─── SwipeRow (clients) ───
+function SwipeRow({ onDelete, children }: { onDelete: () => void; children: React.ReactNode }) {
+  const [dx, setDx] = useState(0);
+  const startX = useRef<number | null>(null);
+  const REVEAL = 80;
+  const isOpen = dx <= -REVEAL / 2;
+
+  return (
+    <div style={{ position: "relative", overflow: "hidden", borderRadius: 20 }}>
+      <button
+        onClick={onDelete}
+        aria-label="Supprimer"
+        style={{
+          position: "absolute",
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: REVEAL,
+          background: "#ef4444",
+          color: "#fff",
+          border: 0,
+          fontSize: 22,
+          cursor: "pointer",
+          fontWeight: 700,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        🗑
+      </button>
+      <div
+        onTouchStart={(e) => {
+          startX.current = e.touches[0].clientX - dx;
+        }}
+        onTouchMove={(e) => {
+          if (startX.current === null) return;
+          const next = e.touches[0].clientX - startX.current;
+          if (next <= 0 && next >= -REVEAL) setDx(next);
+        }}
+        onTouchEnd={() => {
+          setDx(dx < -REVEAL / 2 ? -REVEAL : 0);
+          startX.current = null;
+        }}
+        onClick={() => {
+          if (isOpen) setDx(0);
+        }}
+        style={{
+          transform: `translateX(${dx}px)`,
+          transition: startX.current === null ? "transform 0.2s ease" : "none",
+          background: "#0f172a",
+          border: "1px solid rgba(255,255,255,0.08)",
+          borderRadius: 20,
+          padding: 20,
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ─── Page principale ───
+function AdminPage() {
+  const [mainTab, setMainTab] = useState<"dashboard" | "clients">("dashboard");
+
+  return (
+    <div
+      style={{
+        padding: "20px clamp(12px, 4vw, 24px)",
+        fontFamily: "'DM Sans',sans-serif",
+        maxWidth: "100%",
+        boxSizing: "border-box",
+      }}
+    >
+      <SkeletonStyles />
+
+      {/* ── Header global ── */}
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+          marginBottom: 20,
+        }}
+      >
+        <h1 style={{ fontFamily: "'Syne',sans-serif", fontSize: 26, fontWeight: 800, color: "#f8fafc", margin: 0 }}>
+          Admin
+        </h1>
+        <a
+          href="/"
+          style={{
+            padding: "8px 14px",
+            background: "rgba(255,255,255,0.06)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            color: "#94a3b8",
+            borderRadius: 10,
+            fontWeight: 600,
+            fontSize: 13,
+            textDecoration: "none",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            whiteSpace: "nowrap",
+          }}
+        >
+          ← Retour au site
+        </a>
+      </div>
+
+      {/* ── Navigation principale ── */}
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          marginBottom: 28,
+          borderBottom: "1px solid rgba(255,255,255,0.08)",
+          paddingBottom: 16,
+        }}
+      >
+        {(["dashboard", "clients"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setMainTab(t)}
+            style={{
+              padding: "10px 20px",
+              borderRadius: 12,
+              cursor: "pointer",
+              fontWeight: 700,
+              fontSize: 14,
+              border: mainTab === t ? "1px solid rgba(14,165,233,0.4)" : "1px solid rgba(255,255,255,0.08)",
+              background: mainTab === t ? "rgba(14,165,233,0.15)" : "rgba(255,255,255,0.04)",
+              color: mainTab === t ? "#0ea5e9" : "#94a3b8",
+              transition: "all 0.15s ease",
+            }}
+          >
+            {t === "dashboard" ? "📊 Dashboard" : "👥 Clients"}
+          </button>
+        ))}
+      </div>
+
+      {mainTab === "dashboard" ? <DashboardSection /> : <ClientsSection />}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════
+// SECTION DASHBOARD
+// ══════════════════════════════════════
+function DashboardSection() {
   const [caJ, setCaJ] = useState(0);
   const [caM, setCaM] = useState(0);
   const [coursesJ, setCoursesJ] = useState(0);
@@ -201,13 +358,11 @@ function Dashboard() {
   const [nextCourse, setNextCourse] = useState<any | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
 
-  // ── Courses list ──
   const [tab, setTab] = useState<TabKey>("pending");
   const [items, setItems] = useState<any[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [counts, setCounts] = useState({ pending: 0, accepted: 0, refused: 0 });
 
-  // ── Modales & actions ──
   const [confirmAction, setConfirmAction] = useState<{ type: "accept" | "refuse"; r: any } | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [refusalReason, setRefusalReason] = useState("");
@@ -218,9 +373,6 @@ function Dashboard() {
   const [qrModal, setQrModal] = useState<{ url: string } | null>(null);
   const initialLoad = useRef(true);
 
-  // =========================
-  // FETCH STATS
-  // =========================
   const fetchStats = useCallback(async () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -258,9 +410,6 @@ function Dashboard() {
     setStatsLoading(false);
   }, []);
 
-  // =========================
-  // FETCH COURSES
-  // =========================
   const fetchCourses = useCallback(async () => {
     const { data, error } = await supabase.from("reservations").select("*").order("created_at", { ascending: false });
     if (error) {
@@ -284,9 +433,6 @@ function Dashboard() {
     fetchCourses();
   }, [fetchStats, fetchCourses]);
 
-  // =========================
-  // REALTIME
-  // =========================
   useEffect(() => {
     fetchAll();
     const ch = supabase
@@ -316,9 +462,6 @@ function Dashboard() {
     };
   }, [fetchAll, fetchStats]);
 
-  // =========================
-  // CALCUL DISTANCE
-  // =========================
   const fetchDistanceKm = async (depart: string, arrivee: string): Promise<number> => {
     const apiKey =
       (import.meta.env.VITE_ORS_API_KEY as string | undefined) ||
@@ -381,9 +524,6 @@ function Dashboard() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // =========================
-  // ACCEPT
-  // =========================
   const handleAccept = async (r: any) => {
     let trackingId: string;
     try {
@@ -432,33 +572,22 @@ function Dashboard() {
           .from("clients")
           .update({ total_courses: (existing.total_courses ?? 0) + 1 })
           .eq("id", existing.id);
-      } else {
-        await supabase.from("clients").insert({ name, phone, email, total_courses: 1 });
+      } else if (name) {
+        await supabase.from("clients").insert({ name, phone, email, total_courses: 1, total_depense: prixCalcule });
       }
     }
 
-    try {
-      new Audio("/notification.mp3").play().catch(() => {});
-    } catch {}
-
     const url = typeof window !== "undefined" ? `${window.location.origin}/scan/${trackingId}` : "";
-    if (typeof window !== "undefined" && url) {
-      try {
-        await navigator.clipboard.writeText(url);
-      } catch {}
-    }
-
+    const prixStr = `${prixCalcule.toFixed(2)} €`;
     const pickupFormatted = r.pickup_datetime
       ? formatParis(r.pickup_datetime, { dateStyle: "full", timeStyle: "short" })
       : undefined;
-    const prixStr = `${Number(prixCalcule).toFixed(2)} €`;
-    const tarifLabel = tarif_nuit ? `Nuit (${TARIF_NUIT_LABEL})` : `Jour (${TARIF_JOUR_LABEL})`;
-    const adminSecret = import.meta.env.VITE_LOVABLE_API_KEY ?? "";
 
-    let emailDetail = "Aucun email client renseigné";
-    if (email && url) {
+    if (email) {
+      const adminSecret = import.meta.env.VITE_LOVABLE_API_KEY ?? "";
+      const refId = `TCB-${r.id.slice(0, 8).toUpperCase()}`;
       try {
-        const res = await fetch("/api/admin/send-course-email", {
+        await fetch("/api/admin/send-course-email", {
           method: "POST",
           headers: { "Content-Type": "application/json", "X-Admin-Secret": adminSecret },
           body: JSON.stringify({
@@ -471,19 +600,12 @@ function Dashboard() {
               arrivee: r.arrivee || r.destination,
               pickup_datetime: pickupFormatted,
               prix: prixStr,
-              tarif: tarifLabel,
+              tarif: tarif_nuit ? `Nuit (${TARIF_NUIT_LABEL})` : `Jour (${TARIF_JOUR_LABEL})`,
               tracking_url: url,
-              passagers: r.nb_passagers || r.passagers || 1,
-              bagages: r.bagages ?? 0,
             },
           }),
         });
-        emailDetail = res.ok
-          ? `✉️ Email envoyé à ${email}`
-          : `⚠️ Échec email (${res.status}) — vérifiez le template "course-accepted"`;
-      } catch {
-        emailDetail = "⚠️ Échec email (réseau)";
-      }
+      } catch {}
     }
 
     const TAXI_WA = "33673072322";
@@ -508,22 +630,19 @@ function Dashboard() {
       }
     }
 
+    const emailDetail = email ? `✉️ Email envoyé à ${email}` : "Pas d'email client";
     toast.success(`Course acceptée — ${name || "client"}`, {
       description: `${emailDetail} · 💬 WhatsApp ouvert`,
       duration: 8000,
       action: { label: "📲 QR Code", onClick: () => setQrModal({ url }) },
     });
-
     fetchAll();
   };
 
-  // =========================
-  // REFUSE
-  // =========================
   const handleRefuse = async (r: any, motif: string) => {
     const cleaned = motif.trim();
     if (cleaned.length < 3) {
-      toast.error("Motif requis", { description: "Indiquez la raison du refus (3 caractères minimum)." });
+      toast.error("Motif requis", { description: "3 caractères minimum." });
       return false;
     }
     const { error } = await supabase
@@ -541,9 +660,6 @@ function Dashboard() {
     return true;
   };
 
-  // =========================
-  // RENVOYER EMAIL
-  // =========================
   const handleSendEmail = async (r: any) => {
     const email = r.client_email || r.email;
     const name = r.client_name || r.nom;
@@ -606,71 +722,25 @@ function Dashboard() {
 
   const filtered = items.filter((r) => normalizeStatus(r.status) === tab);
 
-  // =========================
-  // RENDER
-  // =========================
   return (
-    <div
-      style={{
-        padding: "20px clamp(12px, 4vw, 24px)",
-        fontFamily: "'DM Sans',sans-serif",
-        maxWidth: "100%",
-        boxSizing: "border-box",
-      }}
-    >
-      <SkeletonStyles />
-
-      {/* ── Header ── */}
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 20,
-        }}
-      >
-        <h1 style={{ fontFamily: "'Syne',sans-serif", fontSize: 26, fontWeight: 800, color: "#f8fafc", margin: 0 }}>
-          Dashboard
-        </h1>
-        <div style={{ display: "flex", gap: 8 }}>
-          <a
-            href="/"
-            style={{
-              padding: "8px 14px",
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.12)",
-              color: "#94a3b8",
-              borderRadius: 10,
-              fontWeight: 600,
-              fontSize: 13,
-              textDecoration: "none",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              whiteSpace: "nowrap",
-            }}
-          >
-            ← Retour au site
-          </a>
-          <button
-            onClick={fetchAll}
-            style={{
-              padding: "8px 14px",
-              background: "rgba(14,165,233,0.15)",
-              border: "1px solid rgba(14,165,233,0.3)",
-              color: "#0ea5e9",
-              borderRadius: 10,
-              cursor: "pointer",
-              fontWeight: 600,
-              fontSize: 13,
-              whiteSpace: "nowrap",
-            }}
-          >
-            ↻ Actualiser
-          </button>
-        </div>
+    <>
+      {/* Bouton actualiser */}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+        <button
+          onClick={fetchAll}
+          style={{
+            padding: "8px 14px",
+            background: "rgba(14,165,233,0.15)",
+            border: "1px solid rgba(14,165,233,0.3)",
+            color: "#0ea5e9",
+            borderRadius: 10,
+            cursor: "pointer",
+            fontWeight: 600,
+            fontSize: 13,
+          }}
+        >
+          ↻ Actualiser
+        </button>
       </div>
 
       {/* ── Prochaine course acceptée ── */}
@@ -991,8 +1061,6 @@ function Dashboard() {
         >
           Courses
         </h2>
-
-        {/* Onglets */}
         <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
           {tabKeys.map((k) => (
             <button
@@ -1046,7 +1114,6 @@ function Dashboard() {
 
             return (
               <div key={r.id} style={{ ...card, marginBottom: 14 }}>
-                {/* En-tête */}
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                   <div>
                     <div style={{ color: "#fff", fontWeight: 700, fontSize: 18 }}>{name}</div>
@@ -1064,8 +1131,6 @@ function Dashboard() {
                     )}
                   </div>
                 </div>
-
-                {/* Infos */}
                 <div
                   style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap", color: "#94a3b8", fontSize: 13 }}
                 >
@@ -1150,7 +1215,6 @@ function Dashboard() {
                   </div>
                 )}
 
-                {/* Boutons d'action */}
                 <div style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {normalizeStatus(r.status) === "pending" && (
                     <>
@@ -1586,8 +1650,623 @@ function Dashboard() {
         </div>
       )}
 
-      {/* ── Modale QR Code ── */}
       {qrModal && <QrModal url={qrModal.url} onClose={() => setQrModal(null)} />}
-    </div>
+    </>
+  );
+}
+
+// ══════════════════════════════════════
+// SECTION CLIENTS
+// ══════════════════════════════════════
+function ClientsSection() {
+  const [clients, setClients] = useState<any[]>([]);
+  const [coursesByClient, setCoursesByClient] = useState<Record<string, any[]>>({});
+  const [reservByClient, setReservByClient] = useState<Record<string, any[]>>({});
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [addForm, setAddForm] = useState<Record<string, { destination: string; prix: string; paiement: string }>>({});
+
+  const fetchAll = useCallback(async () => {
+    const [{ data: cli }, { data: cou }, { data: res }] = await Promise.all([
+      supabase.from("clients").select("*").order("created_at", { ascending: false }),
+      supabase.from("courses").select("*").order("created_at", { ascending: false }),
+      supabase.from("reservations").select("*").order("created_at", { ascending: false }),
+    ]);
+    setClients(cli ?? []);
+
+    const cbc: Record<string, any[]> = {};
+    (cou ?? []).forEach((c: any) => {
+      if (!c.client_id) return;
+      (cbc[c.client_id] ||= []).push(c);
+    });
+    setCoursesByClient(cbc);
+
+    const rbc: Record<string, any[]> = {};
+    const cliByKey: Record<string, string> = {};
+    (cli ?? []).forEach((c: any) => {
+      if (c.phone) cliByKey[c.phone] = c.id;
+      if (c.email) cliByKey[(c.email || "").toLowerCase()] = c.id;
+    });
+    (res ?? []).forEach((r: any) => {
+      const key = r.telephone || (r.email || "").toLowerCase();
+      const cid = cliByKey[key];
+      if (cid) (rbc[cid] ||= []).push(r);
+    });
+    setReservByClient(rbc);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
+
+  const toggleHist = (id: string) => setOpen((o) => ({ ...o, [id]: !o[id] }));
+
+  const addCourse = async (c: any) => {
+    const f = addForm[c.id] || { destination: "", prix: "", paiement: "especes" };
+    if (!f.destination || !f.prix) return;
+    await supabase
+      .from("courses")
+      .insert({
+        client_id: c.id,
+        destination: f.destination,
+        prix_final: Number(f.prix),
+        paiement: f.paiement,
+        status: "terminee",
+      });
+    await supabase
+      .from("clients")
+      .update({
+        total_courses: (c.total_courses ?? 0) + 1,
+        total_depense: Number(c.total_depense ?? 0) + Number(f.prix),
+      })
+      .eq("id", c.id);
+    setAddForm((a) => ({ ...a, [c.id]: { destination: "", prix: "", paiement: "especes" } }));
+    fetchAll();
+  };
+
+  const deleteClient = async (id: string) => {
+    if (!confirm("Supprimer définitivement ce client ?")) return;
+    await supabase.from("clients").delete().eq("id", id);
+    fetchAll();
+  };
+
+  const filtered = clients.filter((c) => {
+    const s = search.toLowerCase();
+    return (
+      !s ||
+      c.name?.toLowerCase().includes(s) ||
+      c.phone?.toLowerCase().includes(s) ||
+      c.email?.toLowerCase().includes(s)
+    );
+  });
+  const totalCA = clients.reduce((s, c) => s + Number(c.total_depense ?? 0), 0);
+  const fidele = [...clients].sort((a, b) => (b.total_courses ?? 0) - (a.total_courses ?? 0))[0];
+
+  return (
+    <>
+      <h2
+        style={{ fontFamily: "'Syne',sans-serif", fontSize: 24, fontWeight: 800, color: "#f8fafc", margin: "0 0 4px" }}
+      >
+        Portefeuille clients{" "}
+        <span
+          style={{
+            background: "rgba(14,165,233,0.15)",
+            color: "#0ea5e9",
+            fontSize: 13,
+            padding: "4px 12px",
+            borderRadius: 99,
+            marginLeft: 10,
+          }}
+        >
+          {clients.length}
+        </span>
+      </h2>
+      <div style={{ color: "#94a3b8", fontSize: 12, marginBottom: 12 }}>
+        👉 Glissez une carte vers la gauche (mobile) pour supprimer
+      </div>
+
+      {/* KPIs */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
+          gap: 12,
+          margin: "16px 0",
+        }}
+      >
+        <div
+          style={{
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 14,
+            padding: 16,
+          }}
+        >
+          <div style={{ color: "#64748b", fontSize: 12 }}>Total clients</div>
+          <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 22, fontWeight: 800, color: "#fff" }}>
+            {clients.length}
+          </div>
+        </div>
+        <div
+          style={{
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 14,
+            padding: 16,
+          }}
+        >
+          <div style={{ color: "#64748b", fontSize: 12 }}>CA cumulé</div>
+          <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 22, fontWeight: 800, color: "#fff" }}>
+            {totalCA.toFixed(2)} €
+          </div>
+        </div>
+        {fidele && (
+          <div
+            style={{
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 14,
+              padding: 16,
+            }}
+          >
+            <div style={{ color: "#64748b", fontSize: 12 }}>Plus fidèle</div>
+            <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 16, fontWeight: 700, color: "#fff" }}>
+              {fidele.name} <span style={{ color: "#0ea5e9", fontSize: 13 }}>({fidele.total_courses ?? 0})</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Recherche */}
+      <input
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="🔍 Rechercher nom / téléphone / email"
+        style={{
+          width: "100%",
+          padding: "10px 14px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          borderRadius: 12,
+          color: "#fff",
+          fontSize: 14,
+          marginBottom: 16,
+          boxSizing: "border-box",
+        }}
+      />
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 14 }}>
+        {loading && Array.from({ length: 6 }).map((_, i) => <ClientRowSkeleton key={i} />)}
+
+        {!loading &&
+          filtered.map((c) => {
+            const courses = coursesByClient[c.id] ?? [];
+            const reservs = reservByClient[c.id] ?? [];
+            const lastCourse = courses[0];
+            const lastReserv = reservs[0];
+            const lastPrix = lastCourse?.prix_final ?? lastReserv?.prix_estime;
+            const lastDepart = lastCourse?.depart ?? lastReserv?.depart;
+            const lastDest = lastCourse?.destination ?? lastReserv?.destination ?? lastReserv?.arrivee;
+
+            return (
+              <SwipeRow key={c.id} onDelete={() => deleteClient(c.id)}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div
+                    style={{
+                      width: 44,
+                      height: 44,
+                      background: "#0ea5e9",
+                      color: "#fff",
+                      borderRadius: "50%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontWeight: 800,
+                      fontFamily: "'Syne',sans-serif",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {(c.name || "?")[0]?.toUpperCase()}
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, color: "#f8fafc", fontSize: 16 }}>
+                      {c.name}
+                    </div>
+                    {c.phone && (
+                      <div style={{ color: "#cbd5e1", fontSize: 13, display: "flex", alignItems: "center", gap: 4 }}>
+                        📞{" "}
+                        <a href={`tel:${c.phone}`} style={{ color: "#cbd5e1", textDecoration: "none" }}>
+                          {c.phone}
+                        </a>
+                      </div>
+                    )}
+                    {c.email && (
+                      <div
+                        style={{
+                          color: "#94a3b8",
+                          fontSize: 12,
+                          marginTop: 2,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        ✉️{" "}
+                        <a href={`mailto:${c.email}`} style={{ color: "#94a3b8", textDecoration: "none" }}>
+                          {c.email}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => deleteClient(c.id)}
+                    title="Supprimer ce client"
+                    className="client-delete-btn"
+                    style={{
+                      background: "rgba(239,68,68,0.15)",
+                      color: "#ef4444",
+                      border: "1px solid rgba(239,68,68,0.3)",
+                      padding: "5px 10px",
+                      borderRadius: 8,
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      flexShrink: 0,
+                    }}
+                  >
+                    🗑
+                  </button>
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 10,
+                    padding: 10,
+                    background: "rgba(14,165,233,0.06)",
+                    border: "1px solid rgba(14,165,233,0.15)",
+                    borderRadius: 10,
+                    fontSize: 12,
+                    color: "#cbd5e1",
+                  }}
+                >
+                  {lastPrix != null ? (
+                    <>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          marginBottom: 4,
+                        }}
+                      >
+                        <span
+                          style={{
+                            color: "#64748b",
+                            textTransform: "uppercase",
+                            letterSpacing: 0.5,
+                            fontSize: 10,
+                            fontWeight: 700,
+                          }}
+                        >
+                          Dernière course
+                        </span>
+                        <span style={{ color: "#0ea5e9", fontWeight: 800, fontSize: 14 }}>
+                          {Number(lastPrix).toFixed(2)} €
+                        </span>
+                      </div>
+                      {lastDepart && (
+                        <div>
+                          🟢 <strong>De :</strong> {lastDepart}
+                        </div>
+                      )}
+                      {lastDest && (
+                        <div>
+                          🔴 <strong>À :</strong> {lastDest}
+                        </div>
+                      )}
+                      {lastCourse?.paiement && (
+                        <div style={{ marginTop: 4, color: "#94a3b8" }}>{paiementLabel(lastCourse.paiement)}</div>
+                      )}
+                    </>
+                  ) : (
+                    <span style={{ color: "#64748b" }}>Aucune course enregistrée</span>
+                  )}
+                </div>
+
+                <div style={{ display: "flex", gap: 12, marginTop: 10, fontSize: 13, color: "#cbd5e1" }}>
+                  <span>🚗 {c.total_courses ?? 0} courses</span>
+                  <span>💶 {Number(c.total_depense ?? 0).toFixed(2)} €</span>
+                </div>
+
+                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                  <button
+                    onClick={() => toggleHist(c.id)}
+                    style={{
+                      flex: 1,
+                      background: "rgba(14,165,233,0.15)",
+                      color: "#0ea5e9",
+                      border: 0,
+                      padding: "8px 12px",
+                      borderRadius: 10,
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {open[c.id] ? "Masquer l'historique" : "Voir historique"}
+                  </button>
+                </div>
+
+                {open[c.id] && (
+                  <div style={{ marginTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 12 }}>
+                    <div
+                      style={{
+                        marginBottom: 10,
+                        padding: 10,
+                        background: "rgba(255,255,255,0.03)",
+                        border: "1px solid rgba(255,255,255,0.06)",
+                        borderRadius: 10,
+                        fontSize: 12,
+                      }}
+                    >
+                      <div
+                        style={{
+                          color: "#64748b",
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          fontSize: 10,
+                          letterSpacing: 0.5,
+                          marginBottom: 6,
+                        }}
+                      >
+                        Coordonnées
+                      </div>
+                      {c.phone ? (
+                        <div style={{ color: "#cbd5e1", marginBottom: 2 }}>
+                          📞{" "}
+                          <a href={`tel:${c.phone}`} style={{ color: "#0ea5e9", textDecoration: "none" }}>
+                            {c.phone}
+                          </a>
+                        </div>
+                      ) : (
+                        <div style={{ color: "#475569", marginBottom: 2 }}>📞 Téléphone non renseigné</div>
+                      )}
+                      {c.email ? (
+                        <div style={{ color: "#cbd5e1" }}>
+                          ✉️{" "}
+                          <a href={`mailto:${c.email}`} style={{ color: "#0ea5e9", textDecoration: "none" }}>
+                            {c.email}
+                          </a>
+                        </div>
+                      ) : (
+                        <div style={{ color: "#475569" }}>✉️ Email non renseigné</div>
+                      )}
+                    </div>
+
+                    {courses.length > 0 && (
+                      <div style={{ marginBottom: 10 }}>
+                        <div
+                          style={{
+                            color: "#64748b",
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                            fontSize: 10,
+                            letterSpacing: 0.5,
+                            marginBottom: 6,
+                          }}
+                        >
+                          Courses ({courses.length})
+                        </div>
+                        {courses.map((co, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              fontSize: 12,
+                              color: "#94a3b8",
+                              padding: "6px 0",
+                              borderBottom: "1px solid rgba(255,255,255,0.04)",
+                            }}
+                          >
+                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+                              <span style={{ color: "#64748b" }}>
+                                {new Date(co.created_at).toLocaleDateString("fr-FR")}
+                              </span>
+                              <b style={{ color: "#0ea5e9" }}>{Number(co.prix_final).toFixed(2)} €</b>
+                            </div>
+                            {co.depart && (
+                              <div>
+                                🟢 <span style={{ color: "#cbd5e1" }}>{co.depart}</span>
+                              </div>
+                            )}
+                            {co.destination && (
+                              <div>
+                                🔴 <span style={{ color: "#cbd5e1" }}>{co.destination}</span>
+                              </div>
+                            )}
+                            <div style={{ color: "#64748b", marginTop: 2 }}>{paiementLabel(co.paiement)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {reservs.length > 0 && (
+                      <div style={{ marginBottom: 10 }}>
+                        <div
+                          style={{
+                            color: "#64748b",
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                            fontSize: 10,
+                            letterSpacing: 0.5,
+                            marginBottom: 6,
+                          }}
+                        >
+                          Réservations ({reservs.length})
+                        </div>
+                        {reservs.map((r, i) => {
+                          const prix = r.prix_final ?? r.prix_estime;
+                          const dest = r.destination ?? r.arrivee;
+                          return (
+                            <div
+                              key={i}
+                              style={{
+                                fontSize: 12,
+                                color: "#94a3b8",
+                                padding: "6px 0",
+                                borderBottom: "1px solid rgba(255,255,255,0.04)",
+                              }}
+                            >
+                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+                                <span style={{ color: "#64748b" }}>
+                                  {r.pickup_datetime
+                                    ? new Date(r.pickup_datetime).toLocaleString("fr-FR", {
+                                        timeZone: "Europe/Paris",
+                                        dateStyle: "short",
+                                        timeStyle: "short",
+                                      })
+                                    : new Date(r.created_at).toLocaleDateString("fr-FR")}
+                                </span>
+                                {prix != null && <b style={{ color: "#0ea5e9" }}>{Number(prix).toFixed(2)} €</b>}
+                              </div>
+                              {r.depart && (
+                                <div>
+                                  🟢 <span style={{ color: "#cbd5e1" }}>{r.depart}</span>
+                                </div>
+                              )}
+                              {dest && (
+                                <div>
+                                  🔴 <span style={{ color: "#cbd5e1" }}>{dest}</span>
+                                </div>
+                              )}
+                              {(r.telephone || r.client_phone) && (
+                                <div style={{ color: "#64748b", marginTop: 2 }}>📞 {r.telephone || r.client_phone}</div>
+                              )}
+                              {(r.email || r.client_email) && (
+                                <div style={{ color: "#64748b" }}>✉️ {r.email || r.client_email}</div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {courses.length === 0 && reservs.length === 0 && (
+                      <div style={{ fontSize: 12, color: "#475569", textAlign: "center", padding: 8 }}>
+                        Aucune course ni réservation
+                      </div>
+                    )}
+
+                    <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+                      <div
+                        style={{
+                          color: "#64748b",
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          fontSize: 10,
+                          letterSpacing: 0.5,
+                          marginBottom: 2,
+                        }}
+                      >
+                        Ajouter une course
+                      </div>
+                      <input
+                        placeholder="Destination"
+                        value={addForm[c.id]?.destination ?? ""}
+                        onChange={(e) =>
+                          setAddForm((a) => ({
+                            ...a,
+                            [c.id]: {
+                              ...(a[c.id] ?? { destination: "", prix: "", paiement: "especes" }),
+                              destination: e.target.value,
+                            },
+                          }))
+                        }
+                        style={{
+                          padding: 6,
+                          background: "rgba(255,255,255,0.04)",
+                          border: "1px solid rgba(255,255,255,0.08)",
+                          color: "#fff",
+                          borderRadius: 8,
+                          fontSize: 12,
+                        }}
+                      />
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <input
+                          placeholder="Prix €"
+                          value={addForm[c.id]?.prix ?? ""}
+                          onChange={(e) =>
+                            setAddForm((a) => ({
+                              ...a,
+                              [c.id]: {
+                                ...(a[c.id] ?? { destination: "", prix: "", paiement: "especes" }),
+                                prix: e.target.value,
+                              },
+                            }))
+                          }
+                          style={{
+                            flex: 1,
+                            padding: 6,
+                            background: "rgba(255,255,255,0.04)",
+                            border: "1px solid rgba(255,255,255,0.08)",
+                            color: "#fff",
+                            borderRadius: 8,
+                            fontSize: 12,
+                          }}
+                        />
+                        <select
+                          value={addForm[c.id]?.paiement ?? "especes"}
+                          onChange={(e) =>
+                            setAddForm((a) => ({
+                              ...a,
+                              [c.id]: {
+                                ...(a[c.id] ?? { destination: "", prix: "", paiement: "especes" }),
+                                paiement: e.target.value,
+                              },
+                            }))
+                          }
+                          style={{
+                            padding: 6,
+                            background: "rgba(255,255,255,0.04)",
+                            border: "1px solid rgba(255,255,255,0.08)",
+                            color: "#fff",
+                            borderRadius: 8,
+                            fontSize: 12,
+                          }}
+                        >
+                          <option value="especes">Espèces</option>
+                          <option value="cb">CB</option>
+                        </select>
+                      </div>
+                      <button
+                        onClick={() => addCourse(c)}
+                        style={{
+                          background: "#22c55e",
+                          color: "#fff",
+                          border: 0,
+                          padding: 6,
+                          borderRadius: 8,
+                          cursor: "pointer",
+                          fontSize: 12,
+                          fontWeight: 700,
+                        }}
+                      >
+                        ➕ Ajouter
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </SwipeRow>
+            );
+          })}
+      </div>
+
+      <style>{`
+        @media (max-width: 640px) {
+          .client-delete-btn { display: none !important; }
+        }
+      `}</style>
+    </>
   );
 }
