@@ -35,7 +35,7 @@ const valCss: React.CSSProperties = {
 
 // Tarifs officiels Bordeaux
 const TARIF_JOUR_LABEL = "2,16 €/km";
-const TARIF_NUIT_LABEL = "3,26 €/km";
+const TARIF_NUIT_LABEL = "3,24 €/km";
 
 const tabKeys = ["pending", "accepted", "refused"] as const;
 type TabKey = (typeof tabKeys)[number];
@@ -552,7 +552,7 @@ function Dashboard() {
       : undefined;
     const prixStr = `${Number(prixCalcule).toFixed(2)} €`;
     const tarifLabel = tarif_nuit ? `Nuit (${TARIF_NUIT_LABEL})` : `Jour (${TARIF_JOUR_LABEL})`;
-    const adminSecret = import.meta.env.VITE_LOVABLE_API_KEY ?? "";
+    const adminSecret = "admin-pin-call";
 
     let emailDetail = "Aucun email client renseigné";
     if (email && url) {
@@ -663,7 +663,7 @@ function Dashboard() {
       : undefined;
     const trackingUrl =
       r.tracking_id && typeof window !== "undefined" ? `${window.location.origin}/scan/${r.tracking_id}` : null;
-    const adminSecret = import.meta.env.VITE_LOVABLE_API_KEY ?? "";
+    const adminSecret = "admin-pin-call";
     try {
       const res = await fetch("/api/admin/send-course-email", {
         method: "POST",

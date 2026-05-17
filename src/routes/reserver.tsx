@@ -301,6 +301,7 @@ function ReservationPage() {
     bagages: 0,
     tarifJour: true,
     paiement: "especes",
+    trajet: "aller" as "aller" | "aller-retour",
   });
 
   const [mode, setMode] = useState<"form" | "email" | "whatsapp" | "sms">("form");
@@ -331,10 +332,13 @@ function ReservationPage() {
     return Object.keys(e).length === 0;
   };
 
+  const trajetLabel = (t: string) => (t === "aller-retour" ? "Aller-retour 🔁" : "Aller simple ➡️");
+
   const buildWhatsAppText = () => {
     const greeting = f.prenom ? `Bonjour, je m'appelle ${f.prenom}` : "Bonjour";
     return encodeURIComponent(
       `${greeting}, je souhaite réserver un taxi. Êtes-vous disponible ?\n\n` +
+        `Trajet : ${trajetLabel(f.trajet)}\n` +
         `Départ : ${f.depart || "À préciser"}\n` +
         `Destination : ${f.destination || "À préciser"}\n` +
         `Date : ${f.date} ${f.heure}\n` +
@@ -345,7 +349,7 @@ function ReservationPage() {
   };
 
   const buildEmailText = () =>
-    `Réservation taxi%0A%0AClient: ${f.prenom} ${f.nom}%0ATél: ${f.phone}%0AEmail: ${f.email}%0A%0ADépart: ${f.depart}%0ADestination: ${f.destination}%0ADate: ${f.date} ${f.heure}%0APassagers: ${f.passagers}%0ABagages: ${f.bagages}%0ATarif: ${f.tarifJour ? "Jour" : "Nuit"}`;
+    `Réservation taxi%0A%0AClient: ${f.prenom} ${f.nom}%0ATél: ${f.phone}%0AEmail: ${f.email}%0A%0ATrajet: ${trajetLabel(f.trajet)}%0ADépart: ${f.depart}%0ADestination: ${f.destination}%0ADate: ${f.date} ${f.heure}%0APassagers: ${f.passagers}%0ABagages: ${f.bagages}%0ATarif: ${f.tarifJour ? "Jour" : "Nuit"}`;
 
   const submitForm = async () => {
     if (!validate()) return;
@@ -398,6 +402,7 @@ function ReservationPage() {
         status: "pending",
         source: "form",
         paiement: f.paiement,
+        message: `Trajet: ${trajetLabel(f.trajet)}`,
       });
 
       if (insertError) throw new Error(insertError.message);
@@ -625,6 +630,56 @@ function ReservationPage() {
                 />
               </div>
 
+              {/* ── Type de trajet ── */}
+              <div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "#64748b",
+                    marginBottom: 4,
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  Type de trajet
+                </div>
+                <div className="tarif-row">
+                  {([
+                    { v: "aller", l: "➡️ Aller simple" },
+                    { v: "aller-retour", l: "🔁 Aller-retour" },
+                  ] as const).map((opt) => (
+                    <label
+                      key={opt.v}
+                      style={{
+                        flex: 1,
+                        padding: 12,
+                        border: `2px solid ${f.trajet === opt.v ? "#0ea5e9" : "#e2e8f0"}`,
+                        borderRadius: 12,
+                        cursor: "pointer",
+                        fontSize: 14,
+                        fontWeight: 600,
+                        background: f.trajet === opt.v ? "#f0f9ff" : "#fff",
+                        color: "#0f172a",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 8,
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="trajet"
+                        checked={f.trajet === opt.v}
+                        onChange={() => set("trajet", opt.v)}
+                        style={{ display: "none" }}
+                      />
+                      {opt.l}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               {/* Date, heure, passagers, bagages */}
               <div className="resa-grid-4">
                 <div>
@@ -728,7 +783,7 @@ function ReservationPage() {
                   onChange={() => set("tarifJour", true)}
                   style={{ accentColor: "#0ea5e9" }}
                 />
-                ☀️ Jour (7h–19h) — du lundi au samedi — 2,16 €/km
+                ☀️ Jour (7h–19h) — 2,16 €/km
               </label>
               <label
                 style={{
@@ -912,7 +967,7 @@ function ReservationPage() {
 
               {mode === "email" && (
                 <a
-                  href={`mailto:contact@taxicitybordeaux.fr?subject=Réservation taxi&body=${buildEmailText()}`}
+                  href={`mailto:taxi.city033@gmail.com?subject=Réservation taxi&body=${buildEmailText()}`}
                   style={{
                     display: "flex",
                     alignItems: "center",

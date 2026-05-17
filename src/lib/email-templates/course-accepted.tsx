@@ -114,7 +114,7 @@ export const template = {
     pickup_datetime: "jeudi 14 mai 2026 à 20:22",
     tracking_url: "https://taxicitybordeaux.fr/scan/abcd-1234",
     prix: "13.50 €",
-    tarif: "Nuit (3,26 €/km)",
+    tarif: "Nuit (3,24 €/km)",
     passagers: 1,
     bagages: 0,
   },

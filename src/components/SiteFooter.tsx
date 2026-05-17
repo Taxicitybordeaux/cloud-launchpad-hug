@@ -165,7 +165,7 @@ export function SiteFooter() {
           </p>
           <div style={{ marginTop: 14, display: "flex", gap: 10 }}>
             <a
-              href="mailto:contact@taxicitybordeaux.fr"
+              href="mailto:taxi.city033@gmail.com"
               aria-label="Email"
               className="footer-social-btn"
               style={{ border: "1px solid #94a3b840" }}
@@ -223,8 +223,8 @@ export function SiteFooter() {
               </a>
             </li>
             <li>
-              <a href="mailto:contact@taxicitybordeaux.fr" className="footer-link" style={{ wordBreak: "break-all" }}>
-                ✉️ contact@taxicitybordeaux.fr
+              <a href="mailto:taxi.city033@gmail.com" className="footer-link" style={{ wordBreak: "break-all" }}>
+                ✉️ taxi.city033@gmail.com
               </a>
             </li>
             <li className="footer-li-text">📍 Bordeaux & Gironde</li>
