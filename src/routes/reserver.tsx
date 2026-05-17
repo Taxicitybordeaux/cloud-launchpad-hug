@@ -18,8 +18,7 @@ export const Route = createFileRoute("/reserver")({
 const PRISE_EN_CHARGE = 2.83;
 const TARIF_JOUR = 2.16; // 7h–19h
 const TARIF_NUIT = 3.24; // 19h–7h
-// Lire la clé au moment de l'appel (pas au chargement du module)
-const getOrsKey = () => import.meta.env.VITE_ORS_API_KEY ?? "";
+// Pas de clé nécessaire — OSRM est gratuit et sans authentification
 
 // ─── Calcul mixte jour/nuit ───────────────────────────────────
 function calculerPrixMixte(departMs: number, dureeS: number, distanceKm: number): number {
@@ -74,33 +73,23 @@ interface OrsResult {
 }
 
 async function getOrsRoute(from: [number, number], to: [number, number]): Promise<OrsResult | null> {
-  const ORS_KEY = getOrsKey();
-  if (!ORS_KEY) return null;
+  // OSRM — gratuit, sans clé, sans restriction de domaine
+  // Format coords : lon,lat;lon,lat
   try {
-    const res = await fetch("https://api.openrouteservice.org/v2/directions/driving-car", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${ORS_KEY}` },
-      body: JSON.stringify({
-        coordinates: [from, to],
-        radiuses: [-1, -1],
-      }),
-    });
+    const url = `https://router.project-osrm.org/route/v1/driving/${from[0]},${from[1]};${to[0]},${to[1]}?overview=false`;
+    const res = await fetch(url);
     const data = await res.json();
-    if (data?.error) {
-      console.warn("[ORS] Erreur API:", data.error.code, data.error.message);
+    if (data.code !== "Ok" || !data.routes?.[0]) {
+      console.warn("[OSRM] Pas de route:", data.code, data.message ?? "");
       return null;
     }
-    const summary = data?.routes?.[0]?.summary;
-    if (!summary) {
-      console.warn("[ORS] Pas de route:", JSON.stringify(data));
-      return null;
-    }
+    const route = data.routes[0];
     return {
-      distanceKm: Math.round((summary.distance / 1000) * 10) / 10,
-      dureeS: Math.round(summary.duration),
+      distanceKm: Math.round((route.distance / 1000) * 10) / 10,
+      dureeS: Math.round(route.duration),
     };
   } catch (e) {
-    console.error("[ORS] Erreur:", e);
+    console.error("[OSRM] Erreur:", e);
     return null;
   }
 }
