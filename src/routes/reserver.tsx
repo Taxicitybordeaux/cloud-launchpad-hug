@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { calculerPrixMixte } from "@/lib/tarif";
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -299,7 +300,6 @@ function ReservationPage() {
     heure: "",
     passagers: 1,
     bagages: 0,
-    tarifJour: true,
     paiement: "especes",
     trajet: "aller" as "aller" | "aller-retour",
   });
@@ -317,6 +317,10 @@ function ReservationPage() {
   }, []);
 
   const set = (k: string, v: any) => setF((p) => ({ ...p, [k]: v }));
+
+  // Calcul automatique du tarif selon l'heure de départ
+  const heureNum = f.heure ? parseInt(f.heure.split(":")[0], 10) : 12;
+  const tarifJourAuto = heureNum >= 7 && heureNum < 19;
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -344,12 +348,12 @@ function ReservationPage() {
         `Date : ${f.date} ${f.heure}\n` +
         `Passagers : ${f.passagers}\n` +
         `Bagages : ${f.bagages}\n` +
-        `Tarif : ${f.tarifJour ? "Jour" : "Nuit"}`,
+        `Tarif : ${tarifJourAuto ? "Jour" : "Nuit"}`,
     );
   };
 
   const buildEmailText = () =>
-    `Réservation taxi%0A%0AClient: ${f.prenom} ${f.nom}%0ATél: ${f.phone}%0AEmail: ${f.email}%0A%0ATrajet: ${trajetLabel(f.trajet)}%0ADépart: ${f.depart}%0ADestination: ${f.destination}%0ADate: ${f.date} ${f.heure}%0APassagers: ${f.passagers}%0ABagages: ${f.bagages}%0ATarif: ${f.tarifJour ? "Jour" : "Nuit"}`;
+    `Réservation taxi%0A%0AClient: ${f.prenom} ${f.nom}%0ATél: ${f.phone}%0AEmail: ${f.email}%0A%0ATrajet: ${trajetLabel(f.trajet)}%0ADépart: ${f.depart}%0ADestination: ${f.destination}%0ADate: ${f.date} ${f.heure}%0APassagers: ${f.passagers}%0ABagages: ${f.bagages}%0ATarif: ${tarifJourAuto ? "Jour" : "Nuit"}`;
 
   const submitForm = async () => {
     if (!validate()) return;
@@ -397,7 +401,7 @@ function ReservationPage() {
         date_course: f.date,
         heure_course: f.heure,
         nb_passagers: f.passagers,
-        tarif_jour: f.tarifJour,
+        tarif_jour: tarifJourAuto,
         prix_estime: null,
         status: "pending",
         source: "form",
@@ -431,7 +435,7 @@ function ReservationPage() {
                 passagers: f.passagers,
                 bagages: f.bagages,
                 prix_estime: null,
-                tarif: f.tarifJour ? "Jour (7h–19h) — 2,16 €/km" : "Nuit (19h–7h) — 3,24 €/km",
+                tarif: tarifJourAuto ? "Jour (7h–19h) — 2,16 €/km" : "Nuit (19h–7h) — 3,24 €/km",
               },
             }),
           });
@@ -753,59 +757,29 @@ function ReservationPage() {
             </div>
 
             {/* ── Tarif ── */}
-            <h3
+                          Tarif
+            </h3>
+            <div
               style={{
-                fontFamily: "'Syne',sans-serif",
-                marginTop: 24,
+                padding: "12px 16px",
+                background: "rgba(14,165,233,0.08)",
+                border: "1px solid rgba(14,165,233,0.2)",
+                borderRadius: 12,
+                fontSize: 14,
                 color: "#0f172a",
-                fontSize: "clamp(14px,4vw,16px)",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
               }}
             >
-              Tarif
-            </h3>
-            <div className="tarif-row">
-              <label
-                style={{
-                  flex: 1,
-                  padding: 12,
-                  border: `2px solid ${f.tarifJour ? "#0ea5e9" : "#e2e8f0"}`,
-                  borderRadius: 12,
-                  cursor: "pointer",
-                  fontSize: 14,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                }}
-              >
-                <input
-                  type="radio"
-                  checked={f.tarifJour}
-                  onChange={() => set("tarifJour", true)}
-                  style={{ accentColor: "#0ea5e9" }}
-                />
-                ☀️ Jour (7h–19h) — 2,16 €/km
-              </label>
-              <label
-                style={{
-                  flex: 1,
-                  padding: 12,
-                  border: `2px solid ${!f.tarifJour ? "#818cf8" : "#e2e8f0"}`,
-                  borderRadius: 12,
-                  cursor: "pointer",
-                  fontSize: 14,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                }}
-              >
-                <input
-                  type="radio"
-                  checked={!f.tarifJour}
-                  onChange={() => set("tarifJour", false)}
-                  style={{ accentColor: "#818cf8" }}
-                />
-                🌙 Nuit (19h–7h) — dimanches & jours fériés — 3,24 €/km
-              </label>
+              {tarifJourAuto ? (
+                <><span>☀️</span><span><strong>Tarif jour</strong> (7h–19h) — 2,16 €/km</span></>
+              ) : (
+                <><span>🌙</span><span><strong>Tarif nuit</strong> (19h–7h) — 3,24 €/km</span></>
+              )}
+              <span style={{ marginLeft: "auto", fontSize: 12, color: "#64748b" }}>
+                Calculé automatiquement
+              </span>
             </div>
 
             {/* ── Moyen de paiement ── */}
