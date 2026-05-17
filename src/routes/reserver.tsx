@@ -402,6 +402,7 @@ function ReservationPage() {
         status: "pending",
         source: "form",
         paiement: f.paiement,
+        message: `Trajet: ${trajetLabel(f.trajet)}`,
       });
 
       if (insertError) throw new Error(insertError.message);
