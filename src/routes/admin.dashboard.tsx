@@ -215,6 +215,11 @@ function Dashboard() {
   const [cardKm, setCardKm] = useState<Record<string, number>>({});
   const [cardKmLoading, setCardKmLoading] = useState<Record<string, boolean>>({});
   const [qrModal, setQrModal] = useState<{ url: string } | null>(null);
+  const [deleteSlide, setDeleteSlide] = useState<string | null>(null); // id en cours de slide
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  // ── Avis ──
+  const [avis, setAvis] = useState<any[]>([]);
+  const [avisLoading, setAvisLoading] = useState(true);
   const initialLoad = useRef(true);
 
   // =========================
@@ -278,10 +283,20 @@ function Dashboard() {
     repairMissingPrices(rows);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // =========================
+  // FETCH AVIS
+  // =========================
+  const fetchAvis = useCallback(async () => {
+    const { data, error } = await supabase.from("avis").select("*").order("created_at", { ascending: false });
+    if (!error) setAvis(data ?? []);
+    setAvisLoading(false);
+  }, []);
+
   const fetchAll = useCallback(() => {
     fetchStats();
     fetchCourses();
-  }, [fetchStats, fetchCourses]);
+    fetchAvis();
+  }, [fetchStats, fetchCourses, fetchAvis]);
 
   // =========================
   // REALTIME
@@ -308,6 +323,7 @@ function Dashboard() {
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "reservations" }, () => fetchAll())
       .on("postgres_changes", { event: "*", schema: "public", table: "site_analytics" }, () => fetchStats())
+      .on("postgres_changes", { event: "*", schema: "public", table: "avis" }, () => fetchAvis())
       .subscribe();
     initialLoad.current = false;
     return () => {
@@ -591,6 +607,54 @@ function Dashboard() {
     } catch {
       toast.error("Erreur réseau", { description: "Impossible d'envoyer l'email." });
     }
+  };
+
+  // =========================
+  // DELETE RESERVATION (sans RLS)
+  // =========================
+  const handleDeleteReservation = async (id: string) => {
+    setDeleteBusy(true);
+    const { error } = await supabase.from("reservations").delete().eq("id", id);
+    if (error) {
+      toast.error("Suppression impossible", { description: error.message });
+    } else {
+      toast.success("Réservation supprimée");
+      setItems((prev) => prev.filter((r) => r.id !== id));
+      setCounts((prev) => {
+        const item = items.find((r) => r.id === id);
+        if (!item) return prev;
+        const k = normalizeStatus(item.status);
+        return { ...prev, [k]: Math.max(0, prev[k] - 1) };
+      });
+    }
+    setDeleteSlide(null);
+    setDeleteBusy(false);
+  };
+
+  // =========================
+  // VALIDER / REFUSER AVIS
+  // =========================
+  const handleAvisAction = async (id: string, action: "approved" | "refused") => {
+    const { error } = await supabase
+      .from("avis")
+      .update({ status: action, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) {
+      toast.error("Erreur", { description: error.message });
+      return;
+    }
+    toast.success(action === "approved" ? "Avis publié ✓" : "Avis refusé");
+    setAvis((prev) => prev.map((a) => (a.id === id ? { ...a, status: action } : a)));
+  };
+
+  const handleDeleteAvis = async (id: string) => {
+    const { error } = await supabase.from("avis").delete().eq("id", id);
+    if (error) {
+      toast.error("Suppression impossible", { description: error.message });
+      return;
+    }
+    toast.success("Avis supprimé");
+    setAvis((prev) => prev.filter((a) => a.id !== id));
   };
 
   const getPrix = (r: any): number | null => {
@@ -1112,7 +1176,7 @@ function Dashboard() {
                     {isPrixLoading ? (
                       <span style={{ color: "#64748b", fontStyle: "italic" }}>📡 calcul prix…</span>
                     ) : prix !== null ? (
-                      <span style={{ color: "#0ea5e9", fontWeight: 700 }}>💰 {Number(prix).toFixed(2)} €</span>
+                      <span style={{ color: "#ef4444", fontWeight: 700 }}>💰 {Number(prix).toFixed(2)} €</span>
                     ) : null}
                     <span>👥 {r.nb_passagers || r.passagers || 1} passager(s)</span>
                     {r.bagages > 0 && <span>🧳 {r.bagages} bagage(s)</span>}
@@ -1362,6 +1426,61 @@ function Dashboard() {
                         📲 QR Code
                       </button>
                     )}
+
+                    {/* ── Supprimer (slide) ── */}
+                    {deleteSlide === r.id ? (
+                      <div style={{ display: "flex", gap: 6, alignItems: "center", marginLeft: "auto" }}>
+                        <span style={{ color: "#94a3b8", fontSize: 12 }}>Confirmer ?</span>
+                        <button
+                          disabled={deleteBusy}
+                          onClick={() => handleDeleteReservation(r.id)}
+                          style={{
+                            background: "#ef4444",
+                            color: "#fff",
+                            border: 0,
+                            padding: "8px 14px",
+                            borderRadius: 10,
+                            cursor: deleteBusy ? "wait" : "pointer",
+                            fontWeight: 700,
+                            fontSize: 12,
+                          }}
+                        >
+                          {deleteBusy ? "…" : "Oui, supprimer"}
+                        </button>
+                        <button
+                          onClick={() => setDeleteSlide(null)}
+                          style={{
+                            background: "rgba(255,255,255,0.06)",
+                            color: "#94a3b8",
+                            border: "1px solid rgba(255,255,255,0.1)",
+                            padding: "8px 12px",
+                            borderRadius: 10,
+                            cursor: "pointer",
+                            fontWeight: 700,
+                            fontSize: 12,
+                          }}
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setDeleteSlide(r.id)}
+                        style={{
+                          marginLeft: "auto",
+                          background: "rgba(239,68,68,0.08)",
+                          border: "1px solid rgba(239,68,68,0.2)",
+                          color: "#f87171",
+                          padding: "8px 14px",
+                          borderRadius: 10,
+                          cursor: "pointer",
+                          fontWeight: 700,
+                          fontSize: 12,
+                        }}
+                      >
+                        🗑 Supprimer
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -1475,7 +1594,7 @@ function Dashboard() {
                     {isPrixLoading ? (
                       <span style={{ color: "#64748b", fontStyle: "italic" }}>📡 calcul prix…</span>
                     ) : prix !== null ? (
-                      <span style={{ color: "#0ea5e9", fontWeight: 700 }}>💰 {Number(prix).toFixed(2)} €</span>
+                      <span style={{ color: "#ef4444", fontWeight: 700 }}>💰 {Number(prix).toFixed(2)} €</span>
                     ) : null}
                     <span>👥 {r.nb_passagers || r.passagers || 1} passager(s)</span>
                     {r.bagages > 0 && <span>🧳 {r.bagages} bagage(s)</span>}
@@ -1641,6 +1760,60 @@ function Dashboard() {
                         📲 QR Code
                       </button>
                     )}
+                    {/* ── Supprimer (slide) ── */}
+                    {deleteSlide === r.id ? (
+                      <div style={{ display: "flex", gap: 6, alignItems: "center", marginLeft: "auto" }}>
+                        <span style={{ color: "#94a3b8", fontSize: 12 }}>Confirmer ?</span>
+                        <button
+                          disabled={deleteBusy}
+                          onClick={() => handleDeleteReservation(r.id)}
+                          style={{
+                            background: "#ef4444",
+                            color: "#fff",
+                            border: 0,
+                            padding: "8px 14px",
+                            borderRadius: 10,
+                            cursor: deleteBusy ? "wait" : "pointer",
+                            fontWeight: 700,
+                            fontSize: 12,
+                          }}
+                        >
+                          {deleteBusy ? "…" : "Oui, supprimer"}
+                        </button>
+                        <button
+                          onClick={() => setDeleteSlide(null)}
+                          style={{
+                            background: "rgba(255,255,255,0.06)",
+                            color: "#94a3b8",
+                            border: "1px solid rgba(255,255,255,0.1)",
+                            padding: "8px 12px",
+                            borderRadius: 10,
+                            cursor: "pointer",
+                            fontWeight: 700,
+                            fontSize: 12,
+                          }}
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setDeleteSlide(r.id)}
+                        style={{
+                          marginLeft: "auto",
+                          background: "rgba(239,68,68,0.08)",
+                          border: "1px solid rgba(239,68,68,0.2)",
+                          color: "#f87171",
+                          padding: "8px 14px",
+                          borderRadius: 10,
+                          cursor: "pointer",
+                          fontWeight: 700,
+                          fontSize: 12,
+                        }}
+                      >
+                        🗑 Supprimer
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -1780,9 +1953,454 @@ function Dashboard() {
                       </a>
                     )}
                   </div>
+                  <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end" }}>
+                    {deleteSlide === r.id ? (
+                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                        <span style={{ color: "#94a3b8", fontSize: 12 }}>Confirmer ?</span>
+                        <button
+                          disabled={deleteBusy}
+                          onClick={() => handleDeleteReservation(r.id)}
+                          style={{
+                            background: "#ef4444",
+                            color: "#fff",
+                            border: 0,
+                            padding: "8px 14px",
+                            borderRadius: 10,
+                            cursor: deleteBusy ? "wait" : "pointer",
+                            fontWeight: 700,
+                            fontSize: 12,
+                          }}
+                        >
+                          {deleteBusy ? "…" : "Oui, supprimer"}
+                        </button>
+                        <button
+                          onClick={() => setDeleteSlide(null)}
+                          style={{
+                            background: "rgba(255,255,255,0.06)",
+                            color: "#94a3b8",
+                            border: "1px solid rgba(255,255,255,0.1)",
+                            padding: "8px 12px",
+                            borderRadius: 10,
+                            cursor: "pointer",
+                            fontWeight: 700,
+                            fontSize: 12,
+                          }}
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setDeleteSlide(r.id)}
+                        style={{
+                          background: "rgba(239,68,68,0.08)",
+                          border: "1px solid rgba(239,68,68,0.2)",
+                          color: "#f87171",
+                          padding: "8px 14px",
+                          borderRadius: 10,
+                          cursor: "pointer",
+                          fontWeight: 700,
+                          fontSize: 12,
+                        }}
+                      >
+                        🗑 Supprimer
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}
+          </div>
+        )}
+      </div>
+
+      {/* ══════════════════════════════
+          SECTION AVIS
+      ══════════════════════════════ */}
+      <div style={{ marginTop: 48 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          <h2 style={{ fontFamily: "'Syne',sans-serif", fontSize: 20, fontWeight: 800, color: "#f8fafc", margin: 0 }}>
+            ⭐ Avis clients
+          </h2>
+          <span
+            style={{
+              background: "rgba(251,191,36,0.15)",
+              color: "#fbbf24",
+              padding: "2px 10px",
+              borderRadius: 99,
+              fontSize: 12,
+              fontWeight: 700,
+            }}
+          >
+            {avis.filter((a) => a.status === "pending" || !a.status).length} en attente
+          </span>
+        </div>
+
+        {avisLoading && <div style={{ textAlign: "center", color: "#475569", padding: 40 }}>Chargement des avis…</div>}
+
+        {/* En attente de modération */}
+        {!avisLoading && (
+          <div style={{ marginBottom: 28 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 12,
+                paddingBottom: 8,
+                borderBottom: "1px solid rgba(251,191,36,0.2)",
+              }}
+            >
+              <span
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: "50%",
+                  background: "#fbbf24",
+                  boxShadow: "0 0 6px rgba(251,191,36,0.6)",
+                }}
+              />
+              <span
+                style={{
+                  fontFamily: "'Syne',sans-serif",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#fbbf24",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                }}
+              >
+                En attente
+              </span>
+            </div>
+            {avis.filter((a) => !a.status || a.status === "pending").length === 0 && (
+              <div style={{ textAlign: "center", color: "#475569", padding: "16px 0", fontSize: 14 }}>
+                Aucun avis en attente de modération
+              </div>
+            )}
+            {avis
+              .filter((a) => !a.status || a.status === "pending")
+              .map((a) => (
+                <div key={a.id} style={{ ...card, marginBottom: 12, border: "1px solid rgba(251,191,36,0.2)" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      flexWrap: "wrap",
+                      marginBottom: 8,
+                    }}
+                  >
+                    <div>
+                      <span style={{ color: "#f8fafc", fontWeight: 700, fontSize: 15 }}>
+                        {a.author_name || a.nom || "Anonyme"}
+                      </span>
+                      {a.note && (
+                        <span style={{ marginLeft: 10, color: "#fbbf24", fontSize: 14 }}>
+                          {"★".repeat(Math.min(5, Math.max(1, Number(a.note))))}
+                        </span>
+                      )}
+                    </div>
+                    <span style={{ color: "#64748b", fontSize: 12 }}>
+                      {new Date(a.created_at).toLocaleDateString("fr-FR")}
+                    </span>
+                  </div>
+                  <p
+                    style={{
+                      color: "#cbd5e1",
+                      fontSize: 14,
+                      margin: "0 0 14px",
+                      lineHeight: 1.6,
+                      whiteSpace: "pre-line",
+                    }}
+                  >
+                    {a.message || a.content || a.texte}
+                  </p>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button
+                      onClick={() => handleAvisAction(a.id, "approved")}
+                      style={{
+                        background: "#22c55e",
+                        color: "#fff",
+                        border: 0,
+                        padding: "9px 16px",
+                        borderRadius: 10,
+                        cursor: "pointer",
+                        fontWeight: 700,
+                        fontSize: 13,
+                      }}
+                    >
+                      ✓ Valider & publier
+                    </button>
+                    <button
+                      onClick={() => handleAvisAction(a.id, "refused")}
+                      style={{
+                        background: "rgba(239,68,68,0.15)",
+                        border: "1px solid rgba(239,68,68,0.3)",
+                        color: "#f87171",
+                        padding: "9px 16px",
+                        borderRadius: 10,
+                        cursor: "pointer",
+                        fontWeight: 700,
+                        fontSize: 13,
+                      }}
+                    >
+                      ✗ Refuser
+                    </button>
+                    <button
+                      onClick={() => handleDeleteAvis(a.id)}
+                      style={{
+                        marginLeft: "auto",
+                        background: "rgba(239,68,68,0.06)",
+                        border: "1px solid rgba(239,68,68,0.15)",
+                        color: "#f87171",
+                        padding: "9px 14px",
+                        borderRadius: 10,
+                        cursor: "pointer",
+                        fontWeight: 700,
+                        fontSize: 12,
+                      }}
+                    >
+                      🗑
+                    </button>
+                  </div>
+                </div>
+              ))}
+          </div>
+        )}
+
+        {/* Publiés */}
+        {!avisLoading && avis.filter((a) => a.status === "approved").length > 0 && (
+          <div style={{ marginBottom: 28 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 12,
+                paddingBottom: 8,
+                borderBottom: "1px solid rgba(34,197,94,0.2)",
+              }}
+            >
+              <span
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: "50%",
+                  background: "#22c55e",
+                  boxShadow: "0 0 6px rgba(34,197,94,0.6)",
+                }}
+              />
+              <span
+                style={{
+                  fontFamily: "'Syne',sans-serif",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#22c55e",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                }}
+              >
+                Publiés
+              </span>
+              <span
+                style={{
+                  background: "rgba(34,197,94,0.15)",
+                  color: "#22c55e",
+                  padding: "1px 8px",
+                  borderRadius: 99,
+                  fontSize: 11,
+                  fontWeight: 700,
+                }}
+              >
+                {avis.filter((a) => a.status === "approved").length}
+              </span>
+            </div>
+            {avis
+              .filter((a) => a.status === "approved")
+              .map((a) => (
+                <div key={a.id} style={{ ...card, marginBottom: 10, border: "1px solid rgba(34,197,94,0.15)" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      flexWrap: "wrap",
+                      marginBottom: 6,
+                    }}
+                  >
+                    <div>
+                      <span style={{ color: "#f8fafc", fontWeight: 700 }}>{a.author_name || a.nom || "Anonyme"}</span>
+                      {a.note && (
+                        <span style={{ marginLeft: 10, color: "#fbbf24", fontSize: 13 }}>
+                          {"★".repeat(Math.min(5, Math.max(1, Number(a.note))))}
+                        </span>
+                      )}
+                      <span
+                        style={{
+                          marginLeft: 8,
+                          background: "rgba(34,197,94,0.15)",
+                          color: "#22c55e",
+                          padding: "1px 7px",
+                          borderRadius: 99,
+                          fontSize: 11,
+                          fontWeight: 700,
+                        }}
+                      >
+                        Publié
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <span style={{ color: "#64748b", fontSize: 12 }}>
+                        {new Date(a.created_at).toLocaleDateString("fr-FR")}
+                      </span>
+                      <button
+                        onClick={() => handleDeleteAvis(a.id)}
+                        style={{
+                          background: "rgba(239,68,68,0.06)",
+                          border: "1px solid rgba(239,68,68,0.15)",
+                          color: "#f87171",
+                          padding: "5px 10px",
+                          borderRadius: 8,
+                          cursor: "pointer",
+                          fontWeight: 700,
+                          fontSize: 12,
+                        }}
+                      >
+                        🗑
+                      </button>
+                    </div>
+                  </div>
+                  <p style={{ color: "#94a3b8", fontSize: 13, margin: 0, lineHeight: 1.5, whiteSpace: "pre-line" }}>
+                    {a.message || a.content || a.texte}
+                  </p>
+                </div>
+              ))}
+          </div>
+        )}
+
+        {/* Refusés */}
+        {!avisLoading && avis.filter((a) => a.status === "refused").length > 0 && (
+          <div style={{ marginBottom: 28 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 12,
+                paddingBottom: 8,
+                borderBottom: "1px solid rgba(239,68,68,0.2)",
+              }}
+            >
+              <span
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: "50%",
+                  background: "#ef4444",
+                  boxShadow: "0 0 6px rgba(239,68,68,0.6)",
+                }}
+              />
+              <span
+                style={{
+                  fontFamily: "'Syne',sans-serif",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#ef4444",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                }}
+              >
+                Refusés
+              </span>
+              <span
+                style={{
+                  background: "rgba(239,68,68,0.15)",
+                  color: "#ef4444",
+                  padding: "1px 8px",
+                  borderRadius: 99,
+                  fontSize: 11,
+                  fontWeight: 700,
+                }}
+              >
+                {avis.filter((a) => a.status === "refused").length}
+              </span>
+            </div>
+            {avis
+              .filter((a) => a.status === "refused")
+              .map((a) => (
+                <div
+                  key={a.id}
+                  style={{ ...card, marginBottom: 10, border: "1px solid rgba(239,68,68,0.12)", opacity: 0.7 }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      flexWrap: "wrap",
+                      marginBottom: 6,
+                    }}
+                  >
+                    <div>
+                      <span style={{ color: "#f8fafc", fontWeight: 700 }}>{a.author_name || a.nom || "Anonyme"}</span>
+                      {a.note && (
+                        <span style={{ marginLeft: 10, color: "#fbbf24", fontSize: 13 }}>
+                          {"★".repeat(Math.min(5, Math.max(1, Number(a.note))))}
+                        </span>
+                      )}
+                      <span
+                        style={{
+                          marginLeft: 8,
+                          background: "rgba(239,68,68,0.15)",
+                          color: "#ef4444",
+                          padding: "1px 7px",
+                          borderRadius: 99,
+                          fontSize: 11,
+                          fontWeight: 700,
+                        }}
+                      >
+                        Refusé
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <button
+                        onClick={() => handleAvisAction(a.id, "approved")}
+                        style={{
+                          background: "rgba(34,197,94,0.12)",
+                          border: "1px solid rgba(34,197,94,0.3)",
+                          color: "#4ade80",
+                          padding: "5px 10px",
+                          borderRadius: 8,
+                          cursor: "pointer",
+                          fontWeight: 700,
+                          fontSize: 11,
+                        }}
+                      >
+                        Republier
+                      </button>
+                      <button
+                        onClick={() => handleDeleteAvis(a.id)}
+                        style={{
+                          background: "rgba(239,68,68,0.06)",
+                          border: "1px solid rgba(239,68,68,0.15)",
+                          color: "#f87171",
+                          padding: "5px 10px",
+                          borderRadius: 8,
+                          cursor: "pointer",
+                          fontWeight: 700,
+                          fontSize: 12,
+                        }}
+                      >
+                        🗑
+                      </button>
+                    </div>
+                  </div>
+                  <p style={{ color: "#94a3b8", fontSize: 13, margin: 0, lineHeight: 1.5, whiteSpace: "pre-line" }}>
+                    {a.message || a.content || a.texte}
+                  </p>
+                </div>
+              ))}
           </div>
         )}
       </div>
@@ -1897,7 +2515,7 @@ function Dashboard() {
                         <div style={{ textAlign: "right" }}>
                           <div style={{ color: "#94a3b8", fontSize: 12, marginBottom: 2 }}>Prix calculé</div>
                           <div
-                            style={{ color: "#0ea5e9", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 22 }}
+                            style={{ color: "#ef4444", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 22 }}
                           >
                             {px.toFixed(2)} €
                           </div>
