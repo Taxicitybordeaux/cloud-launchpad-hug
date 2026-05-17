@@ -145,11 +145,18 @@ function ConfirmationPage() {
         <Row
           icon={Calendar}
           label={t("conf.row.pickup")}
-          value={new Date(reservation.pickup_datetime).toLocaleString("fr-FR", {
-            dateStyle: "full",
-            timeStyle: "short",
-            timeZone: "Europe/Paris", // ✅ Format français + heure de Paris
-          })}
+          value={(() => {
+            const iso = reservation.pickup_datetime;
+            if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+              const [y, m, d] = iso.split("-").map(Number);
+              return new Date(y, m - 1, d).toLocaleDateString("fr-FR", { dateStyle: "full" });
+            }
+            return new Date(iso).toLocaleString("fr-FR", {
+              dateStyle: "full",
+              timeStyle: "short",
+              timeZone: "Europe/Paris",
+            });
+          })()}
         />
         <Row icon={MapPin} label={t("conf.row.from")} value={reservation.depart} />
         <Row icon={MapPin} label={t("conf.row.to")} value={reservation.arrivee} />
