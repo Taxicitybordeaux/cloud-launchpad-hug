@@ -18,7 +18,8 @@ export const Route = createFileRoute("/reserver")({
 const PRISE_EN_CHARGE = 2.83;
 const TARIF_JOUR = 2.16; // 7h–19h
 const TARIF_NUIT = 3.24; // 19h–7h
-const ORS_KEY = import.meta.env.VITE_ORS_API_KEY ?? "";
+// Lire la clé au moment de l'appel (pas au chargement du module)
+const getOrsKey = () => import.meta.env.VITE_ORS_API_KEY ?? "";
 
 // ─── Calcul mixte jour/nuit ───────────────────────────────────
 // Reçoit l'heure de départ (ms), la durée (s) et la distance (km)
@@ -71,21 +72,26 @@ interface OrsResult {
 }
 
 async function getOrsRoute(from: [number, number], to: [number, number]): Promise<OrsResult | null> {
+  const ORS_KEY = getOrsKey();
   if (!ORS_KEY) return null;
   try {
     const res = await fetch("https://api.openrouteservice.org/v2/directions/driving-car", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: ORS_KEY },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${ORS_KEY}` },
       body: JSON.stringify({ coordinates: [from, to] }),
     });
     const data = await res.json();
     const summary = data?.routes?.[0]?.summary;
-    if (!summary) return null;
+    if (!summary) {
+      console.warn("[ORS] Pas de route dans la réponse:", JSON.stringify(data));
+      return null;
+    }
     return {
       distanceKm: Math.round((summary.distance / 1000) * 10) / 10,
       dureeS: Math.round(summary.duration),
     };
-  } catch {
+  } catch (e) {
+    console.error("[ORS] Erreur:", e);
     return null;
   }
 }
