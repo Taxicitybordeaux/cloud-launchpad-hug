@@ -22,7 +22,6 @@ function AdminLayout() {
   const navigate = useNavigate();
   const router = useRouterState();
   const [pending, setPending] = useState(0);
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const path = router.location.pathname;
 
   useEffect(() => {
@@ -48,10 +47,8 @@ function AdminLayout() {
     navigate({ to: "/login" });
   };
 
-  const allLinks = [...NAV_LINKS, { to: "/admin/flow-check", icon: "🩺", label: "Vérif. flow" }];
-
   /* ── Sidebar desktop ── */
-  const SidebarContent = ({ onClose }: { onClose?: () => void }) => (
+  const SidebarContent = () => (
     <aside
       style={{
         width: 240,
@@ -73,13 +70,12 @@ function AdminLayout() {
       </div>
 
       <nav style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
-        {allLinks.map((l) => {
+        {NAV_LINKS.map((l) => {
           const active = path.startsWith(l.to);
           return (
             <Link
               key={l.to}
               to={l.to}
-              onClick={onClose}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -133,9 +129,9 @@ function AdminLayout() {
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');
 
         /* Desktop: sidebar visible, bottom nav hidden */
-        .admin-sidebar   { display: flex !important; }
+        .admin-sidebar    { display: flex !important; }
         .admin-bottom-nav { display: none !important; }
-        .admin-main      { padding-bottom: 0 !important; }
+        .admin-main       { padding-bottom: 0 !important; }
 
         @media (max-width: 768px) {
           .admin-sidebar    { display: none !important; }
@@ -149,18 +145,6 @@ function AdminLayout() {
       <div className="admin-sidebar">
         <SidebarContent />
       </div>
-
-      {/* Mobile drawer overlay */}
-      {drawerOpen && (
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.6)", display: "flex" }}
-          onClick={() => setDrawerOpen(false)}
-        >
-          <div onClick={(e) => e.stopPropagation()} style={{ height: "100%" }}>
-            <SidebarContent onClose={() => setDrawerOpen(false)} />
-          </div>
-        </div>
-      )}
 
       {/* Main content */}
       <main className="admin-main" style={{ flex: 1, minWidth: 0, overflowX: "hidden" }}>
@@ -229,30 +213,6 @@ function AdminLayout() {
             </Link>
           );
         })}
-
-        {/* More button → opens drawer */}
-        <button
-          onClick={() => setDrawerOpen(true)}
-          style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 3,
-            background: "none",
-            border: "none",
-            borderTop: "2px solid transparent",
-            color: "#64748b",
-            fontSize: 10,
-            fontWeight: 700,
-            fontFamily: "'DM Sans',sans-serif",
-            cursor: "pointer",
-          }}
-        >
-          <span style={{ fontSize: 20 }}>☰</span>
-          <span>Plus</span>
-        </button>
       </nav>
     </div>
   );
