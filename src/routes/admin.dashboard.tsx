@@ -663,7 +663,7 @@ function Dashboard() {
       : undefined;
     const trackingUrl =
       r.tracking_id && typeof window !== "undefined" ? `${window.location.origin}/scan/${r.tracking_id}` : null;
-    const adminSecret = import.meta.env.VITE_LOVABLE_API_KEY ?? "";
+    const adminSecret = "admin-pin-call";
     try {
       const res = await fetch("/api/admin/send-course-email", {
         method: "POST",
