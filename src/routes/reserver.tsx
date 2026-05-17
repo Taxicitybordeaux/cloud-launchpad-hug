@@ -26,7 +26,6 @@ const ORS_KEY = import.meta.env.VITE_ORS_API_KEY ?? "";
 function calculerPrixMixte(departMs: number, dureeS: number, distanceKm: number): number {
   if (dureeS <= 0 || distanceKm <= 0) return PRISE_EN_CHARGE;
   const arriveeMs = departMs + dureeS * 1000;
-  const kmParMs = distanceKm / (arriveeMs - departMs);
 
   // On découpe le trajet en tranches horaires de 1 minute
   const STEP = 60_000; // 1 min
