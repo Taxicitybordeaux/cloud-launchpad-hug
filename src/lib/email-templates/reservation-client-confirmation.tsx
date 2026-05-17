@@ -88,6 +88,33 @@ const STR: Record<Lang, Record<string, string>> = {
   },
 };
 
+function fmtDate(iso?: string, lang: Lang = "fr"): string {
+  if (!iso) return "—";
+  const LOCALE: Record<Lang, string> = {
+    fr: "fr-FR",
+    en: "en-GB",
+    es: "es-ES",
+    it: "it-IT",
+    ar: "ar-SA",
+  };
+  try {
+    const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(iso);
+    if (dateOnly) {
+      const [y, m, d] = iso.split("-").map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString(LOCALE[lang] ?? "fr-FR", {
+        dateStyle: "full",
+      });
+    }
+    return new Date(iso).toLocaleString(LOCALE[lang] ?? "fr-FR", {
+      dateStyle: "full",
+      timeStyle: "short",
+      timeZone: "Europe/Paris",
+    });
+  } catch {
+    return iso;
+  }
+}
+
 const Email = (p: Props) => {
   const lang = p.lang && STR[p.lang] ? p.lang : "fr";
   const s = STR[lang];
@@ -105,7 +132,7 @@ const Email = (p: Props) => {
           </Text>
           <Text style={lead}>{s.thanks}</Text>
           <Section style={card}>
-            <Row label={s.when} value={p.pickup_datetime} />
+            <Row label={s.when} value={fmtDate(p.pickup_datetime, lang)} />
             <Row label={s.from} value={p.depart} />
             <Row label={s.to} value={p.arrivee} />
             <Hr style={hr} />
