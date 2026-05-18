@@ -753,7 +753,36 @@ function ReservationPage() {
                   <SelectField value={f.bagages} onChange={(v) => set("bagages", v)} options={bagagesOptions} />
                 </div>
               </div>
+
+              {/* Retour (si aller-retour) */}
+              {f.trajet === "aller-retour" && (
+                <div className="resa-grid-2">
+                  <div>
+                    {fieldLabel(`🔁 ${t("res.loc.date_label")} (${t("res.loc.roundtrip")})`)}
+                    <Input
+                      k="dateRetour"
+                      value={f.dateRetour}
+                      onChange={set}
+                      type="date"
+                      min={f.date || today}
+                      error={errors.dateRetour}
+                    />
+                  </div>
+                  <div>
+                    {fieldLabel(`🔁 ${t("res.loc.time_label")} (${t("res.loc.roundtrip")})`)}
+                    <Input
+                      k="heureRetour"
+                      value={f.heureRetour}
+                      onChange={set}
+                      type="time"
+                      placeholder="Ex : 18:00"
+                      error={errors.heureRetour}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
+
 
             {/* ── Moyen de paiement ── */}
             {sectionLabel(t("res.loc.payment_section"))}
