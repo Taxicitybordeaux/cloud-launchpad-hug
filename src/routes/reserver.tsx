@@ -200,7 +200,7 @@ function SelectField({ value, onChange, options }: SelectFieldProps) {
 
 // ─── Composant principal ──────────────────────────────────────
 function ReservationPage() {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
 
   // FIX #418 — new Date() au render diverge entre SSR et client.
   // On initialise à "" et on fixe côté client dans un useEffect.
