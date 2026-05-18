@@ -25,7 +25,7 @@ import bestDunePilat from "@/assets/best-dune-pilat.jpg";
 import bestSaintEmilion from "@/assets/best-saint-emilion.jpg";
 import bestMiroirEau from "@/assets/best-miroir-eau.jpg";
 import { useT } from "@/i18n/I18nProvider";
-import { FareSimulator } from "@/components/FareSimulator";
+// FareSimulator removed from home page per request
 import { ReviewForm } from "@/components/ReviewForm";
 import { TrackingQRSection } from "@/components/TrackingQRSection";
 import { supabase } from "@/integrations/supabase/client";
@@ -49,27 +49,20 @@ const PHONE_DISPLAY = "06 73 07 23 22";
 
 function Home() {
   const t = useT();
-  const [tapCount, setTapCount] = useState(0);
 
   const handleSecretAdmin = () => {
-    setTapCount((prev) => {
-      const next = prev + 1;
-      if (next >= 5) {
-        localStorage.setItem("taxi_admin", "true");
-        setTimeout(() => {
-          window.location.href = "/admin/dashboard";
-        }, 150);
-        return 0;
-      }
-      return next;
-    });
+    if (typeof window === "undefined") return;
+    const pin = window.prompt("Code admin");
+    if (pin === "1234") {
+      localStorage.setItem("taxi_admin", "true");
+      sessionStorage.setItem("admin_pin_ok", "1");
+      window.location.href = "/admin/dashboard";
+    } else if (pin !== null) {
+      alert("Code incorrect");
+    }
   };
 
-  useEffect(() => {
-    if (tapCount === 0) return;
-    const timer = setTimeout(() => setTapCount(0), 3000);
-    return () => clearTimeout(timer);
-  }, [tapCount]);
+
 
   return (
     <>
