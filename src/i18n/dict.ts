@@ -479,7 +479,7 @@ const fr: Dict = {
 
   // TrackingQRSection
   "qr.badge": "SUIVI EN TEMPS RÉEL",
-  "qr.title": "Scannez et suivez votre chauffeur en temps réel",
+  "qr.title": "Lien pour suivre votre taxi en temps réel",
   "qr.subtitle":
     "Un QR unique généré pour chaque client. Scannez, ouvrez le lien sur votre téléphone, et suivez l'arrivée du taxi sur la carte.",
   "qr.banner.title": "Ouvrez ce lien sur votre téléphone et flashez le QR code",
@@ -924,7 +924,7 @@ const en: Dict = {
 
   // TrackingQRSection
   "qr.badge": "REAL-TIME TRACKING",
-  "qr.title": "Scan and track your driver in real time",
+  "qr.title": "Link to track your taxi in real time",
   "qr.subtitle":
     "A unique QR code generated for every client. Scan it, open the link on your phone, and follow your taxi's arrival on the map.",
   "qr.banner.title": "Open this link on your phone and scan the QR code",
@@ -1374,7 +1374,7 @@ const es: Dict = {
 
   // TrackingQRSection
   "qr.badge": "SEGUIMIENTO EN TIEMPO REAL",
-  "qr.title": "Escanea y sigue a tu conductor en tiempo real",
+  "qr.title": "Enlace para seguir tu taxi en tiempo real",
   "qr.subtitle":
     "Un QR único generado para cada cliente. Escanéalo, abre el enlace en tu teléfono y sigue la llegada del taxi en el mapa.",
   "qr.banner.title": "Abre este enlace en tu teléfono y escanea el QR",
@@ -1825,7 +1825,7 @@ const it: Dict = {
 
   // TrackingQRSection
   "qr.badge": "TRACCIAMENTO IN TEMPO REALE",
-  "qr.title": "Scansiona e segui il tuo autista in tempo reale",
+  "qr.title": "Link per seguire il tuo taxi in tempo reale",
   "qr.subtitle":
     "Un QR univoco generato per ogni cliente. Scansionalo, apri il link sul telefono e segui l'arrivo del taxi sulla mappa.",
   "qr.banner.title": "Apri questo link sul tuo telefono e scansiona il QR",
@@ -2266,7 +2266,7 @@ const ar: Dict = {
 
   // TrackingQRSection
   "qr.badge": "تتبع فوري مباشر",
-  "qr.title": "امسح الرمز وتابع سائقك في الوقت الفعلي",
+  "qr.title": "رابط لتتبع سيارة الأجرة الخاصة بك في الوقت الفعلي",
   "qr.subtitle": "رمز QR فريد يُنشأ لكل عميل. امسحه، افتح الرابط على هاتفك، وتابع وصول سيارة الأجرة على الخريطة.",
   "qr.banner.title": "افتح هذا الرابط على هاتفك وامسح رمز QR",
   "qr.banner.desc": "موقع السائق، وقت الوصول المقدر، السعر التقريبي. لا يلزم تثبيت أي تطبيق.",
@@ -2734,7 +2734,7 @@ const pt: Dict = {
 
   // TrackingQRSection
   "qr.badge": "SEGUIMENTO EM TEMPO REAL",
-  "qr.title": "Digitalize e siga o seu motorista em tempo real",
+  "qr.title": "Link para acompanhar o seu táxi em tempo real",
   "qr.subtitle":
     "Um QR único gerado para cada cliente. Digitalize, abra o link no telemóvel e siga a chegada do táxi no mapa.",
   "qr.banner.title": "Abra este link no seu telemóvel e digitalize o QR",

@@ -14,9 +14,8 @@ export const Route = createFileRoute("/admin")({
 
 const NAV_LINKS = [
   { to: "/admin/dashboard", icon: "📊", label: "Dashboard" },
-  { to: "/admin/courses", icon: "🚗", label: "Courses" },
-  { to: "/admin/clients", icon: "👥", label: "Clients" },
 ];
+
 
 function AdminLayout() {
   const navigate = useNavigate();

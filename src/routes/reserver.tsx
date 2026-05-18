@@ -200,7 +200,7 @@ function SelectField({ value, onChange, options }: SelectFieldProps) {
 
 // ─── Composant principal ──────────────────────────────────────
 function ReservationPage() {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
 
   // FIX #418 — new Date() au render diverge entre SSR et client.
   // On initialise à "" et on fixe côté client dans un useEffect.
@@ -215,11 +215,14 @@ function ReservationPage() {
     destination: "",
     date: "",
     heure: "",
+    dateRetour: "",
+    heureRetour: "",
     passagers: 1,
     bagages: 0,
     paiement: "especes",
     trajet: "aller" as "aller" | "aller-retour",
   });
+
 
   const [fromCoord, setFromCoord] = useState<[number, number] | null>(null);
   const [toCoord, setToCoord] = useState<[number, number] | null>(null);
@@ -306,17 +309,33 @@ function ReservationPage() {
     });
   }, [fromCoord, toCoord]);
 
-  // Calcul mixte
+  // Calcul mixte — aller (et retour si applicable)
   const departMs = f.date && f.heure ? new Date(`${f.date}T${f.heure}:00`).getTime() : null;
+  const retourMs =
+    f.trajet === "aller-retour" && f.dateRetour && f.heureRetour
+      ? new Date(`${f.dateRetour}T${f.heureRetour}:00`).getTime()
+      : null;
   const heureNum = f.heure ? parseInt(f.heure.split(":")[0], 10) : 12;
   const tarifJourAuto = heureNum >= 7 && heureNum < 19;
 
-  const prix =
+  const prixAller =
     orsResult && departMs
       ? calculerPrixMixte(departMs, orsResult.dureeS, orsResult.distanceKm)
       : orsResult
         ? Math.round((PRISE_EN_CHARGE + orsResult.distanceKm * (tarifJourAuto ? TARIF_JOUR : TARIF_NUIT)) * 100) / 100
         : PRISE_EN_CHARGE;
+
+  const prixRetour =
+    f.trajet === "aller-retour" && orsResult
+      ? retourMs
+        ? calculerPrixMixte(retourMs, orsResult.dureeS, orsResult.distanceKm)
+        : prixAller
+      : 0;
+
+  const prix =
+    f.trajet === "aller-retour"
+      ? Math.round((prixAller + prixRetour) * 100) / 100
+      : prixAller;
 
   const partJourNuit =
     orsResult && departMs
@@ -336,6 +355,7 @@ function ReservationPage() {
         })()
       : null;
 
+
   useEffect(() => {
     const sid = typeof window !== "undefined" && (sessionStorage.getItem("sid") || Math.random().toString(36).slice(2));
     if (sid && typeof window !== "undefined") sessionStorage.setItem("sid", sid as string);
@@ -352,6 +372,15 @@ function ReservationPage() {
     if (!f.destination) e.destination = t("res.err.required");
     if (!f.date) e.date = t("res.err.required");
     if (!f.heure) e.heure = t("res.err.required");
+    if (f.trajet === "aller-retour") {
+      if (!f.dateRetour) e.dateRetour = t("res.err.required");
+      if (!f.heureRetour) e.heureRetour = t("res.err.required");
+      if (f.dateRetour && f.heureRetour && departMs) {
+        const rms = new Date(`${f.dateRetour}T${f.heureRetour}:00`).getTime();
+        if (rms <= departMs) e.dateRetour = t("res.err.return");
+      }
+    }
+
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -724,7 +753,36 @@ function ReservationPage() {
                   <SelectField value={f.bagages} onChange={(v) => set("bagages", v)} options={bagagesOptions} />
                 </div>
               </div>
+
+              {/* Retour (si aller-retour) */}
+              {f.trajet === "aller-retour" && (
+                <div className="resa-grid-2">
+                  <div>
+                    {fieldLabel(`🔁 ${t("res.loc.date_label")} (${t("res.loc.roundtrip")})`)}
+                    <Input
+                      k="dateRetour"
+                      value={f.dateRetour}
+                      onChange={set}
+                      type="date"
+                      min={f.date || today}
+                      error={errors.dateRetour}
+                    />
+                  </div>
+                  <div>
+                    {fieldLabel(`🔁 ${t("res.loc.time_label")} (${t("res.loc.roundtrip")})`)}
+                    <Input
+                      k="heureRetour"
+                      value={f.heureRetour}
+                      onChange={set}
+                      type="time"
+                      placeholder="Ex : 18:00"
+                      error={errors.heureRetour}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
+
 
             {/* ── Moyen de paiement ── */}
             {sectionLabel(t("res.loc.payment_section"))}
@@ -815,9 +873,16 @@ function ReservationPage() {
                 )}
               </div>
 
+              {f.trajet === "aller-retour" && orsResult && (
+                <div style={{ marginTop: 8, fontSize: 13, color: "#475569" }}>
+                  Aller : <strong style={{ color: "#0f172a" }}>{prixAller.toFixed(2)} €</strong>
+                  {" — "}Retour : <strong style={{ color: "#0f172a" }}>{prixRetour.toFixed(2)} €</strong>
+                </div>
+              )}
+
               <div style={{ marginTop: 12 }}>
                 <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
-                  TOTAL ESTIMÉ
+                  TOTAL ESTIMÉ{f.trajet === "aller-retour" ? " (aller + retour)" : ""}
                 </div>
                 <div
                   style={{
@@ -836,6 +901,7 @@ function ReservationPage() {
                   </div>
                 )}
               </div>
+
               <div style={{ fontSize: 12, color: "#dc2626", fontWeight: 700, marginTop: 6 }}>
                 * Des frais de réservation peuvent être appliqués
               </div>

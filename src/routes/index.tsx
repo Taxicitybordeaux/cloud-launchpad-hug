@@ -25,7 +25,7 @@ import bestDunePilat from "@/assets/best-dune-pilat.jpg";
 import bestSaintEmilion from "@/assets/best-saint-emilion.jpg";
 import bestMiroirEau from "@/assets/best-miroir-eau.jpg";
 import { useT } from "@/i18n/I18nProvider";
-import { FareSimulator } from "@/components/FareSimulator";
+// FareSimulator removed from home page per request
 import { ReviewForm } from "@/components/ReviewForm";
 import { TrackingQRSection } from "@/components/TrackingQRSection";
 import { supabase } from "@/integrations/supabase/client";
@@ -49,27 +49,20 @@ const PHONE_DISPLAY = "06 73 07 23 22";
 
 function Home() {
   const t = useT();
-  const [tapCount, setTapCount] = useState(0);
 
   const handleSecretAdmin = () => {
-    setTapCount((prev) => {
-      const next = prev + 1;
-      if (next >= 5) {
-        localStorage.setItem("taxi_admin", "true");
-        setTimeout(() => {
-          window.location.href = "/admin/dashboard";
-        }, 150);
-        return 0;
-      }
-      return next;
-    });
+    if (typeof window === "undefined") return;
+    const pin = window.prompt("Code admin");
+    if (pin === "1234") {
+      localStorage.setItem("taxi_admin", "true");
+      sessionStorage.setItem("admin_pin_ok", "1");
+      window.location.href = "/admin/dashboard";
+    } else if (pin !== null) {
+      alert("Code incorrect");
+    }
   };
 
-  useEffect(() => {
-    if (tapCount === 0) return;
-    const timer = setTimeout(() => setTapCount(0), 3000);
-    return () => clearTimeout(timer);
-  }, [tapCount]);
+
 
   return (
     <>
@@ -279,13 +272,6 @@ function Home() {
             { i: 1, kind: "tel" as const, href: `tel:${PHONE}`, cta: PHONE_DISPLAY },
             { i: 2, kind: "route" as const, to: "/reservation" as const, cta: t("home.hero.book_now") },
             { i: 3, kind: "anchor" as const, href: "#faq", onClick: scrollTo("faq"), cta: t("home.faq.title") },
-            {
-              i: 4,
-              kind: "anchor" as const,
-              href: "#simulateur-tarif",
-              onClick: scrollTo("simulateur-tarif"),
-              cta: t("sim.eyebrow"),
-            },
           ];
 
           const cardClass =
@@ -306,8 +292,7 @@ function Home() {
           );
 
           return (
-            /* 2-col on mobile, 4-col on lg */
-            <ol className="relative mt-10 grid grid-cols-2 gap-6 sm:mt-14 lg:grid-cols-4">
+            <ol className="relative mt-10 grid grid-cols-1 gap-6 sm:mt-14 sm:grid-cols-3">
               {steps.map((s) => (
                 <li key={s.i} className="contents">
                   {s.kind === "route" ? (
@@ -326,12 +311,6 @@ function Home() {
         })()}
 
         <div className="mt-8 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center">
-          <a
-            href={`tel:${PHONE}`}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-6 py-3 text-sm font-semibold transition hover:border-primary active:scale-95"
-          >
-            <Phone className="h-4 w-4" /> {PHONE_DISPLAY}
-          </a>
           <Link
             to="/reservation"
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-gold)] active:scale-95"
@@ -341,10 +320,7 @@ function Home() {
         </div>
       </section>
 
-      {/* FARE SIMULATOR */}
-      <div id="simulateur-tarif" className="scroll-mt-24">
-        <FareSimulator />
-      </div>
+
 
       {/* SERVICES */}
       <section className="mx-auto max-w-7xl px-4 py-12 sm:py-16 md:py-20">
