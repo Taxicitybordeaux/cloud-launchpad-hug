@@ -372,6 +372,15 @@ function ReservationPage() {
     if (!f.destination) e.destination = t("res.err.required");
     if (!f.date) e.date = t("res.err.required");
     if (!f.heure) e.heure = t("res.err.required");
+    if (f.trajet === "aller-retour") {
+      if (!f.dateRetour) e.dateRetour = t("res.err.required");
+      if (!f.heureRetour) e.heureRetour = t("res.err.required");
+      if (f.dateRetour && f.heureRetour && departMs) {
+        const rms = new Date(`${f.dateRetour}T${f.heureRetour}:00`).getTime();
+        if (rms <= departMs) e.dateRetour = t("res.err.return");
+      }
+    }
+
     setErrors(e);
     return Object.keys(e).length === 0;
   };
