@@ -215,11 +215,14 @@ function ReservationPage() {
     destination: "",
     date: "",
     heure: "",
+    dateRetour: "",
+    heureRetour: "",
     passagers: 1,
     bagages: 0,
     paiement: "especes",
     trajet: "aller" as "aller" | "aller-retour",
   });
+
 
   const [fromCoord, setFromCoord] = useState<[number, number] | null>(null);
   const [toCoord, setToCoord] = useState<[number, number] | null>(null);
