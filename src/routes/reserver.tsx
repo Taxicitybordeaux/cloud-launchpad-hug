@@ -309,17 +309,33 @@ function ReservationPage() {
     });
   }, [fromCoord, toCoord]);
 
-  // Calcul mixte
+  // Calcul mixte — aller (et retour si applicable)
   const departMs = f.date && f.heure ? new Date(`${f.date}T${f.heure}:00`).getTime() : null;
+  const retourMs =
+    f.trajet === "aller-retour" && f.dateRetour && f.heureRetour
+      ? new Date(`${f.dateRetour}T${f.heureRetour}:00`).getTime()
+      : null;
   const heureNum = f.heure ? parseInt(f.heure.split(":")[0], 10) : 12;
   const tarifJourAuto = heureNum >= 7 && heureNum < 19;
 
-  const prix =
+  const prixAller =
     orsResult && departMs
       ? calculerPrixMixte(departMs, orsResult.dureeS, orsResult.distanceKm)
       : orsResult
         ? Math.round((PRISE_EN_CHARGE + orsResult.distanceKm * (tarifJourAuto ? TARIF_JOUR : TARIF_NUIT)) * 100) / 100
         : PRISE_EN_CHARGE;
+
+  const prixRetour =
+    f.trajet === "aller-retour" && orsResult
+      ? retourMs
+        ? calculerPrixMixte(retourMs, orsResult.dureeS, orsResult.distanceKm)
+        : prixAller
+      : 0;
+
+  const prix =
+    f.trajet === "aller-retour"
+      ? Math.round((prixAller + prixRetour) * 100) / 100
+      : prixAller;
 
   const partJourNuit =
     orsResult && departMs
@@ -338,6 +354,7 @@ function ReservationPage() {
           return pctJour > 0 && pctJour < 100 ? { jour: pctJour, nuit: 100 - pctJour } : null;
         })()
       : null;
+
 
   useEffect(() => {
     const sid = typeof window !== "undefined" && (sessionStorage.getItem("sid") || Math.random().toString(36).slice(2));
