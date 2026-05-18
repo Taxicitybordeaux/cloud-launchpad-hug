@@ -873,9 +873,16 @@ function ReservationPage() {
                 )}
               </div>
 
+              {f.trajet === "aller-retour" && orsResult && (
+                <div style={{ marginTop: 8, fontSize: 13, color: "#475569" }}>
+                  Aller : <strong style={{ color: "#0f172a" }}>{prixAller.toFixed(2)} €</strong>
+                  {" — "}Retour : <strong style={{ color: "#0f172a" }}>{prixRetour.toFixed(2)} €</strong>
+                </div>
+              )}
+
               <div style={{ marginTop: 12 }}>
                 <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
-                  TOTAL ESTIMÉ
+                  TOTAL ESTIMÉ{f.trajet === "aller-retour" ? " (aller + retour)" : ""}
                 </div>
                 <div
                   style={{
@@ -894,6 +901,7 @@ function ReservationPage() {
                   </div>
                 )}
               </div>
+
               <div style={{ fontSize: 12, color: "#dc2626", fontWeight: 700, marginTop: 6 }}>
                 * Des frais de réservation peuvent être appliqués
               </div>
