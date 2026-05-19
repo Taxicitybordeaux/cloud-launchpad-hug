@@ -9,7 +9,7 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
-const DEFAULT_PASSWORD = "taxi2024";
+const DEFAULT_PASSWORD = "DSF234";
 const STORAGE_KEY = "admin_password";
 const SESSION_KEY = "admin_pin_ok";
 
