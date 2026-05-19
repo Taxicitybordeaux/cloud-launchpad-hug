@@ -242,7 +242,9 @@ function Dashboard() {
   const [gpsPosition, setGpsPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [gpsUpdateCount, setGpsUpdateCount] = useState(0);
+  const [gpsHeading, setGpsHeading] = useState<number | null>(null);
   const watchIdRef = useRef<number | null>(null);
+  const lastPosRef = useRef<{ lat: number; lng: number } | null>(null);
 
   // ── Portefeuille clients ──
   const [clients, setClients] = useState<any[]>([]);
@@ -428,22 +430,51 @@ function Dashboard() {
     setGpsActive(true);
     watchIdRef.current = navigator.geolocation.watchPosition(
       async (pos) => {
-        const { latitude, longitude, accuracy: acc } = pos.coords;
+        const { latitude, longitude, accuracy: acc, heading: rawHeading } = pos.coords;
+
+        // Calcul du cap : on utilise le heading natif du GPS sinon on calcule depuis la dernière position
+        let computedHeading = rawHeading ?? null;
+        if ((computedHeading === null || computedHeading === 0) && lastPosRef.current) {
+          const dLat = latitude - lastPosRef.current.lat;
+          const dLng = longitude - lastPosRef.current.lng;
+          if (Math.abs(dLat) > 0.00001 || Math.abs(dLng) > 0.00001) {
+            computedHeading = (Math.atan2(dLng, dLat) * 180) / Math.PI;
+            if (computedHeading < 0) computedHeading += 360;
+          }
+        }
+        lastPosRef.current = { lat: latitude, lng: longitude };
+
         setGpsPosition({ lat: latitude, lng: longitude });
         setGpsAccuracy(Math.round(acc));
+        setGpsHeading(computedHeading);
         setGpsUpdateCount((n) => n + 1);
+
+        // Mise à jour driver_gps (existant)
         await supabase
           .from("driver_gps")
           .update({
             latitude,
             longitude,
             accuracy: acc,
+            heading: computedHeading,
             updated_at: new Date().toISOString(),
           })
           .eq("id", "driver");
+
+        // Mise à jour taxi_positions (pour le Realtime côté client)
+        await supabase
+          .from("taxi_positions")
+          .update({
+            lat: latitude,
+            lng: longitude,
+            heading: computedHeading ?? 0,
+            speed: pos.coords.speed ?? 0,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", (await supabase.from("taxi_positions").select("id").limit(1).single()).data?.id);
       },
       (err) => console.error(err),
-      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 },
+      { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 },
     );
   };
 
