@@ -1430,7 +1430,7 @@ const es: Dict = {
   "qr.feat3.d": "Horquilla transparente",
   "qr.feat4.t": "Contacto directo",
   "qr.feat4.d": "06 73 07 23 22",
-  "qr.feat5.t": "QR único",
+  "qr.feat5.t": "Enlace único",
   "qr.feat5.d": "Por cliente, por escaneo",
   "qr.cta": "📞 Reservar — 06 73 07 23 22",
   "rsim.title": "Simulador de precio",
