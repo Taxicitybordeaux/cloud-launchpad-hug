@@ -444,7 +444,7 @@ function Dashboard() {
         setGpsUpdateCount((n) => n + 1);
 
         // Mise à jour driver_gps (existant)
-        await supabase
+        await (supabase as any)
           .from("driver_gps")
           .update({
             latitude,
@@ -456,8 +456,7 @@ function Dashboard() {
           .eq("id", "driver");
 
         // Mise à jour taxi_positions (pour le Realtime côté client)
-        // On utilise upsert avec un id fixe "main" pour éviter la recherche d'ID
-        await supabase.from("taxi_positions").upsert({
+        await (supabase as any).from("taxi_positions").upsert({
           id: "00000000-0000-0000-0000-000000000001",
           lat: latitude,
           lng: longitude,
