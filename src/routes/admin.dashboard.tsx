@@ -8,105 +8,82 @@ import { CourseCardSkeleton, GpsCardSkeleton, SkeletonStyles, StatCardSkeleton }
 import logo from "@/assets/logo.jpeg";
 
 // ─── Swipe-to-delete ─────────────────────────────────────────
-function useSwipeDelete(onDelete: () => void, disabled?: boolean) {
-  const ref = useRef<HTMLDivElement>(null);
-  const startX = useRef(0);
-  const currentX = useRef(0);
-  const [offset, setOffset] = useState(0);
-  const [swiping, setSwiping] = useState(false);
-
-  const THRESHOLD = 80; // px pour déclencher la suppression
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    if (disabled) return;
-    startX.current = e.touches[0].clientX;
-    currentX.current = e.touches[0].clientX;
-    setSwiping(true);
-  };
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    if (!swiping || disabled) return;
-    const diff = e.touches[0].clientX - startX.current;
-    if (diff > 0) {
-      setOffset(0);
-      return;
-    } // pas de swipe vers la droite
-    currentX.current = e.touches[0].clientX;
-    setOffset(Math.max(diff, -140));
-  };
-
-  const onTouchEnd = () => {
-    setSwiping(false);
-    const diff = currentX.current - startX.current;
-    if (diff < -THRESHOLD) {
-      setOffset(-140);
-    } else {
-      setOffset(0);
-    }
-  };
-
-  const reset = () => setOffset(0);
-
-  return { ref, offset, onTouchStart, onTouchMove, onTouchEnd, reset, revealed: offset <= -THRESHOLD };
-}
-
-interface SwipeDeleteRowProps {
+function SwipeDeleteRow({
+  onDelete,
+  disabled,
+  children,
+  style,
+}: {
   onDelete: () => void;
   disabled?: boolean;
   deleteLabel?: string;
   children: React.ReactNode;
   style?: React.CSSProperties;
-}
+}) {
+  const startX = useRef(0);
+  const startY = useRef(0);
+  const [offset, setOffset] = useState(0);
+  const [deleting, setDeleting] = useState(false);
+  const THRESHOLD = 100;
 
-function SwipeDeleteRow({ onDelete, disabled, deleteLabel = "🗑 Supprimer", children, style }: SwipeDeleteRowProps) {
-  const { ref, offset, onTouchStart, onTouchMove, onTouchEnd, reset } = useSwipeDelete(onDelete, disabled);
-  const [confirmSwipe, setConfirmSwipe] = useState(false);
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (disabled) return;
+    startX.current = e.touches[0].clientX;
+    startY.current = e.touches[0].clientY;
+  };
 
-  const handleRevealedTap = () => {
-    if (confirmSwipe) {
-      onDelete();
-      setConfirmSwipe(false);
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (disabled || deleting) return;
+    const dx = e.touches[0].clientX - startX.current;
+    const dy = Math.abs(e.touches[0].clientY - startY.current);
+    if (dy > 10 && Math.abs(dx) < dy) return; // scroll vertical prioritaire
+    if (dx >= 0) {
+      setOffset(0);
+      return;
+    }
+    e.preventDefault();
+    setOffset(Math.max(dx, -160));
+  };
+
+  const onTouchEnd = () => {
+    if (offset < -THRESHOLD) {
+      setDeleting(true);
+      setOffset(-window.innerWidth);
+      setTimeout(() => onDelete(), 280);
     } else {
-      setConfirmSwipe(true);
-      setTimeout(() => setConfirmSwipe(false), 3000);
+      setOffset(0);
     }
   };
 
   return (
     <div style={{ position: "relative", overflow: "hidden", borderRadius: 20, ...style }}>
-      {/* Fond rouge visible en swipant */}
+      {/* Fond rouge */}
       <div
         style={{
           position: "absolute",
           inset: 0,
-          background: confirmSwipe ? "#dc2626" : "rgba(239,68,68,0.85)",
+          background: "#ef4444",
           display: "flex",
           alignItems: "center",
           justifyContent: "flex-end",
-          paddingRight: 20,
+          paddingRight: 24,
           borderRadius: 20,
-          transition: "background 0.2s",
         }}
-        onClick={handleRevealedTap}
       >
-        <div
-          style={{ textAlign: "center", color: "#fff", fontWeight: 800, fontSize: 13, fontFamily: "'Syne',sans-serif" }}
-        >
-          {confirmSwipe ? "Confirmer ?" : deleteLabel}
-        </div>
+        <span style={{ fontSize: 22 }}>🗑</span>
       </div>
-      {/* Contenu principal */}
+      {/* Carte */}
       <div
-        ref={ref}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
-        onClick={() => {
-          if (offset < -20) reset();
-        }}
         style={{
           transform: `translateX(${offset}px)`,
-          transition: offset === 0 ? "transform 0.3s cubic-bezier(0.25,1,0.5,1)" : "none",
+          transition: deleting
+            ? "transform 0.28s ease-in"
+            : offset === 0
+              ? "transform 0.3s cubic-bezier(0.25,1,0.5,1)"
+              : "none",
           willChange: "transform",
           position: "relative",
           zIndex: 1,
