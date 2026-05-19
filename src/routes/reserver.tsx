@@ -612,7 +612,11 @@ function ReservationPage() {
 
     // Chargement initial de la position
     const loadInitial = async () => {
-      const { data } = await supabase.from("taxi_positions").select("lat,lng,heading").limit(1).single();
+      const { data } = await supabase
+        .from("taxi_positions")
+        .select("lat,lng,heading")
+        .eq("id", "00000000-0000-0000-0000-000000000001")
+        .single();
       if (data && (data.lat !== 0 || data.lng !== 0)) {
         // Attendre que Leaflet soit prêt
         const waitAndUpdate = () => {
