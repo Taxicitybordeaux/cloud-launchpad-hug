@@ -111,7 +111,7 @@ function sectionLabel(text: string) {
   );
 }
 
-function fieldLabel(text: string) {
+function fieldLabel(text: string, required?: boolean) {
   return (
     <div
       style={{
@@ -121,9 +121,26 @@ function fieldLabel(text: string) {
         fontWeight: 600,
         textTransform: "uppercase" as const,
         letterSpacing: "0.05em",
+        display: "flex",
+        alignItems: "center",
+        gap: 3,
       }}
     >
       {text}
+      {required && (
+        <span
+          style={{
+            color: "#ef4444",
+            fontSize: 13,
+            lineHeight: 1,
+            fontWeight: 700,
+          }}
+          aria-hidden="true"
+          title="Champ obligatoire"
+        >
+          *
+        </span>
+      )}
     </div>
   );
 }
@@ -753,7 +770,7 @@ function ReservationPage() {
               {f.trajet === "aller-retour" && (
                 <div className="resa-grid-2">
                   <div>
-                    {fieldLabel(`🔁 ${t("res.loc.date_label")} (${t("res.loc.roundtrip")})`)}
+                    {fieldLabel(`🔁 ${t("res.loc.date_label")} (${t("res.loc.roundtrip")})`, true)}
                     <Input
                       k="dateRetour"
                       value={f.dateRetour}
@@ -764,7 +781,7 @@ function ReservationPage() {
                     />
                   </div>
                   <div>
-                    {fieldLabel(`🔁 ${t("res.loc.time_label")} (${t("res.loc.roundtrip")})`)}
+                    {fieldLabel(`🔁 ${t("res.loc.time_label")} (${t("res.loc.roundtrip")})`, true)}
                     <Input
                       k="heureRetour"
                       value={f.heureRetour}
