@@ -24,7 +24,7 @@ function SwipeDeleteRow({
   const startY = useRef(0);
   const [offset, setOffset] = useState(0);
   const [deleting, setDeleting] = useState(false);
-  const THRESHOLD = 100;
+  const THRESHOLD = 200;
 
   const onTouchStart = (e: React.TouchEvent) => {
     if (disabled) return;
@@ -42,7 +42,7 @@ function SwipeDeleteRow({
       return;
     }
     e.preventDefault();
-    setOffset(Math.max(dx, -160));
+    setOffset(Math.max(dx, -window.innerWidth));
   };
 
   const onTouchEnd = () => {
@@ -73,20 +73,17 @@ function SwipeDeleteRow({
             top: 0,
             right: 0,
             bottom: 0,
-            width: 160,
-            background: "linear-gradient(90deg, transparent 0%, #7f1d1d 40%, #991b1b 100%)",
+            width: "100%",
+            background: "linear-gradient(90deg, transparent 0%, #7f1d1d 60%, #991b1b 100%)",
             display: "flex",
             alignItems: "center",
             justifyContent: "flex-end",
-            paddingRight: 24,
+            paddingRight: 32,
             gap: 8,
-            opacity: Math.min(Math.abs(offset) / 80, 1),
+            opacity: Math.min(Math.abs(offset) / 150, 1),
           }}
         >
-          <span style={{ fontSize: 13, color: "#fca5a5", fontWeight: 700, fontFamily: "'DM Sans',sans-serif" }}>
-            Supprimer
-          </span>
-          <span style={{ fontSize: 22 }}>🗑️</span>
+          <span style={{ fontSize: 28 }}>🗑️</span>
         </div>
       </div>
       {/* Carte */}
@@ -132,11 +129,12 @@ const labelCss: React.CSSProperties = {
   marginTop: 6,
 };
 const valCss: React.CSSProperties = {
-  fontFamily: "'Syne',sans-serif",
+  fontFamily: "'DM Sans',sans-serif",
   fontWeight: 800,
   fontSize: 26,
   color: "#f8fafc",
   marginTop: 4,
+  fontVariantNumeric: "tabular-nums",
 };
 
 // Tarifs officiels Bordeaux
@@ -1225,61 +1223,6 @@ function Dashboard() {
                 📲 QR Code
               </button>
             )}
-
-            {/* Supprimer (slide) */}
-            {deleteSlide === r.id ? (
-              <div style={{ display: "flex", gap: 6, alignItems: "center", marginLeft: "auto" }}>
-                <span style={{ color: "#94a3b8", fontSize: 12 }}>Confirmer ?</span>
-                <button
-                  disabled={deleteBusy}
-                  onClick={() => handleDeleteReservation(r.id)}
-                  style={{
-                    background: "#ef4444",
-                    color: "#fff",
-                    border: 0,
-                    padding: "8px 14px",
-                    borderRadius: 10,
-                    cursor: deleteBusy ? "wait" : "pointer",
-                    fontWeight: 700,
-                    fontSize: 12,
-                  }}
-                >
-                  {deleteBusy ? "…" : "Oui, supprimer"}
-                </button>
-                <button
-                  onClick={() => setDeleteSlide(null)}
-                  style={{
-                    background: "rgba(255,255,255,0.06)",
-                    color: "#94a3b8",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    padding: "8px 12px",
-                    borderRadius: 10,
-                    cursor: "pointer",
-                    fontWeight: 700,
-                    fontSize: 12,
-                  }}
-                >
-                  Annuler
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setDeleteSlide(r.id)}
-                style={{
-                  marginLeft: "auto",
-                  background: "rgba(239,68,68,0.08)",
-                  border: "1px solid rgba(239,68,68,0.2)",
-                  color: "#f87171",
-                  padding: "8px 14px",
-                  borderRadius: 10,
-                  cursor: "pointer",
-                  fontWeight: 700,
-                  fontSize: 12,
-                }}
-              >
-                🗑 Supprimer
-              </button>
-            )}
           </div>
         </div>
       </SwipeDeleteRow>
@@ -1534,7 +1477,15 @@ function Dashboard() {
                   >
                     🕐 Prise en charge
                   </div>
-                  <div style={{ color: "#f8fafc", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 17 }}>
+                  <div
+                    style={{
+                      color: "#f8fafc",
+                      fontFamily: "'DM Sans',sans-serif",
+                      fontWeight: 800,
+                      fontSize: 17,
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
                     {formatParis(nextCourse.pickup_datetime, { dateStyle: "full", timeStyle: "short" })}
                   </div>
                 </div>
@@ -1594,7 +1545,15 @@ function Dashboard() {
                       >
                         💰 Prix estimé
                       </div>
-                      <div style={{ color: "#0ea5e9", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20 }}>
+                      <div
+                        style={{
+                          color: "#0ea5e9",
+                          fontFamily: "'DM Sans',sans-serif",
+                          fontWeight: 800,
+                          fontSize: 20,
+                          fontVariantNumeric: "tabular-nums",
+                        }}
+                      >
                         {prix.toFixed(2)} €
                       </div>
                     </div>
@@ -1834,122 +1793,82 @@ function Dashboard() {
               <div style={{ textAlign: "center", color: "#475569", padding: "20px 0" }}>Aucune course refusée</div>
             )}
             {refused.map((r) => (
-              <div key={r.id} style={{ ...card, marginBottom: 14 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                  <div>
-                    <div style={{ color: "#fff", fontWeight: 700, fontSize: 18 }}>{r.client_name || r.nom}</div>
-                    <div style={{ color: "#cbd5e1", marginTop: 8 }}>
-                      🟢 {r.depart} → 📍 {r.destination || r.arrivee}
+              <SwipeDeleteRow
+                key={r.id}
+                onDelete={() => handleDeleteReservation(r.id)}
+                disabled={deleteBusy}
+                style={{ marginBottom: 14 }}
+              >
+                <div style={{ ...card }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                    <div>
+                      <div style={{ color: "#fff", fontWeight: 700, fontSize: 18 }}>{r.client_name || r.nom}</div>
+                      <div style={{ color: "#cbd5e1", marginTop: 8 }}>
+                        🟢 {r.depart} → 📍 {r.destination || r.arrivee}
+                      </div>
+                    </div>
+                    <div style={{ color: "#64748b", fontSize: 13 }}>
+                      {r.pickup_datetime ? (
+                        <span>
+                          🕐{" "}
+                          <b style={{ color: "#f8fafc" }}>
+                            {formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })}
+                          </b>
+                        </span>
+                      ) : (
+                        new Date(r.created_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })
+                      )}
                     </div>
                   </div>
-                  <div style={{ color: "#64748b", fontSize: 13 }}>
-                    {r.pickup_datetime ? (
-                      <span>
-                        🕐{" "}
-                        <b style={{ color: "#f8fafc" }}>
-                          {formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })}
-                        </b>
-                      </span>
-                    ) : (
-                      new Date(r.created_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })
-                    )}
-                  </div>
-                </div>
-                <div
-                  style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap", color: "#94a3b8", fontSize: 13 }}
-                >
-                  <span>👥 {r.nb_passagers || r.passagers || 1} passager(s)</span>
-                  {r.bagages > 0 && <span>🧳 {r.bagages} bagage(s)</span>}
-                  <StatusBadge s={r.status} />
-                </div>
-                {r.refus_motif && (
                   <div
                     style={{
                       marginTop: 14,
-                      padding: "10px 12px",
-                      background: "rgba(239,68,68,0.08)",
-                      border: "1px solid rgba(239,68,68,0.25)",
-                      borderRadius: 10,
-                      color: "#fecaca",
+                      display: "flex",
+                      gap: 10,
+                      flexWrap: "wrap",
+                      color: "#94a3b8",
                       fontSize: 13,
                     }}
                   >
-                    <span style={{ fontWeight: 700, color: "#fca5a5" }}>Motif du refus :</span> {r.refus_motif}
+                    <span>👥 {r.nb_passagers || r.passagers || 1} passager(s)</span>
+                    {r.bagages > 0 && <span>🧳 {r.bagages} bagage(s)</span>}
+                    <StatusBadge s={r.status} />
                   </div>
-                )}
-                <div style={{ marginTop: 14, display: "flex", gap: 14, flexWrap: "wrap" }}>
-                  {(r.client_phone || r.telephone) && (
-                    <a
-                      href={`tel:${r.client_phone || r.telephone}`}
-                      style={{ color: "#0ea5e9", textDecoration: "none", fontWeight: 600 }}
-                    >
-                      📞 {r.client_phone || r.telephone}
-                    </a>
-                  )}
-                  {(r.client_email || r.email) && (
-                    <a
-                      href={`mailto:${r.client_email || r.email}`}
-                      style={{ color: "#94a3b8", textDecoration: "none" }}
-                    >
-                      ✉️ {r.client_email || r.email}
-                    </a>
-                  )}
-                </div>
-                <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end" }}>
-                  {deleteSlide === r.id ? (
-                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <span style={{ color: "#94a3b8", fontSize: 12 }}>Confirmer ?</span>
-                      <button
-                        disabled={deleteBusy}
-                        onClick={() => handleDeleteReservation(r.id)}
-                        style={{
-                          background: "#ef4444",
-                          color: "#fff",
-                          border: 0,
-                          padding: "8px 14px",
-                          borderRadius: 10,
-                          cursor: deleteBusy ? "wait" : "pointer",
-                          fontWeight: 700,
-                          fontSize: 12,
-                        }}
-                      >
-                        {deleteBusy ? "…" : "Oui, supprimer"}
-                      </button>
-                      <button
-                        onClick={() => setDeleteSlide(null)}
-                        style={{
-                          background: "rgba(255,255,255,0.06)",
-                          color: "#94a3b8",
-                          border: "1px solid rgba(255,255,255,0.1)",
-                          padding: "8px 12px",
-                          borderRadius: 10,
-                          cursor: "pointer",
-                          fontWeight: 700,
-                          fontSize: 12,
-                        }}
-                      >
-                        Annuler
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setDeleteSlide(r.id)}
+                  {r.refus_motif && (
+                    <div
                       style={{
+                        marginTop: 14,
+                        padding: "10px 12px",
                         background: "rgba(239,68,68,0.08)",
-                        border: "1px solid rgba(239,68,68,0.2)",
-                        color: "#f87171",
-                        padding: "8px 14px",
+                        border: "1px solid rgba(239,68,68,0.25)",
                         borderRadius: 10,
-                        cursor: "pointer",
-                        fontWeight: 700,
-                        fontSize: 12,
+                        color: "#fecaca",
+                        fontSize: 13,
                       }}
                     >
-                      🗑 Supprimer
-                    </button>
+                      <span style={{ fontWeight: 700, color: "#fca5a5" }}>Motif du refus :</span> {r.refus_motif}
+                    </div>
                   )}
+                  <div style={{ marginTop: 14, display: "flex", gap: 14, flexWrap: "wrap" }}>
+                    {(r.client_phone || r.telephone) && (
+                      <a
+                        href={`tel:${r.client_phone || r.telephone}`}
+                        style={{ color: "#0ea5e9", textDecoration: "none", fontWeight: 600 }}
+                      >
+                        📞 {r.client_phone || r.telephone}
+                      </a>
+                    )}
+                    {(r.client_email || r.email) && (
+                      <a
+                        href={`mailto:${r.client_email || r.email}`}
+                        style={{ color: "#94a3b8", textDecoration: "none" }}
+                      >
+                        ✉️ {r.client_email || r.email}
+                      </a>
+                    )}
+                  </div>
                 </div>
-              </div>
+              </SwipeDeleteRow>
             ))}
           </div>
         )}
@@ -2491,9 +2410,10 @@ function Dashboard() {
                   <div
                     style={{
                       color: "#0ea5e9",
-                      fontFamily: "'Syne',sans-serif",
+                      fontFamily: "'DM Sans',sans-serif",
                       fontSize: 22,
                       fontWeight: 800,
+                      fontVariantNumeric: "tabular-nums",
                       marginTop: 4,
                     }}
                   >
@@ -2685,10 +2605,11 @@ function Dashboard() {
                           >
                             <div
                               style={{
-                                fontFamily: "'Syne',sans-serif",
+                                fontFamily: "'DM Sans',sans-serif",
                                 fontWeight: 800,
                                 fontSize: 18,
                                 color: "#f8fafc",
+                                fontVariantNumeric: "tabular-nums",
                               }}
                             >
                               {c.nb_courses ?? 0}
@@ -2716,10 +2637,11 @@ function Dashboard() {
                           >
                             <div
                               style={{
-                                fontFamily: "'Syne',sans-serif",
+                                fontFamily: "'DM Sans',sans-serif",
                                 fontWeight: 800,
                                 fontSize: 18,
                                 color: "#0ea5e9",
+                                fontVariantNumeric: "tabular-nums",
                               }}
                             >
                               {(c.ca_total ?? 0).toFixed(0)} €
@@ -2737,9 +2659,7 @@ function Dashboard() {
                           </div>
                           {since && (
                             <div style={{ color: "#475569", fontSize: 11, fontFamily: "'DM Sans',sans-serif" }}>
-                              depuis
-                              <br />
-                              {since}
+                              depuis {since}
                             </div>
                           )}
                         </div>
