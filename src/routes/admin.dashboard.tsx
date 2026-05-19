@@ -150,12 +150,6 @@ const normalizeStatus = (s: unknown): TabKey => {
   return "pending";
 };
 
-const tabLabels: Record<TabKey, string> = {
-  pending: "En attente",
-  accepted: "Acceptées",
-  refused: "Refusées",
-};
-
 const STATUS: Record<string, { bg: string; c: string; label: string }> = {
   pending: { bg: "rgba(245,158,11,0.15)", c: "#f59e0b", label: "En attente" },
   accepted: { bg: "rgba(34,197,94,0.15)", c: "#22c55e", label: "Acceptée" },
@@ -222,8 +216,6 @@ function Dashboard() {
   const [cardKmLoading, setCardKmLoading] = useState<Record<string, boolean>>({});
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-
-  // ── Tarif (variable utilisée dans les cards) ──
 
   // ── Avis ──
   const [avis, setAvis] = useState<any[]>([]);
@@ -811,7 +803,6 @@ function Dashboard() {
         return { ...prev, [k]: Math.max(0, prev[k] - 1) };
       });
     }
-    setDeleteSlide(null);
     setDeleteBusy(false);
   };
 
