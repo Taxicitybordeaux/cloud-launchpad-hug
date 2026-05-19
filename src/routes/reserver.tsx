@@ -335,7 +335,7 @@ function AddressInput({
 
 // ─── Composant principal ───────────────────────────────────────────────────
 function ReservationPage() {
-  const { t } = useI18n();
+  useI18n();
   const [step, setStep] = useState<Step>(1);
   const [today, setToday] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
