@@ -223,7 +223,6 @@ function ReservationPage() {
     trajet: "aller" as "aller" | "aller-retour",
   });
 
-
   const [fromCoord, setFromCoord] = useState<[number, number] | null>(null);
   const [toCoord, setToCoord] = useState<[number, number] | null>(null);
   const [geocodingDepart, setGeocodingDepart] = useState(false);
@@ -332,10 +331,7 @@ function ReservationPage() {
         : prixAller
       : 0;
 
-  const prix =
-    f.trajet === "aller-retour"
-      ? Math.round((prixAller + prixRetour) * 100) / 100
-      : prixAller;
+  const prix = f.trajet === "aller-retour" ? Math.round((prixAller + prixRetour) * 100) / 100 : prixAller;
 
   const partJourNuit =
     orsResult && departMs
@@ -354,7 +350,6 @@ function ReservationPage() {
           return pctJour > 0 && pctJour < 100 ? { jour: pctJour, nuit: 100 - pctJour } : null;
         })()
       : null;
-
 
   useEffect(() => {
     const sid = typeof window !== "undefined" && (sessionStorage.getItem("sid") || Math.random().toString(36).slice(2));
@@ -783,7 +778,6 @@ function ReservationPage() {
               )}
             </div>
 
-
             {/* ── Moyen de paiement ── */}
             {sectionLabel(t("res.loc.payment_section"))}
             <div className="payment-grid">
@@ -821,7 +815,7 @@ function ReservationPage() {
             </div>
 
             {/* ── Simulateur de prix ── */}
-            {sectionLabel("Simulateur de prix")}
+            {sectionLabel(t("rsim.title"))}
             <div style={{ padding: 20, background: "#f1f5f9", borderRadius: 16 }}>
               <div
                 style={{
@@ -840,49 +834,51 @@ function ReservationPage() {
                 {tarifJourAuto ? (
                   <>
                     <span>☀️</span>
-                    <span>Tarif jour (7h–19h) — 2,16 €/km</span>
+                    <span>{t("rsim.day")}</span>
                   </>
                 ) : (
                   <>
                     <span>🌙</span>
-                    <span>Tarif nuit (19h–7h) — 3,24 €/km</span>
+                    <span>{t("rsim.night")}</span>
                   </>
                 )}
                 {partJourNuit && (
                   <span style={{ marginLeft: "auto", fontSize: 11, color: "#64748b" }}>
-                    {partJourNuit.jour}% jour / {partJourNuit.nuit}% nuit
+                    {t("rsim.partition")
+                      .replace("{j}", String(partJourNuit.jour))
+                      .replace("{n}", String(partJourNuit.nuit))}
                   </span>
                 )}
               </div>
 
-              <div style={{ fontSize: 14, color: "#475569" }}>Prise en charge : {PRISE_EN_CHARGE} €</div>
+              <div style={{ fontSize: 14, color: "#475569" }}>{t("rsim.pickup")}</div>
 
               <div style={{ marginTop: 8, fontSize: 14, color: "#475569" }}>
                 {calcLoading ? (
-                  <span style={{ color: "#94a3b8" }}>⏳ Calcul de l'itinéraire…</span>
+                  <span style={{ color: "#94a3b8" }}>{t("rsim.loading")}</span>
                 ) : orsResult ? (
                   <span>
-                    Distance : <strong style={{ color: "#0f172a" }}>{orsResult.distanceKm} km</strong>
-                    {" — "}Durée estimée :{" "}
+                    {t("rsim.distance")} : <strong style={{ color: "#0f172a" }}>{orsResult.distanceKm} km</strong>
+                    {" — "}
+                    {t("rsim.duration")} :{" "}
                     <strong style={{ color: "#0f172a" }}>{Math.round(orsResult.dureeS / 60)} min</strong>
                   </span>
                 ) : (
-                  <span style={{ color: "#94a3b8" }}>
-                    Saisissez le départ et la destination pour calculer automatiquement.
-                  </span>
+                  <span style={{ color: "#94a3b8" }}>{t("rsim.hint")}</span>
                 )}
               </div>
 
               {f.trajet === "aller-retour" && orsResult && (
                 <div style={{ marginTop: 8, fontSize: 13, color: "#475569" }}>
-                  Aller : <strong style={{ color: "#0f172a" }}>{prixAller.toFixed(2)} €</strong>
-                  {" — "}Retour : <strong style={{ color: "#0f172a" }}>{prixRetour.toFixed(2)} €</strong>
+                  {t("rsim.outbound")} : <strong style={{ color: "#0f172a" }}>{prixAller.toFixed(2)} €</strong>
+                  {" — "}
+                  {t("rsim.return")} : <strong style={{ color: "#0f172a" }}>{prixRetour.toFixed(2)} €</strong>
                 </div>
               )}
 
               <div style={{ marginTop: 12 }}>
                 <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
-                  TOTAL ESTIMÉ{f.trajet === "aller-retour" ? " (aller + retour)" : ""}
+                  {f.trajet === "aller-retour" ? t("rsim.total_round") : t("rsim.total")}
                 </div>
                 <div
                   style={{
@@ -895,17 +891,10 @@ function ReservationPage() {
                 >
                   {prix.toFixed(2)} €
                 </div>
-                {partJourNuit && (
-                  <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
-                    Tarif mixte — votre trajet déborde sur le tarif nuit
-                  </div>
-                )}
+                {partJourNuit && <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{t("rsim.mixed")}</div>}
               </div>
-
-              <div style={{ fontSize: 12, color: "#dc2626", fontWeight: 700, marginTop: 6 }}>
-                * Des frais de réservation peuvent être appliqués
-              </div>
-              <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>Prix indicatif — le compteur fait foi</div>
+              <div style={{ fontSize: 12, color: "#dc2626", fontWeight: 700, marginTop: 6 }}>{t("rsim.fees")}</div>
+              <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{t("rsim.indicative")}</div>
             </div>
 
             {/* ── Mode de réservation ── */}
