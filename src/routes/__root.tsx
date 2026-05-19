@@ -144,7 +144,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
 /**
  * Pages sans header/footer public
  */
-const SHELL_FREE_PREFIXES = ["/admin", "/login"];
+const SHELL_FREE_PREFIXES = ["/admin", "/login", "/reserver"];
 
 function RootComponent() {
   const location = useLocation();
