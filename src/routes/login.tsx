@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import logo from "@/assets/logo.jpeg";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -245,19 +246,24 @@ function LoginPage() {
           <div
             className="logo-pulse"
             style={{
-              width: 80,
-              height: 80,
-              background: "linear-gradient(135deg,#0ea5e9,#0369a1)",
+              width: 90,
+              height: 90,
+              background: "#fff",
               borderRadius: 24,
               margin: "0 auto 16px",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 36,
               boxShadow: "0 12px 32px rgba(14,165,233,0.3)",
+              overflow: "hidden",
+              padding: 6,
             }}
           >
-            🚕
+            <img
+              src={logo}
+              alt="Taxi City Bordeaux"
+              style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: 18 }}
+            />
           </div>
           <h1
             style={{
