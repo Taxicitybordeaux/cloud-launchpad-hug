@@ -399,6 +399,8 @@ function ReservationPage() {
   const routeLayer = useRef<any>(null);
   const fromMarker = useRef<any>(null);
   const toMarker = useRef<any>(null);
+  const taxiMarker = useRef<any>(null);
+  const watchIdRef = useRef<number | null>(null);
 
   // Prix
   const departMs = f.date && f.heure ? new Date(`${f.date}T${f.heure}:00`).getTime() : null;
@@ -453,7 +455,8 @@ function ReservationPage() {
       }).addTo(map);
       L.control.zoom({ position: "bottomright" }).addTo(map);
       mapInst.current = map;
-      setTimeout(() => map.invalidateSize(), 300);
+      setTimeout(() => map.invalidateSize(), 100);
+      setTimeout(() => map.invalidateSize(), 400);
     };
     initMap();
     return () => {
@@ -531,7 +534,13 @@ function ReservationPage() {
   // Resize carte quand le sheet monte/descend
   useEffect(() => {
     if (mapInst.current) {
-      setTimeout(() => mapInst.current?.invalidateSize(), 420);
+      // On invalide à 0ms (début), 200ms (milieu) et 450ms (fin de transition)
+      const timers = [
+        setTimeout(() => mapInst.current?.invalidateSize(), 0),
+        setTimeout(() => mapInst.current?.invalidateSize(), 200),
+        setTimeout(() => mapInst.current?.invalidateSize(), 450),
+      ];
+      return () => timers.forEach(clearTimeout);
     }
   }, [step]);
 
@@ -551,6 +560,80 @@ function ReservationPage() {
       () => setGeolocLoading(false),
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
     );
+  }, []);
+
+  // Géolocalisation automatique au chargement
+  useEffect(() => {
+    handleGeolocate();
+  }, [handleGeolocate]);
+
+  // ── Tracking GPS temps réel du taxi ────────────────────────────────────────
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+
+    const updateTaxiMarker = (lat: number, lng: number) => {
+      const map = mapInst.current;
+      const L = (window as any).L;
+      if (!map || !L) return;
+
+      const taxiHtml = `
+        <div style="position:relative;width:40px;height:40px;">
+          <div style="
+            position:absolute;inset:0;border-radius:50%;
+            background:rgba(245,200,66,0.25);
+            animation:pulse 1.8s ease-in-out infinite;
+          "></div>
+          <div style="
+            position:absolute;inset:6px;border-radius:50%;
+            background:rgba(245,200,66,0.45);
+            animation:pulse 1.8s ease-in-out infinite 0.3s;
+          "></div>
+          <div style="
+            position:absolute;inset:0;display:flex;align-items:center;
+            justify-content:center;font-size:22px;line-height:1;
+          ">🚕</div>
+        </div>`;
+
+      const icon = L.divIcon({
+        className: "",
+        html: taxiHtml,
+        iconSize: [40, 40],
+        iconAnchor: [20, 20],
+      });
+
+      if (taxiMarker.current) {
+        taxiMarker.current.setLatLng([lat, lng]);
+      } else {
+        taxiMarker.current = L.marker([lat, lng], { icon, zIndexOffset: 1000 })
+          .addTo(map)
+          .bindTooltip("🚕 Votre taxi", { permanent: false, direction: "top", offset: [0, -24] });
+      }
+    };
+
+    // Première position immédiate
+    navigator.geolocation.getCurrentPosition(
+      (pos) => updateTaxiMarker(pos.coords.latitude, pos.coords.longitude),
+      () => {},
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 },
+    );
+
+    // Suivi continu
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => updateTaxiMarker(pos.coords.latitude, pos.coords.longitude),
+      () => {},
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 },
+    );
+
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      if (taxiMarker.current) {
+        taxiMarker.current.remove();
+        taxiMarker.current = null;
+      }
+    };
   }, []);
 
   const validateStep = (s: Step): boolean => {
