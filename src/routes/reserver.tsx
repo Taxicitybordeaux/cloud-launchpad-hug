@@ -400,6 +400,7 @@ function ReservationPage() {
   const fromMarker = useRef<any>(null);
   const toMarker = useRef<any>(null);
   const taxiMarker = useRef<any>(null);
+  const watchIdRef = useRef<number | null>(null);
 
   // Prix
   const departMs = f.date && f.heure ? new Date(`${f.date}T${f.heure}:00`).getTime() : null;
@@ -566,80 +567,68 @@ function ReservationPage() {
     handleGeolocate();
   }, [handleGeolocate]);
 
-  // ── Tracking GPS temps réel du taxi via Supabase Realtime ─────────────────
+  // ── Tracking GPS temps réel du taxi ────────────────────────────────────────
   useEffect(() => {
-    const L = (window as any).L;
+    if (!navigator.geolocation) return;
 
-    const getTaxiIcon = (heading: number) => {
-      if (!L) return null;
-      return L.divIcon({
-        className: "",
-        html: `
-          <div style="position:relative;width:48px;height:48px;">
-            <div style="
-              position:absolute;inset:0;border-radius:50%;
-              background:rgba(245,200,66,0.2);
-              animation:pulse 2s ease-in-out infinite;
-            "></div>
-            <div style="
-              position:absolute;inset:8px;border-radius:50%;
-              background:rgba(245,200,66,0.35);
-              animation:pulse 2s ease-in-out infinite 0.4s;
-            "></div>
-            <div style="
-              position:absolute;inset:0;display:flex;align-items:center;
-              justify-content:center;font-size:26px;line-height:1;
-              transform:rotate(${heading}deg);transition:transform 0.6s ease;
-            ">🚕</div>
-          </div>`,
-        iconSize: [48, 48],
-        iconAnchor: [24, 24],
-      });
-    };
-
-    const updateTaxiMarker = (lat: number, lng: number, heading: number) => {
+    const updateTaxiMarker = (lat: number, lng: number) => {
       const map = mapInst.current;
+      const L = (window as any).L;
       if (!map || !L) return;
+
+      const taxiHtml = `
+        <div style="position:relative;width:40px;height:40px;">
+          <div style="
+            position:absolute;inset:0;border-radius:50%;
+            background:rgba(245,200,66,0.25);
+            animation:pulse 1.8s ease-in-out infinite;
+          "></div>
+          <div style="
+            position:absolute;inset:6px;border-radius:50%;
+            background:rgba(245,200,66,0.45);
+            animation:pulse 1.8s ease-in-out infinite 0.3s;
+          "></div>
+          <div style="
+            position:absolute;inset:0;display:flex;align-items:center;
+            justify-content:center;font-size:22px;line-height:1;
+          ">🚕</div>
+        </div>`;
+
+      const icon = L.divIcon({
+        className: "",
+        html: taxiHtml,
+        iconSize: [40, 40],
+        iconAnchor: [20, 20],
+      });
+
       if (taxiMarker.current) {
         taxiMarker.current.setLatLng([lat, lng]);
-        taxiMarker.current.setIcon(getTaxiIcon(heading));
       } else {
-        taxiMarker.current = L.marker([lat, lng], { icon: getTaxiIcon(heading), zIndexOffset: 1000 })
+        taxiMarker.current = L.marker([lat, lng], { icon, zIndexOffset: 1000 })
           .addTo(map)
-          .bindTooltip("🚕 Votre taxi", { permanent: false, direction: "top", offset: [0, -28] });
+          .bindTooltip("🚕 Votre taxi", { permanent: false, direction: "top", offset: [0, -24] });
       }
     };
 
-    // Chargement initial de la position
-    const loadInitial = async () => {
-      const { data } = await supabase.from("taxi_positions").select("lat,lng,heading").limit(1).single();
-      if (data && (data.lat !== 0 || data.lng !== 0)) {
-        // Attendre que Leaflet soit prêt
-        const waitAndUpdate = () => {
-          if ((window as any).L && mapInst.current) {
-            updateTaxiMarker(data.lat, data.lng, data.heading ?? 0);
-          } else {
-            setTimeout(waitAndUpdate, 300);
-          }
-        };
-        waitAndUpdate();
-      }
-    };
-    loadInitial();
+    // Première position immédiate
+    navigator.geolocation.getCurrentPosition(
+      (pos) => updateTaxiMarker(pos.coords.latitude, pos.coords.longitude),
+      () => {},
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 },
+    );
 
-    // Écoute Realtime des mises à jour
-    const channel = supabase
-      .channel("taxi-live")
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "taxi_positions" }, (payload) => {
-        const d = payload.new as any;
-        if (d.lat && d.lng) {
-          updateTaxiMarker(d.lat, d.lng, d.heading ?? 0);
-        }
-      })
-      .subscribe();
+    // Suivi continu
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => updateTaxiMarker(pos.coords.latitude, pos.coords.longitude),
+      () => {},
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 },
+    );
 
     return () => {
-      supabase.removeChannel(channel);
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
       if (taxiMarker.current) {
         taxiMarker.current.remove();
         taxiMarker.current = null;
