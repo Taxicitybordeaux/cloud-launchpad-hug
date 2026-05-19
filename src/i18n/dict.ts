@@ -967,6 +967,22 @@ const en: Dict = {
   "qr.feat5.t": "Unique QR",
   "qr.feat5.d": "Per client, per scan",
   "qr.cta": "📞 Book — 06 73 07 23 22",
+  "rsim.title": "Price simulator",
+  "rsim.day": "Day rate (7am–7pm) — €2.16/km",
+  "rsim.night": "Night rate (7pm–7am) — €3.24/km",
+  "rsim.partition": "{j}% day / {n}% night",
+  "rsim.pickup": "Pickup fee: €2.83",
+  "rsim.loading": "⏳ Calculating route…",
+  "rsim.distance": "Distance",
+  "rsim.duration": "Estimated duration",
+  "rsim.hint": "Enter pickup and destination to calculate automatically.",
+  "rsim.outbound": "Outbound",
+  "rsim.return": "Return",
+  "rsim.total": "ESTIMATED TOTAL",
+  "rsim.total_round": "ESTIMATED TOTAL (round trip)",
+  "rsim.mixed": "Mixed rate — your trip overlaps with the night rate",
+  "rsim.fees": "* Booking fees may apply",
+  "rsim.indicative": "Indicative price — the meter is authoritative",
 };
 
 const es: Dict = {
