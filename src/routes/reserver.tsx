@@ -222,6 +222,7 @@ function AddressInput({
   const bg = dark ? "#1a1a2e" : "#fff";
   const border = dark ? "#2a2a4a" : "#e2e8f0";
   const textColor = dark ? "#f0f0f0" : "#0f172a";
+  const placeholderColor = dark ? "rgba(255,255,255,0.35)" : "#94a3b8";
 
   return (
     <div style={{ position: "relative" }}>
@@ -245,6 +246,7 @@ function AddressInput({
             color: textColor,
             outline: "none",
             boxShadow: dark ? "0 2px 12px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.06)",
+            ["--ph-color" as any]: placeholderColor,
           }}
         />
         {onGeolocate && (
@@ -798,6 +800,7 @@ function ReservationPage() {
         @import url('https://fonts.googleapis.com/css2?family=Clash+Display:wght@600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
         * { box-sizing: border-box; }
         input, select, button { font-family: 'DM Sans', sans-serif; }
+        input::placeholder { color: var(--ph-color, #94a3b8); }
         input[type=date], input[type=time] { color-scheme: dark; }
         @keyframes slideUp { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
