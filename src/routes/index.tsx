@@ -200,7 +200,10 @@ function Home() {
                 height={512}
                 loading="lazy"
                 decoding="async"
-                className="mx-auto h-auto w-full max-w-xs select-none sm:max-w-sm"
+                className="mx-auto h-auto w-full max-w-xs cursor-pointer select-none sm:max-w-sm"
+                onClick={() => {
+                  window.location.href = "/login";
+                }}
               />
             </div>
             {/* Badge: always visible, repositioned on mobile */}
