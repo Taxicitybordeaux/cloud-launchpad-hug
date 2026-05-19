@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useI18n } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/reserver")({
   head: () => ({
@@ -335,7 +334,6 @@ function AddressInput({
 
 // ─── Composant principal ───────────────────────────────────────────────────
 function ReservationPage() {
-  useI18n();
   const [step, setStep] = useState<Step>(1);
   const [today, setToday] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -586,13 +584,12 @@ function ReservationPage() {
 
     // Chargement initial de la position
     const loadInitial = async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("taxi_positions")
         .select("lat,lng,heading")
         .eq("id", "00000000-0000-0000-0000-000000000001")
         .single();
       if (data && (data.lat !== 0 || data.lng !== 0)) {
-        // Attendre que Leaflet soit prêt
         const waitAndUpdate = () => {
           if ((window as any).L && mapInst.current) {
             updateTaxiMarker(data.lat, data.lng, data.heading ?? 0);
@@ -606,9 +603,9 @@ function ReservationPage() {
     loadInitial();
 
     // Écoute Realtime des mises à jour
-    const channel = supabase
+    const channel = (supabase as any)
       .channel("taxi-live")
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "taxi_positions" }, (payload) => {
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "taxi_positions" }, (payload: any) => {
         const d = payload.new as any;
         if (d.lat && d.lng) {
           updateTaxiMarker(d.lat, d.lng, d.heading ?? 0);
@@ -617,7 +614,7 @@ function ReservationPage() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      (supabase as any).removeChannel(channel);
       if (taxiMarker.current) {
         taxiMarker.current.remove();
         taxiMarker.current = null;
