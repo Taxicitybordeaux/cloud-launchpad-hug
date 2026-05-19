@@ -2861,7 +2861,14 @@ function Dashboard() {
                         <div style={{ textAlign: "right" }}>
                           <div style={{ color: "#94a3b8", fontSize: 12, marginBottom: 2 }}>Prix calculé</div>
                           <div
-                            style={{ color: "#ef4444", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 22 }}
+                            style={{
+                              color: "#ef4444",
+                              fontFamily: "'DM Sans',sans-serif",
+                              fontWeight: 800,
+                              fontSize: 22,
+                              fontVariantNumeric: "tabular-nums",
+                              letterSpacing: "-0.01em",
+                            }}
                           >
                             {px.toFixed(2)} €
                           </div>
