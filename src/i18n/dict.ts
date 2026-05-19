@@ -2841,6 +2841,22 @@ const pt: Dict = {
   "qr.feat5.t": "QR único",
   "qr.feat5.d": "Por cliente, por digitalização",
   "qr.cta": "📞 Reservar — 06 73 07 23 22",
+  "rsim.title": "Simulador de preço",
+  "rsim.day": "Tarifa de dia (7h–19h) — 2,16 €/km",
+  "rsim.night": "Tarifa noturna (19h–7h) — 3,24 €/km",
+  "rsim.partition": "{j}% dia / {n}% noite",
+  "rsim.pickup": "Tomada de serviço: 2,83 €",
+  "rsim.loading": "⏳ A calcular o itinerário…",
+  "rsim.distance": "Distância",
+  "rsim.duration": "Duração estimada",
+  "rsim.hint": "Indique partida e destino para calcular automaticamente.",
+  "rsim.outbound": "Ida",
+  "rsim.return": "Volta",
+  "rsim.total": "TOTAL ESTIMADO",
+  "rsim.total_round": "TOTAL ESTIMADO (ida e volta)",
+  "rsim.mixed": "Tarifa mista — o trajeto entra na tarifa noturna",
+  "rsim.fees": "* Podem aplicar-se taxas de reserva",
+  "rsim.indicative": "Preço indicativo — o taxímetro prevalece",
 };
 
 export const DICTS: Record<Lang, Dict> = { fr, en, es, pt, it, ar };
