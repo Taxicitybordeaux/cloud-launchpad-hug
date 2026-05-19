@@ -38,32 +38,6 @@ function calculerPrixMixte(departMs: number, dureeS: number, distanceKm: number)
 }
 
 // ─── Géocodage Photon ──────────────────────────────────────────────────────
-async function geocodeAdresse(query: string): Promise<[number, number] | null> {
-  if (query.length < 3) return null;
-  try {
-    const url = new URL("https://photon.komoot.io/api/");
-    url.searchParams.set("q", query);
-    url.searchParams.set("limit", "5");
-    url.searchParams.set("lang", "fr");
-    url.searchParams.set("lat", "44.8378");
-    url.searchParams.set("lon", "-0.5792");
-    const res = await fetch(url.toString());
-    const data = await res.json();
-    const features = data.features ?? [];
-    if (!features.length) return null;
-    const PRIORITY = ["house", "street", "locality", "district", "city", "county", "state"];
-    const sorted = [...features].sort((a, b) => {
-      const ia = PRIORITY.indexOf(a.properties?.osm_value ?? "");
-      const ib = PRIORITY.indexOf(b.properties?.osm_value ?? "");
-      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
-    });
-    const feat = sorted[0];
-    return [feat.geometry.coordinates[0], feat.geometry.coordinates[1]];
-  } catch {
-    return null;
-  }
-}
-
 // ─── Autocomplete Photon ───────────────────────────────────────────────────
 interface PhotonFeature {
   label: string;
