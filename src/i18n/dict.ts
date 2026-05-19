@@ -1900,6 +1900,22 @@ const it: Dict = {
   "qr.feat5.t": "QR univoco",
   "qr.feat5.d": "Per cliente, per scansione",
   "qr.cta": "📞 Prenota — 06 73 07 23 22",
+  "rsim.title": "Simulatore di prezzo",
+  "rsim.day": "Tariffa diurna (7–19) — 2,16 €/km",
+  "rsim.night": "Tariffa notturna (19–7) — 3,24 €/km",
+  "rsim.partition": "{j}% giorno / {n}% notte",
+  "rsim.pickup": "Presa in carico: 2,83 €",
+  "rsim.loading": "⏳ Calcolo del percorso…",
+  "rsim.distance": "Distanza",
+  "rsim.duration": "Durata stimata",
+  "rsim.hint": "Inserisci partenza e destinazione per calcolare automaticamente.",
+  "rsim.outbound": "Andata",
+  "rsim.return": "Ritorno",
+  "rsim.total": "TOTALE STIMATO",
+  "rsim.total_round": "TOTALE STIMATO (andata e ritorno)",
+  "rsim.mixed": "Tariffa mista — il tragitto rientra nella tariffa notturna",
+  "rsim.fees": "* Possono essere applicate spese di prenotazione",
+  "rsim.indicative": "Prezzo indicativo — fa fede il tassametro",
 };
 
 // Dictionnaire arabe — traductions clés ; fallback automatique sur le français pour les clés manquantes.
