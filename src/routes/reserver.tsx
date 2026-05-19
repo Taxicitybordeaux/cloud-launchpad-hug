@@ -736,15 +736,16 @@ function ReservationPage() {
 
   const inputStyle = (hasError?: boolean) => ({
     width: "100%",
-    padding: "13px 14px",
+    padding: "14px 14px",
     borderRadius: 12,
     border: `2px solid ${hasError ? "#ef4444" : "#2a2a4a"}`,
-    fontSize: 15,
+    fontSize: 16,
     background: "#1a1a2e",
     color: "#f0f0f0",
     fontFamily: "'DM Sans',sans-serif",
     outline: "none",
     boxSizing: "border-box" as const,
+    minHeight: 48,
   });
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -762,9 +763,11 @@ function ReservationPage() {
     >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Clash+Display:wght@600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body { overscroll-behavior: none; }
         input, select, button { font-family: 'DM Sans', sans-serif; }
-        input[type=date], input[type=time] { color-scheme: dark; }
+        input[type=date], input[type=time] { color-scheme: dark; min-height: 48px; }
+        input[type=text], input[type=tel], input[type=email] { font-size: 16px !important; }
         @keyframes slideUp { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -775,10 +778,12 @@ function ReservationPage() {
         .leaflet-container { width: 100% !important; height: 100% !important; position: absolute !important; top: 0 !important; left: 0 !important; }
         ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 4px; }
         input:focus { outline: none !important; border-color: #f5c842 !important; box-shadow: 0 0 0 3px rgba(245,200,66,0.15) !important; }
-        .veh-card:hover { transform: translateY(-1px); }
-        .cta-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
-        .cta-btn:active { transform: translateY(0); }
-        .pay-btn:hover { border-color: #f5c842 !important; }
+        button { -webkit-user-select: none; user-select: none; }
+        .cta-btn:active { transform: scale(0.98); }
+        @media (hover: hover) {
+          .cta-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+          .pay-btn:hover { border-color: #f5c842 !important; }
+        }
       `}</style>
 
       {/* ── Carte — espace flexible au-dessus du sheet ── */}
@@ -905,7 +910,7 @@ function ReservationPage() {
           <div
             style={{
               flexShrink: 0,
-              height: "82vh",
+              height: "88vh",
               background: "linear-gradient(180deg, #111120 0%, #0d0d1a 100%)",
               borderRadius: "24px 24px 0 0",
               boxShadow: "0 -8px 40px rgba(0,0,0,0.5), 0 -1px 0 rgba(245,200,66,0.1)",
@@ -1065,10 +1070,10 @@ function ReservationPage() {
                               fontFamily: "'Clash Display',sans-serif",
                               fontWeight: 700,
                               fontSize: 16,
-                              color: "#f5c842",
+                              color: "#ef4444",
                             }}
                           >
-                            ~{prixAller.toFixed(2)} €
+                            ~{prixAller.toFixed(2)} €*
                           </span>
                         </>
                       )
@@ -1359,10 +1364,10 @@ function ReservationPage() {
                         fontFamily: "'Clash Display',sans-serif",
                         fontWeight: 700,
                         fontSize: 22,
-                        color: "#f5c842",
+                        color: "#ef4444",
                       }}
                     >
-                      {prixAller.toFixed(2)} €
+                      {prixAller.toFixed(2)} €*
                     </div>
                     <div style={{ fontSize: 11, color: "#475569" }}>estimé</div>
                   </div>
@@ -1400,10 +1405,10 @@ function ReservationPage() {
                         fontFamily: "'Clash Display',sans-serif",
                         fontWeight: 700,
                         fontSize: 22,
-                        color: "#e0e0e0",
+                        color: "#ef4444",
                       }}
                     >
-                      {prixTotal.toFixed(2)} €
+                      {prixTotal.toFixed(2)} €*
                     </div>
                   </div>
                 )}
@@ -1442,14 +1447,16 @@ function ReservationPage() {
                 <div
                   style={{
                     padding: "12px 14px",
-                    background: "rgba(245,200,66,0.06)",
+                    background: "rgba(239,68,68,0.06)",
                     borderRadius: 12,
-                    border: "1px solid rgba(245,200,66,0.15)",
+                    border: "1px solid rgba(239,68,68,0.2)",
                   }}
                 >
-                  <span style={{ fontSize: 13, color: "#a16207" }}>
-                    ⚠️ Prix estimé — le compteur homologué fait foi à l'arrivée.
-                  </span>
+                  <div style={{ fontSize: 13, color: "#fca5a5", marginBottom: 4 }}>
+                    <span style={{ color: "#ef4444", fontWeight: 700 }}>* Prix estimé</span> — des frais de réservation
+                    peuvent être appliqués. Le compteur homologué fait foi à l'arrivée.
+                  </div>
+                  <div style={{ fontSize: 12, color: "#94a3b8" }}>⚠️ Tarif indicatif, non contractuel.</div>
                 </div>
               </div>
 
@@ -1548,7 +1555,13 @@ function ReservationPage() {
             </div>
 
             {/* ── CTA sticky ── */}
-            <div style={{ padding: "12px 20px 24px", flexShrink: 0, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+            <div
+              style={{
+                padding: "12px 20px calc(24px + env(safe-area-inset-bottom, 0px))",
+                flexShrink: 0,
+                borderTop: "1px solid rgba(255,255,255,0.04)",
+              }}
+            >
               {submitError && (
                 <div
                   style={{
