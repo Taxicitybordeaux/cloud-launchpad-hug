@@ -462,16 +462,15 @@ function Dashboard() {
           .eq("id", "driver");
 
         // Mise à jour taxi_positions (pour le Realtime côté client)
-        await supabase
-          .from("taxi_positions")
-          .update({
-            lat: latitude,
-            lng: longitude,
-            heading: computedHeading ?? 0,
-            speed: pos.coords.speed ?? 0,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", (await supabase.from("taxi_positions").select("id").limit(1).single()).data?.id);
+        // On utilise upsert avec un id fixe "main" pour éviter la recherche d'ID
+        await supabase.from("taxi_positions").upsert({
+          id: "00000000-0000-0000-0000-000000000001",
+          lat: latitude,
+          lng: longitude,
+          heading: computedHeading ?? 0,
+          speed: pos.coords.speed ?? 0,
+          updated_at: new Date().toISOString(),
+        });
       },
       (err) => console.error(err),
       { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 },
