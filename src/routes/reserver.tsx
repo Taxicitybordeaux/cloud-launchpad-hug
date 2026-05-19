@@ -760,11 +760,11 @@ function ReservationPage() {
     );
 
   const sheetHeights: Record<Step, string> = {
-    1: "54vh",
-    2: "60vh",
-    3: "65vh",
-    4: "60vh",
-    5: "68vh",
+    1: "62vh",
+    2: "78vh",
+    3: "70vh",
+    4: "72vh",
+    5: "78vh",
   };
 
   const stepLabels = ["Trajet", "Horaires", "Tarif", "Vous", "Récap"];
@@ -1037,7 +1037,11 @@ function ReservationPage() {
             </div>
 
             {/* Content scrollable */}
-            <div key={step} className="sheet-inner" style={{ flex: 1, overflowY: "auto", padding: "8px 20px 0" }}>
+            <div
+              key={step}
+              className="sheet-inner"
+              style={{ flex: 1, overflowY: "auto", padding: "8px 20px 16px", WebkitOverflowScrolling: "touch" }}
+            >
               {/* ── ÉTAPE 1 : Adresses ── */}
               {step === 1 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
