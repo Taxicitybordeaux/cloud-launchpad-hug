@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/reserver")({
@@ -537,6 +537,15 @@ function ReservationPage() {
     handleGeolocate();
   }, [handleGeolocate]);
 
+  // ── Bloquer le scroll du body pour que position:fixed fonctionne ──
+  useLayoutEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
   // ── Tracking GPS temps réel du taxi via Supabase Realtime ─────────────────
   useEffect(() => {
     const L = (window as any).L;
@@ -789,6 +798,7 @@ function ReservationPage() {
       style={{
         position: "fixed",
         inset: 0,
+        zIndex: 9999,
         background: "#0a0a14",
         fontFamily: "'DM Sans',sans-serif",
         overflow: "hidden",
@@ -796,6 +806,7 @@ function ReservationPage() {
     >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Clash+Display:wght@600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+        html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
         * { box-sizing: border-box; }
         input, select, button { font-family: 'DM Sans', sans-serif; }
         input[type=date], input[type=time] { color-scheme: dark; }
@@ -863,7 +874,8 @@ function ReservationPage() {
         <div
           style={{
             position: "absolute",
-            inset: 0,
+            width: "100%",
+            height: "100dvh",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -949,6 +961,7 @@ function ReservationPage() {
               top: 0,
               left: 0,
               right: 0,
+              zIndex: 20,
               padding: "14px 20px 10px",
               background: "linear-gradient(to bottom, rgba(5,5,15,0.9) 0%, transparent 100%)",
               display: "flex",
@@ -1031,6 +1044,7 @@ function ReservationPage() {
               bottom: 0,
               left: 0,
               right: 0,
+              zIndex: 10,
               height: sheetHeights[step],
               background: "linear-gradient(180deg, #111120 0%, #0d0d1a 100%)",
               borderRadius: "24px 24px 0 0",
