@@ -57,20 +57,24 @@ function SwipeDeleteRow({
 
   return (
     <div style={{ position: "relative", overflow: "hidden", borderRadius: 20, ...style }}>
-      {/* Fond rouge */}
+      {/* Fond suppression */}
       <div
         style={{
           position: "absolute",
           inset: 0,
-          background: "#ef4444",
+          background: "linear-gradient(90deg, transparent 0%, #7f1d1d 30%, #991b1b 100%)",
           display: "flex",
           alignItems: "center",
           justifyContent: "flex-end",
-          paddingRight: 24,
+          paddingRight: 28,
           borderRadius: 20,
+          gap: 8,
         }}
       >
-        <span style={{ fontSize: 22 }}>🗑</span>
+        <span style={{ fontSize: 13, color: "#fca5a5", fontWeight: 700, fontFamily: "'DM Sans',sans-serif" }}>
+          Supprimer
+        </span>
+        <span style={{ fontSize: 24 }}>🗑️</span>
       </div>
       {/* Carte */}
       <div
@@ -306,6 +310,7 @@ function Dashboard() {
   const [qrModal, setQrModal] = useState<{ url: string } | null>(null);
   const [deleteSlide, setDeleteSlide] = useState<string | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // ── Tarif (FIX : variable manquante dans l'original) ──
   const [tarif_nuit, setTarifNuit] = useState(false);
@@ -430,11 +435,14 @@ function Dashboard() {
     setClientsLoading(false);
   }, []);
 
-  const fetchAll = useCallback(() => {
-    fetchStats();
-    fetchCourses();
-    fetchAvis();
-    fetchClients();
+  const fetchAll = useCallback(async () => {
+    setRefreshing(true);
+    setStatsLoading(true);
+    setCoursesLoading(true);
+    setAvisLoading(true);
+    setClientsLoading(true);
+    await Promise.all([fetchStats(), fetchCourses(), fetchAvis(), fetchClients()]);
+    setRefreshing(false);
   }, [fetchStats, fetchCourses, fetchAvis, fetchClients]);
 
   // =========================
@@ -1340,6 +1348,7 @@ function Dashboard() {
       }}
     >
       <SkeletonStyles />
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
 
       {/* ── Header ── */}
       <div
@@ -1383,20 +1392,59 @@ function Dashboard() {
             ← Retour au site
           </a>
           <button
-            onClick={fetchAll}
+            onClick={async () => {
+              if (refreshing) return;
+              await fetchAll();
+            }}
+            disabled={refreshing}
             style={{
               padding: "8px 14px",
               background: "rgba(14,165,233,0.15)",
               border: "1px solid rgba(14,165,233,0.3)",
-              color: "#0ea5e9",
+              color: refreshing ? "#64748b" : "#0ea5e9",
+              borderRadius: 10,
+              cursor: refreshing ? "not-allowed" : "pointer",
+              fontWeight: 600,
+              fontSize: 13,
+              whiteSpace: "nowrap",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              opacity: refreshing ? 0.7 : 1,
+              transition: "opacity 0.2s",
+            }}
+          >
+            <span
+              style={{
+                display: "inline-block",
+                animation: refreshing ? "spin 1s linear infinite" : "none",
+              }}
+            >
+              ↻
+            </span>
+            {refreshing ? "Actualisation…" : "Actualiser"}
+          </button>
+          <button
+            onClick={async () => {
+              await supabase.auth.signOut();
+              window.location.href = "/admin/login";
+            }}
+            style={{
+              padding: "8px 14px",
+              background: "rgba(239,68,68,0.12)",
+              border: "1px solid rgba(239,68,68,0.3)",
+              color: "#ef4444",
               borderRadius: 10,
               cursor: "pointer",
               fontWeight: 600,
               fontSize: 13,
               whiteSpace: "nowrap",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
             }}
           >
-            ↻ Actualiser
+            🔓 Déconnexion
           </button>
         </div>
       </div>
