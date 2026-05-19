@@ -650,7 +650,6 @@ function ReservationPage() {
 
       if (conflicts && conflicts.length > 0) {
         setErrors((p) => ({ ...p, heure: "Ce créneau est déjà réservé" }));
-        setStep(2);
         setSending(false);
         return;
       }
@@ -881,7 +880,6 @@ function ReservationPage() {
               <button
                 onClick={() => {
                   setSuccess(false);
-                  setStep(1);
                   setF((p) => ({ ...p, depart: "", destination: "", prenom: "", nom: "", phone: "", email: "" }));
                 }}
                 style={{
