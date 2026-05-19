@@ -66,6 +66,26 @@ async function geocodeAdresse(query: string): Promise<[number, number] | null> {
   }
 }
 
+// ─── Reverse geocoding via Nominatim ────────────────────
+async function reverseGeocode(lat: number, lon: number): Promise<string | null> {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1&accept-language=fr`;
+    const res = await fetch(url, { headers: { "Accept-Language": "fr" } });
+    const data = await res.json();
+    if (!data || data.error) return null;
+    const a = data.address ?? {};
+    // Compose une adresse lisible : numéro + rue + ville
+    const parts = [
+      a.house_number,
+      a.road ?? a.pedestrian ?? a.footway,
+      a.city ?? a.town ?? a.village ?? a.municipality,
+    ].filter(Boolean);
+    return parts.length ? parts.join(", ") : (data.display_name ?? null);
+  } catch {
+    return null;
+  }
+}
+
 // ─── Distance + durée via ORS ─────────────────────────────────
 interface OrsResult {
   distanceKm: number;
@@ -239,6 +259,8 @@ function ReservationPage() {
   const [toCoord, setToCoord] = useState<[number, number] | null>(null);
   const [geocodingDepart, setGeocodingDepart] = useState(false);
   const [geocodingDest, setGeocodingDest] = useState(false);
+  const [geolocLoading, setGeolocLoading] = useState(false);
+  const [geolocError, setGeolocError] = useState("");
 
   const [orsResult, setOrsResult] = useState<OrsResult | null>(null);
   const [calcLoading, setCalcLoading] = useState(false);
@@ -306,6 +328,38 @@ function ReservationPage() {
   const handleDestBlur = useCallback(() => {
     triggerGeoDest(f.destination);
   }, [f.destination, triggerGeoDest]);
+
+  const handleGeolocate = useCallback(async () => {
+    if (!navigator.geolocation) {
+      setGeolocError(t("res.geo.err.unsupported"));
+      return;
+    }
+    setGeolocLoading(true);
+    setGeolocError("");
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        const adresse = await reverseGeocode(latitude, longitude);
+        if (adresse) {
+          handleDepartChange(adresse);
+          setFromCoord([longitude, latitude]);
+        } else {
+          setGeolocError(t("res.geo.err.unavailable"));
+        }
+        setGeolocLoading(false);
+      },
+      (err) => {
+        const msgs: Record<number, string> = {
+          1: t("res.geo.err.denied"),
+          2: t("res.geo.err.unavailable"),
+          3: t("res.geo.err.timeout"),
+        };
+        setGeolocError(msgs[err.code] ?? t("res.geo.err.unsupported"));
+        setGeolocLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+  }, [handleDepartChange, t]);
 
   // Lance ORS dès que les deux coords sont prêtes
   useEffect(() => {
@@ -647,7 +701,7 @@ function ReservationPage() {
                     placeholder={t("res.f.from.ph")}
                     style={{
                       width: "100%",
-                      padding: "12px 40px 12px 14px",
+                      padding: "12px 40px 12px 48px",
                       borderRadius: 12,
                       border: `1px solid ${errors.depart ? "#ef4444" : fromCoord ? "#22c55e" : "#e2e8f0"}`,
                       fontSize: 16,
@@ -658,8 +712,79 @@ function ReservationPage() {
                       WebkitAppearance: "none" as any,
                     }}
                   />
+                  {/* Bouton géolocalisation — gauche */}
+                  <button
+                    type="button"
+                    onClick={handleGeolocate}
+                    disabled={geolocLoading}
+                    title={t("res.geo.btn")}
+                    style={{
+                      position: "absolute",
+                      left: 10,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      background: "none",
+                      border: "none",
+                      cursor: geolocLoading ? "wait" : "pointer",
+                      padding: 4,
+                      lineHeight: 1,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      opacity: geolocLoading ? 0.4 : 1,
+                      transition: "opacity 0.2s",
+                      color: geolocLoading ? "#94a3b8" : "#0ea5e9",
+                    }}
+                    aria-label={t("res.geo.btn")}
+                  >
+                    {geolocLoading ? (
+                      /* Spinner SVG */
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                      >
+                        <path d="M12 2a10 10 0 0 1 10 10" style={{ opacity: 0.3 }} />
+                        <path d="M12 2a10 10 0 0 1 10 10">
+                          <animateTransform
+                            attributeName="transform"
+                            type="rotate"
+                            from="0 12 12"
+                            to="360 12 12"
+                            dur="0.9s"
+                            repeatCount="indefinite"
+                          />
+                        </path>
+                      </svg>
+                    ) : (
+                      /* Picto localisation — cible + point central */
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
+                        <circle cx="12" cy="12" r="7" />
+                        <line x1="12" y1="2" x2="12" y2="5" />
+                        <line x1="12" y1="19" x2="12" y2="22" />
+                        <line x1="2" y1="12" x2="5" y2="12" />
+                        <line x1="19" y1="12" x2="22" y2="12" />
+                      </svg>
+                    )}
+                  </button>
+                  {/* Badge droite */}
                   <span className="addr-badge">{geocodingDepart ? "⏳" : fromCoord ? "✅" : ""}</span>
                 </div>
+                {geolocError && <div style={{ color: "#f59e0b", fontSize: 12, marginTop: 4 }}>⚠️ {geolocError}</div>}
                 {errors.depart && <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{errors.depart}</div>}
               </div>
 
