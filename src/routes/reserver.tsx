@@ -158,7 +158,6 @@ function loadLeaflet(): Promise<void> {
 }
 
 // ─── Types ─────────────────────────────────────────────────────────────────
-type Step = 1 | 2 | 3 | 4 | 5;
 interface FormState {
   depart: string;
   destination: string;
@@ -333,7 +332,6 @@ function AddressInput({
 
 // ─── Composant principal ───────────────────────────────────────────────────
 function ReservationPage() {
-  const [step, setStep] = useState<Step>(1);
   const [today, setToday] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
@@ -501,18 +499,7 @@ function ReservationPage() {
     });
   }, [fromCoord, toCoord]);
 
-  // Resize carte quand le sheet monte/descend
-  useEffect(() => {
-    if (mapInst.current) {
-      // On invalide à 0ms (début), 200ms (milieu) et 450ms (fin de transition)
-      const timers = [
-        setTimeout(() => mapInst.current?.invalidateSize(), 0),
-        setTimeout(() => mapInst.current?.invalidateSize(), 200),
-        setTimeout(() => mapInst.current?.invalidateSize(), 450),
-      ];
-      return () => timers.forEach(clearTimeout);
-    }
-  }, [step]);
+  // (map auto-resizes via invalidateSize on coord change)
 
   const handleGeolocate = useCallback(async () => {
     if (!navigator.geolocation) return;
@@ -621,42 +608,31 @@ function ReservationPage() {
     };
   }, []);
 
-  const validateStep = (s: Step): boolean => {
+  const validateAll = (): boolean => {
     const e: Record<string, string> = {};
-    if (s === 1) {
-      if (!f.depart) e.depart = "Adresse requise";
-      if (!f.destination) e.destination = "Destination requise";
-    }
-    if (s === 2) {
-      if (!f.date) e.date = "Date requise";
-      if (!f.heure) e.heure = "Heure requise";
-      if (f.trajet === "aller-retour") {
-        if (!f.dateRetour) e.dateRetour = "Date retour requise";
-        if (!f.heureRetour) e.heureRetour = "Heure retour requise";
-        if (f.dateRetour && f.heureRetour && departMs) {
-          const rms = new Date(`${f.dateRetour}T${f.heureRetour}:00`).getTime();
-          if (rms <= departMs) e.dateRetour = "Le retour doit être après l'aller";
-        }
+    if (!f.depart) e.depart = "Adresse requise";
+    if (!f.destination) e.destination = "Destination requise";
+    if (!f.date) e.date = "Date requise";
+    if (!f.heure) e.heure = "Heure requise";
+    if (f.trajet === "aller-retour") {
+      if (!f.dateRetour) e.dateRetour = "Date retour requise";
+      if (!f.heureRetour) e.heureRetour = "Heure retour requise";
+      const departMs2 = f.date && f.heure ? new Date(`${f.date}T${f.heure}:00`).getTime() : null;
+      if (f.dateRetour && f.heureRetour && departMs2) {
+        const rms = new Date(`${f.dateRetour}T${f.heureRetour}:00`).getTime();
+        if (rms <= departMs2) e.dateRetour = "Le retour doit être après l'aller";
       }
     }
-    if (s === 4) {
-      if (!f.prenom) e.prenom = "Prénom requis";
-      if (!f.nom) e.nom = "Nom requis";
-      if (!f.phone) e.phone = "Téléphone requis";
-      if (!f.email) e.email = "Email requis";
-    }
+    if (!f.prenom) e.prenom = "Prénom requis";
+    if (!f.nom) e.nom = "Nom requis";
+    if (!f.phone) e.phone = "Téléphone requis";
+    if (!f.email) e.email = "Email requis";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const goNext = () => {
-    if (!validateStep(step)) return;
-    setStep((s) => Math.min(5, s + 1) as Step);
-  };
-  const goBack = () => setStep((s) => Math.max(1, s - 1) as Step);
-
   const submitForm = async () => {
-    if (!validateStep(4)) return;
+    if (!validateAll()) return;
     setSending(true);
     setSubmitError("");
     try {
@@ -759,17 +735,6 @@ function ReservationPage() {
         `Nom : ${f.prenom} ${f.nom}\nTél : ${f.phone}`,
     );
 
-  const sheetHeights: Record<Step, string> = {
-    1: "72vh",
-    2: "82vh",
-    3: "72vh",
-    4: "75vh",
-    5: "82vh",
-  };
-
-  const stepLabels = ["Trajet", "Horaires", "Tarif", "Vous", "Récap"];
-  const stepIcons = ["📍", "🕐", "💶", "👤", "✅"];
-
   const inputStyle = (hasError?: boolean) => ({
     width: "100%",
     padding: "13px 14px",
@@ -789,7 +754,6 @@ function ReservationPage() {
       style={{
         position: "fixed",
         inset: 0,
-        height: "100dvh",
         background: "#0a0a14",
         fontFamily: "'DM Sans',sans-serif",
         overflow: "hidden",
@@ -816,7 +780,6 @@ function ReservationPage() {
         .cta-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
         .cta-btn:active { transform: translateY(0); }
         .pay-btn:hover { border-color: #f5c842 !important; }
-        body { overflow: hidden !important; }
       `}</style>
 
       {/* ── Carte — espace flexible au-dessus du sheet ── */}
@@ -938,99 +901,18 @@ function ReservationPage() {
         </div>
       ) : (
         <>
-          {/* ── Barre d'étapes (top) ── */}
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              padding: "14px 20px 10px",
-              background: "linear-gradient(to bottom, rgba(5,5,15,0.9) 0%, transparent 100%)",
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-            }}
-          >
-            {step > 1 && (
-              <button
-                onClick={goBack}
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: "50%",
-                  background: "rgba(245,200,66,0.12)",
-                  border: "1px solid rgba(245,200,66,0.3)",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 18,
-                  color: "#f5c842",
-                  flexShrink: 0,
-                }}
-              >
-                ←
-              </button>
-            )}
-            {/* Step dots */}
-            <div style={{ flex: 1, display: "flex", gap: 5, alignItems: "center" }}>
-              {stepLabels.map((label, i) => {
-                const n = (i + 1) as Step;
-                const active = n === step;
-                const done = n < step;
-                return (
-                  <div
-                    key={i}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 4,
-                      flex: active ? 2.5 : 1,
-                      transition: "flex 0.3s ease",
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: 4,
-                        flex: 1,
-                        borderRadius: 9,
-                        background: done ? "#f5c842" : active ? "#f5c842" : "rgba(255,255,255,0.15)",
-                        opacity: done ? 1 : active ? 1 : 0.5,
-                        transition: "background 0.3s",
-                        boxShadow: active ? "0 0 8px rgba(245,200,66,0.6)" : "none",
-                      }}
-                    />
-                    {active && (
-                      <span
-                        style={{
-                          fontFamily: "'DM Sans',sans-serif",
-                          fontWeight: 700,
-                          fontSize: 11,
-                          color: "#f5c842",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {stepIcons[i]} {label}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          {/* ── Pill disponibilité (réaffichée ici pour le layout non-success) ── */}
 
-          {/* ── Bottom sheet sombre ── */}
+          {/* ── Bottom sheet tout-en-un ── */}
           <div
             style={{
               flexShrink: 0,
-              height: sheetHeights[step],
+              height: "82vh",
               background: "linear-gradient(180deg, #111120 0%, #0d0d1a 100%)",
               borderRadius: "24px 24px 0 0",
               boxShadow: "0 -8px 40px rgba(0,0,0,0.5), 0 -1px 0 rgba(245,200,66,0.1)",
               display: "flex",
               flexDirection: "column",
-              transition: "height 0.4s cubic-bezier(0.4,0,0.2,1)",
             }}
           >
             {/* Handle */}
@@ -1038,201 +920,519 @@ function ReservationPage() {
               <div style={{ width: 36, height: 4, background: "rgba(245,200,66,0.25)", borderRadius: 9 }} />
             </div>
 
-            {/* Content scrollable */}
+            {/* Content scrollable — tout le formulaire d'un coup */}
             <div
-              key={step}
               className="sheet-inner"
-              style={{ flex: 1, overflowY: "auto", padding: "8px 20px 16px", WebkitOverflowScrolling: "touch" }}
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                padding: "8px 20px 16px",
+                WebkitOverflowScrolling: "touch",
+                display: "flex",
+                flexDirection: "column",
+                gap: 24,
+              }}
             >
-              {/* ── ÉTAPE 1 : Adresses ── */}
-              {step === 1 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <h2
-                      style={{
-                        fontFamily: "'Clash Display',sans-serif",
-                        fontWeight: 700,
-                        fontSize: 22,
-                        color: "#f5f5f5",
-                        margin: 0,
-                      }}
-                    >
-                      Où allons-nous ?
-                    </h2>
-                    {orsResult && (
-                      <div
-                        style={{
-                          background: "rgba(245,200,66,0.12)",
-                          border: "1px solid rgba(245,200,66,0.3)",
-                          borderRadius: 99,
-                          padding: "4px 12px",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 6,
-                        }}
-                      >
-                        <span style={{ fontSize: 11, color: "#f5c842", fontWeight: 700 }}>
-                          ⏱ ~{Math.round(orsResult.dureeS / 60)} min
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Route line visuelle */}
-                  <div style={{ display: "flex", gap: 12 }}>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 18 }}>
-                      <div
-                        style={{
-                          width: 12,
-                          height: 12,
-                          borderRadius: "50%",
-                          background: "#22c55e",
-                          border: "2px solid #111120",
-                          boxShadow: "0 0 0 3px rgba(34,197,94,0.3)",
-                        }}
-                      />
-                      <div style={{ width: 2, flex: 1, background: "rgba(255,255,255,0.1)", margin: "4px 0" }} />
-                      <div
-                        style={{
-                          width: 12,
-                          height: 12,
-                          borderRadius: "50%",
-                          background: "#f5c842",
-                          border: "2px solid #111120",
-                          boxShadow: "0 0 0 3px rgba(245,200,66,0.3)",
-                        }}
-                      />
-                    </div>
-                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
-                      <AddressInput
-                        dark
-                        value={f.depart}
-                        placeholder="Adresse de départ"
-                        icon=""
-                        error={errors.depart}
-                        onChange={(v) => {
-                          set("depart", v);
-                          setFromCoord(null);
-                          setOrsResult(null);
-                        }}
-                        onSelect={(label, coord) => {
-                          set("depart", label);
-                          setFromCoord(coord);
-                        }}
-                        onGeolocate={handleGeolocate}
-                        geolocLoading={geolocLoading}
-                      />
-                      <AddressInput
-                        dark
-                        value={f.destination}
-                        placeholder="Destination"
-                        icon=""
-                        error={errors.destination}
-                        onChange={(v) => {
-                          set("destination", v);
-                          setToCoord(null);
-                          setOrsResult(null);
-                        }}
-                        onSelect={(label, coord) => {
-                          set("destination", label);
-                          setToCoord(coord);
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Bande info trajet */}
-                  {(calcLoading || orsResult) && (
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 10,
-                        padding: "12px 14px",
-                        background: "rgba(245,200,66,0.06)",
-                        borderRadius: 14,
-                        border: "1px solid rgba(245,200,66,0.15)",
-                        alignItems: "center",
-                      }}
-                    >
-                      {calcLoading ? (
-                        <>
-                          <div
-                            style={{
-                              width: 18,
-                              height: 18,
-                              border: "2px solid rgba(245,200,66,0.2)",
-                              borderTopColor: "#f5c842",
-                              borderRadius: "50%",
-                              animation: "spin 0.7s linear infinite",
-                            }}
-                          />
-                          <span style={{ color: "#94a3b8", fontSize: 14 }}>Calcul de l'itinéraire…</span>
-                        </>
-                      ) : (
-                        orsResult && (
-                          <>
-                            <span style={{ fontSize: 18 }}>🗺️</span>
-                            <div style={{ flex: 1 }}>
-                              <span style={{ color: "#f5c842", fontSize: 14, fontWeight: 700 }}>
-                                {orsResult.distanceKm} km
-                              </span>
-                              <span style={{ color: "#64748b", fontSize: 14 }}>
-                                {" "}
-                                · {Math.round(orsResult.dureeS / 60)} min
-                              </span>
-                            </div>
-                            <span
-                              style={{
-                                fontFamily: "'Clash Display',sans-serif",
-                                fontWeight: 700,
-                                fontSize: 16,
-                                color: "#f5c842",
-                              }}
-                            >
-                              ~{prixAller.toFixed(2)} €
-                            </span>
-                          </>
-                        )
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* ── ÉTAPE 2 : Date & Heure ── */}
-              {step === 2 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {/* ── SECTION 1 : Adresses ── */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <h2
                     style={{
                       fontFamily: "'Clash Display',sans-serif",
                       fontWeight: 700,
-                      fontSize: 22,
+                      fontSize: 20,
                       color: "#f5f5f5",
-                      margin: "0 0 4px",
+                      margin: 0,
                     }}
                   >
-                    Quand partez-vous ?
+                    📍 Où allons-nous ?
                   </h2>
+                  {orsResult && (
+                    <div
+                      style={{
+                        background: "rgba(245,200,66,0.12)",
+                        border: "1px solid rgba(245,200,66,0.3)",
+                        borderRadius: 99,
+                        padding: "4px 12px",
+                      }}
+                    >
+                      <span style={{ fontSize: 11, color: "#f5c842", fontWeight: 700 }}>
+                        ⏱ ~{Math.round(orsResult.dureeS / 60)} min
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: 12 }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 18 }}>
+                    <div
+                      style={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: "50%",
+                        background: "#22c55e",
+                        border: "2px solid #111120",
+                        boxShadow: "0 0 0 3px rgba(34,197,94,0.3)",
+                      }}
+                    />
+                    <div style={{ width: 2, flex: 1, background: "rgba(255,255,255,0.1)", margin: "4px 0" }} />
+                    <div
+                      style={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: "50%",
+                        background: "#f5c842",
+                        border: "2px solid #111120",
+                        boxShadow: "0 0 0 3px rgba(245,200,66,0.3)",
+                      }}
+                    />
+                  </div>
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
+                    <AddressInput
+                      dark
+                      value={f.depart}
+                      placeholder="Adresse de départ"
+                      icon=""
+                      error={errors.depart}
+                      onChange={(v) => {
+                        set("depart", v);
+                        setFromCoord(null);
+                        setOrsResult(null);
+                      }}
+                      onSelect={(label, coord) => {
+                        set("depart", label);
+                        setFromCoord(coord);
+                      }}
+                      onGeolocate={handleGeolocate}
+                      geolocLoading={geolocLoading}
+                    />
+                    <AddressInput
+                      dark
+                      value={f.destination}
+                      placeholder="Destination"
+                      icon=""
+                      error={errors.destination}
+                      onChange={(v) => {
+                        set("destination", v);
+                        setToCoord(null);
+                        setOrsResult(null);
+                      }}
+                      onSelect={(label, coord) => {
+                        set("destination", label);
+                        setToCoord(coord);
+                      }}
+                    />
+                  </div>
+                </div>
+                {(calcLoading || orsResult) && (
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 10,
+                      padding: "12px 14px",
+                      background: "rgba(245,200,66,0.06)",
+                      borderRadius: 14,
+                      border: "1px solid rgba(245,200,66,0.15)",
+                      alignItems: "center",
+                    }}
+                  >
+                    {calcLoading ? (
+                      <>
+                        <div
+                          style={{
+                            width: 18,
+                            height: 18,
+                            border: "2px solid rgba(245,200,66,0.2)",
+                            borderTopColor: "#f5c842",
+                            borderRadius: "50%",
+                            animation: "spin 0.7s linear infinite",
+                          }}
+                        />
+                        <span style={{ color: "#94a3b8", fontSize: 14 }}>Calcul de l'itinéraire…</span>
+                      </>
+                    ) : (
+                      orsResult && (
+                        <>
+                          <span style={{ fontSize: 18 }}>🗺️</span>
+                          <div style={{ flex: 1 }}>
+                            <span style={{ color: "#f5c842", fontSize: 14, fontWeight: 700 }}>
+                              {orsResult.distanceKm} km
+                            </span>
+                            <span style={{ color: "#64748b", fontSize: 14 }}>
+                              {" "}
+                              · {Math.round(orsResult.dureeS / 60)} min
+                            </span>
+                          </div>
+                          <span
+                            style={{
+                              fontFamily: "'Clash Display',sans-serif",
+                              fontWeight: 700,
+                              fontSize: 16,
+                              color: "#f5c842",
+                            }}
+                          >
+                            ~{prixAller.toFixed(2)} €
+                          </span>
+                        </>
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
 
+              {/* ── SECTION 2 : Date & Heure ── */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <h2
+                  style={{
+                    fontFamily: "'Clash Display',sans-serif",
+                    fontWeight: 700,
+                    fontSize: 20,
+                    color: "#f5f5f5",
+                    margin: 0,
+                  }}
+                >
+                  🕐 Quand partez-vous ?
+                </h2>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  {(
+                    [
+                      ["aller", "➡️ Aller simple"],
+                      ["aller-retour", "🔁 Aller-retour"],
+                    ] as const
+                  ).map(([v, l]) => (
+                    <button
+                      key={v}
+                      onClick={() => set("trajet", v)}
+                      style={{
+                        padding: "14px 10px",
+                        border: `2px solid ${f.trajet === v ? "#f5c842" : "#2a2a4a"}`,
+                        background: f.trajet === v ? "rgba(245,200,66,0.1)" : "#1a1a2e",
+                        borderRadius: 14,
+                        cursor: "pointer",
+                        fontWeight: 700,
+                        fontSize: 14,
+                        color: f.trajet === v ? "#f5c842" : "#64748b",
+                        transition: "all 0.2s",
+                      }}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ background: "#1a1a2e", borderRadius: 16, padding: 16, border: "1px solid #2a2a4a" }}>
+                  <div
+                    style={{
+                      fontWeight: 700,
+                      fontSize: 12,
+                      color: "#f5c842",
+                      textTransform: "uppercase" as const,
+                      letterSpacing: "0.06em",
+                      marginBottom: 12,
+                    }}
+                  >
+                    ➡️ Aller
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 4 }}>DATE</div>
+                      <input
+                        type="date"
+                        value={f.date}
+                        min={today}
+                        onChange={(e) => set("date", e.target.value)}
+                        style={inputStyle(!!errors.date)}
+                      />
+                      {errors.date && <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{errors.date}</div>}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 4 }}>HEURE</div>
+                      <input
+                        type="time"
+                        value={f.heure}
+                        onChange={(e) => set("heure", e.target.value)}
+                        style={inputStyle(!!errors.heure)}
+                      />
+                      {errors.heure && (
+                        <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{errors.heure}</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {f.trajet === "aller-retour" && (
+                  <div
+                    style={{
+                      background: "#1a1a2e",
+                      borderRadius: 16,
+                      padding: 16,
+                      border: "1px solid rgba(168,85,247,0.3)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontWeight: 700,
+                        fontSize: 12,
+                        color: "#a855f7",
+                        textTransform: "uppercase" as const,
+                        letterSpacing: "0.06em",
+                        marginBottom: 12,
+                      }}
+                    >
+                      🔁 Retour
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                      <div>
+                        <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 4 }}>DATE</div>
+                        <input
+                          type="date"
+                          value={f.dateRetour}
+                          min={f.date || today}
+                          onChange={(e) => set("dateRetour", e.target.value)}
+                          style={inputStyle(!!errors.dateRetour)}
+                        />
+                        {errors.dateRetour && (
+                          <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{errors.dateRetour}</div>
+                        )}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 4 }}>HEURE</div>
+                        <input
+                          type="time"
+                          value={f.heureRetour}
+                          onChange={(e) => set("heureRetour", e.target.value)}
+                          style={inputStyle(!!errors.heureRetour)}
+                        />
+                        {errors.heureRetour && (
+                          <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{errors.heureRetour}</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  {[
+                    { label: "👥 Passagers", k: "passagers" as const, min: 1, max: 8 },
+                    { label: "🧳 Bagages", k: "bagages" as const, min: 0, max: 10 },
+                  ].map(({ label, k, min, max }) => (
+                    <div
+                      key={k}
+                      style={{
+                        background: "#1a1a2e",
+                        borderRadius: 14,
+                        padding: "12px 14px",
+                        border: "1px solid #2a2a4a",
+                      }}
+                    >
+                      <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600, marginBottom: 8 }}>{label}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "space-between" }}>
+                        <button
+                          onClick={() => set(k, Math.max(min, (f[k] as number) - 1))}
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: "50%",
+                            border: "1px solid #2a2a4a",
+                            background: "#111120",
+                            cursor: "pointer",
+                            fontSize: 18,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontWeight: 700,
+                            color: "#64748b",
+                          }}
+                        >
+                          −
+                        </button>
+                        <span
+                          style={{
+                            fontFamily: "'Clash Display',sans-serif",
+                            fontWeight: 700,
+                            fontSize: 20,
+                            color: "#f5f5f5",
+                            minWidth: 24,
+                            textAlign: "center" as const,
+                          }}
+                        >
+                          {f[k]}
+                        </span>
+                        <button
+                          onClick={() => set(k, Math.min(max, (f[k] as number) + 1))}
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: "50%",
+                            border: "2px solid #f5c842",
+                            background: "rgba(245,200,66,0.15)",
+                            cursor: "pointer",
+                            fontSize: 18,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontWeight: 700,
+                            color: "#f5c842",
+                          }}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── SECTION 3 : Tarif & Paiement ── */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <h2
+                  style={{
+                    fontFamily: "'Clash Display',sans-serif",
+                    fontWeight: 700,
+                    fontSize: 20,
+                    color: "#f5f5f5",
+                    margin: 0,
+                  }}
+                >
+                  💶 Votre tarif
+                </h2>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 14,
+                    padding: "18px 18px",
+                    border: "2px solid #f5c842",
+                    background: "rgba(245,200,66,0.07)",
+                    borderRadius: 18,
+                    boxShadow: "0 0 0 1px rgba(245,200,66,0.2), 0 4px 20px rgba(245,200,66,0.1)",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 52,
+                      height: 52,
+                      borderRadius: 14,
+                      flexShrink: 0,
+                      background: "rgba(245,200,66,0.15)",
+                      border: "1px solid rgba(245,200,66,0.3)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 28,
+                    }}
+                  >
+                    🚕
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                      <span
+                        style={{
+                          fontFamily: "'Clash Display',sans-serif",
+                          fontWeight: 700,
+                          fontSize: 16,
+                          color: "#f5c842",
+                        }}
+                      >
+                        Taxi Conventionné
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: tarifJour ? "#f59e0b" : "#a78bfa",
+                          background: tarifJour ? "rgba(245,158,11,0.15)" : "rgba(167,139,250,0.15)",
+                          borderRadius: 99,
+                          padding: "2px 8px",
+                          border: `1px solid ${tarifJour ? "rgba(245,158,11,0.3)" : "rgba(167,139,250,0.3)"}`,
+                        }}
+                      >
+                        {tarifJour ? "☀️ Tarif jour" : "🌙 Tarif nuit"}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#64748b" }}>
+                      {f.passagers} passager{f.passagers > 1 ? "s" : ""} · {f.bagages} bagage{f.bagages > 1 ? "s" : ""}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>
+                      {orsResult
+                        ? `${orsResult.distanceKm} km · ~${Math.round(orsResult.dureeS / 60)} min`
+                        : "Calculé selon compteur"}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right", flexShrink: 0 }}>
+                    <div
+                      style={{
+                        fontFamily: "'Clash Display',sans-serif",
+                        fontWeight: 700,
+                        fontSize: 22,
+                        color: "#f5c842",
+                      }}
+                    >
+                      {prixAller.toFixed(2)} €
+                    </div>
+                    <div style={{ fontSize: 11, color: "#475569" }}>estimé</div>
+                  </div>
+                </div>
+                {f.trajet === "aller-retour" && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 14,
+                      padding: "16px 18px",
+                      border: "1px solid rgba(167,139,250,0.3)",
+                      background: "rgba(167,139,250,0.05)",
+                      borderRadius: 18,
+                    }}
+                  >
+                    <div style={{ fontSize: 28, flexShrink: 0 }}>🔁</div>
+                    <div style={{ flex: 1 }}>
+                      <span
+                        style={{
+                          fontFamily: "'Clash Display',sans-serif",
+                          fontWeight: 700,
+                          fontSize: 15,
+                          color: "#e0e0e0",
+                        }}
+                      >
+                        Aller-retour
+                      </span>
+                      <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+                        Aller : {prixAller.toFixed(2)} € · Retour : {prixRetour.toFixed(2)} €
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: "'Clash Display',sans-serif",
+                        fontWeight: 700,
+                        fontSize: 22,
+                        color: "#e0e0e0",
+                      }}
+                    >
+                      {prixTotal.toFixed(2)} €
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <div style={{ fontSize: 13, color: "#64748b", fontWeight: 600, marginBottom: 10 }}>
+                    Mode de paiement
+                  </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                     {(
                       [
-                        ["aller", "➡️ Aller simple"],
-                        ["aller-retour", "🔁 Aller-retour"],
+                        ["especes", "💵 Espèces"],
+                        ["cb", "💳 Carte bancaire"],
                       ] as const
                     ).map(([v, l]) => (
                       <button
                         key={v}
-                        onClick={() => set("trajet", v)}
+                        className="pay-btn"
+                        onClick={() => set("paiement", v)}
                         style={{
-                          padding: "14px 10px",
-                          border: `2px solid ${f.trajet === v ? "#f5c842" : "#2a2a4a"}`,
-                          background: f.trajet === v ? "rgba(245,200,66,0.1)" : "#1a1a2e",
+                          padding: "14px 12px",
+                          border: `2px solid ${f.paiement === v ? "#f5c842" : "#2a2a4a"}`,
+                          background: f.paiement === v ? "rgba(245,200,66,0.1)" : "#1a1a2e",
                           borderRadius: 14,
                           cursor: "pointer",
                           fontWeight: 700,
                           fontSize: 14,
-                          color: f.trajet === v ? "#f5c842" : "#64748b",
+                          color: f.paiement === v ? "#f5c842" : "#64748b",
                           transition: "all 0.2s",
                         }}
                       >
@@ -1240,409 +1440,38 @@ function ReservationPage() {
                       </button>
                     ))}
                   </div>
-
-                  <div style={{ background: "#1a1a2e", borderRadius: 16, padding: 16, border: "1px solid #2a2a4a" }}>
-                    <div
-                      style={{
-                        fontFamily: "'DM Sans',sans-serif",
-                        fontWeight: 700,
-                        fontSize: 12,
-                        color: "#f5c842",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.06em",
-                        marginBottom: 12,
-                      }}
-                    >
-                      ➡️ Aller
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                      <div>
-                        <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 4 }}>DATE</div>
-                        <input
-                          type="date"
-                          value={f.date}
-                          min={today}
-                          onChange={(e) => set("date", e.target.value)}
-                          style={inputStyle(!!errors.date)}
-                        />
-                        {errors.date && (
-                          <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{errors.date}</div>
-                        )}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 4 }}>HEURE</div>
-                        <input
-                          type="time"
-                          value={f.heure}
-                          onChange={(e) => set("heure", e.target.value)}
-                          style={inputStyle(!!errors.heure)}
-                        />
-                        {errors.heure && (
-                          <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{errors.heure}</div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {f.trajet === "aller-retour" && (
-                    <div
-                      style={{
-                        background: "#1a1a2e",
-                        borderRadius: 16,
-                        padding: 16,
-                        border: "1px solid rgba(168,85,247,0.3)",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontFamily: "'DM Sans',sans-serif",
-                          fontWeight: 700,
-                          fontSize: 12,
-                          color: "#a855f7",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.06em",
-                          marginBottom: 12,
-                        }}
-                      >
-                        🔁 Retour
-                      </div>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                        <div>
-                          <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 4 }}>DATE</div>
-                          <input
-                            type="date"
-                            value={f.dateRetour}
-                            min={f.date || today}
-                            onChange={(e) => set("dateRetour", e.target.value)}
-                            style={inputStyle(!!errors.dateRetour)}
-                          />
-                          {errors.dateRetour && (
-                            <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{errors.dateRetour}</div>
-                          )}
-                        </div>
-                        <div>
-                          <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 4 }}>HEURE</div>
-                          <input
-                            type="time"
-                            value={f.heureRetour}
-                            onChange={(e) => set("heureRetour", e.target.value)}
-                            style={inputStyle(!!errors.heureRetour)}
-                          />
-                          {errors.heureRetour && (
-                            <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{errors.heureRetour}</div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                    {[
-                      { label: "👥 Passagers", k: "passagers" as const, min: 1, max: 8 },
-                      { label: "🧳 Bagages", k: "bagages" as const, min: 0, max: 10 },
-                    ].map(({ label, k, min, max }) => (
-                      <div
-                        key={k}
-                        style={{
-                          background: "#1a1a2e",
-                          borderRadius: 14,
-                          padding: "12px 14px",
-                          border: "1px solid #2a2a4a",
-                        }}
-                      >
-                        <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600, marginBottom: 8 }}>{label}</div>
-                        <div
-                          style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "space-between" }}
-                        >
-                          <button
-                            onClick={() => set(k, Math.max(min, (f[k] as number) - 1))}
-                            style={{
-                              width: 32,
-                              height: 32,
-                              borderRadius: "50%",
-                              border: "1px solid #2a2a4a",
-                              background: "#111120",
-                              cursor: "pointer",
-                              fontSize: 18,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontWeight: 700,
-                              color: "#64748b",
-                            }}
-                          >
-                            −
-                          </button>
-                          <span
-                            style={{
-                              fontFamily: "'Clash Display',sans-serif",
-                              fontWeight: 700,
-                              fontSize: 20,
-                              color: "#f5f5f5",
-                              minWidth: 24,
-                              textAlign: "center",
-                            }}
-                          >
-                            {f[k]}
-                          </span>
-                          <button
-                            onClick={() => set(k, Math.min(max, (f[k] as number) + 1))}
-                            style={{
-                              width: 32,
-                              height: 32,
-                              borderRadius: "50%",
-                              border: "2px solid #f5c842",
-                              background: "rgba(245,200,66,0.15)",
-                              cursor: "pointer",
-                              fontSize: 18,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontWeight: 700,
-                              color: "#f5c842",
-                            }}
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
                 </div>
-              )}
-
-              {/* ── ÉTAPE 3 : Tarif ── */}
-              {step === 3 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                  <h2
-                    style={{
-                      fontFamily: "'Clash Display',sans-serif",
-                      fontWeight: 700,
-                      fontSize: 22,
-                      color: "#f5f5f5",
-                      margin: "0 0 4px",
-                    }}
-                  >
-                    Votre tarif
-                  </h2>
-
-                  {/* Carte tarif */}
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 14,
-                      padding: "18px 18px",
-                      border: "2px solid #f5c842",
-                      background: "rgba(245,200,66,0.07)",
-                      borderRadius: 18,
-                      boxShadow: "0 0 0 1px rgba(245,200,66,0.2), 0 4px 20px rgba(245,200,66,0.1)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 52,
-                        height: 52,
-                        borderRadius: 14,
-                        flexShrink: 0,
-                        background: "rgba(245,200,66,0.15)",
-                        border: "1px solid rgba(245,200,66,0.3)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: 28,
-                      }}
-                    >
-                      🚕
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                        <span
-                          style={{
-                            fontFamily: "'Clash Display',sans-serif",
-                            fontWeight: 700,
-                            fontSize: 16,
-                            color: "#f5c842",
-                          }}
-                        >
-                          Taxi Conventionné
-                        </span>
-                        <span
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 700,
-                            color: tarifJour ? "#f59e0b" : "#a78bfa",
-                            background: tarifJour ? "rgba(245,158,11,0.15)" : "rgba(167,139,250,0.15)",
-                            borderRadius: 99,
-                            padding: "2px 8px",
-                            border: `1px solid ${tarifJour ? "rgba(245,158,11,0.3)" : "rgba(167,139,250,0.3)"}`,
-                          }}
-                        >
-                          {tarifJour ? "☀️ Tarif jour" : "🌙 Tarif nuit"}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: 12, color: "#64748b" }}>
-                        {f.passagers} passager{f.passagers > 1 ? "s" : ""} · {f.bagages} bagage
-                        {f.bagages > 1 ? "s" : ""}
-                      </div>
-                      <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>
-                        {orsResult
-                          ? `${orsResult.distanceKm} km · ~${Math.round(orsResult.dureeS / 60)} min`
-                          : "Calculé selon compteur"}
-                      </div>
-                    </div>
-                    <div style={{ textAlign: "right", flexShrink: 0 }}>
-                      <div
-                        style={{
-                          fontFamily: "'Clash Display',sans-serif",
-                          fontWeight: 700,
-                          fontSize: 22,
-                          color: "#f5c842",
-                        }}
-                      >
-                        {prixAller.toFixed(2)} €
-                      </div>
-                      <div style={{ fontSize: 11, color: "#475569" }}>estimé</div>
-                    </div>
-                  </div>
-
-                  {/* Aller-retour */}
-                  {f.trajet === "aller-retour" && (
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 14,
-                        padding: "16px 18px",
-                        border: "1px solid rgba(167,139,250,0.3)",
-                        background: "rgba(167,139,250,0.05)",
-                        borderRadius: 18,
-                      }}
-                    >
-                      <div style={{ fontSize: 28, flexShrink: 0 }}>🔁</div>
-                      <div style={{ flex: 1 }}>
-                        <span
-                          style={{
-                            fontFamily: "'Clash Display',sans-serif",
-                            fontWeight: 700,
-                            fontSize: 15,
-                            color: "#e0e0e0",
-                          }}
-                        >
-                          Aller-retour
-                        </span>
-                        <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                          Aller : {prixAller.toFixed(2)} € · Retour : {prixRetour.toFixed(2)} €
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          fontFamily: "'Clash Display',sans-serif",
-                          fontWeight: 700,
-                          fontSize: 22,
-                          color: "#e0e0e0",
-                        }}
-                      >
-                        {prixTotal.toFixed(2)} €
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Mode paiement */}
-                  <div>
-                    <div style={{ fontSize: 13, color: "#64748b", fontWeight: 600, marginBottom: 10 }}>
-                      Mode de paiement
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                      {(
-                        [
-                          ["especes", "💵 Espèces"],
-                          ["cb", "💳 Carte bancaire"],
-                        ] as const
-                      ).map(([v, l]) => (
-                        <button
-                          key={v}
-                          className="pay-btn"
-                          onClick={() => set("paiement", v)}
-                          style={{
-                            padding: "14px 12px",
-                            border: `2px solid ${f.paiement === v ? "#f5c842" : "#2a2a4a"}`,
-                            background: f.paiement === v ? "rgba(245,200,66,0.1)" : "#1a1a2e",
-                            borderRadius: 14,
-                            cursor: "pointer",
-                            fontWeight: 700,
-                            fontSize: 14,
-                            color: f.paiement === v ? "#f5c842" : "#64748b",
-                            transition: "all 0.2s",
-                          }}
-                        >
-                          {l}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      padding: "12px 14px",
-                      background: "rgba(245,200,66,0.06)",
-                      borderRadius: 12,
-                      border: "1px solid rgba(245,200,66,0.15)",
-                    }}
-                  >
-                    <span style={{ fontSize: 13, color: "#a16207" }}>
-                      ⚠️ Prix estimé — le compteur homologué fait foi à l'arrivée.
-                    </span>
-                  </div>
+                <div
+                  style={{
+                    padding: "12px 14px",
+                    background: "rgba(245,200,66,0.06)",
+                    borderRadius: 12,
+                    border: "1px solid rgba(245,200,66,0.15)",
+                  }}
+                >
+                  <span style={{ fontSize: 13, color: "#a16207" }}>
+                    ⚠️ Prix estimé — le compteur homologué fait foi à l'arrivée.
+                  </span>
                 </div>
-              )}
+              </div>
 
-              {/* ── ÉTAPE 4 : Infos client ── */}
-              {step === 4 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                  <h2
-                    style={{
-                      fontFamily: "'Clash Display',sans-serif",
-                      fontWeight: 700,
-                      fontSize: 22,
-                      color: "#f5f5f5",
-                      margin: "0 0 4px",
-                    }}
-                  >
-                    Vos coordonnées
-                  </h2>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                    {[
-                      { k: "prenom" as const, label: "Prénom", type: "text", ph: "Jean" },
-                      { k: "nom" as const, label: "Nom", type: "text", ph: "Dupont" },
-                    ].map(({ k, label, type, ph }) => (
-                      <div key={k}>
-                        <div
-                          style={{
-                            fontSize: 11,
-                            color: "#64748b",
-                            fontWeight: 600,
-                            marginBottom: 4,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.05em",
-                          }}
-                        >
-                          {label} *
-                        </div>
-                        <input
-                          type={type}
-                          value={f[k]}
-                          onChange={(e) => set(k, e.target.value)}
-                          placeholder={ph}
-                          style={inputStyle(!!errors[k])}
-                        />
-                        {errors[k] && <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{errors[k]}</div>}
-                      </div>
-                    ))}
-                  </div>
+              {/* ── SECTION 4 : Coordonnées ── */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <h2
+                  style={{
+                    fontFamily: "'Clash Display',sans-serif",
+                    fontWeight: 700,
+                    fontSize: 20,
+                    color: "#f5f5f5",
+                    margin: 0,
+                  }}
+                >
+                  👤 Vos coordonnées
+                </h2>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   {[
-                    { k: "phone" as const, label: "Téléphone", type: "tel", ph: "06 12 34 56 78" },
-                    { k: "email" as const, label: "Email", type: "email", ph: "jean@exemple.fr" },
+                    { k: "prenom" as const, label: "Prénom", type: "text", ph: "Jean" },
+                    { k: "nom" as const, label: "Nom", type: "text", ph: "Dupont" },
                   ].map(({ k, label, type, ph }) => (
                     <div key={k}>
                       <div
@@ -1651,7 +1480,7 @@ function ReservationPage() {
                           color: "#64748b",
                           fontWeight: 600,
                           marginBottom: 4,
-                          textTransform: "uppercase",
+                          textTransform: "uppercase" as const,
                           letterSpacing: "0.05em",
                         }}
                       >
@@ -1668,233 +1497,116 @@ function ReservationPage() {
                     </div>
                   ))}
                 </div>
-              )}
-
-              {/* ── ÉTAPE 5 : Récap ── */}
-              {step === 5 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                  <h2
-                    style={{
-                      fontFamily: "'Clash Display',sans-serif",
-                      fontWeight: 700,
-                      fontSize: 22,
-                      color: "#f5f5f5",
-                      margin: "0 0 4px",
-                    }}
-                  >
-                    Récapitulatif
-                  </h2>
-
-                  <div
-                    style={{ background: "#1a1a2e", borderRadius: 18, overflow: "hidden", border: "1px solid #2a2a4a" }}
-                  >
-                    {[
-                      { icon: "🟢", label: "Départ", value: f.depart },
-                      { icon: "🟡", label: "Destination", value: f.destination },
-                      { icon: "📅", label: "Date & heure", value: `${f.date} à ${f.heure}` },
-                      ...(f.trajet === "aller-retour"
-                        ? [{ icon: "🔁", label: "Retour", value: `${f.dateRetour} à ${f.heureRetour}` }]
-                        : []),
-                      {
-                        icon: "👥",
-                        label: "Passagers",
-                        value: `${f.passagers} · 🧳 ${f.bagages} bagage${f.bagages > 1 ? "s" : ""}`,
-                      },
-                      { icon: "💳", label: "Paiement", value: f.paiement === "especes" ? "Espèces" : "Carte bancaire" },
-                      { icon: "👤", label: "Client", value: `${f.prenom} ${f.nom}` },
-                      { icon: "📞", label: "Téléphone", value: f.phone },
-                    ].map((row, i, arr) => (
-                      <div
-                        key={i}
-                        style={{
-                          display: "flex",
-                          gap: 12,
-                          padding: "11px 16px",
-                          borderBottom: i < arr.length - 1 ? "1px solid #1e1e30" : "none",
-                          alignItems: "flex-start",
-                        }}
-                      >
-                        <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>{row.icon}</span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div
-                            style={{
-                              fontSize: 10,
-                              color: "#475569",
-                              fontWeight: 700,
-                              textTransform: "uppercase",
-                              letterSpacing: "0.06em",
-                            }}
-                          >
-                            {row.label}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: 14,
-                              color: "#e0e0e0",
-                              fontWeight: 600,
-                              marginTop: 1,
-                              wordBreak: "break-word",
-                            }}
-                          >
-                            {row.value}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Prix final */}
-                  <div
-                    style={{
-                      background: "linear-gradient(135deg, #1a1408, #2a2010)",
-                      border: "1px solid rgba(245,200,66,0.3)",
-                      borderRadius: 18,
-                      padding: "20px 20px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      boxShadow: "0 0 30px rgba(245,200,66,0.08)",
-                    }}
-                  >
-                    <div>
-                      <div style={{ color: "rgba(245,200,66,0.6)", fontSize: 13 }}>Prix estimé total</div>
-                      <div
-                        style={{
-                          fontFamily: "'Clash Display',sans-serif",
-                          fontWeight: 700,
-                          fontSize: 36,
-                          color: "#f5c842",
-                        }}
-                      >
-                        {prixTotal.toFixed(2)} €
-                      </div>
-                      <div style={{ color: "rgba(245,200,66,0.5)", fontSize: 12, marginTop: 2 }}>
-                        {tarifJour ? "☀️ Tarif jour" : "🌙 Tarif nuit"} · Berline · Compteur fait foi
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 48 }}>🚕</div>
-                  </div>
-
-                  {submitError && (
+                {[
+                  { k: "phone" as const, label: "Téléphone", type: "tel", ph: "06 12 34 56 78" },
+                  { k: "email" as const, label: "Email", type: "email", ph: "jean@exemple.fr" },
+                ].map(({ k, label, type, ph }) => (
+                  <div key={k}>
                     <div
                       style={{
-                        padding: "14px 16px",
-                        background: "#1f0a0a",
-                        border: "1px solid #7f1d1d",
-                        borderRadius: 12,
-                        color: "#fca5a5",
-                        fontSize: 14,
+                        fontSize: 11,
+                        color: "#64748b",
+                        fontWeight: 600,
+                        marginBottom: 4,
+                        textTransform: "uppercase" as const,
+                        letterSpacing: "0.05em",
                       }}
                     >
-                      ❌ {submitError}
+                      {label} *
                     </div>
-                  )}
+                    <input
+                      type={type}
+                      value={f[k]}
+                      onChange={(e) => set(k, e.target.value)}
+                      placeholder={ph}
+                      style={inputStyle(!!errors[k])}
+                    />
+                    {errors[k] && <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{errors[k]}</div>}
+                  </div>
+                ))}
+              </div>
 
-                  {/* Bouton WhatsApp */}
-                  <a
-                    href={`https://wa.me/33673072322?text=${buildWhatsApp()}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 8,
-                      padding: "14px",
-                      background: "#25D366",
-                      color: "#fff",
-                      borderRadius: 14,
-                      textDecoration: "none",
-                      fontWeight: 700,
-                      fontSize: 14,
-                    }}
-                  >
-                    💬 Réserver via WhatsApp à la place
-                  </a>
-                </div>
-              )}
+              {/* ── WhatsApp alternative ── */}
+              <a
+                href={`https://wa.me/33673072322?text=${buildWhatsApp()}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  padding: "14px",
+                  background: "#25D366",
+                  color: "#fff",
+                  borderRadius: 14,
+                  textDecoration: "none",
+                  fontWeight: 700,
+                  fontSize: 14,
+                }}
+              >
+                💬 Réserver via WhatsApp à la place
+              </a>
             </div>
 
             {/* ── CTA sticky ── */}
             <div style={{ padding: "12px 20px 24px", flexShrink: 0, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-              {step < 5 ? (
-                <button
-                  className="cta-btn"
-                  onClick={goNext}
+              {submitError && (
+                <div
                   style={{
-                    width: "100%",
-                    height: 56,
-                    background:
-                      step === 1 && (!f.depart || !f.destination)
-                        ? "rgba(245,200,66,0.3)"
-                        : "linear-gradient(135deg, #f5c842, #e6a800)",
-                    color: step === 1 && (!f.depart || !f.destination) ? "rgba(245,200,66,0.6)" : "#0a0a14",
-                    border: "none",
-                    borderRadius: 16,
-                    fontFamily: "'Clash Display',sans-serif",
-                    fontWeight: 700,
-                    fontSize: 16,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 8,
-                    boxShadow: "0 4px 24px rgba(245,200,66,0.25)",
-                    transition: "all 0.2s",
+                    padding: "10px 14px",
+                    background: "#1f0a0a",
+                    border: "1px solid #7f1d1d",
+                    borderRadius: 12,
+                    color: "#fca5a5",
+                    fontSize: 14,
+                    marginBottom: 10,
                   }}
                 >
-                  {step === 1
-                    ? fromCoord && toCoord
-                      ? `Continuer · ~${prixAller.toFixed(2)} €`
-                      : "Continuer"
-                    : step === 2
-                      ? "Choisir le véhicule →"
-                      : step === 3
-                        ? "Mes coordonnées →"
-                        : "Vérifier ma réservation →"}
-                </button>
-              ) : (
-                <button
-                  onClick={submitForm}
-                  disabled={sending}
-                  style={{
-                    width: "100%",
-                    height: 56,
-                    background: sending ? "rgba(245,200,66,0.3)" : "linear-gradient(135deg, #f5c842, #e6a800)",
-                    color: sending ? "rgba(245,200,66,0.6)" : "#0a0a14",
-                    border: "none",
-                    borderRadius: 16,
-                    fontFamily: "'Clash Display',sans-serif",
-                    fontWeight: 700,
-                    fontSize: 16,
-                    cursor: sending ? "wait" : "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 10,
-                    boxShadow: "0 4px 24px rgba(245,200,66,0.25)",
-                    transition: "all 0.2s",
-                  }}
-                >
-                  {sending ? (
-                    <>
-                      <div
-                        style={{
-                          width: 20,
-                          height: 20,
-                          border: "2px solid rgba(10,10,20,0.3)",
-                          borderTopColor: "#0a0a14",
-                          borderRadius: "50%",
-                          animation: "spin 0.7s linear infinite",
-                        }}
-                      />
-                      Envoi en cours…
-                    </>
-                  ) : (
-                    "📨 Confirmer ma réservation"
-                  )}
-                </button>
+                  ❌ {submitError}
+                </div>
               )}
+              <button
+                onClick={submitForm}
+                disabled={sending}
+                className="cta-btn"
+                style={{
+                  width: "100%",
+                  height: 56,
+                  background: sending ? "rgba(245,200,66,0.3)" : "linear-gradient(135deg, #f5c842, #e6a800)",
+                  color: sending ? "rgba(245,200,66,0.6)" : "#0a0a14",
+                  border: "none",
+                  borderRadius: 16,
+                  fontFamily: "'Clash Display',sans-serif",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  cursor: sending ? "wait" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 10,
+                  boxShadow: "0 4px 24px rgba(245,200,66,0.25)",
+                  transition: "all 0.2s",
+                }}
+              >
+                {sending ? (
+                  <>
+                    <div
+                      style={{
+                        width: 20,
+                        height: 20,
+                        border: "2px solid rgba(10,10,20,0.3)",
+                        borderTopColor: "#0a0a14",
+                        borderRadius: "50%",
+                        animation: "spin 0.7s linear infinite",
+                      }}
+                    />
+                    Envoi en cours…
+                  </>
+                ) : (
+                  "📨 Confirmer ma réservation"
+                )}
+              </button>
             </div>
           </div>
         </>
