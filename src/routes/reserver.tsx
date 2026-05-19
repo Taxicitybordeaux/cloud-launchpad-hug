@@ -129,12 +129,7 @@ function fieldLabel(text: string, required?: boolean) {
       {text}
       {required && (
         <span
-          style={{
-            color: "#ef4444",
-            fontSize: 13,
-            lineHeight: 1,
-            fontWeight: 700,
-          }}
+          style={{ color: "#ef4444", fontSize: 13, lineHeight: 1, fontWeight: 700 }}
           aria-hidden="true"
           title="Champ obligatoire"
         >
@@ -739,60 +734,104 @@ function ReservationPage() {
                 </div>
               </div>
 
-              {/* Date, heure, passagers, bagages */}
-              <div className="resa-grid-4">
-                <div>
-                  {fieldLabel(t("res.loc.date_label"))}
-                  <Input k="date" value={f.date} onChange={set} type="date" min={today} error={errors.date} />
+              {/* Date, heure, passagers, bagages + retour */}
+              <div style={{ borderRadius: 14, border: "1px solid #e2e8f0", overflow: "hidden" }}>
+                {/* ── Aller ── */}
+                <div
+                  style={{
+                    padding: "8px 14px",
+                    background: "#f0f9ff",
+                    borderBottom: "1px solid #e2e8f0",
+                    fontFamily: "'Syne', sans-serif",
+                    fontWeight: 700,
+                    fontSize: 12,
+                    color: "#0369a1",
+                    textTransform: "uppercase" as const,
+                    letterSpacing: "0.06em",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <span>➡️</span>
+                  <span>{t("res.f.trip.one")}</span>
                 </div>
-                <div>
-                  {fieldLabel(t("res.loc.time_label"))}
-                  <Input
-                    k="heure"
-                    value={f.heure}
-                    onChange={set}
-                    type="time"
-                    placeholder="Ex : 14:30"
-                    error={errors.heure}
-                  />
-                </div>
-                <div>
-                  {fieldLabel(t("res.f.passengers"))}
-                  <SelectField value={f.passagers} onChange={(v) => set("passagers", v)} options={passagerOptions} />
-                </div>
-                <div>
-                  {fieldLabel(t("res.f.luggage"))}
-                  <SelectField value={f.bagages} onChange={(v) => set("bagages", v)} options={bagagesOptions} />
-                </div>
-              </div>
-
-              {/* Retour (si aller-retour) */}
-              {f.trajet === "aller-retour" && (
-                <div className="resa-grid-2">
+                <div className="resa-grid-4" style={{ padding: 14 }}>
                   <div>
-                    {fieldLabel(`🔁 ${t("res.loc.date_label")} (${t("res.loc.roundtrip")})`, true)}
-                    <Input
-                      k="dateRetour"
-                      value={f.dateRetour}
-                      onChange={set}
-                      type="date"
-                      min={f.date || today}
-                      error={errors.dateRetour}
-                    />
+                    {fieldLabel(t("res.loc.date_label"))}
+                    <Input k="date" value={f.date} onChange={set} type="date" min={today} error={errors.date} />
                   </div>
                   <div>
-                    {fieldLabel(`🔁 ${t("res.loc.time_label")} (${t("res.loc.roundtrip")})`, true)}
+                    {fieldLabel(t("res.loc.time_label"))}
                     <Input
-                      k="heureRetour"
-                      value={f.heureRetour}
+                      k="heure"
+                      value={f.heure}
                       onChange={set}
                       type="time"
-                      placeholder="Ex : 18:00"
-                      error={errors.heureRetour}
+                      placeholder="Ex : 14:30"
+                      error={errors.heure}
                     />
                   </div>
+                  <div>
+                    {fieldLabel(t("res.f.passengers"))}
+                    <SelectField value={f.passagers} onChange={(v) => set("passagers", v)} options={passagerOptions} />
+                  </div>
+                  <div>
+                    {fieldLabel(t("res.f.luggage"))}
+                    <SelectField value={f.bagages} onChange={(v) => set("bagages", v)} options={bagagesOptions} />
+                  </div>
                 </div>
-              )}
+
+                {/* ── Retour (si aller-retour) ── */}
+                {f.trajet === "aller-retour" && (
+                  <>
+                    <div
+                      style={{
+                        padding: "8px 14px",
+                        background: "#fdf4ff",
+                        borderTop: "1px solid #e2e8f0",
+                        borderBottom: "1px solid #e2e8f0",
+                        fontFamily: "'Syne', sans-serif",
+                        fontWeight: 700,
+                        fontSize: 12,
+                        color: "#7e22ce",
+                        textTransform: "uppercase" as const,
+                        letterSpacing: "0.06em",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      <span>🔁</span>
+                      <span>{t("res.loc.roundtrip")}</span>
+                    </div>
+                    <div className="resa-grid-2" style={{ padding: 14 }}>
+                      <div>
+                        {fieldLabel(t("res.loc.date_label"), true)}
+                        <Input
+                          k="dateRetour"
+                          value={f.dateRetour}
+                          onChange={set}
+                          type="date"
+                          min={f.date || today}
+                          error={errors.dateRetour}
+                        />
+                      </div>
+                      <div>
+                        {fieldLabel(t("res.loc.time_label"), true)}
+                        <Input
+                          k="heureRetour"
+                          value={f.heureRetour}
+                          onChange={set}
+                          type="time"
+                          placeholder="Ex : 18:00"
+                          error={errors.heureRetour}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
             {/* ── Moyen de paiement ── */}
