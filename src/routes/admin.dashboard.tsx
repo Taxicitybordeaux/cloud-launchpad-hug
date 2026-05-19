@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix, calculerPrixMixte } from "@/lib/tarif";
 import { assertTrackingId, newTrackingId } from "@/lib/tracking-id";
 import { CourseCardSkeleton, GpsCardSkeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
+import logo from "@/assets/logo.jpeg";
 
 export const Route = createFileRoute("/admin/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Admin" }, { name: "robots", content: "noindex" }] }),
@@ -1251,9 +1252,16 @@ function Dashboard() {
           marginBottom: 20,
         }}
       >
-        <h1 style={{ fontFamily: "'Syne',sans-serif", fontSize: 26, fontWeight: 800, color: "#f8fafc", margin: 0 }}>
-          Dashboard
-        </h1>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <img
+            src={logo}
+            alt="Taxi City Bordeaux"
+            style={{ width: 48, height: 48, borderRadius: 12, objectFit: "contain", background: "#fff", padding: 3 }}
+          />
+          <h1 style={{ fontFamily: "'Syne',sans-serif", fontSize: 26, fontWeight: 800, color: "#f8fafc", margin: 0 }}>
+            Dashboard
+          </h1>
+        </div>
         <div style={{ display: "flex", gap: 8 }}>
           <a
             href="/"
