@@ -2241,74 +2241,10 @@ function Dashboard() {
                   Votre position est inactive
                 </h3>
                 <p style={{ color: "#94a3b8", fontSize: 14 }}>Les clients ne peuvent pas vous suivre</p>
-                <div style={{ marginTop: 20, textAlign: "left", display: "flex", flexDirection: "column", gap: 10 }}>
-                  <input
-                    className="gps-input"
-                    value={gpsDestination}
-                    onChange={(e) => setGpsDestination(e.target.value)}
-                    placeholder="Destination du prochain client"
-                  />
-                  <input
-                    className="gps-input"
-                    value={gpsPrixEstime}
-                    onChange={(e) => setGpsPrixEstime(e.target.value)}
-                    placeholder='Prix estimé ex: "12.50 €"'
-                  />
-                  <div
-                    style={{
-                      background: "rgba(14,165,233,0.07)",
-                      border: "1px solid rgba(14,165,233,0.15)",
-                      borderRadius: 12,
-                      padding: 12,
-                    }}
-                  >
-                    <div style={{ color: "#94a3b8", fontSize: 12, marginBottom: 8 }}>Calcul rapide</div>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                      <input
-                        type="number"
-                        value={gpsCalcKm}
-                        onChange={(e) => setGpsCalcKm(Number(e.target.value))}
-                        step="0.1"
-                        style={{
-                          width: 80,
-                          padding: "6px 8px",
-                          background: "rgba(255,255,255,0.06)",
-                          border: "1px solid rgba(255,255,255,0.1)",
-                          color: "#fff",
-                          borderRadius: 8,
-                          fontSize: 14,
-                          boxSizing: "border-box",
-                        }}
-                      />
-                      <span style={{ color: "#cbd5e1", fontSize: 13 }}>km</span>
-                      <label style={{ color: "#cbd5e1", fontSize: 13, display: "flex", alignItems: "center", gap: 4 }}>
-                        <input
-                          type="checkbox"
-                          checked={gpsCalcJour}
-                          onChange={(e) => setGpsCalcJour(e.target.checked)}
-                        />{" "}
-                        Jour
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setGpsPrixEstime(`${calculerPrix(gpsCalcKm, gpsCalcJour)} €`)}
-                        style={{
-                          marginLeft: "auto",
-                          background: "#0ea5e9",
-                          color: "#fff",
-                          border: 0,
-                          padding: "7px 14px",
-                          borderRadius: 8,
-                          cursor: "pointer",
-                          fontSize: 13,
-                          fontWeight: 700,
-                        }}
-                      >
-                        = {calculerPrix(gpsCalcKm, gpsCalcJour)} €
-                      </button>
-                    </div>
-                  </div>
+                <div style={{ marginTop: 8, color: "#94a3b8", fontSize: 13 }}>
+                  Tout est automatique — destination, distance et prix sont calculés à partir de la course en cours.
                 </div>
+
                 <button
                   onClick={startGPS}
                   style={{
