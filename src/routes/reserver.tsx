@@ -19,41 +19,6 @@ const TARIF_JOUR = 2.16;
 const TARIF_NUIT = 3.24;
 const BORDEAUX_CENTER: [number, number] = [44.8378, -0.5792];
 
-// ─── Véhicules (style Uber) ─────────────────────────────────────────────────
-const VEHICULES = [
-  {
-    id: "berline",
-    nom: "Berline",
-    emoji: "🚗",
-    desc: "Confort standard",
-    capacite: "1–4 passagers",
-    multiplicateur: 1.0,
-    eta: "3 min",
-    badge: null,
-  },
-  {
-    id: "van",
-    nom: "Van",
-    emoji: "🚐",
-    desc: "Idéal pour les groupes",
-    capacite: "1–7 passagers",
-    multiplicateur: 1.35,
-    eta: "6 min",
-    badge: null,
-  },
-  {
-    id: "premium",
-    nom: "Premium",
-    emoji: "🖤",
-    desc: "Véhicule haut de gamme",
-    capacite: "1–4 passagers",
-    multiplicateur: 1.75,
-    eta: "8 min",
-    badge: "⭐ TOP",
-  },
-] as const;
-type VehiculeId = (typeof VEHICULES)[number]["id"];
-
 // ─── Calcul mixte jour/nuit ─────────────────────────────────────────────────
 function calculerPrixMixte(departMs: number, dureeS: number, distanceKm: number): number {
   if (dureeS <= 0 || distanceKm <= 0) return PRISE_EN_CHARGE;
@@ -156,7 +121,9 @@ interface OrsResult {
 }
 async function getOsrmRoute(from: [number, number], to: [number, number]): Promise<OrsResult | null> {
   try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${from[0]},${from[1]};${to[0]},${to[1]}?overview=false`;
+    // from/to sont [lng, lat] (format Photon/GeoJSON)
+    // OSRM attend {lng},{lat}
+    const url = `https://router.project-osrm.org/route/v1/driving/${from[0]},${from[1]};${to[0]},${to[1]}?overview=false&alternatives=false&steps=false`;
     const res = await fetch(url);
     const data = await res.json();
     if (data.code !== "Ok" || !data.routes?.[0]) return null;
@@ -402,7 +369,6 @@ function ReservationPage() {
   const [success, setSuccess] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [geolocLoading, setGeolocLoading] = useState(false);
-  const [vehicule, setVehicule] = useState<VehiculeId>("berline");
 
   const [fromCoord, setFromCoord] = useState<[number, number] | null>(null);
   const [toCoord, setToCoord] = useState<[number, number] | null>(null);
@@ -442,16 +408,13 @@ function ReservationPage() {
       : null;
   const heureNum = f.heure ? parseInt(f.heure.split(":")[0], 10) : 12;
   const tarifJour = heureNum >= 7 && heureNum < 19;
-  const vehiculeData = VEHICULES.find((v) => v.id === vehicule)!;
-  const mult = vehiculeData.multiplicateur;
-
   const prixAllerBase =
     orsResult && departMs
       ? calculerPrixMixte(departMs, orsResult.dureeS, orsResult.distanceKm)
       : orsResult
         ? Math.round((PRISE_EN_CHARGE + orsResult.distanceKm * (tarifJour ? TARIF_JOUR : TARIF_NUIT)) * 100) / 100
         : PRISE_EN_CHARGE;
-  const prixAller = Math.round(prixAllerBase * mult * 100) / 100;
+  const prixAller = prixAllerBase;
 
   const prixRetourBase =
     f.trajet === "aller-retour" && orsResult
@@ -459,7 +422,7 @@ function ReservationPage() {
         ? calculerPrixMixte(retourMs, orsResult.dureeS, orsResult.distanceKm)
         : prixAllerBase
       : 0;
-  const prixRetour = Math.round(prixRetourBase * mult * 100) / 100;
+  const prixRetour = prixRetourBase;
   const prixTotal = f.trajet === "aller-retour" ? Math.round((prixAller + prixRetour) * 100) / 100 : prixAller;
 
   useEffect(() => {
@@ -565,6 +528,13 @@ function ReservationPage() {
     });
   }, [fromCoord, toCoord]);
 
+  // Resize carte quand le sheet monte/descend
+  useEffect(() => {
+    if (mapInst.current) {
+      setTimeout(() => mapInst.current?.invalidateSize(), 420);
+    }
+  }, [step]);
+
   const handleGeolocate = useCallback(async () => {
     if (!navigator.geolocation) return;
     setGeolocLoading(true);
@@ -663,7 +633,7 @@ function ReservationPage() {
         status: "pending",
         source: "form",
         paiement: f.paiement,
-        message: `Trajet: ${f.trajet === "aller-retour" ? "Aller-retour" : "Aller simple"} | Véhicule: ${vehiculeData.nom}${orsResult ? ` | Distance: ${orsResult.distanceKm} km | Durée: ${Math.round(orsResult.dureeS / 60)} min` : ""}`,
+        message: `Trajet: ${f.trajet === "aller-retour" ? "Aller-retour" : "Aller simple"}${orsResult ? ` | Distance: ${orsResult.distanceKm} km | Durée: ${Math.round(orsResult.dureeS / 60)} min` : ""}`,
       });
 
       if (insertError) throw new Error(insertError.message);
@@ -688,7 +658,7 @@ function ReservationPage() {
                 heure: f.heure,
                 passagers: f.passagers,
                 bagages: f.bagages,
-                vehicule: vehiculeData.nom,
+                vehicule: "Berline",
                 prix_estime: orsResult ? prixTotal : null,
                 tarif: tarifJour ? "Tarif jour" : "Tarif nuit",
               },
@@ -716,7 +686,6 @@ function ReservationPage() {
         `🏁 Destination : ${f.destination || "—"}\n` +
         `📅 Date : ${f.date} à ${f.heure}\n` +
         `${f.trajet === "aller-retour" ? `🔁 Retour : ${f.dateRetour} à ${f.heureRetour}\n` : ""}` +
-        `🚗 Véhicule : ${vehiculeData.nom}\n` +
         `👥 Passagers : ${f.passagers} | 🧳 Bagages : ${f.bagages}\n` +
         `💶 Prix estimé : ${prixTotal.toFixed(2)} €\n\n` +
         `Nom : ${f.prenom} ${f.nom}\nTél : ${f.phone}`,
@@ -730,8 +699,8 @@ function ReservationPage() {
     5: "68vh",
   };
 
-  const stepLabels = ["Trajet", "Horaires", "Véhicule", "Vous", "Récap"];
-  const stepIcons = ["📍", "🕐", "🚗", "👤", "✅"];
+  const stepLabels = ["Trajet", "Horaires", "Tarif", "Vous", "Récap"];
+  const stepIcons = ["📍", "🕐", "💶", "👤", "✅"];
 
   const inputStyle = (hasError?: boolean) => ({
     width: "100%",
@@ -778,28 +747,25 @@ function ReservationPage() {
         .pay-btn:hover { border-color: #f5c842 !important; }
       `}</style>
 
-      {/* ── Carte plein écran sombre ── */}
-      <div ref={mapRef} style={{ position: "absolute", inset: 0 }} />
-
-      {/* ── Gradient overlay bas ── */}
+      {/* ── Carte limitée à la zone au-dessus du sheet ── */}
       <div
+        ref={mapRef}
         style={{
           position: "absolute",
-          bottom: 0,
+          top: 0,
           left: 0,
           right: 0,
-          height: `calc(${sheetHeights[step]} + 60px)`,
-          background: "linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 100%)",
-          pointerEvents: "none",
+          bottom: sheetHeights[step],
+          transition: "bottom 0.4s cubic-bezier(0.4,0,0.2,1)",
         }}
       />
 
-      {/* ── Pill disponibilité (top left) ── */}
+      {/* ── Pill disponibilité ── */}
       <div
         style={{
           position: "absolute",
-          top: 20,
-          left: 20,
+          top: 56,
+          left: 16,
           zIndex: 100,
           background: "rgba(10,10,20,0.85)",
           backdropFilter: "blur(12px)",
@@ -1380,131 +1346,145 @@ function ReservationPage() {
                 </div>
               )}
 
-              {/* ── ÉTAPE 3 : Choix véhicule (style Uber) ── */}
+              {/* ── ÉTAPE 3 : Tarif ── */}
               {step === 3 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                   <h2
                     style={{
                       fontFamily: "'Clash Display',sans-serif",
                       fontWeight: 700,
                       fontSize: 22,
                       color: "#f5f5f5",
-                      margin: "0 0 2px",
+                      margin: "0 0 4px",
                     }}
                   >
-                    Choisissez votre véhicule
+                    Votre tarif
                   </h2>
-                  <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 4px" }}>
-                    {tarifJour ? "☀️ Tarif jour appliqué" : "🌙 Tarif nuit appliqué"}
-                    {orsResult ? ` · ${orsResult.distanceKm} km` : ""}
-                  </p>
 
-                  {VEHICULES.map((v) => {
-                    const prix = Math.round(prixAllerBase * v.multiplicateur * 100) / 100;
-                    const prixTot =
-                      f.trajet === "aller-retour"
-                        ? Math.round((prix + Math.round(prixRetourBase * v.multiplicateur * 100) / 100) * 100) / 100
-                        : prix;
-                    const selected = vehicule === v.id;
-                    return (
-                      <button
-                        key={v.id}
-                        className="veh-card"
-                        onClick={() => setVehicule(v.id)}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 14,
-                          padding: "16px 16px",
-                          border: `2px solid ${selected ? "#f5c842" : "#2a2a4a"}`,
-                          background: selected ? "rgba(245,200,66,0.07)" : "#1a1a2e",
-                          borderRadius: 18,
-                          cursor: "pointer",
-                          textAlign: "left",
-                          transition: "all 0.2s",
-                          boxShadow: selected
-                            ? "0 0 0 1px rgba(245,200,66,0.2), 0 4px 20px rgba(245,200,66,0.1)"
-                            : "none",
-                        }}
-                      >
-                        {/* Icône véhicule */}
-                        <div
+                  {/* Carte tarif */}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 14,
+                      padding: "18px 18px",
+                      border: "2px solid #f5c842",
+                      background: "rgba(245,200,66,0.07)",
+                      borderRadius: 18,
+                      boxShadow: "0 0 0 1px rgba(245,200,66,0.2), 0 4px 20px rgba(245,200,66,0.1)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 52,
+                        height: 52,
+                        borderRadius: 14,
+                        flexShrink: 0,
+                        background: "rgba(245,200,66,0.15)",
+                        border: "1px solid rgba(245,200,66,0.3)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 28,
+                      }}
+                    >
+                      🚕
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                        <span
                           style={{
-                            width: 52,
-                            height: 52,
-                            borderRadius: 14,
-                            flexShrink: 0,
-                            background: selected ? "rgba(245,200,66,0.15)" : "#111120",
-                            border: `1px solid ${selected ? "rgba(245,200,66,0.3)" : "#2a2a4a"}`,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: 26,
+                            fontFamily: "'Clash Display',sans-serif",
+                            fontWeight: 700,
+                            fontSize: 16,
+                            color: "#f5c842",
                           }}
                         >
-                          {v.emoji}
-                        </div>
+                          Taxi Conventionné
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            color: tarifJour ? "#f59e0b" : "#a78bfa",
+                            background: tarifJour ? "rgba(245,158,11,0.15)" : "rgba(167,139,250,0.15)",
+                            borderRadius: 99,
+                            padding: "2px 8px",
+                            border: `1px solid ${tarifJour ? "rgba(245,158,11,0.3)" : "rgba(167,139,250,0.3)"}`,
+                          }}
+                        >
+                          {tarifJour ? "☀️ Tarif jour" : "🌙 Tarif nuit"}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 12, color: "#64748b" }}>
+                        {f.passagers} passager{f.passagers > 1 ? "s" : ""} · {f.bagages} bagage
+                        {f.bagages > 1 ? "s" : ""}
+                      </div>
+                      <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>
+                        {orsResult
+                          ? `${orsResult.distanceKm} km · ~${Math.round(orsResult.dureeS / 60)} min`
+                          : "Calculé selon compteur"}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <div
+                        style={{
+                          fontFamily: "'Clash Display',sans-serif",
+                          fontWeight: 700,
+                          fontSize: 22,
+                          color: "#f5c842",
+                        }}
+                      >
+                        {prixAller.toFixed(2)} €
+                      </div>
+                      <div style={{ fontSize: 11, color: "#475569" }}>estimé</div>
+                    </div>
+                  </div>
 
-                        {/* Infos */}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                            <span
-                              style={{
-                                fontFamily: "'Clash Display',sans-serif",
-                                fontWeight: 700,
-                                fontSize: 16,
-                                color: selected ? "#f5c842" : "#e0e0e0",
-                              }}
-                            >
-                              {v.nom}
-                            </span>
-                            {v.badge && (
-                              <span
-                                style={{
-                                  fontSize: 10,
-                                  fontWeight: 700,
-                                  color: "#f5c842",
-                                  background: "rgba(245,200,66,0.15)",
-                                  borderRadius: 99,
-                                  padding: "2px 8px",
-                                  border: "1px solid rgba(245,200,66,0.3)",
-                                }}
-                              >
-                                {v.badge}
-                              </span>
-                            )}
-                          </div>
-                          <div style={{ fontSize: 12, color: "#64748b" }}>{v.desc}</div>
-                          <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>
-                            {v.capacite} · <span style={{ color: "#22c55e" }}>⏱ {v.eta}</span>
-                          </div>
+                  {/* Aller-retour */}
+                  {f.trajet === "aller-retour" && (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 14,
+                        padding: "16px 18px",
+                        border: "1px solid rgba(167,139,250,0.3)",
+                        background: "rgba(167,139,250,0.05)",
+                        borderRadius: 18,
+                      }}
+                    >
+                      <div style={{ fontSize: 28, flexShrink: 0 }}>🔁</div>
+                      <div style={{ flex: 1 }}>
+                        <span
+                          style={{
+                            fontFamily: "'Clash Display',sans-serif",
+                            fontWeight: 700,
+                            fontSize: 15,
+                            color: "#e0e0e0",
+                          }}
+                        >
+                          Aller-retour
+                        </span>
+                        <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+                          Aller : {prixAller.toFixed(2)} € · Retour : {prixRetour.toFixed(2)} €
                         </div>
-
-                        {/* Prix */}
-                        <div style={{ textAlign: "right", flexShrink: 0 }}>
-                          <div
-                            style={{
-                              fontFamily: "'Clash Display',sans-serif",
-                              fontWeight: 700,
-                              fontSize: 20,
-                              color: selected ? "#f5c842" : "#e0e0e0",
-                            }}
-                          >
-                            {prixTot.toFixed(2)} €
-                          </div>
-                          <div style={{ fontSize: 11, color: "#475569" }}>estimé</div>
-                          {selected && (
-                            <div style={{ fontSize: 10, color: "#22c55e", marginTop: 2, fontWeight: 600 }}>
-                              ✓ Sélectionné
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
+                      </div>
+                      <div
+                        style={{
+                          fontFamily: "'Clash Display',sans-serif",
+                          fontWeight: 700,
+                          fontSize: 22,
+                          color: "#e0e0e0",
+                        }}
+                      >
+                        {prixTotal.toFixed(2)} €
+                      </div>
+                    </div>
+                  )}
 
                   {/* Mode paiement */}
-                  <div style={{ marginTop: 4 }}>
+                  <div>
                     <div style={{ fontSize: 13, color: "#64748b", fontWeight: 600, marginBottom: 10 }}>
                       Mode de paiement
                     </div>
@@ -1545,7 +1525,7 @@ function ReservationPage() {
                       border: "1px solid rgba(245,200,66,0.15)",
                     }}
                   >
-                    <span style={{ fontSize: 13, color: "#92400e" }}>
+                    <span style={{ fontSize: 13, color: "#a16207" }}>
                       ⚠️ Prix estimé — le compteur homologué fait foi à l'arrivée.
                     </span>
                   </div>
@@ -1650,7 +1630,6 @@ function ReservationPage() {
                       ...(f.trajet === "aller-retour"
                         ? [{ icon: "🔁", label: "Retour", value: `${f.dateRetour} à ${f.heureRetour}` }]
                         : []),
-                      { icon: vehiculeData.emoji, label: "Véhicule", value: vehiculeData.nom },
                       {
                         icon: "👥",
                         label: "Passagers",
@@ -1725,10 +1704,10 @@ function ReservationPage() {
                         {prixTotal.toFixed(2)} €
                       </div>
                       <div style={{ color: "rgba(245,200,66,0.5)", fontSize: 12, marginTop: 2 }}>
-                        {tarifJour ? "☀️ Tarif jour" : "🌙 Tarif nuit"} · {vehiculeData.nom} · Compteur fait foi
+                        {tarifJour ? "☀️ Tarif jour" : "🌙 Tarif nuit"} · Berline · Compteur fait foi
                       </div>
                     </div>
-                    <div style={{ fontSize: 48 }}>{vehiculeData.emoji}</div>
+                    <div style={{ fontSize: 48 }}>🚕</div>
                   </div>
 
                   {submitError && (
