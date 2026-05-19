@@ -57,24 +57,37 @@ function SwipeDeleteRow({
 
   return (
     <div style={{ position: "relative", overflow: "hidden", borderRadius: 20, ...style }}>
-      {/* Fond suppression */}
+      {/* Fond suppression — noir par défaut, rouge sombre visible seulement pendant le swipe */}
       <div
         style={{
           position: "absolute",
           inset: 0,
-          background: "linear-gradient(90deg, transparent 0%, #7f1d1d 30%, #991b1b 100%)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "flex-end",
-          paddingRight: 28,
+          background: "#0f172a",
           borderRadius: 20,
-          gap: 8,
         }}
       >
-        <span style={{ fontSize: 13, color: "#fca5a5", fontWeight: 700, fontFamily: "'DM Sans',sans-serif" }}>
-          Supprimer
-        </span>
-        <span style={{ fontSize: 24 }}>🗑️</span>
+        {/* Zone rouge + icône révélée progressivement à droite */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            bottom: 0,
+            width: 160,
+            background: "linear-gradient(90deg, transparent 0%, #7f1d1d 40%, #991b1b 100%)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            paddingRight: 24,
+            gap: 8,
+            opacity: Math.min(Math.abs(offset) / 80, 1),
+          }}
+        >
+          <span style={{ fontSize: 13, color: "#fca5a5", fontWeight: 700, fontFamily: "'DM Sans',sans-serif" }}>
+            Supprimer
+          </span>
+          <span style={{ fontSize: 22 }}>🗑️</span>
+        </div>
       </div>
       {/* Carte */}
       <div
