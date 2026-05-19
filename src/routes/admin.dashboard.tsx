@@ -235,8 +235,6 @@ function Dashboard() {
   const [gpsDestination, setGpsDestination] = useState("");
   const [gpsPrixEstime, setGpsPrixEstime] = useState("");
   const [gpsLoading, setGpsLoading] = useState(true);
-  const [gpsCalcKm, setGpsCalcKm] = useState(5);
-  const [gpsCalcJour, setGpsCalcJour] = useState(true);
   const [gpsPosition, setGpsPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [gpsUpdateCount, setGpsUpdateCount] = useState(0);
