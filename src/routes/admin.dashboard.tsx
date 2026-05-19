@@ -220,12 +220,10 @@ function Dashboard() {
   const [kmLoading, setKmLoading] = useState(false);
   const [cardKm, setCardKm] = useState<Record<string, number>>({});
   const [cardKmLoading, setCardKmLoading] = useState<Record<string, boolean>>({});
-  const [deleteSlide, setDeleteSlide] = useState<string | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // ── Tarif (FIX : variable manquante dans l'original) ──
-  const [tarif_nuit, setTarifNuit] = useState(false);
+  // ── Tarif (variable utilisée dans les cards) ──
 
   // ── Avis ──
   const [avis, setAvis] = useState<any[]>([]);
@@ -242,7 +240,6 @@ function Dashboard() {
   const [gpsPosition, setGpsPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [gpsUpdateCount, setGpsUpdateCount] = useState(0);
-  const [gpsHeading, setGpsHeading] = useState<number | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const lastPosRef = useRef<{ lat: number; lng: number } | null>(null);
 
@@ -446,7 +443,6 @@ function Dashboard() {
 
         setGpsPosition({ lat: latitude, lng: longitude });
         setGpsAccuracy(Math.round(acc));
-        setGpsHeading(computedHeading);
         setGpsUpdateCount((n) => n + 1);
 
         // Mise à jour driver_gps (existant)
