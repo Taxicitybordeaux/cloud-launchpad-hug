@@ -760,11 +760,11 @@ function ReservationPage() {
     );
 
   const sheetHeights: Record<Step, string> = {
-    1: "62vh",
-    2: "78vh",
-    3: "70vh",
-    4: "72vh",
-    5: "78vh",
+    1: "72vh",
+    2: "82vh",
+    3: "72vh",
+    4: "75vh",
+    5: "82vh",
   };
 
   const stepLabels = ["Trajet", "Horaires", "Tarif", "Vous", "Récap"];
@@ -789,6 +789,7 @@ function ReservationPage() {
       style={{
         position: "fixed",
         inset: 0,
+        height: "100dvh",
         background: "#0a0a14",
         fontFamily: "'DM Sans',sans-serif",
         overflow: "hidden",
@@ -815,6 +816,7 @@ function ReservationPage() {
         .cta-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
         .cta-btn:active { transform: translateY(0); }
         .pay-btn:hover { border-color: #f5c842 !important; }
+        body { overflow: hidden !important; }
       `}</style>
 
       {/* ── Carte — espace flexible au-dessus du sheet ── */}
