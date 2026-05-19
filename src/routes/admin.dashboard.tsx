@@ -6,6 +6,7 @@ import { calculerPrix, calculerPrixMixte } from "@/lib/tarif";
 import { assertTrackingId, newTrackingId } from "@/lib/tracking-id";
 import { CourseCardSkeleton, GpsCardSkeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
 import logo from "@/assets/logo.jpeg";
+import logo from "@/assets/logo.jpeg";
 
 export const Route = createFileRoute("/admin/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Admin" }, { name: "robots", content: "noindex" }] }),
@@ -20,7 +21,7 @@ const card: React.CSSProperties = {
   padding: 20,
 };
 const labelCss: React.CSSProperties = {
-  fontFamily: "'JetBrains Mono',monospace",
+  fontFamily: "'DM Sans',sans-serif",
   fontSize: 11,
   color: "#64748b",
   letterSpacing: "0.08em",
@@ -143,7 +144,7 @@ function QrModal({ url, onClose }: { url: string; onClose: () => void }) {
         </div>
         <p
           style={{
-            fontFamily: "'JetBrains Mono',monospace",
+            fontFamily: "'DM Sans',sans-serif",
             fontSize: 10,
             color: "#475569",
             wordBreak: "break-all",
@@ -2300,7 +2301,7 @@ function Dashboard() {
                 {gpsPosition && (
                   <div
                     style={{
-                      fontFamily: "'JetBrains Mono',monospace",
+                      fontFamily: "'DM Sans',sans-serif",
                       fontSize: 12,
                       color: "#cbd5e1",
                       marginTop: 14,
@@ -2521,7 +2522,7 @@ function Dashboard() {
                             style={{
                               fontSize: 10,
                               color: "#64748b",
-                              fontFamily: "'JetBrains Mono',monospace",
+                              fontFamily: "'DM Sans',sans-serif",
                               letterSpacing: "0.06em",
                             }}
                           >
@@ -2547,7 +2548,7 @@ function Dashboard() {
                             style={{
                               fontSize: 10,
                               color: "#64748b",
-                              fontFamily: "'JetBrains Mono',monospace",
+                              fontFamily: "'DM Sans',sans-serif",
                               letterSpacing: "0.06em",
                             }}
                           >
@@ -2555,7 +2556,7 @@ function Dashboard() {
                           </div>
                         </div>
                         {since && (
-                          <div style={{ color: "#475569", fontSize: 11, fontFamily: "'JetBrains Mono',monospace" }}>
+                          <div style={{ color: "#475569", fontSize: 11, fontFamily: "'DM Sans',sans-serif" }}>
                             depuis
                             <br />
                             {since}
