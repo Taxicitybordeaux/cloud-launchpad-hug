@@ -281,17 +281,29 @@ function TrackingPage() {
     return window.localStorage.getItem("tcb_tracking_autoresume") !== "0";
   });
   useEffect(() => {
-    try { window.localStorage.setItem("tcb_tracking_deadzone", String(deadZonePct)); } catch { /* noop */ }
+    try {
+      window.localStorage.setItem("tcb_tracking_deadzone", String(deadZonePct));
+    } catch {
+      /* noop */
+    }
   }, [deadZonePct]);
   useEffect(() => {
-    try { window.localStorage.setItem("tcb_tracking_autoresume", autoResume ? "1" : "0"); } catch { /* noop */ }
+    try {
+      window.localStorage.setItem("tcb_tracking_autoresume", autoResume ? "1" : "0");
+    } catch {
+      /* noop */
+    }
   }, [autoResume]);
 
   const [userPanned, setUserPanned] = useState(false); // l'utilisateur a déplacé la map → on arrête le suivi auto
   const userPannedRef = useRef(false);
-  useEffect(() => { userPannedRef.current = userPanned; }, [userPanned]);
+  useEffect(() => {
+    userPannedRef.current = userPanned;
+  }, [userPanned]);
   const autoResumeRef = useRef(true);
-  useEffect(() => { autoResumeRef.current = autoResume; }, [autoResume]);
+  useEffect(() => {
+    autoResumeRef.current = autoResume;
+  }, [autoResume]);
   const lastDriverPosRef = useRef<{ lat: number; lng: number } | null>(null);
   const initialZoomRef = useRef<number | null>(null);
 
@@ -406,92 +418,92 @@ function TrackingPage() {
   };
 
   // Applique une position chauffeur sur la carte (style Uber).
-  const applyDriverPosition = useCallback(async (lat: number, lng: number) => {
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-    const map = mapInstanceRef.current;
-    if (!map) {
-      await initMap(lat, lng);
-      lastAppliedPosRef.current = { lat, lng, t: Date.now() };
-      return;
-    }
-    const now = Date.now();
-    const last = lastAppliedPosRef.current;
-    if (last) {
-      const moved = distMeters(last, { lat, lng });
-      const elapsed = now - last.t;
-      if (moved < 8 && elapsed < 4000) return; // bruit GPS → on ignore
-    }
-    lastAppliedPosRef.current = { lat, lng, t: now };
-    lastDriverPosRef.current = { lat, lng };
+  const applyDriverPosition = useCallback(
+    async (lat: number, lng: number) => {
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      const map = mapInstanceRef.current;
+      if (!map) {
+        await initMap(lat, lng);
+        lastAppliedPosRef.current = { lat, lng, t: Date.now() };
+        return;
+      }
+      const now = Date.now();
+      const last = lastAppliedPosRef.current;
+      if (last) {
+        const moved = distMeters(last, { lat, lng });
+        const elapsed = now - last.t;
+        if (moved < 8 && elapsed < 4000) return; // bruit GPS → on ignore
+      }
+      lastAppliedPosRef.current = { lat, lng, t: now };
+      lastDriverPosRef.current = { lat, lng };
 
-    // Recharge la trace OSRM toutes les 15s pour rester aligné aux rues
-    if (pickupCoordsRef.current && now - lastApproachAtRef.current > 15000) {
-      lastApproachAtRef.current = now;
-      drawApproachLine(lat, lng, pickupCoordsRef.current);
-    }
-    // Animation fluide du marqueur + grignotage de la polyline
-    animateMarkerTo(lat, lng);
+      // Recharge la trace OSRM toutes les 15s pour rester aligné aux rues
+      if (pickupCoordsRef.current && now - lastApproachAtRef.current > 15000) {
+        lastApproachAtRef.current = now;
+        drawApproachLine(lat, lng, pickupCoordsRef.current);
+      }
+      // Animation fluide du marqueur + grignotage de la polyline
+      animateMarkerTo(lat, lng);
 
-    // Suivi "intelligent" :
-    // - désactivé si l'utilisateur a déplacé la map (jusqu'à clic "Recentrer")
-    // - seuil minimal de 15 m de mouvement réel pour déclencher un panTo
-    // - panTo seulement si le taxi sort de la zone morte (% configurable)
-    if (userPannedRef.current) {
-      // Auto-resume : si activé ET le taxi est de nouveau dans la zone morte → on réactive le suivi
-      if (autoResumeRef.current) {
-        try {
-          const bounds = map.getBounds();
-          const sw = bounds.getSouthWest();
-          const ne = bounds.getNorthEast();
-          const margin = (1 - deadZonePct / 100) / 2;
-          const padLat = (ne.lat - sw.lat) * margin;
-          const padLng = (ne.lng - sw.lng) * margin;
-          const inside =
-            lat >= sw.lat + padLat &&
-            lat <= ne.lat - padLat &&
-            lng >= sw.lng + padLng &&
-            lng <= ne.lng - padLng;
-          if (inside) {
-            setUserPanned(false);
-            userPannedRef.current = false;
+      // Suivi "intelligent" :
+      // - désactivé si l'utilisateur a déplacé la map (jusqu'à clic "Recentrer")
+      // - seuil minimal de 15 m de mouvement réel pour déclencher un panTo
+      // - panTo seulement si le taxi sort de la zone morte (% configurable)
+      if (userPannedRef.current) {
+        // Auto-resume : si activé ET le taxi est de nouveau dans la zone morte → on réactive le suivi
+        if (autoResumeRef.current) {
+          try {
+            const bounds = map.getBounds();
+            const sw = bounds.getSouthWest();
+            const ne = bounds.getNorthEast();
+            const margin = (1 - deadZonePct / 100) / 2;
+            const padLat = (ne.lat - sw.lat) * margin;
+            const padLng = (ne.lng - sw.lng) * margin;
+            const inside =
+              lat >= sw.lat + padLat && lat <= ne.lat - padLat && lng >= sw.lng + padLng && lng <= ne.lng - padLng;
+            if (inside) {
+              setUserPanned(false);
+              userPannedRef.current = false;
+            }
+          } catch {
+            /* noop */
           }
-        } catch { /* noop */ }
+        }
+        await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
+        return;
       }
-      await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
-      return;
-    }
-    const distFromCenter = (() => {
+      const distFromCenter = (() => {
+        try {
+          const c = map.getCenter();
+          return distMeters({ lat: c.lat, lng: c.lng }, { lat, lng });
+        } catch {
+          return 0;
+        }
+      })();
+      if (distFromCenter < 15) {
+        await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
+        return;
+      }
       try {
-        const c = map.getCenter();
-        return distMeters({ lat: c.lat, lng: c.lng }, { lat, lng });
-      } catch { return 0; }
-    })();
-    if (distFromCenter < 15) {
-      await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
-      return;
-    }
-    try {
-      const bounds = map.getBounds();
-      const sw = bounds.getSouthWest();
-      const ne = bounds.getNorthEast();
-      const margin = (1 - deadZonePct / 100) / 2; // 60% → 0.2
-      const padLat = (ne.lat - sw.lat) * margin;
-      const padLng = (ne.lng - sw.lng) * margin;
-      const outside =
-        lat < sw.lat + padLat ||
-        lat > ne.lat - padLat ||
-        lng < sw.lng + padLng ||
-        lng > ne.lng - padLng;
-      if (outside) {
-        // panTo SANS modifier le zoom — on garde le zoom utilisateur
-        map.panTo([lat, lng], { animate: true, duration: 1.4, easeLinearity: 0.25, noMoveStart: true });
+        const bounds = map.getBounds();
+        const sw = bounds.getSouthWest();
+        const ne = bounds.getNorthEast();
+        const margin = (1 - deadZonePct / 100) / 2; // 60% → 0.2
+        const padLat = (ne.lat - sw.lat) * margin;
+        const padLng = (ne.lng - sw.lng) * margin;
+        const outside =
+          lat < sw.lat + padLat || lat > ne.lat - padLat || lng < sw.lng + padLng || lng > ne.lng - padLng;
+        if (outside) {
+          // panTo SANS modifier le zoom — on garde le zoom utilisateur
+          map.panTo([lat, lng], { animate: true, duration: 1.4, easeLinearity: 0.25, noMoveStart: true });
+        }
+      } catch {
+        /* noop */
       }
-    } catch {
-      /* noop */
-    }
-    await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
-  }, [deadZonePct]);
-
+      await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
+    },
+    [deadZonePct],
+  );
 
   const notifScheduledRef = useRef(false);
   const schedulePickupNotification = useCallback((pickupDatetime: string) => {
@@ -681,11 +693,14 @@ function TrackingPage() {
   };
 
   const loadLeaflet = (): Promise<void> =>
-    new Promise((resolve) => {
+    new Promise((resolve, reject) => {
+      // Déjà chargé → résolution immédiate
       if ((window as any).L) {
         resolve();
         return;
       }
+
+      // CSS (non-bloquant)
       if (!document.getElementById("leaflet-css")) {
         const l = document.createElement("link");
         l.id = "leaflet-css";
@@ -693,19 +708,53 @@ function TrackingPage() {
         l.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
         document.head.appendChild(l);
       }
-      if (!document.getElementById("leaflet-js")) {
-        const s = document.createElement("script");
-        s.id = "leaflet-js";
-        s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-        s.onload = () => resolve();
-        document.head.appendChild(s);
-      } else resolve();
+
+      // FIX: si le <script> existe mais L pas encore prêt (injection précédente en cours),
+      // on poll plutôt que de resolve() immédiatement → évite "L is undefined"
+      const existing = document.getElementById("leaflet-js") as HTMLScriptElement | null;
+      if (existing) {
+        const poll = setInterval(() => {
+          if ((window as any).L) {
+            clearInterval(poll);
+            resolve();
+          }
+        }, 50);
+        setTimeout(() => {
+          clearInterval(poll);
+          if ((window as any).L) resolve();
+          else reject(new Error("Leaflet timeout"));
+        }, 8000);
+        return;
+      }
+
+      const s = document.createElement("script");
+      s.id = "leaflet-js";
+      s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error("Leaflet load error"));
+      document.head.appendChild(s);
     });
 
   const initMap = async (lat: number, lng: number) => {
-    await loadLeaflet();
+    try {
+      await loadLeaflet();
+    } catch {
+      return;
+    }
     const L = (window as any).L;
-    if (!mapRef.current || mapInstanceRef.current) return;
+    if (!L || !mapRef.current) return;
+
+    // FIX: si une instance existe déjà (retry / hot-reload), on la détruit proprement
+    // avant d'en créer une nouvelle — sinon Leaflet plante ("Map container is already initialized")
+    if (mapInstanceRef.current) {
+      try {
+        mapInstanceRef.current.remove();
+      } catch {
+        /* noop */
+      }
+      mapInstanceRef.current = null;
+      markerRef.current = null;
+    }
     const map = L.map(mapRef.current, { center: [lat, lng], zoom: 14, zoomControl: false });
     initialZoomRef.current = 14;
     // Détection interaction utilisateur → désactive le suivi auto jusqu'au "Recentrer"
@@ -788,7 +837,12 @@ function TrackingPage() {
 
   const stopGeoTracking = useCallback(() => {
     if (geoWatchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(geoWatchIdRef.current);
+      try {
+        navigator.geolocation.clearWatch(geoWatchIdRef.current);
+      } catch {
+        /* noop */
+      }
+      // FIX: toujours remettre à null pour que startGeoTracking puisse redémarrer proprement
       geoWatchIdRef.current = null;
     }
   }, []);
@@ -1726,10 +1780,12 @@ function TrackingPage() {
       </div>
 
       {/* Carte : div toujours dans le DOM pour que Leaflet puisse s'initialiser */}
+      {/* FIX: on affiche la carte dès qu'une position GPS existe, peu importe is_active.
+           Un taxi en retard reste visible sur la carte. */}
       <div
         style={{
-          height: driverData?.is_active ? mapHeight : 0,
-          minHeight: driverData?.is_active ? mapHeight : 0,
+          height: driverData?.latitude != null ? mapHeight : 0,
+          minHeight: driverData?.latitude != null ? mapHeight : 0,
           position: "relative",
           flexShrink: 0,
           overflow: "hidden",
@@ -1738,7 +1794,7 @@ function TrackingPage() {
       >
         <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
         {/* Bouton "Recentrer" : visible quand l'utilisateur a déplacé la carte */}
-        {driverData?.is_active && driverData?.latitude && userPanned && (
+        {driverData?.latitude != null && userPanned && (
           <button
             type="button"
             onClick={recenterOnDriver}
@@ -1765,7 +1821,7 @@ function TrackingPage() {
           </button>
         )}
         {/* Réglage zone morte (suivi auto plus ou moins serré) */}
-        {driverData?.is_active && driverData?.latitude && (
+        {driverData?.latitude != null && (
           <div
             style={{
               position: "absolute",
@@ -1797,7 +1853,14 @@ function TrackingPage() {
             />
             <span style={{ opacity: 0.8, minWidth: 28, textAlign: "right" }}>{deadZonePct}%</span>
             <label
-              style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", paddingLeft: 6, borderLeft: "1px solid rgba(255,255,255,0.15)" }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                cursor: "pointer",
+                paddingLeft: 6,
+                borderLeft: "1px solid rgba(255,255,255,0.15)",
+              }}
               title="Réactive le suivi auto si le taxi revient dans la zone visible"
             >
               <input
