@@ -50,20 +50,6 @@ const PHONE_DISPLAY = "06 73 07 23 22";
 function Home() {
   const t = useT();
 
-  const handleSecretAdmin = () => {
-    if (typeof window === "undefined") return;
-    const pin = window.prompt("Code admin");
-    if (pin === "1234") {
-      localStorage.setItem("taxi_admin", "true");
-      sessionStorage.setItem("admin_pin_ok", "1");
-      window.location.href = "/admin/dashboard";
-    } else if (pin !== null) {
-      alert("Code incorrect");
-    }
-  };
-
-
-
   return (
     <>
       {/* HERO */}
@@ -214,8 +200,7 @@ function Home() {
                 height={512}
                 loading="lazy"
                 decoding="async"
-                className="mx-auto h-auto w-full max-w-xs cursor-pointer select-none sm:max-w-sm"
-                onClick={handleSecretAdmin}
+                className="mx-auto h-auto w-full max-w-xs select-none sm:max-w-sm"
               />
             </div>
             {/* Badge: always visible, repositioned on mobile */}
@@ -319,8 +304,6 @@ function Home() {
           </Link>
         </div>
       </section>
-
-
 
       {/* SERVICES */}
       <section className="mx-auto max-w-7xl px-4 py-12 sm:py-16 md:py-20">
