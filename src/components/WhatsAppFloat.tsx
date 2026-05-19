@@ -12,6 +12,13 @@ const PHONE = "0673072322";
 export function WhatsAppFloat() {
   const { t, lang } = useI18n();
   const location = useLocation();
+
+  // ── Monter uniquement côté client pour éviter l'erreur d'hydratation ──
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const isHiddenPage =
     location.pathname.startsWith("/tracking/") ||
     location.pathname.startsWith("/suivi/") ||
@@ -52,11 +59,11 @@ export function WhatsAppFloat() {
   }, []);
 
   useEffect(() => {
-    if (typeof document === "undefined") return;
     document.documentElement.style.setProperty("--mobile-action-bar-h", `${barHeight}px`);
   }, [barHeight]);
 
-  if (isHiddenPage) return null;
+  // Ne rien rendre côté serveur ni avant hydratation
+  if (!mounted || isHiddenPage) return null;
 
   const btnBase: React.CSSProperties = {
     flex: 1,
@@ -209,5 +216,5 @@ export function WhatsAppFloat() {
     </>
   );
 
-  return typeof document !== "undefined" ? createPortal(content, document.body) : null;
+  return createPortal(content, document.body);
 }
