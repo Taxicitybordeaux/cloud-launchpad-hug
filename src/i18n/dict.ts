@@ -1408,7 +1408,7 @@ const es: Dict = {
   "qr.badge": "SEGUIMIENTO EN TIEMPO REAL",
   "qr.title": "Enlace para seguir tu taxi en tiempo real",
   "qr.subtitle":
-    "Un QR único generado para cada cliente. Escanéalo, abre el enlace en tu teléfono y sigue la llegada del taxi en el mapa.",
+    "Un enlace único generado para cada cliente cuando se confirma el taxi. Abre el enlace en tu teléfono y sigue la llegada del taxi en el mapa.",
   "qr.banner.title": "Abre este enlace en tu teléfono y escanea el QR",
   "qr.banner.desc": "Posición del conductor, ETA, precio estimado. Sin instalación.",
   "qr.timer": "Nuevo código en {count}s",
@@ -1416,7 +1416,7 @@ const es: Dict = {
   "qr.copied": "✓ ¡Enlace copiado!",
   "qr.step1.t": "Reserva",
   "qr.step1.d": "Formulario, email o WhatsApp",
-  "qr.step2.t": "Escanea tu QR",
+  "qr.step2.t": "Pulsa el enlace",
   "qr.step2.d": "Enlace único generado para ti",
   "qr.step3.t": "Sigue en directo",
   "qr.step3.d": "Mapa, ETA, destino, precio",
