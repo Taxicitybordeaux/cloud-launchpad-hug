@@ -196,105 +196,6 @@ function isNuit(iso: string): boolean {
   return h >= 20 || h < 6;
 }
 
-// ─── Modal QR Code ───
-function QrModal({ url, onClose }: { url: string; onClose: () => void }) {
-  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(url)}`;
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.72)",
-        backdropFilter: "blur(8px)",
-        zIndex: 9999,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 20,
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "#0f172a",
-          border: "1px solid rgba(255,255,255,0.12)",
-          borderRadius: 24,
-          padding: 28,
-          maxWidth: 360,
-          width: "100%",
-          textAlign: "center",
-          fontFamily: "'DM Sans',sans-serif",
-          boxShadow: "0 24px 60px rgba(0,0,0,0.6)",
-        }}
-      >
-        <div style={{ fontSize: 32, marginBottom: 8 }}>📲</div>
-        <h2
-          style={{
-            fontFamily: "'Syne',sans-serif",
-            fontSize: 18,
-            fontWeight: 800,
-            color: "#f8fafc",
-            margin: "0 0 4px",
-          }}
-        >
-          QR Code de suivi
-        </h2>
-        <p style={{ color: "#64748b", fontSize: 12, margin: "0 0 18px" }}>Scannez ou partagez ce lien avec le client</p>
-        <div style={{ background: "#fff", borderRadius: 16, padding: 12, display: "inline-block", marginBottom: 16 }}>
-          <img src={qrSrc} alt="QR Code suivi" width={220} height={220} style={{ display: "block" }} />
-        </div>
-        <p
-          style={{
-            fontFamily: "'DM Sans',sans-serif",
-            fontSize: 10,
-            color: "#475569",
-            wordBreak: "break-all",
-            marginBottom: 18,
-          }}
-        >
-          {url}
-        </p>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
-          <button
-            onClick={() => {
-              navigator.clipboard.writeText(url).catch(() => {});
-              toast.success("Lien copié !");
-            }}
-            style={{
-              background: "rgba(14,165,233,0.15)",
-              border: "1px solid rgba(14,165,233,0.3)",
-              color: "#0ea5e9",
-              padding: "10px 18px",
-              borderRadius: 10,
-              cursor: "pointer",
-              fontWeight: 700,
-              fontSize: 13,
-            }}
-          >
-            📋 Copier le lien
-          </button>
-          <button
-            onClick={onClose}
-            style={{
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              color: "#94a3b8",
-              padding: "10px 18px",
-              borderRadius: 10,
-              cursor: "pointer",
-              fontWeight: 700,
-              fontSize: 13,
-            }}
-          >
-            Fermer
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function Dashboard() {
   // ── KPI stats ──
   const [caJ, setCaJ] = useState(0);
@@ -314,11 +215,11 @@ function Dashboard() {
   const [confirmAction, setConfirmAction] = useState<{ type: "accept" | "refuse"; r: any } | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [refusalReason, setRefusalReason] = useState("");
+  const [notifChoices, setNotifChoices] = useState({ sms: false, email: false, whatsapp: false });
   const [autoKm, setAutoKm] = useState<number | null>(null);
   const [kmLoading, setKmLoading] = useState(false);
   const [cardKm, setCardKm] = useState<Record<string, number>>({});
   const [cardKmLoading, setCardKmLoading] = useState<Record<string, boolean>>({});
-  const [qrModal, setQrModal] = useState<{ url: string } | null>(null);
   const [deleteSlide, setDeleteSlide] = useState<string | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -705,8 +606,12 @@ function Dashboard() {
     const tarifLabel = tarifNuitCourse ? `Nuit (${TARIF_NUIT_LABEL})` : `Jour (${TARIF_JOUR_LABEL})`;
     const adminSecret = "admin-pin-call";
 
-    let emailDetail = "Aucun email client renseigné";
-    if (email && url) {
+    const refId = `TCB-${r.id.slice(0, 8).toUpperCase()}`;
+    const paxLine = `${r.nb_passagers || r.passagers || 1} passager(s)${(r.bagages ?? 0) > 0 ? ` · ${r.bagages} bagage(s)` : ""}`;
+    const notifParts: string[] = [];
+
+    // ── Email (si coché) ──
+    if (notifChoices.email && email && url) {
       try {
         const res = await fetch("/api/admin/send-course-email", {
           method: "POST",
@@ -728,40 +633,53 @@ function Dashboard() {
             },
           }),
         });
-        emailDetail = res.ok
-          ? `✉️ Email envoyé à ${email}`
-          : `⚠️ Échec email (${res.status}) — vérifiez le template "course-accepted"`;
+        notifParts.push(res.ok ? `✉️ Email envoyé` : `⚠️ Échec email (${res.status})`);
       } catch {
-        emailDetail = "⚠️ Échec email (réseau)";
+        notifParts.push("⚠️ Échec email (réseau)");
       }
     }
 
-    const TAXI_WA = "33673072322";
-    let waPhone = (phone || "").replace(/[^\d]/g, "");
-    if (waPhone.startsWith("0")) waPhone = "33" + waPhone.slice(1);
-    if (waPhone.startsWith("330")) waPhone = "33" + waPhone.slice(3);
-    const refId = `TCB-${r.id.slice(0, 8).toUpperCase()}`;
-    const paxLine = `${r.nb_passagers || r.passagers || 1} passager(s)${(r.bagages ?? 0) > 0 ? ` · ${r.bagages} bagage(s)` : ""}`;
-    const waMsg = encodeURIComponent(
-      `Bonjour ${name || ""},\n\n✅ Votre course *${refId}* est confirmée !\n\n` +
-        `🕐 Prise en charge : ${pickupFormatted ?? "—"}\n📍 Départ : ${r.depart}\n` +
-        `🏁 Arrivée : ${r.arrivee || r.destination || "—"}\n👥 ${paxLine}\n` +
-        `💰 Prix estimé : *${prixStr}* (tarif ${tarifNuitCourse ? "nuit" : "jour"})\n\n` +
-        `📲 Suivez votre chauffeur en temps réel :\n${url}\n\n📞 06 73 07 23 22 (7j/7 · 24h/24)`,
-    );
+    // ── WhatsApp (si coché) ──
+    if (notifChoices.whatsapp && phone) {
+      const TAXI_WA = "33673072322";
+      let waPhone = (phone || "").replace(/[^\d]/g, "");
+      if (waPhone.startsWith("0")) waPhone = "33" + waPhone.slice(1);
+      if (waPhone.startsWith("330")) waPhone = "33" + waPhone.slice(3);
+      const waMsg = encodeURIComponent(
+        `Bonjour ${name || ""},\n\n✅ Votre course *${refId}* est confirmée !\n\n` +
+          `🕐 Prise en charge : ${pickupFormatted ?? "—"}\n📍 Départ : ${r.depart}\n` +
+          `🏁 Arrivée : ${r.arrivee || r.destination || "—"}\n👥 ${paxLine}\n` +
+          `💰 Prix estimé : *${prixStr}* (tarif ${tarifNuitCourse ? "nuit" : "jour"})\n\n` +
+          `📲 Suivez votre chauffeur en temps réel :\n${url}\n\n📞 06 73 07 23 22 (7j/7 · 24h/24)`,
+      );
+      if (typeof window !== "undefined") {
+        if (waPhone.length >= 10 && waPhone !== TAXI_WA) {
+          window.open(`https://wa.me/${waPhone}?text=${waMsg}`, "_blank", "noopener,noreferrer");
+          notifParts.push("💬 WhatsApp ouvert");
+        } else {
+          notifParts.push("⚠️ Numéro WhatsApp invalide");
+        }
+      }
+    }
 
-    if (typeof window !== "undefined") {
-      if (waPhone.length >= 10 && waPhone !== TAXI_WA) {
-        window.open(`https://wa.me/${waPhone}?text=${waMsg}`, "_blank", "noopener,noreferrer");
-      } else {
-        toast.warning("WhatsApp non envoyé", { description: "Aucun numéro client valide pour cette réservation." });
+    // ── SMS (si coché) ──
+    if (notifChoices.sms && phone) {
+      const smsPhone = (phone || "").replace(/[^\d]/g, "").replace(/^0/, "+33");
+      const pickupShort = r.pickup_datetime
+        ? formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })
+        : "—";
+      const smsBody = encodeURIComponent(
+        `Bonjour ${name || ""},\nCourse ${refId} confirmee !\n${pickupShort} | ${r.depart} -> ${r.arrivee || r.destination || "—"}\nPrix: ${prixStr}\n${url ? `Suivi: ${url}\n` : ""}Tel: 06 73 07 23 22`,
+      );
+      if (typeof window !== "undefined") {
+        window.open(`sms:${smsPhone}?body=${smsBody}`, "_blank");
+        notifParts.push("💬 SMS ouvert");
       }
     }
 
     toast.success(`Course acceptée — ${name || "client"}`, {
-      description: `${emailDetail} · 💬 WhatsApp ouvert`,
+      description: notifParts.length > 0 ? notifParts.join(" · ") : "Aucune notification envoyée.",
       duration: 8000,
-      action: { label: "📲 QR Code", onClick: () => setQrModal({ url }) },
     });
 
     fetchAll();
@@ -1203,24 +1121,6 @@ function Dashboard() {
                 }}
               >
                 ✉️ Email client
-              </button>
-            )}
-
-            {trackingUrl && (
-              <button
-                onClick={() => setQrModal({ url: trackingUrl })}
-                style={{
-                  background: "rgba(139,92,246,0.12)",
-                  border: "1px solid rgba(139,92,246,0.3)",
-                  color: "#a78bfa",
-                  padding: "12px 18px",
-                  borderRadius: 12,
-                  cursor: "pointer",
-                  fontWeight: 700,
-                  fontSize: 13,
-                }}
-              >
-                📲 QR Code
               </button>
             )}
           </div>
@@ -2820,11 +2720,58 @@ function Dashboard() {
               );
             })()}
 
-            <p style={{ color: "#64748b", fontSize: 13, margin: "0 0 22px" }}>
+            <p style={{ color: "#64748b", fontSize: 13, margin: "0 0 14px" }}>
               {confirmAction.type === "accept"
-                ? "Le client recevra un WhatsApp + email avec le lien de suivi en temps réel."
+                ? "Choisissez les notifications à envoyer au client :"
                 : "Le motif sera enregistré. Visible dans l'onglet Refusées."}
             </p>
+
+            {confirmAction.type === "accept" && (
+              <div
+                style={{
+                  background: "rgba(14,165,233,0.06)",
+                  border: "1px solid rgba(14,165,233,0.15)",
+                  borderRadius: 12,
+                  padding: "14px 16px",
+                  marginBottom: 16,
+                  display: "flex",
+                  gap: 10,
+                  flexWrap: "wrap",
+                }}
+              >
+                {[
+                  { key: "sms" as const, label: "💬 SMS", color: "#c084fc" },
+                  { key: "email" as const, label: "✉️ Email", color: "#38bdf8" },
+                  { key: "whatsapp" as const, label: "🟢 WhatsApp", color: "#4ade80" },
+                ].map(({ key, label, color }) => (
+                  <label
+                    key={key}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      cursor: "pointer",
+                      padding: "8px 14px",
+                      borderRadius: 10,
+                      background: notifChoices[key] ? `${color}18` : "rgba(255,255,255,0.04)",
+                      border: `1px solid ${notifChoices[key] ? `${color}60` : "rgba(255,255,255,0.08)"}`,
+                      transition: "all 0.15s",
+                      userSelect: "none",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={notifChoices[key]}
+                      onChange={(e) => setNotifChoices((prev) => ({ ...prev, [key]: e.target.checked }))}
+                      style={{ accentColor: color, width: 16, height: 16, cursor: "pointer" }}
+                    />
+                    <span style={{ color: notifChoices[key] ? color : "#94a3b8", fontWeight: 700, fontSize: 14 }}>
+                      {label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
 
             {confirmAction.type === "refuse" && (
               <div style={{ marginBottom: 18 }}>
@@ -2877,6 +2824,7 @@ function Dashboard() {
                 onClick={() => {
                   setConfirmAction(null);
                   setRefusalReason("");
+                  setNotifChoices({ sms: false, email: false, whatsapp: false });
                 }}
                 disabled={confirmBusy}
                 style={{
@@ -2905,6 +2853,7 @@ function Dashboard() {
                     if (confirmAction.type === "accept") {
                       await handleAccept(confirmAction.r);
                       setConfirmAction(null);
+                      setNotifChoices({ sms: false, email: false, whatsapp: false });
                     } else {
                       const ok = await handleRefuse(confirmAction.r, refusalReason);
                       if (ok) {
@@ -2934,9 +2883,6 @@ function Dashboard() {
           </div>
         </div>
       )}
-
-      {/* ── Modale QR Code ── */}
-      {qrModal && <QrModal url={qrModal.url} onClose={() => setQrModal(null)} />}
     </div>
   );
 }
