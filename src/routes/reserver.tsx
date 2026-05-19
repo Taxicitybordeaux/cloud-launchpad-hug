@@ -222,7 +222,6 @@ function AddressInput({
   const bg = dark ? "#1a1a2e" : "#fff";
   const border = dark ? "#2a2a4a" : "#e2e8f0";
   const textColor = dark ? "#f0f0f0" : "#0f172a";
-  const placeholderStyle = dark ? "rgba(255,255,255,0.35)" : "#94a3b8";
 
   return (
     <div style={{ position: "relative" }}>
