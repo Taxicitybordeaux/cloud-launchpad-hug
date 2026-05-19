@@ -393,9 +393,11 @@ function Dashboard() {
   // =========================
   useEffect(() => {
     const initGPS = async () => {
-      const { data, error } = await supabase.from("driver_gps").select("*").eq("id", "driver").single();
+      const { data, error } = await (supabase as any).from("driver_gps").select("*").eq("id", "driver").single();
       if (error || !data) {
-        await supabase.from("driver_gps").insert({ id: "driver", is_active: false, latitude: 0, longitude: 0 });
+        await (supabase as any)
+          .from("driver_gps")
+          .insert({ id: "driver", is_active: false, latitude: 0, longitude: 0 });
         setGpsLoading(false);
         return;
       }
@@ -413,7 +415,7 @@ function Dashboard() {
 
   const startGPS = async () => {
     if (!navigator.geolocation) return;
-    await supabase
+    await (supabase as any)
       .from("driver_gps")
       .update({
         is_active: true,
@@ -473,7 +475,7 @@ function Dashboard() {
   const stopGPS = async () => {
     if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
     watchIdRef.current = null;
-    await supabase
+    await (supabase as any)
       .from("driver_gps")
       .update({
         is_active: false,
