@@ -1433,6 +1433,22 @@ const es: Dict = {
   "qr.feat5.t": "QR único",
   "qr.feat5.d": "Por cliente, por escaneo",
   "qr.cta": "📞 Reservar — 06 73 07 23 22",
+  "rsim.title": "Simulador de precio",
+  "rsim.day": "Tarifa de día (7h–19h) — 2,16 €/km",
+  "rsim.night": "Tarifa de noche (19h–7h) — 3,24 €/km",
+  "rsim.partition": "{j}% día / {n}% noche",
+  "rsim.pickup": "Toma de servicio: 2,83 €",
+  "rsim.loading": "⏳ Calculando la ruta…",
+  "rsim.distance": "Distancia",
+  "rsim.duration": "Duración estimada",
+  "rsim.hint": "Introduce salida y destino para calcular automáticamente.",
+  "rsim.outbound": "Ida",
+  "rsim.return": "Vuelta",
+  "rsim.total": "TOTAL ESTIMADO",
+  "rsim.total_round": "TOTAL ESTIMADO (ida y vuelta)",
+  "rsim.mixed": "Tarifa mixta — tu trayecto entra en la tarifa nocturna",
+  "rsim.fees": "* Pueden aplicarse gastos de reserva",
+  "rsim.indicative": "Precio indicativo — el taxímetro tiene preferencia",
 };
 
 const it: Dict = {
