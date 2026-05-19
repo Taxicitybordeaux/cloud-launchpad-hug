@@ -7,6 +7,117 @@ import { assertTrackingId, newTrackingId } from "@/lib/tracking-id";
 import { CourseCardSkeleton, GpsCardSkeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
 import logo from "@/assets/logo.jpeg";
 
+// ─── Swipe-to-delete ─────────────────────────────────────────
+function useSwipeDelete(onDelete: () => void, disabled?: boolean) {
+  const ref = useRef<HTMLDivElement>(null);
+  const startX = useRef(0);
+  const currentX = useRef(0);
+  const [offset, setOffset] = useState(0);
+  const [swiping, setSwiping] = useState(false);
+
+  const THRESHOLD = 80; // px pour déclencher la suppression
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (disabled) return;
+    startX.current = e.touches[0].clientX;
+    currentX.current = e.touches[0].clientX;
+    setSwiping(true);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (!swiping || disabled) return;
+    const diff = e.touches[0].clientX - startX.current;
+    if (diff > 0) {
+      setOffset(0);
+      return;
+    } // pas de swipe vers la droite
+    currentX.current = e.touches[0].clientX;
+    setOffset(Math.max(diff, -140));
+  };
+
+  const onTouchEnd = () => {
+    setSwiping(false);
+    const diff = currentX.current - startX.current;
+    if (diff < -THRESHOLD) {
+      setOffset(-140);
+    } else {
+      setOffset(0);
+    }
+  };
+
+  const reset = () => setOffset(0);
+
+  return { ref, offset, onTouchStart, onTouchMove, onTouchEnd, reset, revealed: offset <= -THRESHOLD };
+}
+
+interface SwipeDeleteRowProps {
+  onDelete: () => void;
+  disabled?: boolean;
+  deleteLabel?: string;
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+}
+
+function SwipeDeleteRow({ onDelete, disabled, deleteLabel = "🗑 Supprimer", children, style }: SwipeDeleteRowProps) {
+  const { ref, offset, onTouchStart, onTouchMove, onTouchEnd, reset } = useSwipeDelete(onDelete, disabled);
+  const [confirmSwipe, setConfirmSwipe] = useState(false);
+
+  const handleRevealedTap = () => {
+    if (confirmSwipe) {
+      onDelete();
+      setConfirmSwipe(false);
+    } else {
+      setConfirmSwipe(true);
+      setTimeout(() => setConfirmSwipe(false), 3000);
+    }
+  };
+
+  return (
+    <div style={{ position: "relative", overflow: "hidden", borderRadius: 20, ...style }}>
+      {/* Fond rouge visible en swipant */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: confirmSwipe ? "#dc2626" : "rgba(239,68,68,0.85)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "flex-end",
+          paddingRight: 20,
+          borderRadius: 20,
+          transition: "background 0.2s",
+        }}
+        onClick={handleRevealedTap}
+      >
+        <div
+          style={{ textAlign: "center", color: "#fff", fontWeight: 800, fontSize: 13, fontFamily: "'Syne',sans-serif" }}
+        >
+          {confirmSwipe ? "Confirmer ?" : deleteLabel}
+        </div>
+      </div>
+      {/* Contenu principal */}
+      <div
+        ref={ref}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onClick={() => {
+          if (offset < -20) reset();
+        }}
+        style={{
+          transform: `translateX(${offset}px)`,
+          transition: offset === 0 ? "transform 0.3s cubic-bezier(0.25,1,0.5,1)" : "none",
+          willChange: "transform",
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export const Route = createFileRoute("/admin/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Admin" }, { name: "robots", content: "noindex" }] }),
   component: Dashboard,
@@ -791,6 +902,16 @@ function Dashboard() {
     setAvis((prev) => prev.filter((a) => a.id !== id));
   };
 
+  const handleDeleteClient = async (id: string) => {
+    const { error } = await supabase.from("clients").delete().eq("id", id);
+    if (error) {
+      toast.error("Suppression impossible", { description: error.message });
+      return;
+    }
+    toast.success("Client supprimé");
+    setClients((prev) => prev.filter((c) => c.id !== id));
+  };
+
   const getPrix = (r: any): number | null => {
     if (r.prix_final) return Number(r.prix_final);
     if (r.prix_estime) return Number(r.prix_estime);
@@ -831,196 +952,132 @@ function Dashboard() {
       r.tracking_id && typeof window !== "undefined" ? `${window.location.origin}/scan/${r.tracking_id}` : null;
 
     return (
-      <div style={{ ...card, marginBottom: 14 }}>
-        {/* En-tête */}
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <div>
-            <div style={{ color: "#fff", fontWeight: 700, fontSize: 18 }}>{name}</div>
-            <div style={{ color: "#cbd5e1", marginTop: 8 }}>
-              🟢 {r.depart} → 📍 {dest}
+      <SwipeDeleteRow onDelete={() => handleDeleteReservation(r.id)} disabled={deleteBusy} style={{ marginBottom: 14 }}>
+        <div style={{ ...card }}>
+          {/* En-tête */}
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ color: "#fff", fontWeight: 700, fontSize: 18 }}>{name}</div>
+              <div style={{ color: "#cbd5e1", marginTop: 8 }}>
+                🟢 {r.depart} → 📍 {dest}
+              </div>
+            </div>
+            <div style={{ color: "#64748b", fontSize: 13 }}>
+              {pickupFormatted ? (
+                <span>
+                  🕐 <b style={{ color: "#f8fafc" }}>{pickupFormatted}</b>
+                </span>
+              ) : (
+                new Date(r.created_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })
+              )}
             </div>
           </div>
-          <div style={{ color: "#64748b", fontSize: 13 }}>
-            {pickupFormatted ? (
-              <span>
-                🕐 <b style={{ color: "#f8fafc" }}>{pickupFormatted}</b>
-              </span>
-            ) : (
-              new Date(r.created_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })
-            )}
-          </div>
-        </div>
 
-        {/* Infos */}
-        <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap", color: "#94a3b8", fontSize: 13 }}>
-          {r.distance_km && <span>🚕 {r.distance_km} km</span>}
-          {isPrixLoading ? (
-            <span style={{ color: "#64748b", fontStyle: "italic" }}>📡 calcul prix…</span>
-          ) : prix !== null ? (
-            <span style={{ color: "#ef4444", fontWeight: 700 }}>💰 {Number(prix).toFixed(2)} €</span>
-          ) : null}
-          <span>👥 {r.nb_passagers || r.passagers || 1} passager(s)</span>
-          {r.bagages > 0 && <span>🧳 {r.bagages} bagage(s)</span>}
-          {r.service_type && r.service_type !== "standard" && (
+          {/* Infos */}
+          <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap", color: "#94a3b8", fontSize: 13 }}>
+            {r.distance_km && <span>🚕 {r.distance_km} km</span>}
+            {isPrixLoading ? (
+              <span style={{ color: "#64748b", fontStyle: "italic" }}>📡 calcul prix…</span>
+            ) : prix !== null ? (
+              <span style={{ color: "#ef4444", fontWeight: 700 }}>💰 {Number(prix).toFixed(2)} €</span>
+            ) : null}
+            <span>👥 {r.nb_passagers || r.passagers || 1} passager(s)</span>
+            {r.bagages > 0 && <span>🧳 {r.bagages} bagage(s)</span>}
+            {r.service_type && r.service_type !== "standard" && (
+              <span
+                style={{
+                  background: "rgba(14,165,233,0.1)",
+                  color: "#38bdf8",
+                  padding: "2px 8px",
+                  borderRadius: 99,
+                  fontWeight: 600,
+                }}
+              >
+                🚖 {r.service_type}
+              </span>
+            )}
             <span
               style={{
-                background: "rgba(14,165,233,0.1)",
-                color: "#38bdf8",
+                background: tarif_nuit_card ? "rgba(99,102,241,0.15)" : "rgba(250,204,21,0.12)",
+                color: tarif_nuit_card ? "#818cf8" : "#fbbf24",
                 padding: "2px 8px",
                 borderRadius: 99,
-                fontWeight: 600,
+                fontWeight: 700,
               }}
             >
-              🚖 {r.service_type}
+              {tarif_nuit_card ? `🌙 Nuit ${TARIF_NUIT_LABEL}` : `☀️ Jour ${TARIF_JOUR_LABEL}`}
             </span>
-          )}
-          <span
-            style={{
-              background: tarif_nuit_card ? "rgba(99,102,241,0.15)" : "rgba(250,204,21,0.12)",
-              color: tarif_nuit_card ? "#818cf8" : "#fbbf24",
-              padding: "2px 8px",
-              borderRadius: 99,
-              fontWeight: 700,
-            }}
-          >
-            {tarif_nuit_card ? `🌙 Nuit ${TARIF_NUIT_LABEL}` : `☀️ Jour ${TARIF_JOUR_LABEL}`}
-          </span>
-          <StatusBadge s={r.status} />
-        </div>
-
-        {r.message && (
-          <div
-            style={{
-              marginTop: 12,
-              padding: "8px 12px",
-              background: "rgba(14,165,233,0.06)",
-              border: "1px solid rgba(14,165,233,0.15)",
-              borderRadius: 10,
-              color: "#94a3b8",
-              fontSize: 13,
-              whiteSpace: "pre-line",
-            }}
-          >
-            💬 {r.message}
+            <StatusBadge s={r.status} />
           </div>
-        )}
 
-        {normalizeStatus(r.status) === "refused" && r.refus_motif && (
-          <div
-            style={{
-              marginTop: 14,
-              padding: "10px 12px",
-              background: "rgba(239,68,68,0.08)",
-              border: "1px solid rgba(239,68,68,0.25)",
-              borderRadius: 10,
-              color: "#fecaca",
-              fontSize: 13,
-            }}
-          >
-            <span style={{ fontWeight: 700, color: "#fca5a5" }}>Motif du refus :</span> {r.refus_motif}
+          {r.message && (
+            <div
+              style={{
+                marginTop: 12,
+                padding: "8px 12px",
+                background: "rgba(14,165,233,0.06)",
+                border: "1px solid rgba(14,165,233,0.15)",
+                borderRadius: 10,
+                color: "#94a3b8",
+                fontSize: 13,
+                whiteSpace: "pre-line",
+              }}
+            >
+              💬 {r.message}
+            </div>
+          )}
+
+          {normalizeStatus(r.status) === "refused" && r.refus_motif && (
+            <div
+              style={{
+                marginTop: 14,
+                padding: "10px 12px",
+                background: "rgba(239,68,68,0.08)",
+                border: "1px solid rgba(239,68,68,0.25)",
+                borderRadius: 10,
+                color: "#fecaca",
+                fontSize: 13,
+              }}
+            >
+              <span style={{ fontWeight: 700, color: "#fca5a5" }}>Motif du refus :</span> {r.refus_motif}
+            </div>
+          )}
+
+          <div style={{ marginTop: 14, display: "flex", gap: 14, flexWrap: "wrap" }}>
+            {phone && (
+              <a href={`tel:${phone}`} style={{ color: "#0ea5e9", textDecoration: "none", fontWeight: 600 }}>
+                📞 {phone}
+              </a>
+            )}
+            {email && (
+              <a href={`mailto:${email}`} style={{ color: "#94a3b8", textDecoration: "none" }}>
+                ✉️ {email}
+              </a>
+            )}
           </div>
-        )}
 
-        <div style={{ marginTop: 14, display: "flex", gap: 14, flexWrap: "wrap" }}>
-          {phone && (
-            <a href={`tel:${phone}`} style={{ color: "#0ea5e9", textDecoration: "none", fontWeight: 600 }}>
-              📞 {phone}
-            </a>
-          )}
-          {email && (
-            <a href={`mailto:${email}`} style={{ color: "#94a3b8", textDecoration: "none" }}>
-              ✉️ {email}
-            </a>
-          )}
-        </div>
-
-        {/* Boutons d'action */}
-        <div style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {showAcceptRefuse && normalizeStatus(r.status) === "pending" && (
-            <>
-              <button
-                onClick={async () => {
-                  setAutoKm(r.distance_km ? Number(r.distance_km) : null);
-                  setConfirmAction({ type: "accept", r });
-                  if (!r.distance_km && r.depart && (r.arrivee || r.destination)) {
-                    setKmLoading(true);
-                    try {
-                      const km = await fetchDistanceKm(r.depart, r.arrivee || r.destination);
-                      setAutoKm(km);
-                    } finally {
-                      setKmLoading(false);
-                    }
-                  }
-                }}
-                style={{
-                  background: "#22c55e",
-                  color: "#fff",
-                  border: 0,
-                  padding: "12px 18px",
-                  borderRadius: 12,
-                  cursor: "pointer",
-                  fontWeight: 700,
-                  fontSize: 13,
-                }}
-              >
-                ✓ Accepter
-              </button>
-              <button
-                onClick={() => setConfirmAction({ type: "refuse", r })}
-                style={{
-                  background: "#ef4444",
-                  color: "#fff",
-                  border: 0,
-                  padding: "12px 18px",
-                  borderRadius: 12,
-                  cursor: "pointer",
-                  fontWeight: 700,
-                  fontSize: 13,
-                }}
-              >
-                ✗ Refuser
-              </button>
-            </>
-          )}
-
-          {normalizeStatus(r.status) === "accepted" &&
-            phone &&
-            (() => {
-              const TAXI_WA = "33673072322";
-              let waPhone = (phone || "").replace(/[^\d]/g, "");
-              if (waPhone.startsWith("0")) waPhone = "33" + waPhone.slice(1);
-              if (waPhone.startsWith("330")) waPhone = "33" + waPhone.slice(3);
-              const pickupStr = r.pickup_datetime
-                ? formatParis(r.pickup_datetime, { dateStyle: "full", timeStyle: "short" })
-                : "—";
-              const prixNum = r.prix_estime
-                ? Number(r.prix_estime)
-                : km_card
-                  ? r.pickup_datetime
-                    ? calculerPrixMixte(km_card, r.pickup_datetime)
-                    : calculerPrix(km_card, !tarif_nuit_card)
-                  : null;
-              const prixStr = prixNum ? `${prixNum.toFixed(2)} €` : "à confirmer";
-              const refId = `TCB-${r.id.slice(0, 8).toUpperCase()}`;
-              const paxLine = `${r.nb_passagers || r.passagers || 1} passager(s)${(r.bagages ?? 0) > 0 ? ` · ${r.bagages} bagage(s)` : ""}`;
-              const waMsg = encodeURIComponent(
-                `Bonjour ${name || ""},\n\n✅ Votre course *${refId}* est confirmée !\n\n🕐 Prise en charge : ${pickupStr}\n📍 Départ : ${r.depart}\n🏁 Arrivée : ${dest || "—"}\n👥 ${paxLine}\n💰 Prix estimé : *${prixStr}* (tarif ${tarif_nuit_card ? "nuit" : "jour"})\n\n` +
-                  (trackingUrl ? `📲 Suivez votre chauffeur :\n${trackingUrl}\n\n` : "") +
-                  `📞 06 73 07 23 22 (7j/7 · 24h/24)`,
-              );
-              return (
+          {/* Boutons d'action */}
+          <div style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {showAcceptRefuse && normalizeStatus(r.status) === "pending" && (
+              <>
                 <button
-                  onClick={() => {
-                    if (waPhone.length < 10 || waPhone === TAXI_WA) {
-                      toast.warning("WhatsApp non envoyé", { description: "Aucun numéro client valide." });
-                      return;
+                  onClick={async () => {
+                    setAutoKm(r.distance_km ? Number(r.distance_km) : null);
+                    setConfirmAction({ type: "accept", r });
+                    if (!r.distance_km && r.depart && (r.arrivee || r.destination)) {
+                      setKmLoading(true);
+                      try {
+                        const km = await fetchDistanceKm(r.depart, r.arrivee || r.destination);
+                        setAutoKm(km);
+                      } finally {
+                        setKmLoading(false);
+                      }
                     }
-                    window.open(`https://wa.me/${waPhone}?text=${waMsg}`, "_blank", "noopener,noreferrer");
                   }}
                   style={{
-                    background: "rgba(37,211,102,0.12)",
-                    border: "1px solid rgba(37,211,102,0.3)",
-                    color: "#4ade80",
+                    background: "#22c55e",
+                    color: "#fff",
+                    border: 0,
                     padding: "12px 18px",
                     borderRadius: 12,
                     cursor: "pointer",
@@ -1028,140 +1085,206 @@ function Dashboard() {
                     fontSize: 13,
                   }}
                 >
-                  💬 WhatsApp
+                  ✓ Accepter
                 </button>
-              );
-            })()}
-
-          {phone &&
-            (() => {
-              const smsPhone = (phone || "").replace(/[^\d]/g, "").replace(/^0/, "+33");
-              const pickupStr = r.pickup_datetime
-                ? formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })
-                : "—";
-              const prixNum = r.prix_estime
-                ? Number(r.prix_estime)
-                : km_card
-                  ? r.pickup_datetime
-                    ? calculerPrixMixte(km_card, r.pickup_datetime)
-                    : calculerPrix(km_card, !tarif_nuit_card)
-                  : null;
-              const prixStr = prixNum ? `${prixNum.toFixed(2)} €` : "à confirmer";
-              const refId = `TCB-${r.id.slice(0, 8).toUpperCase()}`;
-              return (
-                <a
-                  href={`sms:${smsPhone}?body=${encodeURIComponent(`Bonjour ${name || ""},\nCourse ${refId} confirmee !\n${pickupStr} | ${r.depart} -> ${dest || "—"}\nPrix: ${prixStr}\n${trackingUrl ? `Suivi: ${trackingUrl}\n` : ""}Tel: 06 73 07 23 22`)}`}
+                <button
+                  onClick={() => setConfirmAction({ type: "refuse", r })}
                   style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    background: "rgba(168,85,247,0.12)",
-                    border: "1px solid rgba(168,85,247,0.3)",
-                    color: "#c084fc",
+                    background: "#ef4444",
+                    color: "#fff",
+                    border: 0,
                     padding: "12px 18px",
                     borderRadius: 12,
+                    cursor: "pointer",
                     fontWeight: 700,
                     fontSize: 13,
-                    textDecoration: "none",
                   }}
                 >
-                  💬 SMS
-                </a>
-              );
-            })()}
+                  ✗ Refuser
+                </button>
+              </>
+            )}
 
-          {email && (
-            <button
-              onClick={() => handleSendEmail(r)}
-              style={{
-                background: "rgba(14,165,233,0.12)",
-                border: "1px solid rgba(14,165,233,0.3)",
-                color: "#38bdf8",
-                padding: "12px 18px",
-                borderRadius: 12,
-                cursor: "pointer",
-                fontWeight: 700,
-                fontSize: 13,
-              }}
-            >
-              ✉️ Email client
-            </button>
-          )}
+            {normalizeStatus(r.status) === "accepted" &&
+              phone &&
+              (() => {
+                const TAXI_WA = "33673072322";
+                let waPhone = (phone || "").replace(/[^\d]/g, "");
+                if (waPhone.startsWith("0")) waPhone = "33" + waPhone.slice(1);
+                if (waPhone.startsWith("330")) waPhone = "33" + waPhone.slice(3);
+                const pickupStr = r.pickup_datetime
+                  ? formatParis(r.pickup_datetime, { dateStyle: "full", timeStyle: "short" })
+                  : "—";
+                const prixNum = r.prix_estime
+                  ? Number(r.prix_estime)
+                  : km_card
+                    ? r.pickup_datetime
+                      ? calculerPrixMixte(km_card, r.pickup_datetime)
+                      : calculerPrix(km_card, !tarif_nuit_card)
+                    : null;
+                const prixStr = prixNum ? `${prixNum.toFixed(2)} €` : "à confirmer";
+                const refId = `TCB-${r.id.slice(0, 8).toUpperCase()}`;
+                const paxLine = `${r.nb_passagers || r.passagers || 1} passager(s)${(r.bagages ?? 0) > 0 ? ` · ${r.bagages} bagage(s)` : ""}`;
+                const waMsg = encodeURIComponent(
+                  `Bonjour ${name || ""},\n\n✅ Votre course *${refId}* est confirmée !\n\n🕐 Prise en charge : ${pickupStr}\n📍 Départ : ${r.depart}\n🏁 Arrivée : ${dest || "—"}\n👥 ${paxLine}\n💰 Prix estimé : *${prixStr}* (tarif ${tarif_nuit_card ? "nuit" : "jour"})\n\n` +
+                    (trackingUrl ? `📲 Suivez votre chauffeur :\n${trackingUrl}\n\n` : "") +
+                    `📞 06 73 07 23 22 (7j/7 · 24h/24)`,
+                );
+                return (
+                  <button
+                    onClick={() => {
+                      if (waPhone.length < 10 || waPhone === TAXI_WA) {
+                        toast.warning("WhatsApp non envoyé", { description: "Aucun numéro client valide." });
+                        return;
+                      }
+                      window.open(`https://wa.me/${waPhone}?text=${waMsg}`, "_blank", "noopener,noreferrer");
+                    }}
+                    style={{
+                      background: "rgba(37,211,102,0.12)",
+                      border: "1px solid rgba(37,211,102,0.3)",
+                      color: "#4ade80",
+                      padding: "12px 18px",
+                      borderRadius: 12,
+                      cursor: "pointer",
+                      fontWeight: 700,
+                      fontSize: 13,
+                    }}
+                  >
+                    💬 WhatsApp
+                  </button>
+                );
+              })()}
 
-          {trackingUrl && (
-            <button
-              onClick={() => setQrModal({ url: trackingUrl })}
-              style={{
-                background: "rgba(139,92,246,0.12)",
-                border: "1px solid rgba(139,92,246,0.3)",
-                color: "#a78bfa",
-                padding: "12px 18px",
-                borderRadius: 12,
-                cursor: "pointer",
-                fontWeight: 700,
-                fontSize: 13,
-              }}
-            >
-              📲 QR Code
-            </button>
-          )}
+            {phone &&
+              (() => {
+                const smsPhone = (phone || "").replace(/[^\d]/g, "").replace(/^0/, "+33");
+                const pickupStr = r.pickup_datetime
+                  ? formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })
+                  : "—";
+                const prixNum = r.prix_estime
+                  ? Number(r.prix_estime)
+                  : km_card
+                    ? r.pickup_datetime
+                      ? calculerPrixMixte(km_card, r.pickup_datetime)
+                      : calculerPrix(km_card, !tarif_nuit_card)
+                    : null;
+                const prixStr = prixNum ? `${prixNum.toFixed(2)} €` : "à confirmer";
+                const refId = `TCB-${r.id.slice(0, 8).toUpperCase()}`;
+                return (
+                  <a
+                    href={`sms:${smsPhone}?body=${encodeURIComponent(`Bonjour ${name || ""},\nCourse ${refId} confirmee !\n${pickupStr} | ${r.depart} -> ${dest || "—"}\nPrix: ${prixStr}\n${trackingUrl ? `Suivi: ${trackingUrl}\n` : ""}Tel: 06 73 07 23 22`)}`}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      background: "rgba(168,85,247,0.12)",
+                      border: "1px solid rgba(168,85,247,0.3)",
+                      color: "#c084fc",
+                      padding: "12px 18px",
+                      borderRadius: 12,
+                      fontWeight: 700,
+                      fontSize: 13,
+                      textDecoration: "none",
+                    }}
+                  >
+                    💬 SMS
+                  </a>
+                );
+              })()}
 
-          {/* Supprimer (slide) */}
-          {deleteSlide === r.id ? (
-            <div style={{ display: "flex", gap: 6, alignItems: "center", marginLeft: "auto" }}>
-              <span style={{ color: "#94a3b8", fontSize: 12 }}>Confirmer ?</span>
+            {email && (
               <button
-                disabled={deleteBusy}
-                onClick={() => handleDeleteReservation(r.id)}
+                onClick={() => handleSendEmail(r)}
                 style={{
-                  background: "#ef4444",
-                  color: "#fff",
-                  border: 0,
-                  padding: "8px 14px",
-                  borderRadius: 10,
-                  cursor: deleteBusy ? "wait" : "pointer",
+                  background: "rgba(14,165,233,0.12)",
+                  border: "1px solid rgba(14,165,233,0.3)",
+                  color: "#38bdf8",
+                  padding: "12px 18px",
+                  borderRadius: 12,
+                  cursor: "pointer",
                   fontWeight: 700,
-                  fontSize: 12,
+                  fontSize: 13,
                 }}
               >
-                {deleteBusy ? "…" : "Oui, supprimer"}
+                ✉️ Email client
               </button>
+            )}
+
+            {trackingUrl && (
               <button
-                onClick={() => setDeleteSlide(null)}
+                onClick={() => setQrModal({ url: trackingUrl })}
                 style={{
-                  background: "rgba(255,255,255,0.06)",
-                  color: "#94a3b8",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  padding: "8px 12px",
+                  background: "rgba(139,92,246,0.12)",
+                  border: "1px solid rgba(139,92,246,0.3)",
+                  color: "#a78bfa",
+                  padding: "12px 18px",
+                  borderRadius: 12,
+                  cursor: "pointer",
+                  fontWeight: 700,
+                  fontSize: 13,
+                }}
+              >
+                📲 QR Code
+              </button>
+            )}
+
+            {/* Supprimer (slide) */}
+            {deleteSlide === r.id ? (
+              <div style={{ display: "flex", gap: 6, alignItems: "center", marginLeft: "auto" }}>
+                <span style={{ color: "#94a3b8", fontSize: 12 }}>Confirmer ?</span>
+                <button
+                  disabled={deleteBusy}
+                  onClick={() => handleDeleteReservation(r.id)}
+                  style={{
+                    background: "#ef4444",
+                    color: "#fff",
+                    border: 0,
+                    padding: "8px 14px",
+                    borderRadius: 10,
+                    cursor: deleteBusy ? "wait" : "pointer",
+                    fontWeight: 700,
+                    fontSize: 12,
+                  }}
+                >
+                  {deleteBusy ? "…" : "Oui, supprimer"}
+                </button>
+                <button
+                  onClick={() => setDeleteSlide(null)}
+                  style={{
+                    background: "rgba(255,255,255,0.06)",
+                    color: "#94a3b8",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    padding: "8px 12px",
+                    borderRadius: 10,
+                    cursor: "pointer",
+                    fontWeight: 700,
+                    fontSize: 12,
+                  }}
+                >
+                  Annuler
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setDeleteSlide(r.id)}
+                style={{
+                  marginLeft: "auto",
+                  background: "rgba(239,68,68,0.08)",
+                  border: "1px solid rgba(239,68,68,0.2)",
+                  color: "#f87171",
+                  padding: "8px 14px",
                   borderRadius: 10,
                   cursor: "pointer",
                   fontWeight: 700,
                   fontSize: 12,
                 }}
               >
-                Annuler
+                🗑 Supprimer
               </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setDeleteSlide(r.id)}
-              style={{
-                marginLeft: "auto",
-                background: "rgba(239,68,68,0.08)",
-                border: "1px solid rgba(239,68,68,0.2)",
-                color: "#f87171",
-                padding: "8px 14px",
-                borderRadius: 10,
-                cursor: "pointer",
-                fontWeight: 700,
-                fontSize: 12,
-              }}
-            >
-              🗑 Supprimer
-            </button>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      </SwipeDeleteRow>
     );
   }
 
@@ -1861,90 +1984,92 @@ function Dashboard() {
             {avis
               .filter((a) => !a.status || a.status === "pending")
               .map((a) => (
-                <div key={a.id} style={{ ...card, marginBottom: 12, border: "1px solid rgba(251,191,36,0.2)" }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 10,
-                      flexWrap: "wrap",
-                      marginBottom: 8,
-                    }}
-                  >
-                    <div>
-                      <span style={{ color: "#f8fafc", fontWeight: 700, fontSize: 15 }}>
-                        {a.author_name || a.nom || "Anonyme"}
-                      </span>
-                      {a.note && (
-                        <span style={{ marginLeft: 10, color: "#fbbf24", fontSize: 14 }}>
-                          {"★".repeat(Math.min(5, Math.max(1, Number(a.note))))}
+                <SwipeDeleteRow key={a.id} onDelete={() => handleDeleteAvis(a.id)} style={{ marginBottom: 12 }}>
+                  <div style={{ ...card, border: "1px solid rgba(251,191,36,0.2)" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 10,
+                        flexWrap: "wrap",
+                        marginBottom: 8,
+                      }}
+                    >
+                      <div>
+                        <span style={{ color: "#f8fafc", fontWeight: 700, fontSize: 15 }}>
+                          {a.author_name || a.nom || "Anonyme"}
                         </span>
-                      )}
+                        {a.note && (
+                          <span style={{ marginLeft: 10, color: "#fbbf24", fontSize: 14 }}>
+                            {"★".repeat(Math.min(5, Math.max(1, Number(a.note))))}
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ color: "#64748b", fontSize: 12 }}>
+                        {new Date(a.created_at).toLocaleDateString("fr-FR")}
+                      </span>
                     </div>
-                    <span style={{ color: "#64748b", fontSize: 12 }}>
-                      {new Date(a.created_at).toLocaleDateString("fr-FR")}
-                    </span>
+                    <p
+                      style={{
+                        color: "#cbd5e1",
+                        fontSize: 14,
+                        margin: "0 0 14px",
+                        lineHeight: 1.6,
+                        whiteSpace: "pre-line",
+                      }}
+                    >
+                      {a.message || a.content || a.texte}
+                    </p>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button
+                        onClick={() => handleAvisAction(a.id, "approved")}
+                        style={{
+                          background: "#22c55e",
+                          color: "#fff",
+                          border: 0,
+                          padding: "9px 16px",
+                          borderRadius: 10,
+                          cursor: "pointer",
+                          fontWeight: 700,
+                          fontSize: 13,
+                        }}
+                      >
+                        ✓ Valider & publier
+                      </button>
+                      <button
+                        onClick={() => handleAvisAction(a.id, "refused")}
+                        style={{
+                          background: "rgba(239,68,68,0.15)",
+                          border: "1px solid rgba(239,68,68,0.3)",
+                          color: "#f87171",
+                          padding: "9px 16px",
+                          borderRadius: 10,
+                          cursor: "pointer",
+                          fontWeight: 700,
+                          fontSize: 13,
+                        }}
+                      >
+                        ✗ Refuser
+                      </button>
+                      <button
+                        onClick={() => handleDeleteAvis(a.id)}
+                        style={{
+                          marginLeft: "auto",
+                          background: "rgba(239,68,68,0.06)",
+                          border: "1px solid rgba(239,68,68,0.15)",
+                          color: "#f87171",
+                          padding: "9px 14px",
+                          borderRadius: 10,
+                          cursor: "pointer",
+                          fontWeight: 700,
+                          fontSize: 12,
+                        }}
+                      >
+                        🗑
+                      </button>
+                    </div>
                   </div>
-                  <p
-                    style={{
-                      color: "#cbd5e1",
-                      fontSize: 14,
-                      margin: "0 0 14px",
-                      lineHeight: 1.6,
-                      whiteSpace: "pre-line",
-                    }}
-                  >
-                    {a.message || a.content || a.texte}
-                  </p>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button
-                      onClick={() => handleAvisAction(a.id, "approved")}
-                      style={{
-                        background: "#22c55e",
-                        color: "#fff",
-                        border: 0,
-                        padding: "9px 16px",
-                        borderRadius: 10,
-                        cursor: "pointer",
-                        fontWeight: 700,
-                        fontSize: 13,
-                      }}
-                    >
-                      ✓ Valider & publier
-                    </button>
-                    <button
-                      onClick={() => handleAvisAction(a.id, "refused")}
-                      style={{
-                        background: "rgba(239,68,68,0.15)",
-                        border: "1px solid rgba(239,68,68,0.3)",
-                        color: "#f87171",
-                        padding: "9px 16px",
-                        borderRadius: 10,
-                        cursor: "pointer",
-                        fontWeight: 700,
-                        fontSize: 13,
-                      }}
-                    >
-                      ✗ Refuser
-                    </button>
-                    <button
-                      onClick={() => handleDeleteAvis(a.id)}
-                      style={{
-                        marginLeft: "auto",
-                        background: "rgba(239,68,68,0.06)",
-                        border: "1px solid rgba(239,68,68,0.15)",
-                        color: "#f87171",
-                        padding: "9px 14px",
-                        borderRadius: 10,
-                        cursor: "pointer",
-                        fontWeight: 700,
-                        fontSize: 12,
-                      }}
-                    >
-                      🗑
-                    </button>
-                  </div>
-                </div>
+                </SwipeDeleteRow>
               ))}
           </div>
         )}
@@ -1999,62 +2124,64 @@ function Dashboard() {
             {avis
               .filter((a) => a.status === "approved")
               .map((a) => (
-                <div key={a.id} style={{ ...card, marginBottom: 10, border: "1px solid rgba(34,197,94,0.15)" }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 10,
-                      flexWrap: "wrap",
-                      marginBottom: 6,
-                    }}
-                  >
-                    <div>
-                      <span style={{ color: "#f8fafc", fontWeight: 700 }}>{a.author_name || a.nom || "Anonyme"}</span>
-                      {a.note && (
-                        <span style={{ marginLeft: 10, color: "#fbbf24", fontSize: 13 }}>
-                          {"★".repeat(Math.min(5, Math.max(1, Number(a.note))))}
+                <SwipeDeleteRow key={a.id} onDelete={() => handleDeleteAvis(a.id)} style={{ marginBottom: 10 }}>
+                  <div style={{ ...card, border: "1px solid rgba(34,197,94,0.15)" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 10,
+                        flexWrap: "wrap",
+                        marginBottom: 6,
+                      }}
+                    >
+                      <div>
+                        <span style={{ color: "#f8fafc", fontWeight: 700 }}>{a.author_name || a.nom || "Anonyme"}</span>
+                        {a.note && (
+                          <span style={{ marginLeft: 10, color: "#fbbf24", fontSize: 13 }}>
+                            {"★".repeat(Math.min(5, Math.max(1, Number(a.note))))}
+                          </span>
+                        )}
+                        <span
+                          style={{
+                            marginLeft: 8,
+                            background: "rgba(34,197,94,0.15)",
+                            color: "#22c55e",
+                            padding: "1px 7px",
+                            borderRadius: 99,
+                            fontSize: 11,
+                            fontWeight: 700,
+                          }}
+                        >
+                          Publié
                         </span>
-                      )}
-                      <span
-                        style={{
-                          marginLeft: 8,
-                          background: "rgba(34,197,94,0.15)",
-                          color: "#22c55e",
-                          padding: "1px 7px",
-                          borderRadius: 99,
-                          fontSize: 11,
-                          fontWeight: 700,
-                        }}
-                      >
-                        Publié
-                      </span>
+                      </div>
+                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                        <span style={{ color: "#64748b", fontSize: 12 }}>
+                          {new Date(a.created_at).toLocaleDateString("fr-FR")}
+                        </span>
+                        <button
+                          onClick={() => handleDeleteAvis(a.id)}
+                          style={{
+                            background: "rgba(239,68,68,0.06)",
+                            border: "1px solid rgba(239,68,68,0.15)",
+                            color: "#f87171",
+                            padding: "5px 10px",
+                            borderRadius: 8,
+                            cursor: "pointer",
+                            fontWeight: 700,
+                            fontSize: 12,
+                          }}
+                        >
+                          🗑
+                        </button>
+                      </div>
                     </div>
-                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <span style={{ color: "#64748b", fontSize: 12 }}>
-                        {new Date(a.created_at).toLocaleDateString("fr-FR")}
-                      </span>
-                      <button
-                        onClick={() => handleDeleteAvis(a.id)}
-                        style={{
-                          background: "rgba(239,68,68,0.06)",
-                          border: "1px solid rgba(239,68,68,0.15)",
-                          color: "#f87171",
-                          padding: "5px 10px",
-                          borderRadius: 8,
-                          cursor: "pointer",
-                          fontWeight: 700,
-                          fontSize: 12,
-                        }}
-                      >
-                        🗑
-                      </button>
-                    </div>
+                    <p style={{ color: "#94a3b8", fontSize: 13, margin: 0, lineHeight: 1.5, whiteSpace: "pre-line" }}>
+                      {a.message || a.content || a.texte}
+                    </p>
                   </div>
-                  <p style={{ color: "#94a3b8", fontSize: 13, margin: 0, lineHeight: 1.5, whiteSpace: "pre-line" }}>
-                    {a.message || a.content || a.texte}
-                  </p>
-                </div>
+                </SwipeDeleteRow>
               ))}
           </div>
         )}
@@ -2109,77 +2236,76 @@ function Dashboard() {
             {avis
               .filter((a) => a.status === "refused")
               .map((a) => (
-                <div
-                  key={a.id}
-                  style={{ ...card, marginBottom: 10, border: "1px solid rgba(239,68,68,0.12)", opacity: 0.7 }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 10,
-                      flexWrap: "wrap",
-                      marginBottom: 6,
-                    }}
-                  >
-                    <div>
-                      <span style={{ color: "#f8fafc", fontWeight: 700 }}>{a.author_name || a.nom || "Anonyme"}</span>
-                      {a.note && (
-                        <span style={{ marginLeft: 10, color: "#fbbf24", fontSize: 13 }}>
-                          {"★".repeat(Math.min(5, Math.max(1, Number(a.note))))}
+                <SwipeDeleteRow key={a.id} onDelete={() => handleDeleteAvis(a.id)} style={{ marginBottom: 10 }}>
+                  <div style={{ ...card, border: "1px solid rgba(239,68,68,0.12)", opacity: 0.7 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 10,
+                        flexWrap: "wrap",
+                        marginBottom: 6,
+                      }}
+                    >
+                      <div>
+                        <span style={{ color: "#f8fafc", fontWeight: 700 }}>{a.author_name || a.nom || "Anonyme"}</span>
+                        {a.note && (
+                          <span style={{ marginLeft: 10, color: "#fbbf24", fontSize: 13 }}>
+                            {"★".repeat(Math.min(5, Math.max(1, Number(a.note))))}
+                          </span>
+                        )}
+                        <span
+                          style={{
+                            marginLeft: 8,
+                            background: "rgba(239,68,68,0.15)",
+                            color: "#ef4444",
+                            padding: "1px 7px",
+                            borderRadius: 99,
+                            fontSize: 11,
+                            fontWeight: 700,
+                          }}
+                        >
+                          Refusé
                         </span>
-                      )}
-                      <span
-                        style={{
-                          marginLeft: 8,
-                          background: "rgba(239,68,68,0.15)",
-                          color: "#ef4444",
-                          padding: "1px 7px",
-                          borderRadius: 99,
-                          fontSize: 11,
-                          fontWeight: 700,
-                        }}
-                      >
-                        Refusé
-                      </span>
+                      </div>
+                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                        <button
+                          onClick={() => handleAvisAction(a.id, "approved")}
+                          style={{
+                            background: "rgba(34,197,94,0.12)",
+                            border: "1px solid rgba(34,197,94,0.3)",
+                            color: "#4ade80",
+                            padding: "5px 10px",
+                            borderRadius: 8,
+                            cursor: "pointer",
+                            fontWeight: 700,
+                            fontSize: 11,
+                          }}
+                        >
+                          Republier
+                        </button>
+                        <button
+                          onClick={() => handleDeleteAvis(a.id)}
+                          style={{
+                            background: "rgba(239,68,68,0.06)",
+                            border: "1px solid rgba(239,68,68,0.15)",
+                            color: "#f87171",
+                            padding: "5px 10px",
+                            borderRadius: 8,
+                            cursor: "pointer",
+                            fontWeight: 700,
+                            fontSize: 12,
+                          }}
+                        >
+                          🗑
+                        </button>
+                      </div>
                     </div>
-                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <button
-                        onClick={() => handleAvisAction(a.id, "approved")}
-                        style={{
-                          background: "rgba(34,197,94,0.12)",
-                          border: "1px solid rgba(34,197,94,0.3)",
-                          color: "#4ade80",
-                          padding: "5px 10px",
-                          borderRadius: 8,
-                          cursor: "pointer",
-                          fontWeight: 700,
-                          fontSize: 11,
-                        }}
-                      >
-                        Republier
-                      </button>
-                      <button
-                        onClick={() => handleDeleteAvis(a.id)}
-                        style={{
-                          background: "rgba(239,68,68,0.06)",
-                          border: "1px solid rgba(239,68,68,0.15)",
-                          color: "#f87171",
-                          padding: "5px 10px",
-                          borderRadius: 8,
-                          cursor: "pointer",
-                          fontWeight: 700,
-                          fontSize: 12,
-                        }}
-                      >
-                        🗑
-                      </button>
-                    </div>
+                    <p style={{ color: "#94a3b8", fontSize: 13, margin: 0, lineHeight: 1.5, whiteSpace: "pre-line" }}>
+                      {a.message || a.content || a.texte}
+                    </p>
                   </div>
-                  <p style={{ color: "#94a3b8", fontSize: 13, margin: 0, lineHeight: 1.5, whiteSpace: "pre-line" }}>
-                    {a.message || a.content || a.texte}
-                  </p>
-                </div>
+                </SwipeDeleteRow>
               ))}
           </div>
         )}
@@ -2193,6 +2319,11 @@ function Dashboard() {
           @keyframes pulseDot {
             0%,100% { box-shadow:0 0 0 0 rgba(34,197,94,0); }
             50%      { box-shadow:0 0 0 14px rgba(34,197,94,0.2); }
+          }
+          .swipe-hint {
+            display: flex; align-items: center; gap: 6px;
+            color: #475569; font-size: 11px; margin-bottom: 10px;
+            font-family: 'DM Sans', sans-serif;
           }
           .gps-input {
             width: 100%; box-sizing: border-box; padding: 12px;
@@ -2457,112 +2588,125 @@ function Dashboard() {
                       })
                     : null;
                   return (
-                    <div
+                    <SwipeDeleteRow
                       key={c.id}
-                      style={{ ...card, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}
+                      onDelete={() => handleDeleteClient(c.id)}
+                      deleteLabel="🗑 Supprimer client"
                     >
-                      <div
-                        style={{
-                          width: 44,
-                          height: 44,
-                          borderRadius: "50%",
-                          background: "rgba(14,165,233,0.15)",
-                          border: "1px solid rgba(14,165,233,0.25)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontFamily: "'Syne',sans-serif",
-                          fontWeight: 800,
-                          fontSize: 16,
-                          color: "#0ea5e9",
-                          flexShrink: 0,
-                        }}
-                      >
-                        {name.charAt(0).toUpperCase()}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 120 }}>
-                        <div style={{ color: "#f8fafc", fontWeight: 700, fontSize: 15 }}>{name}</div>
-                        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 4 }}>
-                          {phone && (
-                            <a
-                              href={`tel:${phone}`}
-                              style={{ color: "#0ea5e9", textDecoration: "none", fontSize: 13, fontWeight: 600 }}
-                            >
-                              📞 {phone}
-                            </a>
-                          )}
-                          {email && (
-                            <a
-                              href={`mailto:${email}`}
-                              style={{ color: "#64748b", textDecoration: "none", fontSize: 13 }}
-                            >
-                              ✉️ {email}
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                      <div style={{ ...card, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
                         <div
                           style={{
-                            background: "rgba(255,255,255,0.04)",
-                            border: "1px solid rgba(255,255,255,0.08)",
-                            borderRadius: 10,
-                            padding: "6px 12px",
-                            textAlign: "center",
-                            minWidth: 60,
+                            width: 44,
+                            height: 44,
+                            borderRadius: "50%",
+                            background: "rgba(14,165,233,0.15)",
+                            border: "1px solid rgba(14,165,233,0.25)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontFamily: "'Syne',sans-serif",
+                            fontWeight: 800,
+                            fontSize: 16,
+                            color: "#0ea5e9",
+                            flexShrink: 0,
                           }}
                         >
+                          {name.charAt(0).toUpperCase()}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 120 }}>
+                          <div style={{ color: "#f8fafc", fontWeight: 700, fontSize: 15 }}>{name}</div>
+                          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 4 }}>
+                            {phone && (
+                              <a
+                                href={`tel:${phone}`}
+                                style={{ color: "#0ea5e9", textDecoration: "none", fontSize: 13, fontWeight: 600 }}
+                              >
+                                📞 {phone}
+                              </a>
+                            )}
+                            {email && (
+                              <a
+                                href={`mailto:${email}`}
+                                style={{ color: "#64748b", textDecoration: "none", fontSize: 13 }}
+                              >
+                                ✉️ {email}
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
                           <div
-                            style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18, color: "#f8fafc" }}
+                            style={{
+                              background: "rgba(255,255,255,0.04)",
+                              border: "1px solid rgba(255,255,255,0.08)",
+                              borderRadius: 10,
+                              padding: "6px 12px",
+                              textAlign: "center",
+                              minWidth: 60,
+                            }}
                           >
-                            {c.nb_courses ?? 0}
+                            <div
+                              style={{
+                                fontFamily: "'Syne',sans-serif",
+                                fontWeight: 800,
+                                fontSize: 18,
+                                color: "#f8fafc",
+                              }}
+                            >
+                              {c.nb_courses ?? 0}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: 10,
+                                color: "#64748b",
+                                fontFamily: "'DM Sans',sans-serif",
+                                letterSpacing: "0.06em",
+                              }}
+                            >
+                              COURSES
+                            </div>
                           </div>
                           <div
                             style={{
-                              fontSize: 10,
-                              color: "#64748b",
-                              fontFamily: "'DM Sans',sans-serif",
-                              letterSpacing: "0.06em",
+                              background: "rgba(14,165,233,0.08)",
+                              border: "1px solid rgba(14,165,233,0.2)",
+                              borderRadius: 10,
+                              padding: "6px 12px",
+                              textAlign: "center",
+                              minWidth: 72,
                             }}
                           >
-                            COURSES
+                            <div
+                              style={{
+                                fontFamily: "'Syne',sans-serif",
+                                fontWeight: 800,
+                                fontSize: 18,
+                                color: "#0ea5e9",
+                              }}
+                            >
+                              {(c.ca_total ?? 0).toFixed(0)} €
+                            </div>
+                            <div
+                              style={{
+                                fontSize: 10,
+                                color: "#64748b",
+                                fontFamily: "'DM Sans',sans-serif",
+                                letterSpacing: "0.06em",
+                              }}
+                            >
+                              CA TOTAL
+                            </div>
                           </div>
+                          {since && (
+                            <div style={{ color: "#475569", fontSize: 11, fontFamily: "'DM Sans',sans-serif" }}>
+                              depuis
+                              <br />
+                              {since}
+                            </div>
+                          )}
                         </div>
-                        <div
-                          style={{
-                            background: "rgba(14,165,233,0.08)",
-                            border: "1px solid rgba(14,165,233,0.2)",
-                            borderRadius: 10,
-                            padding: "6px 12px",
-                            textAlign: "center",
-                            minWidth: 72,
-                          }}
-                        >
-                          <div
-                            style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18, color: "#0ea5e9" }}
-                          >
-                            {(c.ca_total ?? 0).toFixed(0)} €
-                          </div>
-                          <div
-                            style={{
-                              fontSize: 10,
-                              color: "#64748b",
-                              fontFamily: "'DM Sans',sans-serif",
-                              letterSpacing: "0.06em",
-                            }}
-                          >
-                            CA TOTAL
-                          </div>
-                        </div>
-                        {since && (
-                          <div style={{ color: "#475569", fontSize: 11, fontFamily: "'DM Sans',sans-serif" }}>
-                            depuis
-                            <br />
-                            {since}
-                          </div>
-                        )}
                       </div>
-                    </div>
+                    </SwipeDeleteRow>
                   );
                 })}
               </div>
