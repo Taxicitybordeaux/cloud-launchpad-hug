@@ -390,7 +390,7 @@ const fr: Dict = {
   "wa.aria.draftReady": "Votre demande de réservation est prête à être envoyée sur WhatsApp.",
   "wa.default": "Bonjour je souhaite reserver un taxi . pouvez vous me confirmer la disponibilitè merci .",
   "wa.btn.call": "Appeler",
-  "wa.btn.quote": "Réservation devis",
+  "wa.btn.quote": "Réservation",
   // Tracking page
   "suivi.title": "Suivi de votre chauffeur",
   "suivi.hello": "Bonjour",
