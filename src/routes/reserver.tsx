@@ -910,7 +910,7 @@ function ReservationPage() {
           <div
             style={{
               flexShrink: 0,
-              height: "88vh",
+              height: "76vh",
               background: "linear-gradient(180deg, #111120 0%, #0d0d1a 100%)",
               borderRadius: "24px 24px 0 0",
               boxShadow: "0 -8px 40px rgba(0,0,0,0.5), 0 -1px 0 rgba(245,200,66,0.1)",

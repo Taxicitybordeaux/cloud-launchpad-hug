@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as ReserverRouteImport } from './routes/reserver'
 import { Route as ReservationRouteImport } from './routes/reservation'
+import { Route as MesCoursesRouteImport } from './routes/mes-courses'
 import { Route as MentionsLegalesRouteImport } from './routes/mentions-legales'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ContactRouteImport } from './routes/contact'
@@ -21,9 +22,12 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AProposRouteImport } from './routes/a-propos'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TrackingIdRouteImport } from './routes/tracking.$id'
+import { Route as SuiviIdRouteImport } from './routes/suivi.$id'
 import { Route as ScanIdRouteImport } from './routes/scan.$id'
 import { Route as ReservationIdRouteImport } from './routes/reservation.$id'
+import { Route as FinIdRouteImport } from './routes/fin.$id'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
+import { Route as CourseIdRouteImport } from './routes/course.$id'
 import { Route as AdminGpsRouteImport } from './routes/admin.gps'
 import { Route as AdminFlowCheckRouteImport } from './routes/admin.flow-check'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
@@ -54,6 +58,11 @@ const ReserverRoute = ReserverRouteImport.update({
 const ReservationRoute = ReservationRouteImport.update({
   id: '/reservation',
   path: '/reservation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MesCoursesRoute = MesCoursesRouteImport.update({
+  id: '/mes-courses',
+  path: '/mes-courses',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MentionsLegalesRoute = MentionsLegalesRouteImport.update({
@@ -101,6 +110,11 @@ const TrackingIdRoute = TrackingIdRouteImport.update({
   path: '/tracking/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SuiviIdRoute = SuiviIdRouteImport.update({
+  id: '/suivi/$id',
+  path: '/suivi/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ScanIdRoute = ScanIdRouteImport.update({
   id: '/scan/$id',
   path: '/scan/$id',
@@ -111,9 +125,19 @@ const ReservationIdRoute = ReservationIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => ReservationRoute,
 } as any)
+const FinIdRoute = FinIdRouteImport.update({
+  id: '/fin/$id',
+  path: '/fin/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
   id: '/email/unsubscribe',
   path: '/email/unsubscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CourseIdRoute = CourseIdRouteImport.update({
+  id: '/course/$id',
+  path: '/course/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminGpsRoute = AdminGpsRouteImport.update({
@@ -211,6 +235,7 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/login': typeof LoginRoute
   '/mentions-legales': typeof MentionsLegalesRoute
+  '/mes-courses': typeof MesCoursesRoute
   '/reservation': typeof ReservationRouteWithChildren
   '/reserver': typeof ReserverRoute
   '/services': typeof ServicesRoute
@@ -219,9 +244,12 @@ export interface FileRoutesByFullPath {
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/flow-check': typeof AdminFlowCheckRoute
   '/admin/gps': typeof AdminGpsRoute
+  '/course/$id': typeof CourseIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/fin/$id': typeof FinIdRoute
   '/reservation/$id': typeof ReservationIdRoute
   '/scan/$id': typeof ScanIdRoute
+  '/suivi/$id': typeof SuiviIdRoute
   '/tracking/$id': typeof TrackingIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
   '/api/public/contact': typeof ApiPublicContactRoute
@@ -244,6 +272,7 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/login': typeof LoginRoute
   '/mentions-legales': typeof MentionsLegalesRoute
+  '/mes-courses': typeof MesCoursesRoute
   '/reservation': typeof ReservationRouteWithChildren
   '/reserver': typeof ReserverRoute
   '/services': typeof ServicesRoute
@@ -252,9 +281,12 @@ export interface FileRoutesByTo {
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/flow-check': typeof AdminFlowCheckRoute
   '/admin/gps': typeof AdminGpsRoute
+  '/course/$id': typeof CourseIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/fin/$id': typeof FinIdRoute
   '/reservation/$id': typeof ReservationIdRoute
   '/scan/$id': typeof ScanIdRoute
+  '/suivi/$id': typeof SuiviIdRoute
   '/tracking/$id': typeof TrackingIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
   '/api/public/contact': typeof ApiPublicContactRoute
@@ -278,6 +310,7 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/login': typeof LoginRoute
   '/mentions-legales': typeof MentionsLegalesRoute
+  '/mes-courses': typeof MesCoursesRoute
   '/reservation': typeof ReservationRouteWithChildren
   '/reserver': typeof ReserverRoute
   '/services': typeof ServicesRoute
@@ -286,9 +319,12 @@ export interface FileRoutesById {
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/flow-check': typeof AdminFlowCheckRoute
   '/admin/gps': typeof AdminGpsRoute
+  '/course/$id': typeof CourseIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/fin/$id': typeof FinIdRoute
   '/reservation/$id': typeof ReservationIdRoute
   '/scan/$id': typeof ScanIdRoute
+  '/suivi/$id': typeof SuiviIdRoute
   '/tracking/$id': typeof TrackingIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
   '/api/public/contact': typeof ApiPublicContactRoute
@@ -313,6 +349,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/login'
     | '/mentions-legales'
+    | '/mes-courses'
     | '/reservation'
     | '/reserver'
     | '/services'
@@ -321,9 +358,12 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/flow-check'
     | '/admin/gps'
+    | '/course/$id'
     | '/email/unsubscribe'
+    | '/fin/$id'
     | '/reservation/$id'
     | '/scan/$id'
+    | '/suivi/$id'
     | '/tracking/$id'
     | '/api/admin/send-course-email'
     | '/api/public/contact'
@@ -346,6 +386,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/login'
     | '/mentions-legales'
+    | '/mes-courses'
     | '/reservation'
     | '/reserver'
     | '/services'
@@ -354,9 +395,12 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/flow-check'
     | '/admin/gps'
+    | '/course/$id'
     | '/email/unsubscribe'
+    | '/fin/$id'
     | '/reservation/$id'
     | '/scan/$id'
+    | '/suivi/$id'
     | '/tracking/$id'
     | '/api/admin/send-course-email'
     | '/api/public/contact'
@@ -379,6 +423,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/login'
     | '/mentions-legales'
+    | '/mes-courses'
     | '/reservation'
     | '/reserver'
     | '/services'
@@ -387,9 +432,12 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/flow-check'
     | '/admin/gps'
+    | '/course/$id'
     | '/email/unsubscribe'
+    | '/fin/$id'
     | '/reservation/$id'
     | '/scan/$id'
+    | '/suivi/$id'
     | '/tracking/$id'
     | '/api/admin/send-course-email'
     | '/api/public/contact'
@@ -413,11 +461,15 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   LoginRoute: typeof LoginRoute
   MentionsLegalesRoute: typeof MentionsLegalesRoute
+  MesCoursesRoute: typeof MesCoursesRoute
   ReservationRoute: typeof ReservationRouteWithChildren
   ReserverRoute: typeof ReserverRoute
   ServicesRoute: typeof ServicesRoute
+  CourseIdRoute: typeof CourseIdRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
+  FinIdRoute: typeof FinIdRoute
   ScanIdRoute: typeof ScanIdRoute
+  SuiviIdRoute: typeof SuiviIdRoute
   TrackingIdRoute: typeof TrackingIdRoute
   ApiAdminSendCourseEmailRoute: typeof ApiAdminSendCourseEmailRoute
   ApiPublicContactRoute: typeof ApiPublicContactRoute
@@ -453,6 +505,13 @@ declare module '@tanstack/react-router' {
       path: '/reservation'
       fullPath: '/reservation'
       preLoaderRoute: typeof ReservationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mes-courses': {
+      id: '/mes-courses'
+      path: '/mes-courses'
+      fullPath: '/mes-courses'
+      preLoaderRoute: typeof MesCoursesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mentions-legales': {
@@ -518,6 +577,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TrackingIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/suivi/$id': {
+      id: '/suivi/$id'
+      path: '/suivi/$id'
+      fullPath: '/suivi/$id'
+      preLoaderRoute: typeof SuiviIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/scan/$id': {
       id: '/scan/$id'
       path: '/scan/$id'
@@ -532,11 +598,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReservationIdRouteImport
       parentRoute: typeof ReservationRoute
     }
+    '/fin/$id': {
+      id: '/fin/$id'
+      path: '/fin/$id'
+      fullPath: '/fin/$id'
+      preLoaderRoute: typeof FinIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/email/unsubscribe': {
       id: '/email/unsubscribe'
       path: '/email/unsubscribe'
       fullPath: '/email/unsubscribe'
       preLoaderRoute: typeof EmailUnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/course/$id': {
+      id: '/course/$id'
+      path: '/course/$id'
+      fullPath: '/course/$id'
+      preLoaderRoute: typeof CourseIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/gps': {
@@ -693,11 +773,15 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   LoginRoute: LoginRoute,
   MentionsLegalesRoute: MentionsLegalesRoute,
+  MesCoursesRoute: MesCoursesRoute,
   ReservationRoute: ReservationRouteWithChildren,
   ReserverRoute: ReserverRoute,
   ServicesRoute: ServicesRoute,
+  CourseIdRoute: CourseIdRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
+  FinIdRoute: FinIdRoute,
   ScanIdRoute: ScanIdRoute,
+  SuiviIdRoute: SuiviIdRoute,
   TrackingIdRoute: TrackingIdRoute,
   ApiAdminSendCourseEmailRoute: ApiAdminSendCourseEmailRoute,
   ApiPublicContactRoute: ApiPublicContactRoute,
@@ -714,12 +798,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
