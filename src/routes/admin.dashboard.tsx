@@ -425,14 +425,11 @@ function Dashboard() {
         setGpsLoading(false);
         return;
       }
-      setGpsActive(!!data.is_active);
+      setGpsActive(false);
       setGpsDestination(data.destination ?? "");
       setGpsPrixEstime(data.prix_estime ?? "");
       setGpsLoading(false);
-      // Auto-reprendre le GPS s'il était actif lors de la dernière session
-      if (data.is_active && navigator.geolocation) {
-        startGPS();
-      }
+      // Ne pas démarrer automatiquement le GPS à l'ouverture du dashboard
     };
     initGPS();
     return () => {
