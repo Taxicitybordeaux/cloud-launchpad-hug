@@ -394,8 +394,8 @@ function ReservationPage() {
         mapInst.current = null;
       }
       const map = L.map(mapRef.current, { center: BORDEAUX_CENTER, zoom: 12, zoomControl: false });
-      // Carte sombre style premium
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+      // Carte plus claire pour meilleure lisibilité
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
         attribution: "© OpenStreetMap © CARTO",
         maxZoom: 19,
       }).addTo(map);
