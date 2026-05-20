@@ -6,6 +6,7 @@ import { calculerPrix, calculerPrixMixte } from "@/lib/tarif";
 import { assertTrackingId, newTrackingId } from "@/lib/tracking-id";
 import { CourseCardSkeleton, GpsCardSkeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
 import logo from "@/assets/logo.jpeg";
+import { EnablePushButton } from "@/components/EnablePushButton";
 
 // ─── Swipe-to-delete ─────────────────────────────────────────
 function SwipeDeleteRow({
