@@ -7,6 +7,7 @@ import { assertTrackingId, newTrackingId } from "@/lib/tracking-id";
 import { CourseCardSkeleton, GpsCardSkeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
 import logo from "@/assets/logo.jpeg";
 import { EnablePushButton } from "@/components/EnablePushButton";
+import { notifyReservationStatus } from "@/lib/push.functions";
 
 // ─── Swipe-to-delete ─────────────────────────────────────────
 function SwipeDeleteRow({
@@ -726,6 +727,7 @@ function Dashboard() {
     toast.success(`Course refusée — ${r.client_name || r.nom || "client"}`, {
       description: `Motif : « ${cleaned.slice(0, 80)}${cleaned.length > 80 ? "…" : ""} »`,
     });
+    notifyReservationStatus({ data: { reservation_id: r.id, status: "refused" } }).catch(() => {});
     fetchAll();
     return true;
   };
