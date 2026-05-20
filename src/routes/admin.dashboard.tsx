@@ -695,6 +695,9 @@ function Dashboard() {
       }
     }
 
+    // Push notification to the client (non-blocking)
+    notifyReservationStatus({ data: { reservation_id: r.id, status: "accepted" } }).catch(() => {});
+
     toast.success(`Course acceptée — ${name || "client"}`, {
       description: notifParts.length > 0 ? notifParts.join(" · ") : "Aucune notification envoyée.",
       duration: 8000,
