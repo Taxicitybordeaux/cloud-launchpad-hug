@@ -4,6 +4,7 @@ import * as React from 'react'
 import { render } from '@react-email/components'
 import { z } from 'zod'
 import { TEMPLATES } from '@/lib/email-templates/registry'
+import { sendPushToAudience } from '@/lib/push.server'
 
 const SITE_NAME = 'Taxi City Bordeaux'
 const SENDER_DOMAIN = 'notify.taxicitybordeaux.fr'
