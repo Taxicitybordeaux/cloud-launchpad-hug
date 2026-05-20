@@ -13,7 +13,7 @@ import {
   Navigation,
 } from "lucide-react";
 import { buildReservationMessage, whatsappLink } from "@/lib/whatsapp";
-import { EnablePushButton } from "@/components/EnablePushButton";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useT, useI18n } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/reservation/$id")({
@@ -49,6 +49,13 @@ function ConfirmationPage() {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const { status: pushStatus, subscribe } = usePushNotifications();
+
+  useEffect(() => {
+    if (reservation && reservation.status !== "annulee" && pushStatus === "idle") {
+      subscribe("client", reservation.id).catch(() => {});
+    }
+  }, [reservation, pushStatus, subscribe]);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,7 +76,7 @@ function ConfirmationPage() {
     const { data, error } = await supabase.rpc("cancel_reservation_public", { p_id: id });
     setCancelling(false);
     if (!error && data) {
-      setReservation((r) => (r ? { ...r, status: "annulee" } : r));
+      setReservation((r) => (r ? { ...r, status: "cancelled" } : r));
       setConfirmCancel(false);
     }
   };
@@ -99,7 +106,7 @@ function ConfirmationPage() {
   }
 
   const refNumber = `TCB-${reservation.id.slice(0, 8).toUpperCase()}`;
-  const isCancelled = reservation.status === "annulee";
+  const isCancelled = ["annulee", "cancelled", "canceled"].includes(reservation.status);
 
   const waMessage = buildReservationMessage(
     {
@@ -142,8 +149,8 @@ function ConfirmationPage() {
       </div>
 
       {!isCancelled && (
-        <div className="mt-6 flex justify-center">
-          <EnablePushButton audience="client" reservationId={reservation.id} label="Recevoir les mises à jour" />
+        <div className="mt-6 rounded-2xl border border-border bg-card p-4 text-center text-sm text-muted-foreground">
+          📲 Les notifications de suivi sont activées automatiquement pour cette réservation.
         </div>
       )}
 

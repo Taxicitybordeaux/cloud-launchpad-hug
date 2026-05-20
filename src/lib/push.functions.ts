@@ -4,6 +4,8 @@ import { supabaseAdmin } from '@/integrations/supabase/client.server';
 import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
 import { sendPushToAudience } from '@/lib/push.server';
 
+export type PushAudience = 'admin' | 'chauffeur' | 'client';
+
 export const getVapidPublicKey = createServerFn({ method: 'GET' }).handler(async () => {
   return { key: process.env.VAPID_PUBLIC_KEY ?? '' };
 });

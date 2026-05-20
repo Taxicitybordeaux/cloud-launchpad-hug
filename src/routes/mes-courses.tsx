@@ -61,9 +61,11 @@ interface Course {
   destination: string;
   date_course: string;
   heure_course: string;
-  statut_course: string;
+  status: string;
   prix_final: number | null;
+  prix_estime?: number | null;
   distance_reelle_km: number | null;
+  distance_km?: number | null;
   duree_reelle_min: number | null;
   paiement: string | null;
   prenom: string;
@@ -74,12 +76,13 @@ interface Course {
 }
 
 const STATUT_LABELS: Record<string, { label: string; color: string; bg: string }> = {
-  terminee:  { label: "Terminée",   color: "#22c55e", bg: "rgba(34,197,94,0.12)" },
+  completed: { label: "Terminée",   color: "#22c55e", bg: "rgba(34,197,94,0.12)" },
   accepted:  { label: "Acceptée",   color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
   pending:   { label: "En attente", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
   refused:   { label: "Refusée",    color: "#ef4444", bg: "rgba(239,68,68,0.12)" },
-  en_cours:  { label: "En cours",   color: "#f5c842", bg: "rgba(245,200,66,0.12)" },
-  en_route:  { label: "En route",   color: "#a78bfa", bg: "rgba(167,139,250,0.12)" },
+  en_route:  { label: "En route",   color: "#f5c842", bg: "rgba(245,200,66,0.12)" },
+  arrived:   { label: "Arrivé",     color: "#22c55e", bg: "rgba(34,197,94,0.12)" },
+  cancelled: { label: "Annulée",    color: "#ef4444", bg: "rgba(239,68,68,0.12)" },
 };
 
 function formatDate(dateStr: string, heureStr?: string): string {
@@ -173,9 +176,9 @@ function MapReplay({ depart, destination }: { depart: string; destination: strin
 function CourseCard({ course, onRebook }: { course: Course; onRebook: (c: Course) => void }) {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
-  const statut = STATUT_LABELS[course.statut_course] ?? { label: course.statut_course, color: "#94a3b8", bg: "rgba(148,163,184,0.12)" };
+  const statut = STATUT_LABELS[course.status] ?? { label: course.status, color: "#94a3b8", bg: "rgba(148,163,184,0.12)" };
 
-  const isTerminee = course.statut_course === "terminee";
+  const isTerminee = course.status === "completed";
 
   return (
     <div style={{
@@ -221,17 +224,17 @@ function CourseCard({ course, onRebook }: { course: Course; onRebook: (c: Course
               {course.destination}
             </div>
           </div>
-          {isTerminee && course.prix_final != null && (
+          {isTerminee && (course.prix_final != null || course.prix_estime != null) && (
             <div style={{ textAlign: "right", flexShrink: 0 }}>
               <div style={{
                 fontSize: 20, fontWeight: 800, color: "#f5c842",
                 fontFamily: "'DM Sans',sans-serif",
                 fontVariantNumeric: "tabular-nums",
               }}>
-                {course.prix_final.toFixed(2)} €
+                {(course.prix_final != null ? course.prix_final : course.prix_estime ?? 0).toFixed(2)} €
               </div>
-              {course.distance_reelle_km && (
-                <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{course.distance_reelle_km} km</div>
+              {(course.distance_reelle_km ?? course.distance_km) != null && (
+                <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{course.distance_reelle_km ?? course.distance_km} km</div>
               )}
             </div>
           )}
@@ -341,7 +344,7 @@ function RebookModal({ course, onClose }: { course: Course; onClose: () => void 
     setLoading(true);
     try {
       const sid = sessionStorage.getItem("sid");
-      const { data, error } = await supabase.from("reservations").insert({
+      const { data, error } = await (supabase as any).from("reservations").insert({
         depart: course.depart,
         destination: course.destination,
         date_course: date,
@@ -350,7 +353,8 @@ function RebookModal({ course, onClose }: { course: Course; onClose: () => void 
         nom: course.nom,
         email: course.email,
         paiement: course.paiement,
-        statut_course: "pending",
+        status: "pending",
+        pickup_datetime: new Date(`${date}T${heure}`).toISOString(),
         session_id: sid,
       }).select("id").single();
 
@@ -468,7 +472,7 @@ function EmailGate({ onFound }: { onFound: (courses: Course[]) => void }) {
   const search = async () => {
     if (!email.includes("@")) { setErr("Adresse email invalide"); return; }
     setLoading(true); setErr("");
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from("reservations")
       .select("*")
       .eq("email", email.toLowerCase())
@@ -529,7 +533,7 @@ function MesCourses() {
       const sid = sessionStorage.getItem("sid");
       if (!sid) { setShowGate(true); setLoading(false); return; }
 
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("reservations")
         .select("*")
         .eq("session_id", sid)
@@ -545,9 +549,9 @@ function MesCourses() {
 
   const stats = {
     total: courses.length,
-    terminees: courses.filter((c) => c.statut_course === "terminee").length,
-    depenses: courses.filter((c) => c.prix_final != null).reduce((s, c) => s + (c.prix_final ?? 0), 0),
-    km: courses.filter((c) => c.distance_reelle_km != null).reduce((s, c) => s + (c.distance_reelle_km ?? 0), 0),
+    terminees: courses.filter((c) => c.status === "completed").length,
+    depenses: courses.filter((c) => (c.prix_final ?? c.prix_estime) != null).reduce((s, c) => s + (c.prix_final ?? c.prix_estime ?? 0), 0),
+    km: courses.filter((c) => (c.distance_reelle_km ?? c.distance_km) != null).reduce((s, c) => s + (c.distance_reelle_km ?? c.distance_km ?? 0), 0),
   };
 
   return (

@@ -156,6 +156,10 @@ const STATUS: Record<string, { bg: string; c: string; label: string }> = {
   pending: { bg: "rgba(245,158,11,0.15)", c: "#f59e0b", label: "En attente" },
   accepted: { bg: "rgba(34,197,94,0.15)", c: "#22c55e", label: "Acceptée" },
   refused: { bg: "rgba(239,68,68,0.15)", c: "#ef4444", label: "Refusée" },
+  en_route: { bg: "rgba(245,200,66,0.15)", c: "#f5c842", label: "En route" },
+  arrived: { bg: "rgba(34,197,94,0.15)", c: "#22c55e", label: "Arrivé" },
+  completed: { bg: "rgba(34,197,94,0.15)", c: "#22c55e", label: "Terminé" },
+  cancelled: { bg: "rgba(239,68,68,0.15)", c: "#ef4444", label: "Annulée" },
 };
 
 function paiementLabel(p: string | null | undefined): string {
@@ -834,6 +838,22 @@ function Dashboard() {
     return true;
   };
 
+  const handleUpdateReservationStatus = async (r: any, status: string) => {
+    const valid = ["accepted", "en_route", "arrived", "completed", "cancelled"];
+    if (!valid.includes(status)) return;
+    const { error } = await supabase
+      .from("reservations")
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq("id", r.id);
+    if (error) {
+      toast.error("Impossible de mettre à jour le statut", { description: error.message });
+      return;
+    }
+    toast.success(`Statut mis à jour : ${status}`, { description: `Course ${r.id} → ${status}` });
+    notifyReservationStatus({ data: { reservation_id: r.id, status } }).catch(() => {});
+    setItems((prev) => prev.map((item) => (item.id === r.id ? { ...item, status } : item)));
+  };
+
   // =========================
   // RENVOYER EMAIL
   // =========================
@@ -1246,6 +1266,40 @@ function Dashboard() {
               >
                 ✉️ Email client
               </button>
+            )}
+            {(normalizeStatus(r.status) === "accepted" || r.status === "en_route" || r.status === "arrived") && (
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                {r.status !== "en_route" && (
+                  <button
+                    onClick={() => handleUpdateReservationStatus(r, "en_route")}
+                    style={{ background: "#f59e0b", color: "#0a0a14", border: "none", padding: "12px 14px", borderRadius: 12, cursor: "pointer", fontWeight: 700 }}
+                  >
+                    🚗 En route
+                  </button>
+                )}
+                {r.status !== "arrived" && (
+                  <button
+                    onClick={() => handleUpdateReservationStatus(r, "arrived")}
+                    style={{ background: "#22c55e", color: "#fff", border: "none", padding: "12px 14px", borderRadius: 12, cursor: "pointer", fontWeight: 700 }}
+                  >
+                    📍 Arrivé
+                  </button>
+                )}
+                {r.status !== "completed" && (
+                  <button
+                    onClick={() => handleUpdateReservationStatus(r, "completed")}
+                    style={{ background: "#2563eb", color: "#fff", border: "none", padding: "12px 14px", borderRadius: 12, cursor: "pointer", fontWeight: 700 }}
+                  >
+                    🏁 Terminé
+                  </button>
+                )}
+                <button
+                  onClick={() => handleUpdateReservationStatus(r, "cancelled")}
+                  style={{ background: "#ef4444", color: "#fff", border: "none", padding: "12px 14px", borderRadius: 12, cursor: "pointer", fontWeight: 700 }}
+                >
+                  ✖ Annuler
+                </button>
+              </div>
             )}
           </div>
         </div>

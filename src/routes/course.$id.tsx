@@ -60,7 +60,7 @@ interface Reservation {
   id: string;
   depart: string;
   destination: string;
-  statut_course: string;
+  status: string;
   chauffeur_id: string | null;
   prenom: string;
   nom: string;
@@ -95,16 +95,16 @@ function CoursePage() {
   // ── Charger la réservation ─────────────────────────────────
   useEffect(() => {
     const load = async () => {
-      const { data: r } = await supabase
+      const { data: r } = await (supabase as any)
         .from("reservations")
-        .select("id,depart,destination,statut_course,chauffeur_id,prenom,nom,telephone")
+        .select("id,depart,destination,status,chauffeur_id,prenom,nom,telephone")
         .eq("id", id)
         .single();
       if (!r) { setLoading(false); return; }
 
       // Redirections
-      if (r.statut_course === "terminee") { navigate({ to: `/fin/${id}` }); return; }
-      if (r.statut_course !== "en_cours") { navigate({ to: `/suivi/${id}` }); return; }
+      if (r.status === "completed") { navigate({ to: `/fin/${id}` }); return; }
+      if (r.status !== "en_route") { navigate({ to: `/suivi/${id}` }); return; }
 
       setResa(r as Reservation);
 
@@ -250,7 +250,7 @@ function CoursePage() {
         event: "UPDATE", schema: "public", table: "reservations",
         filter: `id=eq.${id}`,
       }, (payload: any) => {
-        if (payload.new.statut_course === "terminee") navigate({ to: `/fin/${id}` });
+        if (payload.new.status === "completed") navigate({ to: `/fin/${id}` });
       })
       .subscribe();
     return () => { (supabase as any).removeChannel(channel); };

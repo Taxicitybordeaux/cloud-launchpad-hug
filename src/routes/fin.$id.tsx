@@ -76,9 +76,11 @@ interface Reservation {
   id: string;
   depart: string;
   destination: string;
-  statut_course: string;
+  status: string;
   prix_final: number | null;
+  prix_estime?: number | null;
   distance_reelle_km: number | null;
+  distance_km?: number | null;
   duree_reelle_min: number | null;
   chauffeur_id: string | null;
   prenom: string;
@@ -154,8 +156,9 @@ async function genererRecuPDF(resa: Reservation, chauffeur: Chauffeur | null): P
   doc.setFont("helvetica", "bold");
   doc.setFontSize(28);
   doc.setTextColor(...gold);
+  const prixTotal = resa.prix_final != null ? resa.prix_final : resa.prix_estime ?? null;
   doc.text(
-    resa.prix_final != null ? `${resa.prix_final.toFixed(2)} EUR` : "Prix non renseigné",
+    prixTotal != null ? `${prixTotal.toFixed(2)} EUR` : "Prix non renseigné",
     14, y + 16
   );
 
@@ -169,7 +172,7 @@ async function genererRecuPDF(resa: Reservation, chauffeur: Chauffeur | null): P
 
   // Stats ligne
   const stats = [
-    { label: "Distance", value: resa.distance_reelle_km != null ? `${resa.distance_reelle_km} km` : "—" },
+    { label: "Distance", value: resa.distance_reelle_km != null ? `${resa.distance_reelle_km} km` : resa.distance_km != null ? `${resa.distance_km} km` : "—" },
     { label: "Durée", value: resa.duree_reelle_min != null ? formatDureePDF(resa.duree_reelle_min) : "—" },
     { label: "Date", value: resa.date_course ?? now.toLocaleDateString("fr-FR") },
     { label: "Heure", value: resa.heure_course ?? now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) },
@@ -335,24 +338,24 @@ function FinPage() {
   // ── Charger données ────────────────────────────────────────
   useEffect(() => {
     const load = async () => {
-      const { data: r } = await supabase
+      const { data: r } = await (supabase as any)
         .from("reservations")
-        .select("id,depart,destination,statut_course,prix_final,distance_reelle_km,duree_reelle_min,chauffeur_id,prenom,nom,email,telephone,paiement,date_course,heure_course")
+        .select("id,depart,destination,status,prix_final,prix_estime,distance_reelle_km,distance_km,duree_reelle_min,chauffeur_id,prenom,nom,email,telephone,paiement,date_course,heure_course")
         .eq("id", id)
         .single();
 
       if (!r) { setLoading(false); return; }
-      if (r.statut_course !== "terminee") { navigate({ to: `/suivi/${id}` }); return; }
+      if (r.status !== "completed") { navigate({ to: `/suivi/${id}` }); return; }
       setResa(r as Reservation);
 
       if (r.chauffeur_id) {
-        const { data: c } = await supabase
+        const { data: c } = await (supabase as any)
           .from("chauffeurs").select("*").eq("id", r.chauffeur_id).single();
         if (c) setChauffeur(c as Chauffeur);
       }
 
       // Vérifier si avis déjà posté
-      const { data: av } = await supabase
+      const { data: av } = await (supabase as any)
         .from("avis").select("id,note").eq("reservation_id", id).single();
       if (av) { setNote(av.note); setAvisEnvoye(true); }
 
@@ -366,7 +369,7 @@ function FinPage() {
     if (!note || avisLoading || avisEnvoye) return;
     setAvisLoading(true);
     try {
-      await supabase.from("avis").insert({
+      await (supabase as any).from("avis").insert({
         reservation_id: id,
         note,
         commentaire: commentaire.trim() || null,
@@ -375,7 +378,7 @@ function FinPage() {
       if (chauffeur) {
         const newNb = chauffeur.nb_avis + 1;
         const newNote = ((chauffeur.note_moyenne * chauffeur.nb_avis) + note) / newNb;
-        await supabase.from("chauffeurs").update({
+        await (supabase as any).from("chauffeurs").update({
           note_moyenne: Math.round(newNote * 100) / 100,
           nb_avis: newNb,
         }).eq("id", chauffeur.id);
@@ -518,7 +521,7 @@ function FinPage() {
             <div>
               <div style={{ fontSize: 12, color: "rgba(245,200,66,0.6)", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>Prix final</div>
               <div style={{ fontFamily: "'Clash Display',sans-serif", fontSize: 40, fontWeight: 700, color: "#f5c842", lineHeight: 1.1 }}>
-                {resa.prix_final != null ? `${resa.prix_final.toFixed(2)} €` : "—"}
+                {((resa.prix_final != null ? resa.prix_final : resa.prix_estime) != null ? `${(resa.prix_final != null ? resa.prix_final : resa.prix_estime)!.toFixed(2)} €` : "—")}
               </div>
               <div style={{ fontSize: 12, color: "#64748b", marginTop: 3 }}>
                 {resa.paiement === "cb" ? "💳 Carte bancaire" : "💵 Espèces"}

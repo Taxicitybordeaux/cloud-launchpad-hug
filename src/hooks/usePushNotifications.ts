@@ -1,13 +1,8 @@
 // src/hooks/usePushNotifications.ts
 
-// Hook pour gérer l'abonnement aux notifications push Web
-
 import { useEffect, useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
-
-// ⚠️ Remplacer par votre clé publique VAPID générée via :
-// npx web-push generate-vapid-keys
-const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || "";
+import { useServerFn } from "@tanstack/react-start";
+import { getVapidPublicKey, subscribePush, type PushAudience } from "@/lib/push.functions";
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -21,6 +16,9 @@ export type PushStatus = "idle" | "loading" | "granted" | "denied" | "unsupporte
 export function usePushNotifications() {
   const [status, setStatus] = useState<PushStatus>("idle");
   const [subscription, setSubscription] = useState<PushSubscription | null>(null);
+
+  const getKey = useServerFn(getVapidPublicKey);
+  const subscribeFn = useServerFn(subscribePush);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
@@ -45,7 +43,9 @@ export function usePushNotifications() {
     };
 
     loadSubscription();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const registerSW = useCallback(async () => {
@@ -62,59 +62,64 @@ export function usePushNotifications() {
     }
   }, []);
 
-  const subscribe = useCallback(async (): Promise<boolean> => {
-    if (!VAPID_PUBLIC_KEY) {
-      console.warn("VAPID_PUBLIC_KEY manquante — push désactivé");
-      return false;
-    }
-    setStatus("loading");
+  const subscribe = useCallback(
+    async (audience: PushAudience = "client", reservationId?: string): Promise<boolean> => {
+      setStatus("loading");
 
-    try {
-      const permission = await Notification.requestPermission();
-      if (permission !== "granted") {
+      try {
+        const keyResult = await getKey();
+        if (!keyResult?.key) {
+          console.warn("VAPID key unavailable — push disabled");
+          setStatus("unsupported");
+          return false;
+        }
+
+        const permission = await Notification.requestPermission();
+        if (permission !== "granted") {
+          setStatus("denied");
+          return false;
+        }
+
+        const reg = await registerSW();
+        if (!reg) {
+          setStatus("unsupported");
+          return false;
+        }
+
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(keyResult.key) as unknown as ArrayBuffer,
+        });
+
+        const json = sub.toJSON();
+        const keys = json.keys as { p256dh: string; auth: string };
+
+        await subscribeFn({
+          data: {
+            audience,
+            endpoint: sub.endpoint,
+            p256dh: keys.p256dh,
+            auth: keys.auth,
+            reservation_id: reservationId ?? null,
+            user_agent: navigator.userAgent.slice(0, 500),
+          },
+        });
+
+        setSubscription(sub);
+        setStatus("granted");
+        return true;
+      } catch (err) {
+        console.error("Push subscribe error:", err);
         setStatus("denied");
         return false;
       }
-
-      const reg = await registerSW();
-      if (!reg) { setStatus("unsupported"); return false; }
-
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as unknown as ArrayBuffer,
-      });
-
-      setSubscription(sub);
-      setStatus("granted");
-
-      const sid = sessionStorage.getItem("sid");
-      const json = sub.toJSON();
-      const keys = json.keys as { p256dh: string; auth: string };
-
-      const pushRecord = {
-        endpoint: sub.endpoint,
-        p256dh: keys.p256dh,
-        auth: keys.auth,
-        session_id: sid,
-      } as any;
-
-      await supabase.from("push_subscriptions").upsert(pushRecord, { onConflict: "endpoint" });
-
-      return true;
-    } catch (err) {
-      console.error("Push subscribe error:", err);
-      setStatus("denied");
-      return false;
-    }
-  }, [registerSW]);
+    },
+    [getKey, registerSW, subscribeFn],
+  );
 
   const unsubscribe = useCallback(async () => {
     if (!subscription) return;
     await subscription.unsubscribe();
-    await supabase
-      .from("push_subscriptions")
-      .delete()
-      .eq("endpoint", subscription.endpoint);
     setSubscription(null);
     setStatus("idle");
   }, [subscription]);

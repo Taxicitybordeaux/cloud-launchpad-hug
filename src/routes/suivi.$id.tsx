@@ -55,7 +55,7 @@ interface Reservation {
   destination: string;
   date_course: string;
   heure_course: string;
-  statut_course: string;
+  status: string;
   chauffeur_id: string | null;
   client_name: string;
   client_phone: string;
@@ -80,14 +80,13 @@ interface TaxiPosition {
 function SuiviPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  const { status: pushStatus, subscribe } = usePushNotifications();
-
   const [resa, setResa] = useState<Reservation | null>(null);
   const [chauffeur, setChauffeur] = useState<Chauffeur | null>(null);
   const [taxiPos, setTaxiPos] = useState<TaxiPosition | null>(null);
   const [eta, setEta] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [shareMsg, setShareMsg] = useState("");
+  const { status: pushStatus, subscribe } = usePushNotifications();
 
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInst = useRef<any>(null);
@@ -98,16 +97,16 @@ function SuiviPage() {
   // ── Charger la réservation ────────────────────────────────────
   useEffect(() => {
     const load = async () => {
-      const { data: r } = await supabase
+      const { data: r } = await (supabase as any)
         .from("reservations")
-        .select("id,depart,destination,date_course,heure_course,statut_course,chauffeur_id,client_name,client_phone")
+        .select("id,depart,destination,date_course,heure_course,status,chauffeur_id,client_name,client_phone")
         .eq("id", id)
         .single();
       if (!r) { setLoading(false); return; }
       setResa(r as Reservation);
 
       if (r.chauffeur_id) {
-        const { data: c } = await supabase
+        const { data: c } = await (supabase as any)
           .from("chauffeurs")
           .select("*")
           .eq("id", r.chauffeur_id)
@@ -116,8 +115,8 @@ function SuiviPage() {
       }
 
       // Redirection auto selon statut
-      if (r.statut_course === "terminee") navigate({ to: `/fin/${id}` });
-      if (r.statut_course === "en_cours") navigate({ to: `/course/${id}` });
+      if (r.status === "completed") { navigate({ to: `/fin/${id}` }); return; }
+      if (r.status === "en_route") { navigate({ to: `/course/${id}` }); return; }
 
       setLoading(false);
     };
@@ -220,13 +219,18 @@ function SuiviPage() {
         event: "UPDATE", schema: "public", table: "reservations",
         filter: `id=eq.${id}`,
       }, (payload: any) => {
-        const s = payload.new.statut_course;
-        if (s === "en_cours") navigate({ to: `/course/${id}` });
-        if (s === "terminee") navigate({ to: `/fin/${id}` });
+        const s = payload.new.status;
+        if (s === "en_route") navigate({ to: `/course/${id}` });
+        if (s === "completed") navigate({ to: `/fin/${id}` });
       })
       .subscribe();
     return () => { (supabase as any).removeChannel(channel); };
   }, [resa, id, navigate]);
+
+  useEffect(() => {
+    if (!resa || pushStatus !== "idle") return;
+    subscribe("client", id).catch(() => {});
+  }, [resa, pushStatus, subscribe, id]);
 
   const partagerTrajet = async () => {
     const url = `${window.location.origin}/suivi/${id}`;
@@ -244,14 +248,16 @@ function SuiviPage() {
   };
 
   const statusLabels: Record<string, { label: string; color: string; icon: string }> = {
-    attente:   { label: "En attente de confirmation", color: "#f59e0b", icon: "⏳" },
-    confirme:  { label: "Course confirmée", color: "#22c55e", icon: "✅" },
+    pending:   { label: "En attente de confirmation", color: "#f59e0b", icon: "⏳" },
+    accepted:  { label: "Course confirmée", color: "#22c55e", icon: "✅" },
     en_route:  { label: "Chauffeur en route", color: "#3b82f6", icon: "🚕" },
-    arrive:    { label: "Chauffeur arrivé", color: "#22c55e", icon: "📍" },
-    en_cours:  { label: "Course en cours", color: "#f5c842", icon: "▶️" },
+    arrived:   { label: "Chauffeur arrivé", color: "#22c55e", icon: "📍" },
+    completed: { label: "Course terminée", color: "#f5c842", icon: "🏁" },
+    cancelled: { label: "Course annulée", color: "#ef4444", icon: "❌" },
+    refused:   { label: "Course refusée", color: "#ef4444", icon: "🚫" },
   };
 
-  const statut = resa ? (statusLabels[resa.statut_course] ?? statusLabels.attente) : statusLabels.attente;
+  const statut = resa ? (statusLabels[resa.status] ?? statusLabels.pending) : statusLabels.pending;
 
   if (loading) {
     return (
@@ -297,7 +303,7 @@ function SuiviPage() {
             <span style={{ fontSize: 20 }}>{statut.icon}</span>
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: statut.color }}>{statut.label}</div>
-              {eta !== null && resa.statut_course === "en_route" && (
+              {eta !== null && resa.status === "en_route" && (
                 <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>Arrivée estimée dans <strong style={{ color: "#f5c842" }}>{eta} min</strong></div>
               )}
             </div>
@@ -359,14 +365,14 @@ function SuiviPage() {
         )}
 
         {/* Notifications push */}
-        {pushStatus === "idle" && (
-          <button onClick={subscribe} style={{ padding: "12px 16px", background: "rgba(245,200,66,0.08)", border: "1px solid rgba(245,200,66,0.25)", borderRadius: 14, color: "#f5c842", fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, justifyContent: "center" }}>
-            🔔 Activer les notifications de suivi
-          </button>
-        )}
-        {pushStatus === "granted" && (
+        {pushStatus !== "denied" && (
           <div style={{ padding: "10px 14px", background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 12, color: "#22c55e", fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
-            ✅ Notifications activées — vous serez prévenu à chaque étape
+            ✅ Notifications activées automatiquement pour ce suivi
+          </div>
+        )}
+        {pushStatus === "denied" && (
+          <div style={{ padding: "10px 14px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 12, color: "#ef4444", fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
+            ❌ Notifications bloquées. Autorisez-les dans votre navigateur.
           </div>
         )}
 
