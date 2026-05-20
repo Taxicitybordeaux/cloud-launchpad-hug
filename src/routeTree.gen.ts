@@ -28,11 +28,8 @@ import { Route as ReservationIdRouteImport } from './routes/reservation.$id'
 import { Route as FinIdRouteImport } from './routes/fin.$id'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as CourseIdRouteImport } from './routes/course.$id'
-import { Route as AdminGpsRouteImport } from './routes/admin.gps'
 import { Route as AdminFlowCheckRouteImport } from './routes/admin.flow-check'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
-import { Route as AdminCoursesRouteImport } from './routes/admin.courses'
-import { Route as AdminClientsRouteImport } from './routes/admin.clients'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as ApiPublicNotifyReservationClientRouteImport } from './routes/api/public/notify-reservation-client'
 import { Route as ApiPublicNotifyReservationRouteImport } from './routes/api/public/notify-reservation'
@@ -140,11 +137,6 @@ const CourseIdRoute = CourseIdRouteImport.update({
   path: '/course/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminGpsRoute = AdminGpsRouteImport.update({
-  id: '/gps',
-  path: '/gps',
-  getParentRoute: () => AdminRoute,
-} as any)
 const AdminFlowCheckRoute = AdminFlowCheckRouteImport.update({
   id: '/flow-check',
   path: '/flow-check',
@@ -153,16 +145,6 @@ const AdminFlowCheckRoute = AdminFlowCheckRouteImport.update({
 const AdminDashboardRoute = AdminDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminCoursesRoute = AdminCoursesRouteImport.update({
-  id: '/courses',
-  path: '/courses',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminClientsRoute = AdminClientsRouteImport.update({
-  id: '/clients',
-  path: '/clients',
   getParentRoute: () => AdminRoute,
 } as any)
 const LovableEmailSuppressionRoute = LovableEmailSuppressionRouteImport.update({
@@ -239,11 +221,8 @@ export interface FileRoutesByFullPath {
   '/reservation': typeof ReservationRouteWithChildren
   '/reserver': typeof ReserverRoute
   '/services': typeof ServicesRoute
-  '/admin/clients': typeof AdminClientsRoute
-  '/admin/courses': typeof AdminCoursesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/flow-check': typeof AdminFlowCheckRoute
-  '/admin/gps': typeof AdminGpsRoute
   '/course/$id': typeof CourseIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/fin/$id': typeof FinIdRoute
@@ -276,11 +255,8 @@ export interface FileRoutesByTo {
   '/reservation': typeof ReservationRouteWithChildren
   '/reserver': typeof ReserverRoute
   '/services': typeof ServicesRoute
-  '/admin/clients': typeof AdminClientsRoute
-  '/admin/courses': typeof AdminCoursesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/flow-check': typeof AdminFlowCheckRoute
-  '/admin/gps': typeof AdminGpsRoute
   '/course/$id': typeof CourseIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/fin/$id': typeof FinIdRoute
@@ -314,11 +290,8 @@ export interface FileRoutesById {
   '/reservation': typeof ReservationRouteWithChildren
   '/reserver': typeof ReserverRoute
   '/services': typeof ServicesRoute
-  '/admin/clients': typeof AdminClientsRoute
-  '/admin/courses': typeof AdminCoursesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/flow-check': typeof AdminFlowCheckRoute
-  '/admin/gps': typeof AdminGpsRoute
   '/course/$id': typeof CourseIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/fin/$id': typeof FinIdRoute
@@ -353,11 +326,8 @@ export interface FileRouteTypes {
     | '/reservation'
     | '/reserver'
     | '/services'
-    | '/admin/clients'
-    | '/admin/courses'
     | '/admin/dashboard'
     | '/admin/flow-check'
-    | '/admin/gps'
     | '/course/$id'
     | '/email/unsubscribe'
     | '/fin/$id'
@@ -390,11 +360,8 @@ export interface FileRouteTypes {
     | '/reservation'
     | '/reserver'
     | '/services'
-    | '/admin/clients'
-    | '/admin/courses'
     | '/admin/dashboard'
     | '/admin/flow-check'
-    | '/admin/gps'
     | '/course/$id'
     | '/email/unsubscribe'
     | '/fin/$id'
@@ -427,11 +394,8 @@ export interface FileRouteTypes {
     | '/reservation'
     | '/reserver'
     | '/services'
-    | '/admin/clients'
-    | '/admin/courses'
     | '/admin/dashboard'
     | '/admin/flow-check'
-    | '/admin/gps'
     | '/course/$id'
     | '/email/unsubscribe'
     | '/fin/$id'
@@ -619,13 +583,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CourseIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/gps': {
-      id: '/admin/gps'
-      path: '/gps'
-      fullPath: '/admin/gps'
-      preLoaderRoute: typeof AdminGpsRouteImport
-      parentRoute: typeof AdminRoute
-    }
     '/admin/flow-check': {
       id: '/admin/flow-check'
       path: '/flow-check'
@@ -638,20 +595,6 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/admin/dashboard'
       preLoaderRoute: typeof AdminDashboardRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/courses': {
-      id: '/admin/courses'
-      path: '/courses'
-      fullPath: '/admin/courses'
-      preLoaderRoute: typeof AdminCoursesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/clients': {
-      id: '/admin/clients'
-      path: '/clients'
-      fullPath: '/admin/clients'
-      preLoaderRoute: typeof AdminClientsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/lovable/email/suppression': {
@@ -735,19 +678,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
-  AdminClientsRoute: typeof AdminClientsRoute
-  AdminCoursesRoute: typeof AdminCoursesRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminFlowCheckRoute: typeof AdminFlowCheckRoute
-  AdminGpsRoute: typeof AdminGpsRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
-  AdminClientsRoute: AdminClientsRoute,
-  AdminCoursesRoute: AdminCoursesRoute,
   AdminDashboardRoute: AdminDashboardRoute,
   AdminFlowCheckRoute: AdminFlowCheckRoute,
-  AdminGpsRoute: AdminGpsRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)

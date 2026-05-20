@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { OSM_TILE_URL, OSM_TILE_OPTIONS } from "@/lib/map";
 
 export const Route = createFileRoute("/fin/$id")({
   head: () => ({ meta: [{ title: "Course terminée — Taxi City Bordeaux" }] }),
@@ -51,25 +52,24 @@ function loadLeaflet(): Promise<void> {
   });
 }
 
+import { geocodeAddress } from "@/lib/geocode";
+import { getRouteGeoCoords } from "@/lib/osrm";
+
 async function geocode(adresse: string): Promise<[number, number] | null> {
   try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(adresse)}&format=json&limit=1`;
-    const res = await fetch(url, { headers: { "Accept-Language": "fr" } });
-    const data = await res.json();
-    if (data[0]) return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-    return null;
+    const c = await geocodeAddress(adresse);
+    if (!c) return null;
+    return [c.lat, c.lng];
   } catch { return null; }
 }
 
 async function getPolyline(from: [number, number], to: [number, number]): Promise<[number, number][]> {
   try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson`;
-    const res = await fetch(url);
-    const data = await res.json();
-    return (data?.routes?.[0]?.geometry?.coordinates ?? []).map(
-      ([lng, lat]: [number, number]) => [lat, lng] as [number, number]
-    );
-  } catch { return []; }
+    const result = await getRouteGeoCoords(from, to);
+    return result?.coords ?? [];
+  } catch {
+    return [];
+  }
 }
 
 interface Reservation {
@@ -419,7 +419,7 @@ function FinPage() {
       if (mapInst.current) { mapInst.current.remove(); mapInst.current = null; }
 
       const map = L.map(mapRef.current, { zoomControl: false, attributionControl: false });
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { maxZoom: 19 }).addTo(map);
+      L.tileLayer(OSM_TILE_URL, OSM_TILE_OPTIONS).addTo(map);
       L.control.zoom({ position: "bottomright" }).addTo(map);
       mapInst.current = map;
 
@@ -527,7 +527,18 @@ function FinPage() {
                 {resa.paiement === "cb" ? "💳 Carte bancaire" : "💵 Espèces"}
               </div>
             </div>
-            <div style={{ fontSize: 48 }}>🚕</div>
+            <div style={{ width: 56, height: 56, borderRadius: 18, overflow: "hidden", background: "rgba(245,200,66,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <img
+                src="/taxi-icon.png"
+                alt="Taxi City Bordeaux"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                onError={(event) => {
+                  const target = event.currentTarget as HTMLImageElement;
+                  target.style.display = "none";
+                }}
+              />
+              <span style={{ fontSize: 28, position: "absolute" }}>🚕</span>
+            </div>
           </div>
 
           {/* Stats */}

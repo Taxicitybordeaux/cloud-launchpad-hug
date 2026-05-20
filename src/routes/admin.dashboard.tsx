@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix, calculerPrixMixte } from "@/lib/tarif";
+import { getDistanceAndDurationKm } from "@/lib/osrm";
+import { geocodeAddress } from "@/lib/geocode";
 import { assertTrackingId, newTrackingId } from "@/lib/tracking-id";
 import { CourseCardSkeleton, GpsCardSkeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
 import logo from "@/assets/logo.jpeg";
@@ -478,7 +480,7 @@ function Dashboard() {
       if (!gpsMapRef.current || gpsMapInst.current) return;
       const center: [number, number] = gpsPosition ? [gpsPosition.lat, gpsPosition.lng] : [44.8378, -0.5792];
       const map = Lx.map(gpsMapRef.current, { center, zoom: 15, zoomControl: true, attributionControl: false });
-      Lx.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { maxZoom: 19 }).addTo(map);
+      Lx.tileLayer(OSM_TILE_URL, OSM_TILE_OPTIONS).addTo(map);
       const icon = Lx.divIcon({
         className: "",
         html: `<div style="width:20px;height:20px;background:#22c55e;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 6px rgba(34,197,94,0.3),0 2px 12px rgba(34,197,94,0.6)"></div>`,
@@ -593,36 +595,18 @@ function Dashboard() {
   // CALCUL DISTANCE
   // =========================
   const fetchDistanceKm = async (depart: string, arrivee: string): Promise<number> => {
-    const apiKey =
-      (import.meta.env.VITE_ORS_API_KEY as string | undefined) ||
-      "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImNhMGVmYTZiNGQ2MzQ3ZGJhZDJmMmY0ZDc2YjYyYTIwIiwiaCI6Im11cm11cjY0In0=";
-
     const geocode = async (address: string) => {
       try {
-        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address + ", Bordeaux, France")}&format=json&limit=1`;
-        const res = await fetch(url, { headers: { "Accept-Language": "fr" } });
-        const data = await res.json();
-        if (data?.[0]) return { lat: Number(data[0].lat), lng: Number(data[0].lon) };
+        return await geocodeAddress(address + ", Bordeaux, France");
       } catch {}
       return null;
     };
 
     const [a, b] = await Promise.all([geocode(depart), geocode(arrivee)]);
-    if (a && b && apiKey) {
+    if (a && b) {
       try {
-        const res = await fetch("https://api.openrouteservice.org/v2/directions/driving-car", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: apiKey },
-          body: JSON.stringify({
-            coordinates: [
-              [a.lng, a.lat],
-              [b.lng, b.lat],
-            ],
-          }),
-        });
-        const data = await res.json();
-        const meters = data?.routes?.[0]?.summary?.distance;
-        if (meters && meters > 0) return Math.round((meters / 1000) * 10) / 10;
+        const dd = await getDistanceAndDurationKm([a.lng, a.lat], [b.lng, b.lat]);
+        if (dd && dd.distanceKm && dd.distanceKm > 0) return Math.round(dd.distanceKm * 10) / 10;
       } catch {}
     }
     if (a && b) {
@@ -1835,6 +1819,9 @@ function Dashboard() {
               count={counts.pending}
               borderColor="rgba(245,158,11,0.25)"
             />
+            <div style={{ color: "#94a3b8", fontSize: 13, marginTop: 8 }}>
+              Swipez une course vers la gauche pour supprimer. Utilisez les boutons pour accepter ou refuser.
+            </div>
             {pending.length === 0 && (
               <div style={{ textAlign: "center", color: "#475569", padding: "20px 0" }}>
                 Aucune réservation en attente

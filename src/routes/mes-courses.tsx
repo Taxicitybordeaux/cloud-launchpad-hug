@@ -34,25 +34,24 @@ function loadLeaflet(): Promise<void> {
   });
 }
 
+import { geocodeAddress } from "@/lib/geocode";
+import { getRouteGeoCoords } from "@/lib/osrm";
+
 async function geocode(adresse: string): Promise<[number, number] | null> {
   try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(adresse)}&format=json&limit=1`;
-    const res = await fetch(url, { headers: { "Accept-Language": "fr" } });
-    const data = await res.json();
-    if (data[0]) return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-    return null;
+    const c = await geocodeAddress(adresse);
+    if (!c) return null;
+    return [c.lat, c.lng];
   } catch { return null; }
 }
 
 async function getPolyline(from: [number, number], to: [number, number]): Promise<[number, number][]> {
   try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson`;
-    const res = await fetch(url);
-    const data = await res.json();
-    return (data?.routes?.[0]?.geometry?.coordinates ?? []).map(
-      ([lng, lat]: [number, number]) => [lat, lng] as [number, number]
-    );
-  } catch { return []; }
+    const result = await getRouteGeoCoords(from, to);
+    return result?.coords ?? [];
+  } catch {
+    return [];
+  }
 }
 
 interface Course {
@@ -115,9 +114,7 @@ function MapReplay({ depart, destination }: { depart: string; destination: strin
         if (mapInst.current) { mapInst.current.remove(); mapInst.current = null; }
 
         const map = L.map(mapRef.current, { center: [44.8378, -0.5792], zoom: 12, zoomControl: false });
-        L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-          attribution: "© OSM © CARTO", maxZoom: 19,
-        }).addTo(map);
+        L.tileLayer(OSM_TILE_URL, OSM_TILE_OPTIONS).addTo(map);
         mapInst.current = map;
 
         const [fromCoords, toCoords] = await Promise.all([geocode(depart), geocode(destination)]);

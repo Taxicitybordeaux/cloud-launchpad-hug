@@ -2,6 +2,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { getDistanceAndDurationKm, getRouteGeoCoords } from "@/lib/osrm";
+import { OSM_TILE_URL, OSM_TILE_OPTIONS } from "@/lib/map";
 
 export const Route = createFileRoute("/suivi/$id")({
   head: () => ({ meta: [{ title: "Suivi de votre taxi — Taxi City Bordeaux" }] }),
@@ -32,21 +34,13 @@ function loadLeaflet(): Promise<void> {
 }
 
 async function getOsrmEta(from: [number, number], to: [number, number]): Promise<number | null> {
-  try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=false`;
-    const res = await fetch(url);
-    const data = await res.json();
-    return data.routes?.[0] ? Math.round(data.routes[0].duration / 60) : null;
-  } catch { return null; }
+  const result = await getDistanceAndDurationKm(from, to);
+  return result ? Math.round(result.durationSec / 60) : null;
 }
 
 async function getOsrmPolyline(from: [number, number], to: [number, number]): Promise<[number, number][]> {
-  try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson`;
-    const res = await fetch(url);
-    const data = await res.json();
-    return (data?.routes?.[0]?.geometry?.coordinates ?? []).map((c: [number, number]) => [c[1], c[0]] as [number, number]);
-  } catch { return []; }
+  const result = await getRouteGeoCoords(from, to);
+  return result?.coords ?? [];
 }
 
 interface Reservation {
@@ -132,9 +126,7 @@ function SuiviPage() {
       const L = (window as any).L;
       if (mapInst.current) { mapInst.current.remove(); mapInst.current = null; }
       const map = L.map(mapRef.current, { center: [44.8378, -0.5792], zoom: 13, zoomControl: false });
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-        attribution: "© OSM © CARTO", maxZoom: 19,
-      }).addTo(map);
+      L.tileLayer(OSM_TILE_URL, OSM_TILE_OPTIONS).addTo(map);
       L.control.zoom({ position: "bottomright" }).addTo(map);
       mapInst.current = map;
       setTimeout(() => map.invalidateSize(), 200);
@@ -152,7 +144,7 @@ function SuiviPage() {
       return L.divIcon({
         className: "",
         html: `<div style="position:relative;width:48px;height:48px;">
-          <div style="position:absolute;inset:0;border-radius:50%;background:rgba(245,200,66,0.2);animation:taxiPulse 2s ease-in-out infinite;"></div>
+          <img src="/taxi-icon.png" alt="Taxi City Bordeaux" style="width:100%;height:100%;object-fit:contain;border-radius:16px;" onload="this.nextElementSibling.style.display='none'" onerror="this.style.display='none'" />
           <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:28px;transform:rotate(${heading}deg);transition:transform 0.6s ease;">🚕</div>
         </div>`,
         iconSize: [48, 48], iconAnchor: [24, 24],

@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { trackingIdSchema } from "@/lib/tracking-id";
+import { geocodeAddress } from "@/lib/geocode";
+import { OSM_TILE_URL, OSM_TILE_OPTIONS } from "@/lib/map";
 
 export const Route = createFileRoute("/tracking/$id")({
   head: () => ({
@@ -546,13 +548,9 @@ function TrackingPage() {
 
   const geocode = async (q: string): Promise<[number, number] | null> => {
     try {
-      const r = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q + ", Bordeaux, France")}`,
-        { headers: { Accept: "application/json" } },
-      );
-      const j = await r.json();
-      if (Array.isArray(j) && j[0]) return [parseFloat(j[0].lat), parseFloat(j[0].lon)];
-      return null;
+      const c = await geocodeAddress(q + ", Bordeaux, France");
+      if (!c) return null;
+      return [c.lat, c.lng];
     } catch {
       return null;
     }
@@ -565,14 +563,8 @@ function TrackingPage() {
     const [a, b] = await Promise.all([geocode(depart), geocode(destination)]);
     if (!a || !b) return;
     try {
-      const res = await fetch(
-        `https://router.project-osrm.org/route/v1/driving/${a[1]},${a[0]};${b[1]},${b[0]}?overview=full&geometries=geojson`,
-      );
-      const data = await res.json();
-      const coords: [number, number][] = data?.routes?.[0]?.geometry?.coordinates?.map((c: [number, number]) => [
-        c[1],
-        c[0],
-      ]) ?? [a, b];
+      const route = await getRouteGeoCoords(a, b);
+      const coords: [number, number][] = route?.coords ?? [a, b];
 
       // Ligne grise = trajet total départ→destination
       if (routeLayerRef.current) {
@@ -637,14 +629,8 @@ function TrackingPage() {
     const L = (window as any).L;
     if (!map || !L) return;
     try {
-      const res = await fetch(
-        `https://router.project-osrm.org/route/v1/driving/${driverLng},${driverLat};${pickup[1]},${pickup[0]}?overview=full&geometries=geojson`,
-      );
-      const data = await res.json();
-      const coords: [number, number][] = data?.routes?.[0]?.geometry?.coordinates?.map((c: [number, number]) => [
-        c[1],
-        c[0],
-      ]) ?? [[driverLat, driverLng], pickup];
+      const route = await getRouteGeoCoords([driverLng, driverLat], [pickup[1], pickup[0]]);
+      const coords: [number, number][] = route?.coords ?? [[driverLat, driverLng], pickup];
       approachCoordsRef.current = coords;
 
       if (approachLayerRef.current) {
@@ -680,12 +666,9 @@ function TrackingPage() {
   const calculateETA = async (lat: number, lng: number, destCoords?: [number, number]) => {
     try {
       const [dLat, dLng] = destCoords ?? BORDEAUX_CENTER;
-      const res = await fetch(
-        `https://router.project-osrm.org/route/v1/driving/${lng},${lat};${dLng},${dLat}?overview=false`,
-      );
-      const data = await res.json();
-      if (data.routes?.[0]) {
-        setEta({ minutes: Math.ceil(data.routes[0].duration / 60), km: (data.routes[0].distance / 1000).toFixed(1) });
+      const result = await getDistanceAndDurationKm([lng, lat], [dLng, dLat]);
+      if (result) {
+        setEta({ minutes: Math.ceil(result.durationSec / 60), km: result.distanceKm.toFixed(1) });
       }
     } catch {
       setEta({ minutes: null, km: null });
@@ -763,10 +746,7 @@ function TrackingPage() {
       // si le zoom vient d'une action utilisateur (pas de notre panTo), on lock
       if (e?.hard !== false) setUserPanned(true);
     });
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-      attribution: "© OpenStreetMap © CARTO",
-      maxZoom: 19,
-    }).addTo(map);
+    L.tileLayer(OSM_TILE_URL, OSM_TILE_OPTIONS).addTo(map);
     L.control.zoom({ position: "bottomright" }).addTo(map);
     const icon = L.divIcon({
       className: "",

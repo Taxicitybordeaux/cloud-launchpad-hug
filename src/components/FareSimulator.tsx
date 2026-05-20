@@ -2,6 +2,8 @@ import { useEffect, useRef, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Calculator, Phone, ArrowRight, Info, MapPin, Loader2, Clock } from "lucide-react";
 import { useT } from "@/i18n/I18nProvider";
+import { getDistanceAndDurationKm } from "@/lib/osrm";
+import { getCurrentPosition } from "@/lib/geocode";
 
 // ─── Config tarifs ────────────────────────────────────────────
 const PHONE = "0673072322";
@@ -60,18 +62,14 @@ interface NominatimResult {
 }
 
 // ─── Géocodage silencieux (1er résultat Nominatim) ───────────
+import { geocodeAddress } from "@/lib/geocode";
+
 async function geocodeSilent(query: string): Promise<[number, number] | null> {
   if (query.trim().length < 3) return null;
   try {
-    const url = new URL("https://nominatim.openstreetmap.org/search");
-    url.searchParams.set("q", query.trim());
-    url.searchParams.set("format", "json");
-    url.searchParams.set("limit", "1");
-    url.searchParams.set("countrycodes", "fr");
-    const res = await fetch(url.toString(), { headers: { "Accept-Language": "fr" } });
-    const data: NominatimResult[] = await res.json();
-    if (!data[0]) return null;
-    return [parseFloat(data[0].lon), parseFloat(data[0].lat)];
+    const c = await geocodeAddress(query);
+    if (!c) return null;
+    return [c.lng, c.lat];
   } catch {
     return null;
   }
@@ -172,22 +170,21 @@ function useRoute(from: [number, number] | null, to: [number, number] | null) {
     }
     setLoading(true);
 
-    fetch(
-      `https://router.project-osrm.org/route/v1/driving/` + `${from[0]},${from[1]};${to[0]},${to[1]}?overview=false`,
-    )
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.code !== "Ok" || !data.routes?.[0]) throw new Error("no route");
-        setRoute({
-          km: Math.round((data.routes[0].distance / 1000) * 10) / 10,
-          durationSec: Math.round(data.routes[0].duration),
-        });
-      })
-      .catch(() => {
+    (async () => {
+      try {
+        const dd = await getDistanceAndDurationKm(from, to);
+        if (dd && dd.distanceKm != null) {
+          setRoute({ km: Math.round(dd.distanceKm * 10) / 10, durationSec: Math.round(dd.durationSec) });
+        } else {
+          throw new Error('no route');
+        }
+      } catch {
         const km = Math.round(haversineKm(from, to) * 1.3 * 10) / 10;
         setRoute({ km, durationSec: Math.round((km / 50) * 3600) });
-      })
-      .finally(() => setLoading(false));
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, [from, to]);
 
   return { route, loading };
@@ -209,6 +206,8 @@ export function FareSimulator() {
 
   const [fromCoord, setFromCoord] = useState<[number, number] | null>(null);
   const [toCoord, setToCoord] = useState<[number, number] | null>(null);
+
+  const [geoMsg, setGeoMsg] = useState<string | null>(null);
 
   const { route, loading: distLoading } = useRoute(fromCoord, toCoord);
 
@@ -235,6 +234,18 @@ export function FareSimulator() {
 
   const total = useMemo(() => (route ? PICKUP_FEE + route.km * rate : null), [route, rate]);
 
+  const handleUseMyPosition = async () => {
+    setGeoMsg(null);
+    const pos = await getCurrentPosition({ enableHighAccuracy: true }, 10000);
+    if (!pos) {
+      setGeoMsg("Impossible d'obtenir votre position");
+      return;
+    }
+    setFromCoord([pos.lng, pos.lat]);
+    setGeoMsg("Position utilisée comme origine");
+    setTimeout(() => setGeoMsg(null), 3000);
+  };
+
   return (
     <section className="mx-auto max-w-7xl px-4 py-20">
       <div className="text-center">
@@ -253,6 +264,16 @@ export function FareSimulator() {
             errorMsg={t("sim.addr_error")}
             onCoord={setFromCoord}
           />
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              type="button"
+              onClick={handleUseMyPosition}
+              className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-primary"
+            >
+              📍 Utiliser ma position
+            </button>
+            {geoMsg && <div style={{ color: '#94a3b8', fontSize: 13 }}>{geoMsg}</div>}
+          </div>
           <AddressField
             id="sim-to"
             label={t("sim.to_label")}

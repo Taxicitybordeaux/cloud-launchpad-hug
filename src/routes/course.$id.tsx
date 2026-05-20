@@ -1,6 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { OSM_TILE_URL, OSM_TILE_OPTIONS } from "@/lib/map";
+import { getRouteGeoCoords } from "@/lib/osrm";
 
 export const Route = createFileRoute("/course/$id")({
   head: () => ({ meta: [{ title: "Course en cours — Taxi City Bordeaux" }] }),
@@ -32,27 +34,25 @@ function loadLeaflet(): Promise<void> {
 
 async function getRoute(from: [number, number], to: [number, number]) {
   try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson`;
-    const res = await fetch(url);
-    const data = await res.json();
-    const route = data?.routes?.[0];
-    if (!route) return null;
+    // incoming coords are [lat, lng] in this file; OSRM helper expects [lng, lat]
+    const res = await getRouteGeoCoords([from[1], from[0]], [to[1], to[0]]);
+    if (!res) return null;
     return {
-      coords: (route.geometry.coordinates as [number, number][]).map(([lng, lat]) => [lat, lng] as [number, number]),
-      dureeMin: Math.round(route.duration / 60),
-      distanceKm: (route.distance / 1000).toFixed(1),
+      coords: res.coords,
+      dureeMin: Math.round(res.durationSec / 60),
+      distanceKm: res.distanceKm.toFixed(1),
     };
   } catch { return null; }
 }
 
-// Géocode une adresse → coordonnées via Nominatim
+import { geocodeAddress } from "@/lib/geocode";
+
+// Géocode une adresse → coordonnées via geocode helper (retourne [lat, lng])
 async function geocode(adresse: string): Promise<[number, number] | null> {
   try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(adresse)}&format=json&limit=1`;
-    const res = await fetch(url, { headers: { "Accept-Language": "fr" } });
-    const data = await res.json();
-    if (data[0]) return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-    return null;
+    const c = await geocodeAddress(adresse);
+    if (!c) return null;
+    return [c.lat, c.lng];
   } catch { return null; }
 }
 
@@ -144,9 +144,7 @@ function CoursePage() {
         center: [44.8378, -0.5792], zoom: 14,
         zoomControl: false, attributionControl: false,
       });
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-        maxZoom: 19,
-      }).addTo(map);
+      L.tileLayer(OSM_TILE_URL, OSM_TILE_OPTIONS).addTo(map);
       L.control.zoom({ position: "bottomright" }).addTo(map);
       mapInst.current = map;
       setTimeout(() => map.invalidateSize(), 200);
@@ -205,7 +203,7 @@ function CoursePage() {
     const icon = L.divIcon({
       className: "",
       html: `<div style="position:relative;width:52px;height:52px;">
-        <div style="position:absolute;inset:0;border-radius:50%;background:rgba(245,200,66,0.15);animation:taxiPulse 1.5s ease-in-out infinite;"></div>
+        <img src="/taxi-icon.png" alt="Taxi City Bordeaux" style="width:100%;height:100%;object-fit:contain;border-radius:16px;" onload="this.nextElementSibling.style.display='none'" onerror="this.style.display='none'" />
         <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:30px;transform:rotate(${taxiPos.heading}deg);transition:transform 0.6s ease;">🚕</div>
       </div>`,
       iconSize: [52, 52], iconAnchor: [26, 26],

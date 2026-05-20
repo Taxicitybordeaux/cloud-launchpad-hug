@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrixMixte, calculerPrix, PRISE_EN_CHARGE, TARIF_JOUR, TARIF_NUIT } from "@/lib/tarif";
+import { geocodeAddress, reverseGeocode, searchAddress } from "@/lib/geocode";
+import { getDistanceAndDurationKm, getRouteGeoCoords } from "@/lib/osrm";
 
 export const Route = createFileRoute("/reserver")({
   head: () => ({
@@ -16,55 +18,32 @@ export const Route = createFileRoute("/reserver")({
 // ─── Constante géo ─────────────────────────────────────────────────────────
 const BORDEAUX_CENTER: [number, number] = [44.8378, -0.5792];
 
-// ─── Géocodage Photon ──────────────────────────────────────────────────────
-// ─── Autocomplete Photon ───────────────────────────────────────────────────
-interface PhotonFeature {
+// ─── Géocodage OSM / Nominatim ───────────────────────────────────────────
+// ─── Autocomplete adresse ────────────────────────────────────────────────
+interface AddressSuggestion {
   label: string;
   coord: [number, number];
 }
-async function autocomplete(query: string): Promise<PhotonFeature[]> {
+async function autocomplete(query: string): Promise<AddressSuggestion[]> {
   if (query.length < 2) return [];
   try {
-    const url = new URL("https://photon.komoot.io/api/");
-    url.searchParams.set("q", query);
-    url.searchParams.set("limit", "5");
-    url.searchParams.set("lang", "fr");
-    url.searchParams.set("lat", "44.8378");
-    url.searchParams.set("lon", "-0.5792");
-    const res = await fetch(url.toString());
-    const data = await res.json();
-    return (data.features ?? []).map((f: any) => {
-      const p = f.properties ?? {};
-      const parts = [p.name, p.street, p.housenumber, p.city ?? p.town ?? p.village].filter(Boolean);
-      return {
-        label: parts.join(", "),
-        coord: [f.geometry.coordinates[0], f.geometry.coordinates[1]] as [number, number],
-      };
-    });
+    const results = await searchAddress(query, 5);
+    return results.map((item) => ({ label: item.label, coord: [item.coord[0], item.coord[1]] }));
   } catch {
     return [];
   }
 }
 
-// ─── Reverse geocoding Nominatim ───────────────────────────────────────────
-async function reverseGeocode(lat: number, lon: number): Promise<string | null> {
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1&accept-language=fr`,
-      { headers: { "Accept-Language": "fr" } },
-    );
-    const data = await res.json();
-    if (!data || data.error) return null;
-    const a = data.address ?? {};
-    const parts = [
-      a.house_number,
-      a.road ?? a.pedestrian ?? a.footway,
-      a.city ?? a.town ?? a.village ?? a.municipality,
-    ].filter(Boolean);
-    return parts.length ? parts.join(", ") : (data.display_name ?? null);
-  } catch {
-    return null;
-  }
+// ─── Reverse geocoding (via helper) ─────────────────────────────────────────
+// wrapper kept for compatibility
+async function reverseGeocodeWrapper(lat: number, lon: number): Promise<string | null> {
+  return await reverseGeocode(lat, lon);
+}
+
+async function geocodeFullAddress(address: string): Promise<[number, number] | null> {
+  const c = await geocodeAddress(address + ", Bordeaux, France");
+  if (!c) return null;
+  return [c.lng, c.lat];
 }
 
 // ─── OSRM route ───────────────────────────────────────────────────────────
@@ -73,31 +52,14 @@ interface OrsResult {
   dureeS: number;
 }
 async function getOsrmRoute(from: [number, number], to: [number, number]): Promise<OrsResult | null> {
-  try {
-    // from/to sont [lng, lat] (format Photon/GeoJSON)
-    // OSRM attend {lng},{lat}
-    const url = `https://router.project-osrm.org/route/v1/driving/${from[0]},${from[1]};${to[0]},${to[1]}?overview=false&alternatives=false&steps=false`;
-    const res = await fetch(url);
-    const data = await res.json();
-    if (data.code !== "Ok" || !data.routes?.[0]) return null;
-    const route = data.routes[0];
-    return { distanceKm: Math.round((route.distance / 1000) * 10) / 10, dureeS: Math.round(route.duration) };
-  } catch {
-    return null;
-  }
+  const result = await getDistanceAndDurationKm(from, to);
+  return result ? { distanceKm: Math.round(result.distanceKm * 10) / 10, dureeS: Math.round(result.durationSec) } : null;
 }
 
 // ─── OSRM route avec géométrie (pour la polyline) ─────────────────────────
 async function getOsrmPolyline(from: [number, number], to: [number, number]): Promise<[number, number][]> {
-  try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${from[0]},${from[1]};${to[0]},${to[1]}?overview=full&geometries=geojson`;
-    const res = await fetch(url);
-    const data = await res.json();
-    const coords = data?.routes?.[0]?.geometry?.coordinates ?? [];
-    return coords.map((c: [number, number]) => [c[1], c[0]] as [number, number]);
-  } catch {
-    return [];
-  }
+  const result = await getRouteGeoCoords(from, to);
+  return result?.coords ?? [];
 }
 
 // ─── Leaflet loader ────────────────────────────────────────────────────────
@@ -166,6 +128,8 @@ function AddressInput({
   onGeolocate,
   geolocLoading,
   dark,
+  autocomplete: useAutocomplete = true,
+  onBlur,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -176,13 +140,20 @@ function AddressInput({
   onGeolocate?: () => void;
   geolocLoading?: boolean;
   dark?: boolean;
+  autocomplete?: boolean;
+  onBlur?: () => void;
 }) {
-  const [suggestions, setSuggestions] = useState<PhotonFeature[]>([]);
+  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [open, setOpen] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleChange = (v: string) => {
     onChange(v);
+    if (!useAutocomplete) {
+      setSuggestions([]);
+      setOpen(false);
+      return;
+    }
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(async () => {
       const s = await autocomplete(v);
@@ -191,7 +162,7 @@ function AddressInput({
     }, 350);
   };
 
-  const handlePick = (s: PhotonFeature) => {
+  const handlePick = (s: AddressSuggestion) => {
     onChange(s.label);
     onSelect(s.label, s.coord);
     setSuggestions([]);
@@ -210,7 +181,10 @@ function AddressInput({
           value={value}
           onChange={(e) => handleChange(e.target.value)}
           onFocus={() => suggestions.length > 0 && setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 180)}
+          onBlur={() => {
+            setTimeout(() => setOpen(false), 180);
+            onBlur?.();
+          }}
           placeholder={placeholder}
           style={{
             width: "100%",
@@ -323,6 +297,8 @@ function ReservationPage() {
   const [toCoord, setToCoord] = useState<[number, number] | null>(null);
   const [orsResult, setOrsResult] = useState<OrsResult | null>(null);
   const [calcLoading, setCalcLoading] = useState(false);
+  const [taxiAvailable, setTaxiAvailable] = useState<boolean | null>(null);
+  const [availabilityError, setAvailabilityError] = useState<string>("");
 
   const [f, setF] = useState<FormState>({
     depart: "",
@@ -342,6 +318,25 @@ function ReservationPage() {
   });
 
   const set = (k: keyof FormState, v: any) => setF((p) => ({ ...p, [k]: v }));
+
+  const resolveDestinationAddress = useCallback(async () => {
+    const value = f.destination.trim();
+    if (!value) return;
+    if (toCoord) return;
+    setCalcLoading(true);
+    const coord = await geocodeFullAddress(value);
+    setCalcLoading(false);
+    if (coord) {
+      setToCoord(coord);
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.destination;
+        return next;
+      });
+    } else {
+      setErrors((prev) => ({ ...prev, destination: "Adresse introuvable" }));
+    }
+  }, [f.destination, toCoord]);
 
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInst = useRef<any>(null);
@@ -450,7 +445,7 @@ function ReservationPage() {
         }
         if (coords.length > 1) {
           routeLayer.current = L.polyline(coords, {
-            color: "#f5c842",
+            color: "#22c55e",
             weight: 4,
             opacity: 0.95,
             lineCap: "round",
@@ -501,6 +496,43 @@ function ReservationPage() {
   useEffect(() => {
     handleGeolocate();
   }, [handleGeolocate]);
+
+  const checkTaxiAvailability = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from("reservations")
+        .select("id")
+        .not("status", "in", "(annulee,refusee,terminee,cancelled,refused,completed)")
+        .limit(1);
+
+      if (error) throw error;
+      setTaxiAvailable(!(data && data.length > 0));
+      setAvailabilityError("");
+    } catch (err: any) {
+      setTaxiAvailable(null);
+      setAvailabilityError("Impossible de vérifier la disponibilité");
+    }
+  }, []);
+
+  useEffect(() => {
+    checkTaxiAvailability();
+    const channel = (supabase as any)
+      .channel("reservation-availability")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "reservations" }, () => {
+        void checkTaxiAvailability();
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "reservations" }, () => {
+        void checkTaxiAvailability();
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "reservations" }, () => {
+        void checkTaxiAvailability();
+      })
+      .subscribe();
+
+    return () => {
+      (supabase as any).removeChannel(channel);
+    };
+  }, [checkTaxiAvailability]);
 
   // ── Tracking GPS temps réel du taxi via Supabase Realtime ─────────────────
   useEffect(() => {
@@ -632,6 +664,14 @@ function ReservationPage() {
         return;
       }
 
+      if (!toCoord && f.destination) {
+        await resolveDestinationAddress();
+        if (!toCoord) {
+          setSending(false);
+          return;
+        }
+      }
+
       const { error: insertError } = await supabase.from("reservations").insert({
         nom: fullName,
         telephone: f.phone,
@@ -658,6 +698,7 @@ function ReservationPage() {
       });
 
       if (insertError) throw new Error(insertError.message);
+      setTaxiAvailable(false);
 
       try {
         const { data: sess } = await supabase.auth.getSession();
@@ -700,26 +741,15 @@ function ReservationPage() {
     }
   };
 
-  const buildWhatsApp = () =>
-    encodeURIComponent(
-      `Bonjour, je souhaite réserver un taxi.\n\n` +
-        `🟢 Départ : ${f.depart || "—"}\n` +
-        `🏁 Destination : ${f.destination || "—"}\n` +
-        `📅 Date : ${f.date} à ${f.heure}\n` +
-        `${f.trajet === "aller-retour" ? `🔁 Retour : ${f.dateRetour} à ${f.heureRetour}\n` : ""}` +
-        `👥 Passagers : ${f.passagers} | 🧳 Bagages : ${f.bagages}\n` +
-        `💶 Prix estimé : ${prixTotal.toFixed(2)} €\n\n` +
-        `Nom : ${f.prenom} ${f.nom}\nTél : ${f.phone}`,
-    );
 
   const inputStyle = (hasError?: boolean) => ({
     width: "100%",
     padding: "14px 14px",
     borderRadius: 12,
-    border: `2px solid ${hasError ? "#ef4444" : "#2a2a4a"}`,
+    border: `2px solid ${hasError ? "#ef4444" : "#cbd5e1"}`,
     fontSize: 16,
-    background: "#1a1a2e",
-    color: "#f0f0f0",
+    background: "#ffffff",
+    color: "#0f172a",
     fontFamily: "'DM Sans',sans-serif",
     outline: "none",
     boxSizing: "border-box" as const,
@@ -792,12 +822,14 @@ function ReservationPage() {
             width: 8,
             height: 8,
             borderRadius: "50%",
-            background: "#22c55e",
+            background: taxiAvailable === false ? "#ef4444" : taxiAvailable === true ? "#22c55e" : "#94a3b8",
             animation: "glow 1.8s ease-in-out infinite",
-            boxShadow: "0 0 6px #22c55e",
+            boxShadow: taxiAvailable === false ? "0 0 6px #ef4444" : taxiAvailable === true ? "0 0 6px #22c55e" : "0 0 6px #94a3b8",
           }}
         />
-        <span style={{ fontSize: 12, fontWeight: 600, color: "#e0e0e0" }}>Disponible maintenant</span>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "#e0e0e0" }}>
+          {taxiAvailable === null ? "Vérification..." : taxiAvailable ? "Taxi disponible" : "Taxi indisponible"}
+        </span>
       </div>
 
       {success ? (
@@ -841,25 +873,6 @@ function ReservationPage() {
               Votre demande a été enregistrée. Confirmation à <strong style={{ color: "#f5c842" }}>{f.email}</strong>.
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <a
-                href={`https://wa.me/33673072322?text=${buildWhatsApp()}`}
-                target="_blank"
-                rel="noreferrer"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                  padding: "14px 20px",
-                  background: "#25D366",
-                  color: "#fff",
-                  borderRadius: 14,
-                  textDecoration: "none",
-                  fontWeight: 700,
-                }}
-              >
-                💬 Confirmer via WhatsApp
-              </a>
               <button
                 onClick={() => {
                   setSuccess(false);
@@ -890,9 +903,9 @@ function ReservationPage() {
               flexShrink: 0,
               height: "62vh",
               maxHeight: "72vh",
-              background: "linear-gradient(180deg, #111120 0%, #0d0d1a 100%)",
+              background: "linear-gradient(180deg, #0f4bbf 0%, #0a3aa1 100%)",
               borderRadius: "24px 24px 0 0",
-              boxShadow: "0 -8px 40px rgba(0,0,0,0.5), 0 -1px 0 rgba(245,200,66,0.1)",
+              boxShadow: "0 -8px 40px rgba(0,0,0,0.3), 0 -1px 0 rgba(255,255,255,0.08)",
               display: "flex",
               flexDirection: "column",
             }}
@@ -915,7 +928,114 @@ function ReservationPage() {
                 gap: 24,
               }}
             >
-              {/* ── SECTION 1 : Adresses ── */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                <div
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: 99,
+                    background: taxiAvailable === false ? "#7f1d1d" : taxiAvailable === true ? "#166534" : "#334155",
+                    color: "#ffffff",
+                    fontWeight: 700,
+                    fontSize: 14,
+                    border: `1px solid ${taxiAvailable === false ? "rgba(248,113,113,0.3)" : taxiAvailable === true ? "rgba(52,211,153,0.3)" : "rgba(148,163,184,0.3)"}`,
+                  }}
+                >
+                  {taxiAvailable === null ? "Vérification disponibilité…" : taxiAvailable ? "Taxi disponible" : "Taxi indisponible"}
+                </div>
+                <a
+                  href="/"
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: 14,
+                    background: "#111827",
+                    color: "#f5c842",
+                    textDecoration: "none",
+                    fontWeight: 700,
+                    fontSize: 14,
+                    border: "1px solid rgba(245,200,66,0.2)",
+                  }}
+                >
+                  Retour au site
+                </a>
+              </div>
+              {availabilityError && (
+                <div style={{ color: "#facc15", fontSize: 13, lineHeight: 1.4 }}>
+                  {availabilityError}
+                </div>
+              )}
+
+              {/* ── SECTION 1 : Coordonnées ── */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <h2
+                  style={{
+                    fontFamily: "'Clash Display',sans-serif",
+                    fontWeight: 700,
+                    fontSize: 20,
+                    color: "#f5f5f5",
+                    margin: 0,
+                  }}
+                >
+                  👤 Vos coordonnées
+                </h2>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  {[
+                    { k: "prenom" as const, label: "Prénom", type: "text", ph: "Jean" },
+                    { k: "nom" as const, label: "Nom", type: "text", ph: "Dupont" },
+                  ].map(({ k, label, type, ph }) => (
+                    <div key={k}>
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: "#64748b",
+                          fontWeight: 600,
+                          marginBottom: 4,
+                          textTransform: "uppercase" as const,
+                          letterSpacing: "0.05em",
+                        }}
+                      >
+                        {label} *
+                      </div>
+                      <input
+                        type={type}
+                        value={f[k]}
+                        onChange={(e) => set(k, e.target.value)}
+                        placeholder={ph}
+                        style={inputStyle(!!errors[k])}
+                      />
+                      {errors[k] && <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{errors[k]}</div>}
+                    </div>
+                  ))}
+                </div>
+                {[
+                  { k: "phone" as const, label: "Téléphone", type: "tel", ph: "06 12 34 56 78" },
+                  { k: "email" as const, label: "Email", type: "email", ph: "jean@exemple.fr" },
+                ].map(({ k, label, type, ph }) => (
+                  <div key={k}>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "#64748b",
+                        fontWeight: 600,
+                        marginBottom: 4,
+                        textTransform: "uppercase" as const,
+                        letterSpacing: "0.05em",
+                      }}
+                    >
+                      {label} *
+                    </div>
+                    <input
+                      type={type}
+                      value={f[k]}
+                      onChange={(e) => set(k, e.target.value)}
+                      placeholder={ph}
+                      style={inputStyle(!!errors[k])}
+                    />
+                    {errors[k] && <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{errors[k]}</div>}
+                  </div>
+                ))}
+              </div>
+
+              {/* ── SECTION 2 : Adresses ── */}
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <h2
@@ -970,7 +1090,6 @@ function ReservationPage() {
                   </div>
                   <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
                     <AddressInput
-                      dark
                       value={f.depart}
                       placeholder="Adresse de départ"
                       icon=""
@@ -988,7 +1107,6 @@ function ReservationPage() {
                       geolocLoading={geolocLoading}
                     />
                     <AddressInput
-                      dark
                       value={f.destination}
                       placeholder="Destination"
                       icon=""
@@ -1002,6 +1120,8 @@ function ReservationPage() {
                         set("destination", label);
                         setToCoord(coord);
                       }}
+                      autocomplete={false}
+                      onBlur={resolveDestinationAddress}
                     />
                   </div>
                 </div>
@@ -1061,7 +1181,7 @@ function ReservationPage() {
                 )}
               </div>
 
-              {/* ── SECTION 2 : Date & Heure ── */}
+              {/* ── SECTION 3 : Date & Heure ── */}
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <h2
                   style={{
@@ -1297,10 +1417,19 @@ function ReservationPage() {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontSize: 28,
+                      overflow: "hidden",
                     }}
                   >
-                    🚕
+                    <img
+                      src="/taxi-icon.png"
+                      alt="Taxi City Bordeaux"
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      onError={(event) => {
+                        const target = event.currentTarget as HTMLImageElement;
+                        target.style.display = "none";
+                      }}
+                    />
+                    <span style={{ fontSize: 28, position: "absolute" }}>🚕</span>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
@@ -1439,98 +1568,6 @@ function ReservationPage() {
                 </div>
               </div>
 
-              {/* ── SECTION 4 : Coordonnées ── */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <h2
-                  style={{
-                    fontFamily: "'Clash Display',sans-serif",
-                    fontWeight: 700,
-                    fontSize: 20,
-                    color: "#f5f5f5",
-                    margin: 0,
-                  }}
-                >
-                  👤 Vos coordonnées
-                </h2>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  {[
-                    { k: "prenom" as const, label: "Prénom", type: "text", ph: "Jean" },
-                    { k: "nom" as const, label: "Nom", type: "text", ph: "Dupont" },
-                  ].map(({ k, label, type, ph }) => (
-                    <div key={k}>
-                      <div
-                        style={{
-                          fontSize: 11,
-                          color: "#64748b",
-                          fontWeight: 600,
-                          marginBottom: 4,
-                          textTransform: "uppercase" as const,
-                          letterSpacing: "0.05em",
-                        }}
-                      >
-                        {label} *
-                      </div>
-                      <input
-                        type={type}
-                        value={f[k]}
-                        onChange={(e) => set(k, e.target.value)}
-                        placeholder={ph}
-                        style={inputStyle(!!errors[k])}
-                      />
-                      {errors[k] && <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{errors[k]}</div>}
-                    </div>
-                  ))}
-                </div>
-                {[
-                  { k: "phone" as const, label: "Téléphone", type: "tel", ph: "06 12 34 56 78" },
-                  { k: "email" as const, label: "Email", type: "email", ph: "jean@exemple.fr" },
-                ].map(({ k, label, type, ph }) => (
-                  <div key={k}>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: "#64748b",
-                        fontWeight: 600,
-                        marginBottom: 4,
-                        textTransform: "uppercase" as const,
-                        letterSpacing: "0.05em",
-                      }}
-                    >
-                      {label} *
-                    </div>
-                    <input
-                      type={type}
-                      value={f[k]}
-                      onChange={(e) => set(k, e.target.value)}
-                      placeholder={ph}
-                      style={inputStyle(!!errors[k])}
-                    />
-                    {errors[k] && <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{errors[k]}</div>}
-                  </div>
-                ))}
-              </div>
-
-              {/* ── WhatsApp alternative ── */}
-              <a
-                href={`https://wa.me/33673072322?text=${buildWhatsApp()}`}
-                target="_blank"
-                rel="noreferrer"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                  padding: "14px",
-                  background: "#25D366",
-                  color: "#fff",
-                  borderRadius: 14,
-                  textDecoration: "none",
-                  fontWeight: 700,
-                  fontSize: 14,
-                }}
-              >
-                💬 Réserver via WhatsApp à la place
-              </a>
             </div>
 
             {/* ── CTA sticky ── */}
