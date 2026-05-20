@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { calculerPrixMixte, calculerPrix, PRISE_EN_CHARGE, TARIF_JOUR, TARIF_NUIT } from "@/lib/tarif";
 
 export const Route = createFileRoute("/reserver")({
   head: () => ({
@@ -12,29 +13,8 @@ export const Route = createFileRoute("/reserver")({
   component: ReservationPage,
 });
 
-// ─── Tarifs officiels ───────────────────────────────────────────────────────
-const PRISE_EN_CHARGE = 2.83;
-const TARIF_JOUR = 2.16;
-const TARIF_NUIT = 3.24;
+// ─── Constante géo ─────────────────────────────────────────────────────────
 const BORDEAUX_CENTER: [number, number] = [44.8378, -0.5792];
-
-// ─── Calcul mixte jour/nuit ─────────────────────────────────────────────────
-function calculerPrixMixte(departMs: number, dureeS: number, distanceKm: number): number {
-  if (dureeS <= 0 || distanceKm <= 0) return PRISE_EN_CHARGE;
-  const arriveeMs = departMs + dureeS * 1000;
-  const STEP = 60_000;
-  let prixKm = 0;
-  let t = departMs;
-  while (t < arriveeMs) {
-    const fin = Math.min(t + STEP, arriveeMs);
-    const fraction = (fin - t) / (arriveeMs - departMs);
-    const kmTranche = distanceKm * fraction;
-    const h = new Date(t).getHours();
-    prixKm += kmTranche * (h >= 7 && h < 19 ? TARIF_JOUR : TARIF_NUIT);
-    t = fin;
-  }
-  return Math.round((PRISE_EN_CHARGE + prixKm) * 100) / 100;
-}
 
 // ─── Géocodage Photon ──────────────────────────────────────────────────────
 // ─── Autocomplete Photon ───────────────────────────────────────────────────
@@ -371,25 +351,23 @@ function ReservationPage() {
   const taxiMarker = useRef<any>(null);
 
   // Prix
-  const departMs = f.date && f.heure ? new Date(`${f.date}T${f.heure}:00`).getTime() : null;
-  const retourMs =
-    f.trajet === "aller-retour" && f.dateRetour && f.heureRetour
-      ? new Date(`${f.dateRetour}T${f.heureRetour}:00`).getTime()
-      : null;
+  const pickupIso = f.date && f.heure ? `${f.date}T${f.heure}:00` : null;
+  const retourIso =
+    f.trajet === "aller-retour" && f.dateRetour && f.heureRetour ? `${f.dateRetour}T${f.heureRetour}:00` : null;
   const heureNum = f.heure ? parseInt(f.heure.split(":")[0], 10) : 12;
   const tarifJour = heureNum >= 7 && heureNum < 19;
   const prixAllerBase =
-    orsResult && departMs
-      ? calculerPrixMixte(departMs, orsResult.dureeS, orsResult.distanceKm)
+    orsResult && pickupIso
+      ? calculerPrixMixte(orsResult.distanceKm, pickupIso)
       : orsResult
-        ? Math.round((PRISE_EN_CHARGE + orsResult.distanceKm * (tarifJour ? TARIF_JOUR : TARIF_NUIT)) * 100) / 100
+        ? calculerPrix(orsResult.distanceKm, tarifJour)
         : PRISE_EN_CHARGE;
   const prixAller = prixAllerBase;
 
   const prixRetourBase =
     f.trajet === "aller-retour" && orsResult
-      ? retourMs
-        ? calculerPrixMixte(retourMs, orsResult.dureeS, orsResult.distanceKm)
+      ? retourIso
+        ? calculerPrixMixte(orsResult.distanceKm, retourIso)
         : prixAllerBase
       : 0;
   const prixRetour = prixRetourBase;
