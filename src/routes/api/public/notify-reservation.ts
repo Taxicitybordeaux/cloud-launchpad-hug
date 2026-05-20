@@ -129,6 +129,19 @@ export const Route = createFileRoute('/api/public/notify-reservation')({
           return Response.json({ error: 'Enqueue failed' }, { status: 500 })
         }
 
+        // Fire-and-forget push to admins (don't block the email flow)
+        try {
+          await sendPushToAudience('admin', {
+            title: '🆕 Nouvelle réservation',
+            body: `${reservation.nom} · ${reservation.depart} → ${reservation.arrivee}`,
+            url: '/admin/dashboard',
+            tag: `new-res-${reservationId}`,
+            requireInteraction: true,
+          })
+        } catch (e) {
+          console.error('[push] admin notify failed', e)
+        }
+
         return Response.json({ success: true })
       },
     },
