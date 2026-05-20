@@ -4,6 +4,7 @@ import * as React from 'react'
 import { render } from '@react-email/components'
 import { z } from 'zod'
 import { TEMPLATES } from '@/lib/email-templates/registry'
+import { sendPushToAudience } from '@/lib/push.server'
 
 const SITE_NAME = 'Taxi City Bordeaux'
 const SENDER_DOMAIN = 'notify.taxicitybordeaux.fr'
@@ -126,6 +127,19 @@ export const Route = createFileRoute('/api/public/notify-reservation')({
             .update({ status: 'failed', error_message: 'Failed to enqueue' })
             .eq('message_id', messageId)
           return Response.json({ error: 'Enqueue failed' }, { status: 500 })
+        }
+
+        // Fire-and-forget push to admins (don't block the email flow)
+        try {
+          await sendPushToAudience('admin', {
+            title: '🆕 Nouvelle réservation',
+            body: `${reservation.nom} · ${reservation.depart} → ${reservation.arrivee}`,
+            url: '/admin/dashboard',
+            tag: `new-res-${reservationId}`,
+            requireInteraction: true,
+          })
+        } catch (e) {
+          console.error('[push] admin notify failed', e)
         }
 
         return Response.json({ success: true })

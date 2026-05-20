@@ -13,6 +13,7 @@ import {
   Navigation,
 } from "lucide-react";
 import { buildReservationMessage, whatsappLink } from "@/lib/whatsapp";
+import { EnablePushButton } from "@/components/EnablePushButton";
 import { useT, useI18n } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/reservation/$id")({
@@ -139,6 +140,12 @@ function ConfirmationPage() {
         <p className="mt-2 font-mono text-2xl font-bold tracking-wider text-primary">{refNumber}</p>
         <p className="mt-1 text-xs text-muted-foreground">{t("conf.ref.note")}</p>
       </div>
+
+      {!isCancelled && (
+        <div className="mt-6 flex justify-center">
+          <EnablePushButton audience="client" reservationId={reservation.id} label="Recevoir les mises à jour" />
+        </div>
+      )}
 
       <div className="mt-6 rounded-2xl border border-border bg-card p-6 space-y-4">
         <h2 className="font-display text-lg font-semibold">{t("conf.summary")}</h2>

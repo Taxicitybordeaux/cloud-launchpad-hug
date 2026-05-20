@@ -6,6 +6,8 @@ import { calculerPrix, calculerPrixMixte } from "@/lib/tarif";
 import { assertTrackingId, newTrackingId } from "@/lib/tracking-id";
 import { CourseCardSkeleton, GpsCardSkeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
 import logo from "@/assets/logo.jpeg";
+import { EnablePushButton } from "@/components/EnablePushButton";
+import { notifyReservationStatus } from "@/lib/push.functions";
 
 // ─── Swipe-to-delete ─────────────────────────────────────────
 function SwipeDeleteRow({
@@ -694,6 +696,9 @@ function Dashboard() {
       }
     }
 
+    // Push notification to the client (non-blocking)
+    notifyReservationStatus({ data: { reservation_id: r.id, status: "accepted" } }).catch(() => {});
+
     toast.success(`Course acceptée — ${name || "client"}`, {
       description: notifParts.length > 0 ? notifParts.join(" · ") : "Aucune notification envoyée.",
       duration: 8000,
@@ -722,6 +727,7 @@ function Dashboard() {
     toast.success(`Course refusée — ${r.client_name || r.nom || "client"}`, {
       description: `Motif : « ${cleaned.slice(0, 80)}${cleaned.length > 80 ? "…" : ""} »`,
     });
+    notifyReservationStatus({ data: { reservation_id: r.id, status: "refused" } }).catch(() => {});
     fetchAll();
     return true;
   };
@@ -1243,7 +1249,8 @@ function Dashboard() {
             Dashboard
           </h1>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <EnablePushButton audience="admin" size="sm" />
           <a
             href="/"
             style={{

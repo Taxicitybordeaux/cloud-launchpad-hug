@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Loader2, Navigation, Power, AlertTriangle } from "lucide-react";
+import { EnablePushButton } from "@/components/EnablePushButton";
 
 export const Route = createFileRoute("/chauffeur")({
   head: () => ({
@@ -98,7 +99,10 @@ function ChauffeurPage() {
 
   return (
     <div className="mx-auto max-w-xl px-4 py-12">
-      <h1 className="font-display text-3xl font-bold">Chauffeur — Partage de position</h1>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <h1 className="font-display text-3xl font-bold">Chauffeur — Partage de position</h1>
+        <EnablePushButton audience="chauffeur" />
+      </div>
       <p className="mt-2 text-sm text-muted-foreground">
         Activez le partage GPS pour que vos clients suivent votre arrivée en temps réel.
       </p>

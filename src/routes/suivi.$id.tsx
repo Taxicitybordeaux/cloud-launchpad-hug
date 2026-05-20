@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, AlertTriangle, MapPin, Clock, Navigation, Phone, PowerOff } from "lucide-react";
 import { useT } from "@/i18n/I18nProvider";
+import { EnablePushButton } from "@/components/EnablePushButton";
 
 export const Route = createFileRoute("/suivi/$id")({
   head: () => ({
@@ -205,7 +206,10 @@ function SuiviPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="font-display text-2xl font-bold md:text-3xl">{t("suivi.title")}</h1>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <h1 className="font-display text-2xl font-bold md:text-3xl">{t("suivi.title")}</h1>
+        <EnablePushButton audience="client" reservationId={reservation.id} />
+      </div>
       <p className="mt-1 text-sm text-muted-foreground">
         {t("suivi.hello")} {reservation.nom} — {t("suivi.pickup_at")} {new Date(reservation.pickup_datetime).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
       </p>
