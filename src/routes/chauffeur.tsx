@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Loader2, Navigation, Power, AlertTriangle } from "lucide-react";
+import { EnablePushButton } from "@/components/EnablePushButton";
 
 export const Route = createFileRoute("/chauffeur")({
   head: () => ({
