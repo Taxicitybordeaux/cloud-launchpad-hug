@@ -21,7 +21,6 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AProposRouteImport } from './routes/a-propos'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TrackingIdRouteImport } from './routes/tracking.$id'
-import { Route as SuiviIdRouteImport } from './routes/suivi.$id'
 import { Route as ScanIdRouteImport } from './routes/scan.$id'
 import { Route as ReservationIdRouteImport } from './routes/reservation.$id'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
@@ -100,11 +99,6 @@ const IndexRoute = IndexRouteImport.update({
 const TrackingIdRoute = TrackingIdRouteImport.update({
   id: '/tracking/$id',
   path: '/tracking/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SuiviIdRoute = SuiviIdRouteImport.update({
-  id: '/suivi/$id',
-  path: '/suivi/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ScanIdRoute = ScanIdRouteImport.update({
@@ -228,7 +222,6 @@ export interface FileRoutesByFullPath {
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
   '/scan/$id': typeof ScanIdRoute
-  '/suivi/$id': typeof SuiviIdRoute
   '/tracking/$id': typeof TrackingIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
   '/api/public/contact': typeof ApiPublicContactRoute
@@ -262,7 +255,6 @@ export interface FileRoutesByTo {
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
   '/scan/$id': typeof ScanIdRoute
-  '/suivi/$id': typeof SuiviIdRoute
   '/tracking/$id': typeof TrackingIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
   '/api/public/contact': typeof ApiPublicContactRoute
@@ -297,7 +289,6 @@ export interface FileRoutesById {
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
   '/scan/$id': typeof ScanIdRoute
-  '/suivi/$id': typeof SuiviIdRoute
   '/tracking/$id': typeof TrackingIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
   '/api/public/contact': typeof ApiPublicContactRoute
@@ -333,7 +324,6 @@ export interface FileRouteTypes {
     | '/email/unsubscribe'
     | '/reservation/$id'
     | '/scan/$id'
-    | '/suivi/$id'
     | '/tracking/$id'
     | '/api/admin/send-course-email'
     | '/api/public/contact'
@@ -367,7 +357,6 @@ export interface FileRouteTypes {
     | '/email/unsubscribe'
     | '/reservation/$id'
     | '/scan/$id'
-    | '/suivi/$id'
     | '/tracking/$id'
     | '/api/admin/send-course-email'
     | '/api/public/contact'
@@ -401,7 +390,6 @@ export interface FileRouteTypes {
     | '/email/unsubscribe'
     | '/reservation/$id'
     | '/scan/$id'
-    | '/suivi/$id'
     | '/tracking/$id'
     | '/api/admin/send-course-email'
     | '/api/public/contact'
@@ -430,7 +418,6 @@ export interface RootRouteChildren {
   ServicesRoute: typeof ServicesRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   ScanIdRoute: typeof ScanIdRoute
-  SuiviIdRoute: typeof SuiviIdRoute
   TrackingIdRoute: typeof TrackingIdRoute
   ApiAdminSendCourseEmailRoute: typeof ApiAdminSendCourseEmailRoute
   ApiPublicContactRoute: typeof ApiPublicContactRoute
@@ -529,13 +516,6 @@ declare module '@tanstack/react-router' {
       path: '/tracking/$id'
       fullPath: '/tracking/$id'
       preLoaderRoute: typeof TrackingIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/suivi/$id': {
-      id: '/suivi/$id'
-      path: '/suivi/$id'
-      fullPath: '/suivi/$id'
-      preLoaderRoute: typeof SuiviIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/scan/$id': {
@@ -718,7 +698,6 @@ const rootRouteChildren: RootRouteChildren = {
   ServicesRoute: ServicesRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   ScanIdRoute: ScanIdRoute,
-  SuiviIdRoute: SuiviIdRoute,
   TrackingIdRoute: TrackingIdRoute,
   ApiAdminSendCourseEmailRoute: ApiAdminSendCourseEmailRoute,
   ApiPublicContactRoute: ApiPublicContactRoute,
@@ -735,3 +714,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

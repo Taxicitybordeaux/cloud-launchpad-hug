@@ -234,6 +234,9 @@ function Dashboard() {
   const [gpsUpdateCount, setGpsUpdateCount] = useState(0);
   const watchIdRef = useRef<number | null>(null);
   const lastPosRef = useRef<{ lat: number; lng: number } | null>(null);
+  const gpsMapRef = useRef<HTMLDivElement>(null);
+  const gpsMapInst = useRef<any>(null);
+  const gpsMarkerRef = useRef<any>(null);
 
   // ── Portefeuille clients ──
   const [clients, setClients] = useState<any[]>([]);
@@ -358,12 +361,34 @@ function Dashboard() {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "reservations" }, (payload) => {
         if (!initialLoad.current) {
           const n = payload.new as any;
+          const clientName = n.client_name || n.nom || "Client";
           try {
             new Audio("/notification.mp3").play().catch(() => {});
           } catch {}
+          // ── Push notification navigateur automatique ──
+          if (typeof window !== "undefined" && "Notification" in window) {
+            const sendBrowserNotif = () => {
+              try {
+                new Notification("🔔 Nouvelle réservation", {
+                  body: `${clientName} — ${n.depart || ""} → ${n.arrivee || n.destination || ""}`,
+                  icon: "/favicon.ico",
+                  badge: "/favicon.ico",
+                  tag: `reservation-${n.id}`,
+                  requireInteraction: true,
+                });
+              } catch {}
+            };
+            if (Notification.permission === "granted") {
+              sendBrowserNotif();
+            } else if (Notification.permission === "default") {
+              Notification.requestPermission().then((p) => {
+                if (p === "granted") sendBrowserNotif();
+              });
+            }
+          }
           if (typeof window !== "undefined") {
             const t = document.createElement("div");
-            t.textContent = `🔔 Nouvelle réservation de ${n.client_name || n.nom || "Client"}`;
+            t.textContent = `🔔 Nouvelle réservation de ${clientName}`;
             t.style.cssText = `position:fixed;top:20px;right:20px;background:#0ea5e9;color:white;padding:14px 20px;border-radius:12px;font-family:DM Sans,sans-serif;font-weight:700;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,0.3);`;
             document.body.appendChild(t);
             setTimeout(() => t.remove(), 5000);
@@ -386,6 +411,11 @@ function Dashboard() {
   // GPS INIT
   // =========================
   useEffect(() => {
+    // Demande permission notifications au chargement du dashboard
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+
     const initGPS = async () => {
       const { data, error } = await (supabase as any).from("driver_gps").select("*").eq("id", "driver").single();
       if (error || !data) {
@@ -399,6 +429,10 @@ function Dashboard() {
       setGpsDestination(data.destination ?? "");
       setGpsPrixEstime(data.prix_estime ?? "");
       setGpsLoading(false);
+      // Auto-reprendre le GPS s'il était actif lors de la dernière session
+      if (data.is_active && navigator.geolocation) {
+        startGPS();
+      }
     };
     initGPS();
     return () => {
@@ -406,6 +440,77 @@ function Dashboard() {
         navigator.geolocation.clearWatch(watchIdRef.current);
     };
   }, []);
+
+  // ── GPS mini-map Leaflet ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!gpsActive || !gpsMapRef.current) return;
+    const L = (window as any).L;
+
+    const initMap = async () => {
+      // Charge Leaflet si pas encore chargé
+      if (!L) {
+        await new Promise<void>((resolve) => {
+          if (!document.getElementById("leaflet-css-admin")) {
+            const link = document.createElement("link");
+            link.id = "leaflet-css-admin";
+            link.rel = "stylesheet";
+            link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+            document.head.appendChild(link);
+          }
+          if (!document.getElementById("leaflet-js-admin")) {
+            const s = document.createElement("script");
+            s.id = "leaflet-js-admin";
+            s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+            s.onload = () => resolve();
+            document.head.appendChild(s);
+          } else {
+            const poll = setInterval(() => {
+              if ((window as any).L) {
+                clearInterval(poll);
+                resolve();
+              }
+            }, 50);
+          }
+        });
+      }
+      const Lx = (window as any).L;
+      if (!gpsMapRef.current || gpsMapInst.current) return;
+      const center: [number, number] = gpsPosition ? [gpsPosition.lat, gpsPosition.lng] : [44.8378, -0.5792];
+      const map = Lx.map(gpsMapRef.current, { center, zoom: 15, zoomControl: true, attributionControl: false });
+      Lx.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { maxZoom: 19 }).addTo(map);
+      const icon = Lx.divIcon({
+        className: "",
+        html: `<div style="width:20px;height:20px;background:#22c55e;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 6px rgba(34,197,94,0.3),0 2px 12px rgba(34,197,94,0.6)"></div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+      });
+      gpsMarkerRef.current = Lx.marker(center, { icon }).addTo(map);
+      gpsMapInst.current = map;
+      setTimeout(() => map.invalidateSize(), 150);
+    };
+
+    initMap();
+
+    return () => {
+      if (gpsMapInst.current) {
+        gpsMapInst.current.remove();
+        gpsMapInst.current = null;
+        gpsMarkerRef.current = null;
+      }
+    };
+  }, [gpsActive]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Mise à jour du marqueur GPS sur la mini-map ──
+  useEffect(() => {
+    if (!gpsMapInst.current || !gpsPosition) return;
+    const Lx = (window as any).L;
+    if (!Lx) return;
+    const latlng: [number, number] = [gpsPosition.lat, gpsPosition.lng];
+    if (gpsMarkerRef.current) {
+      gpsMarkerRef.current.setLatLng(latlng);
+    }
+    gpsMapInst.current.setView(latlng, gpsMapInst.current.getZoom());
+  }, [gpsPosition]);
 
   const startGPS = async () => {
     if (!navigator.geolocation) return;
@@ -2237,7 +2342,7 @@ function Dashboard() {
         ) : (
           <div
             style={{
-              maxWidth: 540,
+              width: "100%",
               background: "rgba(255,255,255,0.04)",
               border: "1px solid rgba(255,255,255,0.08)",
               borderRadius: 24,
@@ -2326,6 +2431,19 @@ function Dashboard() {
                     Précision : ±{gpsAccuracy} m · {gpsUpdateCount} mises à jour
                   </div>
                 )}
+                {/* ── Mini-map Leaflet ── */}
+                <div
+                  ref={gpsMapRef}
+                  style={{
+                    width: "100%",
+                    height: 260,
+                    borderRadius: 16,
+                    overflow: "hidden",
+                    marginTop: 16,
+                    border: "1px solid rgba(34,197,94,0.25)",
+                    position: "relative",
+                  }}
+                />
                 {gpsDestination && (
                   <div style={{ marginTop: 14, color: "#cbd5e1", fontSize: 14 }}>📍 {gpsDestination}</div>
                 )}
