@@ -1244,7 +1244,8 @@ function Dashboard() {
             Dashboard
           </h1>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <EnablePushButton audience="admin" size="sm" />
           <a
             href="/"
             style={{
