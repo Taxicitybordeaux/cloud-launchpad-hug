@@ -104,5 +104,20 @@ export const notifyReservationStatus = createServerFn({ method: 'POST' })
     const url = r.tracking_id ? `/suivi/${r.tracking_id}` : `/reservation/${r.id}`;
 
     const result = await sendPushToAudience('client', { ...l, url, tag: `res-${r.id}` }, { reservationId: r.id });
-    return result;
+
+    // Lors de l'acceptation, prévenir aussi les chauffeurs (course assignée)
+    let chauffeurResult = { sent: 0, removed: 0 };
+    if (data.status === 'accepted') {
+      const clientName = r.client_name || r.nom || 'Client';
+      const trajet = `${r.depart} → ${r.arrivee || r.destination || '—'}`;
+      chauffeurResult = await sendPushToAudience('chauffeur', {
+        title: '🚕 Nouvelle course assignée',
+        body: `${clientName} — ${trajet}`,
+        url: '/chauffeur',
+        tag: `assign-${r.id}`,
+        requireInteraction: true,
+      });
+    }
+
+    return { client: result, chauffeur: chauffeurResult };
   });
