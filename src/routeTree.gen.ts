@@ -30,6 +30,7 @@ import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe
 import { Route as CourseIdRouteImport } from './routes/course.$id'
 import { Route as AdminFlowCheckRouteImport } from './routes/admin.flow-check'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
+import { Route as AdminCoursesRouteImport } from './routes/admin.courses'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as ApiPublicNotifyReservationClientRouteImport } from './routes/api/public/notify-reservation-client'
 import { Route as ApiPublicNotifyReservationRouteImport } from './routes/api/public/notify-reservation'
@@ -147,6 +148,11 @@ const AdminDashboardRoute = AdminDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminCoursesRoute = AdminCoursesRouteImport.update({
+  id: '/courses',
+  path: '/courses',
+  getParentRoute: () => AdminRoute,
+} as any)
 const LovableEmailSuppressionRoute = LovableEmailSuppressionRouteImport.update({
   id: '/lovable/email/suppression',
   path: '/lovable/email/suppression',
@@ -221,6 +227,7 @@ export interface FileRoutesByFullPath {
   '/reservation': typeof ReservationRouteWithChildren
   '/reserver': typeof ReserverRoute
   '/services': typeof ServicesRoute
+  '/admin/courses': typeof AdminCoursesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/flow-check': typeof AdminFlowCheckRoute
   '/course/$id': typeof CourseIdRoute
@@ -255,6 +262,7 @@ export interface FileRoutesByTo {
   '/reservation': typeof ReservationRouteWithChildren
   '/reserver': typeof ReserverRoute
   '/services': typeof ServicesRoute
+  '/admin/courses': typeof AdminCoursesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/flow-check': typeof AdminFlowCheckRoute
   '/course/$id': typeof CourseIdRoute
@@ -290,6 +298,7 @@ export interface FileRoutesById {
   '/reservation': typeof ReservationRouteWithChildren
   '/reserver': typeof ReserverRoute
   '/services': typeof ServicesRoute
+  '/admin/courses': typeof AdminCoursesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/flow-check': typeof AdminFlowCheckRoute
   '/course/$id': typeof CourseIdRoute
@@ -326,6 +335,7 @@ export interface FileRouteTypes {
     | '/reservation'
     | '/reserver'
     | '/services'
+    | '/admin/courses'
     | '/admin/dashboard'
     | '/admin/flow-check'
     | '/course/$id'
@@ -360,6 +370,7 @@ export interface FileRouteTypes {
     | '/reservation'
     | '/reserver'
     | '/services'
+    | '/admin/courses'
     | '/admin/dashboard'
     | '/admin/flow-check'
     | '/course/$id'
@@ -394,6 +405,7 @@ export interface FileRouteTypes {
     | '/reservation'
     | '/reserver'
     | '/services'
+    | '/admin/courses'
     | '/admin/dashboard'
     | '/admin/flow-check'
     | '/course/$id'
@@ -597,6 +609,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDashboardRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/courses': {
+      id: '/admin/courses'
+      path: '/courses'
+      fullPath: '/admin/courses'
+      preLoaderRoute: typeof AdminCoursesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/lovable/email/suppression': {
       id: '/lovable/email/suppression'
       path: '/lovable/email/suppression'
@@ -678,11 +697,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
+  AdminCoursesRoute: typeof AdminCoursesRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminFlowCheckRoute: typeof AdminFlowCheckRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminCoursesRoute: AdminCoursesRoute,
   AdminDashboardRoute: AdminDashboardRoute,
   AdminFlowCheckRoute: AdminFlowCheckRoute,
 }
@@ -735,13 +756,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
