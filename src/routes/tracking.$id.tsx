@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { trackingIdSchema } from "@/lib/tracking-id";
 import { geocodeAddress } from "@/lib/geocode";
 import { OSM_TILE_URL, OSM_TILE_OPTIONS } from "@/lib/map";
+import { getRouteGeoCoords, getDistanceAndDurationKm } from "@/lib/osrm";
 
 export const Route = createFileRoute("/tracking/$id")({
   head: () => ({
@@ -606,8 +607,8 @@ function TrackingPage() {
       // Stocker coords utiles
       destCoordsRef.current = b;
       pickupCoordsRef.current = a;
-      const totalDist = data?.routes?.[0]?.distance;
-      if (totalDist) setTotalKm(parseFloat((totalDist / 1000).toFixed(1)));
+      const totalDist = route?.distanceKm;
+      if (totalDist) setTotalKm(parseFloat(totalDist.toFixed(1)));
 
       // Dessiner la ligne d'approche chauffeur→prise en charge si on a déjà le GPS
       const driverPos = markerRef.current?.getLatLng();
