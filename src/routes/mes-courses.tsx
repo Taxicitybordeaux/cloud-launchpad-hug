@@ -36,6 +36,7 @@ function loadLeaflet(): Promise<void> {
 
 import { geocodeAddress } from "@/lib/geocode";
 import { getRouteGeoCoords } from "@/lib/osrm";
+import { OSM_TILE_URL, OSM_TILE_OPTIONS } from "@/lib/map";
 
 async function geocode(adresse: string): Promise<[number, number] | null> {
   try {
