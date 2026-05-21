@@ -581,13 +581,14 @@ function ReservationPage() {
     }
   };
 
+  // Tous les champs en blanc
   const inputStyle = (hasError?: boolean) => ({
     width: "100%",
     padding: "14px 14px",
     borderRadius: 12,
     border: `2px solid ${hasError ? "#ef4444" : "#cbd5e1"}`,
     fontSize: 16,
-    background: "#ffffff",
+    background: "#fff", // fond blanc
     color: "#0f172a",
     fontFamily: "'DM Sans',sans-serif",
     outline: "none",
@@ -854,23 +855,25 @@ function ReservationPage() {
                         {[1, 2, 3, 4, 5, 6].map((n) => (
                           <option key={n} value={n}>
                             {n} passager{n > 1 ? "s" : ""}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
-                        Bagages
-                      </label>
-                      <select
-                        value={f.bagages}
-                        onChange={(e) => set("bagages", parseInt(e.target.value))}
-                        style={inputStyle()}
-                      >
-                        {[0, 1, 2, 3, 4, 5].map((n) => (
-                          <option key={n} value={n}>
-                            {n} bagage{n > 1 ? "s" : ""}
-                          </option>
+                          <button
+                            type="submit"
+                            disabled={sending || !orsResult}
+                            style={{
+                              padding: "14px 20px",
+                              background: sending ? "#64748b" : "#0f4bbf", // bleu principal
+                              color: sending ? "#cbd5e1" : "#fff", // texte blanc
+                              border: "none",
+                              borderRadius: 12,
+                              fontWeight: 700,
+                              fontSize: 16,
+                              cursor: sending ? "wait" : "pointer",
+                              opacity: !orsResult && !sending ? 0.5 : 1,
+                              boxShadow: sending ? "none" : "0 2px 8px rgba(15,75,191,0.12)",
+                              transition: "background 0.2s, color 0.2s",
+                            }}
+                          >
+                            {sending ? "⏳ Réservation..." : "Envoyer ma demande"}
+                          </button>
                         ))}
                       </select>
                     </div>
@@ -941,10 +944,90 @@ function ReservationPage() {
           </div>
         </>
       ) : (
-        // Tracking phase
-        <div style={{ flex: 1, position: "relative", display: "flex", flexDirection: "column" }}>
-          <div ref={mapRef} style={{ flex: 1, position: "relative" }} />
+        // Nouvelle page de tracking enrichie
+        <TrackingPage
+          depart={f.depart}
+          phoneTaxi="0673072322"
+          prix={prixAller}
+          distanceKm={orsResult?.distanceKm || 0}
+          dureeS={orsResult?.dureeS || 0}
+        />
+      )}
+    // Composant de tracking enrichi façon Uber
+    function TrackingPage({ depart, phoneTaxi, prix, distanceKm, dureeS }: { depart: string; phoneTaxi: string; prix: number; distanceKm: number; dureeS: number }) {
+      const mapRef = useRef<HTMLDivElement>(null);
+      const [taxiPos, setTaxiPos] = useState<[number, number]>([44.8308, -0.6002]); // position initiale fictive
+      const [clientPos, setClientPos] = useState<[number, number] | null>(null);
+      const [route, setRoute] = useState<[number, number][]>([]);
+      const [eta, setEta] = useState<number>(0);
+      const [moving, setMoving] = useState(true);
 
+      // Géocoder l'adresse de départ du client
+      useEffect(() => {
+        (async () => {
+          const c = await geocodeFullAddress(depart);
+          if (c) setClientPos([c[0], c[1]]);
+        })();
+      }, [depart]);
+
+      // Calculer le trajet taxi -> client
+      useEffect(() => {
+        if (!clientPos) return;
+        (async () => {
+          const poly = await getOsrmPolyline(taxiPos, clientPos);
+          setRoute(poly);
+          // Estimation temps d'arrivée (fictif)
+          setEta(Math.max(2, Math.round(Math.random() * 4 + 2)));
+        })();
+      }, [taxiPos, clientPos]);
+
+      // Animation du taxi sur la route
+      useEffect(() => {
+        if (!route.length || !moving) return;
+        let idx = 0;
+        const interval = setInterval(() => {
+          idx = Math.min(idx + 1, route.length - 1);
+          setTaxiPos(route[idx]);
+          if (idx >= route.length - 1) setMoving(false);
+        }, 800);
+        return () => clearInterval(interval);
+      }, [route, moving]);
+
+      // Affichage carte
+      useEffect(() => {
+        let map: any, taxiMarker: any, clientMarker: any, routeLine: any;
+        (async () => {
+          await loadLeaflet();
+          const L = (window as any).L;
+          if (!mapRef.current || !clientPos) return;
+          map = L.map(mapRef.current, { center: clientPos, zoom: 13, zoomControl: false });
+          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OpenStreetMap contributors", maxZoom: 19 }).addTo(map);
+          // Marqueur taxi
+          taxiMarker = L.marker([taxiPos[1], taxiPos[0]], {
+            icon: L.divIcon({
+              className: "",
+              html: `<div style='width:28px;height:28px;background:#0f4bbf;border-radius:50%;border:4px solid #fff;box-shadow:0 0 0 6px rgba(15,75,191,0.18);display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;'>🚕</div>`
+            })
+          }).addTo(map);
+          // Marqueur client
+          clientMarker = L.marker([clientPos[1], clientPos[0]], {
+            icon: L.divIcon({
+              className: "",
+              html: `<div style='width:20px;height:20px;background:#f5c842;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 4px rgba(245,200,66,0.18)'></div>`
+            })
+          }).addTo(map);
+          // Tracé
+          if (route.length > 1) {
+            routeLine = L.polyline(route.map(c => [c[1], c[0]]), { color: "#0f4bbf", weight: 5, opacity: 0.9 }).addTo(map);
+            map.fitBounds(L.latLngBounds([taxiPos, clientPos].map(c => [c[1], c[0]])).pad(0.2));
+          }
+        })();
+        return () => { try { map && map.remove(); } catch {} };
+      }, [taxiPos, clientPos, route]);
+
+      return (
+        <div style={{ flex: 1, position: "relative", display: "flex", flexDirection: "column" }}>
+          <div ref={mapRef} style={{ flex: 1, minHeight: 320, borderRadius: 0, overflow: "hidden" }} />
           <div
             style={{
               position: "absolute",
@@ -952,35 +1035,32 @@ function ReservationPage() {
               left: 0,
               right: 0,
               background: "linear-gradient(180deg, rgba(10,10,20,0) 0%, rgba(10,10,20,0.95) 50%, #0a0a14 100%)",
-              padding: "24px",
+              padding: 24,
               borderRadius: "24px 24px 0 0",
-              textAlign: "center",
+              color: "#fff",
+              boxShadow: "0 -2px 16px rgba(15,75,191,0.10)",
             }}
           >
-            <div style={{ fontSize: 32, marginBottom: 16 }}>⏳</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: "#f5f5f5", marginBottom: 8 }}>
-              En attente d'acceptation
+            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12 }}>
+              <div style={{ fontSize: 32 }}>🚕</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 18 }}>José</div>
+                <div style={{ fontSize: 14, color: "#f5c842", fontWeight: 600 }}>Mercedes · HF-450-JG</div>
+              </div>
+              <a href={`tel:${phoneTaxi}`} style={{ background: "#0f4bbf", color: "#fff", borderRadius: 8, padding: "10px 16px", fontWeight: 700, textDecoration: "none", fontSize: 16 }}>Appeler</a>
             </div>
-            <div style={{ fontSize: 14, color: "#cbd5e1", marginBottom: 16 }}>
-              Tracking ID: {trackingId.split("-")[0]}...
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 15, marginBottom: 8 }}>
+              <div><b>Tarif</b> : {prix.toFixed(2)} €</div>
+              <div><b>Distance</b> : {distanceKm.toFixed(1)} km</div>
             </div>
-            <a
-              href="/"
-              style={{
-                display: "inline-block",
-                padding: "12px 24px",
-                background: "#f5c842",
-                color: "#0f172a",
-                textDecoration: "none",
-                borderRadius: 10,
-                fontWeight: 700,
-              }}
-            >
-              Retour au site
-            </a>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 15, marginBottom: 8 }}>
+              <div><b>Durée</b> : {Math.round(dureeS/60)} min</div>
+              <div><b>Arrivée estimée</b> : {eta} min</div>
+            </div>
           </div>
         </div>
-      )}
+      );
+    }
     </div>
   );
 }
