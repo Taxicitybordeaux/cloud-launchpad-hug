@@ -1263,7 +1263,15 @@ function Dashboard() {
                 {r.status !== "en_route" && (
                   <button
                     onClick={() => handleUpdateReservationStatus(r, "en_route")}
-                    style={{ background: "#f59e0b", color: "#0a0a14", border: "none", padding: "12px 14px", borderRadius: 12, cursor: "pointer", fontWeight: 700 }}
+                    style={{
+                      background: "#f59e0b",
+                      color: "#0a0a14",
+                      border: "none",
+                      padding: "12px 14px",
+                      borderRadius: 12,
+                      cursor: "pointer",
+                      fontWeight: 700,
+                    }}
                   >
                     🚗 En route
                   </button>
@@ -1271,7 +1279,15 @@ function Dashboard() {
                 {r.status !== "arrived" && (
                   <button
                     onClick={() => handleUpdateReservationStatus(r, "arrived")}
-                    style={{ background: "#22c55e", color: "#fff", border: "none", padding: "12px 14px", borderRadius: 12, cursor: "pointer", fontWeight: 700 }}
+                    style={{
+                      background: "#22c55e",
+                      color: "#fff",
+                      border: "none",
+                      padding: "12px 14px",
+                      borderRadius: 12,
+                      cursor: "pointer",
+                      fontWeight: 700,
+                    }}
                   >
                     📍 Arrivé
                   </button>
@@ -1279,14 +1295,30 @@ function Dashboard() {
                 {r.status !== "completed" && (
                   <button
                     onClick={() => handleUpdateReservationStatus(r, "completed")}
-                    style={{ background: "#2563eb", color: "#fff", border: "none", padding: "12px 14px", borderRadius: 12, cursor: "pointer", fontWeight: 700 }}
+                    style={{
+                      background: "#2563eb",
+                      color: "#fff",
+                      border: "none",
+                      padding: "12px 14px",
+                      borderRadius: 12,
+                      cursor: "pointer",
+                      fontWeight: 700,
+                    }}
                   >
                     🏁 Terminé
                   </button>
                 )}
                 <button
                   onClick={() => handleUpdateReservationStatus(r, "cancelled")}
-                  style={{ background: "#ef4444", color: "#fff", border: "none", padding: "12px 14px", borderRadius: 12, cursor: "pointer", fontWeight: 700 }}
+                  style={{
+                    background: "#ef4444",
+                    color: "#fff",
+                    border: "none",
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    cursor: "pointer",
+                    fontWeight: 700,
+                  }}
                 >
                   ✖ Annuler
                 </button>
