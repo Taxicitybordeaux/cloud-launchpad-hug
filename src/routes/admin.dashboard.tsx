@@ -9,7 +9,7 @@ import { assertTrackingId, newTrackingId } from "@/lib/tracking-id";
 import { CourseCardSkeleton, GpsCardSkeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
 import logo from "@/assets/logo.jpeg";
 import { EnablePushButton } from "@/components/EnablePushButton";
-import { notifyReservationStatus } from "@/lib/push.functions";
+import { notifyReservationStatus, notifyNewReservation } from "@/lib/push.functions";
 
 // ─── Map constants ──────────────────────────────────────────
 const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
@@ -378,7 +378,13 @@ function Dashboard() {
           try {
             new Audio("/notification.mp3").play().catch(() => {});
           } catch {}
-          // ── Push notification navigateur automatique ──
+
+          // ── Push admin + chauffeur + email taxi (server-side) ──
+          if (n.id) {
+            notifyNewReservation({ data: { reservation_id: n.id } }).catch(() => {});
+          }
+
+          // ── Push navigateur local (fallback si pas abonné VAPID) ──
           if (typeof window !== "undefined" && "Notification" in window) {
             const sendBrowserNotif = () => {
               try {
@@ -436,13 +442,15 @@ function Dashboard() {
           .from("driver_gps")
           .insert({ id: "driver", is_active: false, latitude: 0, longitude: 0 });
         setGpsLoading(false);
+        // Démarrage auto même si la ligne n'existait pas encore
+        startGPS();
         return;
       }
-      setGpsActive(false);
       setGpsDestination(data.destination ?? "");
       setGpsPrixEstime(data.prix_estime ?? "");
       setGpsLoading(false);
-      // Ne pas démarrer automatiquement le GPS à l'ouverture du dashboard
+      // Démarre automatiquement dès l'ouverture du dashboard
+      startGPS();
     };
     initGPS();
     return () => {
@@ -726,6 +734,14 @@ function Dashboard() {
     const paxLine = `${r.nb_passagers || r.passagers || 1} passager(s)${(r.bagages ?? 0) > 0 ? ` · ${r.bagages} bagage(s)` : ""}`;
     const notifParts: string[] = [];
 
+    // ── 🔔 Push client (automatique, toujours) ──
+    let pushSent = 0;
+    try {
+      const pushResult = await notifyReservationStatus({ data: { reservation_id: r.id, status: "accepted" } });
+      pushSent = (pushResult as any)?.client?.sent ?? 0;
+    } catch {}
+    notifParts.push(pushSent > 0 ? `🔔 Push envoyée` : `🔕 Pas d'abonné push`);
+
     // ── Email (si coché) ──
     if (notifChoices.email && email && url) {
       try {
@@ -778,7 +794,7 @@ function Dashboard() {
       }
     }
 
-    // ── SMS (si coché) ──
+    // ── SMS (si coché — option secondaire) ──
     if (notifChoices.sms && phone) {
       const smsPhone = (phone || "").replace(/[^\d]/g, "").replace(/^0/, "+33");
       const pickupShort = r.pickup_datetime
@@ -793,11 +809,8 @@ function Dashboard() {
       }
     }
 
-    // Push notification to the client (non-blocking)
-    notifyReservationStatus({ data: { reservation_id: r.id, status: "accepted" } }).catch(() => {});
-
     toast.success(`Course acceptée — ${name || "client"}`, {
-      description: notifParts.length > 0 ? notifParts.join(" · ") : "Aucune notification envoyée.",
+      description: notifParts.join(" · "),
       duration: 8000,
     });
 
@@ -821,10 +834,32 @@ function Dashboard() {
       toast.error("Échec du refus", { description: error.message });
       return false;
     }
+    // ── 🔔 Push client (automatique) ──
+    let pushRefusSent = 0;
+    try {
+      const pushResult = await notifyReservationStatus({ data: { reservation_id: r.id, status: "refused" } });
+      pushRefusSent = (pushResult as any)?.client?.sent ?? 0;
+    } catch {}
+
+    // ── SMS refus (si coché — option secondaire) ──
+    const phoneRefus = r.client_phone || r.telephone;
+    if (notifChoices.sms && phoneRefus && typeof window !== "undefined") {
+      const smsPhone = (phoneRefus || "").replace(/[^\d]/g, "").replace(/^0/, "+33");
+      const name = r.client_name || r.nom || "";
+      const refId = `TCB-${r.id.slice(0, 8).toUpperCase()}`;
+      const pickupShort = r.pickup_datetime
+        ? formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })
+        : "—";
+      const smsBody = encodeURIComponent(
+        `Bonjour ${name},\nVotre course ${refId} du ${pickupShort} n'a pas pu etre acceptee.\nMotif : ${cleaned.slice(0, 100)}\nContactez-nous : 06 73 07 23 22`,
+      );
+      window.open(`sms:${smsPhone}?body=${smsBody}`, "_blank");
+    }
+
     toast.success(`Course refusée — ${r.client_name || r.nom || "client"}`, {
-      description: `Motif : « ${cleaned.slice(0, 80)}${cleaned.length > 80 ? "…" : ""} »`,
+      description: `${pushRefusSent > 0 ? "🔔 Push envoyée · " : "🔕 Pas d'abonné push · "}Motif : « ${cleaned.slice(0, 60)}${cleaned.length > 60 ? "…" : ""} »`,
+      duration: 7000,
     });
-    notifyReservationStatus({ data: { reservation_id: r.id, status: "refused" } }).catch(() => {});
     fetchAll();
     return true;
   };
@@ -840,8 +875,39 @@ function Dashboard() {
       toast.error("Impossible de mettre à jour le statut", { description: error.message });
       return;
     }
-    toast.success(`Statut mis à jour : ${status}`, { description: `Course ${r.id} → ${status}` });
-    notifyReservationStatus({ data: { reservation_id: r.id, status } }).catch(() => {});
+
+    // Labels lisibles pour le toast
+    const statusLabels: Record<string, string> = {
+      en_route: "🚗 En route",
+      arrived: "📍 Arrivé",
+      completed: "🏁 Terminé",
+      cancelled: "✖ Annulée",
+    };
+
+    // ── Push client (toujours) ──
+    try {
+      const result = await notifyReservationStatus({ data: { reservation_id: r.id, status: status as any } });
+
+      // ── SMS auto sur en_route et arrived ──
+      if (typeof window !== "undefined" && (result as any)?.smsPhone && (result as any)?.smsBody) {
+        window.open(`sms:${(result as any).smsPhone}?body=${(result as any).smsBody}`, "_blank");
+      }
+
+      const notifLabel =
+        status === "en_route"
+          ? " · 🔔 Push + SMS envoyés au client"
+          : status === "arrived"
+            ? " · 🔔 Push + SMS 'taxi à proximité' envoyés"
+            : " · 🔔 Push client envoyée";
+
+      toast.success(`${statusLabels[status] ?? status}`, {
+        description: `Course mise à jour${notifLabel}`,
+        duration: 6000,
+      });
+    } catch {
+      toast.success(`Statut mis à jour : ${statusLabels[status] ?? status}`);
+    }
+
     setItems((prev) => prev.map((item) => (item.id === r.id ? { ...item, status } : item)));
   };
 
@@ -2429,42 +2495,19 @@ function Dashboard() {
           >
             {!gpsActive ? (
               <>
-                <div style={{ fontSize: 52 }}>📡</div>
+                <div style={{ fontSize: 52, opacity: 0.5 }}>📡</div>
                 <h3
                   style={{
                     fontFamily: "'Syne',sans-serif",
-                    color: "#f8fafc",
+                    color: "#94a3b8",
                     marginTop: 10,
-                    fontSize: 18,
-                    fontWeight: 800,
-                  }}
-                >
-                  Votre position est inactive
-                </h3>
-                <p style={{ color: "#94a3b8", fontSize: 14 }}>Les clients ne peuvent pas vous suivre</p>
-                <div style={{ marginTop: 8, color: "#94a3b8", fontSize: 13 }}>
-                  Tout est automatique — destination, distance et prix sont calculés à partir de la course en cours.
-                </div>
-
-                <button
-                  onClick={startGPS}
-                  style={{
-                    marginTop: 20,
-                    width: "100%",
-                    height: 56,
-                    background: "#22c55e",
-                    color: "#fff",
-                    border: 0,
-                    borderRadius: 14,
-                    fontFamily: "'Syne',sans-serif",
-                    fontWeight: 800,
                     fontSize: 16,
-                    cursor: "pointer",
-                    boxShadow: "0 8px 24px rgba(34,197,94,0.3)",
+                    fontWeight: 700,
                   }}
                 >
-                  📡 Activer mon GPS
-                </button>
+                  Démarrage GPS…
+                </h3>
+                <p style={{ color: "#64748b", fontSize: 13 }}>Autorisation de localisation requise</p>
               </>
             ) : (
               <>
@@ -2940,8 +2983,8 @@ function Dashboard() {
 
             <p style={{ color: "#64748b", fontSize: 13, margin: "0 0 14px" }}>
               {confirmAction.type === "accept"
-                ? "Choisissez les notifications à envoyer au client :"
-                : "Le motif sera enregistré. Visible dans l'onglet Refusées."}
+                ? "🔔 Push envoyée automatiquement. Options supplémentaires :"
+                : "🔔 Push envoyée automatiquement au client. Le motif sera enregistré."}
             </p>
 
             {confirmAction.type === "accept" && (
@@ -2988,6 +3031,46 @@ function Dashboard() {
                     </span>
                   </label>
                 ))}
+              </div>
+            )}
+
+            {confirmAction.type === "refuse" && (
+              <div
+                style={{
+                  background: "rgba(192,132,252,0.06)",
+                  border: "1px solid rgba(192,132,252,0.15)",
+                  borderRadius: 12,
+                  padding: "10px 16px",
+                  marginBottom: 14,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                }}
+              >
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    cursor: "pointer",
+                    padding: "6px 12px",
+                    borderRadius: 10,
+                    background: notifChoices.sms ? "rgba(192,132,252,0.15)" : "rgba(255,255,255,0.04)",
+                    border: `1px solid ${notifChoices.sms ? "rgba(192,132,252,0.5)" : "rgba(255,255,255,0.08)"}`,
+                    transition: "all 0.15s",
+                    userSelect: "none",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={notifChoices.sms}
+                    onChange={(e) => setNotifChoices((prev) => ({ ...prev, sms: e.target.checked }))}
+                    style={{ accentColor: "#c084fc", width: 16, height: 16, cursor: "pointer" }}
+                  />
+                  <span style={{ color: notifChoices.sms ? "#c084fc" : "#94a3b8", fontWeight: 700, fontSize: 14 }}>
+                    💬 SMS de refus au client
+                  </span>
+                </label>
               </div>
             )}
 
