@@ -50,6 +50,15 @@ function ConfirmationPage() {
   const [cancelling, setCancelling] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const { status: pushStatus, subscribe } = usePushNotifications();
+  // Redirection automatique après 5 secondes si réservation valide et non annulée
+  useEffect(() => {
+    if (reservation && !["annulee", "cancelled", "canceled"].includes(reservation.status)) {
+      const timeout = setTimeout(() => {
+        navigate({ to: "/suivi/$id", params: { id: reservation.id } });
+      }, 5000);
+      return () => clearTimeout(timeout);
+    }
+  }, [reservation, navigate]);
 
   useEffect(() => {
     if (reservation && reservation.status !== "annulee" && pushStatus === "idle") {
@@ -187,91 +196,136 @@ function ConfirmationPage() {
       </div>
 
       {!isCancelled && (
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          <a
-            href={whatsappLink(waMessage)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 rounded-md bg-[#25D366] px-5 py-3 font-semibold text-white shadow transition hover:opacity-90"
-          >
-            <MessageCircle className="h-5 w-5" /> {t("conf.wa")}
-          </a>
-          <a
-            href="tel:0673072322"
-            className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-background px-5 py-3 font-semibold transition hover:border-primary"
-          >
-            <Phone className="h-5 w-5" /> 06 73 07 23 22
-          </a>
-        </div>
-      )}
+        return (
+          <div className="flex flex-col min-h-screen items-center justify-start bg-background">
+            <div className="w-full max-w-2xl px-4 pt-16 pb-8">
+              <div className="text-center">
+                {isCancelled ? (
+                  <>
+                    <XCircle className="mx-auto h-16 w-16 text-muted-foreground" />
+                    <h1 className="mt-5 font-display text-3xl font-bold md:text-4xl">{t("conf.cancelled.title")}</h1>
+                    <p className="mt-3 text-muted-foreground">{t("conf.cancelled.desc")}</p>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="mx-auto h-16 w-16 text-primary" />
+                    <h1 className="mt-5 font-display text-3xl font-bold md:text-4xl">{t("conf.ok.title")}</h1>
+                    <p className="mt-3 text-muted-foreground">{t("conf.ok.desc")}</p>
+                    <p className="mt-2 text-xs text-muted-foreground">Vous allez être redirigé vers la carte dans quelques secondes…</p>
+                  </>
+                )}
+              </div>
 
-      {!isCancelled && (
-        <Link
-          to="/suivi/$id"
-          params={{ id: reservation.id }}
-          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 font-semibold text-primary-foreground shadow transition hover:opacity-90"
-        >
-          <Navigation className="h-5 w-5" /> {t("conf.track")}
-        </Link>
-      )}
+              <div className="mt-8 rounded-2xl border border-primary/30 bg-card p-6 text-center">
+                <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">{t("conf.ref.label")}</p>
+                <p className="mt-2 font-mono text-2xl font-bold tracking-wider text-primary">{refNumber}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{t("conf.ref.note")}</p>
+              </div>
 
-      {!isCancelled && (
-        <div className="mt-6 rounded-xl border border-border bg-card/50 p-5">
-          <h3 className="text-sm font-semibold">{t("conf.modify.title")}</h3>
-          <p className="mt-1 text-sm text-muted-foreground">{t("conf.modify.desc")}</p>
-          {confirmCancel ? (
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                onClick={handleCancel}
-                disabled={cancelling}
-                className="inline-flex items-center gap-2 rounded-md bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground disabled:opacity-60"
-              >
-                {cancelling && <Loader2 className="h-4 w-4 animate-spin" />}
-                {t("conf.cancel.confirm")}
-              </button>
-              <button
-                onClick={() => setConfirmCancel(false)}
-                className="rounded-md border border-border px-4 py-2 text-sm font-semibold"
-              >
-                {t("conf.cancel.keep")}
-              </button>
+              {!isCancelled && (
+                <div className="mt-6 rounded-2xl border border-border bg-card p-4 text-center text-sm text-muted-foreground">
+                  📲 Les notifications de suivi sont activées automatiquement pour cette réservation.
+                </div>
+              )}
+
+              <div className="mt-6 rounded-2xl border border-border bg-card p-6 space-y-4">
+                <h2 className="font-display text-lg font-semibold">{t("conf.summary")}</h2>
+                <Row
+                  icon={Calendar}
+                  label={t("conf.row.pickup")}
+                  value={(() => {
+                    const iso = reservation.pickup_datetime;
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+                      const [y, m, d] = iso.split("-").map(Number);
+                      return new Date(y, m - 1, d).toLocaleDateString("fr-FR", { dateStyle: "full" });
+                    }
+                    return new Date(iso).toLocaleString("fr-FR", {
+                      dateStyle: "full",
+                      timeStyle: "short",
+                      timeZone: "Europe/Paris",
+                    });
+                  })()}
+                />
+                <Row icon={MapPin} label={t("conf.row.from")} value={reservation.depart} />
+                <Row icon={MapPin} label={t("conf.row.to")} value={reservation.arrivee} />
+                <Row icon={Phone} label={t("conf.row.phone")} value={reservation.telephone} />
+                <div className="text-sm text-muted-foreground">
+                  {reservation.passagers} {t("conf.passengers")} • {reservation.bagages} {t("conf.luggage")} •{" "}
+                  {reservation.service_type}
+                </div>
+                {reservation.message && (
+                  <p className="rounded-md border border-border bg-input/40 p-3 text-sm whitespace-pre-line">
+                    {reservation.message}
+                  </p>
+                )}
+              </div>
+
+              {!isCancelled && (
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  <a
+                    href={whatsappLink(waMessage)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 rounded-md bg-[#25D366] px-5 py-3 font-semibold text-white shadow transition hover:opacity-90"
+                  >
+                    <MessageCircle className="h-5 w-5" /> {t("conf.wa")}
+                  </a>
+                  <a
+                    href="tel:0673072322"
+                    className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-background px-5 py-3 font-semibold transition hover:border-primary"
+                  >
+                    <Phone className="h-5 w-5" /> 06 73 07 23 22
+                  </a>
+                </div>
+              )}
+
+              {!isCancelled && (
+                <Link
+                  to="/suivi/$id"
+                  params={{ id: reservation.id }}
+                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 font-semibold text-primary-foreground shadow transition hover:opacity-90"
+                >
+                  <Navigation className="h-5 w-5" /> {t("conf.track")}
+                </Link>
+              )}
+
+              {!isCancelled && (
+                <div className="mt-6 rounded-xl border border-border bg-card/50 p-5">
+                  <h3 className="text-sm font-semibold">{t("conf.modify.title")}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">{t("conf.modify.desc")}</p>
+                  {confirmCancel ? (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        onClick={handleCancel}
+                        disabled={cancelling}
+                        className="inline-flex items-center gap-2 rounded-md bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground disabled:opacity-60"
+                      >
+                        {cancelling && <Loader2 className="h-4 w-4 animate-spin" />}
+                        {t("conf.cancel.confirm")}
+                      </button>
+                      <button
+                        onClick={() => setConfirmCancel(false)}
+                        className="rounded-md border border-border px-4 py-2 text-sm font-semibold"
+                      >
+                        {t("conf.cancel.keep")}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmCancel(true)}
+                      className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-destructive hover:underline"
+                    >
+                      <XCircle className="h-4 w-4" /> {t("conf.cancel")}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              <div className="mt-8 text-center">
+                <Link to="/" className="text-sm text-muted-foreground hover:text-primary">
+                  {t("conf.back")}
+                </Link>
+              </div>
             </div>
-          ) : (
-            <button
-              onClick={() => setConfirmCancel(true)}
-              className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-destructive hover:underline"
-            >
-              <XCircle className="h-4 w-4" /> {t("conf.cancel")}
-            </button>
-          )}
-        </div>
-      )}
-
-      <div className="mt-8 text-center">
-        <Link to="/" className="text-sm text-muted-foreground hover:text-primary">
-          {t("conf.back")}
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-function Row({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="flex items-start gap-3">
-      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-      <div className="text-sm">
-        <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
-        <p className="font-medium">{value}</p>
-      </div>
-    </div>
-  );
-}
+          </div>
+        );

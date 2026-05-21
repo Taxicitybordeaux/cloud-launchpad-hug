@@ -11,6 +11,13 @@ import logo from "@/assets/logo.jpeg";
 import { EnablePushButton } from "@/components/EnablePushButton";
 import { notifyReservationStatus } from "@/lib/push.functions";
 
+// ─── Map constants ──────────────────────────────────────────
+const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+const OSM_TILE_OPTIONS = {
+  attribution: "© OpenStreetMap contributors",
+  maxZoom: 19,
+};
+
 // ─── Swipe-to-delete ─────────────────────────────────────────
 function SwipeDeleteRow({
   onDelete,

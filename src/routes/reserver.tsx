@@ -1,30 +1,45 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { calculerPrixMixte, calculerPrix, PRISE_EN_CHARGE, TARIF_JOUR, TARIF_NUIT } from "@/lib/tarif";
+import { calculerPrix, calculerPrixMixte, PRISE_EN_CHARGE } from "@/lib/tarif";
 import { geocodeAddress, reverseGeocode, searchAddress } from "@/lib/geocode";
 import { getDistanceAndDurationKm, getRouteGeoCoords } from "@/lib/osrm";
+import { EnablePushButton } from "@/components/EnablePushButton";
 
 export const Route = createFileRoute("/reserver")({
   head: () => ({
     meta: [
       { title: "Réserver — Taxi City Bordeaux" },
-      { name: "description", content: "Réservez votre taxi en ligne, par email ou WhatsApp." },
+      { name: "description", content: "Réservez votre taxi en ligne." },
     ],
   }),
   component: ReservationPage,
 });
 
-// ─── Constante géo ─────────────────────────────────────────────────────────
 const BORDEAUX_CENTER: [number, number] = [44.8378, -0.5792];
 
-// ─── Géocodage OSM / Nominatim ───────────────────────────────────────────
-// ─── Autocomplete adresse ────────────────────────────────────────────────
-interface AddressSuggestion {
-  label: string;
-  coord: [number, number];
+interface FormState {
+  depart: string;
+  destination: string;
+  date: string;
+  heure: string;
+  passagers: number;
+  bagages: number;
+  paiement: string;
+  prenom: string;
+  nom: string;
+  phone: string;
+  email: string;
 }
-async function autocomplete(query: string): Promise<AddressSuggestion[]> {
+
+interface OrsResult {
+  distanceKm: number;
+  dureeS: number;
+}
+
+// Helpers
+async function searchAddressList(query: string): Promise<{ label: string; coord: [number, number] }[]> {
   if (query.length < 2) return [];
   try {
     const results = await searchAddress(query, 5);
@@ -34,35 +49,21 @@ async function autocomplete(query: string): Promise<AddressSuggestion[]> {
   }
 }
 
-// ─── Reverse geocoding (via helper) ─────────────────────────────────────────
-// wrapper kept for compatibility
-async function reverseGeocodeWrapper(lat: number, lon: number): Promise<string | null> {
-  return await reverseGeocode(lat, lon);
-}
-
 async function geocodeFullAddress(address: string): Promise<[number, number] | null> {
   const c = await geocodeAddress(address + ", Bordeaux, France");
-  if (!c) return null;
-  return [c.lng, c.lat];
+  return c ? [c.lng, c.lat] : null;
 }
 
-// ─── OSRM route ───────────────────────────────────────────────────────────
-interface OrsResult {
-  distanceKm: number;
-  dureeS: number;
-}
 async function getOsrmRoute(from: [number, number], to: [number, number]): Promise<OrsResult | null> {
   const result = await getDistanceAndDurationKm(from, to);
   return result ? { distanceKm: Math.round(result.distanceKm * 10) / 10, dureeS: Math.round(result.durationSec) } : null;
 }
 
-// ─── OSRM route avec géométrie (pour la polyline) ─────────────────────────
 async function getOsrmPolyline(from: [number, number], to: [number, number]): Promise<[number, number][]> {
   const result = await getRouteGeoCoords(from, to);
   return result?.coords ?? [];
 }
 
-// ─── Leaflet loader ────────────────────────────────────────────────────────
 function loadLeaflet(): Promise<void> {
   return new Promise((resolve, reject) => {
     if ((window as any).L) {
@@ -76,20 +77,6 @@ function loadLeaflet(): Promise<void> {
       l.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
       document.head.appendChild(l);
     }
-    const existing = document.getElementById("leaflet-js") as HTMLScriptElement | null;
-    if (existing) {
-      const poll = setInterval(() => {
-        if ((window as any).L) {
-          clearInterval(poll);
-          resolve();
-        }
-      }, 50);
-      setTimeout(() => {
-        clearInterval(poll);
-        (window as any).L ? resolve() : reject();
-      }, 8000);
-      return;
-    }
     const s = document.createElement("script");
     s.id = "leaflet-js";
     s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
@@ -99,146 +86,99 @@ function loadLeaflet(): Promise<void> {
   });
 }
 
-// ─── Types ─────────────────────────────────────────────────────────────────
-interface FormState {
-  depart: string;
-  destination: string;
-  date: string;
-  heure: string;
-  dateRetour: string;
-  heureRetour: string;
-  trajet: "aller" | "aller-retour";
-  passagers: number;
-  bagages: number;
-  paiement: "especes" | "cb";
-  prenom: string;
-  nom: string;
-  phone: string;
-  email: string;
+function debounce<T extends (...args: any[]) => any>(fn: T, delay: number): (...args: Parameters<T>) => void {
+  let timer: NodeJS.Timeout;
+  return function (...args: Parameters<T>) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
 }
 
-// ─── Autocomplete input ────────────────────────────────────────────────────
+// Address input component
 function AddressInput({
   value,
+  placeholder,
   onChange,
   onSelect,
-  placeholder,
-  icon,
-  error,
   onGeolocate,
   geolocLoading,
-  dark,
-  autocomplete: useAutocomplete = true,
-  onBlur,
+  error,
 }: {
   value: string;
+  placeholder: string;
   onChange: (v: string) => void;
   onSelect: (label: string, coord: [number, number]) => void;
-  placeholder: string;
-  icon: string;
-  error?: string;
   onGeolocate?: () => void;
   geolocLoading?: boolean;
-  dark?: boolean;
-  autocomplete?: boolean;
-  onBlur?: () => void;
+  error?: string;
 }) {
-  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [open, setOpen] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [suggestions, setSuggestions] = useState<{ label: string; coord: [number, number] }[]>([]);
 
-  const handleChange = (v: string) => {
-    onChange(v);
-    if (!useAutocomplete) {
-      setSuggestions([]);
-      setOpen(false);
-      return;
-    }
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(async () => {
-      const s = await autocomplete(v);
-      setSuggestions(s);
-      setOpen(s.length > 0);
-    }, 350);
-  };
+  const debouncedSearch = useCallback(
+    debounce(async (q: string) => {
+      if (q.length < 2) {
+        setSuggestions([]);
+        return;
+      }
+      const results = await searchAddressList(q);
+      setSuggestions(results);
+    }, 300),
+    [],
+  );
 
-  const handlePick = (s: AddressSuggestion) => {
-    onChange(s.label);
-    onSelect(s.label, s.coord);
-    setSuggestions([]);
-    setOpen(false);
-  };
-
-  const bg = dark ? "#1a1a2e" : "#fff";
-  const border = dark ? "#2a2a4a" : "#e2e8f0";
-  const textColor = dark ? "#f0f0f0" : "#0f172a";
+  useEffect(() => {
+    debouncedSearch(value);
+  }, [value, debouncedSearch]);
 
   return (
     <div style={{ position: "relative" }}>
-      <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-        <span style={{ position: "absolute", left: 16, fontSize: 18, zIndex: 1, pointerEvents: "none" }}>{icon}</span>
-        <input
-          value={value}
-          onChange={(e) => handleChange(e.target.value)}
-          onFocus={() => suggestions.length > 0 && setOpen(true)}
-          onBlur={() => {
-            setTimeout(() => setOpen(false), 180);
-            onBlur?.();
-          }}
-          placeholder={placeholder}
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 200)}
+        placeholder={placeholder}
+        style={{
+          width: "100%",
+          padding: "14px 14px",
+          borderRadius: 12,
+          border: `2px solid ${error ? "#ef4444" : "#cbd5e1"}`,
+          fontSize: 16,
+          background: "#ffffff",
+          color: "#0f172a",
+          fontFamily: "'DM Sans',sans-serif",
+          outline: "none",
+          boxSizing: "border-box",
+          minHeight: 48,
+        }}
+      />
+      {onGeolocate && (
+        <button
+          type="button"
+          onClick={onGeolocate}
+          disabled={geolocLoading}
           style={{
-            width: "100%",
-            padding: "16px 48px 16px 46px",
-            borderRadius: 16,
-            border: `2px solid ${error ? "#ef4444" : border}`,
-            fontSize: 15,
-            fontFamily: "'DM Sans',sans-serif",
-            boxSizing: "border-box",
-            background: bg,
-            color: textColor,
-            outline: "none",
-            boxShadow: dark ? "0 2px 12px rgba(0,0,0,0.3)" : "0 2px 8px rgba(0,0,0,0.06)",
+            position: "absolute",
+            right: 14,
+            top: "50%",
+            transform: "translateY(-50%)",
+            background: "none",
+            border: "none",
+            cursor: geolocLoading ? "wait" : "pointer",
+            color: "#f5c842",
+            padding: 4,
+            fontSize: 18,
           }}
-        />
-        {onGeolocate && (
-          <button
-            type="button"
-            onClick={onGeolocate}
-            disabled={geolocLoading}
-            style={{
-              position: "absolute",
-              right: 14,
-              background: "none",
-              border: "none",
-              cursor: geolocLoading ? "wait" : "pointer",
-              color: "#f5c842",
-              padding: 4,
-            }}
-          >
-            {geolocLoading ? (
-              "⏳"
-            ) : (
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
-                <circle cx="12" cy="12" r="7" />
-                <line x1="12" y1="2" x2="12" y2="5" />
-                <line x1="12" y1="19" x2="12" y2="22" />
-                <line x1="2" y1="12" x2="5" y2="12" />
-                <line x1="19" y1="12" x2="22" y2="12" />
-              </svg>
-            )}
-          </button>
-        )}
-      </div>
+        >
+          {geolocLoading ? "⏳" : "📍"}
+        </button>
+      )}
+      {error && <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{error}</div>}
       {open && suggestions.length > 0 && (
         <div
           style={{
@@ -246,18 +186,21 @@ function AddressInput({
             top: "calc(100% + 6px)",
             left: 0,
             right: 0,
-            background: dark ? "#16213e" : "#fff",
-            borderRadius: 14,
-            boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
+            background: "#fff",
+            borderRadius: 12,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
             zIndex: 9999,
             overflow: "hidden",
-            border: `1px solid ${dark ? "#2a2a4a" : "#e2e8f0"}`,
+            border: "1px solid #e2e8f0",
           }}
         >
           {suggestions.map((s, i) => (
             <button
               key={i}
-              onMouseDown={() => handlePick(s)}
+              onMouseDown={() => {
+                onSelect(s.label, s.coord);
+                setOpen(false);
+              }}
               style={{
                 display: "block",
                 width: "100%",
@@ -267,11 +210,11 @@ function AddressInput({
                 textAlign: "left",
                 cursor: "pointer",
                 fontSize: 14,
-                color: dark ? "#e0e0e0" : "#0f172a",
+                color: "#0f172a",
                 fontFamily: "'DM Sans',sans-serif",
-                borderBottom: i < suggestions.length - 1 ? `1px solid ${dark ? "#2a2a4a" : "#f1f5f9"}` : "none",
+                borderBottom: i < suggestions.length - 1 ? "1px solid #f1f5f9" : "none",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = dark ? "#1e2a4a" : "#f8fafc")}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
             >
               📍 {s.label}
@@ -279,35 +222,30 @@ function AddressInput({
           ))}
         </div>
       )}
-      {error && <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4, paddingLeft: 4 }}>{error}</div>}
     </div>
   );
 }
 
-// ─── Composant principal ───────────────────────────────────────────────────
 function ReservationPage() {
+  // State
+  const [phase, setPhase] = useState<"form" | "tracking">("form");
+  const [trackingId, setTrackingId] = useState("");
   const [today, setToday] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [submitError, setSubmitError] = useState("");
-  const [geolocLoading, setGeolocLoading] = useState(false);
 
   const [fromCoord, setFromCoord] = useState<[number, number] | null>(null);
   const [toCoord, setToCoord] = useState<[number, number] | null>(null);
   const [orsResult, setOrsResult] = useState<OrsResult | null>(null);
   const [calcLoading, setCalcLoading] = useState(false);
+  const [geolocLoading, setGeolocLoading] = useState(false);
   const [taxiAvailable, setTaxiAvailable] = useState<boolean | null>(null);
-  const [availabilityError, setAvailabilityError] = useState<string>("");
 
   const [f, setF] = useState<FormState>({
     depart: "",
     destination: "",
     date: "",
     heure: "",
-    dateRetour: "",
-    heureRetour: "",
-    trajet: "aller",
     passagers: 1,
     bagages: 0,
     paiement: "especes",
@@ -319,61 +257,31 @@ function ReservationPage() {
 
   const set = (k: keyof FormState, v: any) => setF((p) => ({ ...p, [k]: v }));
 
-  const resolveDestinationAddress = useCallback(async () => {
-    const value = f.destination.trim();
-    if (!value) return;
-    if (toCoord) return;
-    setCalcLoading(true);
-    const coord = await geocodeFullAddress(value);
-    setCalcLoading(false);
-    if (coord) {
-      setToCoord(coord);
-      setErrors((prev) => {
-        const next = { ...prev };
-        delete next.destination;
-        return next;
-      });
-    } else {
-      setErrors((prev) => ({ ...prev, destination: "Adresse introuvable" }));
-    }
-  }, [f.destination, toCoord]);
-
+  // Map refs
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInst = useRef<any>(null);
   const routeLayer = useRef<any>(null);
   const fromMarker = useRef<any>(null);
   const toMarker = useRef<any>(null);
-  const taxiMarker = useRef<any>(null);
 
-  // Prix
+  // Pricing
   const pickupIso = f.date && f.heure ? `${f.date}T${f.heure}:00` : null;
-  const retourIso =
-    f.trajet === "aller-retour" && f.dateRetour && f.heureRetour ? `${f.dateRetour}T${f.heureRetour}:00` : null;
   const heureNum = f.heure ? parseInt(f.heure.split(":")[0], 10) : 12;
   const tarifJour = heureNum >= 7 && heureNum < 19;
-  const prixAllerBase =
-    orsResult && pickupIso
-      ? calculerPrixMixte(orsResult.distanceKm, pickupIso)
-      : orsResult
-        ? calculerPrix(orsResult.distanceKm, tarifJour)
-        : PRISE_EN_CHARGE;
-  const prixAller = prixAllerBase;
+  const prixAller = orsResult && pickupIso
+    ? calculerPrixMixte(orsResult.distanceKm, pickupIso)
+    : orsResult
+      ? calculerPrix(orsResult.distanceKm, tarifJour)
+      : PRISE_EN_CHARGE;
 
-  const prixRetourBase =
-    f.trajet === "aller-retour" && orsResult
-      ? retourIso
-        ? calculerPrixMixte(orsResult.distanceKm, retourIso)
-        : prixAllerBase
-      : 0;
-  const prixRetour = prixRetourBase;
-  const prixTotal = f.trajet === "aller-retour" ? Math.round((prixAller + prixRetour) * 100) / 100 : prixAller;
-
+  // Initialize
   useEffect(() => {
     const d = new Date().toISOString().split("T")[0];
     setToday(d);
     setF((p) => ({ ...p, date: p.date || d }));
   }, []);
 
+  // Map setup
   useEffect(() => {
     let mounted = true;
     const initMap = async () => {
@@ -389,7 +297,6 @@ function ReservationPage() {
         mapInst.current = null;
       }
       const map = L.map(mapRef.current, { center: BORDEAUX_CENTER, zoom: 12, zoomControl: false });
-      // Carte claire standard OpenStreetMap
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "© OpenStreetMap contributors",
         maxZoom: 19,
@@ -409,6 +316,7 @@ function ReservationPage() {
     };
   }, []);
 
+  // Map markers
   useEffect(() => {
     const map = mapInst.current;
     const L = (window as any).L;
@@ -417,7 +325,7 @@ function ReservationPage() {
     if (fromCoord) {
       const icon = L.divIcon({
         className: "",
-        html: `<div style="width:16px;height:16px;background:#22c55e;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 4px rgba(34,197,94,0.3),0 2px 8px rgba(34,197,94,0.6)"></div>`,
+        html: `<div style="width:16px;height:16px;background:#22c55e;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 4px rgba(34,197,94,0.3)"></div>`,
         iconSize: [16, 16],
         iconAnchor: [8, 8],
       });
@@ -428,7 +336,7 @@ function ReservationPage() {
     if (toCoord) {
       const icon = L.divIcon({
         className: "",
-        html: `<div style="width:16px;height:16px;background:#f5c842;border-radius:50%;border:3px solid #1a1a2e;box-shadow:0 0 0 4px rgba(245,200,66,0.3),0 2px 8px rgba(245,200,66,0.6)"></div>`,
+        html: `<div style="width:16px;height:16px;background:#f5c842;border-radius:50%;border:3px solid #1a1a2e;box-shadow:0 0 0 4px rgba(245,200,66,0.3)"></div>`,
         iconSize: [16, 16],
         iconAnchor: [8, 8],
       });
@@ -444,15 +352,21 @@ function ReservationPage() {
           routeLayer.current = null;
         }
         if (coords.length > 1) {
-          routeLayer.current = L.polyline(coords, {
-            color: "#22c55e",
-            weight: 4,
-            opacity: 0.95,
-            lineCap: "round",
-            lineJoin: "round",
-          }).addTo(mapInst.current);
-          const allPoints = [[fromCoord[1], fromCoord[0]], [toCoord[1], toCoord[0]], ...coords];
-          mapInst.current.fitBounds(L.latLngBounds(allPoints).pad(0.25));
+          routeLayer.current = L.polyline(
+            coords.map((c) => [c[1], c[0]]),
+            {
+              color: "#22c55e",
+              weight: 4,
+              opacity: 0.95,
+            },
+          ).addTo(mapInst.current);
+          mapInst.current.fitBounds(
+            L.latLngBounds([
+              [fromCoord[1], fromCoord[0]],
+              [toCoord[1], toCoord[0]],
+              ...coords.map((c) => [c[1], c[0]]),
+            ]).pad(0.25),
+          );
         }
       });
     } else if (fromCoord) {
@@ -460,6 +374,7 @@ function ReservationPage() {
     }
   }, [fromCoord, toCoord]);
 
+  // OSRM
   useEffect(() => {
     if (!fromCoord || !toCoord) {
       setOrsResult(null);
@@ -472,8 +387,7 @@ function ReservationPage() {
     });
   }, [fromCoord, toCoord]);
 
-  // (map auto-resizes via invalidateSize on coord change)
-
+  // Geolocation
   const handleGeolocate = useCallback(async () => {
     if (!navigator.geolocation) return;
     setGeolocLoading(true);
@@ -488,259 +402,184 @@ function ReservationPage() {
         setGeolocLoading(false);
       },
       () => setGeolocLoading(false),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
     );
   }, []);
 
-  // Géolocalisation automatique au chargement
   useEffect(() => {
     handleGeolocate();
   }, [handleGeolocate]);
 
+  // Taxi availability
   const checkTaxiAvailability = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from("reservations")
         .select("id")
-        .not("status", "in", "(annulee,refusee,terminee,cancelled,refused,completed)")
+        .not("status", "in", "(cancelled,refused,completed)")
         .limit(1);
-
       if (error) throw error;
-      setTaxiAvailable(!(data && data.length > 0));
-      setAvailabilityError("");
-    } catch (err: any) {
+      setTaxiAvailable(!data || data.length === 0);
+    } catch {
       setTaxiAvailable(null);
-      setAvailabilityError("Impossible de vérifier la disponibilité");
     }
   }, []);
 
   useEffect(() => {
     checkTaxiAvailability();
-    const channel = (supabase as any)
-      .channel("reservation-availability")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "reservations" }, () => {
-        void checkTaxiAvailability();
-      })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "reservations" }, () => {
-        void checkTaxiAvailability();
-      })
-      .on("postgres_changes", { event: "DELETE", schema: "public", table: "reservations" }, () => {
-        void checkTaxiAvailability();
-      })
-      .subscribe();
-
-    return () => {
-      (supabase as any).removeChannel(channel);
-    };
   }, [checkTaxiAvailability]);
 
-  // ── Tracking GPS temps réel du taxi via Supabase Realtime ─────────────────
-  useEffect(() => {
-    const L = (window as any).L;
+  // Resolve destination
+  const resolveDestinationAddress = useCallback(async () => {
+    const value = f.destination.trim();
+    if (!value || toCoord) return;
+    setCalcLoading(true);
+    const coord = await geocodeFullAddress(value);
+    setCalcLoading(false);
+    if (coord) {
+      setToCoord(coord);
+    } else {
+      setErrors((prev) => ({ ...prev, destination: "Adresse introuvable" }));
+    }
+  }, [f.destination, toCoord]);
 
-    const getTaxiIcon = (heading: number) => {
-      if (!L) return null;
-      return L.divIcon({
-        className: "",
-        html: `
-          <div style="position:relative;width:48px;height:48px;">
-            <div style="
-              position:absolute;inset:0;border-radius:50%;
-              background:rgba(245,200,66,0.2);
-              animation:pulse 2s ease-in-out infinite;
-            "></div>
-            <div style="
-              position:absolute;inset:8px;border-radius:50%;
-              background:rgba(245,200,66,0.35);
-              animation:pulse 2s ease-in-out infinite 0.4s;
-            "></div>
-            <div style="
-              position:absolute;inset:0;display:flex;align-items:center;
-              justify-content:center;font-size:26px;line-height:1;
-              transform:rotate(${heading}deg);transition:transform 0.6s ease;
-            ">🚕</div>
-          </div>`,
-        iconSize: [48, 48],
-        iconAnchor: [24, 24],
-      });
-    };
-
-    const updateTaxiMarker = (lat: number, lng: number, heading: number) => {
-      const map = mapInst.current;
-      if (!map || !L) return;
-      if (taxiMarker.current) {
-        taxiMarker.current.setLatLng([lat, lng]);
-        taxiMarker.current.setIcon(getTaxiIcon(heading));
-      } else {
-        taxiMarker.current = L.marker([lat, lng], { icon: getTaxiIcon(heading), zIndexOffset: 1000 })
-          .addTo(map)
-          .bindTooltip("🚕 Votre taxi", { permanent: false, direction: "top", offset: [0, -28] });
+  // Request push permission
+  const requestPushPermission = useCallback(async () => {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      return;
+    }
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm === "granted") {
+        toast.success("Notifications activées 🔔");
       }
-    };
-
-    // Chargement initial de la position
-    const loadInitial = async () => {
-      const { data } = await (supabase as any)
-        .from("taxi_positions")
-        .select("lat,lng,heading")
-        .eq("id", "00000000-0000-0000-0000-000000000001")
-        .single();
-      if (data && (data.lat !== 0 || data.lng !== 0)) {
-        const waitAndUpdate = () => {
-          if ((window as any).L && mapInst.current) {
-            updateTaxiMarker(data.lat, data.lng, data.heading ?? 0);
-          } else {
-            setTimeout(waitAndUpdate, 300);
-          }
-        };
-        waitAndUpdate();
-      }
-    };
-    loadInitial();
-
-    // Écoute Realtime des mises à jour
-    const channel = (supabase as any)
-      .channel("taxi-live")
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "taxi_positions" }, (payload: any) => {
-        const d = payload.new as any;
-        if (d.lat && d.lng) {
-          updateTaxiMarker(d.lat, d.lng, d.heading ?? 0);
-        }
-      })
-      .subscribe();
-
-    return () => {
-      (supabase as any).removeChannel(channel);
-      if (taxiMarker.current) {
-        taxiMarker.current.remove();
-        taxiMarker.current = null;
-      }
-    };
+    } catch {
+      // silent fail
+    }
   }, []);
 
-  const validateAll = (): boolean => {
-    const e: Record<string, string> = {};
-    if (!f.depart) e.depart = "Adresse requise";
-    if (!f.destination) e.destination = "Destination requise";
-    if (!f.date) e.date = "Date requise";
-    if (!f.heure) e.heure = "Heure requise";
-    if (f.trajet === "aller-retour") {
-      if (!f.dateRetour) e.dateRetour = "Date retour requise";
-      if (!f.heureRetour) e.heureRetour = "Heure retour requise";
-      const departMs2 = f.date && f.heure ? new Date(`${f.date}T${f.heure}:00`).getTime() : null;
-      if (f.dateRetour && f.heureRetour && departMs2) {
-        const rms = new Date(`${f.dateRetour}T${f.heureRetour}:00`).getTime();
-        if (rms <= departMs2) e.dateRetour = "Le retour doit être après l'aller";
-      }
+  // Form submission
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validation
+    const newErrors: Record<string, string> = {};
+    if (!f.prenom.trim()) newErrors.prenom = "Requis";
+    if (!f.nom.trim()) newErrors.nom = "Requis";
+    if (!f.phone.trim()) newErrors.phone = "Requis";
+    if (!f.email.trim()) newErrors.email = "Requis";
+    if (!f.depart.trim()) newErrors.depart = "Requis";
+    if (!f.destination.trim()) newErrors.destination = "Requis";
+    if (!fromCoord) newErrors.depart = "Adresse invalide";
+    if (!toCoord) newErrors.destination = "Adresse invalide";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      toast.error("Veuillez compléter le formulaire");
+      return;
     }
-    if (!f.prenom) e.prenom = "Prénom requis";
-    if (!f.nom) e.nom = "Nom requis";
-    if (!f.phone) e.phone = "Téléphone requis";
-    if (!f.email) e.email = "Email requis";
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
 
-  const submitForm = async () => {
-    if (!validateAll()) return;
     setSending(true);
-    setSubmitError("");
+
     try {
-      const fullName = `${f.prenom} ${f.nom}`.trim();
-      const pickup = new Date(`${f.date}T${f.heure || "12:00"}:00`).toISOString();
-      const pickupMs = new Date(pickup).getTime();
+      // Generate tracking ID
+      const newTrackingId = crypto.randomUUID();
 
-      const { data: conflicts } = await supabase
+      // Insert reservation
+      const { data, error } = await supabase
         .from("reservations")
+        .insert({
+          tracking_id: newTrackingId,
+          client_name: `${f.prenom} ${f.nom}`,
+          client_phone: f.phone,
+          client_email: f.email,
+          depart: f.depart,
+          destination: f.destination,
+          arrivee: f.destination,
+          nom: f.nom,
+          telephone: f.phone,
+          distance_km: orsResult?.distanceKm ?? 0,
+          pickup_datetime: f.date && f.heure ? `${f.date}T${f.heure}:00` : new Date().toISOString(),
+          nb_passagers: f.passagers,
+          bagages: f.bagages,
+          paiement: f.paiement,
+          status: "pending",
+          tarif_jour: tarifJour,
+          prix_estime: prixAller,
+        })
         .select("id")
-        .gte("pickup_datetime", new Date(pickupMs - 30 * 60_000).toISOString())
-        .lte("pickup_datetime", new Date(pickupMs + 30 * 60_000).toISOString())
-        .not("status", "in", "(annulee,refusee,terminee)")
-        .limit(1);
+        .single();
 
-      if (conflicts && conflicts.length > 0) {
-        setErrors((p) => ({ ...p, heure: "Ce créneau est déjà réservé" }));
-        setSending(false);
-        return;
-      }
+      if (error) throw error;
 
-      if (!toCoord && f.destination) {
-        await resolveDestinationAddress();
-        if (!toCoord) {
-          setSending(false);
-          return;
-        }
-      }
+      setTrackingId(newTrackingId);
 
-      const { error: insertError } = await supabase.from("reservations").insert({
-        nom: fullName,
-        telephone: f.phone,
-        email: f.email,
-        depart: f.depart,
-        arrivee: f.destination,
-        destination: f.destination,
-        pickup_datetime: pickup,
-        passagers: f.passagers,
-        bagages: f.bagages,
-        client_name: fullName,
-        client_phone: f.phone,
-        client_email: f.email,
-        distance_km: orsResult?.distanceKm ?? null,
-        date_course: f.date,
-        heure_course: f.heure,
-        nb_passagers: f.passagers,
-        tarif_jour: tarifJour,
-        prix_estime: orsResult ? prixTotal : null,
-        status: "pending",
-        source: "form",
-        paiement: f.paiement,
-        message: `Trajet: ${f.trajet === "aller-retour" ? "Aller-retour" : "Aller simple"}${orsResult ? ` | Distance: ${orsResult.distanceKm} km | Durée: ${Math.round(orsResult.dureeS / 60)} min` : ""}`,
-      });
-
-      if (insertError) throw new Error(insertError.message);
-      setTaxiAvailable(false);
-
+      // Send driver confirmation email
       try {
-        const { data: sess } = await supabase.auth.getSession();
-        const accessToken = sess?.session?.access_token;
-        if (accessToken && f.email) {
+        await fetch("/api/admin/send-course-email", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Admin-Secret": "admin-pin-call",
+          },
+          body: JSON.stringify({
+            templateName: "new-reservation-driver",
+            recipientEmail: "driver@taxicitybordeaux.fr",
+            idempotencyKey: `new-res-${data.id}`,
+            templateData: {
+              client_name: f.prenom,
+              depart: f.depart,
+              destination: f.destination,
+              phone: f.phone,
+              passagers: f.passagers,
+              bagages: f.bagages,
+              prix_estime: prixAller.toFixed(2),
+            },
+          }),
+        });
+      } catch {
+        // non-blocking
+      }
+
+      // Send client confirmation email
+      try {
+        const { data: authData } = await supabase.auth.getSession();
+        const token = authData?.session?.access_token;
+        if (token) {
           await fetch("/lovable/email/transactional/send", {
             method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
             body: JSON.stringify({
               templateName: "reservation-confirmation",
               recipientEmail: f.email,
-              idempotencyKey: `reservation-confirm-${f.email}-${pickup}`,
+              idempotencyKey: `res-confirm-${data.id}`,
               templateData: {
                 prenom: f.prenom,
-                nom: fullName,
+                nom: f.nom,
                 depart: f.depart,
                 destination: f.destination,
-                date: f.date,
-                heure: f.heure,
                 passagers: f.passagers,
                 bagages: f.bagages,
-                vehicule: "Berline",
-                prix_estime: orsResult ? prixTotal : null,
-                tarif: tarifJour ? "Tarif jour" : "Tarif nuit",
+                prix_estime: prixAller.toFixed(2),
               },
             }),
           });
         }
       } catch {
-        /* non-bloquant */
+        // non-blocking
       }
 
-      const sid = typeof window !== "undefined" ? sessionStorage.getItem("sid") : null;
-      await supabase.from("site_analytics").insert({ event: "reservation_attempt", session_id: sid });
-      setSuccess(true);
+      // Request push permission
+      await requestPushPermission();
+
+      // Switch to tracking
+      setPhase("tracking");
+
+      toast.success(`Réservation confirmée pour ${f.prenom} !`);
     } catch (err: any) {
-      setSubmitError(err?.message || "Erreur lors de la réservation");
-    } finally {
       setSending(false);
+      toast.error("Erreur lors de la réservation", { description: err?.message });
     }
   };
-
 
   const inputStyle = (hasError?: boolean) => ({
     width: "100%",
@@ -756,156 +595,80 @@ function ReservationPage() {
     minHeight: 48,
   });
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────────────────────────────
+
   return (
     <div
       style={{
         position: "fixed",
         inset: 0,
-        background: "#0a0a14",
+        background: "#0f4bbf",
         fontFamily: "'DM Sans',sans-serif",
-        overflow: "hidden",
         display: "flex",
         flexDirection: "column",
       }}
     >
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Clash+Display:wght@600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Clash+Display:wght@700&family=DM+Sans:wght@400;500;600;700&display=swap');
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        html, body { overscroll-behavior: none; }
         input, select, button { font-family: 'DM Sans', sans-serif; }
-        input[type=date], input[type=time] { color-scheme: dark; min-height: 48px; }
+        input[type=date], input[type=time] { color-scheme: dark; }
         input[type=text], input[type=tel], input[type=email] { font-size: 16px !important; }
         @keyframes slideUp { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
-        @keyframes glow { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
-        @keyframes dot { 0%,80%,100% { transform: scale(0); } 40% { transform: scale(1); } }
         .sheet-inner { animation: slideUp 0.32s cubic-bezier(0.34,1.56,0.64,1) both; }
-        .leaflet-container { width: 100% !important; height: 100% !important; position: absolute !important; top: 0 !important; left: 0 !important; }
-        ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 4px; }
-        input:focus { outline: none !important; border-color: #f5c842 !important; box-shadow: 0 0 0 3px rgba(245,200,66,0.15) !important; }
-        button { -webkit-user-select: none; user-select: none; }
-        .cta-btn:active { transform: scale(0.98); }
-        @media (hover: hover) {
-          .cta-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
-          .pay-btn:hover { border-color: #f5c842 !important; }
-        }
+        .leaflet-container { width: 100% !important; height: 100% !important; }
       `}</style>
 
-      {/* ── Carte — espace flexible au-dessus du sheet ── */}
-      <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
-        <div ref={mapRef} style={{ position: "absolute", inset: 0 }} />
-      </div>
+      {phase === "form" ? (
+        <>
+          {/* Map */}
+          <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
+            <div ref={mapRef} style={{ position: "absolute", inset: 0 }} />
 
-      {/* ── Pill disponibilité ── */}
-      <div
-        style={{
-          position: "absolute",
-          top: 56,
-          left: 16,
-          zIndex: 100,
-          background: "rgba(10,10,20,0.85)",
-          backdropFilter: "blur(12px)",
-          borderRadius: 99,
-          padding: "6px 14px",
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          border: "1px solid rgba(245,200,66,0.2)",
-          boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
-        }}
-      >
-        <div
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
-            background: taxiAvailable === false ? "#ef4444" : taxiAvailable === true ? "#22c55e" : "#94a3b8",
-            animation: "glow 1.8s ease-in-out infinite",
-            boxShadow: taxiAvailable === false ? "0 0 6px #ef4444" : taxiAvailable === true ? "0 0 6px #22c55e" : "0 0 6px #94a3b8",
-          }}
-        />
-        <span style={{ fontSize: 12, fontWeight: 600, color: "#e0e0e0" }}>
-          {taxiAvailable === null ? "Vérification..." : taxiAvailable ? "Taxi disponible" : "Taxi indisponible"}
-        </span>
-      </div>
-
-      {success ? (
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "rgba(0,0,0,0.88)",
-            backdropFilter: "blur(12px)",
-            padding: 24,
-          }}
-        >
-          <div
-            style={{
-              background: "#111120",
-              borderRadius: 28,
-              padding: "40px 32px",
-              maxWidth: 420,
-              width: "100%",
-              textAlign: "center",
-              boxShadow: "0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(245,200,66,0.15)",
-              animation: "slideUp 0.4s cubic-bezier(0.34,1.56,0.64,1)",
-            }}
-          >
-            <div style={{ fontSize: 64, marginBottom: 16, animation: "pulse 1s ease-in-out 2" }}>✅</div>
+            {/* Availability pill */}
             <div
               style={{
-                fontFamily: "'Clash Display',sans-serif",
-                fontWeight: 700,
-                fontSize: 24,
-                color: "#f5f5f5",
-                marginBottom: 8,
+                position: "absolute",
+                top: 16,
+                left: 16,
+                background: "rgba(10,10,20,0.85)",
+                backdropFilter: "blur(12px)",
+                borderRadius: 99,
+                padding: "6px 14px",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                border: "1px solid rgba(245,200,66,0.2)",
+                zIndex: 100,
               }}
             >
-              Réservation confirmée !
-            </div>
-            <div style={{ color: "#94a3b8", fontSize: 15, lineHeight: 1.6, marginBottom: 24 }}>
-              Votre demande a été enregistrée. Confirmation à <strong style={{ color: "#f5c842" }}>{f.email}</strong>.
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <button
-                onClick={() => {
-                  setSuccess(false);
-                  setF((p) => ({ ...p, depart: "", destination: "", prenom: "", nom: "", phone: "", email: "" }));
-                }}
+              <div
                 style={{
-                  padding: "14px 20px",
-                  background: "#1a1a2e",
-                  color: "#94a3b8",
-                  border: "1px solid #2a2a4a",
-                  borderRadius: 14,
-                  cursor: "pointer",
-                  fontWeight: 600,
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: taxiAvailable === false ? "#ef4444" : taxiAvailable === true ? "#22c55e" : "#94a3b8",
+                  animation: "pulse 1.8s ease-in-out infinite",
                 }}
-              >
-                Nouvelle réservation
-              </button>
+              />
+              <span style={{ fontSize: 12, fontWeight: 600, color: "#e0e0e0" }}>
+                {taxiAvailable === null ? "Vérification..." : taxiAvailable ? "Disponible" : "Indisponible"}
+              </span>
             </div>
           </div>
-        </div>
-      ) : (
-        <>
-          {/* ── Pill disponibilité (réaffichée ici pour le layout non-success) ── */}
 
-          {/* ── Bottom sheet tout-en-un ── */}
+          {/* Form sheet */}
           <div
             style={{
               flexShrink: 0,
-              height: "62vh",
-              maxHeight: "72vh",
               background: "linear-gradient(180deg, #0f4bbf 0%, #0a3aa1 100%)",
               borderRadius: "24px 24px 0 0",
-              boxShadow: "0 -8px 40px rgba(0,0,0,0.3), 0 -1px 0 rgba(255,255,255,0.08)",
+              boxShadow: "0 -8px 40px rgba(0,0,0,0.3)",
+              maxHeight: "70vh",
               display: "flex",
               flexDirection: "column",
             }}
@@ -915,728 +678,308 @@ function ReservationPage() {
               <div style={{ width: 36, height: 4, background: "rgba(245,200,66,0.25)", borderRadius: 9 }} />
             </div>
 
-            {/* Content scrollable — tout le formulaire d'un coup */}
+            {/* Scrollable form */}
             <div
-              className="sheet-inner"
               style={{
                 flex: 1,
                 overflowY: "auto",
-                padding: "8px 20px 16px",
-                WebkitOverflowScrolling: "touch",
+                padding: "16px 20px",
                 display: "flex",
                 flexDirection: "column",
-                gap: 24,
+                gap: 20,
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                <div
-                  style={{
-                    padding: "10px 14px",
-                    borderRadius: 99,
-                    background: taxiAvailable === false ? "#7f1d1d" : taxiAvailable === true ? "#166534" : "#334155",
-                    color: "#ffffff",
-                    fontWeight: 700,
-                    fontSize: 14,
-                    border: `1px solid ${taxiAvailable === false ? "rgba(248,113,113,0.3)" : taxiAvailable === true ? "rgba(52,211,153,0.3)" : "rgba(148,163,184,0.3)"}`,
-                  }}
-                >
-                  {taxiAvailable === null ? "Vérification disponibilité…" : taxiAvailable ? "Taxi disponible" : "Taxi indisponible"}
+              {/* Header */}
+              <div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Clash Display'" }}>
+                  Réserver votre taxi
                 </div>
-                <a
-                  href="/"
-                  style={{
-                    padding: "10px 14px",
-                    borderRadius: 14,
-                    background: "#111827",
-                    color: "#f5c842",
-                    textDecoration: "none",
-                    fontWeight: 700,
-                    fontSize: 14,
-                    border: "1px solid rgba(245,200,66,0.2)",
-                  }}
-                >
-                  Retour au site
-                </a>
+                <div style={{ fontSize: 13, color: "#cbd5e1", marginTop: 4 }}>
+                  En quelques étapes seulement
+                </div>
               </div>
-              {availabilityError && (
-                <div style={{ color: "#facc15", fontSize: 13, lineHeight: 1.4 }}>
-                  {availabilityError}
-                </div>
-              )}
 
-              {/* ── SECTION 1 : Coordonnées ── */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <h2
-                  style={{
-                    fontFamily: "'Clash Display',sans-serif",
-                    fontWeight: 700,
-                    fontSize: 20,
-                    color: "#f5f5f5",
-                    margin: 0,
-                  }}
-                >
-                  👤 Vos coordonnées
-                </h2>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  {[
-                    { k: "prenom" as const, label: "Prénom", type: "text", ph: "Jean" },
-                    { k: "nom" as const, label: "Nom", type: "text", ph: "Dupont" },
-                  ].map(({ k, label, type, ph }) => (
-                    <div key={k}>
-                      <div
-                        style={{
-                          fontSize: 11,
-                          color: "#64748b",
-                          fontWeight: 600,
-                          marginBottom: 4,
-                          textTransform: "uppercase" as const,
-                          letterSpacing: "0.05em",
-                        }}
-                      >
-                        {label} *
+              {/* Form */}
+              <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                {/* Coordonnées */}
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>
+                    👤 Vos coordonnées
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    {[
+                      { k: "prenom" as const, label: "Prénom", ph: "Jean" },
+                      { k: "nom" as const, label: "Nom", ph: "Dupont" },
+                    ].map(({ k, label, ph }) => (
+                      <div key={k}>
+                        <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
+                          {label}
+                        </label>
+                        <input
+                          type="text"
+                          value={f[k]}
+                          onChange={(e) => set(k, e.target.value)}
+                          placeholder={ph}
+                          style={inputStyle(!!errors[k])}
+                        />
                       </div>
-                      <input
-                        type={type}
-                        value={f[k]}
-                        onChange={(e) => set(k, e.target.value)}
-                        placeholder={ph}
-                        style={inputStyle(!!errors[k])}
-                      />
-                      {errors[k] && <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{errors[k]}</div>}
-                    </div>
-                  ))}
-                </div>
-                {[
-                  { k: "phone" as const, label: "Téléphone", type: "tel", ph: "06 12 34 56 78" },
-                  { k: "email" as const, label: "Email", type: "email", ph: "jean@exemple.fr" },
-                ].map(({ k, label, type, ph }) => (
-                  <div key={k}>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: "#64748b",
-                        fontWeight: 600,
-                        marginBottom: 4,
-                        textTransform: "uppercase" as const,
-                        letterSpacing: "0.05em",
-                      }}
-                    >
-                      {label} *
-                    </div>
-                    <input
-                      type={type}
-                      value={f[k]}
-                      onChange={(e) => set(k, e.target.value)}
-                      placeholder={ph}
-                      style={inputStyle(!!errors[k])}
-                    />
-                    {errors[k] && <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{errors[k]}</div>}
+                    ))}
                   </div>
-                ))}
-              </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10 }}>
+                    {[
+                      { k: "phone" as const, label: "Téléphone", ph: "06 12 34 56 78" },
+                      { k: "email" as const, label: "Email", ph: "jean@exemple.fr" },
+                    ].map(({ k, label, ph }) => (
+                      <div key={k}>
+                        <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
+                          {label}
+                        </label>
+                        <input
+                          type={k === "email" ? "email" : "tel"}
+                          value={f[k]}
+                          onChange={(e) => set(k, e.target.value)}
+                          placeholder={ph}
+                          style={inputStyle(!!errors[k])}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-              {/* ── SECTION 2 : Adresses ── */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <h2
-                    style={{
-                      fontFamily: "'Clash Display',sans-serif",
-                      fontWeight: 700,
-                      fontSize: 20,
-                      color: "#f5f5f5",
-                      margin: 0,
-                    }}
-                  >
+                {/* Adresses */}
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>
                     📍 Où allons-nous ?
-                  </h2>
-                  {orsResult && (
-                    <div
-                      style={{
-                        background: "rgba(245,200,66,0.12)",
-                        border: "1px solid rgba(245,200,66,0.3)",
-                        borderRadius: 99,
-                        padding: "4px 12px",
-                      }}
-                    >
-                      <span style={{ fontSize: 11, color: "#f5c842", fontWeight: 700 }}>
-                        ⏱ ~{Math.round(orsResult.dureeS / 60)} min
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <div style={{ display: "flex", gap: 12 }}>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 18 }}>
-                    <div
-                      style={{
-                        width: 12,
-                        height: 12,
-                        borderRadius: "50%",
-                        background: "#22c55e",
-                        border: "2px solid #111120",
-                        boxShadow: "0 0 0 3px rgba(34,197,94,0.3)",
-                      }}
-                    />
-                    <div style={{ width: 2, flex: 1, background: "rgba(255,255,255,0.1)", margin: "4px 0" }} />
-                    <div
-                      style={{
-                        width: 12,
-                        height: 12,
-                        borderRadius: "50%",
-                        background: "#f5c842",
-                        border: "2px solid #111120",
-                        boxShadow: "0 0 0 3px rgba(245,200,66,0.3)",
-                      }}
-                    />
                   </div>
-                  <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
-                    <AddressInput
-                      value={f.depart}
-                      placeholder="Adresse de départ"
-                      icon=""
-                      error={errors.depart}
-                      onChange={(v) => {
-                        set("depart", v);
-                        setFromCoord(null);
-                        setOrsResult(null);
-                      }}
-                      onSelect={(label, coord) => {
-                        set("depart", label);
-                        setFromCoord(coord);
-                      }}
-                      onGeolocate={handleGeolocate}
-                      geolocLoading={geolocLoading}
-                    />
+                  <AddressInput
+                    value={f.depart}
+                    placeholder="Adresse de départ"
+                    onChange={(v) => {
+                      set("depart", v);
+                      setFromCoord(null);
+                    }}
+                    onSelect={(label, coord) => {
+                      set("depart", label);
+                      setFromCoord(coord);
+                    }}
+                    onGeolocate={handleGeolocate}
+                    geolocLoading={geolocLoading}
+                    error={errors.depart}
+                  />
+                  <div style={{ marginTop: 10 }}>
                     <AddressInput
                       value={f.destination}
                       placeholder="Destination"
-                      icon=""
-                      error={errors.destination}
                       onChange={(v) => {
                         set("destination", v);
                         setToCoord(null);
-                        setOrsResult(null);
                       }}
                       onSelect={(label, coord) => {
                         set("destination", label);
                         setToCoord(coord);
                       }}
-                      autocomplete={false}
-                      onBlur={resolveDestinationAddress}
+                      error={errors.destination}
                     />
                   </div>
-                </div>
-                {(calcLoading || orsResult) && (
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 10,
-                      padding: "12px 14px",
-                      background: "rgba(245,200,66,0.06)",
-                      borderRadius: 14,
-                      border: "1px solid rgba(245,200,66,0.15)",
-                      alignItems: "center",
-                    }}
-                  >
-                    {calcLoading ? (
-                      <>
-                        <div
-                          style={{
-                            width: 18,
-                            height: 18,
-                            border: "2px solid rgba(245,200,66,0.2)",
-                            borderTopColor: "#f5c842",
-                            borderRadius: "50%",
-                            animation: "spin 0.7s linear infinite",
-                          }}
-                        />
-                        <span style={{ color: "#94a3b8", fontSize: 14 }}>Calcul de l'itinéraire…</span>
-                      </>
-                    ) : (
-                      orsResult && (
-                        <>
-                          <span style={{ fontSize: 18 }}>🗺️</span>
-                          <div style={{ flex: 1 }}>
-                            <span style={{ color: "#f5c842", fontSize: 14, fontWeight: 700 }}>
-                              {orsResult.distanceKm} km
-                            </span>
-                            <span style={{ color: "#64748b", fontSize: 14 }}>
-                              {" "}
-                              · {Math.round(orsResult.dureeS / 60)} min
-                            </span>
-                          </div>
-                          <span
-                            style={{
-                              fontFamily: "'Clash Display',sans-serif",
-                              fontWeight: 700,
-                              fontSize: 16,
-                              color: "#ef4444",
-                            }}
-                          >
-                            ~{prixAller.toFixed(2)} €*
-                          </span>
-                        </>
-                      )
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* ── SECTION 3 : Date & Heure ── */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <h2
-                  style={{
-                    fontFamily: "'Clash Display',sans-serif",
-                    fontWeight: 700,
-                    fontSize: 20,
-                    color: "#f5f5f5",
-                    margin: 0,
-                  }}
-                >
-                  🕐 Quand partez-vous ?
-                </h2>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  {(
-                    [
-                      ["aller", "➡️ Aller simple"],
-                      ["aller-retour", "🔁 Aller-retour"],
-                    ] as const
-                  ).map(([v, l]) => (
-                    <button
-                      key={v}
-                      onClick={() => set("trajet", v)}
+                  {orsResult && (
+                    <div
                       style={{
-                        padding: "14px 10px",
-                        border: `2px solid ${f.trajet === v ? "#f5c842" : "#2a2a4a"}`,
-                        background: f.trajet === v ? "rgba(245,200,66,0.1)" : "#1a1a2e",
-                        borderRadius: 14,
-                        cursor: "pointer",
-                        fontWeight: 700,
-                        fontSize: 14,
-                        color: f.trajet === v ? "#f5c842" : "#64748b",
-                        transition: "all 0.2s",
+                        marginTop: 12,
+                        padding: "10px 14px",
+                        background: "rgba(245,200,66,0.1)",
+                        borderRadius: 10,
+                        border: "1px solid rgba(245,200,66,0.2)",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
                       }}
                     >
-                      {l}
-                    </button>
-                  ))}
+                      <div style={{ fontSize: 13, color: "#f5c842", fontWeight: 600 }}>
+                        {orsResult.distanceKm} km · {Math.round(orsResult.dureeS / 60)} min
+                      </div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: "#ef4444" }}>
+                        ~{prixAller.toFixed(2)} €
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div style={{ background: "#1a1a2e", borderRadius: 16, padding: 16, border: "1px solid #2a2a4a" }}>
-                  <div
-                    style={{
-                      fontWeight: 700,
-                      fontSize: 12,
-                      color: "#f5c842",
-                      textTransform: "uppercase" as const,
-                      letterSpacing: "0.06em",
-                      marginBottom: 12,
-                    }}
-                  >
-                    ➡️ Aller
+
+                {/* Date/Time */}
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>
+                    🕐 Quand ?
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                     <div>
-                      <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 4 }}>DATE</div>
+                      <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
+                        Date
+                      </label>
                       <input
                         type="date"
                         value={f.date}
-                        min={today}
                         onChange={(e) => set("date", e.target.value)}
-                        style={inputStyle(!!errors.date)}
+                        min={today}
+                        style={inputStyle()}
                       />
-                      {errors.date && <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{errors.date}</div>}
                     </div>
                     <div>
-                      <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 4 }}>HEURE</div>
+                      <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
+                        Heure
+                      </label>
                       <input
                         type="time"
                         value={f.heure}
                         onChange={(e) => set("heure", e.target.value)}
-                        style={inputStyle(!!errors.heure)}
+                        style={inputStyle()}
                       />
-                      {errors.heure && (
-                        <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{errors.heure}</div>
-                      )}
                     </div>
                   </div>
                 </div>
-                {f.trajet === "aller-retour" && (
-                  <div
-                    style={{
-                      background: "#1a1a2e",
-                      borderRadius: 16,
-                      padding: 16,
-                      border: "1px solid rgba(168,85,247,0.3)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontWeight: 700,
-                        fontSize: 12,
-                        color: "#a855f7",
-                        textTransform: "uppercase" as const,
-                        letterSpacing: "0.06em",
-                        marginBottom: 12,
-                      }}
-                    >
-                      🔁 Retour
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                      <div>
-                        <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 4 }}>DATE</div>
-                        <input
-                          type="date"
-                          value={f.dateRetour}
-                          min={f.date || today}
-                          onChange={(e) => set("dateRetour", e.target.value)}
-                          style={inputStyle(!!errors.dateRetour)}
-                        />
-                        {errors.dateRetour && (
-                          <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{errors.dateRetour}</div>
-                        )}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 4 }}>HEURE</div>
-                        <input
-                          type="time"
-                          value={f.heureRetour}
-                          onChange={(e) => set("heureRetour", e.target.value)}
-                          style={inputStyle(!!errors.heureRetour)}
-                        />
-                        {errors.heureRetour && (
-                          <div style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{errors.heureRetour}</div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  {[
-                    { label: "👥 Passagers", k: "passagers" as const, min: 1, max: 8 },
-                    { label: "🧳 Bagages", k: "bagages" as const, min: 0, max: 10 },
-                  ].map(({ label, k, min, max }) => (
-                    <div
-                      key={k}
-                      style={{
-                        background: "#1a1a2e",
-                        borderRadius: 14,
-                        padding: "12px 14px",
-                        border: "1px solid #2a2a4a",
-                      }}
-                    >
-                      <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600, marginBottom: 8 }}>{label}</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "space-between" }}>
-                        <button
-                          onClick={() => set(k, Math.max(min, (f[k] as number) - 1))}
-                          style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: "50%",
-                            border: "1px solid #2a2a4a",
-                            background: "#111120",
-                            cursor: "pointer",
-                            fontSize: 18,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontWeight: 700,
-                            color: "#64748b",
-                          }}
-                        >
-                          −
-                        </button>
-                        <span
-                          style={{
-                            fontFamily: "'Clash Display',sans-serif",
-                            fontWeight: 700,
-                            fontSize: 20,
-                            color: "#f5f5f5",
-                            minWidth: 24,
-                            textAlign: "center" as const,
-                          }}
-                        >
-                          {f[k]}
-                        </span>
-                        <button
-                          onClick={() => set(k, Math.min(max, (f[k] as number) + 1))}
-                          style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: "50%",
-                            border: "2px solid #f5c842",
-                            background: "rgba(245,200,66,0.15)",
-                            cursor: "pointer",
-                            fontSize: 18,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontWeight: 700,
-                            color: "#f5c842",
-                          }}
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
 
-              {/* ── SECTION 3 : Tarif & Paiement ── */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <h2
-                  style={{
-                    fontFamily: "'Clash Display',sans-serif",
-                    fontWeight: 700,
-                    fontSize: 20,
-                    color: "#f5f5f5",
-                    margin: 0,
-                  }}
-                >
-                  💶 Votre tarif
-                </h2>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 14,
-                    padding: "18px 18px",
-                    border: "2px solid #f5c842",
-                    background: "rgba(245,200,66,0.07)",
-                    borderRadius: 18,
-                    boxShadow: "0 0 0 1px rgba(245,200,66,0.2), 0 4px 20px rgba(245,200,66,0.1)",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 52,
-                      height: 52,
-                      borderRadius: 14,
-                      flexShrink: 0,
-                      background: "rgba(245,200,66,0.15)",
-                      border: "1px solid rgba(245,200,66,0.3)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      overflow: "hidden",
-                    }}
-                  >
-                    <img
-                      src="/taxi-icon.png"
-                      alt="Taxi City Bordeaux"
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                      onError={(event) => {
-                        const target = event.currentTarget as HTMLImageElement;
-                        target.style.display = "none";
-                      }}
-                    />
-                    <span style={{ fontSize: 28, position: "absolute" }}>🚕</span>
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                      <span
-                        style={{
-                          fontFamily: "'Clash Display',sans-serif",
-                          fontWeight: 700,
-                          fontSize: 16,
-                          color: "#f5c842",
-                        }}
-                      >
-                        Taxi Conventionné
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 700,
-                          color: tarifJour ? "#f59e0b" : "#a78bfa",
-                          background: tarifJour ? "rgba(245,158,11,0.15)" : "rgba(167,139,250,0.15)",
-                          borderRadius: 99,
-                          padding: "2px 8px",
-                          border: `1px solid ${tarifJour ? "rgba(245,158,11,0.3)" : "rgba(167,139,250,0.3)"}`,
-                        }}
-                      >
-                        {tarifJour ? "☀️ Tarif jour" : "🌙 Tarif nuit"}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: 12, color: "#64748b" }}>
-                      {f.passagers} passager{f.passagers > 1 ? "s" : ""} · {f.bagages} bagage{f.bagages > 1 ? "s" : ""}
-                    </div>
-                    <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>
-                      {orsResult
-                        ? `${orsResult.distanceKm} km · ~${Math.round(orsResult.dureeS / 60)} min`
-                        : "Calculé selon compteur"}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: "right", flexShrink: 0 }}>
-                    <div
-                      style={{
-                        fontFamily: "'Clash Display',sans-serif",
-                        fontWeight: 700,
-                        fontSize: 22,
-                        color: "#ef4444",
-                      }}
-                    >
-                      {prixAller.toFixed(2)} €*
-                    </div>
-                    <div style={{ fontSize: 11, color: "#475569" }}>estimé</div>
-                  </div>
-                </div>
-                {f.trajet === "aller-retour" && (
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 14,
-                      padding: "16px 18px",
-                      border: "1px solid rgba(167,139,250,0.3)",
-                      background: "rgba(167,139,250,0.05)",
-                      borderRadius: 18,
-                    }}
-                  >
-                    <div style={{ fontSize: 28, flexShrink: 0 }}>🔁</div>
-                    <div style={{ flex: 1 }}>
-                      <span
-                        style={{
-                          fontFamily: "'Clash Display',sans-serif",
-                          fontWeight: 700,
-                          fontSize: 15,
-                          color: "#e0e0e0",
-                        }}
-                      >
-                        Aller-retour
-                      </span>
-                      <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                        Aller : {prixAller.toFixed(2)} € · Retour : {prixRetour.toFixed(2)} €
-                      </div>
-                    </div>
-                    <div
-                      style={{
-                        fontFamily: "'Clash Display',sans-serif",
-                        fontWeight: 700,
-                        fontSize: 22,
-                        color: "#ef4444",
-                      }}
-                    >
-                      {prixTotal.toFixed(2)} €*
-                    </div>
-                  </div>
-                )}
+                {/* Passagers & Bagages */}
                 <div>
-                  <div style={{ fontSize: 13, color: "#64748b", fontWeight: 600, marginBottom: 10 }}>
-                    Mode de paiement
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>
+                    👥 Détails
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                    {(
-                      [
-                        ["especes", "💵 Espèces"],
-                        ["cb", "💳 Carte bancaire"],
-                      ] as const
-                    ).map(([v, l]) => (
-                      <button
-                        key={v}
-                        className="pay-btn"
-                        onClick={() => set("paiement", v)}
-                        style={{
-                          padding: "14px 12px",
-                          border: `2px solid ${f.paiement === v ? "#f5c842" : "#2a2a4a"}`,
-                          background: f.paiement === v ? "rgba(245,200,66,0.1)" : "#1a1a2e",
-                          borderRadius: 14,
-                          cursor: "pointer",
-                          fontWeight: 700,
-                          fontSize: 14,
-                          color: f.paiement === v ? "#f5c842" : "#64748b",
-                          transition: "all 0.2s",
-                        }}
+                    <div>
+                      <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
+                        Passagers
+                      </label>
+                      <select
+                        value={f.passagers}
+                        onChange={(e) => set("passagers", parseInt(e.target.value))}
+                        style={inputStyle()}
                       >
-                        {l}
-                      </button>
-                    ))}
+                        {[1, 2, 3, 4, 5, 6].map((n) => (
+                          <option key={n} value={n}>
+                            {n} passager{n > 1 ? "s" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
+                        Bagages
+                      </label>
+                      <select
+                        value={f.bagages}
+                        onChange={(e) => set("bagages", parseInt(e.target.value))}
+                        style={inputStyle()}
+                      >
+                        {[0, 1, 2, 3, 4, 5].map((n) => (
+                          <option key={n} value={n}>
+                            {n} bagage{n > 1 ? "s" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
+
+                {/* Payment */}
+                <div>
+                  <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
+                    Mode de paiement
+                  </label>
+                  <select
+                    value={f.paiement}
+                    onChange={(e) => set("paiement", e.target.value)}
+                    style={inputStyle()}
+                  >
+                    <option value="especes">💵 Espèces</option>
+                    <option value="cb">💳 Carte bancaire</option>
+                    <option value="virement">🏦 Virement</option>
+                  </select>
+                </div>
+
+                {/* Push permission */}
                 <div
                   style={{
                     padding: "12px 14px",
-                    background: "rgba(239,68,68,0.06)",
-                    borderRadius: 12,
-                    border: "1px solid rgba(239,68,68,0.2)",
+                    background: "rgba(245,200,66,0.08)",
+                    borderRadius: 10,
+                    border: "1px solid rgba(245,200,66,0.2)",
                   }}
                 >
-                  <div style={{ fontSize: 13, color: "#fca5a5", marginBottom: 4 }}>
-                    <span style={{ color: "#ef4444", fontWeight: 700 }}>* Prix estimé</span> — des frais de réservation
-                    peuvent être appliqués. Le compteur homologué fait foi à l'arrivée.
+                  <div style={{ fontSize: 13, color: "#f5f5f5", fontWeight: 600, marginBottom: 8 }}>
+                    🔔 Notifications en temps réel
                   </div>
-                  <div style={{ fontSize: 12, color: "#94a3b8" }}>⚠️ Tarif indicatif, non contractuel.</div>
+                  <div style={{ fontSize: 12, color: "#cbd5e1", marginBottom: 8 }}>
+                    Recevez les mises à jour lorsque votre chauffeur accepte.
+                  </div>
+                  <EnablePushButton
+                    audience="client"
+                    variant="secondary"
+                    size="sm"
+                    label="Activer les notifications"
+                  />
                 </div>
-              </div>
 
-            </div>
-
-            {/* ── CTA sticky ── */}
-            <div
-              style={{
-                padding: "12px 20px calc(24px + env(safe-area-inset-bottom, 0px))",
-                flexShrink: 0,
-                borderTop: "1px solid rgba(255,255,255,0.04)",
-              }}
-            >
-              {submitError && (
-                <div
+                {/* Submit */}
+                <button
+                  type="submit"
+                  disabled={sending || !orsResult}
                   style={{
-                    padding: "10px 14px",
-                    background: "#1f0a0a",
-                    border: "1px solid #7f1d1d",
+                    padding: "14px 20px",
+                    background: sending ? "#64748b" : "#f5c842",
+                    color: sending ? "#cbd5e1" : "#0f172a",
+                    border: "none",
                     borderRadius: 12,
-                    color: "#fca5a5",
-                    fontSize: 14,
-                    marginBottom: 10,
+                    fontWeight: 700,
+                    fontSize: 16,
+                    cursor: sending ? "wait" : "pointer",
+                    opacity: !orsResult && !sending ? 0.5 : 1,
                   }}
                 >
-                  ❌ {submitError}
-                </div>
-              )}
-              <button
-                onClick={submitForm}
-                disabled={sending}
-                className="cta-btn"
-                style={{
-                  width: "100%",
-                  height: 56,
-                  background: sending ? "rgba(245,200,66,0.3)" : "linear-gradient(135deg, #f5c842, #e6a800)",
-                  color: sending ? "rgba(245,200,66,0.6)" : "#0a0a14",
-                  border: "none",
-                  borderRadius: 16,
-                  fontFamily: "'Clash Display',sans-serif",
-                  fontWeight: 700,
-                  fontSize: 16,
-                  cursor: sending ? "wait" : "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 10,
-                  boxShadow: "0 4px 24px rgba(245,200,66,0.25)",
-                  transition: "all 0.2s",
-                }}
-              >
-                {sending ? (
-                  <>
-                    <div
-                      style={{
-                        width: 20,
-                        height: 20,
-                        border: "2px solid rgba(10,10,20,0.3)",
-                        borderTopColor: "#0a0a14",
-                        borderRadius: "50%",
-                        animation: "spin 0.7s linear infinite",
-                      }}
-                    />
-                    Envoi en cours…
-                  </>
-                ) : (
-                  "📨 Confirmer ma réservation"
-                )}
-              </button>
+                  {sending ? "⏳ Réservation..." : "✓ Réserver"}
+                </button>
+              </form>
+
+              <div style={{ height: 20 }} />
             </div>
           </div>
         </>
+      ) : (
+        // Tracking phase
+        <div style={{ flex: 1, position: "relative", display: "flex", flexDirection: "column" }}>
+          <div ref={mapRef} style={{ flex: 1, position: "relative" }} />
+
+          <div
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              background: "linear-gradient(180deg, rgba(10,10,20,0) 0%, rgba(10,10,20,0.95) 50%, #0a0a14 100%)",
+              padding: "24px",
+              borderRadius: "24px 24px 0 0",
+              textAlign: "center",
+            }}
+          >
+            <div style={{ fontSize: 32, marginBottom: 16 }}>⏳</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: "#f5f5f5", marginBottom: 8 }}>
+              En attente d'acceptation
+            </div>
+            <div style={{ fontSize: 14, color: "#cbd5e1", marginBottom: 16 }}>
+              Tracking ID: {trackingId.split("-")[0]}...
+            </div>
+            <a
+              href="/"
+              style={{
+                display: "inline-block",
+                padding: "12px 24px",
+                background: "#f5c842",
+                color: "#0f172a",
+                textDecoration: "none",
+                borderRadius: 10,
+                fontWeight: 700,
+              }}
+            >
+              Retour au site
+            </a>
+          </div>
+        </div>
       )}
     </div>
   );
