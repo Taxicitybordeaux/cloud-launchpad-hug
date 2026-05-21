@@ -56,7 +56,9 @@ async function geocodeFullAddress(address: string): Promise<[number, number] | n
 
 async function getOsrmRoute(from: [number, number], to: [number, number]): Promise<OrsResult | null> {
   const result = await getDistanceAndDurationKm(from, to);
-  return result ? { distanceKm: Math.round(result.distanceKm * 10) / 10, dureeS: Math.round(result.durationSec) } : null;
+  return result
+    ? { distanceKm: Math.round(result.distanceKm * 10) / 10, dureeS: Math.round(result.durationSec) }
+    : null;
 }
 
 async function getOsrmPolyline(from: [number, number], to: [number, number]): Promise<[number, number][]> {
@@ -268,11 +270,12 @@ function ReservationPage() {
   const pickupIso = f.date && f.heure ? `${f.date}T${f.heure}:00` : null;
   const heureNum = f.heure ? parseInt(f.heure.split(":")[0], 10) : 12;
   const tarifJour = heureNum >= 7 && heureNum < 19;
-  const prixAller = orsResult && pickupIso
-    ? calculerPrixMixte(orsResult.distanceKm, pickupIso)
-    : orsResult
-      ? calculerPrix(orsResult.distanceKm, tarifJour)
-      : PRISE_EN_CHARGE;
+  const prixAller =
+    orsResult && pickupIso
+      ? calculerPrixMixte(orsResult.distanceKm, pickupIso)
+      : orsResult
+        ? calculerPrix(orsResult.distanceKm, tarifJour)
+        : PRISE_EN_CHARGE;
 
   // Initialize
   useEffect(() => {
@@ -694,9 +697,7 @@ function ReservationPage() {
                 <div style={{ fontSize: 24, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Clash Display'" }}>
                   Réserver votre taxi
                 </div>
-                <div style={{ fontSize: 13, color: "#cbd5e1", marginTop: 4 }}>
-                  En quelques étapes seulement
-                </div>
+                <div style={{ fontSize: 13, color: "#cbd5e1", marginTop: 4 }}>En quelques étapes seulement</div>
               </div>
 
               {/* Form */}
@@ -712,7 +713,9 @@ function ReservationPage() {
                       { k: "nom" as const, label: "Nom", ph: "Dupont" },
                     ].map(({ k, label, ph }) => (
                       <div key={k}>
-                        <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
+                        <label
+                          style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}
+                        >
                           {label}
                         </label>
                         <input
@@ -731,7 +734,9 @@ function ReservationPage() {
                       { k: "email" as const, label: "Email", ph: "jean@exemple.fr" },
                     ].map(({ k, label, ph }) => (
                       <div key={k}>
-                        <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
+                        <label
+                          style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}
+                        >
                           {label}
                         </label>
                         <input
@@ -797,21 +802,19 @@ function ReservationPage() {
                       <div style={{ fontSize: 13, color: "#f5c842", fontWeight: 600 }}>
                         {orsResult.distanceKm} km · {Math.round(orsResult.dureeS / 60)} min
                       </div>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: "#ef4444" }}>
-                        ~{prixAller.toFixed(2)} €
-                      </div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: "#ef4444" }}>~{prixAller.toFixed(2)} €</div>
                     </div>
                   )}
                 </div>
 
                 {/* Date/Time */}
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>
-                    🕐 Quand ?
-                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>🕐 Quand ?</div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                     <div>
-                      <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
+                      <label
+                        style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}
+                      >
                         Date
                       </label>
                       <input
@@ -823,7 +826,9 @@ function ReservationPage() {
                       />
                     </div>
                     <div>
-                      <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
+                      <label
+                        style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}
+                      >
                         Heure
                       </label>
                       <input
@@ -838,12 +843,12 @@ function ReservationPage() {
 
                 {/* Passagers & Bagages */}
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>
-                    👥 Détails
-                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>👥 Détails</div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                     <div>
-                      <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
+                      <label
+                        style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}
+                      >
                         Passagers
                       </label>
                       <select
@@ -859,7 +864,9 @@ function ReservationPage() {
                       </select>
                     </div>
                     <div>
-                      <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
+                      <label
+                        style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}
+                      >
                         Bagages
                       </label>
                       <select
@@ -882,11 +889,7 @@ function ReservationPage() {
                   <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
                     Mode de paiement
                   </label>
-                  <select
-                    value={f.paiement}
-                    onChange={(e) => set("paiement", e.target.value)}
-                    style={inputStyle()}
-                  >
+                  <select value={f.paiement} onChange={(e) => set("paiement", e.target.value)} style={inputStyle()}>
                     <option value="especes">💵 Espèces</option>
                     <option value="cb">💳 Carte bancaire</option>
                     <option value="virement">🏦 Virement</option>
@@ -908,12 +911,7 @@ function ReservationPage() {
                   <div style={{ fontSize: 12, color: "#cbd5e1", marginBottom: 8 }}>
                     Recevez les mises à jour lorsque votre chauffeur accepte.
                   </div>
-                  <EnablePushButton
-                    audience="client"
-                    variant="secondary"
-                    size="sm"
-                    label="Activer les notifications"
-                  />
+                  <EnablePushButton audience="client" variant="secondary" size="sm" label="Activer les notifications" />
                 </div>
 
                 {/* Submit */}
