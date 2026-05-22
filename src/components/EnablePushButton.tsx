@@ -85,20 +85,9 @@ export function EnablePushButton({
 
       const json = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
 
-      // Abonnement aux deux audiences en une seule action (admin = chauffeur sur ce dashboard)
       await subscribeFn({
         data: {
-          audience: "admin",
-          endpoint: json.endpoint,
-          p256dh: json.keys.p256dh,
-          auth: json.keys.auth,
-          reservation_id: reservationId ?? null,
-          user_agent: navigator.userAgent.slice(0, 500),
-        },
-      });
-      await subscribeFn({
-        data: {
-          audience: "chauffeur",
+          audience,
           endpoint: json.endpoint,
           p256dh: json.keys.p256dh,
           auth: json.keys.auth,

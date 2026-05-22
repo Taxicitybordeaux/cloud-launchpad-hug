@@ -63,7 +63,7 @@ export const sendTestPush = createServerFn({ method: "POST" })
     const result = await sendPushToAudience(data.audience, {
       title: "🔔 Test notification",
       body: `Notification test envoyée à l'audience « ${data.audience} ».`,
-      url: data.audience === "admin" ? "/admin/dashboard" : data.audience === "chauffeur" ? "/chauffeur" : "/",
+      url: data.audience === "client" ? "/" : "/admin/dashboard",
       tag: "test-push",
     });
     return result;

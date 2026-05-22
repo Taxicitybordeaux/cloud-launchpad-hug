@@ -129,17 +129,26 @@ export const Route = createFileRoute('/api/public/notify-reservation')({
           return Response.json({ error: 'Enqueue failed' }, { status: 500 })
         }
 
-        // Fire-and-forget push to admins (don't block the email flow)
+        // Fire-and-forget push to admins AND chauffeurs (don't block the email flow)
         try {
-          await sendPushToAudience('admin', {
-            title: '🆕 Nouvelle réservation',
-            body: `${reservation.nom} · ${reservation.depart} → ${reservation.arrivee}`,
-            url: '/admin/dashboard',
-            tag: `new-res-${reservationId}`,
-            requireInteraction: true,
-          })
+          await Promise.all([
+            sendPushToAudience('admin', {
+              title: '🆕 Nouvelle réservation',
+              body: `${reservation.nom} · ${reservation.depart} → ${reservation.arrivee}`,
+              url: '/admin/dashboard',
+              tag: `new-res-${reservationId}`,
+              requireInteraction: true,
+            }),
+            sendPushToAudience('chauffeur', {
+              title: '🚕 Nouvelle course en attente',
+              body: `${reservation.nom} · ${reservation.depart} → ${reservation.arrivee}`,
+              url: '/admin/dashboard',
+              tag: `new-res-chauffeur-${reservationId}`,
+              requireInteraction: true,
+            }),
+          ])
         } catch (e) {
-          console.error('[push] admin notify failed', e)
+          console.error('[push] notify failed', e)
         }
 
         return Response.json({ success: true })
