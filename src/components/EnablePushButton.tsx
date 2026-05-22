@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Bell, BellOff, BellRing } from "lucide-react";
 import { toast } from "sonner";
-import { useServerFn } from "@tanstack/react-start";
-import { getVapidPublicKey, subscribePush, unsubscribePush } from "@/lib/push.functions";
 
 type Props = {
   audience: "admin" | "chauffeur" | "client";
@@ -23,6 +21,41 @@ function urlBase64ToUint8Array(base64String: string) {
   return out;
 }
 
+async function getVapidKey(): Promise<string | null> {
+  try {
+    const res = await fetch("/api/push/vapid-public-key");
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.key ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function apiSubscribe(payload: {
+  audience: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  reservation_id?: string | null;
+  user_agent?: string;
+}): Promise<void> {
+  const res = await fetch("/api/push/subscribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("subscribe_failed");
+}
+
+async function apiUnsubscribe(endpoint: string): Promise<void> {
+  await fetch("/api/push/unsubscribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ endpoint }),
+  });
+}
+
 export function EnablePushButton({
   audience,
   reservationId,
@@ -34,9 +67,6 @@ export function EnablePushButton({
   const [supported, setSupported] = useState<boolean | null>(null);
   const [subscribed, setSubscribed] = useState(false);
   const [busy, setBusy] = useState(false);
-  const getKey = useServerFn(getVapidPublicKey);
-  const subscribeFn = useServerFn(subscribePush);
-  const unsubscribeFn = useServerFn(unsubscribePush);
 
   useEffect(() => {
     const ok =
@@ -65,11 +95,12 @@ export function EnablePushButton({
         });
         return;
       }
+
       let reg = await navigator.serviceWorker.getRegistration("/");
       if (!reg) reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
       await navigator.serviceWorker.ready;
 
-      const { key } = await getKey();
+      const key = await getVapidKey();
       if (!key) {
         toast.error("Clé VAPID manquante");
         return;
@@ -85,16 +116,15 @@ export function EnablePushButton({
 
       const json = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
 
-      await subscribeFn({
-        data: {
-          audience,
-          endpoint: json.endpoint,
-          p256dh: json.keys.p256dh,
-          auth: json.keys.auth,
-          reservation_id: reservationId ?? null,
-          user_agent: navigator.userAgent.slice(0, 500),
-        },
+      await apiSubscribe({
+        audience,
+        endpoint: json.endpoint,
+        p256dh: json.keys.p256dh,
+        auth: json.keys.auth,
+        reservation_id: reservationId ?? null,
+        user_agent: navigator.userAgent.slice(0, 500),
       });
+
       setSubscribed(true);
       toast.success("Notifications activées 🔔");
     } catch (e: any) {
@@ -111,8 +141,7 @@ export function EnablePushButton({
       const reg = await navigator.serviceWorker.getRegistration("/");
       const sub = await reg?.pushManager.getSubscription();
       if (sub) {
-        // Supprime les deux audiences
-        await unsubscribeFn({ data: { endpoint: sub.endpoint } });
+        await apiUnsubscribe(sub.endpoint);
         await sub.unsubscribe();
       }
       setSubscribed(false);
