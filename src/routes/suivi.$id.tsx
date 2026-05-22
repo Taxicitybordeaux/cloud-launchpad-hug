@@ -576,7 +576,17 @@ function SuiviPage() {
               <div style={{ fontSize: 13, fontWeight: 700, color: statut.color }}>{statut.label}</div>
               {eta !== null && (resa.status === "en_route" || resa.status === "arrived") && (
                 <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                  Arrivée au point de RDV dans <span style={{ color: "#f5c842", fontWeight: 700 }}>{eta} min</span>
+                  Arrivée au point de RDV dans{" "}
+                  <span
+                    style={{
+                      color: "#f5c842",
+                      fontWeight: 800,
+                      fontFamily: "'Syne',sans-serif",
+                      letterSpacing: "-0.01em",
+                    }}
+                  >
+                    {eta} min
+                  </span>
                 </div>
               )}
               {taxiPos && resa.status === "nouvelle" && (
@@ -722,10 +732,10 @@ function SuiviPage() {
               </div>
               <div
                 style={{
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: 800,
                   color: "#f5c842",
-                  letterSpacing: "0.05em",
+                  letterSpacing: "0.1em",
                   fontFamily: "'Syne',sans-serif",
                 }}
               >
@@ -864,7 +874,16 @@ function SuiviPage() {
                 >
                   Prise en charge
                 </div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#cbd5e1", lineHeight: 1.3 }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "#cbd5e1",
+                    lineHeight: 1.3,
+                    fontFamily: "'Syne',sans-serif",
+                    letterSpacing: "-0.01em",
+                  }}
+                >
                   {formatPickup(resa)}
                 </div>
               </div>
@@ -889,7 +908,28 @@ function SuiviPage() {
                   >
                     Distance
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#cbd5e1" }}>{distanceKm} km</div>
+                  <div
+                    style={{
+                      fontSize: 15,
+                      fontWeight: 800,
+                      color: "#e2e8f0",
+                      fontFamily: "'Syne',sans-serif",
+                      letterSpacing: "-0.02em",
+                    }}
+                  >
+                    {distanceKm}{" "}
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: "#64748b",
+                        fontFamily: "'DM Sans',sans-serif",
+                        letterSpacing: "0.04em",
+                      }}
+                    >
+                      km
+                    </span>
+                  </div>
                 </div>
               )}
               <div
@@ -912,7 +952,17 @@ function SuiviPage() {
                 >
                   Pass.
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#cbd5e1" }}>👥 {passagers}</div>
+                <div
+                  style={{
+                    fontSize: 15,
+                    fontWeight: 800,
+                    color: "#cbd5e1",
+                    fontFamily: "'Syne',sans-serif",
+                    letterSpacing: "-0.01em",
+                  }}
+                >
+                  👥 {passagers}
+                </div>
               </div>
               {prix && (
                 <div
@@ -936,7 +986,15 @@ function SuiviPage() {
                   >
                     Prix
                   </div>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: "#f5c842", fontFamily: "'Syne',sans-serif" }}>
+                  <div
+                    style={{
+                      fontSize: 16,
+                      fontWeight: 800,
+                      color: "#f5c842",
+                      fontFamily: "'Syne',sans-serif",
+                      letterSpacing: "-0.02em",
+                    }}
+                  >
                     {prix}
                   </div>
                 </div>
