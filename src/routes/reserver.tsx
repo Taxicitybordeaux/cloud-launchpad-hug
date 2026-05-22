@@ -261,7 +261,7 @@ function ReservationPage() {
     });
   }, [fromCoord, toCoord]);
 
-  // ── Géolocalisation départ (navigateur client uniquement) ───────────────
+  // ── Géolocalisation départ (navigateur client) ───────────────────────────
   const handleGeolocate = useCallback(async () => {
     if (!navigator.geolocation) {
       toast.error("Géolocalisation non disponible");
@@ -270,31 +270,14 @@ function ReservationPage() {
     setGeolocLoading(true);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        // lat/lng du GPS du NAVIGATEUR du client
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
 
-        // Reverse geocoding Nominatim (ordre lat, lon garanti)
-        let adresse: string | null = null;
-        try {
-          const r = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=fr`,
-            { headers: { "User-Agent": "TaxiCityBordeaux/1.0" } },
-          );
-          const json = await r.json();
-          if (json?.address) {
-            const a = json.address;
-            const parts = [a.house_number, a.road, a.city || a.town || a.village].filter(Boolean);
-            adresse = parts.length >= 2 ? parts.join(" ") : json.display_name;
-          } else {
-            adresse = json?.display_name ?? null;
-          }
-        } catch {
-          adresse = await reverseGeocode(lat, lng).catch(() => null);
-        }
+        // reverseGeocode(lat, lng) — même signature que l'original
+        const adresse = await reverseGeocode(lat, lng).catch(() => null);
 
         set("depart", adresse ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
-        // fromCoord stocké en [lng, lat] pour OSRM (GeoJSON)
+        // fromCoord en [lng, lat] pour OSRM (format GeoJSON)
         setFromCoord([lng, lat]);
         setErrors((prev) => {
           const { depart: _, ...rest } = prev;
