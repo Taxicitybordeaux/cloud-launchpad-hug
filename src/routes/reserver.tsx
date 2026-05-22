@@ -38,12 +38,15 @@ interface OrsResult {
 }
 
 async function geocodeFullAddress(address: string): Promise<[number, number] | null> {
+  // Essai avec Bordeaux, puis sans
   let c = await geocodeAddress(address + ", Bordeaux, France");
   if (!c) c = await geocodeAddress(address);
   return c ? [c.lng, c.lat] : null;
 }
 
+// ─── OSRM : prend le chemin le plus LONG parmi les alternatives ───────────────
 async function getOsrmRouteLongest(from: [number, number], to: [number, number]): Promise<OrsResult | null> {
+  // On demande jusqu'à 3 alternatives à OSRM
   const url =
     `https://router.project-osrm.org/route/v1/driving/` +
     `${from[0]},${from[1]};${to[0]},${to[1]}` +
@@ -53,6 +56,7 @@ async function getOsrmRouteLongest(from: [number, number], to: [number, number])
     if (!res.ok) return null;
     const json = await res.json();
     if (!json.routes || json.routes.length === 0) return null;
+    // Prendre le chemin avec la DISTANCE la plus longue
     const longest = json.routes.reduce((best: any, r: any) => (r.distance > best.distance ? r : best));
     return {
       distanceKm: Math.round((longest.distance / 1000) * 10) / 10,
@@ -63,6 +67,7 @@ async function getOsrmRouteLongest(from: [number, number], to: [number, number])
   }
 }
 
+// ─── OSRM polyline : chemin le plus long ─────────────────────────────────────
 async function getOsrmPolylineLongest(from: [number, number], to: [number, number]): Promise<[number, number][]> {
   const url =
     `https://router.project-osrm.org/route/v1/driving/` +
@@ -101,6 +106,20 @@ function loadLeaflet(): Promise<void> {
     document.head.appendChild(s);
   });
 }
+
+const inputStyle = (hasError?: boolean) => ({
+  width: "100%",
+  padding: "14px 14px",
+  borderRadius: 12,
+  border: `2px solid ${hasError ? "#ef4444" : "rgba(203,213,225,0.4)"}`,
+  fontSize: 16,
+  background: "#ffffff",
+  color: "#0f172a",
+  fontFamily: "'DM Sans',sans-serif",
+  outline: "none",
+  boxSizing: "border-box",
+  minHeight: 48,
+});
 
 function ReservationPage() {
   const navigate = useNavigate();
@@ -153,6 +172,7 @@ function ReservationPage() {
     setF((p) => ({ ...p, date: p.date || d }));
   }, []);
 
+  // ── Init carte ────────────────────────────────────────────────────────────
   useEffect(() => {
     let mounted = true;
     const initMap = async () => {
@@ -187,6 +207,7 @@ function ReservationPage() {
     };
   }, []);
 
+  // ── Marqueurs + tracé (chemin le plus long) ───────────────────────────────
   useEffect(() => {
     const map = mapInst.current;
     const L = (window as any).L;
@@ -215,6 +236,7 @@ function ReservationPage() {
     }
 
     if (fromCoord && toCoord) {
+      // Toujours le chemin le plus long
       getOsrmPolylineLongest(fromCoord, toCoord).then((coords) => {
         if (!mapInst.current || !L) return;
         if (routeLayer.current) {
@@ -240,6 +262,7 @@ function ReservationPage() {
     }
   }, [fromCoord, toCoord]);
 
+  // ── OSRM : recalcul distance/prix (chemin le plus long) ───────────────────
   useEffect(() => {
     if (!fromCoord || !toCoord) {
       setOrsResult(null);
@@ -252,6 +275,7 @@ function ReservationPage() {
     });
   }, [fromCoord, toCoord]);
 
+  // ── Géolocalisation départ (navigateur client) ───────────────────────────
   const handleGeolocate = useCallback(async () => {
     if (!navigator.geolocation) {
       toast.error("Géolocalisation non disponible");
@@ -263,9 +287,11 @@ function ReservationPage() {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
 
+        // reverseGeocode(lat, lng) — même signature que l'original
         const adresse = await reverseGeocode(lat, lng).catch(() => null);
 
         set("depart", adresse ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+        // fromCoord en [lng, lat] pour OSRM (format GeoJSON)
         setFromCoord([lng, lat]);
         setErrors((prev) => {
           const { depart: _, ...rest } = prev;
@@ -288,12 +314,12 @@ function ReservationPage() {
     );
   }, []);
 
-  // Géoloc auto au chargement seulement si permission déjà accordée
+  // Tentative auto au chargement (sans bloquer)
   useEffect(() => {
-    if (!navigator.geolocation) return;
-    // On ne demande PAS la permission automatiquement — utilisateur clique sur 📍
-  }, []);
+    handleGeolocate();
+  }, [handleGeolocate]);
 
+  // ── Résoudre adresse départ (saisie manuelle) ────────────────────────────
   const resolveDepartAddress = useCallback(async () => {
     const value = f.depart.trim();
     if (!value) return;
@@ -312,6 +338,7 @@ function ReservationPage() {
     }
   }, [f.depart]);
 
+  // ── Résoudre adresse destination ─────────────────────────────────────────
   const resolveDestinationAddress = useCallback(async () => {
     const value = f.destination.trim();
     if (!value) return;
@@ -330,13 +357,14 @@ function ReservationPage() {
     }
   }, [f.destination]);
 
+  // ── Disponibilité taxi ────────────────────────────────────────────────────
   useEffect(() => {
     const check = async () => {
       try {
         const { data, error } = await supabase
           .from("reservations")
           .select("id")
-          .not("status", "in", '("cancelled","refused","completed")')
+          .not("status", "in", "(cancelled,refused,completed)")
           .limit(1);
         if (error) throw error;
         setTaxiAvailable(!data || data.length === 0);
@@ -347,6 +375,7 @@ function ReservationPage() {
     check();
   }, []);
 
+  // ── Soumission ────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -402,6 +431,7 @@ function ReservationPage() {
 
       if (error) throw error;
 
+      // ── Notif push + email chauffeur ──────────────────────────────────────
       try {
         await fetch("/api/public/notify-reservation", {
           method: "POST",
@@ -412,6 +442,7 @@ function ReservationPage() {
         console.error("[notify] push failed", err);
       }
 
+      // ── Email chauffeur via bridge serveur ────────────────────────────────
       try {
         const heureStr = f.heure || "—";
         const dateStr = f.date
@@ -432,7 +463,7 @@ function ReservationPage() {
             "X-Admin-Secret": "admin-pin-call",
           },
           body: JSON.stringify({
-            to: "chauffeur@taxicitybx.fr",
+            to: "chauffeur@taxicitybx.fr", // adresse chauffeur à adapter
             subject: `🚕 Nouvelle course — ${f.prenom} ${f.nom}`,
             html: `
               <div style="font-family:sans-serif;max-width:520px;margin:auto;background:#0f172a;color:#e2e8f0;padding:32px;border-radius:16px">
@@ -468,20 +499,6 @@ function ReservationPage() {
     }
   };
 
-  const inputStyle = (hasError?: boolean) => ({
-    width: "100%",
-    padding: "14px 14px",
-    borderRadius: 12,
-    border: `2px solid ${hasError ? "#ef4444" : "rgba(203,213,225,0.4)"}`,
-    fontSize: 16,
-    background: "#ffffff",
-    color: "#0f172a",
-    fontFamily: "'DM Sans',sans-serif",
-    outline: "none",
-    boxSizing: "border-box" as const,
-    minHeight: 48,
-  });
-
   return (
     <div
       style={{
@@ -504,9 +521,11 @@ function ReservationPage() {
         .leaflet-container { width: 100% !important; height: 100% !important; }
       `}</style>
 
+      {/* ── Map ── */}
       <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
         <div ref={mapRef} style={{ position: "absolute", inset: 0 }} />
 
+        {/* Badge disponibilité */}
         <div
           style={{
             position: "absolute",
@@ -537,6 +556,7 @@ function ReservationPage() {
           </span>
         </div>
 
+        {/* Badge calcul */}
         {calcLoading && (
           <div
             style={{
@@ -569,6 +589,7 @@ function ReservationPage() {
         )}
       </div>
 
+      {/* ── Bottom sheet ── */}
       <div
         style={{
           flexShrink: 0,
@@ -606,6 +627,7 @@ function ReservationPage() {
             autoComplete="off"
             style={{ display: "flex", flexDirection: "column", gap: 18 }}
           >
+            {/* ── Coordonnées ── */}
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>
                 👤 Vos coordonnées
@@ -666,11 +688,13 @@ function ReservationPage() {
               </div>
             </div>
 
+            {/* ── Adresses ── */}
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>
                 📍 Où allons-nous ?
               </div>
 
+              {/* Départ : saisie libre + bouton géoloc */}
               <div style={{ marginBottom: 10 }}>
                 <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
                   Départ
@@ -721,6 +745,7 @@ function ReservationPage() {
                 )}
               </div>
 
+              {/* Destination */}
               <div>
                 <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
                   Destination
@@ -749,6 +774,7 @@ function ReservationPage() {
                 )}
               </div>
 
+              {/* Récap distance + prix */}
               {orsResult && (
                 <div
                   style={{
@@ -782,6 +808,7 @@ function ReservationPage() {
               )}
             </div>
 
+            {/* ── Date/heure ── */}
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>🕐 Quand ?</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -811,6 +838,7 @@ function ReservationPage() {
               </div>
             </div>
 
+            {/* ── Passagers / Bagages ── */}
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>👥 Détails</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -849,6 +877,7 @@ function ReservationPage() {
               </div>
             </div>
 
+            {/* ── Paiement ── */}
             <div>
               <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
                 Mode de paiement
@@ -859,6 +888,7 @@ function ReservationPage() {
               </select>
             </div>
 
+            {/* ── Notifications ── */}
             <div
               style={{
                 padding: "12px 14px",
@@ -880,6 +910,7 @@ function ReservationPage() {
               </div>
             </div>
 
+            {/* ── Bouton réserver ── */}
             <button
               type="submit"
               disabled={sending}
