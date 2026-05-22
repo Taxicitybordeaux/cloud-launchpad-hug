@@ -11,12 +11,8 @@ import logo from "@/assets/logo.jpeg";
 import { EnablePushButton } from "@/components/EnablePushButton";
 import { notifyReservationStatus, notifyNewReservation } from "@/lib/push.functions";
 
-// ─── Map constants ──────────────────────────────────────────
 const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-const OSM_TILE_OPTIONS = {
-  attribution: "© OpenStreetMap contributors",
-  maxZoom: 19,
-};
+const OSM_TILE_OPTIONS = { attribution: "© OpenStreetMap contributors", maxZoom: 19 };
 
 // ─── Swipe-to-delete ─────────────────────────────────────────
 function SwipeDeleteRow({
@@ -27,7 +23,6 @@ function SwipeDeleteRow({
 }: {
   onDelete: () => void;
   disabled?: boolean;
-  deleteLabel?: string;
   children: React.ReactNode;
   style?: React.CSSProperties;
 }) {
@@ -42,12 +37,11 @@ function SwipeDeleteRow({
     startX.current = e.touches[0].clientX;
     startY.current = e.touches[0].clientY;
   };
-
   const onTouchMove = (e: React.TouchEvent) => {
     if (disabled || deleting) return;
     const dx = e.touches[0].clientX - startX.current;
     const dy = Math.abs(e.touches[0].clientY - startY.current);
-    if (dy > 10 && Math.abs(dx) < dy) return; // scroll vertical prioritaire
+    if (dy > 10 && Math.abs(dx) < dy) return;
     if (dx >= 0) {
       setOffset(0);
       return;
@@ -55,7 +49,6 @@ function SwipeDeleteRow({
     e.preventDefault();
     setOffset(Math.max(dx, -window.innerWidth));
   };
-
   const onTouchEnd = () => {
     if (offset < -THRESHOLD) {
       setDeleting(true);
@@ -68,16 +61,7 @@ function SwipeDeleteRow({
 
   return (
     <div style={{ position: "relative", overflow: "hidden", borderRadius: 20, ...style }}>
-      {/* Fond suppression — noir par défaut, rouge sombre visible seulement pendant le swipe */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background: "#0f172a",
-          borderRadius: 20,
-        }}
-      >
-        {/* Zone rouge + icône révélée progressivement à droite */}
+      <div style={{ position: "absolute", inset: 0, background: "#0f172a", borderRadius: 20 }}>
         <div
           style={{
             position: "absolute",
@@ -90,14 +74,12 @@ function SwipeDeleteRow({
             alignItems: "center",
             justifyContent: "flex-end",
             paddingRight: 32,
-            gap: 8,
             opacity: Math.min(Math.abs(offset) / 150, 1),
           }}
         >
           <span style={{ fontSize: 28 }}>🗑️</span>
         </div>
       </div>
-      {/* Carte */}
       <div
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
@@ -125,7 +107,6 @@ export const Route = createFileRoute("/admin/dashboard")({
   component: Dashboard,
 });
 
-// ─── Styles communs ───
 const card: React.CSSProperties = {
   background: "rgba(255,255,255,0.04)",
   border: "1px solid rgba(255,255,255,0.08)",
@@ -148,18 +129,8 @@ const valCss: React.CSSProperties = {
   fontVariantNumeric: "tabular-nums",
 };
 
-// Tarifs officiels Bordeaux
 const TARIF_JOUR_LABEL = "2,16 €/km";
 const TARIF_NUIT_LABEL = "3,24 €/km";
-
-const tabKeys = ["pending", "accepted", "refused"] as const;
-type TabKey = (typeof tabKeys)[number];
-
-const normalizeStatus = (s: unknown): TabKey => {
-  if (s === "accepted") return "accepted";
-  if (s === "refused") return "refused";
-  return "pending";
-};
 
 const STATUS: Record<string, { bg: string; c: string; label: string }> = {
   pending: { bg: "rgba(245,158,11,0.15)", c: "#f59e0b", label: "En attente" },
@@ -205,6 +176,74 @@ function isNuit(iso: string): boolean {
   return h >= 20 || h < 6;
 }
 
+const normalizeStatus = (s: unknown): "pending" | "accepted" | "refused" => {
+  if (s === "accepted") return "accepted";
+  if (s === "refused") return "refused";
+  return "pending";
+};
+
+// ─── Section header ───
+function SectionHeader({
+  color,
+  label,
+  count,
+  borderColor,
+}: {
+  color: string;
+  label: string;
+  count: number;
+  borderColor: string;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        marginBottom: 16,
+        paddingBottom: 10,
+        borderBottom: `1px solid ${borderColor}`,
+      }}
+    >
+      <span
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          background: color,
+          flexShrink: 0,
+          boxShadow: `0 0 8px ${color}99`,
+        }}
+      />
+      <h3
+        style={{
+          fontFamily: "'Syne',sans-serif",
+          fontSize: 15,
+          fontWeight: 800,
+          color,
+          margin: 0,
+          textTransform: "uppercase",
+          letterSpacing: "0.06em",
+        }}
+      >
+        {label}
+      </h3>
+      <span
+        style={{
+          background: `${color}26`,
+          color,
+          padding: "2px 10px",
+          borderRadius: 99,
+          fontSize: 12,
+          fontWeight: 700,
+        }}
+      >
+        {count}
+      </span>
+    </div>
+  );
+}
+
 function Dashboard() {
   // ── KPI stats ──
   const [caJ, setCaJ] = useState(0);
@@ -215,16 +254,15 @@ function Dashboard() {
   const [nextCourse, setNextCourse] = useState<any | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
 
-  // ── Courses list ──
+  // ── Courses ──
   const [items, setItems] = useState<any[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [counts, setCounts] = useState({ pending: 0, accepted: 0, refused: 0 });
 
-  // ── Modales & actions ──
+  // ── Actions ──
   const [confirmAction, setConfirmAction] = useState<{ type: "accept" | "refuse"; r: any } | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [refusalReason, setRefusalReason] = useState("");
-  const [notifChoices, setNotifChoices] = useState({ sms: false, email: false, whatsapp: false });
   const [autoKm, setAutoKm] = useState<number | null>(null);
   const [kmLoading, setKmLoading] = useState(false);
   const [cardKm, setCardKm] = useState<Record<string, number>>({});
@@ -239,26 +277,18 @@ function Dashboard() {
 
   // ── GPS ──
   const [gpsActive, setGpsActive] = useState(false);
-  const [gpsDestination, setGpsDestination] = useState("");
-  const [gpsPrixEstime, setGpsPrixEstime] = useState("");
   const [gpsLoading, setGpsLoading] = useState(true);
   const [gpsPosition, setGpsPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [gpsUpdateCount, setGpsUpdateCount] = useState(0);
-  const [activeResaId, setActiveResaId] = useState<string | null>(null); // course en cours liée au GPS
-  const [autoTransition, setAutoTransition] = useState(false); // flag transition auto en cours
+  const [activeResaId, setActiveResaId] = useState<string | null>(null);
+  const [autoTransition, setAutoTransition] = useState(false);
   const watchIdRef = useRef<number | null>(null);
   const lastPosRef = useRef<{ lat: number; lng: number } | null>(null);
-  const activeResaIdRef = useRef<string | null>(null); // ref pour accès dans le watchPosition callback
+  const activeResaIdRef = useRef<string | null>(null);
   const gpsMapRef = useRef<HTMLDivElement>(null);
   const gpsMapInst = useRef<any>(null);
   const gpsMarkerRef = useRef<any>(null);
-
-  // ── Portefeuille clients ──
-  const [clients, setClients] = useState<any[]>([]);
-  const [clientsLoading, setClientsLoading] = useState(true);
-  const [clientSearch, setClientSearch] = useState("");
-  const [clientSort, setClientSort] = useState<"name" | "courses" | "ca" | "date">("date");
 
   // =========================
   // FETCH STATS
@@ -270,7 +300,6 @@ function Dashboard() {
     const monthIso = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
     const nowIso = new Date().toISOString();
     const tomorrowIso = new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString();
-
     const [caJR, caMR, cJR, cliR, visR, nextR] = await Promise.all([
       supabase.from("courses").select("prix_final").gte("created_at", todayIso),
       supabase.from("courses").select("prix_final").gte("created_at", monthIso),
@@ -290,7 +319,6 @@ function Dashboard() {
         .order("pickup_datetime", { ascending: true, nullsFirst: false })
         .limit(1),
     ]);
-
     setCaJ((caJR.data ?? []).reduce((s: number, c: any) => s + (Number(c.prix_final) || 0), 0));
     setCaM((caMR.data ?? []).reduce((s: number, c: any) => s + (Number(c.prix_final) || 0), 0));
     setCoursesJ(cJR.count ?? 0);
@@ -306,7 +334,6 @@ function Dashboard() {
   const fetchCourses = useCallback(async () => {
     const { data, error } = await supabase.from("reservations").select("*").order("created_at", { ascending: false });
     if (error) {
-      console.error(error);
       setCoursesLoading(false);
       return;
     }
@@ -330,42 +357,14 @@ function Dashboard() {
     setAvisLoading(false);
   }, []);
 
-  // =========================
-  // FETCH CLIENTS
-  // =========================
-  const fetchClients = useCallback(async () => {
-    const { data: clientRows, error } = await supabase
-      .from("clients")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (error || !clientRows) {
-      setClientsLoading(false);
-      return;
-    }
-    const { data: resRows } = await supabase
-      .from("reservations")
-      .select("client_email, email, prix_estime, status")
-      .neq("status", "refused");
-    const resData = resRows ?? [];
-    const enriched = clientRows.map((c: any) => {
-      const email = (c.email || "").toLowerCase();
-      const matched = resData.filter((r: any) => (r.client_email || r.email || "").toLowerCase() === email);
-      const ca = matched.reduce((s: number, r: any) => s + (Number(r.prix_estime) || 0), 0);
-      return { ...c, nb_courses: matched.length, ca_total: ca };
-    });
-    setClients(enriched);
-    setClientsLoading(false);
-  }, []);
-
   const fetchAll = useCallback(async () => {
     setRefreshing(true);
     setStatsLoading(true);
     setCoursesLoading(true);
     setAvisLoading(true);
-    setClientsLoading(true);
-    await Promise.all([fetchStats(), fetchCourses(), fetchAvis(), fetchClients()]);
+    await Promise.all([fetchStats(), fetchCourses(), fetchAvis()]);
     setRefreshing(false);
-  }, [fetchStats, fetchCourses, fetchAvis, fetchClients]);
+  }, [fetchStats, fetchCourses, fetchAvis]);
 
   // =========================
   // REALTIME
@@ -381,32 +380,25 @@ function Dashboard() {
           try {
             new Audio("/notification.mp3").play().catch(() => {});
           } catch {}
-
-          // ── Push admin + chauffeur + email taxi (server-side) ──
           if (n.id) {
             notifyNewReservation({ data: { reservation_id: n.id } }).catch(() => {});
           }
-
-          // ── Push navigateur local (fallback si pas abonné VAPID) ──
           if (typeof window !== "undefined" && "Notification" in window) {
-            const sendBrowserNotif = () => {
+            const fire = () => {
               try {
                 new Notification("🔔 Nouvelle réservation", {
                   body: `${clientName} — ${n.depart || ""} → ${n.arrivee || n.destination || ""}`,
                   icon: "/favicon.ico",
-                  badge: "/favicon.ico",
                   tag: `reservation-${n.id}`,
                   requireInteraction: true,
                 });
               } catch {}
             };
-            if (Notification.permission === "granted") {
-              sendBrowserNotif();
-            } else if (Notification.permission === "default") {
+            if (Notification.permission === "granted") fire();
+            else if (Notification.permission === "default")
               Notification.requestPermission().then((p) => {
-                if (p === "granted") sendBrowserNotif();
+                if (p === "granted") fire();
               });
-            }
           }
           if (typeof window !== "undefined") {
             const t = document.createElement("div");
@@ -421,23 +413,20 @@ function Dashboard() {
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "reservations" }, () => fetchAll())
       .on("postgres_changes", { event: "*", schema: "public", table: "site_analytics" }, () => fetchStats())
       .on("postgres_changes", { event: "*", schema: "public", table: "avis" }, () => fetchAvis())
-      .on("postgres_changes", { event: "*", schema: "public", table: "clients" }, () => fetchClients())
       .subscribe();
     initialLoad.current = false;
     return () => {
       supabase.removeChannel(ch);
     };
-  }, [fetchAll, fetchStats, fetchClients]);
+  }, [fetchAll, fetchStats]);
 
   // =========================
   // GPS INIT
   // =========================
   useEffect(() => {
-    // Demande permission notifications au chargement du dashboard
     if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
       Notification.requestPermission().catch(() => {});
     }
-
     const initGPS = async () => {
       const { data, error } = await (supabase as any).from("driver_gps").select("*").eq("id", "driver").single();
       if (error || !data) {
@@ -446,8 +435,6 @@ function Dashboard() {
           .insert({ id: "driver", is_active: false, latitude: 0, longitude: 0 });
       }
       setGpsLoading(false);
-      // Le démarrage effectif se fait dans le useEffect "GPS auto-start" ci-dessous
-      // une fois que items est chargé
     };
     initGPS();
     return () => {
@@ -456,13 +443,11 @@ function Dashboard() {
     };
   }, []);
 
-  // ── GPS mini-map Leaflet ──────────────────────────────────────────────────
+  // GPS mini-map
   useEffect(() => {
     if (!gpsActive || !gpsMapRef.current) return;
     const L = (window as any).L;
-
     const initMap = async () => {
-      // Charge Leaflet si pas encore chargé
       if (!L) {
         await new Promise<void>((resolve) => {
           if (!document.getElementById("leaflet-css-admin")) {
@@ -503,9 +488,7 @@ function Dashboard() {
       gpsMapInst.current = map;
       setTimeout(() => map.invalidateSize(), 150);
     };
-
     initMap();
-
     return () => {
       if (gpsMapInst.current) {
         gpsMapInst.current.remove();
@@ -515,116 +498,22 @@ function Dashboard() {
     };
   }, [gpsActive]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Mise à jour du marqueur GPS sur la mini-map ──
   useEffect(() => {
     if (!gpsMapInst.current || !gpsPosition) return;
     const Lx = (window as any).L;
     if (!Lx) return;
     const latlng: [number, number] = [gpsPosition.lat, gpsPosition.lng];
-    if (gpsMarkerRef.current) {
-      gpsMarkerRef.current.setLatLng(latlng);
-    }
+    if (gpsMarkerRef.current) gpsMarkerRef.current.setLatLng(latlng);
     gpsMapInst.current.setView(latlng, gpsMapInst.current.getZoom());
   }, [gpsPosition]);
 
-  const startGPS = async (resaId?: string) => {
-    if (!navigator.geolocation) return;
-    await (supabase as any)
-      .from("driver_gps")
-      .update({
-        is_active: true,
-        destination: gpsDestination || null,
-        prix_estime: gpsPrixEstime || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", "driver");
-    const linkedId = resaId ?? null;
-    setActiveResaId(linkedId);
-    activeResaIdRef.current = linkedId;
-    setGpsActive(true);
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      async (pos) => {
-        const { latitude, longitude, accuracy: acc, heading: rawHeading } = pos.coords;
-
-        // Calcul du cap : on utilise le heading natif du GPS sinon on calcule depuis la dernière position
-        let computedHeading = rawHeading ?? null;
-        if ((computedHeading === null || computedHeading === 0) && lastPosRef.current) {
-          const dLat = latitude - lastPosRef.current.lat;
-          const dLng = longitude - lastPosRef.current.lng;
-          if (Math.abs(dLat) > 0.00001 || Math.abs(dLng) > 0.00001) {
-            computedHeading = (Math.atan2(dLng, dLat) * 180) / Math.PI;
-            if (computedHeading < 0) computedHeading += 360;
-          }
-        }
-        lastPosRef.current = { lat: latitude, lng: longitude };
-
-        setGpsPosition({ lat: latitude, lng: longitude });
-        setGpsAccuracy(Math.round(acc));
-        setGpsUpdateCount((n) => n + 1);
-
-        // Mise à jour driver_gps (existant)
-        await (supabase as any)
-          .from("driver_gps")
-          .update({
-            latitude,
-            longitude,
-            accuracy: acc,
-            heading: computedHeading,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", "driver");
-
-        // Mise à jour taxi_positions (pour le Realtime côté client)
-        await (supabase as any).from("taxi_positions").upsert({
-          id: "00000000-0000-0000-0000-000000000001",
-          lat: latitude,
-          lng: longitude,
-          heading: computedHeading ?? 0,
-          speed: pos.coords.speed ?? 0,
-          updated_at: new Date().toISOString(),
-        });
-      },
-      (err) => console.error(err),
-      { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 },
-    );
-  };
-
-  const stopGPS = async () => {
-    if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
-    watchIdRef.current = null;
-    await (supabase as any)
-      .from("driver_gps")
-      .update({
-        is_active: false,
-        destination: null,
-        prix_estime: null,
-      })
-      .eq("id", "driver");
-    setGpsActive(false);
-    setGpsPosition(null);
-    setGpsAccuracy(null);
-    setGpsUpdateCount(0);
-    setActiveResaId(null);
-    activeResaIdRef.current = null;
-    setAutoTransition(false);
-  };
-
-  // =========================
-  // GPS AUTO-START
-  // Démarre automatiquement dès que les courses sont chargées
-  // Se lie à la course en cours (en_route/arrived) ou prochaine (accepted)
-  // =========================
+  // GPS auto-start
   const gpsStartedRef = useRef(false);
   useEffect(() => {
-    if (coursesLoading) return; // attend que les courses soient prêtes
-    if (gpsLoading) return; // attend que la ligne driver_gps soit initialisée
-    if (gpsStartedRef.current) return; // ne démarre qu'une seule fois
+    if (coursesLoading || gpsLoading || gpsStartedRef.current) return;
     gpsStartedRef.current = true;
-
     const now = new Date().toISOString();
-    // Priorité 1 : course déjà active (en_route / arrived)
     const inProgress = items.find((r) => r.status === "en_route" || r.status === "arrived") ?? null;
-    // Priorité 2 : prochaine accepted par date
     const nextAccepted =
       items
         .filter((r) => r.status === "accepted" && (!r.pickup_datetime || r.pickup_datetime >= now))
@@ -633,31 +522,18 @@ function Dashboard() {
           if (!b.pickup_datetime) return -1;
           return new Date(a.pickup_datetime).getTime() - new Date(b.pickup_datetime).getTime();
         })[0] ?? null;
-    const linked = inProgress ?? nextAccepted;
-    startGPS(linked?.id ?? undefined);
+    startGPS((inProgress ?? nextAccepted)?.id ?? undefined);
   }, [coursesLoading, gpsLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // =========================
-  // GPS AUTO-TRANSITION
-  // Détecte quand la course active passe en "completed" ou "cancelled"
-  // et bascule automatiquement sur la suivante
-  // =========================
+  // GPS auto-transition
   useEffect(() => {
     if (!gpsActive || !activeResaId) return;
-
     const activeCourse = items.find((r) => r.id === activeResaId);
     if (!activeCourse) return;
-
-    const isFinished = activeCourse.status === "completed" || activeCourse.status === "cancelled";
-    if (!isFinished) return;
-
+    if (activeCourse.status !== "completed" && activeCourse.status !== "cancelled") return;
     const now = new Date().toISOString();
-
-    // Priorité 1 : course déjà en_route ou arrived (vraiment en cours)
     const inProgress =
       items.find((r) => r.id !== activeResaId && (r.status === "en_route" || r.status === "arrived")) ?? null;
-
-    // Priorité 2 : prochaine accepted par date
     const nextAccepted =
       items
         .filter(
@@ -668,27 +544,20 @@ function Dashboard() {
           if (!b.pickup_datetime) return -1;
           return new Date(a.pickup_datetime).getTime() - new Date(b.pickup_datetime).getTime();
         })[0] ?? null;
-
     const next = inProgress ?? nextAccepted;
-
     if (next) {
       setAutoTransition(true);
       setActiveResaId(next.id);
       activeResaIdRef.current = next.id;
-      const clientName = next.client_name || next.nom || "prochain client";
-      const dest = next.arrivee || next.destination || "";
       toast.success("🔄 Nouvelle course détectée", {
-        description: `GPS lié à ${clientName}${dest ? ` → ${dest}` : ""}`,
+        description: `${next.client_name || next.nom || "prochain client"}${next.arrivee || next.destination ? ` → ${next.arrivee || next.destination}` : ""}`,
         duration: 6000,
       });
       setTimeout(() => setAutoTransition(false), 3000);
     } else {
       setActiveResaId(null);
       activeResaIdRef.current = null;
-      toast("🏁 Course terminée", {
-        description: "GPS toujours actif — aucune prochaine course.",
-        duration: 5000,
-      });
+      toast("🏁 Course terminée", { description: "GPS toujours actif — aucune prochaine course.", duration: 5000 });
     }
   }, [items, gpsActive, activeResaId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -702,15 +571,12 @@ function Dashboard() {
       } catch {}
       return null;
     };
-
     const [a, b] = await Promise.all([geocode(depart), geocode(arrivee)]);
     if (a && b) {
       try {
         const dd = await getDistanceAndDurationKm([a.lng, a.lat], [b.lng, b.lat]);
         if (dd && dd.distanceKm && dd.distanceKm > 0) return Math.round(dd.distanceKm * 10) / 10;
       } catch {}
-    }
-    if (a && b) {
       const dLat = ((b.lat - a.lat) * Math.PI) / 180;
       const dLng = ((b.lng - a.lng) * Math.PI) / 180;
       const sin2 =
@@ -739,7 +605,7 @@ function Dashboard() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // =========================
-  // ACCEPT
+  // ACCEPT — seule action manuelle
   // =========================
   const handleAccept = async (r: any) => {
     let trackingId: string;
@@ -752,10 +618,7 @@ function Dashboard() {
       });
       return;
     }
-
-    // Détermine le tarif nuit depuis la réservation elle-même
     const tarifNuitCourse = r.pickup_datetime ? isNuit(r.pickup_datetime) : r.tarif_jour === false;
-
     const km = r.distance_km ? Number(r.distance_km) : (autoKm ?? 5);
     const prixCalcule = r.pickup_datetime
       ? calculerPrixMixte(km, r.pickup_datetime)
@@ -772,7 +635,6 @@ function Dashboard() {
         updated_at: new Date().toISOString(),
       })
       .eq("id", r.id);
-
     if (error) {
       toast.error("Échec de l'acceptation", { description: error.message });
       return;
@@ -782,6 +644,7 @@ function Dashboard() {
     const name = r.client_name || r.nom;
     const email = r.client_email || r.email;
 
+    // Enregistrer dans clients
     if (phone) {
       const { data: existing } = await supabase
         .from("clients")
@@ -803,24 +666,15 @@ function Dashboard() {
     } catch {}
 
     const url = typeof window !== "undefined" ? `${window.location.origin}/scan/${trackingId}` : "";
-    if (typeof window !== "undefined" && url) {
+    if (url) {
       try {
         await navigator.clipboard.writeText(url);
       } catch {}
     }
 
-    const pickupFormatted = r.pickup_datetime
-      ? formatParis(r.pickup_datetime, { dateStyle: "full", timeStyle: "short" })
-      : undefined;
-    const prixStr = `${Number(prixCalcule).toFixed(2)} €`;
-    const tarifLabel = tarifNuitCourse ? `Nuit (${TARIF_NUIT_LABEL})` : `Jour (${TARIF_JOUR_LABEL})`;
-    const adminSecret = "admin-pin-call";
-
-    const refId = `TCB-${r.id.slice(0, 8).toUpperCase()}`;
-    const paxLine = `${r.nb_passagers || r.passagers || 1} passager(s)${(r.bagages ?? 0) > 0 ? ` · ${r.bagages} bagage(s)` : ""}`;
     const notifParts: string[] = [];
 
-    // ── 🔔 Push client (automatique, toujours) ──
+    // 🔔 Push automatique (toujours)
     let pushSent = 0;
     try {
       const pushResult = await notifyReservationStatus({ data: { reservation_id: r.id, status: "accepted" } });
@@ -828,8 +682,14 @@ function Dashboard() {
     } catch {}
     notifParts.push(pushSent > 0 ? `🔔 Push envoyée` : `🔕 Pas d'abonné push`);
 
-    // ── Email (si coché) ──
-    if (notifChoices.email && email && url) {
+    // ✉️ Email automatique (si email disponible)
+    if (email && url) {
+      const adminSecret = "admin-pin-call";
+      const pickupFormatted = r.pickup_datetime
+        ? formatParis(r.pickup_datetime, { dateStyle: "full", timeStyle: "short" })
+        : undefined;
+      const prixStr = `${Number(prixCalcule).toFixed(2)} €`;
+      const tarifLabel = tarifNuitCourse ? `Nuit (${TARIF_NUIT_LABEL})` : `Jour (${TARIF_JOUR_LABEL})`;
       try {
         const res = await fetch("/api/admin/send-course-email", {
           method: "POST",
@@ -851,55 +711,13 @@ function Dashboard() {
             },
           }),
         });
-        notifParts.push(res.ok ? `✉️ Email envoyé` : `⚠️ Échec email (${res.status})`);
+        notifParts.push(res.ok ? `✉️ Email envoyé` : `⚠️ Échec email`);
       } catch {
-        notifParts.push("⚠️ Échec email (réseau)");
+        notifParts.push("⚠️ Échec email");
       }
     }
 
-    // ── WhatsApp (si coché) ──
-    if (notifChoices.whatsapp && phone) {
-      const TAXI_WA = "33673072322";
-      let waPhone = (phone || "").replace(/[^\d]/g, "");
-      if (waPhone.startsWith("0")) waPhone = "33" + waPhone.slice(1);
-      if (waPhone.startsWith("330")) waPhone = "33" + waPhone.slice(3);
-      const waMsg = encodeURIComponent(
-        `Bonjour ${name || ""},\n\n✅ Votre course *${refId}* est confirmée !\n\n` +
-          `🕐 Prise en charge : ${pickupFormatted ?? "—"}\n📍 Départ : ${r.depart}\n` +
-          `🏁 Arrivée : ${r.arrivee || r.destination || "—"}\n👥 ${paxLine}\n` +
-          `💰 Prix estimé : *${prixStr}* (tarif ${tarifNuitCourse ? "nuit" : "jour"})\n\n` +
-          `📲 Suivez votre chauffeur en temps réel :\n${url}\n\n📞 06 73 07 23 22 (7j/7 · 24h/24)`,
-      );
-      if (typeof window !== "undefined") {
-        if (waPhone.length >= 10 && waPhone !== TAXI_WA) {
-          window.open(`https://wa.me/${waPhone}?text=${waMsg}`, "_blank", "noopener,noreferrer");
-          notifParts.push("💬 WhatsApp ouvert");
-        } else {
-          notifParts.push("⚠️ Numéro WhatsApp invalide");
-        }
-      }
-    }
-
-    // ── SMS (si coché — option secondaire) ──
-    if (notifChoices.sms && phone) {
-      const smsPhone = (phone || "").replace(/[^\d]/g, "").replace(/^0/, "+33");
-      const pickupShort = r.pickup_datetime
-        ? formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })
-        : "—";
-      const smsBody = encodeURIComponent(
-        `Bonjour ${name || ""},\nCourse ${refId} confirmee !\n${pickupShort} | ${r.depart} -> ${r.arrivee || r.destination || "—"}\nPrix: ${prixStr}\n${url ? `Suivi: ${url}\n` : ""}Tel: 06 73 07 23 22`,
-      );
-      if (typeof window !== "undefined") {
-        window.open(`sms:${smsPhone}?body=${smsBody}`, "_blank");
-        notifParts.push("💬 SMS ouvert");
-      }
-    }
-
-    toast.success(`Course acceptée — ${name || "client"}`, {
-      description: notifParts.join(" · "),
-      duration: 8000,
-    });
-
+    toast.success(`✅ Course acceptée — ${name || "client"}`, { description: notifParts.join(" · "), duration: 8000 });
     fetchAll();
   };
 
@@ -909,7 +727,7 @@ function Dashboard() {
   const handleRefuse = async (r: any, motif: string) => {
     const cleaned = motif.trim();
     if (cleaned.length < 3) {
-      toast.error("Motif requis", { description: "Indiquez la raison du refus (3 caractères minimum)." });
+      toast.error("Motif requis", { description: "3 caractères minimum." });
       return false;
     }
     const { error } = await supabase
@@ -920,36 +738,22 @@ function Dashboard() {
       toast.error("Échec du refus", { description: error.message });
       return false;
     }
-    // ── 🔔 Push client (automatique) ──
-    let pushRefusSent = 0;
+    let pushSent = 0;
     try {
-      const pushResult = await notifyReservationStatus({ data: { reservation_id: r.id, status: "refused" } });
-      pushRefusSent = (pushResult as any)?.client?.sent ?? 0;
+      const res = await notifyReservationStatus({ data: { reservation_id: r.id, status: "refused" } });
+      pushSent = (res as any)?.client?.sent ?? 0;
     } catch {}
-
-    // ── SMS refus (si coché — option secondaire) ──
-    const phoneRefus = r.client_phone || r.telephone;
-    if (notifChoices.sms && phoneRefus && typeof window !== "undefined") {
-      const smsPhone = (phoneRefus || "").replace(/[^\d]/g, "").replace(/^0/, "+33");
-      const name = r.client_name || r.nom || "";
-      const refId = `TCB-${r.id.slice(0, 8).toUpperCase()}`;
-      const pickupShort = r.pickup_datetime
-        ? formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })
-        : "—";
-      const smsBody = encodeURIComponent(
-        `Bonjour ${name},\nVotre course ${refId} du ${pickupShort} n'a pas pu etre acceptee.\nMotif : ${cleaned.slice(0, 100)}\nContactez-nous : 06 73 07 23 22`,
-      );
-      window.open(`sms:${smsPhone}?body=${smsBody}`, "_blank");
-    }
-
-    toast.success(`Course refusée — ${r.client_name || r.nom || "client"}`, {
-      description: `${pushRefusSent > 0 ? "🔔 Push envoyée · " : "🔕 Pas d'abonné push · "}Motif : « ${cleaned.slice(0, 60)}${cleaned.length > 60 ? "…" : ""} »`,
+    toast.success(`❌ Course refusée — ${r.client_name || r.nom || "client"}`, {
+      description: `${pushSent > 0 ? "🔔 Push envoyée · " : ""}Motif : « ${cleaned.slice(0, 60)}${cleaned.length > 60 ? "…" : ""} »`,
       duration: 7000,
     });
     fetchAll();
     return true;
   };
 
+  // =========================
+  // UPDATE STATUS (automatique)
+  // =========================
   const handleUpdateReservationStatus = async (r: any, status: string) => {
     const valid = ["accepted", "en_route", "arrived", "completed", "cancelled"];
     if (!valid.includes(status)) return;
@@ -961,31 +765,23 @@ function Dashboard() {
       toast.error("Impossible de mettre à jour le statut", { description: error.message });
       return;
     }
-
-    // Labels lisibles pour le toast
     const statusLabels: Record<string, string> = {
       en_route: "🚗 En route",
       arrived: "📍 Arrivé",
       completed: "🏁 Terminé",
       cancelled: "✖ Annulée",
     };
-
-    // ── Push client (toujours) ──
     try {
       const result = await notifyReservationStatus({ data: { reservation_id: r.id, status: status as any } });
-
-      // ── SMS auto sur en_route et arrived ──
       if (typeof window !== "undefined" && (result as any)?.smsPhone && (result as any)?.smsBody) {
         window.open(`sms:${(result as any).smsPhone}?body=${(result as any).smsBody}`, "_blank");
       }
-
       const notifLabel =
         status === "en_route"
-          ? " · 🔔 Push + SMS envoyés au client"
+          ? " · 🔔 Push + SMS envoyés"
           : status === "arrived"
-            ? " · 🔔 Push + SMS 'taxi à proximité' envoyés"
+            ? " · 🔔 Push + SMS 'à proximité' envoyés"
             : " · 🔔 Push client envoyée";
-
       toast.success(`${statusLabels[status] ?? status}`, {
         description: `Course mise à jour${notifLabel}`,
         duration: 6000,
@@ -993,71 +789,11 @@ function Dashboard() {
     } catch {
       toast.success(`Statut mis à jour : ${statusLabels[status] ?? status}`);
     }
-
     setItems((prev) => prev.map((item) => (item.id === r.id ? { ...item, status } : item)));
   };
 
   // =========================
-  // RENVOYER EMAIL
-  // =========================
-  const handleSendEmail = async (r: any) => {
-    const email = r.client_email || r.email;
-    const name = r.client_name || r.nom;
-    if (!email) {
-      toast.error("Pas d'email", { description: "Aucune adresse email pour ce client." });
-      return;
-    }
-    // Détermine le tarif nuit depuis la réservation elle-même
-    const tarifNuitCourse = r.pickup_datetime ? isNuit(r.pickup_datetime) : r.tarif_jour === false;
-
-    const km = r.distance_km ? Number(r.distance_km) : null;
-    const prixCalcule = km
-      ? r.pickup_datetime
-        ? calculerPrixMixte(km, r.pickup_datetime)
-        : calculerPrix(km, !tarifNuitCourse)
-      : null;
-    const prixStr = r.prix_estime
-      ? `${Number(r.prix_estime).toFixed(2)} €`
-      : prixCalcule
-        ? `${Number(prixCalcule).toFixed(2)} €`
-        : "à confirmer";
-    const pickupFormatted = r.pickup_datetime
-      ? formatParis(r.pickup_datetime, { dateStyle: "full", timeStyle: "short" })
-      : undefined;
-    const trackingUrl =
-      r.tracking_id && typeof window !== "undefined" ? `${window.location.origin}/scan/${r.tracking_id}` : null;
-    const adminSecret = "admin-pin-call";
-    try {
-      const res = await fetch("/api/admin/send-course-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Admin-Secret": adminSecret },
-        body: JSON.stringify({
-          templateName: "course-accepted",
-          recipientEmail: email,
-          idempotencyKey: `course-accepted-resend-${r.id}-${Date.now()}`,
-          templateData: {
-            nom: name,
-            depart: r.depart,
-            arrivee: r.arrivee || r.destination,
-            pickup_datetime: pickupFormatted,
-            prix: prixStr,
-            tarif: tarifNuitCourse ? `Nuit (${TARIF_NUIT_LABEL})` : `Jour (${TARIF_JOUR_LABEL})`,
-            tracking_url: trackingUrl ?? "",
-          },
-        }),
-      });
-      if (res.ok) {
-        toast.success(`Email envoyé à ${email}`);
-      } else {
-        toast.error(`Échec envoi email (${res.status})`, { description: 'Vérifiez le template "course-accepted".' });
-      }
-    } catch {
-      toast.error("Erreur réseau", { description: "Impossible d'envoyer l'email." });
-    }
-  };
-
-  // =========================
-  // DELETE RESERVATION
+  // DELETE
   // =========================
   const handleDeleteReservation = async (id: string) => {
     setDeleteBusy(true);
@@ -1078,7 +814,7 @@ function Dashboard() {
   };
 
   // =========================
-  // VALIDER / REFUSER AVIS
+  // AVIS
   // =========================
   const handleAvisAction = async (id: string, action: "approved" | "refused") => {
     const { error } = await (supabase as any)
@@ -1092,7 +828,6 @@ function Dashboard() {
     toast.success(action === "approved" ? "Avis publié ✓" : "Avis refusé");
     setAvis((prev) => prev.map((a) => (a.id === id ? { ...a, status: action } : a)));
   };
-
   const handleDeleteAvis = async (id: string) => {
     const { error } = await (supabase as any).from("avis").delete().eq("id", id);
     if (error) {
@@ -1103,14 +838,75 @@ function Dashboard() {
     setAvis((prev) => prev.filter((a) => a.id !== id));
   };
 
-  const handleDeleteClient = async (id: string) => {
-    const { error } = await supabase.from("clients").delete().eq("id", id);
-    if (error) {
-      toast.error("Suppression impossible", { description: error.message });
-      return;
-    }
-    toast.success("Client supprimé");
-    setClients((prev) => prev.filter((c) => c.id !== id));
+  // =========================
+  // GPS CONTROLS
+  // =========================
+  const startGPS = async (resaId?: string) => {
+    if (!navigator.geolocation) return;
+    await (supabase as any)
+      .from("driver_gps")
+      .update({ is_active: true, updated_at: new Date().toISOString() })
+      .eq("id", "driver");
+    const linkedId = resaId ?? null;
+    setActiveResaId(linkedId);
+    activeResaIdRef.current = linkedId;
+    setGpsActive(true);
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      async (pos) => {
+        const { latitude, longitude, accuracy: acc, heading: rawHeading } = pos.coords;
+        let computedHeading = rawHeading ?? null;
+        if ((computedHeading === null || computedHeading === 0) && lastPosRef.current) {
+          const dLat = latitude - lastPosRef.current.lat;
+          const dLng = longitude - lastPosRef.current.lng;
+          if (Math.abs(dLat) > 0.00001 || Math.abs(dLng) > 0.00001) {
+            computedHeading = (Math.atan2(dLng, dLat) * 180) / Math.PI;
+            if (computedHeading < 0) computedHeading += 360;
+          }
+        }
+        lastPosRef.current = { lat: latitude, lng: longitude };
+        setGpsPosition({ lat: latitude, lng: longitude });
+        setGpsAccuracy(Math.round(acc));
+        setGpsUpdateCount((n) => n + 1);
+        await (supabase as any)
+          .from("driver_gps")
+          .update({
+            latitude,
+            longitude,
+            accuracy: acc,
+            heading: computedHeading,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", "driver");
+        await (supabase as any)
+          .from("taxi_positions")
+          .upsert({
+            id: "00000000-0000-0000-0000-000000000001",
+            lat: latitude,
+            lng: longitude,
+            heading: computedHeading ?? 0,
+            speed: pos.coords.speed ?? 0,
+            updated_at: new Date().toISOString(),
+          });
+      },
+      (err) => console.error(err),
+      { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 },
+    );
+  };
+
+  const stopGPS = async () => {
+    if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+    watchIdRef.current = null;
+    await (supabase as any)
+      .from("driver_gps")
+      .update({ is_active: false, destination: null, prix_estime: null })
+      .eq("id", "driver");
+    setGpsActive(false);
+    setGpsPosition(null);
+    setGpsAccuracy(null);
+    setGpsUpdateCount(0);
+    setActiveResaId(null);
+    activeResaIdRef.current = null;
+    setAutoTransition(false);
   };
 
   const getPrix = (r: any): number | null => {
@@ -1128,11 +924,12 @@ function Dashboard() {
   const pending = items.filter((r) => normalizeStatus(r.status) === "pending");
   const accepted = items.filter((r) => normalizeStatus(r.status) === "accepted");
   const refused = items.filter((r) => normalizeStatus(r.status) === "refused");
+  // Courses "en cours" = accepted + en_route + arrived (pour la section séparée)
+  const inProgress = items.filter((r) => r.status === "en_route" || r.status === "arrived");
+  const completed = items.filter((r) => r.status === "completed");
 
-  // ─── Helper : carte de course ───
+  // ─── Course card ───
   function CourseCard({ r, showAcceptRefuse }: { r: any; showAcceptRefuse?: boolean }) {
-    const phone = r.client_phone || r.telephone;
-    const email = r.client_email || r.email;
     const name = r.client_name || r.nom;
     const dest = r.destination || r.arrivee;
     const tarif_nuit_card = r.pickup_datetime ? isNuit(r.pickup_datetime) : r.tarif_jour === false;
@@ -1149,8 +946,6 @@ function Dashboard() {
     const pickupFormatted = r.pickup_datetime
       ? formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })
       : null;
-    const trackingUrl =
-      r.tracking_id && typeof window !== "undefined" ? `${window.location.origin}/scan/${r.tracking_id}` : null;
 
     return (
       <SwipeDeleteRow onDelete={() => handleDeleteReservation(r.id)} disabled={deleteBusy} style={{ marginBottom: 14 }}>
@@ -1178,25 +973,12 @@ function Dashboard() {
           <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap", color: "#94a3b8", fontSize: 13 }}>
             {r.distance_km && <span>🚕 {r.distance_km} km</span>}
             {isPrixLoading ? (
-              <span style={{ color: "#64748b", fontStyle: "italic" }}>📡 calcul prix…</span>
+              <span style={{ color: "#64748b", fontStyle: "italic" }}>📡 calcul…</span>
             ) : prix !== null ? (
               <span style={{ color: "#ef4444", fontWeight: 700 }}>💰 {Number(prix).toFixed(2)} €</span>
             ) : null}
             <span>👥 {r.nb_passagers || r.passagers || 1} passager(s)</span>
-            {r.bagages > 0 && <span>🧳 {r.bagages} bagage(s)</span>}
-            {r.service_type && r.service_type !== "standard" && (
-              <span
-                style={{
-                  background: "rgba(14,165,233,0.1)",
-                  color: "#38bdf8",
-                  padding: "2px 8px",
-                  borderRadius: 99,
-                  fontWeight: 600,
-                }}
-              >
-                🚖 {r.service_type}
-              </span>
-            )}
+            {r.bagages > 0 && <span>🧳 {r.bagages}</span>}
             <span
               style={{
                 background: tarif_nuit_card ? "rgba(99,102,241,0.15)" : "rgba(250,204,21,0.12)",
@@ -1206,7 +988,7 @@ function Dashboard() {
                 fontWeight: 700,
               }}
             >
-              {tarif_nuit_card ? `🌙 Nuit ${TARIF_NUIT_LABEL}` : `☀️ Jour ${TARIF_JOUR_LABEL}`}
+              {tarif_nuit_card ? `🌙 Nuit` : `☀️ Jour`}
             </span>
             <StatusBadge s={r.status} />
           </div>
@@ -1244,303 +1026,127 @@ function Dashboard() {
             </div>
           )}
 
-          <div style={{ marginTop: 14, display: "flex", gap: 14, flexWrap: "wrap" }}>
-            {phone && (
-              <a href={`tel:${phone}`} style={{ color: "#0ea5e9", textDecoration: "none", fontWeight: 600 }}>
-                📞 {phone}
-              </a>
-            )}
-            {email && (
-              <a href={`mailto:${email}`} style={{ color: "#94a3b8", textDecoration: "none" }}>
-                ✉️ {email}
-              </a>
-            )}
-          </div>
-
-          {/* Boutons d'action */}
-          <div style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {showAcceptRefuse && normalizeStatus(r.status) === "pending" && (
-              <>
-                <button
-                  onClick={async () => {
-                    setAutoKm(r.distance_km ? Number(r.distance_km) : null);
-                    setConfirmAction({ type: "accept", r });
-                    if (!r.distance_km && r.depart && (r.arrivee || r.destination)) {
-                      setKmLoading(true);
-                      try {
-                        const km = await fetchDistanceKm(r.depart, r.arrivee || r.destination);
-                        setAutoKm(km);
-                      } finally {
-                        setKmLoading(false);
-                      }
+          {/* ── Boutons PENDING : Accepter / Refuser uniquement ── */}
+          {showAcceptRefuse && normalizeStatus(r.status) === "pending" && (
+            <div style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                onClick={async () => {
+                  setAutoKm(r.distance_km ? Number(r.distance_km) : null);
+                  setConfirmAction({ type: "accept", r });
+                  if (!r.distance_km && r.depart && (r.arrivee || r.destination)) {
+                    setKmLoading(true);
+                    try {
+                      const km = await fetchDistanceKm(r.depart, r.arrivee || r.destination);
+                      setAutoKm(km);
+                    } finally {
+                      setKmLoading(false);
                     }
+                  }
+                }}
+                style={{
+                  background: "#22c55e",
+                  color: "#fff",
+                  border: 0,
+                  padding: "14px 24px",
+                  borderRadius: 12,
+                  cursor: "pointer",
+                  fontWeight: 800,
+                  fontSize: 15,
+                }}
+              >
+                ✓ Accepter
+              </button>
+              <button
+                onClick={() => setConfirmAction({ type: "refuse", r })}
+                style={{
+                  background: "#ef4444",
+                  color: "#fff",
+                  border: 0,
+                  padding: "14px 24px",
+                  borderRadius: 12,
+                  cursor: "pointer",
+                  fontWeight: 800,
+                  fontSize: 15,
+                }}
+              >
+                ✗ Refuser
+              </button>
+            </div>
+          )}
+
+          {/* ── Boutons statut (automatique — push envoyée à chaque étape) ── */}
+          {(normalizeStatus(r.status) === "accepted" || r.status === "en_route" || r.status === "arrived") && (
+            <div style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {r.status !== "en_route" && (
+                <button
+                  onClick={() => handleUpdateReservationStatus(r, "en_route")}
+                  style={{
+                    background: "#f59e0b",
+                    color: "#0a0a14",
+                    border: "none",
+                    padding: "10px 14px",
+                    borderRadius: 12,
+                    cursor: "pointer",
+                    fontWeight: 700,
+                    fontSize: 13,
                   }}
+                >
+                  🚗 En route
+                </button>
+              )}
+              {r.status !== "arrived" && (
+                <button
+                  onClick={() => handleUpdateReservationStatus(r, "arrived")}
                   style={{
                     background: "#22c55e",
                     color: "#fff",
-                    border: 0,
-                    padding: "12px 18px",
+                    border: "none",
+                    padding: "10px 14px",
                     borderRadius: 12,
                     cursor: "pointer",
                     fontWeight: 700,
                     fontSize: 13,
                   }}
                 >
-                  ✓ Accepter
+                  📍 Arrivé
                 </button>
+              )}
+              {r.status !== "completed" && (
                 <button
-                  onClick={() => setConfirmAction({ type: "refuse", r })}
+                  onClick={() => handleUpdateReservationStatus(r, "completed")}
                   style={{
-                    background: "#ef4444",
+                    background: "#2563eb",
                     color: "#fff",
-                    border: 0,
-                    padding: "12px 18px",
+                    border: "none",
+                    padding: "10px 14px",
                     borderRadius: 12,
                     cursor: "pointer",
                     fontWeight: 700,
                     fontSize: 13,
                   }}
                 >
-                  ✗ Refuser
+                  🏁 Terminé
                 </button>
-              </>
-            )}
-
-            {normalizeStatus(r.status) === "accepted" &&
-              phone &&
-              (() => {
-                const TAXI_WA = "33673072322";
-                let waPhone = (phone || "").replace(/[^\d]/g, "");
-                if (waPhone.startsWith("0")) waPhone = "33" + waPhone.slice(1);
-                if (waPhone.startsWith("330")) waPhone = "33" + waPhone.slice(3);
-                const pickupStr = r.pickup_datetime
-                  ? formatParis(r.pickup_datetime, { dateStyle: "full", timeStyle: "short" })
-                  : "—";
-                const prixNum = r.prix_estime
-                  ? Number(r.prix_estime)
-                  : km_card
-                    ? r.pickup_datetime
-                      ? calculerPrixMixte(km_card, r.pickup_datetime)
-                      : calculerPrix(km_card, !tarif_nuit_card)
-                    : null;
-                const prixStr = prixNum ? `${prixNum.toFixed(2)} €` : "à confirmer";
-                const refId = `TCB-${r.id.slice(0, 8).toUpperCase()}`;
-                const paxLine = `${r.nb_passagers || r.passagers || 1} passager(s)${(r.bagages ?? 0) > 0 ? ` · ${r.bagages} bagage(s)` : ""}`;
-                const waMsg = encodeURIComponent(
-                  `Bonjour ${name || ""},\n\n✅ Votre course *${refId}* est confirmée !\n\n🕐 Prise en charge : ${pickupStr}\n📍 Départ : ${r.depart}\n🏁 Arrivée : ${dest || "—"}\n👥 ${paxLine}\n💰 Prix estimé : *${prixStr}* (tarif ${tarif_nuit_card ? "nuit" : "jour"})\n\n` +
-                    (trackingUrl ? `📲 Suivez votre chauffeur :\n${trackingUrl}\n\n` : "") +
-                    `📞 06 73 07 23 22 (7j/7 · 24h/24)`,
-                );
-                return (
-                  <button
-                    onClick={() => {
-                      if (waPhone.length < 10 || waPhone === TAXI_WA) {
-                        toast.warning("WhatsApp non envoyé", { description: "Aucun numéro client valide." });
-                        return;
-                      }
-                      window.open(`https://wa.me/${waPhone}?text=${waMsg}`, "_blank", "noopener,noreferrer");
-                    }}
-                    style={{
-                      background: "rgba(37,211,102,0.12)",
-                      border: "1px solid rgba(37,211,102,0.3)",
-                      color: "#4ade80",
-                      padding: "12px 18px",
-                      borderRadius: 12,
-                      cursor: "pointer",
-                      fontWeight: 700,
-                      fontSize: 13,
-                    }}
-                  >
-                    💬 WhatsApp
-                  </button>
-                );
-              })()}
-
-            {phone &&
-              (() => {
-                const smsPhone = (phone || "").replace(/[^\d]/g, "").replace(/^0/, "+33");
-                const pickupStr = r.pickup_datetime
-                  ? formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })
-                  : "—";
-                const prixNum = r.prix_estime
-                  ? Number(r.prix_estime)
-                  : km_card
-                    ? r.pickup_datetime
-                      ? calculerPrixMixte(km_card, r.pickup_datetime)
-                      : calculerPrix(km_card, !tarif_nuit_card)
-                    : null;
-                const prixStr = prixNum ? `${prixNum.toFixed(2)} €` : "à confirmer";
-                const refId = `TCB-${r.id.slice(0, 8).toUpperCase()}`;
-                return (
-                  <a
-                    href={`sms:${smsPhone}?body=${encodeURIComponent(`Bonjour ${name || ""},\nCourse ${refId} confirmee !\n${pickupStr} | ${r.depart} -> ${dest || "—"}\nPrix: ${prixStr}\n${trackingUrl ? `Suivi: ${trackingUrl}\n` : ""}Tel: 06 73 07 23 22`)}`}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 6,
-                      background: "rgba(168,85,247,0.12)",
-                      border: "1px solid rgba(168,85,247,0.3)",
-                      color: "#c084fc",
-                      padding: "12px 18px",
-                      borderRadius: 12,
-                      fontWeight: 700,
-                      fontSize: 13,
-                      textDecoration: "none",
-                    }}
-                  >
-                    💬 SMS
-                  </a>
-                );
-              })()}
-
-            {email && (
+              )}
               <button
-                onClick={() => handleSendEmail(r)}
+                onClick={() => handleUpdateReservationStatus(r, "cancelled")}
                 style={{
-                  background: "rgba(14,165,233,0.12)",
-                  border: "1px solid rgba(14,165,233,0.3)",
-                  color: "#38bdf8",
-                  padding: "12px 18px",
+                  background: "rgba(239,68,68,0.15)",
+                  border: "1px solid rgba(239,68,68,0.3)",
+                  color: "#f87171",
+                  padding: "10px 14px",
                   borderRadius: 12,
                   cursor: "pointer",
                   fontWeight: 700,
                   fontSize: 13,
                 }}
               >
-                ✉️ Email client
+                ✖ Annuler
               </button>
-            )}
-            {(normalizeStatus(r.status) === "accepted" || r.status === "en_route" || r.status === "arrived") && (
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-                {r.status !== "en_route" && (
-                  <button
-                    onClick={() => handleUpdateReservationStatus(r, "en_route")}
-                    style={{
-                      background: "#f59e0b",
-                      color: "#0a0a14",
-                      border: "none",
-                      padding: "12px 14px",
-                      borderRadius: 12,
-                      cursor: "pointer",
-                      fontWeight: 700,
-                    }}
-                  >
-                    🚗 En route
-                  </button>
-                )}
-                {r.status !== "arrived" && (
-                  <button
-                    onClick={() => handleUpdateReservationStatus(r, "arrived")}
-                    style={{
-                      background: "#22c55e",
-                      color: "#fff",
-                      border: "none",
-                      padding: "12px 14px",
-                      borderRadius: 12,
-                      cursor: "pointer",
-                      fontWeight: 700,
-                    }}
-                  >
-                    📍 Arrivé
-                  </button>
-                )}
-                {r.status !== "completed" && (
-                  <button
-                    onClick={() => handleUpdateReservationStatus(r, "completed")}
-                    style={{
-                      background: "#2563eb",
-                      color: "#fff",
-                      border: "none",
-                      padding: "12px 14px",
-                      borderRadius: 12,
-                      cursor: "pointer",
-                      fontWeight: 700,
-                    }}
-                  >
-                    🏁 Terminé
-                  </button>
-                )}
-                <button
-                  onClick={() => handleUpdateReservationStatus(r, "cancelled")}
-                  style={{
-                    background: "#ef4444",
-                    color: "#fff",
-                    border: "none",
-                    padding: "12px 14px",
-                    borderRadius: 12,
-                    cursor: "pointer",
-                    fontWeight: 700,
-                  }}
-                >
-                  ✖ Annuler
-                </button>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </SwipeDeleteRow>
-    );
-  }
-
-  // ─── Helper : section header ───
-  function SectionHeader({
-    color,
-    label,
-    count,
-    borderColor,
-  }: {
-    color: string;
-    label: string;
-    count: number;
-    borderColor: string;
-  }) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          marginBottom: 16,
-          paddingBottom: 10,
-          borderBottom: `1px solid ${borderColor}`,
-        }}
-      >
-        <span
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
-            background: color,
-            flexShrink: 0,
-            boxShadow: `0 0 8px ${color}99`,
-          }}
-        />
-        <h3
-          style={{
-            fontFamily: "'Syne',sans-serif",
-            fontSize: 15,
-            fontWeight: 800,
-            color,
-            margin: 0,
-            textTransform: "uppercase",
-            letterSpacing: "0.06em",
-          }}
-        >
-          {label}
-        </h3>
-        <span
-          style={{
-            background: `${color}26`,
-            color,
-            padding: "2px 10px",
-            borderRadius: 99,
-            fontSize: 12,
-            fontWeight: 700,
-          }}
-        >
-          {count}
-        </span>
-      </div>
     );
   }
 
@@ -1557,7 +1163,7 @@ function Dashboard() {
       }}
     >
       <SkeletonStyles />
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}@keyframes pulseDot{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}50%{box-shadow:0 0 0 14px rgba(34,197,94,0.2)}}`}</style>
 
       {/* ── Header ── */}
       <div
@@ -1581,8 +1187,8 @@ function Dashboard() {
           </h1>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <EnablePushButton audience="admin" size="sm" label="Notifs admin" />
-          <EnablePushButton audience="chauffeur" size="sm" variant="outline" label="Notifs chauffeur" />
+          {/* Un seul bouton notifications unifié */}
+          <EnablePushButton audience="admin" size="sm" label="🔔 Notifs" />
           <a
             href="/"
             style={{
@@ -1597,10 +1203,9 @@ function Dashboard() {
               display: "inline-flex",
               alignItems: "center",
               gap: 6,
-              whiteSpace: "nowrap",
             }}
           >
-            ← Retour au site
+            ← Site
           </a>
           <button
             onClick={async () => {
@@ -1617,23 +1222,16 @@ function Dashboard() {
               cursor: refreshing ? "not-allowed" : "pointer",
               fontWeight: 600,
               fontSize: 13,
-              whiteSpace: "nowrap",
               display: "inline-flex",
               alignItems: "center",
               gap: 6,
               opacity: refreshing ? 0.7 : 1,
-              transition: "opacity 0.2s",
             }}
           >
-            <span
-              style={{
-                display: "inline-block",
-                animation: refreshing ? "spin 1s linear infinite" : "none",
-              }}
-            >
+            <span style={{ display: "inline-block", animation: refreshing ? "spin 1s linear infinite" : "none" }}>
               ↻
             </span>
-            {refreshing ? "Actualisation…" : "Actualiser"}
+            {refreshing ? "…" : "Actualiser"}
           </button>
           <button
             onClick={async () => {
@@ -1649,301 +1247,162 @@ function Dashboard() {
               cursor: "pointer",
               fontWeight: 600,
               fontSize: 13,
-              whiteSpace: "nowrap",
               display: "inline-flex",
               alignItems: "center",
               gap: 6,
             }}
           >
-            🔓 Déconnexion
+            🔓 Déco
           </button>
         </div>
       </div>
 
-      {/* ── Prochaine course acceptée ── */}
-      {!statsLoading &&
-        nextCourse &&
-        (() => {
-          const nuit = isNuit(nextCourse.pickup_datetime);
-          const prix = getPrix(nextCourse);
-          const phone = nextCourse.telephone || nextCourse.client_phone;
-          const email = nextCourse.email || nextCourse.client_email;
-          const name = nextCourse.nom || nextCourse.client_name;
-          const arrivee = nextCourse.arrivee || nextCourse.destination;
-          const trackingUrl =
-            nextCourse.tracking_id && typeof window !== "undefined"
-              ? `${window.location.origin}/scan/${nextCourse.tracking_id}`
-              : null;
-
-          return (
-            <div
-              style={{
-                ...card,
-                marginBottom: 20,
-                border: "1px solid rgba(34,197,94,0.35)",
-                background: "rgba(34,197,94,0.06)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                <span style={{ fontSize: 22 }}>🚖</span>
-                <h2
-                  style={{
-                    fontFamily: "'Syne',sans-serif",
-                    fontSize: 16,
-                    fontWeight: 800,
-                    color: "#22c55e",
-                    margin: 0,
-                  }}
-                >
-                  Prochaine course
-                </h2>
-                <span
-                  style={{
-                    marginLeft: "auto",
-                    background: nuit ? "rgba(99,102,241,0.2)" : "rgba(250,204,21,0.15)",
-                    color: nuit ? "#818cf8" : "#fbbf24",
-                    padding: "3px 10px",
-                    borderRadius: 99,
-                    fontSize: 11,
-                    fontWeight: 700,
-                  }}
-                >
-                  {nuit ? `🌙 Nuit ${TARIF_NUIT_LABEL}` : `☀️ Jour ${TARIF_JOUR_LABEL}`}
-                </span>
-              </div>
-              <div style={{ display: "grid", gap: 10 }}>
-                <div
-                  style={{
-                    background: "rgba(14,165,233,0.08)",
-                    border: "1px solid rgba(14,165,233,0.2)",
-                    borderRadius: 12,
-                    padding: "10px 14px",
-                  }}
-                >
-                  <div
-                    style={{
-                      color: "#64748b",
-                      fontSize: 11,
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                      marginBottom: 4,
-                    }}
-                  >
-                    🕐 Prise en charge
-                  </div>
-                  <div
-                    style={{
-                      color: "#f8fafc",
-                      fontFamily: "'DM Sans',sans-serif",
-                      fontWeight: 800,
-                      fontSize: 17,
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    {formatParis(nextCourse.pickup_datetime, { dateStyle: "full", timeStyle: "short" })}
-                  </div>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  {[
-                    { label: "🟢 Départ", val: nextCourse.depart },
-                    { label: "📍 Arrivée", val: arrivee || "—" },
-                  ].map(({ label, val }) => (
+      {/* ── GPS — EN HAUT pour accès rapide ── */}
+      <div style={{ marginBottom: 24 }}>
+        <style>{`.gps-pulse{animation:pulseDot 2s infinite}`}</style>
+        {gpsLoading ? (
+          <GpsCardSkeleton />
+        ) : (
+          <div
+            style={{
+              ...card,
+              border: gpsActive ? "1px solid rgba(34,197,94,0.4)" : "1px solid rgba(255,255,255,0.08)",
+              background: gpsActive ? "rgba(34,197,94,0.05)" : "rgba(255,255,255,0.04)",
+              borderRadius: 20,
+              padding: "16px 20px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              {/* Indicateur GPS */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
+                {gpsActive ? (
+                  <>
                     <div
-                      key={label}
-                      style={{
-                        background: "rgba(255,255,255,0.04)",
-                        border: "1px solid rgba(255,255,255,0.08)",
-                        borderRadius: 12,
-                        padding: "10px 14px",
-                      }}
-                    >
-                      <div
-                        style={{
-                          color: "#64748b",
-                          fontSize: 11,
-                          fontWeight: 700,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.06em",
-                          marginBottom: 4,
-                        }}
-                      >
-                        {label}
+                      className="gps-pulse"
+                      style={{ width: 14, height: 14, background: "#22c55e", borderRadius: "50%", flexShrink: 0 }}
+                    />
+                    <div>
+                      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, color: "#22c55e" }}>
+                        📡 GPS actif
                       </div>
-                      <div style={{ color: "#cbd5e1", fontSize: 13, fontWeight: 600, wordBreak: "break-word" }}>
-                        {val}
-                      </div>
+                      {gpsPosition && (
+                        <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+                          {gpsPosition.lat.toFixed(4)}, {gpsPosition.lng.toFixed(4)}{" "}
+                          {gpsAccuracy !== null && `· ±${gpsAccuracy}m`} · {gpsUpdateCount} màj
+                        </div>
+                      )}
                     </div>
-                  ))}
-                </div>
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  {prix !== null && (
-                    <div
-                      style={{
-                        background: "rgba(14,165,233,0.1)",
-                        border: "1px solid rgba(14,165,233,0.25)",
-                        borderRadius: 12,
-                        padding: "10px 16px",
-                        flex: 1,
-                        minWidth: 100,
-                      }}
-                    >
-                      <div
-                        style={{
-                          color: "#64748b",
-                          fontSize: 11,
-                          fontWeight: 700,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.06em",
-                          marginBottom: 4,
-                        }}
-                      >
-                        💰 Prix estimé
-                      </div>
-                      <div
-                        style={{
-                          color: "#0ea5e9",
-                          fontFamily: "'DM Sans',sans-serif",
-                          fontWeight: 800,
-                          fontSize: 20,
-                          fontVariantNumeric: "tabular-nums",
-                        }}
-                      >
-                        {prix.toFixed(2)} €
-                      </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ width: 14, height: 14, background: "#475569", borderRadius: "50%", flexShrink: 0 }} />
+                    <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#64748b" }}>
+                      📡 GPS inactif
                     </div>
-                  )}
-                  <div
-                    style={{
-                      background: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      borderRadius: 12,
-                      padding: "10px 16px",
-                      flex: 1,
-                      minWidth: 80,
-                    }}
-                  >
-                    <div
-                      style={{
-                        color: "#64748b",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.06em",
-                        marginBottom: 4,
-                      }}
-                    >
-                      👥 Passagers
-                    </div>
-                    <div style={{ color: "#f8fafc", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20 }}>
-                      {nextCourse.passagers || nextCourse.nb_passagers || 1}
-                    </div>
-                  </div>
-                </div>
-                {nextCourse.paiement && (
-                  <div
-                    style={{
-                      background: "rgba(34,197,94,0.06)",
-                      border: "1px solid rgba(34,197,94,0.2)",
-                      borderRadius: 12,
-                      padding: "8px 14px",
-                      color: "#22c55e",
-                      fontSize: 13,
-                      fontWeight: 700,
-                    }}
-                  >
-                    {paiementLabel(nextCourse.paiement)}
-                  </div>
+                  </>
                 )}
-                <div
+              </div>
+              {/* Course liée */}
+              {gpsActive &&
+                activeResaId &&
+                (() => {
+                  const linked = items.find((x) => x.id === activeResaId);
+                  if (!linked) return null;
+                  return (
+                    <div
+                      style={{
+                        background: "rgba(34,197,94,0.1)",
+                        border: "1px solid rgba(34,197,94,0.2)",
+                        borderRadius: 10,
+                        padding: "6px 12px",
+                        fontSize: 13,
+                        color: "#22c55e",
+                        fontWeight: 700,
+                      }}
+                    >
+                      → {linked.client_name || linked.nom || "Client"}
+                    </div>
+                  );
+                })()}
+              {/* Bouton terminer course active */}
+              {gpsActive &&
+                activeResaId &&
+                (() => {
+                  const linked = items.find((x) => x.id === activeResaId);
+                  const canComplete = linked && linked.status !== "completed" && linked.status !== "cancelled";
+                  if (!canComplete) return null;
+                  return (
+                    <button
+                      onClick={() => handleUpdateReservationStatus(linked, "completed")}
+                      style={{
+                        background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+                        color: "#fff",
+                        border: 0,
+                        padding: "10px 18px",
+                        borderRadius: 12,
+                        cursor: "pointer",
+                        fontWeight: 800,
+                        fontSize: 14,
+                        boxShadow: "0 4px 12px rgba(37,99,235,0.3)",
+                      }}
+                    >
+                      🏁 Terminer
+                    </button>
+                  );
+                })()}
+              {/* Stop GPS */}
+              {gpsActive && (
+                <button
+                  onClick={stopGPS}
                   style={{
-                    background: "rgba(255,255,255,0.04)",
+                    background: "transparent",
+                    color: "#475569",
                     border: "1px solid rgba(255,255,255,0.08)",
-                    borderRadius: 12,
                     padding: "10px 14px",
+                    borderRadius: 12,
+                    cursor: "pointer",
+                    fontWeight: 600,
+                    fontSize: 13,
                   }}
                 >
-                  <div
-                    style={{
-                      color: "#64748b",
-                      fontSize: 11,
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                      marginBottom: 8,
-                    }}
-                  >
-                    👤 Client
-                  </div>
-                  <div style={{ color: "#f8fafc", fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{name || "—"}</div>
-                  <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-                    {phone && (
-                      <a
-                        href={`tel:${phone}`}
-                        style={{ color: "#0ea5e9", textDecoration: "none", fontWeight: 700, fontSize: 14 }}
-                      >
-                        📞 {phone}
-                      </a>
-                    )}
-                    {email && (
-                      <a href={`mailto:${email}`} style={{ color: "#94a3b8", textDecoration: "none", fontSize: 13 }}>
-                        ✉️ {email}
-                      </a>
-                    )}
-                  </div>
-                </div>
-                {nextCourse.message && (
-                  <div
-                    style={{
-                      background: "rgba(14,165,233,0.06)",
-                      border: "1px solid rgba(14,165,233,0.15)",
-                      borderRadius: 12,
-                      padding: "10px 14px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        color: "#64748b",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.06em",
-                        marginBottom: 6,
-                      }}
-                    >
-                      💬 Message client
-                    </div>
-                    <div style={{ color: "#94a3b8", fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-line" }}>
-                      {nextCourse.message}
-                    </div>
-                  </div>
-                )}
-                {trackingUrl && (
-                  <a
-                    href={trackingUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 8,
-                      background: "rgba(139,92,246,0.15)",
-                      border: "1px solid rgba(139,92,246,0.3)",
-                      color: "#a78bfa",
-                      padding: "10px 16px",
-                      borderRadius: 12,
-                      fontWeight: 700,
-                      fontSize: 13,
-                      textDecoration: "none",
-                    }}
-                  >
-                    📲 Lien de suivi client
-                  </a>
-                )}
-              </div>
+                  ⏹ Couper
+                </button>
+              )}
             </div>
-          );
-        })()}
+            {/* Mini-map */}
+            {gpsActive && (
+              <div
+                ref={gpsMapRef}
+                style={{
+                  width: "100%",
+                  height: 200,
+                  borderRadius: 14,
+                  overflow: "hidden",
+                  marginTop: 14,
+                  border: "1px solid rgba(34,197,94,0.2)",
+                  position: "relative",
+                }}
+              />
+            )}
+            {autoTransition && (
+              <div
+                style={{
+                  background: "rgba(245,200,66,0.12)",
+                  border: "1px solid rgba(245,200,66,0.3)",
+                  borderRadius: 10,
+                  padding: "8px 12px",
+                  marginTop: 10,
+                  fontSize: 13,
+                  color: "#f5c842",
+                  fontWeight: 700,
+                }}
+              >
+                🔄 Transition vers la prochaine course…
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* ── KPI Cards ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, marginBottom: 14 }}>
@@ -1981,7 +1440,68 @@ function Dashboard() {
         )}
       </div>
 
-      {/* ── Section Courses ── */}
+      {/* ── Prochaine course ── */}
+      {!statsLoading &&
+        nextCourse &&
+        (() => {
+          const nuit = isNuit(nextCourse.pickup_datetime);
+          const prix = getPrix(nextCourse);
+          const arrivee = nextCourse.arrivee || nextCourse.destination;
+          return (
+            <div
+              style={{
+                ...card,
+                marginBottom: 24,
+                border: "1px solid rgba(34,197,94,0.35)",
+                background: "rgba(34,197,94,0.06)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                <span style={{ fontSize: 20 }}>🚖</span>
+                <h2
+                  style={{
+                    fontFamily: "'Syne',sans-serif",
+                    fontSize: 15,
+                    fontWeight: 800,
+                    color: "#22c55e",
+                    margin: 0,
+                  }}
+                >
+                  Prochaine course
+                </h2>
+                <span
+                  style={{
+                    marginLeft: "auto",
+                    background: nuit ? "rgba(99,102,241,0.2)" : "rgba(250,204,21,0.15)",
+                    color: nuit ? "#818cf8" : "#fbbf24",
+                    padding: "3px 10px",
+                    borderRadius: 99,
+                    fontSize: 11,
+                    fontWeight: 700,
+                  }}
+                >
+                  {nuit ? `🌙 Nuit` : `☀️ Jour`}
+                </span>
+              </div>
+              <div style={{ color: "#f8fafc", fontWeight: 800, fontSize: 16, marginBottom: 4 }}>
+                {formatParis(nextCourse.pickup_datetime, { dateStyle: "full", timeStyle: "short" })}
+              </div>
+              <div style={{ color: "#cbd5e1", fontSize: 14, marginBottom: 10 }}>
+                🟢 {nextCourse.depart} → 📍 {arrivee || "—"}
+              </div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 13, color: "#94a3b8" }}>
+                <span>👤 {nextCourse.nom || nextCourse.client_name}</span>
+                <span>👥 {nextCourse.passagers || nextCourse.nb_passagers || 1} pax</span>
+                {prix !== null && <span style={{ color: "#0ea5e9", fontWeight: 700 }}>💰 {prix.toFixed(2)} €</span>}
+                {nextCourse.paiement && <span style={{ color: "#22c55e" }}>{paiementLabel(nextCourse.paiement)}</span>}
+              </div>
+            </div>
+          );
+        })()}
+
+      {/* ══════════════════════════════
+          SECTION COURSES
+      ══════════════════════════════ */}
       <div>
         <h2
           style={{
@@ -2011,12 +1531,12 @@ function Dashboard() {
               count={counts.pending}
               borderColor="rgba(245,158,11,0.25)"
             />
-            <div style={{ color: "#94a3b8", fontSize: 13, marginTop: 8 }}>
-              Swipez une course vers la gauche pour supprimer. Utilisez les boutons pour accepter ou refuser.
+            <div style={{ color: "#64748b", fontSize: 12, marginBottom: 12 }}>
+              ← Swipez pour supprimer · Acceptez ou refusez chaque course
             </div>
             {pending.length === 0 && (
               <div style={{ textAlign: "center", color: "#475569", padding: "20px 0" }}>
-                Aucune réservation en attente
+                Aucune réservation en attente ✓
               </div>
             )}
             {pending.map((r) => (
@@ -2025,7 +1545,22 @@ function Dashboard() {
           </div>
         )}
 
-        {/* ── Acceptées ── */}
+        {/* ── En cours (en_route + arrived) ── */}
+        {!coursesLoading && inProgress.length > 0 && (
+          <div style={{ marginBottom: 36 }}>
+            <SectionHeader
+              color="#f5c842"
+              label="En cours"
+              count={inProgress.length}
+              borderColor="rgba(245,200,66,0.25)"
+            />
+            {inProgress.map((r) => (
+              <CourseCard key={r.id} r={r} />
+            ))}
+          </div>
+        )}
+
+        {/* ── Acceptées (planifiées) ── */}
         {!coursesLoading && (
           <div style={{ marginBottom: 36 }}>
             <SectionHeader
@@ -2039,6 +1574,53 @@ function Dashboard() {
             )}
             {accepted.map((r) => (
               <CourseCard key={r.id} r={r} />
+            ))}
+          </div>
+        )}
+
+        {/* ── Terminées ── */}
+        {!coursesLoading && completed.length > 0 && (
+          <div style={{ marginBottom: 36 }}>
+            <SectionHeader
+              color="#22c55e"
+              label="Terminées"
+              count={completed.length}
+              borderColor="rgba(34,197,94,0.25)"
+            />
+            {completed.map((r) => (
+              <SwipeDeleteRow
+                key={r.id}
+                onDelete={() => handleDeleteReservation(r.id)}
+                disabled={deleteBusy}
+                style={{ marginBottom: 14 }}
+              >
+                <div style={{ ...card, opacity: 0.7 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                    <div>
+                      <div style={{ color: "#fff", fontWeight: 700, fontSize: 16 }}>{r.client_name || r.nom}</div>
+                      <div style={{ color: "#94a3b8", marginTop: 6, fontSize: 13 }}>
+                        🟢 {r.depart} → 📍 {r.destination || r.arrivee}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                      <StatusBadge s={r.status} />
+                      <span style={{ color: "#64748b", fontSize: 12 }}>
+                        {r.pickup_datetime
+                          ? formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })
+                          : new Date(r.created_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
+                      </span>
+                    </div>
+                  </div>
+                  {(() => {
+                    const p = getPrix(r);
+                    return p ? (
+                      <div style={{ marginTop: 8, color: "#0ea5e9", fontWeight: 700, fontSize: 15 }}>
+                        💰 {p.toFixed(2)} €
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+              </SwipeDeleteRow>
             ))}
           </div>
         )}
@@ -2060,43 +1642,35 @@ function Dashboard() {
                 <div style={{ ...card }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                     <div>
-                      <div style={{ color: "#fff", fontWeight: 700, fontSize: 18 }}>{r.client_name || r.nom}</div>
-                      <div style={{ color: "#cbd5e1", marginTop: 8 }}>
+                      <div style={{ color: "#fff", fontWeight: 700, fontSize: 16 }}>{r.client_name || r.nom}</div>
+                      <div style={{ color: "#cbd5e1", marginTop: 6, fontSize: 13 }}>
                         🟢 {r.depart} → 📍 {r.destination || r.arrivee}
                       </div>
                     </div>
                     <div style={{ color: "#64748b", fontSize: 13 }}>
-                      {r.pickup_datetime ? (
-                        <span>
-                          🕐{" "}
-                          <b style={{ color: "#f8fafc" }}>
-                            {formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })}
-                          </b>
-                        </span>
-                      ) : (
-                        new Date(r.created_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })
-                      )}
+                      {r.pickup_datetime
+                        ? formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })
+                        : new Date(r.created_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
                     </div>
                   </div>
                   <div
                     style={{
-                      marginTop: 14,
+                      marginTop: 10,
                       display: "flex",
                       gap: 10,
                       flexWrap: "wrap",
-                      color: "#94a3b8",
                       fontSize: 13,
+                      color: "#94a3b8",
                     }}
                   >
-                    <span>👥 {r.nb_passagers || r.passagers || 1} passager(s)</span>
-                    {r.bagages > 0 && <span>🧳 {r.bagages} bagage(s)</span>}
+                    <span>👥 {r.nb_passagers || r.passagers || 1} pax</span>
                     <StatusBadge s={r.status} />
                   </div>
                   {r.refus_motif && (
                     <div
                       style={{
-                        marginTop: 14,
-                        padding: "10px 12px",
+                        marginTop: 12,
+                        padding: "8px 12px",
                         background: "rgba(239,68,68,0.08)",
                         border: "1px solid rgba(239,68,68,0.25)",
                         borderRadius: 10,
@@ -2104,24 +1678,16 @@ function Dashboard() {
                         fontSize: 13,
                       }}
                     >
-                      <span style={{ fontWeight: 700, color: "#fca5a5" }}>Motif du refus :</span> {r.refus_motif}
+                      <span style={{ fontWeight: 700, color: "#fca5a5" }}>Motif :</span> {r.refus_motif}
                     </div>
                   )}
-                  <div style={{ marginTop: 14, display: "flex", gap: 14, flexWrap: "wrap" }}>
+                  <div style={{ marginTop: 12, display: "flex", gap: 12, flexWrap: "wrap" }}>
                     {(r.client_phone || r.telephone) && (
                       <a
                         href={`tel:${r.client_phone || r.telephone}`}
-                        style={{ color: "#0ea5e9", textDecoration: "none", fontWeight: 600 }}
+                        style={{ color: "#0ea5e9", textDecoration: "none", fontWeight: 600, fontSize: 13 }}
                       >
                         📞 {r.client_phone || r.telephone}
-                      </a>
-                    )}
-                    {(r.client_email || r.email) && (
-                      <a
-                        href={`mailto:${r.client_email || r.email}`}
-                        style={{ color: "#94a3b8", textDecoration: "none" }}
-                      >
-                        ✉️ {r.client_email || r.email}
                       </a>
                     )}
                   </div>
@@ -2140,18 +1706,20 @@ function Dashboard() {
           <h2 style={{ fontFamily: "'Syne',sans-serif", fontSize: 20, fontWeight: 800, color: "#f8fafc", margin: 0 }}>
             ⭐ Avis clients
           </h2>
-          <span
-            style={{
-              background: "rgba(251,191,36,0.15)",
-              color: "#fbbf24",
-              padding: "2px 10px",
-              borderRadius: 99,
-              fontSize: 12,
-              fontWeight: 700,
-            }}
-          >
-            {avis.filter((a) => a.status === "pending" || !a.status).length} en attente
-          </span>
+          {avis.filter((a) => a.status === "pending" || !a.status).length > 0 && (
+            <span
+              style={{
+                background: "rgba(251,191,36,0.15)",
+                color: "#fbbf24",
+                padding: "2px 10px",
+                borderRadius: 99,
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+            >
+              {avis.filter((a) => a.status === "pending" || !a.status).length} en attente
+            </span>
+          )}
         </div>
 
         {avisLoading && <div style={{ textAlign: "center", color: "#475569", padding: 40 }}>Chargement des avis…</div>}
@@ -2193,7 +1761,7 @@ function Dashboard() {
             </div>
             {avis.filter((a) => !a.status || a.status === "pending").length === 0 && (
               <div style={{ textAlign: "center", color: "#475569", padding: "16px 0", fontSize: 14 }}>
-                Aucun avis en attente de modération
+                Aucun avis en attente
               </div>
             )}
             {avis
@@ -2249,7 +1817,7 @@ function Dashboard() {
                           fontSize: 13,
                         }}
                       >
-                        ✓ Valider & publier
+                        ✓ Publier
                       </button>
                       <button
                         onClick={() => handleAvisAction(a.id, "refused")}
@@ -2414,15 +1982,7 @@ function Dashboard() {
                 borderBottom: "1px solid rgba(239,68,68,0.2)",
               }}
             >
-              <span
-                style={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: "50%",
-                  background: "#ef4444",
-                  boxShadow: "0 0 6px rgba(239,68,68,0.6)",
-                }}
-              />
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#ef4444" }} />
               <span
                 style={{
                   fontFamily: "'Syne',sans-serif",
@@ -2457,8 +2017,8 @@ function Dashboard() {
                       style={{
                         display: "flex",
                         justifyContent: "space-between",
-                        gap: 10,
                         flexWrap: "wrap",
+                        gap: 8,
                         marginBottom: 6,
                       }}
                     >
@@ -2483,7 +2043,7 @@ function Dashboard() {
                           Refusé
                         </span>
                       </div>
-                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <div style={{ display: "flex", gap: 6 }}>
                         <button
                           onClick={() => handleAvisAction(a.id, "approved")}
                           style={{
@@ -2526,499 +2086,7 @@ function Dashboard() {
         )}
       </div>
 
-      {/* ══════════════════════════════
-          SECTION GPS CHAUFFEUR
-      ══════════════════════════════ */}
-      <div style={{ marginTop: 48 }}>
-        <style>{`
-          @keyframes pulseDot {
-            0%,100% { box-shadow:0 0 0 0 rgba(34,197,94,0); }
-            50%      { box-shadow:0 0 0 14px rgba(34,197,94,0.2); }
-          }
-          .swipe-hint {
-            display: flex; align-items: center; gap: 6px;
-            color: #475569; font-size: 11px; margin-bottom: 10px;
-            font-family: 'DM Sans', sans-serif;
-          }
-          .gps-input {
-            width: 100%; box-sizing: border-box; padding: 12px;
-            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 12px; color: #fff; font-size: 14px; outline: none;
-          }
-          .gps-input:focus { border-color: rgba(14,165,233,0.5); }
-        `}</style>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-          <h2 style={{ fontFamily: "'Syne',sans-serif", fontSize: 20, fontWeight: 800, color: "#f8fafc", margin: 0 }}>
-            📡 GPS Chauffeur
-          </h2>
-          {gpsActive && (
-            <span
-              style={{
-                background: "rgba(34,197,94,0.15)",
-                color: "#22c55e",
-                padding: "2px 10px",
-                borderRadius: 99,
-                fontSize: 12,
-                fontWeight: 700,
-              }}
-            >
-              Actif
-            </span>
-          )}
-        </div>
-
-        {gpsLoading ? (
-          <GpsCardSkeleton />
-        ) : (
-          <div
-            style={{
-              width: "100%",
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: 24,
-              padding: "24px 20px",
-              textAlign: "center",
-            }}
-          >
-            {!gpsActive ? (
-              <>
-                <div style={{ fontSize: 48, opacity: 0.3, marginBottom: 12 }}>📡</div>
-                <h3
-                  style={{
-                    fontFamily: "'Syne',sans-serif",
-                    color: "#64748b",
-                    margin: "0 0 6px",
-                    fontSize: 15,
-                    fontWeight: 700,
-                  }}
-                >
-                  Connexion GPS…
-                </h3>
-                <p style={{ color: "#475569", fontSize: 13, margin: 0 }}>Démarrage automatique en cours</p>
-              </>
-            ) : (
-              <>
-                {/* Indicateur de transition automatique */}
-                {autoTransition && (
-                  <div
-                    style={{
-                      background: "rgba(245,200,66,0.12)",
-                      border: "1px solid rgba(245,200,66,0.3)",
-                      borderRadius: 12,
-                      padding: "10px 14px",
-                      marginBottom: 16,
-                      fontSize: 13,
-                      color: "#f5c842",
-                      fontWeight: 700,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <span style={{ fontSize: 16 }}>🔄</span> Transition vers la prochaine course…
-                  </div>
-                )}
-                <div
-                  style={{
-                    width: 80,
-                    height: 80,
-                    background: "#22c55e",
-                    borderRadius: "50%",
-                    margin: "0 auto",
-                    animation: "pulseDot 2s infinite",
-                  }}
-                />
-                <h3
-                  style={{
-                    fontFamily: "'Syne',sans-serif",
-                    color: "#f8fafc",
-                    marginTop: 16,
-                    fontSize: 18,
-                    fontWeight: 800,
-                  }}
-                >
-                  Position active
-                </h3>
-                <p style={{ color: "#94a3b8", fontSize: 14 }}>Vos clients vous voient</p>
-                {/* Course liée au GPS */}
-                {activeResaId &&
-                  (() => {
-                    const r = items.find((x) => x.id === activeResaId);
-                    if (!r) return null;
-                    const dest = r.arrivee || r.destination || "—";
-                    const clientName = r.client_name || r.nom || "—";
-                    return (
-                      <div
-                        style={{
-                          background: "rgba(34,197,94,0.08)",
-                          border: "1px solid rgba(34,197,94,0.2)",
-                          borderRadius: 14,
-                          padding: "12px 14px",
-                          marginTop: 14,
-                          textAlign: "left",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: 10,
-                            color: "#64748b",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.07em",
-                            marginBottom: 6,
-                            fontWeight: 600,
-                          }}
-                        >
-                          Course en cours
-                        </div>
-                        <div style={{ fontSize: 15, fontWeight: 700, color: "#f1f5f9", marginBottom: 4 }}>
-                          {clientName}
-                        </div>
-                        <div style={{ fontSize: 13, color: "#94a3b8" }}>
-                          📍 {r.depart} → {dest}
-                        </div>
-                        {r.pickup_datetime && (
-                          <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
-                            🕐 {formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                {!activeResaId && (
-                  <div style={{ fontSize: 13, color: "#475569", marginTop: 14 }}>
-                    Aucune course liée — en attente d'une réservation
-                  </div>
-                )}
-                {gpsPosition && (
-                  <div
-                    style={{
-                      fontFamily: "'DM Sans',sans-serif",
-                      fontSize: 12,
-                      color: "#cbd5e1",
-                      marginTop: 14,
-                      wordBreak: "break-all",
-                    }}
-                  >
-                    {gpsPosition.lat.toFixed(5)}, {gpsPosition.lng.toFixed(5)}
-                  </div>
-                )}
-                {gpsAccuracy !== null && (
-                  <div style={{ color: "#64748b", fontSize: 12, marginTop: 4 }}>
-                    Précision : ±{gpsAccuracy} m · {gpsUpdateCount} mises à jour
-                  </div>
-                )}
-                {/* ── Mini-map Leaflet ── */}
-                <div
-                  ref={gpsMapRef}
-                  style={{
-                    width: "100%",
-                    height: 260,
-                    borderRadius: 16,
-                    overflow: "hidden",
-                    marginTop: 16,
-                    border: "1px solid rgba(34,197,94,0.25)",
-                    position: "relative",
-                  }}
-                />
-                {gpsDestination && (
-                  <div style={{ marginTop: 14, color: "#cbd5e1", fontSize: 14 }}>📍 {gpsDestination}</div>
-                )}
-                {gpsPrixEstime && (
-                  <div
-                    style={{
-                      color: "#0ea5e9",
-                      fontFamily: "'DM Sans',sans-serif",
-                      fontSize: 22,
-                      fontWeight: 800,
-                      fontVariantNumeric: "tabular-nums",
-                      marginTop: 4,
-                    }}
-                  >
-                    {gpsPrixEstime}
-                  </div>
-                )}
-                {/* Bouton terminer : marque la course completed → déclenche la transition auto */}
-                {activeResaId &&
-                  (() => {
-                    const r = items.find((x) => x.id === activeResaId);
-                    const canComplete = r && r.status !== "completed" && r.status !== "cancelled";
-                    if (!canComplete) return null;
-                    return (
-                      <button
-                        onClick={() => handleUpdateReservationStatus(r, "completed")}
-                        style={{
-                          marginTop: 20,
-                          width: "100%",
-                          height: 52,
-                          background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
-                          color: "#fff",
-                          border: 0,
-                          borderRadius: 14,
-                          fontFamily: "'Syne',sans-serif",
-                          fontWeight: 800,
-                          fontSize: 15,
-                          cursor: "pointer",
-                          boxShadow: "0 4px 16px rgba(37,99,235,0.3)",
-                        }}
-                      >
-                        🏁 Terminer la course
-                      </button>
-                    );
-                  })()}
-                {/* Bouton urgence : coupe le GPS complètement */}
-                <button
-                  onClick={stopGPS}
-                  style={{
-                    marginTop: 10,
-                    width: "100%",
-                    height: 40,
-                    background: "transparent",
-                    color: "#475569",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    borderRadius: 12,
-                    fontFamily: "'DM Sans',sans-serif",
-                    fontWeight: 600,
-                    fontSize: 13,
-                    cursor: "pointer",
-                  }}
-                >
-                  ⏹ Couper le GPS
-                </button>
-              </>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* ══════════════════════════════
-          SECTION PORTEFEUILLE CLIENTS
-      ══════════════════════════════ */}
-      <div style={{ marginTop: 48 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-          <h2 style={{ fontFamily: "'Syne',sans-serif", fontSize: 20, fontWeight: 800, color: "#f8fafc", margin: 0 }}>
-            👤 Portefeuille clients
-          </h2>
-          <span
-            style={{
-              background: "rgba(14,165,233,0.15)",
-              color: "#0ea5e9",
-              padding: "2px 10px",
-              borderRadius: 99,
-              fontSize: 12,
-              fontWeight: 700,
-            }}
-          >
-            {clients.length} clients
-          </span>
-          <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <input
-              value={clientSearch}
-              onChange={(e) => setClientSearch(e.target.value)}
-              placeholder="Rechercher…"
-              style={{
-                padding: "7px 12px",
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: 10,
-                color: "#f1f5f9",
-                fontSize: 13,
-                outline: "none",
-                width: 180,
-                fontFamily: "'DM Sans',sans-serif",
-              }}
-            />
-            <select
-              value={clientSort}
-              onChange={(e) => setClientSort(e.target.value as any)}
-              style={{
-                padding: "7px 10px",
-                background: "#0f172a",
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: 10,
-                color: "#94a3b8",
-                fontSize: 13,
-                cursor: "pointer",
-                fontFamily: "'DM Sans',sans-serif",
-              }}
-            >
-              <option value="date">Trier : récents</option>
-              <option value="name">Trier : nom A→Z</option>
-              <option value="courses">Trier : + de courses</option>
-              <option value="ca">Trier : + de CA</option>
-            </select>
-          </div>
-        </div>
-
-        {clientsLoading && (
-          <div style={{ textAlign: "center", color: "#475569", padding: 40 }}>Chargement des clients…</div>
-        )}
-
-        {!clientsLoading &&
-          (() => {
-            const q = clientSearch.toLowerCase().trim();
-            const filtered = clients.filter((c) => {
-              if (!q) return true;
-              return (
-                (c.nom || c.name || "").toLowerCase().includes(q) ||
-                (c.email || "").toLowerCase().includes(q) ||
-                (c.telephone || c.phone || "").includes(q)
-              );
-            });
-            const sorted = [...filtered].sort((a, b) => {
-              if (clientSort === "name") return (a.nom || a.name || "").localeCompare(b.nom || b.name || "");
-              if (clientSort === "courses") return (b.nb_courses ?? 0) - (a.nb_courses ?? 0);
-              if (clientSort === "ca") return (b.ca_total ?? 0) - (a.ca_total ?? 0);
-              return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-            });
-
-            if (sorted.length === 0)
-              return (
-                <div style={{ textAlign: "center", color: "#475569", padding: "30px 0", fontSize: 14 }}>
-                  {q ? "Aucun client ne correspond à la recherche" : "Aucun client enregistré"}
-                </div>
-              );
-
-            return (
-              <div style={{ display: "grid", gap: 10 }}>
-                {sorted.map((c) => {
-                  const name = c.nom || c.name || "—";
-                  const email = c.email || "";
-                  const phone = c.telephone || c.phone || "";
-                  const since = c.created_at
-                    ? new Date(c.created_at).toLocaleDateString("fr-FR", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })
-                    : null;
-                  return (
-                    <SwipeDeleteRow
-                      key={c.id}
-                      onDelete={() => handleDeleteClient(c.id)}
-                      deleteLabel="🗑 Supprimer client"
-                    >
-                      <div style={{ ...card, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-                        <div
-                          style={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: "50%",
-                            background: "rgba(14,165,233,0.15)",
-                            border: "1px solid rgba(14,165,233,0.25)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontFamily: "'Syne',sans-serif",
-                            fontWeight: 800,
-                            fontSize: 16,
-                            color: "#0ea5e9",
-                            flexShrink: 0,
-                          }}
-                        >
-                          {name.charAt(0).toUpperCase()}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 120 }}>
-                          <div style={{ color: "#f8fafc", fontWeight: 700, fontSize: 15 }}>{name}</div>
-                          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 4 }}>
-                            {phone && (
-                              <a
-                                href={`tel:${phone}`}
-                                style={{ color: "#0ea5e9", textDecoration: "none", fontSize: 13, fontWeight: 600 }}
-                              >
-                                📞 {phone}
-                              </a>
-                            )}
-                            {email && (
-                              <a
-                                href={`mailto:${email}`}
-                                style={{ color: "#64748b", textDecoration: "none", fontSize: 13 }}
-                              >
-                                ✉️ {email}
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-                          <div
-                            style={{
-                              background: "rgba(255,255,255,0.04)",
-                              border: "1px solid rgba(255,255,255,0.08)",
-                              borderRadius: 10,
-                              padding: "6px 12px",
-                              textAlign: "center",
-                              minWidth: 60,
-                            }}
-                          >
-                            <div
-                              style={{
-                                fontFamily: "'DM Sans',sans-serif",
-                                fontWeight: 800,
-                                fontSize: 18,
-                                color: "#f8fafc",
-                                fontVariantNumeric: "tabular-nums",
-                              }}
-                            >
-                              {c.nb_courses ?? 0}
-                            </div>
-                            <div
-                              style={{
-                                fontSize: 10,
-                                color: "#64748b",
-                                fontFamily: "'DM Sans',sans-serif",
-                                letterSpacing: "0.06em",
-                              }}
-                            >
-                              COURSES
-                            </div>
-                          </div>
-                          <div
-                            style={{
-                              background: "rgba(14,165,233,0.08)",
-                              border: "1px solid rgba(14,165,233,0.2)",
-                              borderRadius: 10,
-                              padding: "6px 12px",
-                              textAlign: "center",
-                              minWidth: 72,
-                            }}
-                          >
-                            <div
-                              style={{
-                                fontFamily: "'DM Sans',sans-serif",
-                                fontWeight: 800,
-                                fontSize: 18,
-                                color: "#0ea5e9",
-                                fontVariantNumeric: "tabular-nums",
-                              }}
-                            >
-                              {(c.ca_total ?? 0).toFixed(0)} €
-                            </div>
-                            <div
-                              style={{
-                                fontSize: 10,
-                                color: "#64748b",
-                                fontFamily: "'DM Sans',sans-serif",
-                                letterSpacing: "0.06em",
-                              }}
-                            >
-                              CA TOTAL
-                            </div>
-                          </div>
-                          {since && (
-                            <div style={{ color: "#475569", fontSize: 11, fontFamily: "'DM Sans',sans-serif" }}>
-                              depuis {since}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </SwipeDeleteRow>
-                  );
-                })}
-              </div>
-            );
-          })()}
-      </div>
-
-      {/* ── Modale confirmation ── */}
+      {/* ── Modale Accepter / Refuser ── */}
       {confirmAction && (
         <div
           onClick={() => {
@@ -3045,17 +2113,17 @@ function Dashboard() {
               border: "1px solid rgba(255,255,255,0.1)",
               borderRadius: 20,
               padding: 28,
-              maxWidth: 440,
+              maxWidth: 420,
               width: "100%",
               boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
               fontFamily: "'DM Sans',sans-serif",
             }}
           >
-            <div style={{ fontSize: 38, marginBottom: 12 }}>{confirmAction.type === "accept" ? "✅" : "❌"}</div>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>{confirmAction.type === "accept" ? "✅" : "❌"}</div>
             <h2
               style={{
                 fontFamily: "'Syne',sans-serif",
-                fontSize: 22,
+                fontSize: 20,
                 fontWeight: 800,
                 color: "#f8fafc",
                 margin: "0 0 8px",
@@ -3063,7 +2131,7 @@ function Dashboard() {
             >
               {confirmAction.type === "accept" ? "Accepter cette course ?" : "Refuser cette course ?"}
             </h2>
-            <p style={{ color: "#94a3b8", fontSize: 14, lineHeight: 1.5, margin: "0 0 8px" }}>
+            <p style={{ color: "#94a3b8", fontSize: 14, lineHeight: 1.5, margin: "0 0 12px" }}>
               <b style={{ color: "#cbd5e1" }}>{confirmAction.r.client_name || confirmAction.r.nom}</b>
               {" — "}
               {confirmAction.r.depart} → {confirmAction.r.destination || confirmAction.r.arrivee}
@@ -3087,8 +2155,8 @@ function Dashboard() {
                   style={{ color: isNuit(confirmAction.r.pickup_datetime) ? "#818cf8" : "#fbbf24", fontWeight: 700 }}
                 >
                   {isNuit(confirmAction.r.pickup_datetime)
-                    ? `🌙 Tarif nuit ${TARIF_NUIT_LABEL}`
-                    : `☀️ Tarif jour ${TARIF_JOUR_LABEL}`}
+                    ? `🌙 Nuit ${TARIF_NUIT_LABEL}`
+                    : `☀️ Jour ${TARIF_JOUR_LABEL}`}
                 </span>
               </div>
             )}
@@ -3100,7 +2168,7 @@ function Dashboard() {
                   border: "1px solid rgba(14,165,233,0.2)",
                   borderRadius: 10,
                   padding: "12px 14px",
-                  marginBottom: 10,
+                  marginBottom: 14,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
@@ -3109,10 +2177,7 @@ function Dashboard() {
                 }}
               >
                 {kmLoading ? (
-                  <>
-                    <span style={{ color: "#94a3b8", fontSize: 13 }}>📡 Calcul de la distance…</span>
-                    <span style={{ color: "#475569", fontSize: 12, fontStyle: "italic" }}>via OpenRouteService</span>
-                  </>
+                  <span style={{ color: "#94a3b8", fontSize: 13 }}>📡 Calcul de la distance…</span>
                 ) : (
                   (() => {
                     const rv = confirmAction.r;
@@ -3121,7 +2186,7 @@ function Dashboard() {
                     return (
                       <>
                         <div>
-                          <div style={{ color: "#94a3b8", fontSize: 12, marginBottom: 2 }}>Distance estimée</div>
+                          <div style={{ color: "#94a3b8", fontSize: 12, marginBottom: 2 }}>Distance</div>
                           <div style={{ color: "#cbd5e1", fontWeight: 700, fontSize: 15 }}>{km} km</div>
                         </div>
                         <div style={{ textAlign: "right" }}>
@@ -3133,7 +2198,6 @@ function Dashboard() {
                               fontWeight: 800,
                               fontSize: 22,
                               fontVariantNumeric: "tabular-nums",
-                              letterSpacing: "-0.01em",
                             }}
                           >
                             {px.toFixed(2)} €
@@ -3146,136 +2210,37 @@ function Dashboard() {
               </div>
             )}
 
-            {(() => {
-              const ph = confirmAction.r.client_phone || confirmAction.r.telephone;
-              const em = confirmAction.r.client_email || confirmAction.r.email;
-              if (!ph && !em) return null;
-              return (
-                <div style={{ display: "flex", gap: 14, flexWrap: "wrap", margin: "0 0 14px", fontSize: 14 }}>
-                  {ph && (
-                    <a href={`tel:${ph}`} style={{ color: "#0ea5e9", textDecoration: "none", fontWeight: 600 }}>
-                      📞 {ph}
-                    </a>
-                  )}
-                  {em && (
-                    <a href={`mailto:${em}`} style={{ color: "#94a3b8", textDecoration: "none" }}>
-                      ✉️ {em}
-                    </a>
-                  )}
-                </div>
-              );
-            })()}
-
-            <p style={{ color: "#64748b", fontSize: 13, margin: "0 0 14px" }}>
+            {/* Automatique — info push */}
+            <div
+              style={{
+                background: "rgba(34,197,94,0.06)",
+                border: "1px solid rgba(34,197,94,0.2)",
+                borderRadius: 10,
+                padding: "8px 12px",
+                marginBottom: 14,
+                fontSize: 13,
+                color: "#22c55e",
+              }}
+            >
               {confirmAction.type === "accept"
-                ? "🔔 Push envoyée automatiquement. Options supplémentaires :"
-                : "🔔 Push envoyée automatiquement au client. Le motif sera enregistré."}
-            </p>
+                ? "🔔 Push + Email envoyés automatiquement au client"
+                : "🔔 Push envoyée automatiquement au client"}
+            </div>
 
-            {confirmAction.type === "accept" && (
-              <div
-                style={{
-                  background: "rgba(14,165,233,0.06)",
-                  border: "1px solid rgba(14,165,233,0.15)",
-                  borderRadius: 12,
-                  padding: "14px 16px",
-                  marginBottom: 16,
-                  display: "flex",
-                  gap: 10,
-                  flexWrap: "wrap",
-                }}
-              >
-                {[
-                  { key: "sms" as const, label: "💬 SMS", color: "#c084fc" },
-                  { key: "email" as const, label: "✉️ Email", color: "#38bdf8" },
-                  { key: "whatsapp" as const, label: "🟢 WhatsApp", color: "#4ade80" },
-                ].map(({ key, label, color }) => (
-                  <label
-                    key={key}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      cursor: "pointer",
-                      padding: "8px 14px",
-                      borderRadius: 10,
-                      background: notifChoices[key] ? `${color}18` : "rgba(255,255,255,0.04)",
-                      border: `1px solid ${notifChoices[key] ? `${color}60` : "rgba(255,255,255,0.08)"}`,
-                      transition: "all 0.15s",
-                      userSelect: "none",
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={notifChoices[key]}
-                      onChange={(e) => setNotifChoices((prev) => ({ ...prev, [key]: e.target.checked }))}
-                      style={{ accentColor: color, width: 16, height: 16, cursor: "pointer" }}
-                    />
-                    <span style={{ color: notifChoices[key] ? color : "#94a3b8", fontWeight: 700, fontSize: 14 }}>
-                      {label}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            )}
-
-            {confirmAction.type === "refuse" && (
-              <div
-                style={{
-                  background: "rgba(192,132,252,0.06)",
-                  border: "1px solid rgba(192,132,252,0.15)",
-                  borderRadius: 12,
-                  padding: "10px 16px",
-                  marginBottom: 14,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                }}
-              >
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    cursor: "pointer",
-                    padding: "6px 12px",
-                    borderRadius: 10,
-                    background: notifChoices.sms ? "rgba(192,132,252,0.15)" : "rgba(255,255,255,0.04)",
-                    border: `1px solid ${notifChoices.sms ? "rgba(192,132,252,0.5)" : "rgba(255,255,255,0.08)"}`,
-                    transition: "all 0.15s",
-                    userSelect: "none",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={notifChoices.sms}
-                    onChange={(e) => setNotifChoices((prev) => ({ ...prev, sms: e.target.checked }))}
-                    style={{ accentColor: "#c084fc", width: 16, height: 16, cursor: "pointer" }}
-                  />
-                  <span style={{ color: notifChoices.sms ? "#c084fc" : "#94a3b8", fontWeight: 700, fontSize: 14 }}>
-                    💬 SMS de refus au client
-                  </span>
-                </label>
-              </div>
-            )}
-
+            {/* Motif refus */}
             {confirmAction.type === "refuse" && (
               <div style={{ marginBottom: 18 }}>
-                <label
-                  htmlFor="refusal-reason"
-                  style={{ display: "block", color: "#cbd5e1", fontSize: 13, fontWeight: 600, marginBottom: 6 }}
-                >
+                <label style={{ display: "block", color: "#cbd5e1", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
                   Motif du refus <span style={{ color: "#ef4444" }}>*</span>
                 </label>
                 <textarea
-                  id="refusal-reason"
                   value={refusalReason}
                   onChange={(e) => setRefusalReason(e.target.value.slice(0, 500))}
                   disabled={confirmBusy}
                   autoFocus
                   rows={3}
                   maxLength={500}
-                  placeholder="Ex. : créneau indisponible, zone non desservie, doublon…"
+                  placeholder="Ex. : créneau indisponible, zone non desservie…"
                   style={{
                     width: "100%",
                     background: "rgba(255,255,255,0.04)",
@@ -3310,7 +2275,6 @@ function Dashboard() {
                 onClick={() => {
                   setConfirmAction(null);
                   setRefusalReason("");
-                  setNotifChoices({ sms: false, email: false, whatsapp: false });
                 }}
                 disabled={confirmBusy}
                 style={{
@@ -3330,16 +2294,11 @@ function Dashboard() {
                 disabled={confirmBusy || (confirmAction.type === "refuse" && refusalReason.trim().length < 3)}
                 onClick={async () => {
                   if (confirmBusy) return;
-                  if (confirmAction.type === "refuse" && refusalReason.trim().length < 3) {
-                    toast.error("Motif requis", { description: "3 caractères minimum." });
-                    return;
-                  }
                   setConfirmBusy(true);
                   try {
                     if (confirmAction.type === "accept") {
                       await handleAccept(confirmAction.r);
                       setConfirmAction(null);
-                      setNotifChoices({ sms: false, email: false, whatsapp: false });
                     } else {
                       const ok = await handleRefuse(confirmAction.r, refusalReason);
                       if (ok) {
@@ -3363,7 +2322,7 @@ function Dashboard() {
                     confirmBusy || (confirmAction.type === "refuse" && refusalReason.trim().length < 3) ? 0.5 : 1,
                 }}
               >
-                {confirmBusy ? "..." : confirmAction.type === "accept" ? "✓ Accepter & notifier" : "✗ Refuser"}
+                {confirmBusy ? "…" : confirmAction.type === "accept" ? "✓ Accepter" : "✗ Refuser"}
               </button>
             </div>
           </div>
