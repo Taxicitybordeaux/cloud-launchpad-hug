@@ -48,7 +48,7 @@ export function EnablePushButton({
     if (!ok) return;
     (async () => {
       try {
-        const reg = await navigator.serviceWorker.getRegistration("/sw.js");
+        const reg = await navigator.serviceWorker.getRegistration("/");
         const sub = await reg?.pushManager.getSubscription();
         setSubscribed(!!sub);
       } catch (_) {}
@@ -65,8 +65,8 @@ export function EnablePushButton({
         });
         return;
       }
-      let reg = await navigator.serviceWorker.getRegistration("/sw.js");
-      if (!reg) reg = await navigator.serviceWorker.register("/sw.js");
+      let reg = await navigator.serviceWorker.getRegistration("/");
+      if (!reg) reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
       await navigator.serviceWorker.ready;
 
       const { key } = await getKey();
@@ -108,7 +108,7 @@ export function EnablePushButton({
   const disable = async () => {
     setBusy(true);
     try {
-      const reg = await navigator.serviceWorker.getRegistration("/sw.js");
+      const reg = await navigator.serviceWorker.getRegistration("/");
       const sub = await reg?.pushManager.getSubscription();
       if (sub) {
         // Supprime les deux audiences
