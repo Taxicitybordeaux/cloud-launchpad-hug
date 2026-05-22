@@ -882,7 +882,6 @@ function ReservationPage() {
               <select value={f.paiement} onChange={(e) => set("paiement", e.target.value)} style={inputStyle()}>
                 <option value="especes">💵 Espèces</option>
                 <option value="cb">💳 Carte bancaire</option>
-                <option value="virement">🏦 Virement</option>
               </select>
             </div>
 
