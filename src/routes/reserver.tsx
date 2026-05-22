@@ -792,7 +792,6 @@ function ReservationPage() {
                   }}
                 >
                   <div>
-                    <div style={{ fontSize: 11, color: "#cbd5e1", marginBottom: 2 }}>Itinéraire le plus long</div>
                     <div style={{ fontSize: 14, color: "#f5c842", fontWeight: 700 }}>
                       {orsResult.distanceKm} km · {Math.round(orsResult.dureeS / 60)} min
                     </div>
