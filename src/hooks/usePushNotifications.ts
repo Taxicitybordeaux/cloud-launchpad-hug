@@ -20,6 +20,9 @@ export function usePushNotifications() {
   const getKey = useServerFn(getVapidPublicKey);
   const subscribeFn = useServerFn(subscribePush);
 
+  // ─── FIX 1 : enregistrer le SW dès le montage ─────────────────────────────
+  // L'ancien code appelait getRegistration() sans jamais avoir register() au préalable.
+  // Sur Lovable/Vite, le SW n'est jamais actif au premier chargement → null → pas de push.
   useEffect(() => {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       setStatus("unsupported");
@@ -31,31 +34,50 @@ export function usePushNotifications() {
     else if (perm === "granted") setStatus("granted");
 
     let mounted = true;
-    const loadSubscription = async () => {
+
+    const initSW = async () => {
       try {
-        const reg = await navigator.serviceWorker.getRegistration();
-        if (!reg || !mounted) return;
+        // Enregistre le SW s'il ne l'est pas encore
+        let reg = await navigator.serviceWorker.getRegistration("/");
+        if (!reg) {
+          reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+        }
+        // Attendre activité complète (obligatoire sur certains navigateurs mobile)
+        await navigator.serviceWorker.ready;
+        if (!mounted) return;
+
+        // Récupérer l'abonnement existant s'il y en a un
         const sub = await reg.pushManager.getSubscription();
-        if (sub && mounted) setSubscription(sub);
+        if (sub && mounted) {
+          setSubscription(sub);
+          if (Notification.permission === "granted") setStatus("granted");
+        }
       } catch (error) {
         console.error("Push init error:", error);
       }
     };
 
-    loadSubscription();
+    initSW();
     return () => {
       mounted = false;
     };
   }, []);
 
+  // ─── FIX 2 : registerSW retourne le SW existant sans le recréer ───────────
+  // L'ancien code avait une race condition : register() pouvait être appelé
+  // alors qu'un SW activating était déjà en cours, ce qui lève une erreur silencieuse.
   const registerSW = useCallback(async () => {
     if (!("serviceWorker" in navigator)) return null;
     try {
-      const existing = await navigator.serviceWorker.getRegistration();
-      if (existing) return existing;
-      const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-      await navigator.serviceWorker.ready;
-      return reg;
+      // Utiliser getRegistration("/") avec le scope explicite
+      let reg = await navigator.serviceWorker.getRegistration("/");
+      if (!reg) {
+        reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+      }
+      // navigator.serviceWorker.ready attend que le SW soit "activated"
+      // (pas juste "installing" ou "waiting") — critique sur mobile
+      const readyReg = await navigator.serviceWorker.ready;
+      return readyReg;
     } catch (err) {
       console.error("SW registration failed:", err);
       return null;
@@ -86,10 +108,16 @@ export function usePushNotifications() {
           return false;
         }
 
-        const sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(keyResult.key) as unknown as ArrayBuffer,
-        });
+        // ─── FIX 3 : vérifier si un abonnement existe déjà avant d'en créer un ──
+        // Sans ce check, chaque appel à subscribe() crée un nouvel endpoint différent.
+        // L'ancien endpoint en base devient invalide → 410 Gone → supprimé → plus de push.
+        let sub = await reg.pushManager.getSubscription();
+        if (!sub) {
+          sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(keyResult.key) as unknown as ArrayBuffer,
+          });
+        }
 
         const json = sub.toJSON();
         const keys = json.keys as { p256dh: string; auth: string };
@@ -126,14 +154,15 @@ export function usePushNotifications() {
 
   const testNotification = useCallback(async () => {
     if (status !== "granted") return;
-    const reg = await navigator.serviceWorker.getRegistration();
+    // FIX 4 : utiliser navigator.serviceWorker.ready plutôt que getRegistration()
+    // pour être sûr d'avoir un SW actif (pas juste registered)
+    const reg = await navigator.serviceWorker.ready;
     if (!reg) return;
-    const options = {
+    reg.showNotification("🚕 Test — Taxi City Bordeaux", {
       body: "Les notifications sont bien activées !",
       icon: "/logo-taxi.png",
       vibrate: [200, 100, 200],
-    } as any;
-    reg.showNotification("🚕 Test — Taxi City Bordeaux", options);
+    } as any);
   }, [status]);
 
   return { status, subscription, subscribe, unsubscribe, testNotification };
