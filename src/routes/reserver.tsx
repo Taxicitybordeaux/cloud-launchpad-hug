@@ -314,9 +314,19 @@ function ReservationPage() {
     );
   }, []);
 
-  // Tentative auto au chargement (sans bloquer)
+  // Tentative auto au chargement uniquement si la permission est déjà accordée (sans bloquer)
   useEffect(() => {
-    handleGeolocate();
+    if (!navigator.geolocation) return;
+    navigator.permissions
+      ?.query({ name: "geolocation" })
+      .then((result) => {
+        if (result.state === "granted") {
+          handleGeolocate();
+        }
+      })
+      .catch(() => {
+        // API permissions non disponible (ex: Safari), on n'essaie pas
+      });
   }, [handleGeolocate]);
 
   // ── Résoudre adresse départ (saisie manuelle) ────────────────────────────
