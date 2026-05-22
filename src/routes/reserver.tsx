@@ -303,7 +303,7 @@ function ReservationPage() {
   // Tentative auto au chargement (sans bloquer)
   useEffect(() => {
     handleGeolocate();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [handleGeolocate]);
 
   // ── Résoudre adresse départ (saisie manuelle) ────────────────────────────
   const resolveDepartAddress = useCallback(async () => {
@@ -401,14 +401,9 @@ function ReservationPage() {
           client_email: f.email,
           depart: f.depart,
           destination: f.destination,
-          arrivee: f.destination,
-          nom: `${f.prenom} ${f.nom}`,
-          telephone: f.phone,
-          email: f.email,
           distance_km: orsResult?.distanceKm ?? 0,
           pickup_datetime: f.date && f.heure ? `${f.date}T${f.heure}:00` : new Date().toISOString(),
           nb_passagers: f.passagers,
-          passagers: f.passagers,
           bagages: f.bagages,
           paiement: f.paiement,
           status: "nouvelle",
