@@ -511,8 +511,17 @@ function SuiviPage() {
       }}
     >
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Syne:wght@700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Syne:wght@700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        /* ── Système typographique ──────────────────────────────────────────
+           • Titres / noms propres  → Syne 700-800  (identité, premium)
+           • Chiffres / codes       → Space Grotesk 600-700  (lisibilité numérique)
+           • Corps / labels         → DM Sans 400-600  (clarté)
+        ──────────────────────────────────────────────────────────────────── */
+        .typo-title   { font-family: 'Syne', sans-serif; font-weight: 800; letter-spacing: -0.025em; }
+        .typo-num     { font-family: 'Space Grotesk', sans-serif; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+        .typo-label   { font-family: 'DM Sans', sans-serif; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; }
+        .typo-body    { font-family: 'DM Sans', sans-serif; font-weight: 500; }
         @keyframes gpsRing { 0%{transform:scale(1);opacity:.6} 100%{transform:scale(2.2);opacity:0} }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
         @keyframes slideUp { from{transform:translateY(32px);opacity:0} to{transform:translateY(0);opacity:1} }
@@ -573,27 +582,27 @@ function SuiviPage() {
               {statut.icon}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: statut.color }}>{statut.label}</div>
+              <div className="typo-title" style={{ fontSize: 13, color: statut.color }}>
+                {statut.label}
+              </div>
               {eta !== null && (resa.status === "en_route" || resa.status === "arrived") && (
-                <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                  Arrivée au point de RDV dans{" "}
-                  <span
-                    style={{
-                      color: "#f5c842",
-                      fontWeight: 800,
-                      fontFamily: "'Syne',sans-serif",
-                      letterSpacing: "-0.01em",
-                    }}
-                  >
-                    {eta} min
+                <div className="typo-body" style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+                  Arrivée dans{" "}
+                  <span className="typo-num" style={{ color: "#f5c842", fontSize: 14 }}>
+                    {eta}
+                    <span style={{ fontSize: 10, marginLeft: 2, fontWeight: 500 }}>min</span>
                   </span>
                 </div>
               )}
               {taxiPos && resa.status === "nouvelle" && (
-                <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>Le chauffeur voit votre demande</div>
+                <div className="typo-body" style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+                  Le chauffeur voit votre demande
+                </div>
               )}
               {!taxiPos && (
-                <div style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>Position GPS non disponible</div>
+                <div className="typo-body" style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>
+                  Position GPS non disponible
+                </div>
               )}
             </div>
             {taxiPos && (
@@ -629,14 +638,18 @@ function SuiviPage() {
           >
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {taxiPos && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#94a3b8" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <div style={{ width: 18, height: 3, background: "#22c55e", borderRadius: 2 }} />
-                  <span>Taxi → RDV</span>
+                  <span className="typo-label" style={{ fontSize: 10, color: "#94a3b8" }}>
+                    Taxi → RDV
+                  </span>
                 </div>
               )}
-              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#94a3b8" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <div style={{ width: 18, height: 3, background: "#f5c842", borderRadius: 2, opacity: 0.6 }} />
-                <span>Trajet course</span>
+                <span className="typo-label" style={{ fontSize: 10, color: "#94a3b8" }}>
+                  Trajet course
+                </span>
               </div>
             </div>
           </div>
@@ -692,21 +705,17 @@ function SuiviPage() {
               👤
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: 17,
-                  fontWeight: 800,
-                  color: "#f1f5f9",
-                  fontFamily: "'Syne',sans-serif",
-                  letterSpacing: "-0.02em",
-                }}
-              >
+              <div className="typo-title" style={{ fontSize: 18, color: "#f1f5f9" }}>
                 {CHAUFFEUR.nom}
               </div>
-              <div style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>{CHAUFFEUR.vehicule}</div>
+              <div className="typo-body" style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+                {CHAUFFEUR.vehicule}
+              </div>
               <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
-                <span style={{ color: "#f5c842", fontSize: 12 }}>★★★★★</span>
-                <span style={{ color: "#475569", fontSize: 12 }}>5.0</span>
+                <span style={{ color: "#f5c842", fontSize: 11 }}>★★★★★</span>
+                <span className="typo-num" style={{ color: "#64748b", fontSize: 12 }}>
+                  5.0
+                </span>
               </div>
             </div>
             <div
@@ -719,26 +728,10 @@ function SuiviPage() {
                 flexShrink: 0,
               }}
             >
-              <div
-                style={{
-                  fontSize: 10,
-                  color: "#475569",
-                  marginBottom: 3,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                }}
-              >
+              <div className="typo-label" style={{ fontSize: 9, color: "#475569", marginBottom: 4 }}>
                 Plaque
               </div>
-              <div
-                style={{
-                  fontSize: 14,
-                  fontWeight: 800,
-                  color: "#f5c842",
-                  letterSpacing: "0.1em",
-                  fontFamily: "'Syne',sans-serif",
-                }}
-              >
+              <div className="typo-num" style={{ fontSize: 14, color: "#f5c842", letterSpacing: "0.12em" }}>
                 {CHAUFFEUR.plaque}
               </div>
             </div>
@@ -800,18 +793,11 @@ function SuiviPage() {
                 }}
               >
                 <div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: "#475569",
-                      marginBottom: 2,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                    }}
-                  >
+                  <div className="typo-label" style={{ fontSize: 10, color: "#475569", marginBottom: 3 }}>
                     Départ
                   </div>
                   <div
+                    className="typo-body"
                     style={{
                       fontSize: 14,
                       fontWeight: 600,
@@ -825,18 +811,11 @@ function SuiviPage() {
                   </div>
                 </div>
                 <div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: "#475569",
-                      marginBottom: 2,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                    }}
-                  >
+                  <div className="typo-label" style={{ fontSize: 10, color: "#475569", marginBottom: 3 }}>
                     Destination
                   </div>
                   <div
+                    className="typo-body"
                     style={{
                       fontSize: 14,
                       fontWeight: 600,
@@ -863,27 +842,10 @@ function SuiviPage() {
                   textAlign: "center",
                 }}
               >
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: "#475569",
-                    marginBottom: 3,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                  }}
-                >
+                <div className="typo-label" style={{ fontSize: 9, color: "#475569", marginBottom: 4 }}>
                   Prise en charge
                 </div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: "#cbd5e1",
-                    lineHeight: 1.3,
-                    fontFamily: "'Syne',sans-serif",
-                    letterSpacing: "-0.01em",
-                  }}
-                >
+                <div className="typo-num" style={{ fontSize: 12, color: "#cbd5e1", lineHeight: 1.3 }}>
                   {formatPickup(resa)}
                 </div>
               </div>
@@ -897,38 +859,12 @@ function SuiviPage() {
                     flexShrink: 0,
                   }}
                 >
-                  <div
-                    style={{
-                      fontSize: 10,
-                      color: "#475569",
-                      marginBottom: 3,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                    }}
-                  >
+                  <div className="typo-label" style={{ fontSize: 9, color: "#475569", marginBottom: 4 }}>
                     Distance
                   </div>
-                  <div
-                    style={{
-                      fontSize: 15,
-                      fontWeight: 800,
-                      color: "#e2e8f0",
-                      fontFamily: "'Syne',sans-serif",
-                      letterSpacing: "-0.02em",
-                    }}
-                  >
-                    {distanceKm}{" "}
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: "#64748b",
-                        fontFamily: "'DM Sans',sans-serif",
-                        letterSpacing: "0.04em",
-                      }}
-                    >
-                      km
-                    </span>
+                  <div className="typo-num" style={{ fontSize: 15, color: "#cbd5e1" }}>
+                    {distanceKm}
+                    <span style={{ fontSize: 10, marginLeft: 2, color: "#64748b", fontWeight: 500 }}>km</span>
                   </div>
                 </div>
               )}
@@ -941,26 +877,10 @@ function SuiviPage() {
                   flexShrink: 0,
                 }}
               >
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: "#475569",
-                    marginBottom: 3,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                  }}
-                >
+                <div className="typo-label" style={{ fontSize: 9, color: "#475569", marginBottom: 4 }}>
                   Pass.
                 </div>
-                <div
-                  style={{
-                    fontSize: 15,
-                    fontWeight: 800,
-                    color: "#cbd5e1",
-                    fontFamily: "'Syne',sans-serif",
-                    letterSpacing: "-0.01em",
-                  }}
-                >
+                <div className="typo-num" style={{ fontSize: 15, color: "#cbd5e1" }}>
                   👥 {passagers}
                 </div>
               </div>
@@ -975,26 +895,10 @@ function SuiviPage() {
                     flexShrink: 0,
                   }}
                 >
-                  <div
-                    style={{
-                      fontSize: 10,
-                      color: "#64748b",
-                      marginBottom: 3,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.06em",
-                    }}
-                  >
+                  <div className="typo-label" style={{ fontSize: 9, color: "#64748b", marginBottom: 4 }}>
                     Prix
                   </div>
-                  <div
-                    style={{
-                      fontSize: 16,
-                      fontWeight: 800,
-                      color: "#f5c842",
-                      fontFamily: "'Syne',sans-serif",
-                      letterSpacing: "-0.02em",
-                    }}
-                  >
+                  <div className="typo-num" style={{ fontSize: 17, color: "#f5c842" }}>
                     {prix}
                   </div>
                 </div>
@@ -1005,7 +909,7 @@ function SuiviPage() {
           {/* ── ACTIONS ── */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <button
-              className="sheet-btn"
+              className="sheet-btn typo-title"
               onClick={() => (window.location.href = `tel:${CHAUFFEUR.phone}`)}
               style={{
                 padding: 14,
@@ -1014,7 +918,6 @@ function SuiviPage() {
                 border: "1px solid rgba(34,197,94,0.25)",
                 color: "#22c55e",
                 fontSize: 14,
-                fontWeight: 700,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -1027,7 +930,7 @@ function SuiviPage() {
               📞 Appeler
             </button>
             <button
-              className="sheet-btn"
+              className="sheet-btn typo-title"
               onClick={partager}
               style={{
                 padding: 14,
@@ -1036,7 +939,6 @@ function SuiviPage() {
                 border: "1px solid rgba(255,255,255,0.08)",
                 color: "#94a3b8",
                 fontSize: 14,
-                fontWeight: 700,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
