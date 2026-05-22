@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { getDistanceAndDurationKm } from "@/lib/osrm";
+import { geocodeAddress } from "@/lib/geocode";
 import { OSM_TILE_URL, OSM_TILE_OPTIONS } from "@/lib/map";
 
 export const Route = createFileRoute("/suivi/$id")({
@@ -10,7 +11,7 @@ export const Route = createFileRoute("/suivi/$id")({
   component: SuiviPage,
 });
 
-// ── Constantes chauffeur (fixes) ─────────────────────────────────
+// ── Infos chauffeur (fixes) ───────────────────────────────────────────────────
 const CHAUFFEUR = {
   nom: "José",
   vehicule: "Mercedes",
@@ -18,7 +19,7 @@ const CHAUFFEUR = {
   phone: "0673072322",
 };
 
-// ── Leaflet loader ────────────────────────────────────────────────
+// ── Leaflet loader ────────────────────────────────────────────────────────────
 function loadLeaflet(): Promise<void> {
   return new Promise((resolve, reject) => {
     if ((window as any).L) {
@@ -55,6 +56,31 @@ function loadLeaflet(): Promise<void> {
   });
 }
 
+// ── OSRM : chemin le plus long avec polyline ──────────────────────────────────
+async function getOsrmLongestPolyline(
+  from: [number, number], // [lng, lat]
+  to: [number, number], // [lng, lat]
+): Promise<{ coords: [number, number][]; distanceKm: number; dureeS: number } | null> {
+  const url =
+    `https://router.project-osrm.org/route/v1/driving/` +
+    `${from[0]},${from[1]};${to[0]},${to[1]}` +
+    `?overview=full&geometries=geojson&alternatives=3&steps=false`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (!json.routes?.length) return null;
+    const longest = json.routes.reduce((b: any, r: any) => (r.distance > b.distance ? r : b));
+    return {
+      coords: (longest.geometry?.coordinates ?? []) as [number, number][],
+      distanceKm: Math.round((longest.distance / 1000) * 10) / 10,
+      dureeS: Math.round(longest.duration),
+    };
+  } catch {
+    return null;
+  }
+}
+
 interface Reservation {
   id: string;
   depart: string;
@@ -72,6 +98,7 @@ interface Reservation {
   nb_passagers?: number;
   passagers?: number;
   tracking_id?: string;
+  distance_km?: number;
 }
 
 interface TaxiPos {
@@ -80,7 +107,6 @@ interface TaxiPos {
   heading: number;
 }
 
-// ── Formater la date de prise en charge ──────────────────────────
 function formatPickup(r: Reservation): string {
   if (r.pickup_datetime) {
     try {
@@ -111,17 +137,19 @@ function SuiviPage() {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInst = useRef<any>(null);
   const taxiMarker = useRef<any>(null);
-  const routeLayer = useRef<any>(null);
+  const routeLayer = useRef<any>(null); // tracé taxi → point de RDV
+  const tripLayer = useRef<any>(null); // tracé départ → destination de la course
+  const fromMarker = useRef<any>(null);
+  const toMarker = useRef<any>(null);
 
-  // ── Charger la réservation ────────────────────────────────────
+  // ── Chargement réservation ────────────────────────────────────────────────
   useEffect(() => {
     const load = async () => {
-      // Chercher par tracking_id d'abord, puis par id
       let r: Reservation | null = null;
       const { data: byTracking } = await (supabase as any)
         .from("reservations")
         .select(
-          "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,tracking_id",
+          "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,tracking_id,distance_km",
         )
         .eq("tracking_id", id)
         .maybeSingle();
@@ -131,7 +159,7 @@ function SuiviPage() {
         const { data: byId } = await (supabase as any)
           .from("reservations")
           .select(
-            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,tracking_id",
+            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,tracking_id,distance_km",
           )
           .eq("id", id)
           .maybeSingle();
@@ -143,7 +171,7 @@ function SuiviPage() {
     load();
   }, [id]);
 
-  // ── Init carte ────────────────────────────────────────────────
+  // ── Init carte ────────────────────────────────────────────────────────────
   useEffect(() => {
     let mounted = true;
     const init = async () => {
@@ -180,7 +208,69 @@ function SuiviPage() {
     };
   }, []);
 
-  // ── Position GPS temps réel depuis driver_gps ─────────────────
+  // ── Afficher tracé de la course (départ → destination) ───────────────────
+  useEffect(() => {
+    if (!resa || !mapReady) return;
+    const map = mapInst.current;
+    const L = (window as any).L;
+    if (!map || !L) return;
+
+    const drawTrip = async () => {
+      const depAddr = resa.depart;
+      const arrAddr = resa.arrivee || resa.destination;
+      if (!depAddr || !arrAddr) return;
+
+      const [depGeo, arrGeo] = await Promise.all([
+        geocodeAddress(depAddr + ", Bordeaux, France").catch(() => null),
+        geocodeAddress(arrAddr + ", Bordeaux, France").catch(() => null),
+      ]);
+      if (!depGeo || !arrGeo) return;
+
+      const fromLngLat: [number, number] = [depGeo.lng, depGeo.lat];
+      const toLngLat: [number, number] = [arrGeo.lng, arrGeo.lat];
+
+      // Marqueur départ
+      const depIcon = L.divIcon({
+        className: "",
+        html: `<div style="width:14px;height:14px;background:#22c55e;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 4px rgba(34,197,94,0.25)"></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+      });
+      if (fromMarker.current) fromMarker.current.remove();
+      fromMarker.current = L.marker([depGeo.lat, depGeo.lng], { icon: depIcon })
+        .bindTooltip("Départ", { permanent: false, direction: "top" })
+        .addTo(map);
+
+      // Marqueur destination
+      const arrIcon = L.divIcon({
+        className: "",
+        html: `<div style="width:14px;height:14px;background:#f5c842;border-radius:3px;border:3px solid #1a1a2e;box-shadow:0 0 0 4px rgba(245,200,66,0.25)"></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+      });
+      if (toMarker.current) toMarker.current.remove();
+      toMarker.current = L.marker([arrGeo.lat, arrGeo.lng], { icon: arrIcon })
+        .bindTooltip("Destination", { permanent: false, direction: "top" })
+        .addTo(map);
+
+      // Tracé course (chemin le plus long)
+      const route = await getOsrmLongestPolyline(fromLngLat, toLngLat);
+      if (route && route.coords.length > 1) {
+        if (tripLayer.current) {
+          tripLayer.current.remove();
+          tripLayer.current = null;
+        }
+        tripLayer.current = L.polyline(
+          route.coords.map((c: [number, number]) => [c[1], c[0]]),
+          { color: "#f5c842", weight: 4, opacity: 0.55, dashArray: "8 6" },
+        ).addTo(map);
+      }
+    };
+
+    drawTrip();
+  }, [resa, mapReady]);
+
+  // ── Position GPS temps réel du taxi ──────────────────────────────────────
   useEffect(() => {
     const loadInitial = async () => {
       const { data } = await (supabase as any)
@@ -218,7 +308,7 @@ function SuiviPage() {
     };
   }, []);
 
-  // ── Mettre à jour marqueur taxi + ETA ────────────────────────
+  // ── Mise à jour marqueur taxi + tracé taxi→point de RDV + ETA ────────────
   useEffect(() => {
     const map = mapInst.current;
     const L = (window as any).L;
@@ -244,19 +334,51 @@ function SuiviPage() {
       taxiMarker.current = L.marker([taxiPos.lat, taxiPos.lng], { icon: taxiIcon, zIndexOffset: 1000 }).addTo(map);
     }
 
-    map.panTo([taxiPos.lat, taxiPos.lng], { animate: true, duration: 0.8 });
+    // Tracé taxi → point de prise en charge (départ client) en temps réel
+    const drawRouteToPdv = async () => {
+      if (!resa?.depart) return;
+      const depGeo = await geocodeAddress(resa.depart + ", Bordeaux, France").catch(() => null);
+      if (!depGeo) return;
 
-    // ETA si on a la destination
-    if (resa) {
-      const dest = resa.arrivee || resa.destination;
-      // ETA approximatif depuis Bordeaux centre
-      getDistanceAndDurationKm([taxiPos.lat, taxiPos.lng], [44.8378, -0.5792]).then((r) => {
-        if (r) setEta(Math.round(r.durationSec / 60));
-      });
-    }
+      const taxiLngLat: [number, number] = [taxiPos.lng, taxiPos.lat];
+      const depLngLat: [number, number] = [depGeo.lng, depGeo.lat];
+
+      const route = await getOsrmLongestPolyline(taxiLngLat, depLngLat);
+
+      if (route && route.coords.length > 1) {
+        if (routeLayer.current) {
+          routeLayer.current.remove();
+          routeLayer.current = null;
+        }
+        routeLayer.current = L.polyline(
+          route.coords.map((c: [number, number]) => [c[1], c[0]]),
+          { color: "#22c55e", weight: 4, opacity: 0.9 },
+        ).addTo(map);
+      }
+
+      // ETA taxi → point de RDV
+      if (route) setEta(Math.round(route.dureeS / 60));
+      else {
+        // Fallback : distance à vol d'oiseau via OSRM simple
+        getDistanceAndDurationKm(taxiLngLat, depLngLat).then((r) => {
+          if (r) setEta(Math.round(r.durationSec / 60));
+        });
+      }
+
+      // Centrer la carte sur taxi + point de RDV
+      map.fitBounds(
+        L.latLngBounds([
+          [taxiPos.lat, taxiPos.lng],
+          [depGeo.lat, depGeo.lng],
+        ]).pad(0.3),
+        { animate: true, duration: 0.8 },
+      );
+    };
+
+    drawRouteToPdv();
   }, [taxiPos, mapReady, resa]);
 
-  // ── Écouter changement de statut ─────────────────────────────
+  // ── Écoute changement de statut ───────────────────────────────────────────
   useEffect(() => {
     if (!resa) return;
     const channel = (supabase as any)
@@ -270,7 +392,7 @@ function SuiviPage() {
           filter: `id=eq.${resa.id}`,
         },
         (payload: any) => {
-          setResa((prev) => (prev ? { ...prev, status: payload.new.status } : prev));
+          setResa((prev) => (prev ? { ...prev, ...payload.new } : prev));
         },
       )
       .subscribe();
@@ -279,7 +401,7 @@ function SuiviPage() {
     };
   }, [resa?.id]);
 
-  // ── Abonnement push auto ─────────────────────────────────────
+  // ── Abonnement push auto client ───────────────────────────────────────────
   useEffect(() => {
     if (!resa || pushStatus !== "idle") return;
     subscribe("client", resa.id).catch(() => {});
@@ -297,6 +419,7 @@ function SuiviPage() {
   };
 
   const statusConfig: Record<string, { label: string; color: string; bg: string; icon: string; pulse: boolean }> = {
+    nouvelle: { label: "Réservation reçue", color: "#f59e0b", bg: "rgba(245,158,11,0.12)", icon: "📋", pulse: true },
     pending: {
       label: "En attente de confirmation",
       color: "#f59e0b",
@@ -306,7 +429,7 @@ function SuiviPage() {
     },
     accepted: { label: "Course confirmée", color: "#22c55e", bg: "rgba(34,197,94,0.12)", icon: "✅", pulse: false },
     en_route: { label: "Chauffeur en route", color: "#3b82f6", bg: "rgba(59,130,246,0.12)", icon: "🚕", pulse: true },
-    arrived: { label: "Taxi à proximité", color: "#f5c842", bg: "rgba(245,200,66,0.12)", icon: "📍", pulse: true },
+    arrived: { label: "Taxi à votre porte", color: "#f5c842", bg: "rgba(245,200,66,0.12)", icon: "📍", pulse: true },
     completed: { label: "Course terminée", color: "#94a3b8", bg: "rgba(148,163,184,0.1)", icon: "🏁", pulse: false },
     cancelled: { label: "Course annulée", color: "#ef4444", bg: "rgba(239,68,68,0.12)", icon: "❌", pulse: false },
     refused: { label: "Course refusée", color: "#ef4444", bg: "rgba(239,68,68,0.12)", icon: "🚫", pulse: false },
@@ -314,10 +437,11 @@ function SuiviPage() {
 
   const statut = resa ? (statusConfig[resa.status] ?? statusConfig.pending) : statusConfig.pending;
   const arrivee = resa?.arrivee || resa?.destination || "—";
-  const clientName = resa?.client_name || resa?.nom || "";
   const passagers = resa?.nb_passagers || resa?.passagers || 1;
   const prix = resa?.prix_estime ? `${Number(resa.prix_estime).toFixed(2)} €` : null;
+  const distanceKm = resa?.distance_km ?? null;
 
+  // ── Chargement ────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div
@@ -342,7 +466,7 @@ function SuiviPage() {
           >
             🚕
           </div>
-          <div style={{ color: "#475569", fontSize: 14, letterSpacing: "0.05em" }}>Chargement du suivi…</div>
+          <div style={{ color: "#475569", fontSize: 14 }}>Chargement du suivi…</div>
         </div>
         <style>{`@keyframes floatTaxi { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }`}</style>
       </div>
@@ -395,13 +519,15 @@ function SuiviPage() {
         @keyframes fadeIn { from{opacity:0} to{opacity:1} }
         .sheet-btn:active { transform:scale(0.96); }
         .leaflet-container { background:#0d1117 !important; }
+        .leaflet-tooltip { background: rgba(10,10,20,0.9) !important; border: 1px solid rgba(245,200,66,0.3) !important; color: #f5c842 !important; font-weight: 700 !important; border-radius: 8px !important; }
+        .leaflet-tooltip-top::before { border-top-color: rgba(245,200,66,0.3) !important; }
       `}</style>
 
       {/* ── MAP ── */}
       <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
         <div ref={mapRef} style={{ position: "absolute", inset: 0 }} />
 
-        {/* Overlay gradient bas */}
+        {/* Gradient bas */}
         <div
           style={{
             position: "absolute",
@@ -447,13 +573,14 @@ function SuiviPage() {
               {statut.icon}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: statut.color, letterSpacing: "0.01em" }}>
-                {statut.label}
-              </div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: statut.color }}>{statut.label}</div>
               {eta !== null && (resa.status === "en_route" || resa.status === "arrived") && (
                 <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                  Arrivée estimée dans <span style={{ color: "#f5c842", fontWeight: 700 }}>{eta} min</span>
+                  Arrivée au point de RDV dans <span style={{ color: "#f5c842", fontWeight: 700 }}>{eta} min</span>
                 </div>
+              )}
+              {taxiPos && resa.status === "nouvelle" && (
+                <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>Le chauffeur voit votre demande</div>
               )}
               {!taxiPos && (
                 <div style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>Position GPS non disponible</div>
@@ -474,6 +601,36 @@ function SuiviPage() {
             )}
           </div>
         </div>
+
+        {/* Légende carte */}
+        {(taxiPos || fromMarker.current) && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: 90,
+              right: 12,
+              zIndex: 100,
+              background: "rgba(8,8,15,0.85)",
+              backdropFilter: "blur(10px)",
+              borderRadius: 12,
+              padding: "8px 12px",
+              border: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {taxiPos && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#94a3b8" }}>
+                  <div style={{ width: 18, height: 3, background: "#22c55e", borderRadius: 2 }} />
+                  <span>Taxi → RDV</span>
+                </div>
+              )}
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#94a3b8" }}>
+                <div style={{ width: 18, height: 3, background: "#f5c842", borderRadius: 2, opacity: 0.6 }} />
+                <span>Trajet course</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── BOTTOM SHEET ── */}
@@ -501,14 +658,13 @@ function SuiviPage() {
               background: "rgba(245,200,66,0.04)",
               border: "1px solid rgba(245,200,66,0.12)",
               borderRadius: 20,
-              padding: "16px",
+              padding: 16,
               marginBottom: 14,
               display: "flex",
               alignItems: "center",
               gap: 14,
             }}
           >
-            {/* Avatar */}
             <div
               style={{
                 width: 56,
@@ -525,7 +681,6 @@ function SuiviPage() {
             >
               👤
             </div>
-            {/* Nom + véhicule */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div
                 style={{
@@ -544,7 +699,6 @@ function SuiviPage() {
                 <span style={{ color: "#475569", fontSize: 12 }}>5.0</span>
               </div>
             </div>
-            {/* Plaque */}
             <div
               style={{
                 background: "rgba(8,8,15,0.6)",
@@ -586,7 +740,7 @@ function SuiviPage() {
               background: "rgba(255,255,255,0.025)",
               border: "1px solid rgba(255,255,255,0.06)",
               borderRadius: 20,
-              padding: "16px",
+              padding: 16,
               marginBottom: 14,
             }}
           >
@@ -688,7 +842,7 @@ function SuiviPage() {
               </div>
             </div>
 
-            {/* Méta : heure, passagers, prix */}
+            {/* Méta */}
             <div style={{ display: "flex", gap: 8 }}>
               <div
                 style={{
@@ -714,6 +868,30 @@ function SuiviPage() {
                   {formatPickup(resa)}
                 </div>
               </div>
+              {distanceKm && (
+                <div
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    borderRadius: 12,
+                    padding: "9px 12px",
+                    textAlign: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 10,
+                      color: "#475569",
+                      marginBottom: 3,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                    }}
+                  >
+                    Distance
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#cbd5e1" }}>{distanceKm} km</div>
+                </div>
+              )}
               <div
                 style={{
                   background: "rgba(255,255,255,0.04)",
@@ -772,7 +950,7 @@ function SuiviPage() {
               className="sheet-btn"
               onClick={() => (window.location.href = `tel:${CHAUFFEUR.phone}`)}
               style={{
-                padding: "14px",
+                padding: 14,
                 borderRadius: 16,
                 background: "rgba(34,197,94,0.1)",
                 border: "1px solid rgba(34,197,94,0.25)",
@@ -794,7 +972,7 @@ function SuiviPage() {
               className="sheet-btn"
               onClick={partager}
               style={{
-                padding: "14px",
+                padding: 14,
                 borderRadius: 16,
                 background: "rgba(255,255,255,0.04)",
                 border: "1px solid rgba(255,255,255,0.08)",
