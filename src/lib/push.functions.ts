@@ -72,8 +72,11 @@ export const sendTestPush = createServerFn({ method: "POST" })
 // ─────────────────────────────────────────────────────────────────
 // Nouvelle réservation → push admin + push chauffeur + email taxi
 // ─────────────────────────────────────────────────────────────────
+// FIX: notifyNewReservation est appelé côté client (formulaire public, pas connecté).
+// requireSupabaseAuth causait un 401 systématique → la notification ne partait jamais.
+// La sécurité est assurée par supabaseAdmin côté serveur (clé service_role) +
+// validation que la réservation existe vraiment en base avant d'envoyer quoi que ce soit.
 export const notifyNewReservation = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({ reservation_id: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
     const { data: r } = await supabaseAdmin
