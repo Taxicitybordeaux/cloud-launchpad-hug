@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix, calculerPrixMixte, PRISE_EN_CHARGE } from "@/lib/tarif";
 import { geocodeAddress, reverseGeocode } from "@/lib/geocode";
-import { getDistanceAndDurationKm, getRouteGeoCoords } from "@/lib/osrm";
+import { getRouteGeoCoords } from "@/lib/osrm";
 import { EnablePushButton } from "@/components/EnablePushButton";
 
 export const Route = createFileRoute("/reserver")({
@@ -39,20 +39,51 @@ interface OrsResult {
 }
 
 async function geocodeFullAddress(address: string): Promise<[number, number] | null> {
-  const c = await geocodeAddress(address + ", Bordeaux, France");
+  // Essai avec Bordeaux, puis sans
+  let c = await geocodeAddress(address + ", Bordeaux, France");
+  if (!c) c = await geocodeAddress(address);
   return c ? [c.lng, c.lat] : null;
 }
 
-async function getOsrmRoute(from: [number, number], to: [number, number]): Promise<OrsResult | null> {
-  const result = await getDistanceAndDurationKm(from, to);
-  return result
-    ? { distanceKm: Math.round(result.distanceKm * 10) / 10, dureeS: Math.round(result.durationSec) }
-    : null;
+// ─── OSRM : prend le chemin le plus LONG parmi les alternatives ───────────────
+async function getOsrmRouteLongest(from: [number, number], to: [number, number]): Promise<OrsResult | null> {
+  // On demande jusqu'à 3 alternatives à OSRM
+  const url =
+    `https://router.project-osrm.org/route/v1/driving/` +
+    `${from[0]},${from[1]};${to[0]},${to[1]}` +
+    `?overview=false&alternatives=3&steps=false`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (!json.routes || json.routes.length === 0) return null;
+    // Prendre le chemin avec la DISTANCE la plus longue
+    const longest = json.routes.reduce((best: any, r: any) => (r.distance > best.distance ? r : best));
+    return {
+      distanceKm: Math.round((longest.distance / 1000) * 10) / 10,
+      dureeS: Math.round(longest.duration),
+    };
+  } catch {
+    return null;
+  }
 }
 
-async function getOsrmPolyline(from: [number, number], to: [number, number]): Promise<[number, number][]> {
-  const result = await getRouteGeoCoords(from, to);
-  return result?.coords ?? [];
+// ─── OSRM polyline : chemin le plus long ─────────────────────────────────────
+async function getOsrmPolylineLongest(from: [number, number], to: [number, number]): Promise<[number, number][]> {
+  const url =
+    `https://router.project-osrm.org/route/v1/driving/` +
+    `${from[0]},${from[1]};${to[0]},${to[1]}` +
+    `?overview=full&geometries=geojson&alternatives=3&steps=false`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const json = await res.json();
+    if (!json.routes || json.routes.length === 0) return [];
+    const longest = json.routes.reduce((best: any, r: any) => (r.distance > best.distance ? r : best));
+    return (longest.geometry?.coordinates ?? []) as [number, number][];
+  } catch {
+    return [];
+  }
 }
 
 function loadLeaflet(): Promise<void> {
@@ -128,7 +159,7 @@ function ReservationPage() {
     setF((p) => ({ ...p, date: p.date || d }));
   }, []);
 
-  // Map setup
+  // ── Init carte ────────────────────────────────────────────────────────────
   useEffect(() => {
     let mounted = true;
     const initMap = async () => {
@@ -163,7 +194,7 @@ function ReservationPage() {
     };
   }, []);
 
-  // Map markers
+  // ── Marqueurs + tracé (chemin le plus long) ───────────────────────────────
   useEffect(() => {
     const map = mapInst.current;
     const L = (window as any).L;
@@ -192,7 +223,8 @@ function ReservationPage() {
     }
 
     if (fromCoord && toCoord) {
-      getOsrmPolyline(fromCoord, toCoord).then((coords) => {
+      // Toujours le chemin le plus long
+      getOsrmPolylineLongest(fromCoord, toCoord).then((coords) => {
         if (!mapInst.current || !L) return;
         if (routeLayer.current) {
           routeLayer.current.remove();
@@ -201,7 +233,7 @@ function ReservationPage() {
         if (coords.length > 1) {
           routeLayer.current = L.polyline(
             coords.map((c) => [c[1], c[0]]),
-            { color: "#22c55e", weight: 4, opacity: 0.95 },
+            { color: "#f5c842", weight: 5, opacity: 0.95 },
           ).addTo(mapInst.current);
           mapInst.current.fitBounds(
             L.latLngBounds([
@@ -217,20 +249,20 @@ function ReservationPage() {
     }
   }, [fromCoord, toCoord]);
 
-  // OSRM
+  // ── OSRM : recalcul distance/prix (chemin le plus long) ───────────────────
   useEffect(() => {
     if (!fromCoord || !toCoord) {
       setOrsResult(null);
       return;
     }
     setCalcLoading(true);
-    getOsrmRoute(fromCoord, toCoord).then((r) => {
+    getOsrmRouteLongest(fromCoord, toCoord).then((r) => {
       setOrsResult(r);
       setCalcLoading(false);
     });
   }, [fromCoord, toCoord]);
 
-  // Geolocation (départ uniquement)
+  // ── Géolocalisation départ ────────────────────────────────────────────────
   const handleGeolocate = useCallback(async () => {
     if (!navigator.geolocation) {
       toast.error("Géolocalisation non disponible");
@@ -244,6 +276,10 @@ function ReservationPage() {
         if (adresse) {
           set("depart", adresse);
           setFromCoord([longitude, latitude]);
+          setErrors((prev) => {
+            const { depart: _, ...rest } = prev;
+            return rest;
+          });
           toast.success("Position détectée");
         } else {
           toast.error("Adresse introuvable");
@@ -257,30 +293,31 @@ function ReservationPage() {
     );
   }, []);
 
+  // Tentative auto au chargement (sans bloquer)
   useEffect(() => {
     handleGeolocate();
-  }, [handleGeolocate]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Taxi availability
-  const checkTaxiAvailability = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from("reservations")
-        .select("id")
-        .not("status", "in", "(cancelled,refused,completed)")
-        .limit(1);
-      if (error) throw error;
-      setTaxiAvailable(!data || data.length === 0);
-    } catch {
-      setTaxiAvailable(null);
+  // ── Résoudre adresse départ (saisie manuelle) ────────────────────────────
+  const resolveDepartAddress = useCallback(async () => {
+    const value = f.depart.trim();
+    if (!value) return;
+    setCalcLoading(true);
+    const coord = await geocodeFullAddress(value);
+    setCalcLoading(false);
+    if (coord) {
+      setFromCoord(coord);
+      setErrors((prev) => {
+        const { depart: _, ...rest } = prev;
+        return rest;
+      });
+    } else {
+      setFromCoord(null);
+      setErrors((prev) => ({ ...prev, depart: "Adresse introuvable" }));
     }
-  }, []);
+  }, [f.depart]);
 
-  useEffect(() => {
-    checkTaxiAvailability();
-  }, [checkTaxiAvailability]);
-
-  // Resolve destination on blur
+  // ── Résoudre adresse destination ─────────────────────────────────────────
   const resolveDestinationAddress = useCallback(async () => {
     const value = f.destination.trim();
     if (!value) return;
@@ -290,7 +327,7 @@ function ReservationPage() {
     if (coord) {
       setToCoord(coord);
       setErrors((prev) => {
-        const { destination, ...rest } = prev;
+        const { destination: _, ...rest } = prev;
         return rest;
       });
     } else {
@@ -299,7 +336,25 @@ function ReservationPage() {
     }
   }, [f.destination]);
 
-  // Form submission
+  // ── Disponibilité taxi ────────────────────────────────────────────────────
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("reservations")
+          .select("id")
+          .not("status", "in", "(cancelled,refused,completed)")
+          .limit(1);
+        if (error) throw error;
+        setTaxiAvailable(!data || data.length === 0);
+      } catch {
+        setTaxiAvailable(null);
+      }
+    };
+    check();
+  }, []);
+
+  // ── Soumission ────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -310,8 +365,14 @@ function ReservationPage() {
     if (!f.email.trim()) newErrors.email = "Requis";
     if (!f.depart.trim()) newErrors.depart = "Requis";
     if (!f.destination.trim()) newErrors.destination = "Requis";
-    if (!fromCoord) newErrors.depart = "Utilisez le bouton 📍 pour vous géolocaliser";
-    if (!toCoord) newErrors.destination = "Adresse introuvable";
+    if (!fromCoord) newErrors.depart = "Adresse de départ non résolue";
+    if (!toCoord) newErrors.destination = "Adresse de destination non résolue";
+    if (!orsResult) {
+      if (!newErrors.depart && !newErrors.destination) {
+        toast.error("En attente du calcul d'itinéraire…");
+        return;
+      }
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -353,7 +414,7 @@ function ReservationPage() {
 
       if (error) throw error;
 
-      // Notifie admin + chauffeur (push) + email (route serveur signature-safe)
+      // ── Notif push + email chauffeur ──────────────────────────────────────
       try {
         await fetch("/api/public/notify-reservation", {
           method: "POST",
@@ -361,11 +422,58 @@ function ReservationPage() {
           body: JSON.stringify({ reservation_id: data.id }),
         });
       } catch (err) {
-        console.error("[notify] failed", err);
+        console.error("[notify] push failed", err);
+      }
+
+      // ── Email chauffeur via bridge serveur ────────────────────────────────
+      try {
+        const heureStr = f.heure || "—";
+        const dateStr = f.date
+          ? new Date(`${f.date}T${f.heure || "00:00"}:00`).toLocaleString("fr-FR", {
+              timeZone: "Europe/Paris",
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "—";
+
+        await fetch("/api/admin/send-course-email", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Admin-Secret": "admin-pin-call",
+          },
+          body: JSON.stringify({
+            to: "chauffeur@taxicitybx.fr", // adresse chauffeur à adapter
+            subject: `🚕 Nouvelle course — ${f.prenom} ${f.nom}`,
+            html: `
+              <div style="font-family:sans-serif;max-width:520px;margin:auto;background:#0f172a;color:#e2e8f0;padding:32px;border-radius:16px">
+                <h1 style="color:#f5c842;margin:0 0 8px">Nouvelle réservation</h1>
+                <p style="color:#94a3b8;margin:0 0 24px">Une course vient d'être réservée sur Taxi City Bordeaux.</p>
+                <table style="width:100%;border-collapse:collapse">
+                  <tr><td style="padding:8px 0;color:#64748b;width:40%">Client</td><td style="color:#f1f5f9;font-weight:600">${f.prenom} ${f.nom}</td></tr>
+                  <tr><td style="padding:8px 0;color:#64748b">Téléphone</td><td style="color:#f1f5f9;font-weight:600"><a href="tel:${f.phone}" style="color:#22c55e">${f.phone}</a></td></tr>
+                  <tr><td style="padding:8px 0;color:#64748b">Prise en charge</td><td style="color:#f5c842;font-weight:700">${dateStr}</td></tr>
+                  <tr><td style="padding:8px 0;color:#64748b">Départ</td><td style="color:#f1f5f9">${f.depart}</td></tr>
+                  <tr><td style="padding:8px 0;color:#64748b">Destination</td><td style="color:#f1f5f9">${f.destination}</td></tr>
+                  <tr><td style="padding:8px 0;color:#64748b">Distance</td><td style="color:#f1f5f9">${orsResult?.distanceKm ?? "—"} km · ${orsResult ? Math.round(orsResult.dureeS / 60) : "—"} min</td></tr>
+                  <tr><td style="padding:8px 0;color:#64748b">Prix estimé</td><td style="color:#f5c842;font-weight:800;font-size:18px">${prixAller.toFixed(2)} €</td></tr>
+                  <tr><td style="padding:8px 0;color:#64748b">Passagers</td><td style="color:#f1f5f9">${f.passagers}</td></tr>
+                  <tr><td style="padding:8px 0;color:#64748b">Bagages</td><td style="color:#f1f5f9">${f.bagages}</td></tr>
+                  <tr><td style="padding:8px 0;color:#64748b">Paiement</td><td style="color:#f1f5f9">${f.paiement}</td></tr>
+                </table>
+                <a href="${window.location.origin}/admin" style="display:inline-block;margin-top:24px;padding:12px 24px;background:#f5c842;color:#0f172a;border-radius:10px;font-weight:700;text-decoration:none">Gérer dans le dashboard →</a>
+              </div>
+            `,
+          }),
+        });
+      } catch (err) {
+        console.error("[email chauffeur] failed", err);
       }
 
       toast.success(`Réservation confirmée pour ${f.prenom} !`);
-      // Redirection — évite le bug de la carte (démontage/remontage du conteneur)
       navigate({ to: "/suivi/$id", params: { id: newTrackingId } });
     } catch (err: any) {
       setSending(false);
@@ -377,7 +485,7 @@ function ReservationPage() {
     width: "100%",
     padding: "14px 14px",
     borderRadius: 12,
-    border: `2px solid ${hasError ? "#ef4444" : "#cbd5e1"}`,
+    border: `2px solid ${hasError ? "#ef4444" : "rgba(203,213,225,0.4)"}`,
     fontSize: 16,
     background: "#ffffff",
     color: "#0f172a",
@@ -402,17 +510,18 @@ function ReservationPage() {
         @import url('https://fonts.googleapis.com/css2?family=Clash+Display:wght@700&family=DM+Sans:wght@400;500;600;700&display=swap');
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         input, select, button { font-family: 'DM Sans', sans-serif; }
-        input[type=date], input[type=time] { color-scheme: dark; }
+        input[type=date], input[type=time] { color-scheme: light; }
         input[type=text], input[type=tel], input[type=email] { font-size: 16px !important; }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
         .leaflet-container { width: 100% !important; height: 100% !important; }
       `}</style>
 
-      {/* Map */}
+      {/* ── Map ── */}
       <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
         <div ref={mapRef} style={{ position: "absolute", inset: 0 }} />
 
+        {/* Badge disponibilité */}
         <div
           style={{
             position: "absolute",
@@ -442,8 +551,41 @@ function ReservationPage() {
             {taxiAvailable === null ? "Vérification..." : taxiAvailable ? "Disponible" : "Indisponible"}
           </span>
         </div>
+
+        {/* Badge calcul */}
+        {calcLoading && (
+          <div
+            style={{
+              position: "absolute",
+              top: 16,
+              right: 16,
+              background: "rgba(10,10,20,0.85)",
+              backdropFilter: "blur(12px)",
+              borderRadius: 99,
+              padding: "6px 14px",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              border: "1px solid rgba(245,200,66,0.15)",
+              zIndex: 100,
+            }}
+          >
+            <div
+              style={{
+                width: 14,
+                height: 14,
+                border: "2px solid #f5c842",
+                borderTopColor: "transparent",
+                borderRadius: "50%",
+                animation: "spin 0.8s linear infinite",
+              }}
+            />
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#f5c842" }}>Calcul…</span>
+          </div>
+        )}
       </div>
 
+      {/* ── Bottom sheet ── */}
       <div
         style={{
           flexShrink: 0,
@@ -476,8 +618,12 @@ function ReservationPage() {
             <div style={{ fontSize: 13, color: "#cbd5e1", marginTop: 4 }}>En quelques étapes seulement</div>
           </div>
 
-          <form onSubmit={handleSubmit} autoComplete="off" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-            {/* Coordonnées */}
+          <form
+            onSubmit={handleSubmit}
+            autoComplete="off"
+            style={{ display: "flex", flexDirection: "column", gap: 18 }}
+          >
+            {/* ── Coordonnées ── */}
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>
                 👤 Vos coordonnées
@@ -488,7 +634,9 @@ function ReservationPage() {
                   { k: "nom" as const, label: "Nom", ph: "Dupont" },
                 ].map(({ k, label, ph }) => (
                   <div key={k}>
-                    <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
+                    <label
+                      style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}
+                    >
                       {label}
                     </label>
                     <input
@@ -500,9 +648,10 @@ function ReservationPage() {
                       autoCorrect="off"
                       autoCapitalize="words"
                       spellCheck={false}
-                      name={`tcb-${k}-${Math.random().toString(36).slice(2, 8)}`}
+                      name={`tcb-${k}-x`}
                       style={inputStyle(!!errors[k])}
                     />
+                    {errors[k] && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors[k]}</div>}
                   </div>
                 ))}
               </div>
@@ -512,7 +661,9 @@ function ReservationPage() {
                   { k: "email" as const, label: "Email", ph: "jean@exemple.fr", type: "email" },
                 ].map(({ k, label, ph, type }) => (
                   <div key={k}>
-                    <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
+                    <label
+                      style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}
+                    >
                       {label}
                     </label>
                     <input
@@ -524,32 +675,42 @@ function ReservationPage() {
                       autoCorrect="off"
                       autoCapitalize="off"
                       spellCheck={false}
-                      name={`tcb-${k}-${Math.random().toString(36).slice(2, 8)}`}
+                      name={`tcb-${k}-x`}
                       style={inputStyle(!!errors[k])}
                     />
+                    {errors[k] && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors[k]}</div>}
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Adresses */}
+            {/* ── Adresses ── */}
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>
                 📍 Où allons-nous ?
               </div>
 
-              {/* Départ : géolocalisation uniquement */}
-              <div>
+              {/* Départ : saisie libre + bouton géoloc */}
+              <div style={{ marginBottom: 10 }}>
                 <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
-                  Départ (géolocalisé)
+                  Départ
                 </label>
                 <div style={{ position: "relative" }}>
                   <input
                     type="text"
                     value={f.depart}
-                    readOnly
-                    placeholder="Cliquez sur 📍 pour vous géolocaliser"
-                    style={{ ...inputStyle(!!errors.depart), paddingRight: 52, cursor: "default" }}
+                    onChange={(e) => {
+                      set("depart", e.target.value);
+                      setFromCoord(null);
+                    }}
+                    onBlur={resolveDepartAddress}
+                    placeholder="Adresse ou cliquez 📍"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    name="tcb-depart-x"
+                    style={{ ...inputStyle(!!errors.depart), paddingRight: 52 }}
                   />
                   <button
                     type="button"
@@ -574,13 +735,14 @@ function ReservationPage() {
                     {geolocLoading ? "⏳" : "📍"}
                   </button>
                 </div>
-                {errors.depart && (
-                  <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.depart}</div>
+                {errors.depart && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.depart}</div>}
+                {fromCoord && !errors.depart && (
+                  <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>✓ Position résolue</div>
                 )}
               </div>
 
-              {/* Destination : saisie libre, géocodage au blur */}
-              <div style={{ marginTop: 10 }}>
+              {/* Destination */}
+              <div>
                 <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
                   Destination
                 </label>
@@ -597,39 +759,53 @@ function ReservationPage() {
                   autoCorrect="off"
                   autoCapitalize="off"
                   spellCheck={false}
-                  name={`tcb-dest-${Math.random().toString(36).slice(2, 8)}`}
+                  name="tcb-dest-x"
                   style={inputStyle(!!errors.destination)}
                 />
                 {errors.destination && (
                   <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.destination}</div>
                 )}
-                {calcLoading && (
-                  <div style={{ color: "#cbd5e1", fontSize: 12, marginTop: 4 }}>Calcul en cours…</div>
+                {toCoord && !errors.destination && (
+                  <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>✓ Destination résolue</div>
                 )}
               </div>
 
+              {/* Récap distance + prix */}
               {orsResult && (
                 <div
                   style={{
                     marginTop: 12,
-                    padding: "10px 14px",
-                    background: "rgba(245,200,66,0.1)",
-                    borderRadius: 10,
-                    border: "1px solid rgba(245,200,66,0.2)",
+                    padding: "12px 16px",
+                    background: "rgba(245,200,66,0.12)",
+                    borderRadius: 12,
+                    border: "1px solid rgba(245,200,66,0.3)",
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
                   }}
                 >
-                  <div style={{ fontSize: 13, color: "#f5c842", fontWeight: 600 }}>
-                    {orsResult.distanceKm} km · {Math.round(orsResult.dureeS / 60)} min
+                  <div>
+                    <div style={{ fontSize: 11, color: "#cbd5e1", marginBottom: 2 }}>Itinéraire le plus long</div>
+                    <div style={{ fontSize: 14, color: "#f5c842", fontWeight: 700 }}>
+                      {orsResult.distanceKm} km · {Math.round(orsResult.dureeS / 60)} min
+                    </div>
                   </div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: "#ef4444" }}>~{prixAller.toFixed(2)} €</div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 11, color: "#cbd5e1", marginBottom: 2 }}>Prix estimé</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: "#f5c842", fontFamily: "'Clash Display'" }}>
+                      {prixAller.toFixed(2)} €
+                    </div>
+                  </div>
+                </div>
+              )}
+              {calcLoading && !orsResult && (
+                <div style={{ color: "#cbd5e1", fontSize: 12, marginTop: 8, textAlign: "center" }}>
+                  ⏳ Calcul de l'itinéraire…
                 </div>
               )}
             </div>
 
-            {/* Date/Time */}
+            {/* ── Date/heure ── */}
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>🕐 Quand ?</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -659,7 +835,7 @@ function ReservationPage() {
               </div>
             </div>
 
-            {/* Passagers & Bagages */}
+            {/* ── Passagers / Bagages ── */}
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>👥 Détails</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -698,7 +874,7 @@ function ReservationPage() {
               </div>
             </div>
 
-            {/* Payment */}
+            {/* ── Paiement ── */}
             <div>
               <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
                 Mode de paiement
@@ -710,7 +886,7 @@ function ReservationPage() {
               </select>
             </div>
 
-            {/* Notifications */}
+            {/* ── Notifications ── */}
             <div
               style={{
                 padding: "12px 14px",
@@ -722,11 +898,9 @@ function ReservationPage() {
                 gap: 8,
               }}
             >
-              <div style={{ fontSize: 13, color: "#f5f5f5", fontWeight: 600 }}>
-                🔔 Notifications
-              </div>
+              <div style={{ fontSize: 13, color: "#f5f5f5", fontWeight: 600 }}>🔔 Notifications push</div>
               <div style={{ fontSize: 12, color: "#cbd5e1" }}>
-                Client : suivi de votre course. Chauffeur : alertes des nouvelles courses.
+                Activez les notifications pour suivre votre course en temps réel.
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <EnablePushButton audience="client" variant="secondary" size="sm" label="Notifs client" />
@@ -734,9 +908,10 @@ function ReservationPage() {
               </div>
             </div>
 
+            {/* ── Bouton réserver ── */}
             <button
               type="submit"
-              disabled={sending || !orsResult}
+              disabled={sending}
               style={{
                 padding: "14px 20px",
                 background: sending ? "#64748b" : "#f5c842",
@@ -746,11 +921,16 @@ function ReservationPage() {
                 fontWeight: 700,
                 fontSize: 16,
                 cursor: sending ? "wait" : "pointer",
-                opacity: !orsResult && !sending ? 0.5 : 1,
               }}
             >
-              {sending ? "⏳ Réservation..." : "✓ Réserver"}
+              {sending ? "⏳ Réservation en cours…" : "✓ Réserver ma course"}
             </button>
+
+            {!orsResult && !calcLoading && fromCoord && toCoord && (
+              <div style={{ color: "#fecaca", fontSize: 12, textAlign: "center", marginTop: -8 }}>
+                L'itinéraire n'a pas pu être calculé. Vérifiez vos adresses.
+              </div>
+            )}
           </form>
 
           <div style={{ height: 20 }} />
