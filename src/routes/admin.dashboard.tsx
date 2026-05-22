@@ -442,15 +442,9 @@ function Dashboard() {
           .from("driver_gps")
           .insert({ id: "driver", is_active: false, latitude: 0, longitude: 0 });
         setGpsLoading(false);
-        // Démarrage auto même si la ligne n'existait pas encore
-        startGPS();
         return;
       }
-      setGpsDestination(data.destination ?? "");
-      setGpsPrixEstime(data.prix_estime ?? "");
       setGpsLoading(false);
-      // Démarre automatiquement dès l'ouverture du dashboard
-      startGPS();
     };
     initGPS();
     return () => {
@@ -536,8 +530,6 @@ function Dashboard() {
       .from("driver_gps")
       .update({
         is_active: true,
-        destination: gpsDestination || null,
-        prix_estime: gpsPrixEstime || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", "driver");
@@ -2496,19 +2488,47 @@ function Dashboard() {
           >
             {!gpsActive ? (
               <>
-                <div style={{ fontSize: 52, opacity: 0.5 }}>📡</div>
+                <div style={{ fontSize: 52, opacity: 0.35, marginBottom: 12 }}>📡</div>
                 <h3
                   style={{
                     fontFamily: "'Syne',sans-serif",
                     color: "#94a3b8",
-                    marginTop: 10,
+                    marginTop: 0,
+                    marginBottom: 8,
                     fontSize: 16,
                     fontWeight: 700,
                   }}
                 >
-                  Démarrage GPS…
+                  GPS inactif
                 </h3>
-                <p style={{ color: "#64748b", fontSize: 13 }}>Autorisation de localisation requise</p>
+                <p style={{ color: "#64748b", fontSize: 13, marginBottom: 24, marginTop: 0 }}>
+                  Votre position n'est pas partagée avec les clients
+                </p>
+                <button
+                  onClick={startGPS}
+                  style={{
+                    width: "100%",
+                    height: 56,
+                    background: "linear-gradient(135deg, #22c55e, #16a34a)",
+                    color: "#fff",
+                    border: 0,
+                    borderRadius: 16,
+                    fontFamily: "'Syne',sans-serif",
+                    fontWeight: 800,
+                    fontSize: 16,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 10,
+                    boxShadow: "0 4px 20px rgba(34,197,94,0.3)",
+                    transition: "transform 0.15s, box-shadow 0.15s",
+                  }}
+                  onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.97)")}
+                  onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
+                >
+                  <span style={{ fontSize: 20 }}>📡</span> Activer le GPS
+                </button>
               </>
             ) : (
               <>
