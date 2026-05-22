@@ -245,8 +245,11 @@ function Dashboard() {
   const [gpsPosition, setGpsPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [gpsUpdateCount, setGpsUpdateCount] = useState(0);
+  const [activeResaId, setActiveResaId] = useState<string | null>(null); // course en cours liée au GPS
+  const [autoTransition, setAutoTransition] = useState(false); // flag transition auto en cours
   const watchIdRef = useRef<number | null>(null);
   const lastPosRef = useRef<{ lat: number; lng: number } | null>(null);
+  const activeResaIdRef = useRef<string | null>(null); // ref pour accès dans le watchPosition callback
   const gpsMapRef = useRef<HTMLDivElement>(null);
   const gpsMapInst = useRef<any>(null);
   const gpsMarkerRef = useRef<any>(null);
@@ -441,10 +444,10 @@ function Dashboard() {
         await (supabase as any)
           .from("driver_gps")
           .insert({ id: "driver", is_active: false, latitude: 0, longitude: 0 });
-        setGpsLoading(false);
-        return;
       }
       setGpsLoading(false);
+      // Le démarrage effectif se fait dans le useEffect "GPS auto-start" ci-dessous
+      // une fois que items est chargé
     };
     initGPS();
     return () => {
@@ -524,15 +527,20 @@ function Dashboard() {
     gpsMapInst.current.setView(latlng, gpsMapInst.current.getZoom());
   }, [gpsPosition]);
 
-  const startGPS = async () => {
+  const startGPS = async (resaId?: string) => {
     if (!navigator.geolocation) return;
     await (supabase as any)
       .from("driver_gps")
       .update({
         is_active: true,
+        destination: gpsDestination || null,
+        prix_estime: gpsPrixEstime || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", "driver");
+    const linkedId = resaId ?? null;
+    setActiveResaId(linkedId);
+    activeResaIdRef.current = linkedId;
     setGpsActive(true);
     watchIdRef.current = navigator.geolocation.watchPosition(
       async (pos) => {
@@ -596,7 +604,93 @@ function Dashboard() {
     setGpsPosition(null);
     setGpsAccuracy(null);
     setGpsUpdateCount(0);
+    setActiveResaId(null);
+    activeResaIdRef.current = null;
+    setAutoTransition(false);
   };
+
+  // =========================
+  // GPS AUTO-START
+  // Démarre automatiquement dès que les courses sont chargées
+  // Se lie à la course en cours (en_route/arrived) ou prochaine (accepted)
+  // =========================
+  const gpsStartedRef = useRef(false);
+  useEffect(() => {
+    if (coursesLoading) return; // attend que les courses soient prêtes
+    if (gpsLoading) return; // attend que la ligne driver_gps soit initialisée
+    if (gpsStartedRef.current) return; // ne démarre qu'une seule fois
+    gpsStartedRef.current = true;
+
+    const now = new Date().toISOString();
+    // Priorité 1 : course déjà active (en_route / arrived)
+    const inProgress = items.find((r) => r.status === "en_route" || r.status === "arrived") ?? null;
+    // Priorité 2 : prochaine accepted par date
+    const nextAccepted =
+      items
+        .filter((r) => r.status === "accepted" && (!r.pickup_datetime || r.pickup_datetime >= now))
+        .sort((a, b) => {
+          if (!a.pickup_datetime) return 1;
+          if (!b.pickup_datetime) return -1;
+          return new Date(a.pickup_datetime).getTime() - new Date(b.pickup_datetime).getTime();
+        })[0] ?? null;
+    const linked = inProgress ?? nextAccepted;
+    startGPS(linked?.id ?? undefined);
+  }, [coursesLoading, gpsLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // =========================
+  // GPS AUTO-TRANSITION
+  // Détecte quand la course active passe en "completed" ou "cancelled"
+  // et bascule automatiquement sur la suivante
+  // =========================
+  useEffect(() => {
+    if (!gpsActive || !activeResaId) return;
+
+    const activeCourse = items.find((r) => r.id === activeResaId);
+    if (!activeCourse) return;
+
+    const isFinished = activeCourse.status === "completed" || activeCourse.status === "cancelled";
+    if (!isFinished) return;
+
+    const now = new Date().toISOString();
+
+    // Priorité 1 : course déjà en_route ou arrived (vraiment en cours)
+    const inProgress =
+      items.find((r) => r.id !== activeResaId && (r.status === "en_route" || r.status === "arrived")) ?? null;
+
+    // Priorité 2 : prochaine accepted par date
+    const nextAccepted =
+      items
+        .filter(
+          (r) => r.id !== activeResaId && r.status === "accepted" && (!r.pickup_datetime || r.pickup_datetime >= now),
+        )
+        .sort((a, b) => {
+          if (!a.pickup_datetime) return 1;
+          if (!b.pickup_datetime) return -1;
+          return new Date(a.pickup_datetime).getTime() - new Date(b.pickup_datetime).getTime();
+        })[0] ?? null;
+
+    const next = inProgress ?? nextAccepted;
+
+    if (next) {
+      setAutoTransition(true);
+      setActiveResaId(next.id);
+      activeResaIdRef.current = next.id;
+      const clientName = next.client_name || next.nom || "prochain client";
+      const dest = next.arrivee || next.destination || "";
+      toast.success("🔄 Nouvelle course détectée", {
+        description: `GPS lié à ${clientName}${dest ? ` → ${dest}` : ""}`,
+        duration: 6000,
+      });
+      setTimeout(() => setAutoTransition(false), 3000);
+    } else {
+      setActiveResaId(null);
+      activeResaIdRef.current = null;
+      toast("🏁 Course terminée", {
+        description: "GPS toujours actif — aucune prochaine course.",
+        duration: 5000,
+      });
+    }
+  }, [items, gpsActive, activeResaId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // =========================
   // CALCUL DISTANCE
@@ -2488,50 +2582,42 @@ function Dashboard() {
           >
             {!gpsActive ? (
               <>
-                <div style={{ fontSize: 52, opacity: 0.35, marginBottom: 12 }}>📡</div>
+                <div style={{ fontSize: 48, opacity: 0.3, marginBottom: 12 }}>📡</div>
                 <h3
                   style={{
                     fontFamily: "'Syne',sans-serif",
-                    color: "#94a3b8",
-                    marginTop: 0,
-                    marginBottom: 8,
-                    fontSize: 16,
+                    color: "#64748b",
+                    margin: "0 0 6px",
+                    fontSize: 15,
                     fontWeight: 700,
                   }}
                 >
-                  GPS inactif
+                  Connexion GPS…
                 </h3>
-                <p style={{ color: "#64748b", fontSize: 13, marginBottom: 24, marginTop: 0 }}>
-                  Votre position n'est pas partagée avec les clients
-                </p>
-                <button
-                  onClick={startGPS}
-                  style={{
-                    width: "100%",
-                    height: 56,
-                    background: "linear-gradient(135deg, #22c55e, #16a34a)",
-                    color: "#fff",
-                    border: 0,
-                    borderRadius: 16,
-                    fontFamily: "'Syne',sans-serif",
-                    fontWeight: 800,
-                    fontSize: 16,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 10,
-                    boxShadow: "0 4px 20px rgba(34,197,94,0.3)",
-                    transition: "transform 0.15s, box-shadow 0.15s",
-                  }}
-                  onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.97)")}
-                  onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
-                >
-                  <span style={{ fontSize: 20 }}>📡</span> Activer le GPS
-                </button>
+                <p style={{ color: "#475569", fontSize: 13, margin: 0 }}>Démarrage automatique en cours</p>
               </>
             ) : (
               <>
+                {/* Indicateur de transition automatique */}
+                {autoTransition && (
+                  <div
+                    style={{
+                      background: "rgba(245,200,66,0.12)",
+                      border: "1px solid rgba(245,200,66,0.3)",
+                      borderRadius: 12,
+                      padding: "10px 14px",
+                      marginBottom: 16,
+                      fontSize: 13,
+                      color: "#f5c842",
+                      fontWeight: 700,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <span style={{ fontSize: 16 }}>🔄</span> Transition vers la prochaine course…
+                  </div>
+                )}
                 <div
                   style={{
                     width: 80,
@@ -2554,6 +2640,55 @@ function Dashboard() {
                   Position active
                 </h3>
                 <p style={{ color: "#94a3b8", fontSize: 14 }}>Vos clients vous voient</p>
+                {/* Course liée au GPS */}
+                {activeResaId &&
+                  (() => {
+                    const r = items.find((x) => x.id === activeResaId);
+                    if (!r) return null;
+                    const dest = r.arrivee || r.destination || "—";
+                    const clientName = r.client_name || r.nom || "—";
+                    return (
+                      <div
+                        style={{
+                          background: "rgba(34,197,94,0.08)",
+                          border: "1px solid rgba(34,197,94,0.2)",
+                          borderRadius: 14,
+                          padding: "12px 14px",
+                          marginTop: 14,
+                          textAlign: "left",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 10,
+                            color: "#64748b",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.07em",
+                            marginBottom: 6,
+                            fontWeight: 600,
+                          }}
+                        >
+                          Course en cours
+                        </div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: "#f1f5f9", marginBottom: 4 }}>
+                          {clientName}
+                        </div>
+                        <div style={{ fontSize: 13, color: "#94a3b8" }}>
+                          📍 {r.depart} → {dest}
+                        </div>
+                        {r.pickup_datetime && (
+                          <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
+                            🕐 {formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                {!activeResaId && (
+                  <div style={{ fontSize: 13, color: "#475569", marginTop: 14 }}>
+                    Aucune course liée — en attente d'une réservation
+                  </div>
+                )}
                 {gpsPosition && (
                   <div
                     style={{
@@ -2602,23 +2737,52 @@ function Dashboard() {
                     {gpsPrixEstime}
                   </div>
                 )}
+                {/* Bouton terminer : marque la course completed → déclenche la transition auto */}
+                {activeResaId &&
+                  (() => {
+                    const r = items.find((x) => x.id === activeResaId);
+                    const canComplete = r && r.status !== "completed" && r.status !== "cancelled";
+                    if (!canComplete) return null;
+                    return (
+                      <button
+                        onClick={() => handleUpdateReservationStatus(r, "completed")}
+                        style={{
+                          marginTop: 20,
+                          width: "100%",
+                          height: 52,
+                          background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+                          color: "#fff",
+                          border: 0,
+                          borderRadius: 14,
+                          fontFamily: "'Syne',sans-serif",
+                          fontWeight: 800,
+                          fontSize: 15,
+                          cursor: "pointer",
+                          boxShadow: "0 4px 16px rgba(37,99,235,0.3)",
+                        }}
+                      >
+                        🏁 Terminer la course
+                      </button>
+                    );
+                  })()}
+                {/* Bouton urgence : coupe le GPS complètement */}
                 <button
                   onClick={stopGPS}
                   style={{
-                    marginTop: 24,
+                    marginTop: 10,
                     width: "100%",
-                    height: 52,
-                    background: "#ef4444",
-                    color: "#fff",
-                    border: 0,
-                    borderRadius: 14,
-                    fontFamily: "'Syne',sans-serif",
-                    fontWeight: 800,
-                    fontSize: 15,
+                    height: 40,
+                    background: "transparent",
+                    color: "#475569",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: 12,
+                    fontFamily: "'DM Sans',sans-serif",
+                    fontWeight: 600,
+                    fontSize: 13,
                     cursor: "pointer",
                   }}
                 >
-                  ⏹ Terminer la course
+                  ⏹ Couper le GPS
                 </button>
               </>
             )}
