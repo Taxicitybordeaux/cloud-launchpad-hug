@@ -107,6 +107,20 @@ function loadLeaflet(): Promise<void> {
   });
 }
 
+const inputStyle = (hasError?: boolean): React.CSSProperties => ({
+  width: "100%",
+  padding: "14px 14px",
+  borderRadius: 12,
+  border: `2px solid ${hasError ? "#ef4444" : "rgba(203,213,225,0.4)"}`,
+  fontSize: 16,
+  background: "#ffffff",
+  color: "#0f172a",
+  fontFamily: "'DM Sans',sans-serif",
+  outline: "none",
+  boxSizing: "border-box",
+  minHeight: 48,
+});
+
 function ReservationPage() {
   const navigate = useNavigate();
   const [today, setToday] = useState("");
@@ -300,9 +314,19 @@ function ReservationPage() {
     );
   }, []);
 
-  // Tentative auto au chargement (sans bloquer)
+  // Tentative auto au chargement uniquement si la permission est déjà accordée (sans bloquer)
   useEffect(() => {
-    handleGeolocate();
+    if (!navigator.geolocation) return;
+    navigator.permissions
+      ?.query({ name: "geolocation" })
+      .then((result) => {
+        if (result.state === "granted") {
+          handleGeolocate();
+        }
+      })
+      .catch(() => {
+        // API permissions non disponible (ex: Safari), on n'essaie pas
+      });
   }, [handleGeolocate]);
 
   // ── Résoudre adresse départ (saisie manuelle) ────────────────────────────
@@ -376,6 +400,7 @@ function ReservationPage() {
     if (!toCoord) newErrors.destination = "Adresse de destination non résolue";
     if (!orsResult) {
       if (!newErrors.depart && !newErrors.destination) {
+        setErrors(newErrors);
         toast.error("En attente du calcul d'itinéraire…");
         return;
       }
@@ -466,7 +491,7 @@ function ReservationPage() {
                   <tr><td style="padding:8px 0;color:#64748b">Bagages</td><td style="color:#f1f5f9">${f.bagages}</td></tr>
                   <tr><td style="padding:8px 0;color:#64748b">Paiement</td><td style="color:#f1f5f9">${f.paiement}</td></tr>
                 </table>
-                <a href="${window.location.origin}/admin" style="display:inline-block;margin-top:24px;padding:12px 24px;background:#f5c842;color:#0f172a;border-radius:10px;font-weight:700;text-decoration:none">Gérer dans le dashboard →</a>
+                <a href="${typeof window !== "undefined" ? window.location.origin : ""}/admin" style="display:inline-block;margin-top:24px;padding:12px 24px;background:#f5c842;color:#0f172a;border-radius:10px;font-weight:700;text-decoration:none">Gérer dans le dashboard →</a>
               </div>
             `,
           }),
@@ -476,26 +501,13 @@ function ReservationPage() {
       }
 
       toast.success(`Réservation confirmée pour ${f.prenom} !`);
+      setSending(false);
       navigate({ to: "/suivi/$id", params: { id: newTrackingId } });
     } catch (err: any) {
       setSending(false);
       toast.error("Erreur lors de la réservation", { description: err?.message });
     }
   };
-
-  const inputStyle = (hasError?: boolean) => ({
-    width: "100%",
-    padding: "14px 14px",
-    borderRadius: 12,
-    border: `2px solid ${hasError ? "#ef4444" : "rgba(203,213,225,0.4)"}`,
-    fontSize: 16,
-    background: "#ffffff",
-    color: "#0f172a",
-    fontFamily: "'DM Sans',sans-serif",
-    outline: "none",
-    boxSizing: "border-box" as const,
-    minHeight: 48,
-  });
 
   return (
     <div
