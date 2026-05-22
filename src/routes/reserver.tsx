@@ -107,20 +107,6 @@ function loadLeaflet(): Promise<void> {
   });
 }
 
-const inputStyle = (hasError?: boolean) => ({
-  width: "100%",
-  padding: "14px 14px",
-  borderRadius: 12,
-  border: `2px solid ${hasError ? "#ef4444" : "rgba(203,213,225,0.4)"}`,
-  fontSize: 16,
-  background: "#ffffff",
-  color: "#0f172a",
-  fontFamily: "'DM Sans',sans-serif",
-  outline: "none",
-  boxSizing: "border-box",
-  minHeight: 48,
-});
-
 function ReservationPage() {
   const navigate = useNavigate();
   const [today, setToday] = useState("");
@@ -314,20 +300,11 @@ function ReservationPage() {
     );
   }, []);
 
-  // Tentative auto au chargement uniquement si la permission est déjà accordée (sans bloquer)
+  // Tentative auto au chargement uniquement si permission déjà accordée
   useEffect(() => {
     if (!navigator.geolocation) return;
-    navigator.permissions
-      ?.query({ name: "geolocation" })
-      .then((result) => {
-        if (result.state === "granted") {
-          handleGeolocate();
-        }
-      })
-      .catch(() => {
-        // API permissions non disponible (ex: Safari), on n'essaie pas
-      });
-  }, [handleGeolocate]);
+    // On ne demande PAS la permission automatiquement — l'utilisateur clique sur 📍
+  }, []);
 
   // ── Résoudre adresse départ (saisie manuelle) ────────────────────────────
   const resolveDepartAddress = useCallback(async () => {
@@ -400,7 +377,6 @@ function ReservationPage() {
     if (!toCoord) newErrors.destination = "Adresse de destination non résolue";
     if (!orsResult) {
       if (!newErrors.depart && !newErrors.destination) {
-        setErrors(newErrors);
         toast.error("En attente du calcul d'itinéraire…");
         return;
       }
@@ -508,6 +484,20 @@ function ReservationPage() {
       toast.error("Erreur lors de la réservation", { description: err?.message });
     }
   };
+
+  const inputStyle = (hasError?: boolean) => ({
+    width: "100%",
+    padding: "14px 14px",
+    borderRadius: 12,
+    border: `2px solid ${hasError ? "#ef4444" : "rgba(203,213,225,0.4)"}`,
+    fontSize: 16,
+    background: "#ffffff",
+    color: "#0f172a",
+    fontFamily: "'DM Sans',sans-serif",
+    outline: "none",
+    boxSizing: "border-box" as const,
+    minHeight: 48,
+  });
 
   return (
     <div
