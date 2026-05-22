@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix, calculerPrixMixte, PRISE_EN_CHARGE } from "@/lib/tarif";
 import { geocodeAddress, reverseGeocode } from "@/lib/geocode";
-import { getRouteGeoCoords } from "@/lib/osrm";
 import { EnablePushButton } from "@/components/EnablePushButton";
 
 export const Route = createFileRoute("/reserver")({
@@ -262,7 +261,7 @@ function ReservationPage() {
     });
   }, [fromCoord, toCoord]);
 
-  // ── Géolocalisation départ ────────────────────────────────────────────────
+  // ── Géolocalisation départ (navigateur client uniquement) ───────────────
   const handleGeolocate = useCallback(async () => {
     if (!navigator.geolocation) {
       toast.error("Géolocalisation non disponible");
@@ -271,25 +270,50 @@ function ReservationPage() {
     setGeolocLoading(true);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        const adresse = await reverseGeocode(latitude, longitude);
-        if (adresse) {
-          set("depart", adresse);
-          setFromCoord([longitude, latitude]);
-          setErrors((prev) => {
-            const { depart: _, ...rest } = prev;
-            return rest;
-          });
-          toast.success("Position détectée");
-        } else {
-          toast.error("Adresse introuvable");
+        // lat/lng du GPS du NAVIGATEUR du client
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+
+        // Reverse geocoding Nominatim (ordre lat, lon garanti)
+        let adresse: string | null = null;
+        try {
+          const r = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=fr`,
+            { headers: { "User-Agent": "TaxiCityBordeaux/1.0" } },
+          );
+          const json = await r.json();
+          if (json?.address) {
+            const a = json.address;
+            const parts = [a.house_number, a.road, a.city || a.town || a.village].filter(Boolean);
+            adresse = parts.length >= 2 ? parts.join(" ") : json.display_name;
+          } else {
+            adresse = json?.display_name ?? null;
+          }
+        } catch {
+          adresse = await reverseGeocode(lat, lng).catch(() => null);
         }
+
+        set("depart", adresse ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+        // fromCoord stocké en [lng, lat] pour OSRM (GeoJSON)
+        setFromCoord([lng, lat]);
+        setErrors((prev) => {
+          const { depart: _, ...rest } = prev;
+          return rest;
+        });
+        toast.success("Position détectée ✓");
         setGeolocLoading(false);
       },
-      () => {
+      (err) => {
         setGeolocLoading(false);
-        toast.error("Impossible d'obtenir votre position");
+        const msg =
+          err.code === 1
+            ? "Permission refusée — saisissez l'adresse manuellement"
+            : err.code === 2
+              ? "Position introuvable"
+              : "Délai dépassé";
+        toast.error(msg);
       },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
     );
   }, []);
 
