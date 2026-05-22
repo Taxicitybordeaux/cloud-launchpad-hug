@@ -107,7 +107,7 @@ function loadLeaflet(): Promise<void> {
   });
 }
 
-const inputStyle = (hasError?: boolean): React.CSSProperties => ({
+const inputStyle = (hasError?: boolean) => ({
   width: "100%",
   padding: "14px 14px",
   borderRadius: 12,
