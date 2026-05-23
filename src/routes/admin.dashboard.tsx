@@ -132,6 +132,34 @@ const valCss: React.CSSProperties = {
 const TARIF_JOUR_LABEL = "2,16 €/km";
 const TARIF_NUIT_LABEL = "3,24 €/km";
 
+const contactBtn = (color: string): React.CSSProperties => ({
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
+  padding: "8px 12px",
+  background: `${color}1a`,
+  border: `1px solid ${color}55`,
+  color,
+  borderRadius: 10,
+  textDecoration: "none",
+  fontWeight: 700,
+  fontSize: 13,
+  whiteSpace: "nowrap",
+});
+
+// Inject global mobile responsive styles into the admin dashboard
+const adminMobileCss = `
+  @media (max-width: 640px) {
+    .admin-kpi-grid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+    .admin-card { padding: 14px !important; border-radius: 16px !important; }
+    .admin-section-pad { padding: 12px !important; }
+    .admin-h-title { font-size: 18px !important; }
+    .admin-stat-val { font-size: 20px !important; }
+    .admin-hide-mobile { display: none !important; }
+    button, a.contact-btn { min-height: 40px; }
+  }
+`;
+
 const STATUS: Record<string, { bg: string; c: string; label: string }> = {
   pending: { bg: "rgba(245,158,11,0.15)", c: "#f59e0b", label: "En attente" },
   accepted: { bg: "rgba(34,197,94,0.15)", c: "#22c55e", label: "Acceptée" },
