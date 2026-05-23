@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { getDistanceAndDurationKm } from "@/lib/osrm";
@@ -194,7 +194,88 @@ function SuiviPage() {
     load();
   }, [id]);
 
-  // ── Init carte ────────────────────────────────────────────────────────────
+  // ── Init carte + drawTrip ────────────────────────────────────────────────
+  // On fusionne init et drawTrip : dès que la carte est prête ET resa chargée,
+  // on dessine immédiatement sans passer par un state intermédiaire mapReady
+  // qui causait des race conditions (resa arrivait avant mapReady).
+  const resaRef = useRef<Reservation | null>(null);
+  resaRef.current = resa;
+
+  const drawTripOnMap = useCallback(async (map: any, L: any, r: Reservation) => {
+    const depAddr = r.depart;
+    const arrAddr = r.arrivee || r.destination;
+    if (!depAddr || !arrAddr) return;
+
+    const [depGeo, arrGeo] = await Promise.all([
+      geocodeAddress(depAddr + ", Bordeaux, France").catch(() => null),
+      geocodeAddress(arrAddr + ", Bordeaux, France").catch(() => null),
+    ]);
+    if (!depGeo || !arrGeo) return;
+
+    depGeoRef.current = depGeo;
+    arrGeoRef.current = arrGeo;
+
+    const fromLngLat: [number, number] = [depGeo.lng, depGeo.lat];
+    const toLngLat: [number, number] = [arrGeo.lng, arrGeo.lat];
+
+    // Marqueur départ (vert)
+    const depIcon = L.divIcon({
+      className: "",
+      html: `<div style="width:14px;height:14px;background:#22c55e;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 4px rgba(34,197,94,0.25)"></div>`,
+      iconSize: [14, 14],
+      iconAnchor: [7, 7],
+    });
+    if (fromMarker.current) fromMarker.current.remove();
+    fromMarker.current = L.marker([depGeo.lat, depGeo.lng], { icon: depIcon })
+      .bindTooltip("Départ", { permanent: false, direction: "top" })
+      .addTo(map);
+
+    // Marqueur destination (jaune)
+    const arrIcon = L.divIcon({
+      className: "",
+      html: `<div style="width:14px;height:14px;background:#f97316;border-radius:3px;border:3px solid #1a1a2e;box-shadow:0 0 0 4px rgba(249,115,22,0.3)"></div>`,
+      iconSize: [14, 14],
+      iconAnchor: [7, 7],
+    });
+    if (toMarker.current) toMarker.current.remove();
+    toMarker.current = L.marker([arrGeo.lat, arrGeo.lng], { icon: arrIcon })
+      .bindTooltip("Destination", { permanent: false, direction: "top" })
+      .addTo(map);
+
+    // Tracé pointillé jaune départ → destination
+    const route = await getOsrmLongestPolyline(fromLngLat, toLngLat);
+    if (route && route.coords.length > 1) {
+      if (tripLayer.current) {
+        tripLayer.current.remove();
+        tripLayer.current = null;
+      }
+      tripLayer.current = L.polyline(
+        route.coords.map((c: [number, number]) => [c[1], c[0]]),
+        { color: "#f97316", weight: 4, opacity: 0.75, dashArray: "8 6" },
+      ).addTo(map);
+
+      map.invalidateSize();
+      map.fitBounds(
+        L.latLngBounds([
+          [depGeo.lat, depGeo.lng],
+          [arrGeo.lat, arrGeo.lng],
+        ]).pad(0.25),
+        { animate: false },
+      );
+      setMapReady(true);
+    } else {
+      // Pas de route OSRM — centrer quand même sur les deux points
+      map.fitBounds(
+        L.latLngBounds([
+          [depGeo.lat, depGeo.lng],
+          [arrGeo.lat, arrGeo.lng],
+        ]).pad(0.3),
+        { animate: false },
+      );
+      setMapReady(true);
+    }
+  }, []);
+
   useEffect(() => {
     let mounted = true;
 
@@ -210,6 +291,7 @@ function SuiviPage() {
         mapInst.current.remove();
         mapInst.current = null;
       }
+
       const map = L.map(container, {
         center: [44.8378, -0.5792],
         zoom: 13,
@@ -219,21 +301,28 @@ function SuiviPage() {
       L.tileLayer(OSM_TILE_URL, OSM_TILE_OPTIONS).addTo(map);
       L.control.zoom({ position: "bottomright" }).addTo(map);
       mapInst.current = map;
-      // Deux invalidateSize pour gérer le cas où le conteneur
-      // n'a pas encore ses dimensions finales au moment du mount
-      setTimeout(() => {
-        map.invalidateSize();
-        setMapReady(true);
-      }, 200);
-      setTimeout(() => map.invalidateSize(), 600);
+
+      // invalidateSize immédiat puis différé
+      map.invalidateSize();
+      setTimeout(() => map.invalidateSize(), 300);
+
+      // Dessiner le trajet dès que resa est disponible
+      const tryDraw = () => {
+        if (!mounted) return;
+        const r = resaRef.current;
+        if (r) {
+          drawTripOnMap(map, L, r);
+        } else {
+          // resa pas encore là — retry dans 200ms
+          setTimeout(tryDraw, 200);
+        }
+      };
+      tryDraw();
     };
 
-    // Si le ref est déjà disponible (rendu synchrone), on initialise directement
     if (mapRef.current) {
       initMap(mapRef.current);
     } else {
-      // Sinon on observe le DOM jusqu'à ce que le conteneur apparaisse
-      // (peut arriver si React batchait le rendu)
       const observer = new MutationObserver(() => {
         if (mapRef.current) {
           observer.disconnect();
@@ -254,84 +343,15 @@ function SuiviPage() {
       mapInst.current?.remove();
       mapInst.current = null;
     };
-  }, []);
+  }, [drawTripOnMap]);
 
-  // ── Afficher tracé de la course (départ → destination) — toujours ────────
-  // S'enclenche dès que la carte est prête, quel que soit le statut
+  // Re-dessiner si resa change après que la carte soit déjà prête
   useEffect(() => {
-    if (!resa || !mapReady) return;
-    const map = mapInst.current;
+    if (!resa || !mapReady || !mapInst.current) return;
     const L = (window as any).L;
-    if (!map || !L) return;
-
-    const drawTrip = async () => {
-      const depAddr = resa.depart;
-      const arrAddr = resa.arrivee || resa.destination;
-      if (!depAddr || !arrAddr) return;
-
-      const [depGeo, arrGeo] = await Promise.all([
-        geocodeAddress(depAddr + ", Bordeaux, France").catch(() => null),
-        geocodeAddress(arrAddr + ", Bordeaux, France").catch(() => null),
-      ]);
-      if (!depGeo || !arrGeo) return;
-
-      // Mise en cache pour la détection d'arrivée
-      depGeoRef.current = depGeo;
-      arrGeoRef.current = arrGeo;
-
-      const fromLngLat: [number, number] = [depGeo.lng, depGeo.lat];
-      const toLngLat: [number, number] = [arrGeo.lng, arrGeo.lat];
-
-      // Marqueur départ
-      const depIcon = L.divIcon({
-        className: "",
-        html: `<div style="width:14px;height:14px;background:#22c55e;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 4px rgba(34,197,94,0.25)"></div>`,
-        iconSize: [14, 14],
-        iconAnchor: [7, 7],
-      });
-      if (fromMarker.current) fromMarker.current.remove();
-      fromMarker.current = L.marker([depGeo.lat, depGeo.lng], { icon: depIcon })
-        .bindTooltip("Départ", { permanent: false, direction: "top" })
-        .addTo(map);
-
-      // Marqueur destination
-      const arrIcon = L.divIcon({
-        className: "",
-        html: `<div style="width:14px;height:14px;background:#f5c842;border-radius:3px;border:3px solid #1a1a2e;box-shadow:0 0 0 4px rgba(245,200,66,0.25)"></div>`,
-        iconSize: [14, 14],
-        iconAnchor: [7, 7],
-      });
-      if (toMarker.current) toMarker.current.remove();
-      toMarker.current = L.marker([arrGeo.lat, arrGeo.lng], { icon: arrIcon })
-        .bindTooltip("Destination", { permanent: false, direction: "top" })
-        .addTo(map);
-
-      // Tracé pointillé départ → destination
-      const route = await getOsrmLongestPolyline(fromLngLat, toLngLat);
-      if (route && route.coords.length > 1) {
-        if (tripLayer.current) {
-          tripLayer.current.remove();
-          tripLayer.current = null;
-        }
-        tripLayer.current = L.polyline(
-          route.coords.map((c: [number, number]) => [c[1], c[0]]),
-          { color: "#f5c842", weight: 4, opacity: 0.55, dashArray: "8 6" },
-        ).addTo(map);
-
-        // Centrer la carte sur le trajet complet (toujours, GPS ou pas)
-        map.invalidateSize();
-        map.fitBounds(
-          L.latLngBounds([
-            [depGeo.lat, depGeo.lng],
-            [arrGeo.lat, arrGeo.lng],
-          ]).pad(0.25),
-          { animate: true, duration: 0.8 },
-        );
-      }
-    };
-
-    drawTrip();
-  }, [resa, mapReady]);
+    if (!L) return;
+    drawTripOnMap(mapInst.current, L, resa);
+  }, [resa, mapReady, drawTripOnMap]);
 
   // ── Position GPS temps réel du taxi ──────────────────────────────────────
   useEffect(() => {
@@ -920,7 +940,7 @@ function SuiviPage() {
                 </div>
               )}
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div style={{ width: 18, height: 3, background: "#f5c842", borderRadius: 2, opacity: 0.6 }} />
+                <div style={{ width: 18, height: 3, background: "#f97316", borderRadius: 2, opacity: 0.75 }} />
                 <span className="typo-label" style={{ fontSize: 10, color: "#94a3b8" }}>
                   Trajet course
                 </span>
