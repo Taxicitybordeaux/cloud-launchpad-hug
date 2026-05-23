@@ -1299,6 +1299,23 @@ function Dashboard() {
                     <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#64748b" }}>
                       📡 GPS inactif
                     </div>
+                    <button
+                      onClick={() => startGPS()}
+                      style={{
+                        marginLeft: "auto",
+                        background: "linear-gradient(135deg, #22c55e, #16a34a)",
+                        color: "#fff",
+                        border: 0,
+                        padding: "10px 18px",
+                        borderRadius: 12,
+                        cursor: "pointer",
+                        fontWeight: 800,
+                        fontSize: 14,
+                        boxShadow: "0 4px 12px rgba(34,197,94,0.3)",
+                      }}
+                    >
+                      ▶ Activer le GPS
+                    </button>
                   </>
                 )}
               </div>
@@ -1681,13 +1698,43 @@ function Dashboard() {
                       <span style={{ fontWeight: 700, color: "#fca5a5" }}>Motif :</span> {r.refus_motif}
                     </div>
                   )}
-                  <div style={{ marginTop: 12, display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
                     {(r.client_phone || r.telephone) && (
+                      <>
+                        <a
+                          href={`tel:${r.client_phone || r.telephone}`}
+                          style={contactBtn("#0ea5e9")}
+                        >
+                          📞 Appeler
+                        </a>
+                        <a
+                          href={`sms:${r.client_phone || r.telephone}?body=${encodeURIComponent(
+                            `Bonjour ${r.client_name || r.nom || ""}, votre taxi Taxi City Bordeaux.`,
+                          )}`}
+                          style={contactBtn("#a855f7")}
+                        >
+                          💬 SMS
+                        </a>
+                        <a
+                          href={`https://wa.me/${(r.client_phone || r.telephone || "").replace(/[^0-9]/g, "").replace(/^0/, "33")}?text=${encodeURIComponent(
+                            `Bonjour ${r.client_name || r.nom || ""}, Taxi City Bordeaux.`,
+                          )}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={contactBtn("#22c55e")}
+                        >
+                          🟢 WhatsApp
+                        </a>
+                      </>
+                    )}
+                    {(r.client_email || r.email) && (
                       <a
-                        href={`tel:${r.client_phone || r.telephone}`}
-                        style={{ color: "#0ea5e9", textDecoration: "none", fontWeight: 600, fontSize: 13 }}
+                        href={`mailto:${r.client_email || r.email}?subject=${encodeURIComponent(
+                          "Votre course Taxi City Bordeaux",
+                        )}`}
+                        style={contactBtn("#f5c842")}
                       >
-                        📞 {r.client_phone || r.telephone}
+                        ✉️ Email
                       </a>
                     )}
                   </div>

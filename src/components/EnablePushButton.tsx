@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Bell, BellOff, BellRing } from "lucide-react";
 import { toast } from "sonner";
+import { requestAndSaveFCMToken } from "@/lib/firebase";
 
 type Props = {
   audience: "admin" | "chauffeur" | "client";
@@ -124,6 +125,10 @@ export function EnablePushButton({
         reservation_id: reservationId ?? null,
         user_agent: navigator.userAgent.slice(0, 500),
       });
+
+      // En parallèle : enregistrer aussi le token Firebase Cloud Messaging
+      // (les deux canaux coexistent, FCM nécessite une clé service-account côté serveur pour envoyer)
+      requestAndSaveFCMToken(audience).catch((err) => console.warn("[FCM] register failed", err));
 
       setSubscribed(true);
       toast.success("Notifications activées 🔔");
