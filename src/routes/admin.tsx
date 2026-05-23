@@ -18,8 +18,6 @@ function AdminLayout() {
   const [pending, setPending] = useState(0);
 
   useEffect(() => {
-    let ch: ReturnType<typeof supabase.channel> | null = null;
-
     const fetchPending = async () => {
       const { count } = await supabase
         .from("reservations")
@@ -28,18 +26,18 @@ function AdminLayout() {
       setPending(count ?? 0);
     };
     fetchPending();
-    ch = supabase
+    const ch = supabase
       .channel("admin-pending")
       .on("postgres_changes", { event: "*", schema: "public", table: "reservations" }, fetchPending)
       .subscribe();
     return () => {
-      if (ch) supabase.removeChannel(ch);
+      supabase.removeChannel(ch);
     };
   }, []);
 
   useEffect(() => {
     if (path === "/admin" || path === "/admin/") {
-      navigate({ to: "/admin/dashboard", replace: true });
+      navigate({ to: "/admin/dashboard" });
     }
   }, [path, navigate]);
 
