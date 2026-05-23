@@ -9,7 +9,7 @@ import { sendPushToAudience } from '@/lib/push.server'
 const SITE_NAME = 'Taxi City Bordeaux'
 const SENDER_DOMAIN = 'notify.taxicitybordeaux.fr'
 const FROM_DOMAIN = 'taxicitybordeaux.fr'
-const TEMPLATE_NAME = 'reservation-notification'
+const TEMPLATE_NAME = 'new-reservation-admin'
 
 const schema = z.object({
   reservation_id: z.string().uuid(),
