@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { getDistanceAndDurationKm } from "@/lib/osrm";
@@ -159,8 +159,6 @@ function SuiviPage() {
   // Coords géocodées en cache pour éviter les appels répétés
   const depGeoRef = useRef<{ lat: number; lng: number } | null>(null);
   const arrGeoRef = useRef<{ lat: number; lng: number } | null>(null);
-  // Interpolation fluide du marqueur taxi
-  const taxiAnimRef = useRef<{ from: [number,number]; to: [number,number]; startTs: number; rafId: number } | null>(null);
 
   // ── Chargement réservation ────────────────────────────────────────────────
   useEffect(() => {
@@ -192,85 +190,22 @@ function SuiviPage() {
     load();
   }, [id]);
 
-  // ── Init carte + drawTrip ────────────────────────────────────────────────
-  // On fusionne init et drawTrip : dès que la carte est prête ET resa chargée,
-  // on dessine immédiatement sans passer par un state intermédiaire mapReady
-  // qui causait des race conditions (resa arrivait avant mapReady).
-  const resaRef = useRef<Reservation | null>(null);
-  resaRef.current = resa;
-
-  const drawTripOnMap = useCallback(async (map: any, L: any, r: Reservation) => {
-    const depAddr = r.depart;
-    const arrAddr = r.arrivee || r.destination;
-    if (!depAddr || !arrAddr) return;
-
-    const [depGeo, arrGeo] = await Promise.all([
-      geocodeAddress(depAddr + ", Bordeaux, France").catch(() => null),
-      geocodeAddress(arrAddr + ", Bordeaux, France").catch(() => null),
-    ]);
-    if (!depGeo || !arrGeo) return;
-
-    depGeoRef.current = depGeo;
-    arrGeoRef.current = arrGeo;
-
-    const fromLngLat: [number, number] = [depGeo.lng, depGeo.lat];
-    const toLngLat: [number, number] = [arrGeo.lng, arrGeo.lat];
-
-    // Marqueur départ (vert)
-    const depIcon = L.divIcon({
-      className: "",
-      html: `<div style="width:14px;height:14px;background:#22c55e;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 4px rgba(34,197,94,0.25)"></div>`,
-      iconSize: [14, 14], iconAnchor: [7, 7],
-    });
-    if (fromMarker.current) fromMarker.current.remove();
-    fromMarker.current = L.marker([depGeo.lat, depGeo.lng], { icon: depIcon })
-      .bindTooltip("Départ", { permanent: false, direction: "top" }).addTo(map);
-
-    // Marqueur destination (jaune)
-    const arrIcon = L.divIcon({
-      className: "",
-      html: `<div style="width:14px;height:14px;background:#f97316;border-radius:3px;border:3px solid #1a1a2e;box-shadow:0 0 0 4px rgba(249,115,22,0.3)"></div>`,
-      iconSize: [14, 14], iconAnchor: [7, 7],
-    });
-    if (toMarker.current) toMarker.current.remove();
-    toMarker.current = L.marker([arrGeo.lat, arrGeo.lng], { icon: arrIcon })
-      .bindTooltip("Destination", { permanent: false, direction: "top" }).addTo(map);
-
-    // Tracé pointillé jaune départ → destination
-    const route = await getOsrmLongestPolyline(fromLngLat, toLngLat);
-    if (route && route.coords.length > 1) {
-      if (tripLayer.current) { tripLayer.current.remove(); tripLayer.current = null; }
-      tripLayer.current = L.polyline(
-        route.coords.map((c: [number, number]) => [c[1], c[0]]),
-        { color: "#f97316", weight: 6, opacity: 1, dashArray: "10 7" },
-      ).addTo(map);
-
-      map.invalidateSize();
-      map.fitBounds(
-        L.latLngBounds([[depGeo.lat, depGeo.lng], [arrGeo.lat, arrGeo.lng]]).pad(0.25),
-        { animate: false },
-      );
-      setMapReady(true);
-    } else {
-      // Pas de route OSRM — centrer quand même sur les deux points
-      map.fitBounds(
-        L.latLngBounds([[depGeo.lat, depGeo.lng], [arrGeo.lat, arrGeo.lng]]).pad(0.3),
-        { animate: false },
-      );
-      setMapReady(true);
-    }
-  }, []);
-
+  // ── Init carte ────────────────────────────────────────────────────────────
   useEffect(() => {
     let mounted = true;
-
-    const initMap = async (container: HTMLDivElement) => {
-      try { await loadLeaflet(); } catch { return; }
-      if (!mounted) return;
+    const init = async () => {
+      try {
+        await loadLeaflet();
+      } catch {
+        return;
+      }
+      if (!mounted || !mapRef.current) return;
       const L = (window as any).L;
-      if (mapInst.current) { mapInst.current.remove(); mapInst.current = null; }
-
-      const map = L.map(container, {
+      if (mapInst.current) {
+        mapInst.current.remove();
+        mapInst.current = null;
+      }
+      const map = L.map(mapRef.current, {
         center: [44.8378, -0.5792],
         zoom: 13,
         zoomControl: false,
@@ -279,45 +214,96 @@ function SuiviPage() {
       L.tileLayer(OSM_TILE_URL, OSM_TILE_OPTIONS).addTo(map);
       L.control.zoom({ position: "bottomright" }).addTo(map);
       mapInst.current = map;
+      setTimeout(() => {
+        map.invalidateSize();
+        setMapReady(true);
+      }, 400);
+      setTimeout(() => map.invalidateSize(), 800);
+    };
+    init();
+    return () => {
+      mounted = false;
+      mapInst.current?.remove();
+      mapInst.current = null;
+    };
+  }, []);
 
-      // invalidateSize immédiat puis différé
-      map.invalidateSize();
-      setTimeout(() => map.invalidateSize(), 300);
+  // ── Afficher tracé de la course (départ → destination) — toujours ────────
+  // S'enclenche dès que la carte est prête, quel que soit le statut
+  useEffect(() => {
+    if (!resa || !mapReady) return;
+    const map = mapInst.current;
+    const L = (window as any).L;
+    if (!map || !L) return;
 
-      // Dessiner le trajet dès que resa est disponible
-      const tryDraw = () => {
-        if (!mounted) return;
-        const r = resaRef.current;
-        if (r) {
-          drawTripOnMap(map, L, r);
-        } else {
-          // resa pas encore là — retry dans 200ms
-          setTimeout(tryDraw, 200);
+    const drawTrip = async () => {
+      const depAddr = resa.depart;
+      const arrAddr = resa.arrivee || resa.destination;
+      if (!depAddr || !arrAddr) return;
+
+      const [depGeo, arrGeo] = await Promise.all([
+        geocodeAddress(depAddr + ", Bordeaux, France").catch(() => null),
+        geocodeAddress(arrAddr + ", Bordeaux, France").catch(() => null),
+      ]);
+      if (!depGeo || !arrGeo) return;
+
+      // Mise en cache pour la détection d'arrivée
+      depGeoRef.current = depGeo;
+      arrGeoRef.current = arrGeo;
+
+      const fromLngLat: [number, number] = [depGeo.lng, depGeo.lat];
+      const toLngLat: [number, number] = [arrGeo.lng, arrGeo.lat];
+
+      // Marqueur départ
+      const depIcon = L.divIcon({
+        className: "",
+        html: `<div style="width:14px;height:14px;background:#22c55e;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 4px rgba(34,197,94,0.25)"></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+      });
+      if (fromMarker.current) fromMarker.current.remove();
+      fromMarker.current = L.marker([depGeo.lat, depGeo.lng], { icon: depIcon })
+        .bindTooltip("Départ", { permanent: false, direction: "top" })
+        .addTo(map);
+
+      // Marqueur destination
+      const arrIcon = L.divIcon({
+        className: "",
+        html: `<div style="width:14px;height:14px;background:#f5c842;border-radius:3px;border:3px solid #1a1a2e;box-shadow:0 0 0 4px rgba(245,200,66,0.25)"></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+      });
+      if (toMarker.current) toMarker.current.remove();
+      toMarker.current = L.marker([arrGeo.lat, arrGeo.lng], { icon: arrIcon })
+        .bindTooltip("Destination", { permanent: false, direction: "top" })
+        .addTo(map);
+
+      // Tracé pointillé départ → destination
+      const route = await getOsrmLongestPolyline(fromLngLat, toLngLat);
+      if (route && route.coords.length > 1) {
+        if (tripLayer.current) {
+          tripLayer.current.remove();
+          tripLayer.current = null;
         }
-      };
-      tryDraw();
+        tripLayer.current = L.polyline(
+          route.coords.map((c: [number, number]) => [c[1], c[0]]),
+          { color: "#f5c842", weight: 4, opacity: 0.55, dashArray: "8 6" },
+        ).addTo(map);
+
+        // Centrer la carte sur le trajet complet (toujours, GPS ou pas)
+        map.invalidateSize();
+        map.fitBounds(
+          L.latLngBounds([
+            [depGeo.lat, depGeo.lng],
+            [arrGeo.lat, arrGeo.lng],
+          ]).pad(0.25),
+          { animate: true, duration: 0.8 },
+        );
+      }
     };
 
-    if (mapRef.current) {
-      initMap(mapRef.current);
-    } else {
-      const observer = new MutationObserver(() => {
-        if (mapRef.current) { observer.disconnect(); initMap(mapRef.current); }
-      });
-      observer.observe(document.body, { childList: true, subtree: true });
-      return () => { mounted = false; observer.disconnect(); mapInst.current?.remove(); mapInst.current = null; };
-    }
-
-    return () => { mounted = false; mapInst.current?.remove(); mapInst.current = null; };
-  }, [drawTripOnMap]);
-
-  // Re-dessiner si resa change après que la carte soit déjà prête
-  useEffect(() => {
-    if (!resa || !mapReady || !mapInst.current) return;
-    const L = (window as any).L;
-    if (!L) return;
-    drawTripOnMap(mapInst.current, L, resa);
-  }, [resa, mapReady, drawTripOnMap]);
+    drawTrip();
+  }, [resa, mapReady]);
 
   // ── Position GPS temps réel du taxi ──────────────────────────────────────
   useEffect(() => {
@@ -358,73 +344,31 @@ function SuiviPage() {
   }, []);
 
   // ── Mise à jour marqueur taxi + tracé + ETA + détection fin de course ─────
-  // Le marqueur se déplace en douceur via requestAnimationFrame (lerp 2s)
   useEffect(() => {
     const map = mapInst.current;
     const L = (window as any).L;
     if (!map || !L || !taxiPos || !mapReady || !resa) return;
 
-    const heading = taxiPos.heading ?? 0;
-
-    const makeTaxiIcon = (h: number) => L.divIcon({
+    const taxiIcon = L.divIcon({
       className: "",
       html: `<div style="position:relative;width:56px;height:56px;">
         <div style="position:absolute;inset:-8px;border-radius:50%;background:rgba(245,200,66,0.15);animation:gpsRing 2s ease-out infinite;"></div>
         <div style="position:absolute;inset:-4px;border-radius:50%;background:rgba(245,200,66,0.1);animation:gpsRing 2s ease-out 0.6s infinite;"></div>
         <div style="position:absolute;inset:0;border-radius:50%;background:rgba(10,10,20,0.9);border:2.5px solid rgba(245,200,66,0.7);display:flex;align-items:center;justify-content:center;">
-          <span style="font-size:26px;display:block;transform:rotate(${h}deg);transition:transform 0.8s cubic-bezier(.4,0,.2,1);">🚕</span>
+          <span style="font-size:26px;display:block;transform:rotate(${taxiPos.heading}deg);transition:transform 0.8s cubic-bezier(.4,0,.2,1);">🚕</span>
         </div>
       </div>`,
       iconSize: [56, 56],
       iconAnchor: [28, 28],
     });
 
-    // ── Interpolation fluide du marqueur ──────────────────────────────────
-    const ANIM_DURATION = 2000; // ms — durée du glissement vers la nouvelle pos
-    const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-
-    if (taxiAnimRef.current) {
-      cancelAnimationFrame(taxiAnimRef.current.rafId);
-      taxiAnimRef.current = null;
+    if (taxiMarker.current) {
+      taxiMarker.current.setLatLng([taxiPos.lat, taxiPos.lng]);
+      taxiMarker.current.setIcon(taxiIcon);
+    } else {
+      taxiMarker.current = L.marker([taxiPos.lat, taxiPos.lng], { icon: taxiIcon, zIndexOffset: 1000 }).addTo(map);
     }
 
-    const currentLatLng = taxiMarker.current
-      ? taxiMarker.current.getLatLng()
-      : null;
-
-    const fromPos: [number, number] = currentLatLng
-      ? [currentLatLng.lat, currentLatLng.lng]
-      : [taxiPos.lat, taxiPos.lng];
-
-    const toPos: [number, number] = [taxiPos.lat, taxiPos.lng];
-
-    if (!taxiMarker.current) {
-      taxiMarker.current = L.marker(fromPos, {
-        icon: makeTaxiIcon(heading),
-        zIndexOffset: 1000,
-      }).addTo(map);
-    }
-
-    const startTs = performance.now();
-
-    const animate = (now: number) => {
-      const t = Math.min((now - startTs) / ANIM_DURATION, 1);
-      const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // ease-in-out quad
-      const lat = lerp(fromPos[0], toPos[0], ease);
-      const lng = lerp(fromPos[1], toPos[1], ease);
-      taxiMarker.current?.setLatLng([lat, lng]);
-      if (t < 1) {
-        taxiAnimRef.current!.rafId = requestAnimationFrame(animate);
-      } else {
-        taxiMarker.current?.setIcon(makeTaxiIcon(heading));
-        taxiAnimRef.current = null;
-      }
-    };
-
-    const rafId = requestAnimationFrame(animate);
-    taxiAnimRef.current = { from: fromPos, to: toPos, startTs, rafId };
-
-    // ── Tracés couleur par statut ──────────────────────────────────────────
     const isEnRoute = ["en_route", "accepted", "arrived"].includes(resa.status);
     const isEnAttente = ["nouvelle", "pending"].includes(resa.status);
 
@@ -432,44 +376,53 @@ function SuiviPage() {
       const taxiLngLat: [number, number] = [taxiPos.lng, taxiPos.lat];
 
       if (isEnRoute && arrGeoRef.current) {
-        // 🔵 EN ROUTE : taxi → destination
+        // ── EN ROUTE : taxi → destination ───────────────────────────────────
         const arrGeo = arrGeoRef.current;
         const arrLngLat: [number, number] = [arrGeo.lng, arrGeo.lat];
 
-        // Détection fin de course
+        // Détection fin de course : taxi < seuil de la destination
         const distToArr = distanceMeters(taxiPos.lat, taxiPos.lng, arrGeo.lat, arrGeo.lng);
         if (distToArr < ARRIVAL_THRESHOLD_M && !courseTerminee) {
           setCourseTerminee(true);
+          // Mise à jour statut en BDD
           await (supabase as any).from("reservations").update({ status: "completed" }).eq("id", resa.id);
           setResa((prev) => (prev ? { ...prev, status: "completed" } : prev));
         }
 
         const route = await getOsrmLongestPolyline(taxiLngLat, arrLngLat);
         if (route && route.coords.length > 1) {
-          if (routeLayer.current) { routeLayer.current.remove(); routeLayer.current = null; }
+          if (routeLayer.current) {
+            routeLayer.current.remove();
+            routeLayer.current = null;
+          }
           routeLayer.current = L.polyline(
             route.coords.map((c: [number, number]) => [c[1], c[0]]),
-            { color: "#38bdf8", weight: 6, opacity: 1 },
+            { color: "#3b82f6", weight: 4, opacity: 0.9 },
           ).addTo(map);
         }
         if (route) setEta(Math.round(route.dureeS / 60));
 
         map.fitBounds(
-          L.latLngBounds([[taxiPos.lat, taxiPos.lng], [arrGeo.lat, arrGeo.lng]]).pad(0.3),
+          L.latLngBounds([
+            [taxiPos.lat, taxiPos.lng],
+            [arrGeo.lat, arrGeo.lng],
+          ]).pad(0.3),
           { animate: true, duration: 0.8 },
         );
-
       } else if (isEnAttente && depGeoRef.current) {
-        // 🟢 EN ATTENTE : taxi → point de prise en charge
+        // ── EN ATTENTE : taxi → point de prise en charge ────────────────────
         const depGeo = depGeoRef.current;
         const depLngLat: [number, number] = [depGeo.lng, depGeo.lat];
 
         const route = await getOsrmLongestPolyline(taxiLngLat, depLngLat);
         if (route && route.coords.length > 1) {
-          if (routeLayer.current) { routeLayer.current.remove(); routeLayer.current = null; }
+          if (routeLayer.current) {
+            routeLayer.current.remove();
+            routeLayer.current = null;
+          }
           routeLayer.current = L.polyline(
             route.coords.map((c: [number, number]) => [c[1], c[0]]),
-            { color: "#4ade80", weight: 6, opacity: 1 },
+            { color: "#22c55e", weight: 4, opacity: 0.9 },
           ).addTo(map);
         }
         if (route) setEta(Math.round(route.dureeS / 60));
@@ -480,24 +433,16 @@ function SuiviPage() {
         }
 
         map.fitBounds(
-          L.latLngBounds([[taxiPos.lat, taxiPos.lng], [depGeo.lat, depGeo.lng]]).pad(0.3),
+          L.latLngBounds([
+            [taxiPos.lat, taxiPos.lng],
+            [depGeo.lat, depGeo.lng],
+          ]).pad(0.3),
           { animate: true, duration: 0.8 },
         );
-
-      } else if (courseTerminee) {
-        // 🔴 TERMINÉE : supprimer le tracé dynamique, laisser le pointillé
-        if (routeLayer.current) { routeLayer.current.remove(); routeLayer.current = null; }
       }
     };
 
     updateRoute();
-
-    return () => {
-      if (taxiAnimRef.current) {
-        cancelAnimationFrame(taxiAnimRef.current.rafId);
-        taxiAnimRef.current = null;
-      }
-    };
   }, [taxiPos, mapReady, resa, courseTerminee]);
 
   // ── Écoute changement de statut ───────────────────────────────────────────
@@ -597,10 +542,62 @@ function SuiviPage() {
   const prix = resa?.prix_estime ? `${Number(resa.prix_estime).toFixed(2)} €` : null;
   const distanceKm = resa?.distance_km ?? null;
 
-  // ── NOTE : on ne fait plus de return anticipé pour loading/!resa
-  // La carte doit toujours être dans le DOM dès le premier rendu
-  // pour que mapRef.current soit disponible quand Leaflet se charge.
-  // Les overlays loading/erreur sont affichés par-dessus la carte.
+  // ── Chargement ────────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "#08080f",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontFamily: "'DM Sans',sans-serif",
+        }}
+      >
+        <div style={{ textAlign: "center" }}>
+          <div
+            style={{
+              fontSize: 52,
+              marginBottom: 16,
+              display: "inline-block",
+              animation: "floatTaxi 1.4s ease-in-out infinite",
+            }}
+          >
+            🚕
+          </div>
+          <div style={{ color: "#475569", fontSize: 14 }}>Chargement du suivi…</div>
+        </div>
+        <style>{`@keyframes floatTaxi { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }`}</style>
+      </div>
+    );
+  }
+
+  if (!resa) {
+    return (
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "#08080f",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 24,
+          fontFamily: "'DM Sans',sans-serif",
+        }}
+      >
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#f1f5f9", marginBottom: 8 }}>
+            Réservation introuvable
+          </div>
+          <div style={{ color: "#475569", fontSize: 14 }}>Ce lien de suivi n'est pas valide ou a expiré.</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -634,67 +631,17 @@ function SuiviPage() {
         .leaflet-container { background:#0d1117 !important; }
         .leaflet-tooltip { background: rgba(10,10,20,0.9) !important; border: 1px solid rgba(245,200,66,0.3) !important; color: #f5c842 !important; font-weight: 700 !important; border-radius: 8px !important; }
         .leaflet-tooltip-top::before { border-top-color: rgba(245,200,66,0.3) !important; }
+        /* ── Optimisation mobile ────────────────────────────────────────────── */
+        .bottom-sheet { max-height: 58vh; }
+        @media (max-height: 700px) { .bottom-sheet { max-height: 42vh; } }
+        @media (max-height: 600px) { .bottom-sheet { max-height: 38vh; } }
+        @media (max-width: 430px) { .bottom-sheet { max-height: 50vh; } }
+        .map-zone { flex: 1; position: relative; min-height: 0; }
       `}</style>
 
       {/* ── MAP ── */}
-      <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
-        {/* La div carte est TOUJOURS dans le DOM dès le premier rendu */}
+      <div className="map-zone" style={{ flex: 1, position: "relative", minHeight: 0 }}>
         <div ref={mapRef} style={{ position: "absolute", inset: 0 }} />
-
-        {/* Overlay chargement — par-dessus la carte */}
-        {loading && (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              background: "#08080f",
-              zIndex: 9000,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontFamily: "'DM Sans',sans-serif",
-            }}
-          >
-            <div style={{ textAlign: "center" }}>
-              <div
-                style={{
-                  fontSize: 52,
-                  marginBottom: 16,
-                  display: "inline-block",
-                  animation: "floatTaxi 1.4s ease-in-out infinite",
-                }}
-              >
-                🚕
-              </div>
-              <div style={{ color: "#475569", fontSize: 14 }}>Chargement du suivi…</div>
-            </div>
-          </div>
-        )}
-
-        {/* Overlay réservation introuvable */}
-        {!loading && !resa && (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              background: "#08080f",
-              zIndex: 9000,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 24,
-              fontFamily: "'DM Sans',sans-serif",
-            }}
-          >
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: "#f1f5f9", marginBottom: 8 }}>
-                Réservation introuvable
-              </div>
-              <div style={{ color: "#475569", fontSize: 14 }}>Ce lien de suivi n'est pas valide ou a expiré.</div>
-            </div>
-          </div>
-        )}
 
         {/* Gradient bas */}
         <div
@@ -703,90 +650,17 @@ function SuiviPage() {
             bottom: 0,
             left: 0,
             right: 0,
-            height: 80,
+            height: 60,
             background: "linear-gradient(transparent, #08080f)",
             pointerEvents: "none",
             zIndex: 10,
           }}
         />
-
-                    {courseTerminee && (
-                      <div className="typo-body" style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
-                        Destination atteinte ✓
-                      </div>
-                    )}
-                    {!taxiPos && !courseTerminee && (
-                      <div className="typo-body" style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>
-                        Le chauffeur n'a pas encore activé son GPS
-                      </div>
-                    )}
-                  </div>
-                  {taxiPos && !courseTerminee && (
-                    <div style={{
-                      width: 8, height: 8, borderRadius: "50%",
-                      background: "#22c55e", flexShrink: 0,
-                      boxShadow: "0 0 0 3px rgba(34,197,94,0.25)",
-                      animation: "pulse 2s ease-in-out infinite",
-                    }} />
-                  )}
-                </div>
-
-                {/* Barre de progression en 5 étapes */}
-                <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
-                  {steps.map((s, i) => {
-                    const done = i <= idx;
-                    const active = i === idx;
-                    const colors = ["#f59e0b","#22c55e","#3b82f6","#f5c842","#94a3b8"];
-                    const c = colors[Math.min(idx, colors.length-1)];
-                    return (
-                      <div key={s} style={{ display: "flex", alignItems: "center", flex: i < 4 ? 1 : "none" }}>
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                          <div style={{
-                            width: active ? 10 : 8,
-                            height: active ? 10 : 8,
-                            borderRadius: "50%",
-                            background: done ? c : "rgba(255,255,255,0.12)",
-                            border: active ? `2px solid ${c}` : "none",
-                            boxShadow: active ? `0 0 0 3px ${c}25` : "none",
-                            transition: "all 0.4s ease",
-                            flexShrink: 0,
-                          }} />
-                          <div style={{
-                            fontSize: 8,
-                            color: done ? c : "#334155",
-                            fontFamily: "'DM Sans',sans-serif",
-                            fontWeight: 600,
-                            whiteSpace: "nowrap",
-                            letterSpacing: "0.02em",
-                          }}>
-                            {stepLabels[i]}
-                          </div>
-                        </div>
-                        {i < 4 && (
-                          <div style={{
-                            flex: 1,
-                            height: 2,
-                            background: i < idx ? c : "rgba(255,255,255,0.08)",
-                            marginBottom: 14,
-                            transition: "background 0.5s ease",
-                          }} />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })()}
-        </div>
-        )}
-
-
       </div>
 
       {/* ── BOTTOM SHEET ── */}
-      {resa && (
       <div
+        className="bottom-sheet"
         style={{
           flexShrink: 0,
           background: "linear-gradient(180deg, #0e0e1c 0%, #080810 100%)",
@@ -794,7 +668,6 @@ function SuiviPage() {
           boxShadow: "0 -1px 0 rgba(245,200,66,0.08), 0 -20px 60px rgba(0,0,0,0.6)",
           padding: "0 0 calc(20px + env(safe-area-inset-bottom,0px)) 0",
           animation: "slideUp 0.5s cubic-bezier(.2,.8,.2,1)",
-          maxHeight: "58vh",
           overflowY: "auto",
         }}
       >
@@ -803,135 +676,81 @@ function SuiviPage() {
           <div style={{ width: 40, height: 4, background: "rgba(255,255,255,0.1)", borderRadius: 9 }} />
         </div>
 
-        <div style={{ padding: "0 20px 4px" }}>
-
-          {/* ── STATUT + PROGRESSION ── */}
-          {(() => {
-            const steps = ["pending","accepted","en_route","arrived","completed"];
-            const stepLabels = ["Confirmé","Taxi parti","En route","Arrivé","Terminé"];
-            const normalize = (s: string) =>
-              s === "nouvelle" ? "pending"
-              : (s === "terminee" || s === "terminée") ? "completed"
-              : s;
-            const idx = courseTerminee ? 4 : Math.max(0, steps.indexOf(normalize(effectiveStatus)));
-            const stepColor = ["#f59e0b","#22c55e","#3b82f6","#f97316","#94a3b8"][Math.min(idx, 4)];
-
-            return (
-              <div style={{
-                background: `linear-gradient(135deg, ${stepColor}12, rgba(255,255,255,0.02))`,
-                border: `1.5px solid ${stepColor}35`,
-                borderRadius: 18,
-                padding: "14px 16px",
-                marginBottom: 14,
-              }}>
-                {/* Ligne icône + label + ETA */}
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-                  <div style={{
-                    width: 44, height: 44, borderRadius: 13,
-                    background: `${stepColor}20`,
-                    border: `1.5px solid ${stepColor}50`,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 22, flexShrink: 0,
-                    animation: statut.pulse ? "pulse 2s ease-in-out infinite" : "none",
-                  }}>
-                    {statut.icon}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="typo-title" style={{ fontSize: 15, color: stepColor, lineHeight: 1.2 }}>
-                      {statut.label}
-                    </div>
-                    {eta !== null && taxiPos && !courseTerminee &&
-                      ["nouvelle","pending","accepted","en_route","arrived"].includes(effectiveStatus) && (
-                      <div className="typo-body" style={{ fontSize: 13, color: "#94a3b8", marginTop: 3 }}>
-                        {["en_route","arrived","accepted"].includes(effectiveStatus)
-                          ? "Arrivée dans" : "Prise en charge dans"}{" "}
-                        <span className="typo-num" style={{ color: stepColor, fontSize: 16, fontWeight: 700 }}>
-                          {eta}
-                          <span style={{ fontSize: 11, marginLeft: 2, fontWeight: 500 }}>min</span>
-                        </span>
-                      </div>
-                    )}
-                    {courseTerminee && (
-                      <div className="typo-body" style={{ fontSize: 13, color: "#64748b", marginTop: 3 }}>
-                        Destination atteinte ✓
-                      </div>
-                    )}
-                    {!taxiPos && !courseTerminee && (
-                      <div className="typo-body" style={{ fontSize: 12, color: "#475569", marginTop: 3 }}>
-                        GPS chauffeur non encore actif
-                      </div>
-                    )}
-                  </div>
-                  {taxiPos && !courseTerminee && (
-                    <div style={{
-                      width: 10, height: 10, borderRadius: "50%", flexShrink: 0,
-                      background: "#22c55e",
-                      boxShadow: "0 0 0 4px rgba(34,197,94,0.2)",
-                      animation: "pulse 1.5s ease-in-out infinite",
-                    }} />
-                  )}
-                </div>
-
-                {/* Barre de progression 5 étapes */}
-                <div style={{ display: "flex", alignItems: "flex-start" }}>
-                  {steps.map((s, i) => {
-                    const done = i <= idx;
-                    const active = i === idx;
-                    const c = stepColor;
-                    return (
-                      <div key={s} style={{ display: "flex", alignItems: "flex-start", flex: i < 4 ? 1 : "none" }}>
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                          <div style={{
-                            width: active ? 12 : 9,
-                            height: active ? 12 : 9,
-                            borderRadius: "50%",
-                            background: done ? c : "rgba(255,255,255,0.1)",
-                            border: active ? `2px solid ${c}` : "none",
-                            boxShadow: active ? `0 0 0 4px ${c}30` : "none",
-                            transition: "all 0.4s ease",
-                            flexShrink: 0,
-                          }} />
-                          <div style={{
-                            fontSize: 9, fontFamily: "'DM Sans',sans-serif", fontWeight: 600,
-                            color: done ? c : "#334155", whiteSpace: "nowrap",
-                          }}>
-                            {stepLabels[i]}
-                          </div>
-                        </div>
-                        {i < 4 && (
-                          <div style={{
-                            flex: 1, height: 2, marginTop: 5,
-                            background: i < idx ? c : "rgba(255,255,255,0.07)",
-                            transition: "background 0.5s ease",
-                          }} />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Légende tracés */}
-                <div style={{ display: "flex", gap: 14, marginTop: 12, flexWrap: "wrap" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <div style={{ width: 22, height: 4, background: "#f97316", borderRadius: 2, opacity: 0.9 }} />
-                    <span style={{ fontSize: 11, color: "#64748b", fontFamily: "'DM Sans',sans-serif" }}>Trajet complet</span>
-                  </div>
-                  {taxiPos && !courseTerminee && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <div style={{
-                        width: 22, height: 4, borderRadius: 2, opacity: 0.9,
-                        background: ["en_route","arrived","accepted"].includes(effectiveStatus) ? "#3b82f6" : "#22c55e",
-                      }} />
-                      <span style={{ fontSize: 11, color: "#64748b", fontFamily: "'DM Sans',sans-serif" }}>
-                        {["en_route","arrived","accepted"].includes(effectiveStatus) ? "Taxi → Destination" : "Taxi → Départ"}
-                      </span>
-                    </div>
-                  )}
-                </div>
+        {/* ── BLOC STATUT ── */}
+        <div style={{ padding: "0 20px 12px" }}>
+          <div
+            style={{
+              background: `${statut.color}12`,
+              border: `1px solid ${statut.color}35`,
+              borderRadius: 18,
+              padding: "12px 16px",
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+            }}
+          >
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 12,
+                background: statut.bg,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 20,
+                flexShrink: 0,
+                animation: statut.pulse ? "pulse 2s ease-in-out infinite" : "none",
+              }}
+            >
+              {statut.icon}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="typo-title" style={{ fontSize: 13, color: statut.color }}>
+                {statut.label}
               </div>
-            );
-          })()}
+              {eta !== null &&
+                taxiPos &&
+                !courseTerminee &&
+                ["nouvelle", "pending", "accepted", "en_route", "arrived"].includes(effectiveStatus) && (
+                  <div className="typo-body" style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+                    {["en_route", "arrived", "accepted"].includes(effectiveStatus)
+                      ? "Arrivée dans "
+                      : "Prise en charge dans "}
+                    <span className="typo-num" style={{ color: "#f5c842", fontSize: 14 }}>
+                      {eta}
+                      <span style={{ fontSize: 10, marginLeft: 2, fontWeight: 500 }}>min</span>
+                    </span>
+                  </div>
+                )}
+              {courseTerminee && (
+                <div className="typo-body" style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+                  Destination atteinte
+                </div>
+              )}
+              {!taxiPos && !courseTerminee && (
+                <div className="typo-body" style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>
+                  Trajet affiché sur la carte
+                </div>
+              )}
+            </div>
+            {taxiPos && (
+              <div
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: "#22c55e",
+                  flexShrink: 0,
+                  boxShadow: "0 0 0 3px rgba(34,197,94,0.2)",
+                  animation: "pulse 2s ease-in-out infinite",
+                }}
+              />
+            )}
+          </div>
+        </div>
 
+        <div style={{ padding: "0 20px 4px" }}>
           {/* ── CHAUFFEUR ── */}
           <div
             style={{
@@ -1210,7 +1029,6 @@ function SuiviPage() {
           </div>
         </div>
       </div>
-      )} {/* fin {resa && ...} bottom sheet */}
     </div>
   );
 }
