@@ -48,12 +48,23 @@ function AdminLayout() {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", background: "#0a0f1e", color: "#f1f5f9" }}>
+    <div
+      style={{ display: "flex", flexDirection: "column", minHeight: "100vh", background: "#0a0f1e", color: "#f1f5f9" }}
+    >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap');
       `}</style>
 
+      <style>{`
+        @media (max-width: 640px) {
+          .admin-layout-header { flex-direction: column !important; align-items: stretch !important; padding: 12px 14px !important; gap: 10px !important; }
+          .admin-layout-btns { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+          .admin-layout-btns button { width: 100% !important; padding: 10px 8px !important; font-size: 13px !important; justify-content: center !important; }
+          .admin-layout-subtitle { display: none !important; }
+        }
+      `}</style>
       <header
+        className="admin-layout-header"
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -71,10 +82,12 @@ function AdminLayout() {
           <span style={{ fontSize: 26 }}>🚕</span>
           <div>
             <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18 }}>Espace chauffeur</div>
-            <div style={{ fontSize: 12, color: "#94a3b8" }}>Page unique, toutes les actions sur une seule vue</div>
+            <div className="admin-layout-subtitle" style={{ fontSize: 12, color: "#94a3b8" }}>
+              Page unique, toutes les actions sur une seule vue
+            </div>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 12 }}>
+        <div className="admin-layout-btns" style={{ display: "flex", gap: 12 }}>
           <button
             onClick={() => navigate({ to: "/" })}
             style={{
@@ -85,9 +98,10 @@ function AdminLayout() {
               color: "#f8fafc",
               fontWeight: 700,
               cursor: "pointer",
+              whiteSpace: "nowrap",
             }}
           >
-            Retour au site
+            ← Site
           </button>
           <button
             onClick={logout}
@@ -99,6 +113,7 @@ function AdminLayout() {
               color: "#f8fafc",
               fontWeight: 700,
               cursor: "pointer",
+              whiteSpace: "nowrap",
             }}
           >
             Déconnexion
@@ -117,7 +132,15 @@ function AdminLayout() {
           }}
         >
           <div>
-            <div style={{ fontSize: 14, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>
+            <div
+              style={{
+                fontSize: 14,
+                color: "#94a3b8",
+                textTransform: "uppercase",
+                letterSpacing: "0.14em",
+                marginBottom: 6,
+              }}
+            >
               Dashboard chauffeur
             </div>
             <div style={{ fontSize: 24, fontWeight: 800 }}>Toutes les courses</div>
