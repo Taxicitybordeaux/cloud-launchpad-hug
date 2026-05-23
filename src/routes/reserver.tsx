@@ -107,7 +107,7 @@ function loadLeaflet(): Promise<void> {
   });
 }
 
-const inputStyle = (hasError?: boolean) => ({
+const inputStyle = (hasError?: boolean): React.CSSProperties => ({
   width: "100%",
   padding: "14px 14px",
   borderRadius: 12,
@@ -407,21 +407,33 @@ function ReservationPage() {
     try {
       const newTrackingId = crypto.randomUUID();
 
+      const fullName = `${f.prenom} ${f.nom}`.trim();
+      const pickupIsoFinal =
+        f.date && f.heure ? `${f.date}T${f.heure}:00` : new Date().toISOString();
+
       const { data, error } = await supabase
         .from("reservations")
         .insert({
+          // NOT NULL columns
+          nom: fullName,
+          telephone: f.phone,
+          email: f.email,
+          depart: f.depart,
+          arrivee: f.destination,
+          pickup_datetime: pickupIsoFinal,
+          passagers: f.passagers,
+          service_type: "standard",
+          status: "nouvelle",
+          // Optional / mirror columns
           tracking_id: newTrackingId,
-          client_name: `${f.prenom} ${f.nom}`,
+          client_name: fullName,
           client_phone: f.phone,
           client_email: f.email,
-          depart: f.depart,
           destination: f.destination,
           distance_km: orsResult?.distanceKm ?? 0,
-          pickup_datetime: f.date && f.heure ? `${f.date}T${f.heure}:00` : new Date().toISOString(),
           nb_passagers: f.passagers,
           bagages: f.bagages,
           paiement: f.paiement,
-          status: "nouvelle",
           tarif_jour: tarifJour,
           prix_estime: prixAller,
           source: "form",

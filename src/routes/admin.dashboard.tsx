@@ -132,6 +132,34 @@ const valCss: React.CSSProperties = {
 const TARIF_JOUR_LABEL = "2,16 €/km";
 const TARIF_NUIT_LABEL = "3,24 €/km";
 
+const contactBtn = (color: string): React.CSSProperties => ({
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
+  padding: "8px 12px",
+  background: `${color}1a`,
+  border: `1px solid ${color}55`,
+  color,
+  borderRadius: 10,
+  textDecoration: "none",
+  fontWeight: 700,
+  fontSize: 13,
+  whiteSpace: "nowrap",
+});
+
+// Inject global mobile responsive styles into the admin dashboard
+const adminMobileCss = `
+  @media (max-width: 640px) {
+    .admin-kpi-grid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+    .admin-card { padding: 14px !important; border-radius: 16px !important; }
+    .admin-section-pad { padding: 12px !important; }
+    .admin-h-title { font-size: 18px !important; }
+    .admin-stat-val { font-size: 20px !important; }
+    .admin-hide-mobile { display: none !important; }
+    button, a.contact-btn { min-height: 40px; }
+  }
+`;
+
 const STATUS: Record<string, { bg: string; c: string; label: string }> = {
   pending: { bg: "rgba(245,158,11,0.15)", c: "#f59e0b", label: "En attente" },
   accepted: { bg: "rgba(34,197,94,0.15)", c: "#22c55e", label: "Acceptée" },
@@ -1257,6 +1285,9 @@ function Dashboard() {
         </div>
       </div>
 
+      {/* Mobile responsive styles */}
+      <style>{adminMobileCss}</style>
+
       {/* ── GPS — EN HAUT pour accès rapide ── */}
       <div style={{ marginBottom: 24 }}>
         <style>{`.gps-pulse{animation:pulseDot 2s infinite}`}</style>
@@ -1299,6 +1330,23 @@ function Dashboard() {
                     <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#64748b" }}>
                       📡 GPS inactif
                     </div>
+                    <button
+                      onClick={() => startGPS()}
+                      style={{
+                        marginLeft: "auto",
+                        background: "linear-gradient(135deg, #22c55e, #16a34a)",
+                        color: "#fff",
+                        border: 0,
+                        padding: "10px 18px",
+                        borderRadius: 12,
+                        cursor: "pointer",
+                        fontWeight: 800,
+                        fontSize: 14,
+                        boxShadow: "0 4px 12px rgba(34,197,94,0.3)",
+                      }}
+                    >
+                      ▶ Activer le GPS
+                    </button>
                   </>
                 )}
               </div>
@@ -1681,13 +1729,43 @@ function Dashboard() {
                       <span style={{ fontWeight: 700, color: "#fca5a5" }}>Motif :</span> {r.refus_motif}
                     </div>
                   )}
-                  <div style={{ marginTop: 12, display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
                     {(r.client_phone || r.telephone) && (
+                      <>
+                        <a
+                          href={`tel:${r.client_phone || r.telephone}`}
+                          style={contactBtn("#0ea5e9")}
+                        >
+                          📞 Appeler
+                        </a>
+                        <a
+                          href={`sms:${r.client_phone || r.telephone}?body=${encodeURIComponent(
+                            `Bonjour ${r.client_name || r.nom || ""}, votre taxi Taxi City Bordeaux.`,
+                          )}`}
+                          style={contactBtn("#a855f7")}
+                        >
+                          💬 SMS
+                        </a>
+                        <a
+                          href={`https://wa.me/${(r.client_phone || r.telephone || "").replace(/[^0-9]/g, "").replace(/^0/, "33")}?text=${encodeURIComponent(
+                            `Bonjour ${r.client_name || r.nom || ""}, Taxi City Bordeaux.`,
+                          )}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={contactBtn("#22c55e")}
+                        >
+                          🟢 WhatsApp
+                        </a>
+                      </>
+                    )}
+                    {(r.client_email || r.email) && (
                       <a
-                        href={`tel:${r.client_phone || r.telephone}`}
-                        style={{ color: "#0ea5e9", textDecoration: "none", fontWeight: 600, fontSize: 13 }}
+                        href={`mailto:${r.client_email || r.email}?subject=${encodeURIComponent(
+                          "Votre course Taxi City Bordeaux",
+                        )}`}
+                        style={contactBtn("#f5c842")}
                       >
-                        📞 {r.client_phone || r.telephone}
+                        ✉️ Email
                       </a>
                     )}
                   </div>

@@ -9,7 +9,7 @@ import { sendPushToAudience } from '@/lib/push.server'
 const SITE_NAME = 'Taxi City Bordeaux'
 const SENDER_DOMAIN = 'notify.taxicitybordeaux.fr'
 const FROM_DOMAIN = 'taxicitybordeaux.fr'
-const TEMPLATE_NAME = 'reservation-notification'
+const TEMPLATE_NAME = 'new-reservation-admin'
 
 const schema = z.object({
   reservation_id: z.string().uuid(),
@@ -47,7 +47,11 @@ export const Route = createFileRoute('/api/public/notify-reservation')({
         if (lookupError) return Response.json({ error: 'lookup' }, { status: 500 })
         if (!reservation) return Response.json({ error: 'not_found' }, { status: 404 })
 
-        const data = reservation
+        const data = {
+          ...reservation,
+          phone: reservation.telephone,
+          admin_url: `${process.env.APP_URL || 'https://taxicitybordeaux.fr'}/admin/dashboard`,
+        }
         const template = TEMPLATES[TEMPLATE_NAME]
         if (!template || !template.to) {
           return Response.json({ error: 'Template not configured' }, { status: 500 })
