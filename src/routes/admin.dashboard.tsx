@@ -464,8 +464,8 @@ function Dashboard() {
           if (typeof window !== "undefined" && "Notification" in window) {
             const fire = () => {
               try {
-                new Notification("\u{1F514} Nouvelle réservation", {
-                  body: `${clientName} \u2014 ${n.depart || ""} \u2192 ${n.arrivee || n.destination || ""}`,
+                new Notification("🔔 Nouvelle réservation", {
+                  body: `${clientName} — ${n.depart || ""} → ${n.arrivee || n.destination || ""}`,
                   icon: "/favicon.ico",
                   tag: `reservation-${n.id}`,
                   requireInteraction: true,
@@ -480,7 +480,7 @@ function Dashboard() {
           }
           if (typeof window !== "undefined") {
             const t = document.createElement("div");
-            t.textContent = `\u{1F514} Nouvelle réservation de ${clientName}`;
+            t.textContent = `🔔 Nouvelle réservation de ${clientName}`;
             t.style.cssText = `position:fixed;top:20px;right:20px;background:#0ea5e9;color:white;padding:14px 20px;border-radius:12px;font-family:DM Sans,sans-serif;font-weight:700;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,0.3);`;
             document.body.appendChild(t);
             setTimeout(() => t.remove(), 5000);
