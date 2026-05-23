@@ -1529,23 +1529,6 @@ function Dashboard() {
                     <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#64748b" }}>
                       📡 GPS inactif
                     </div>
-                    <button
-                      onClick={() => startGPS()}
-                      style={{
-                        marginLeft: "auto",
-                        background: "linear-gradient(135deg, #22c55e, #16a34a)",
-                        color: "#fff",
-                        border: 0,
-                        padding: "10px 18px",
-                        borderRadius: 12,
-                        cursor: "pointer",
-                        fontWeight: 800,
-                        fontSize: 14,
-                        boxShadow: "0 4px 12px rgba(34,197,94,0.3)",
-                      }}
-                    >
-                      ▶ Activer le GPS
-                    </button>
                   </>
                 )}
               </div>
@@ -1597,24 +1580,24 @@ function Dashboard() {
                     </button>
                   );
                 })()}
-              {/* Stop GPS */}
-              {gpsActive && (
-                <button
-                  onClick={stopGPS}
-                  style={{
-                    background: "transparent",
-                    color: "#475569",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    padding: "10px 14px",
-                    borderRadius: 12,
-                    cursor: "pointer",
-                    fontWeight: 600,
-                    fontSize: 13,
-                  }}
-                >
-                  ⏹ Couper
-                </button>
-              )}
+              {/* Bouton toggle GPS unique */}
+              <button
+                onClick={() => (gpsActive ? stopGPS() : startGPS())}
+                style={{
+                  background: gpsActive ? "transparent" : "linear-gradient(135deg, #22c55e, #16a34a)",
+                  color: gpsActive ? "#475569" : "#fff",
+                  border: gpsActive ? "1px solid rgba(255,255,255,0.08)" : "none",
+                  padding: "10px 16px",
+                  borderRadius: 12,
+                  cursor: "pointer",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  boxShadow: gpsActive ? "none" : "0 4px 12px rgba(34,197,94,0.3)",
+                  transition: "all 0.2s",
+                }}
+              >
+                {gpsActive ? "⏹ Couper" : "▶ Activer"}
+              </button>
             </div>
             {/* Mini-map */}
             {gpsActive && (
