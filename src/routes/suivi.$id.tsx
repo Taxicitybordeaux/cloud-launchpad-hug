@@ -193,7 +193,10 @@ function SuiviPage() {
   }, [id]);
 
   // ── Init carte ────────────────────────────────────────────────────────────
+  // Dépend de `loading` : le DOM de la carte n'existe qu'une fois le chargement terminé
   useEffect(() => {
+    if (loading || !resa) return; // attendre que le composant principal soit rendu
+    if (mapInst.current) return; // déjà initialisée, ne pas recommencer
     let mounted = true;
     const init = async () => {
       try {
@@ -228,7 +231,7 @@ function SuiviPage() {
       mapInst.current?.remove();
       mapInst.current = null;
     };
-  }, []);
+  }, [loading, resa]);
 
   // ── Afficher tracé de la course (départ → destination) — toujours ────────
   // S'enclenche dès que la carte est prête, quel que soit le statut
