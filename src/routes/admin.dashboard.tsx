@@ -327,8 +327,8 @@ function Dashboard() {
   const [avis, setAvis] = useState<any[]>([]);
   const [avisLoading, setAvisLoading] = useState(true);
   const initialLoad = useRef(true);
-  const fetchAllRef = useRef(fetchAll);
-  const fetchStatsRef = useRef(fetchStats);
+  const fetchAllRef = useRef<() => Promise<void>>(null!);
+  const fetchStatsRef = useRef<() => Promise<void>>(null!);
 
   // ── GPS ──
   const [gpsActive, setGpsActive] = useState(false);
@@ -513,7 +513,7 @@ function Dashboard() {
     return () => {
       supabase.removeChannel(ch);
     };
-  }); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // =========================
   // GPS INIT
