@@ -317,10 +317,12 @@ export type Database = {
           auth: string
           created_at: string
           endpoint: string
+          fcm_token: string | null
           id: string
           last_seen_at: string
           p256dh: string
           reservation_id: string | null
+          updated_at: string | null
           user_agent: string | null
           user_id: string | null
         }
@@ -329,10 +331,12 @@ export type Database = {
           auth: string
           created_at?: string
           endpoint: string
+          fcm_token?: string | null
           id?: string
           last_seen_at?: string
           p256dh: string
           reservation_id?: string | null
+          updated_at?: string | null
           user_agent?: string | null
           user_id?: string | null
         }
@@ -341,10 +345,12 @@ export type Database = {
           auth?: string
           created_at?: string
           endpoint?: string
+          fcm_token?: string | null
           id?: string
           last_seen_at?: string
           p256dh?: string
           reservation_id?: string | null
+          updated_at?: string | null
           user_agent?: string | null
           user_id?: string | null
         }
@@ -361,7 +367,7 @@ export type Database = {
       reservations: {
         Row: {
           arrivee: string
-          bagages: number
+          bagages: number | null
           client_email: string | null
           client_name: string | null
           client_phone: string | null
@@ -391,7 +397,7 @@ export type Database = {
         }
         Insert: {
           arrivee: string
-          bagages?: number
+          bagages?: number | null
           client_email?: string | null
           client_name?: string | null
           client_phone?: string | null
@@ -421,7 +427,7 @@ export type Database = {
         }
         Update: {
           arrivee?: string
-          bagages?: number
+          bagages?: number | null
           client_email?: string | null
           client_name?: string | null
           client_phone?: string | null
