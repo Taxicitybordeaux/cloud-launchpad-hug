@@ -327,8 +327,6 @@ function Dashboard() {
   const [avis, setAvis] = useState<any[]>([]);
   const [avisLoading, setAvisLoading] = useState(true);
   const initialLoad = useRef(true);
-  const fetchAllRef = useRef(fetchAll);
-  const fetchStatsRef = useRef(fetchStats);
 
   // ── GPS ──
   const [gpsActive, setGpsActive] = useState(false);
@@ -420,8 +418,6 @@ function Dashboard() {
     await Promise.all([fetchStats(), fetchCourses(), fetchAvis()]);
     setRefreshing(false);
   }, [fetchStats, fetchCourses, fetchAvis]);
-  fetchAllRef.current = fetchAll;
-  fetchStatsRef.current = fetchStats;
 
   // ── Counts dérivés des items (source unique de vérité) ──
   useEffect(() => {
@@ -436,7 +432,7 @@ function Dashboard() {
   // REALTIME
   // =========================
   useEffect(() => {
-    fetchAllRef.current();
+    fetchAll();
     const ch = supabase
       .channel("dash-courses")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "reservations" }, (payload) => {
@@ -474,21 +470,19 @@ function Dashboard() {
             setTimeout(() => t.remove(), 5000);
           }
         }
-        // Fix: insert local uniquement, sans re-fetch global qui ecrase les statuts
         if (n?.id) {
           setItems((prev) => (prev.some((item) => item.id === n.id) ? prev : [n, ...prev]));
         }
         fetchStats();
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "reservations" }, (payload) => {
+        // Mise à jour chirurgicale : on patch uniquement la ligne concernée
+        // sans refetch complet qui créerait une race condition avec les mises à jour optimistes
         const updated = payload.new as any;
-        console.log("[RT UPDATE]", updated?.id?.slice(0, 8), "db:", updated?.status);
         if (updated?.id) {
           setItems((prev) =>
             prev.map((item) => {
               if (item.id !== updated.id) return item;
-              console.log("[RT UPDATE] local:", item.status, "-> db:", updated.status);
-              // Ne pas écraser un statut local plus avancé avec un statut DB plus ancien
               const rank: Record<string, number> = {
                 pending: 0,
                 accepted: 1,
@@ -498,12 +492,17 @@ function Dashboard() {
                 completed: 4,
                 cancelled: 4,
               };
-              if ((rank[item.status] ?? 0) > (rank[updated.status] ?? 0)) {
-                return { ...item, ...updated, status: item.status };
-              }
+              const localRank = rank[item.status as string] ?? 0;
+              const dbRank = rank[updated.status as string] ?? 0;
+              if (localRank > dbRank) return { ...item, ...updated, status: item.status };
               return { ...item, ...updated };
             }),
           );
+          setCounts((prev) => {
+            // Recalcule les counts depuis les items mis à jour
+            const newItems = prev as any; // on va recalcule après
+            return prev; // sera recalculé par l'effet sur items ci-dessous
+          });
         }
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "site_analytics" }, () => fetchStats())
@@ -513,7 +512,7 @@ function Dashboard() {
     return () => {
       supabase.removeChannel(ch);
     };
-  }); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fetchAll, fetchStats]);
 
   // =========================
   // GPS INIT
