@@ -53,7 +53,7 @@ function SwipeDeleteRow({
     if (offset < -THRESHOLD) {
       setDeleting(true);
       setOffset(-window.innerWidth);
-      setTimeout(() => onDelete(), 400);
+      setTimeout(() => onDelete(), 280);
     } else {
       setOffset(0);
     }
@@ -87,7 +87,7 @@ function SwipeDeleteRow({
         style={{
           transform: `translateX(${offset}px)`,
           transition: deleting
-            ? "transform 4s cubic-bezier(0.4,0,1,1)"
+            ? "transform 0.28s ease-in"
             : offset === 0
               ? "transform 0.3s cubic-bezier(0.25,1,0.5,1)"
               : "none",
@@ -149,37 +149,35 @@ const contactBtn = (color: string): React.CSSProperties => ({
 
 // Inject global mobile responsive styles into the admin dashboard
 const adminMobileCss = `
+  * { -webkit-tap-highlight-color: transparent; }
   @media (max-width: 640px) {
-    /* Header */
-    .admin-header { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
-    .admin-header-actions { width: 100%; display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 6px !important; }
-    .admin-header-actions a, .admin-header-actions button { justify-content: center !important; min-height: 42px !important; font-size: 12px !important; }
-    .admin-header-title { font-size: 22px !important; }
-    /* KPI */
+    .admin-root { padding: 12px 10px !important; }
+    .admin-header { flex-direction: column !important; align-items: stretch !important; gap: 12px !important; }
+    .admin-header-title { font-size: 20px !important; }
+    .admin-header-actions { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; width: 100% !important; }
+    .admin-header-actions > * { display: flex !important; align-items: center !important; justify-content: center !important; min-height: 44px !important; font-size: 13px !important; padding: 8px 10px !important; }
     .admin-kpi-grid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
-    .admin-stat-val { font-size: 20px !important; }
-    /* Cards */
-    .admin-card { padding: 14px !important; border-radius: 16px !important; }
-    /* Course card header : empilement vertical */
-    .course-card-head { flex-direction: column !important; gap: 6px !important; }
-    .course-card-head-right { align-self: flex-start !important; }
-    /* Boutons Accepter/Refuser pleine largeur */
-    .accept-refuse-btns { flex-direction: column !important; }
-    .accept-refuse-btns button { width: 100% !important; justify-content: center !important; padding: 16px !important; font-size: 16px !important; }
-    /* Boutons statut pleine largeur */
-    .status-action-btns { flex-wrap: wrap !important; }
-    .status-action-btns button { flex: 1 1 calc(50% - 8px) !important; justify-content: center !important; min-height: 44px !important; }
-    /* GPS */
-    .gps-row { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
-    .gps-btn-row { width: 100% !important; display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
-    .gps-btn-row button { width: 100% !important; justify-content: center !important; min-height: 44px !important; }
-    /* Envoyer prix */
-    .send-prix-row { flex-direction: column !important; }
-    .send-prix-row button { width: 100% !important; justify-content: center !important; min-height: 44px !important; }
-    /* Contact btns */
-    .contact-btns { flex-direction: column !important; }
-    .contact-btns a { width: 100% !important; justify-content: center !important; min-height: 44px !important; }
-    /* Misc */
+    .admin-stat-val { font-size: 22px !important; }
+    .admin-card { padding: 12px 14px !important; border-radius: 16px !important; }
+    .course-card-head { flex-direction: column !important; gap: 4px !important; align-items: flex-start !important; }
+    .course-card-head-right { font-size: 12px !important; }
+    .accept-refuse-btns { flex-direction: column !important; gap: 10px !important; }
+    .accept-refuse-btns button { width: 100% !important; padding: 16px !important; font-size: 16px !important; justify-content: center !important; border-radius: 14px !important; }
+    .status-action-btns { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+    .status-action-btns button { width: 100% !important; min-height: 44px !important; justify-content: center !important; }
+    .gps-row { flex-direction: column !important; align-items: stretch !important; gap: 10px !important; }
+    .gps-btn-row { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; width: 100% !important; margin-left: 0 !important; }
+    .gps-btn-row button { width: 100% !important; min-height: 44px !important; justify-content: center !important; }
+    .send-prix-row { flex-direction: column !important; gap: 8px !important; }
+    .send-prix-row input { width: 100% !important; font-size: 16px !important; }
+    .send-prix-row button { width: 100% !important; min-height: 44px !important; justify-content: center !important; }
+    .contact-btns { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+    .contact-btns a { justify-content: center !important; min-height: 44px !important; padding: 10px 8px !important; font-size: 12px !important; }
+    .avis-actions { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+    .avis-actions button { width: 100% !important; min-height: 44px !important; justify-content: center !important; }
+    .confirm-modal-inner { padding: 20px 16px !important; border-radius: 16px !important; }
+    .confirm-modal-btns { flex-direction: column-reverse !important; }
+    .confirm-modal-btns button { width: 100% !important; min-height: 48px !important; font-size: 16px !important; }
     .admin-hide-mobile { display: none !important; }
     .admin-h-title { font-size: 18px !important; }
   }
@@ -421,6 +419,15 @@ function Dashboard() {
     setRefreshing(false);
   }, [fetchStats, fetchCourses, fetchAvis]);
 
+  // ── Counts dérivés des items (source unique de vérité) ──
+  useEffect(() => {
+    const nextCounts = { pending: 0, accepted: 0, refused: 0 };
+    items.forEach((r: any) => {
+      nextCounts[normalizeStatus(r.status)]++;
+    });
+    setCounts(nextCounts);
+  }, [items]);
+
   // =========================
   // REALTIME
   // =========================
@@ -465,7 +472,19 @@ function Dashboard() {
         }
         fetchAll();
       })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "reservations" }, () => fetchAll())
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "reservations" }, (payload) => {
+        // Mise à jour chirurgicale : on patch uniquement la ligne concernée
+        // sans refetch complet qui créerait une race condition avec les mises à jour optimistes
+        const updated = payload.new as any;
+        if (updated?.id) {
+          setItems((prev) => prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)));
+          setCounts((prev) => {
+            // Recalcule les counts depuis les items mis à jour
+            const newItems = prev as any; // on va recalcule après
+            return prev; // sera recalculé par l'effet sur items ci-dessous
+          });
+        }
+      })
       .on("postgres_changes", { event: "*", schema: "public", table: "site_analytics" }, () => fetchStats())
       .on("postgres_changes", { event: "*", schema: "public", table: "avis" }, () => fetchAvis())
       .subscribe();
@@ -773,18 +792,47 @@ function Dashboard() {
     }
 
     toast.success(`✅ Course acceptée — ${name || "client"}`, { description: notifParts.join(" · "), duration: 8000 });
-    fetchAll();
+    // Mise à jour optimiste immédiate
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === r.id
+          ? { ...item, status: "accepted", tracking_id: trackingId, distance_km: km, prix_estime: prixCalcule }
+          : item,
+      ),
+    );
+    setCounts((prev) => ({
+      ...prev,
+      pending: Math.max(0, prev.pending - 1),
+      accepted: prev.accepted + 1,
+    }));
+    // Refresh stats en arrière-plan (CA, clients…)
+    fetchStats();
   };
 
   // =========================
   // REFUSE — direct, sans motif
   // =========================
   const handleRefuse = async (r: any) => {
+    // Mise à jour optimiste IMMÉDIATE — avant tout appel réseau
+    setItems((prev) => prev.map((item) => (item.id === r.id ? { ...item, status: "refused" } : item)));
+    setCounts((prev) => ({
+      ...prev,
+      pending: Math.max(0, prev.pending - 1),
+      refused: prev.refused + 1,
+    }));
+
     const { error } = await supabase
       .from("reservations")
       .update({ status: "refused", updated_at: new Date().toISOString() })
       .eq("id", r.id);
     if (error) {
+      // Rollback en cas d'erreur
+      setItems((prev) => prev.map((item) => (item.id === r.id ? { ...item, status: "pending" } : item)));
+      setCounts((prev) => ({
+        ...prev,
+        pending: prev.pending + 1,
+        refused: Math.max(0, prev.refused - 1),
+      }));
       toast.error("Échec du refus", { description: error.message });
       return false;
     }
@@ -797,7 +845,8 @@ function Dashboard() {
       description: pushSent > 0 ? "🔔 Push envoyée au client" : undefined,
       duration: 5000,
     });
-    fetchAll();
+    // Pas de fetchAll() ici — la mise à jour optimiste suffit
+    // Le realtime UPDATE va refetch mais items est déjà correct
     return true;
   };
 
@@ -1419,8 +1468,9 @@ function Dashboard() {
   // =========================
   return (
     <div
+      className="admin-root"
       style={{
-        padding: "20px clamp(12px, 4vw, 24px)",
+        padding: "20px clamp(10px, 4vw, 24px)",
         fontFamily: "'DM Sans',sans-serif",
         maxWidth: "100%",
         boxSizing: "border-box",
@@ -2115,7 +2165,7 @@ function Dashboard() {
                     >
                       {a.message || a.content || a.texte}
                     </p>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <div className="avis-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                       <button
                         onClick={() => handleAvisAction(a.id, "approved")}
                         style={{
@@ -2418,6 +2468,7 @@ function Dashboard() {
           }}
         >
           <div
+            className="confirm-modal-inner"
             onClick={(e) => e.stopPropagation()}
             style={{
               background: "#0f172a",
@@ -2533,7 +2584,10 @@ function Dashboard() {
               🔔 Push + Email envoyés automatiquement au client
             </div>
 
-            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
+            <div
+              className="confirm-modal-btns"
+              style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}
+            >
               <button
                 onClick={() => setConfirmAction(null)}
                 disabled={confirmBusy}
