@@ -297,6 +297,8 @@ function Dashboard() {
   const [cardKmLoading, setCardKmLoading] = useState<Record<string, boolean>>({});
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [customPrix, setCustomPrix] = useState<Record<string, string>>({});
+  const [customPrixSending, setCustomPrixSending] = useState<Record<string, boolean>>({});
 
   // ── Avis ──
   const [avis, setAvis] = useState<any[]>([]);
@@ -905,16 +907,14 @@ function Dashboard() {
             updated_at: new Date().toISOString(),
           })
           .eq("id", "driver");
-        await (supabase as any)
-          .from("taxi_positions")
-          .upsert({
-            id: "00000000-0000-0000-0000-000000000001",
-            lat: latitude,
-            lng: longitude,
-            heading: computedHeading ?? 0,
-            speed: pos.coords.speed ?? 0,
-            updated_at: new Date().toISOString(),
-          });
+        await (supabase as any).from("taxi_positions").upsert({
+          id: "00000000-0000-0000-0000-000000000001",
+          lat: latitude,
+          lng: longitude,
+          heading: computedHeading ?? 0,
+          speed: pos.coords.speed ?? 0,
+          updated_at: new Date().toISOString(),
+        });
       },
       (err) => console.error(err),
       { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 },
@@ -955,6 +955,70 @@ function Dashboard() {
   // Courses "en cours" = accepted + en_route + arrived (pour la section séparée)
   const inProgress = items.filter((r) => r.status === "en_route" || r.status === "arrived");
   const completed = items.filter((r) => r.status === "completed");
+
+  // =========================
+  // ENVOYER NOUVEAU PRIX
+  // =========================
+  const handleSendCustomPrix = async (r: any, canal: "sms" | "whatsapp" | "email") => {
+    const valStr = (customPrix[r.id] ?? "").trim().replace(",", ".");
+    const val = parseFloat(valStr);
+    if (!valStr || isNaN(val) || val <= 0) {
+      toast.error("Prix invalide", { description: "Entrez un montant valide (ex: 18.50)" });
+      return;
+    }
+    const name = r.client_name || r.nom || "Client";
+    const phone = (r.client_phone || r.telephone || "").replace(/\s/g, "");
+    const email = r.client_email || r.email || "";
+    const trajet = `${r.depart} → ${r.destination || r.arrivee || "—"}`;
+    const msg = `Bonjour ${name}, le prix de votre course Taxi City Bordeaux (${trajet}) est de ${val.toFixed(2)} €. Merci.`;
+
+    if (canal === "sms") {
+      if (!phone) {
+        toast.error("Pas de téléphone");
+        return;
+      }
+      window.open(`sms:${phone}?body=${encodeURIComponent(msg)}`, "_blank");
+    } else if (canal === "whatsapp") {
+      if (!phone) {
+        toast.error("Pas de téléphone");
+        return;
+      }
+      const wa = phone.replace(/^0/, "33");
+      window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, "_blank");
+    } else if (canal === "email") {
+      if (!email) {
+        toast.error("Pas d'email");
+        return;
+      }
+      setCustomPrixSending((p) => ({ ...p, [r.id]: true }));
+      try {
+        const res = await fetch("/api/admin/send-course-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Admin-Secret": "admin-pin-call" },
+          body: JSON.stringify({
+            templateName: "custom-price",
+            recipientEmail: email,
+            idempotencyKey: `custom-price-${r.id}-${Date.now()}`,
+            templateData: {
+              nom: name,
+              depart: r.depart,
+              arrivee: r.destination || r.arrivee || "—",
+              prix: `${val.toFixed(2)} €`,
+            },
+          }),
+        });
+        toast[res.ok ? "success" : "error"](res.ok ? `✉️ Email envoyé à ${email}` : "Échec envoi email");
+      } catch {
+        toast.error("Erreur réseau");
+      } finally {
+        setCustomPrixSending((p) => ({ ...p, [r.id]: false }));
+      }
+    }
+
+    // Mettre à jour prix_estime en base
+    await supabase.from("reservations").update({ prix_estime: val }).eq("id", r.id);
+    setItems((prev) => prev.map((item) => (item.id === r.id ? { ...item, prix_estime: val } : item)));
+  };
 
   // ─── Course card ───
   function CourseCard({ r, showAcceptRefuse }: { r: any; showAcceptRefuse?: boolean }) {
@@ -1099,6 +1163,141 @@ function Dashboard() {
               >
                 ✗ Refuser
               </button>
+            </div>
+          )}
+
+          {/* ── Modifier le prix ── */}
+          {(normalizeStatus(r.status) === "accepted" || r.status === "en_route" || r.status === "arrived") && (
+            <div style={{ marginTop: 14 }}>
+              {!customPrix[r.id + "_open"] ? (
+                <button
+                  onClick={() => setCustomPrix((p) => ({ ...p, [r.id + "_open"]: "1" }))}
+                  style={{
+                    background: "transparent",
+                    border: "1px solid rgba(245,200,66,0.3)",
+                    color: "#f5c842",
+                    padding: "8px 14px",
+                    borderRadius: 10,
+                    cursor: "pointer",
+                    fontWeight: 600,
+                    fontSize: 13,
+                  }}
+                >
+                  💶 Modifier le prix
+                </button>
+              ) : (
+                <div
+                  style={{
+                    padding: "12px 14px",
+                    background: "rgba(245,200,66,0.07)",
+                    border: "1px solid rgba(245,200,66,0.25)",
+                    borderRadius: 12,
+                  }}
+                >
+                  <div
+                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}
+                  >
+                    <span style={{ fontSize: 12, color: "#f5c842", fontWeight: 700 }}>💶 Nouveau prix à envoyer</span>
+                    <button
+                      onClick={() =>
+                        setCustomPrix((p) => {
+                          const n = { ...p };
+                          delete n[r.id + "_open"];
+                          delete n[r.id];
+                          return n;
+                        })
+                      }
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "#64748b",
+                        cursor: "pointer",
+                        fontSize: 18,
+                        lineHeight: 1,
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                    <input
+                      type="number"
+                      min="1"
+                      step="0.5"
+                      placeholder="Ex : 18.50"
+                      value={customPrix[r.id] ?? ""}
+                      onChange={(e) => setCustomPrix((p) => ({ ...p, [r.id]: e.target.value }))}
+                      autoFocus
+                      style={{
+                        width: 110,
+                        padding: "9px 12px",
+                        borderRadius: 10,
+                        border: "1px solid rgba(245,200,66,0.35)",
+                        background: "rgba(255,255,255,0.05)",
+                        color: "#f8fafc",
+                        fontSize: 15,
+                        fontWeight: 700,
+                        outline: "none",
+                        boxSizing: "border-box",
+                      }}
+                    />
+                    <span style={{ color: "#f5c842", fontWeight: 700, fontSize: 15 }}>€</span>
+                    {(r.client_phone || r.telephone) && (
+                      <>
+                        <button
+                          onClick={() => handleSendCustomPrix(r, "sms")}
+                          style={{
+                            background: "rgba(168,85,247,0.15)",
+                            border: "1px solid rgba(168,85,247,0.4)",
+                            color: "#c084fc",
+                            padding: "9px 12px",
+                            borderRadius: 10,
+                            cursor: "pointer",
+                            fontWeight: 700,
+                            fontSize: 13,
+                          }}
+                        >
+                          💬 SMS
+                        </button>
+                        <button
+                          onClick={() => handleSendCustomPrix(r, "whatsapp")}
+                          style={{
+                            background: "rgba(34,197,94,0.12)",
+                            border: "1px solid rgba(34,197,94,0.35)",
+                            color: "#22c55e",
+                            padding: "9px 12px",
+                            borderRadius: 10,
+                            cursor: "pointer",
+                            fontWeight: 700,
+                            fontSize: 13,
+                          }}
+                        >
+                          🟢 WhatsApp
+                        </button>
+                      </>
+                    )}
+                    {(r.client_email || r.email) && (
+                      <button
+                        onClick={() => handleSendCustomPrix(r, "email")}
+                        disabled={customPrixSending[r.id]}
+                        style={{
+                          background: "rgba(245,200,66,0.12)",
+                          border: "1px solid rgba(245,200,66,0.35)",
+                          color: "#f5c842",
+                          padding: "9px 12px",
+                          borderRadius: 10,
+                          cursor: customPrixSending[r.id] ? "wait" : "pointer",
+                          fontWeight: 700,
+                          fontSize: 13,
+                          opacity: customPrixSending[r.id] ? 0.6 : 1,
+                        }}
+                      >
+                        {customPrixSending[r.id] ? "⏳…" : "✉️ Email"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1732,10 +1931,7 @@ function Dashboard() {
                   <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
                     {(r.client_phone || r.telephone) && (
                       <>
-                        <a
-                          href={`tel:${r.client_phone || r.telephone}`}
-                          style={contactBtn("#0ea5e9")}
-                        >
+                        <a href={`tel:${r.client_phone || r.telephone}`} style={contactBtn("#0ea5e9")}>
                           📞 Appeler
                         </a>
                         <a
