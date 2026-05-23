@@ -500,19 +500,38 @@ function Dashboard() {
         fetchStatsRef.current();
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "reservations" }, (payload) => {
-        // Mise à jour chirurgicale : on patch uniquement la ligne concernée
-        // sans refetch complet qui créerait une race condition avec les mises à jour optimistes
         const updated = payload.new as any;
+        // DEBUG - à retirer après diagnostic
+        console.log("[REALTIME UPDATE]", updated?.id?.slice(0, 8), "status DB:", updated?.status);
         if (updated?.id) {
-          setItems((prev) => prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)));
-          setCounts((prev) => {
-            // Recalcule les counts depuis les items mis à jour
-            const newItems = prev as any; // on va recalcule après
-            return prev; // sera recalculé par l'effet sur items ci-dessous
-          });
+          setItems((prev) =>
+            prev.map((item) => {
+              if (item.id !== updated.id) return item;
+              // Protection contre les UPDATE DB qui ramèneraient un statut plus ancien
+              // que le statut local (ex: trigger Supabase qui arrive après l'optimiste)
+              const localStatus = item.status;
+              const dbStatus = updated.status;
+              const statusOrder: Record<string, number> = {
+                pending: 0,
+                accepted: 1,
+                refused: 1,
+                en_route: 2,
+                arrived: 3,
+                completed: 4,
+                cancelled: 4,
+              };
+              const localRank = statusOrder[localStatus] ?? 0;
+              const dbRank = statusOrder[dbStatus] ?? 0;
+              // Si le statut local est "plus avancé" que le DB, on le garde
+              if (localRank > dbRank) {
+                return { ...item, ...updated, status: localStatus };
+              }
+              return { ...item, ...updated };
+            }),
+          );
         }
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "site_analytics" }, () => fetchStats())
+      .on("postgres_changes", { event: "*", schema: "public", table: "site_analytics" }, () => fetchStatsRef.current())
       .on("postgres_changes", { event: "*", schema: "public", table: "avis" }, () => fetchAvis())
       .subscribe();
     initialLoad.current = false;
