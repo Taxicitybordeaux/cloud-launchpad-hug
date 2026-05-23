@@ -217,7 +217,8 @@ function SuiviPage() {
       setTimeout(() => {
         map.invalidateSize();
         setMapReady(true);
-      }, 200);
+      }, 400);
+      setTimeout(() => map.invalidateSize(), 800);
     };
     init();
     return () => {
@@ -289,16 +290,15 @@ function SuiviPage() {
           { color: "#f5c842", weight: 4, opacity: 0.55, dashArray: "8 6" },
         ).addTo(map);
 
-        // Centrer la carte sur le trajet complet si pas de GPS taxi
-        if (!taxiPos) {
-          map.fitBounds(
-            L.latLngBounds([
-              [depGeo.lat, depGeo.lng],
-              [arrGeo.lat, arrGeo.lng],
-            ]).pad(0.25),
-            { animate: true, duration: 0.8 },
-          );
-        }
+        // Centrer la carte sur le trajet complet (toujours, GPS ou pas)
+        map.invalidateSize();
+        map.fitBounds(
+          L.latLngBounds([
+            [depGeo.lat, depGeo.lng],
+            [arrGeo.lat, arrGeo.lng],
+          ]).pad(0.25),
+          { animate: true, duration: 0.8 },
+        );
       }
     };
 
@@ -728,7 +728,7 @@ function SuiviPage() {
         </div>
 
         {/* Légende carte */}
-        {(taxiPos || fromMarker.current) && (
+        {
           <div
             style={{
               position: "absolute",
@@ -768,7 +768,7 @@ function SuiviPage() {
               </div>
             </div>
           </div>
-        )}
+        }
       </div>
 
       {/* ── BOTTOM SHEET ── */}
