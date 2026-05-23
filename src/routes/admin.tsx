@@ -42,15 +42,26 @@ function AdminLayout() {
     }
   }, [path, navigate]);
 
+  const logout = () => {
+    sessionStorage.removeItem("admin_pin_ok");
+    navigate({ to: "/login" });
+  };
+
   return (
     <div
       style={{ display: "flex", flexDirection: "column", minHeight: "100vh", background: "#0a0f1e", color: "#f1f5f9" }}
     >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap');
+        @media (max-width: 640px) {
+          .al-header { flex-wrap: wrap !important; padding: 10px 12px !important; }
+          .al-btns button { padding: 8px 10px !important; font-size: 12px !important; }
+          .al-subtitle { display: none !important; }
+        }
       `}</style>
 
       <header
+        className="al-header"
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -68,8 +79,40 @@ function AdminLayout() {
           <span style={{ fontSize: 26 }}>🚕</span>
           <div>
             <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18 }}>Espace chauffeur</div>
-            <div style={{ fontSize: 12, color: "#94a3b8" }}>Page unique, toutes les actions sur une seule vue</div>
+            <div className="al-subtitle" style={{ fontSize: 12, color: "#94a3b8" }}>
+              Page unique, toutes les actions sur une seule vue
+            </div>
           </div>
+        </div>
+        <div className="al-btns" style={{ display: "flex", gap: 12 }}>
+          <button
+            onClick={() => navigate({ to: "/" })}
+            style={{
+              padding: "10px 16px",
+              borderRadius: 12,
+              border: "1px solid rgba(255,255,255,0.14)",
+              background: "transparent",
+              color: "#f8fafc",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Retour au site
+          </button>
+          <button
+            onClick={logout}
+            style={{
+              padding: "10px 16px",
+              borderRadius: 12,
+              border: "1px solid rgba(255,255,255,0.14)",
+              background: "#111827",
+              color: "#f8fafc",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Déconnexion
+          </button>
         </div>
       </header>
 
