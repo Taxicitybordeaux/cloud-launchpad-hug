@@ -453,54 +453,6 @@ function ReservationPage() {
         console.error("[notify] push failed", err);
       }
 
-      // ── Email chauffeur via bridge serveur ────────────────────────────────
-      try {
-        const heureStr = f.heure || "—";
-        const dateStr = f.date
-          ? new Date(`${f.date}T${f.heure || "00:00"}:00`).toLocaleString("fr-FR", {
-              timeZone: "Europe/Paris",
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          : "—";
-
-        await fetch("/api/admin/send-course-email", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Admin-Secret": "admin-pin-call",
-          },
-          body: JSON.stringify({
-            to: "chauffeur@taxicitybx.fr", // adresse chauffeur à adapter
-            subject: `🚕 Nouvelle course — ${f.prenom} ${f.nom}`,
-            html: `
-              <div style="font-family:sans-serif;max-width:520px;margin:auto;background:#0f172a;color:#e2e8f0;padding:32px;border-radius:16px">
-                <h1 style="color:#f5c842;margin:0 0 8px">Nouvelle réservation</h1>
-                <p style="color:#94a3b8;margin:0 0 24px">Une course vient d'être réservée sur Taxi City Bordeaux.</p>
-                <table style="width:100%;border-collapse:collapse">
-                  <tr><td style="padding:8px 0;color:#64748b;width:40%">Client</td><td style="color:#f1f5f9;font-weight:600">${f.prenom} ${f.nom}</td></tr>
-                  <tr><td style="padding:8px 0;color:#64748b">Téléphone</td><td style="color:#f1f5f9;font-weight:600"><a href="tel:${f.phone}" style="color:#22c55e">${f.phone}</a></td></tr>
-                  <tr><td style="padding:8px 0;color:#64748b">Prise en charge</td><td style="color:#f5c842;font-weight:700">${dateStr}</td></tr>
-                  <tr><td style="padding:8px 0;color:#64748b">Départ</td><td style="color:#f1f5f9">${f.depart}</td></tr>
-                  <tr><td style="padding:8px 0;color:#64748b">Destination</td><td style="color:#f1f5f9">${f.destination}</td></tr>
-                  <tr><td style="padding:8px 0;color:#64748b">Distance</td><td style="color:#f1f5f9">${orsResult?.distanceKm ?? "—"} km · ${orsResult ? Math.round(orsResult.dureeS / 60) : "—"} min</td></tr>
-                  <tr><td style="padding:8px 0;color:#64748b">Prix estimé</td><td style="color:#f5c842;font-weight:800;font-size:18px">${prixAller.toFixed(2)} €</td></tr>
-                  <tr><td style="padding:8px 0;color:#64748b">Passagers</td><td style="color:#f1f5f9">${f.passagers}</td></tr>
-                  <tr><td style="padding:8px 0;color:#64748b">Bagages</td><td style="color:#f1f5f9">${f.bagages}</td></tr>
-                  <tr><td style="padding:8px 0;color:#64748b">Paiement</td><td style="color:#f1f5f9">${f.paiement}</td></tr>
-                </table>
-                <a href="${typeof window !== "undefined" ? window.location.origin : ""}/admin" style="display:inline-block;margin-top:24px;padding:12px 24px;background:#f5c842;color:#0f172a;border-radius:10px;font-weight:700;text-decoration:none">Gérer dans le dashboard →</a>
-              </div>
-            `,
-          }),
-        });
-      } catch (err) {
-        console.error("[email chauffeur] failed", err);
-      }
-
       toast.success(`Réservation confirmée pour ${f.prenom} !`);
       setSending(false);
       navigate({ to: "/suivi/$id", params: { id: newTrackingId } });
