@@ -159,6 +159,10 @@ function SuiviPage() {
   // Coords géocodées en cache pour éviter les appels répétés
   const depGeoRef = useRef<{ lat: number; lng: number } | null>(null);
   const arrGeoRef = useRef<{ lat: number; lng: number } | null>(null);
+  // Interpolation fluide du marqueur taxi
+  const taxiAnimRef = useRef<{ from: [number, number]; to: [number, number]; startTs: number; rafId: number } | null>(
+    null,
+  );
 
   // ── Chargement réservation ────────────────────────────────────────────────
   useEffect(() => {
@@ -368,31 +372,72 @@ function SuiviPage() {
   }, []);
 
   // ── Mise à jour marqueur taxi + tracé + ETA + détection fin de course ─────
+  // Le marqueur se déplace en douceur via requestAnimationFrame (lerp 2s)
   useEffect(() => {
     const map = mapInst.current;
     const L = (window as any).L;
     if (!map || !L || !taxiPos || !mapReady || !resa) return;
 
-    const taxiIcon = L.divIcon({
-      className: "",
-      html: `<div style="position:relative;width:56px;height:56px;">
+    const heading = taxiPos.heading ?? 0;
+
+    const makeTaxiIcon = (h: number) =>
+      L.divIcon({
+        className: "",
+        html: `<div style="position:relative;width:56px;height:56px;">
         <div style="position:absolute;inset:-8px;border-radius:50%;background:rgba(245,200,66,0.15);animation:gpsRing 2s ease-out infinite;"></div>
         <div style="position:absolute;inset:-4px;border-radius:50%;background:rgba(245,200,66,0.1);animation:gpsRing 2s ease-out 0.6s infinite;"></div>
         <div style="position:absolute;inset:0;border-radius:50%;background:rgba(10,10,20,0.9);border:2.5px solid rgba(245,200,66,0.7);display:flex;align-items:center;justify-content:center;">
-          <span style="font-size:26px;display:block;transform:rotate(${taxiPos.heading}deg);transition:transform 0.8s cubic-bezier(.4,0,.2,1);">🚕</span>
+          <span style="font-size:26px;display:block;transform:rotate(${h}deg);transition:transform 0.8s cubic-bezier(.4,0,.2,1);">🚕</span>
         </div>
       </div>`,
-      iconSize: [56, 56],
-      iconAnchor: [28, 28],
-    });
+        iconSize: [56, 56],
+        iconAnchor: [28, 28],
+      });
 
-    if (taxiMarker.current) {
-      taxiMarker.current.setLatLng([taxiPos.lat, taxiPos.lng]);
-      taxiMarker.current.setIcon(taxiIcon);
-    } else {
-      taxiMarker.current = L.marker([taxiPos.lat, taxiPos.lng], { icon: taxiIcon, zIndexOffset: 1000 }).addTo(map);
+    // ── Interpolation fluide du marqueur ──────────────────────────────────
+    const ANIM_DURATION = 2000; // ms — durée du glissement vers la nouvelle pos
+    const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+    if (taxiAnimRef.current) {
+      cancelAnimationFrame(taxiAnimRef.current.rafId);
+      taxiAnimRef.current = null;
     }
 
+    const currentLatLng = taxiMarker.current ? taxiMarker.current.getLatLng() : null;
+
+    const fromPos: [number, number] = currentLatLng
+      ? [currentLatLng.lat, currentLatLng.lng]
+      : [taxiPos.lat, taxiPos.lng];
+
+    const toPos: [number, number] = [taxiPos.lat, taxiPos.lng];
+
+    if (!taxiMarker.current) {
+      taxiMarker.current = L.marker(fromPos, {
+        icon: makeTaxiIcon(heading),
+        zIndexOffset: 1000,
+      }).addTo(map);
+    }
+
+    const startTs = performance.now();
+
+    const animate = (now: number) => {
+      const t = Math.min((now - startTs) / ANIM_DURATION, 1);
+      const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // ease-in-out quad
+      const lat = lerp(fromPos[0], toPos[0], ease);
+      const lng = lerp(fromPos[1], toPos[1], ease);
+      taxiMarker.current?.setLatLng([lat, lng]);
+      if (t < 1) {
+        taxiAnimRef.current!.rafId = requestAnimationFrame(animate);
+      } else {
+        taxiMarker.current?.setIcon(makeTaxiIcon(heading));
+        taxiAnimRef.current = null;
+      }
+    };
+
+    const rafId = requestAnimationFrame(animate);
+    taxiAnimRef.current = { from: fromPos, to: toPos, startTs, rafId };
+
+    // ── Tracés couleur par statut ──────────────────────────────────────────
     const isEnRoute = ["en_route", "accepted", "arrived"].includes(resa.status);
     const isEnAttente = ["nouvelle", "pending"].includes(resa.status);
 
@@ -400,15 +445,14 @@ function SuiviPage() {
       const taxiLngLat: [number, number] = [taxiPos.lng, taxiPos.lat];
 
       if (isEnRoute && arrGeoRef.current) {
-        // ── EN ROUTE : taxi → destination ───────────────────────────────────
+        // 🔵 EN ROUTE : taxi → destination
         const arrGeo = arrGeoRef.current;
         const arrLngLat: [number, number] = [arrGeo.lng, arrGeo.lat];
 
-        // Détection fin de course : taxi < seuil de la destination
+        // Détection fin de course
         const distToArr = distanceMeters(taxiPos.lat, taxiPos.lng, arrGeo.lat, arrGeo.lng);
         if (distToArr < ARRIVAL_THRESHOLD_M && !courseTerminee) {
           setCourseTerminee(true);
-          // Mise à jour statut en BDD
           await (supabase as any).from("reservations").update({ status: "completed" }).eq("id", resa.id);
           setResa((prev) => (prev ? { ...prev, status: "completed" } : prev));
         }
@@ -421,7 +465,7 @@ function SuiviPage() {
           }
           routeLayer.current = L.polyline(
             route.coords.map((c: [number, number]) => [c[1], c[0]]),
-            { color: "#3b82f6", weight: 4, opacity: 0.9 },
+            { color: "#3b82f6", weight: 5, opacity: 0.95 },
           ).addTo(map);
         }
         if (route) setEta(Math.round(route.dureeS / 60));
@@ -434,7 +478,7 @@ function SuiviPage() {
           { animate: true, duration: 0.8 },
         );
       } else if (isEnAttente && depGeoRef.current) {
-        // ── EN ATTENTE : taxi → point de prise en charge ────────────────────
+        // 🟢 EN ATTENTE : taxi → point de prise en charge
         const depGeo = depGeoRef.current;
         const depLngLat: [number, number] = [depGeo.lng, depGeo.lat];
 
@@ -446,7 +490,7 @@ function SuiviPage() {
           }
           routeLayer.current = L.polyline(
             route.coords.map((c: [number, number]) => [c[1], c[0]]),
-            { color: "#22c55e", weight: 4, opacity: 0.9 },
+            { color: "#22c55e", weight: 5, opacity: 0.95 },
           ).addTo(map);
         }
         if (route) setEta(Math.round(route.dureeS / 60));
@@ -463,10 +507,23 @@ function SuiviPage() {
           ]).pad(0.3),
           { animate: true, duration: 0.8 },
         );
+      } else if (courseTerminee) {
+        // 🔴 TERMINÉE : supprimer le tracé dynamique, laisser le pointillé
+        if (routeLayer.current) {
+          routeLayer.current.remove();
+          routeLayer.current = null;
+        }
       }
     };
 
     updateRoute();
+
+    return () => {
+      if (taxiAnimRef.current) {
+        cancelAnimationFrame(taxiAnimRef.current.rafId);
+        taxiAnimRef.current = null;
+      }
+    };
   }, [taxiPos, mapReady, resa, courseTerminee]);
 
   // ── Écoute changement de statut ───────────────────────────────────────────
@@ -678,81 +735,156 @@ function SuiviPage() {
           }}
         />
 
-        {/* Badge statut */}
-        <div style={{ position: "absolute", top: 16, left: 16, right: 16, zIndex: 100, animation: "fadeIn 0.4s ease" }}>
+        {/* ── Badge statut — visible uniquement si réservation chargée ── */}
+        {resa && (
           <div
-            style={{
-              background: "rgba(8,8,15,0.88)",
-              backdropFilter: "blur(16px)",
-              borderRadius: 18,
-              padding: "12px 16px",
-              border: `1px solid ${statut.color}35`,
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              boxShadow: `0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)`,
-            }}
+            style={{ position: "absolute", top: 16, left: 16, right: 16, zIndex: 100, animation: "fadeIn 0.4s ease" }}
           >
-            <div
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 12,
-                background: statut.bg,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 20,
-                flexShrink: 0,
-                animation: statut.pulse ? "pulse 2s ease-in-out infinite" : "none",
-              }}
-            >
-              {statut.icon}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="typo-title" style={{ fontSize: 13, color: statut.color }}>
-                {statut.label}
-              </div>
-              {eta !== null &&
-                taxiPos &&
-                !courseTerminee &&
-                ["nouvelle", "pending", "accepted", "en_route", "arrived"].includes(effectiveStatus) && (
-                  <div className="typo-body" style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                    {["en_route", "arrived", "accepted"].includes(effectiveStatus)
-                      ? "Arrivée à destination dans "
-                      : "Prise en charge dans "}{" "}
-                    <span className="typo-num" style={{ color: "#f5c842", fontSize: 14 }}>
-                      {eta}
-                      <span style={{ fontSize: 10, marginLeft: 2, fontWeight: 500 }}>min</span>
-                    </span>
+            {/* Barre de progression statut */}
+            {(() => {
+              const steps = ["pending", "accepted", "en_route", "arrived", "completed"];
+              const stepLabels = ["Confirmé", "Taxi parti", "En route", "Arrivé", "Terminé"];
+              const idx = courseTerminee
+                ? 4
+                : Math.max(
+                    0,
+                    steps.indexOf(
+                      effectiveStatus === "nouvelle"
+                        ? "pending"
+                        : effectiveStatus === "terminee" || effectiveStatus === "terminée"
+                          ? "completed"
+                          : effectiveStatus,
+                    ),
+                  );
+              return (
+                <div
+                  style={{
+                    background: "rgba(8,8,15,0.88)",
+                    backdropFilter: "blur(16px)",
+                    borderRadius: 18,
+                    padding: "10px 14px 12px",
+                    border: `1px solid ${statut.color}40`,
+                    boxShadow: `0 4px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)`,
+                    marginBottom: 8,
+                  }}
+                >
+                  {/* Ligne principale statut */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                    <div
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 10,
+                        background: statut.bg,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 18,
+                        flexShrink: 0,
+                        animation: statut.pulse ? "pulse 2s ease-in-out infinite" : "none",
+                      }}
+                    >
+                      {statut.icon}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="typo-title" style={{ fontSize: 13, color: statut.color, lineHeight: 1.2 }}>
+                        {statut.label}
+                      </div>
+                      {eta !== null &&
+                        taxiPos &&
+                        !courseTerminee &&
+                        ["nouvelle", "pending", "accepted", "en_route", "arrived"].includes(effectiveStatus) && (
+                          <div className="typo-body" style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+                            {["en_route", "arrived", "accepted"].includes(effectiveStatus)
+                              ? "Arrivée destination dans"
+                              : "Prise en charge dans"}{" "}
+                            <span className="typo-num" style={{ color: "#f5c842", fontSize: 13 }}>
+                              {eta}
+                              <span style={{ fontSize: 9, marginLeft: 2, fontWeight: 500 }}>min</span>
+                            </span>
+                          </div>
+                        )}
+                      {courseTerminee && (
+                        <div className="typo-body" style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+                          Destination atteinte ✓
+                        </div>
+                      )}
+                      {!taxiPos && !courseTerminee && (
+                        <div className="typo-body" style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>
+                          Le chauffeur n'a pas encore activé son GPS
+                        </div>
+                      )}
+                    </div>
+                    {taxiPos && !courseTerminee && (
+                      <div
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          background: "#22c55e",
+                          flexShrink: 0,
+                          boxShadow: "0 0 0 3px rgba(34,197,94,0.25)",
+                          animation: "pulse 2s ease-in-out infinite",
+                        }}
+                      />
+                    )}
                   </div>
-                )}
-              {courseTerminee && (
-                <div className="typo-body" style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                  Destination atteinte
+
+                  {/* Barre de progression en 5 étapes */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+                    {steps.map((s, i) => {
+                      const done = i <= idx;
+                      const active = i === idx;
+                      const colors = ["#f59e0b", "#22c55e", "#3b82f6", "#f5c842", "#94a3b8"];
+                      const c = colors[Math.min(idx, colors.length - 1)];
+                      return (
+                        <div key={s} style={{ display: "flex", alignItems: "center", flex: i < 4 ? 1 : "none" }}>
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                            <div
+                              style={{
+                                width: active ? 10 : 8,
+                                height: active ? 10 : 8,
+                                borderRadius: "50%",
+                                background: done ? c : "rgba(255,255,255,0.12)",
+                                border: active ? `2px solid ${c}` : "none",
+                                boxShadow: active ? `0 0 0 3px ${c}25` : "none",
+                                transition: "all 0.4s ease",
+                                flexShrink: 0,
+                              }}
+                            />
+                            <div
+                              style={{
+                                fontSize: 8,
+                                color: done ? c : "#334155",
+                                fontFamily: "'DM Sans',sans-serif",
+                                fontWeight: 600,
+                                whiteSpace: "nowrap",
+                                letterSpacing: "0.02em",
+                              }}
+                            >
+                              {stepLabels[i]}
+                            </div>
+                          </div>
+                          {i < 4 && (
+                            <div
+                              style={{
+                                flex: 1,
+                                height: 2,
+                                background: i < idx ? c : "rgba(255,255,255,0.08)",
+                                marginBottom: 14,
+                                transition: "background 0.5s ease",
+                              }}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              )}
-              {!taxiPos && !courseTerminee && (
-                <div className="typo-body" style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>
-                  Le trajet est affiché ci-dessus
-                </div>
-              )}
-            </div>
-            {taxiPos && (
-              <div
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background: "#22c55e",
-                  flexShrink: 0,
-                  boxShadow: "0 0 0 3px rgba(34,197,94,0.2)",
-                  animation: "pulse 2s ease-in-out infinite",
-                }}
-              />
-            )}
+              );
+            })()}
           </div>
-        </div>
+        )}
 
         {/* Légende carte */}
         {
