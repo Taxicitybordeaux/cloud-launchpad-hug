@@ -436,7 +436,7 @@ function Dashboard() {
   // REALTIME
   // =========================
   useEffect(() => {
-    fetchAllRef.current();
+    if (fetchAllRef.current) fetchAllRef.current();
     const ch = supabase
       .channel("dash-courses")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "reservations" }, (payload) => {
