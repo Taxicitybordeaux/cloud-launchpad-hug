@@ -1285,6 +1285,9 @@ function Dashboard() {
         </div>
       </div>
 
+      {/* Mobile responsive styles */}
+      <style>{adminMobileCss}</style>
+
       {/* ── GPS — EN HAUT pour accès rapide ── */}
       <div style={{ marginBottom: 24 }}>
         <style>{`.gps-pulse{animation:pulseDot 2s infinite}`}</style>
