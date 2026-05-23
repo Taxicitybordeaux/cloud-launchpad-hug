@@ -327,6 +327,9 @@ function Dashboard() {
   const [avis, setAvis] = useState<any[]>([]);
   const [avisLoading, setAvisLoading] = useState(true);
   const initialLoad = useRef(true);
+  // Refs stables pour éviter que le useEffect realtime se réabonne à chaque render
+  const fetchAllRef = useRef<() => Promise<void>>(async () => {});
+  const fetchStatsRef = useRef<() => Promise<void>>(async () => {});
 
   // ── GPS ──
   const [gpsActive, setGpsActive] = useState(false);
@@ -391,12 +394,22 @@ function Dashboard() {
       return;
     }
     const rows = data ?? [];
-    setItems(rows);
-    const nextCounts = { pending: 0, accepted: 0, refused: 0 };
-    rows.forEach((r: any) => {
-      nextCounts[normalizeStatus(r.status)]++;
+    // FIX: merge au lieu d'écraser — on garde le statut local s'il est plus récent
+    // (évite que fetchCourses écrase les mises à jour optimistes pending->refused/accepted)
+    setItems((prev) => {
+      if (prev.length === 0) return rows;
+      const localById = new Map(prev.map((item) => [item.id, item]));
+      return rows.map((row: any) => {
+        const local = localById.get(row.id);
+        if (!local) return row;
+        // On garde le statut local si différent du statut DB "pending"
+        // (le local est forcément plus à jour : on vient de le modifier)
+        if (local.status !== row.status && row.status === "pending") {
+          return { ...row, status: local.status };
+        }
+        return row;
+      });
     });
-    setCounts(nextCounts);
     setCoursesLoading(false);
     repairMissingPrices(rows);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -418,6 +431,9 @@ function Dashboard() {
     await Promise.all([fetchStats(), fetchCourses(), fetchAvis()]);
     setRefreshing(false);
   }, [fetchStats, fetchCourses, fetchAvis]);
+  // Mise à jour des refs stables (toujours à jour, pas de re-abonnement realtime)
+  fetchAllRef.current = fetchAll;
+  fetchStatsRef.current = fetchStats;
 
   // ── Counts dérivés des items (source unique de vérité) ──
   useEffect(() => {
@@ -432,7 +448,7 @@ function Dashboard() {
   // REALTIME
   // =========================
   useEffect(() => {
-    fetchAll();
+    fetchAllRef.current();
     const ch = supabase
       .channel("dash-courses")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "reservations" }, (payload) => {
@@ -481,7 +497,7 @@ function Dashboard() {
           // counts recalcules automatiquement par l'effet useEffect sur items
         }
         // Refresh uniquement les stats (CA, visiteurs) pas les courses
-        fetchStats();
+        fetchStatsRef.current();
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "reservations" }, (payload) => {
         // Mise à jour chirurgicale : on patch uniquement la ligne concernée
@@ -503,7 +519,7 @@ function Dashboard() {
     return () => {
       supabase.removeChannel(ch);
     };
-  }, [fetchAll, fetchStats]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // =========================
   // GPS INIT
