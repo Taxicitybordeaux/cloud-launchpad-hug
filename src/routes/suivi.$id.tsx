@@ -193,19 +193,20 @@ function SuiviPage() {
   // ── Init carte ────────────────────────────────────────────────────────────
   useEffect(() => {
     let mounted = true;
-    const init = async () => {
+
+    const initMap = async (container: HTMLDivElement) => {
       try {
         await loadLeaflet();
       } catch {
         return;
       }
-      if (!mounted || !mapRef.current) return;
+      if (!mounted) return;
       const L = (window as any).L;
       if (mapInst.current) {
         mapInst.current.remove();
         mapInst.current = null;
       }
-      const map = L.map(mapRef.current, {
+      const map = L.map(container, {
         center: [44.8378, -0.5792],
         zoom: 13,
         zoomControl: false,
@@ -214,13 +215,36 @@ function SuiviPage() {
       L.tileLayer(OSM_TILE_URL, OSM_TILE_OPTIONS).addTo(map);
       L.control.zoom({ position: "bottomright" }).addTo(map);
       mapInst.current = map;
+      // Deux invalidateSize pour gérer le cas où le conteneur
+      // n'a pas encore ses dimensions finales au moment du mount
       setTimeout(() => {
         map.invalidateSize();
         setMapReady(true);
-      }, 400);
-      setTimeout(() => map.invalidateSize(), 800);
+      }, 200);
+      setTimeout(() => map.invalidateSize(), 600);
     };
-    init();
+
+    // Si le ref est déjà disponible (rendu synchrone), on initialise directement
+    if (mapRef.current) {
+      initMap(mapRef.current);
+    } else {
+      // Sinon on observe le DOM jusqu'à ce que le conteneur apparaisse
+      // (peut arriver si React batchait le rendu)
+      const observer = new MutationObserver(() => {
+        if (mapRef.current) {
+          observer.disconnect();
+          initMap(mapRef.current);
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+      return () => {
+        mounted = false;
+        observer.disconnect();
+        mapInst.current?.remove();
+        mapInst.current = null;
+      };
+    }
+
     return () => {
       mounted = false;
       mapInst.current?.remove();
@@ -542,62 +566,10 @@ function SuiviPage() {
   const prix = resa?.prix_estime ? `${Number(resa.prix_estime).toFixed(2)} €` : null;
   const distanceKm = resa?.distance_km ?? null;
 
-  // ── Chargement ────────────────────────────────────────────────────────────
-  if (loading) {
-    return (
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: "#08080f",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontFamily: "'DM Sans',sans-serif",
-        }}
-      >
-        <div style={{ textAlign: "center" }}>
-          <div
-            style={{
-              fontSize: 52,
-              marginBottom: 16,
-              display: "inline-block",
-              animation: "floatTaxi 1.4s ease-in-out infinite",
-            }}
-          >
-            🚕
-          </div>
-          <div style={{ color: "#475569", fontSize: 14 }}>Chargement du suivi…</div>
-        </div>
-        <style>{`@keyframes floatTaxi { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }`}</style>
-      </div>
-    );
-  }
-
-  if (!resa) {
-    return (
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: "#08080f",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 24,
-          fontFamily: "'DM Sans',sans-serif",
-        }}
-      >
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#f1f5f9", marginBottom: 8 }}>
-            Réservation introuvable
-          </div>
-          <div style={{ color: "#475569", fontSize: 14 }}>Ce lien de suivi n'est pas valide ou a expiré.</div>
-        </div>
-      </div>
-    );
-  }
+  // ── NOTE : on ne fait plus de return anticipé pour loading/!resa
+  // La carte doit toujours être dans le DOM dès le premier rendu
+  // pour que mapRef.current soit disponible quand Leaflet se charge.
+  // Les overlays loading/erreur sont affichés par-dessus la carte.
 
   return (
     <div
@@ -632,10 +604,65 @@ function SuiviPage() {
         .leaflet-tooltip { background: rgba(10,10,20,0.9) !important; border: 1px solid rgba(245,200,66,0.3) !important; color: #f5c842 !important; font-weight: 700 !important; border-radius: 8px !important; }
         .leaflet-tooltip-top::before { border-top-color: rgba(245,200,66,0.3) !important; }
       `}</style>
-
       {/* ── MAP ── */}
       <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
+        {/* La div carte est TOUJOURS dans le DOM dès le premier rendu */}
         <div ref={mapRef} style={{ position: "absolute", inset: 0 }} />
+
+        {/* Overlay chargement — par-dessus la carte */}
+        {loading && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "#08080f",
+              zIndex: 9000,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontFamily: "'DM Sans',sans-serif",
+            }}
+          >
+            <div style={{ textAlign: "center" }}>
+              <div
+                style={{
+                  fontSize: 52,
+                  marginBottom: 16,
+                  display: "inline-block",
+                  animation: "floatTaxi 1.4s ease-in-out infinite",
+                }}
+              >
+                🚕
+              </div>
+              <div style={{ color: "#475569", fontSize: 14 }}>Chargement du suivi…</div>
+            </div>
+          </div>
+        )}
+
+        {/* Overlay réservation introuvable */}
+        {!loading && !resa && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "#08080f",
+              zIndex: 9000,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 24,
+              fontFamily: "'DM Sans',sans-serif",
+            }}
+          >
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "#f1f5f9", marginBottom: 8 }}>
+                Réservation introuvable
+              </div>
+              <div style={{ color: "#475569", fontSize: 14 }}>Ce lien de suivi n'est pas valide ou a expiré.</div>
+            </div>
+          </div>
+        )}
 
         {/* Gradient bas */}
         <div
@@ -770,201 +797,225 @@ function SuiviPage() {
           </div>
         }
       </div>
-
       {/* ── BOTTOM SHEET ── */}
-      <div
-        style={{
-          flexShrink: 0,
-          background: "linear-gradient(180deg, #0e0e1c 0%, #080810 100%)",
-          borderRadius: "28px 28px 0 0",
-          boxShadow: "0 -1px 0 rgba(245,200,66,0.08), 0 -20px 60px rgba(0,0,0,0.6)",
-          padding: "0 0 calc(20px + env(safe-area-inset-bottom,0px)) 0",
-          animation: "slideUp 0.5s cubic-bezier(.2,.8,.2,1)",
-          maxHeight: "58vh",
-          overflowY: "auto",
-        }}
-      >
-        {/* Handle */}
-        <div style={{ display: "flex", justifyContent: "center", padding: "14px 0 10px" }}>
-          <div style={{ width: 40, height: 4, background: "rgba(255,255,255,0.1)", borderRadius: 9 }} />
-        </div>
-
-        <div style={{ padding: "0 20px 4px" }}>
-          {/* ── CHAUFFEUR ── */}
-          <div
-            style={{
-              background: "rgba(245,200,66,0.04)",
-              border: "1px solid rgba(245,200,66,0.12)",
-              borderRadius: 20,
-              padding: 16,
-              marginBottom: 14,
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-            }}
-          >
-            <div
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 16,
-                flexShrink: 0,
-                background: "rgba(245,200,66,0.1)",
-                border: "1.5px solid rgba(245,200,66,0.25)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 26,
-              }}
-            >
-              👤
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="typo-title" style={{ fontSize: 18, color: "#f1f5f9" }}>
-                {CHAUFFEUR.nom}
-              </div>
-              <div className="typo-body" style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                {CHAUFFEUR.vehicule}
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
-                <span style={{ color: "#f5c842", fontSize: 11 }}>★★★★★</span>
-                <span className="typo-num" style={{ color: "#64748b", fontSize: 12 }}>
-                  5.0
-                </span>
-              </div>
-            </div>
-            <div
-              style={{
-                background: "rgba(8,8,15,0.6)",
-                border: "1px solid rgba(245,200,66,0.3)",
-                borderRadius: 10,
-                padding: "6px 12px",
-                textAlign: "center",
-                flexShrink: 0,
-              }}
-            >
-              <div className="typo-label" style={{ fontSize: 9, color: "#475569", marginBottom: 4 }}>
-                Plaque
-              </div>
-              <div className="typo-num" style={{ fontSize: 14, color: "#f5c842", letterSpacing: "0.12em" }}>
-                {CHAUFFEUR.plaque}
-              </div>
-            </div>
+      {resa && (
+        <div
+          style={{
+            flexShrink: 0,
+            background: "linear-gradient(180deg, #0e0e1c 0%, #080810 100%)",
+            borderRadius: "28px 28px 0 0",
+            boxShadow: "0 -1px 0 rgba(245,200,66,0.08), 0 -20px 60px rgba(0,0,0,0.6)",
+            padding: "0 0 calc(20px + env(safe-area-inset-bottom,0px)) 0",
+            animation: "slideUp 0.5s cubic-bezier(.2,.8,.2,1)",
+            maxHeight: "58vh",
+            overflowY: "auto",
+          }}
+        >
+          {/* Handle */}
+          <div style={{ display: "flex", justifyContent: "center", padding: "14px 0 10px" }}>
+            <div style={{ width: 40, height: 4, background: "rgba(255,255,255,0.1)", borderRadius: 9 }} />
           </div>
 
-          {/* ── INFOS COURSE ── */}
-          <div
-            style={{
-              background: "rgba(255,255,255,0.025)",
-              border: "1px solid rgba(255,255,255,0.06)",
-              borderRadius: 20,
-              padding: 16,
-              marginBottom: 14,
-            }}
-          >
-            {/* Trajet */}
-            <div style={{ display: "flex", gap: 12, alignItems: "stretch", marginBottom: 14 }}>
-              {/* Timeline */}
-              <div
-                style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 3, flexShrink: 0 }}
-              >
-                <div
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: "50%",
-                    background: "#22c55e",
-                    boxShadow: "0 0 0 3px rgba(34,197,94,0.15)",
-                  }}
-                />
-                <div
-                  style={{
-                    width: 1.5,
-                    flex: 1,
-                    background: "linear-gradient(#22c55e, #f5c842)",
-                    margin: "4px 0",
-                    opacity: 0.4,
-                  }}
-                />
-                <div
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 3,
-                    background: "#f5c842",
-                    boxShadow: "0 0 0 3px rgba(245,200,66,0.15)",
-                  }}
-                />
-              </div>
-              {/* Adresses */}
+          <div style={{ padding: "0 20px 4px" }}>
+            {/* ── CHAUFFEUR ── */}
+            <div
+              style={{
+                background: "rgba(245,200,66,0.04)",
+                border: "1px solid rgba(245,200,66,0.12)",
+                borderRadius: 20,
+                padding: 16,
+                marginBottom: 14,
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
+              }}
+            >
               <div
                 style={{
-                  flex: 1,
-                  minWidth: 0,
+                  width: 56,
+                  height: 56,
+                  borderRadius: 16,
+                  flexShrink: 0,
+                  background: "rgba(245,200,66,0.1)",
+                  border: "1.5px solid rgba(245,200,66,0.25)",
                   display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                  gap: 8,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 26,
                 }}
               >
-                <div>
-                  <div className="typo-label" style={{ fontSize: 10, color: "#475569", marginBottom: 3 }}>
-                    Départ
-                  </div>
-                  <div
-                    className="typo-body"
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 600,
-                      color: "#e2e8f0",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {resa.depart}
-                  </div>
+                👤
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="typo-title" style={{ fontSize: 18, color: "#f1f5f9" }}>
+                  {CHAUFFEUR.nom}
                 </div>
-                <div>
-                  <div className="typo-label" style={{ fontSize: 10, color: "#475569", marginBottom: 3 }}>
-                    Destination
-                  </div>
-                  <div
-                    className="typo-body"
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 600,
-                      color: "#e2e8f0",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {arrivee}
-                  </div>
+                <div className="typo-body" style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+                  {CHAUFFEUR.vehicule}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
+                  <span style={{ color: "#f5c842", fontSize: 11 }}>★★★★★</span>
+                  <span className="typo-num" style={{ color: "#64748b", fontSize: 12 }}>
+                    5.0
+                  </span>
                 </div>
               </div>
-            </div>
-
-            {/* Méta */}
-            <div style={{ display: "flex", gap: 8 }}>
               <div
                 style={{
-                  flex: 1,
-                  background: "rgba(255,255,255,0.04)",
-                  borderRadius: 12,
-                  padding: "9px 10px",
+                  background: "rgba(8,8,15,0.6)",
+                  border: "1px solid rgba(245,200,66,0.3)",
+                  borderRadius: 10,
+                  padding: "6px 12px",
                   textAlign: "center",
+                  flexShrink: 0,
                 }}
               >
                 <div className="typo-label" style={{ fontSize: 9, color: "#475569", marginBottom: 4 }}>
-                  Prise en charge
+                  Plaque
                 </div>
-                <div className="typo-num" style={{ fontSize: 12, color: "#cbd5e1", lineHeight: 1.3 }}>
-                  {formatPickup(resa)}
+                <div className="typo-num" style={{ fontSize: 14, color: "#f5c842", letterSpacing: "0.12em" }}>
+                  {CHAUFFEUR.plaque}
                 </div>
               </div>
-              {distanceKm && (
+            </div>
+
+            {/* ── INFOS COURSE ── */}
+            <div
+              style={{
+                background: "rgba(255,255,255,0.025)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                borderRadius: 20,
+                padding: 16,
+                marginBottom: 14,
+              }}
+            >
+              {/* Trajet */}
+              <div style={{ display: "flex", gap: 12, alignItems: "stretch", marginBottom: 14 }}>
+                {/* Timeline */}
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    paddingTop: 3,
+                    flexShrink: 0,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: "50%",
+                      background: "#22c55e",
+                      boxShadow: "0 0 0 3px rgba(34,197,94,0.15)",
+                    }}
+                  />
+                  <div
+                    style={{
+                      width: 1.5,
+                      flex: 1,
+                      background: "linear-gradient(#22c55e, #f5c842)",
+                      margin: "4px 0",
+                      opacity: 0.4,
+                    }}
+                  />
+                  <div
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 3,
+                      background: "#f5c842",
+                      boxShadow: "0 0 0 3px rgba(245,200,66,0.15)",
+                    }}
+                  />
+                </div>
+                {/* Adresses */}
+                <div
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    gap: 8,
+                  }}
+                >
+                  <div>
+                    <div className="typo-label" style={{ fontSize: 10, color: "#475569", marginBottom: 3 }}>
+                      Départ
+                    </div>
+                    <div
+                      className="typo-body"
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: "#e2e8f0",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {resa.depart}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="typo-label" style={{ fontSize: 10, color: "#475569", marginBottom: 3 }}>
+                      Destination
+                    </div>
+                    <div
+                      className="typo-body"
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: "#e2e8f0",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {arrivee}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Méta */}
+              <div style={{ display: "flex", gap: 8 }}>
+                <div
+                  style={{
+                    flex: 1,
+                    background: "rgba(255,255,255,0.04)",
+                    borderRadius: 12,
+                    padding: "9px 10px",
+                    textAlign: "center",
+                  }}
+                >
+                  <div className="typo-label" style={{ fontSize: 9, color: "#475569", marginBottom: 4 }}>
+                    Prise en charge
+                  </div>
+                  <div className="typo-num" style={{ fontSize: 12, color: "#cbd5e1", lineHeight: 1.3 }}>
+                    {formatPickup(resa)}
+                  </div>
+                </div>
+                {distanceKm && (
+                  <div
+                    style={{
+                      background: "rgba(255,255,255,0.04)",
+                      borderRadius: 12,
+                      padding: "9px 12px",
+                      textAlign: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <div className="typo-label" style={{ fontSize: 9, color: "#475569", marginBottom: 4 }}>
+                      Distance
+                    </div>
+                    <div className="typo-num" style={{ fontSize: 15, color: "#cbd5e1" }}>
+                      {distanceKm}
+                      <span style={{ fontSize: 10, marginLeft: 2, color: "#64748b", fontWeight: 500 }}>km</span>
+                    </div>
+                  </div>
+                )}
                 <div
                   style={{
                     background: "rgba(255,255,255,0.04)",
@@ -975,99 +1026,83 @@ function SuiviPage() {
                   }}
                 >
                   <div className="typo-label" style={{ fontSize: 9, color: "#475569", marginBottom: 4 }}>
-                    Distance
+                    Pass.
                   </div>
                   <div className="typo-num" style={{ fontSize: 15, color: "#cbd5e1" }}>
-                    {distanceKm}
-                    <span style={{ fontSize: 10, marginLeft: 2, color: "#64748b", fontWeight: 500 }}>km</span>
+                    👥 {passagers}
                   </div>
                 </div>
-              )}
-              <div
+                {prix && (
+                  <div
+                    style={{
+                      background: "rgba(245,200,66,0.07)",
+                      border: "1px solid rgba(245,200,66,0.15)",
+                      borderRadius: 12,
+                      padding: "9px 14px",
+                      textAlign: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <div className="typo-label" style={{ fontSize: 9, color: "#64748b", marginBottom: 4 }}>
+                      Prix
+                    </div>
+                    <div className="typo-num" style={{ fontSize: 17, color: "#f5c842" }}>
+                      {prix}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── ACTIONS ── */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <button
+                className="sheet-btn typo-title"
+                onClick={() => (window.location.href = `tel:${CHAUFFEUR.phone}`)}
                 style={{
-                  background: "rgba(255,255,255,0.04)",
-                  borderRadius: 12,
-                  padding: "9px 12px",
-                  textAlign: "center",
-                  flexShrink: 0,
+                  padding: 14,
+                  borderRadius: 16,
+                  background: "rgba(34,197,94,0.1)",
+                  border: "1px solid rgba(34,197,94,0.25)",
+                  color: "#22c55e",
+                  fontSize: 14,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  minHeight: 52,
+                  transition: "all 0.15s",
                 }}
               >
-                <div className="typo-label" style={{ fontSize: 9, color: "#475569", marginBottom: 4 }}>
-                  Pass.
-                </div>
-                <div className="typo-num" style={{ fontSize: 15, color: "#cbd5e1" }}>
-                  👥 {passagers}
-                </div>
-              </div>
-              {prix && (
-                <div
-                  style={{
-                    background: "rgba(245,200,66,0.07)",
-                    border: "1px solid rgba(245,200,66,0.15)",
-                    borderRadius: 12,
-                    padding: "9px 14px",
-                    textAlign: "center",
-                    flexShrink: 0,
-                  }}
-                >
-                  <div className="typo-label" style={{ fontSize: 9, color: "#64748b", marginBottom: 4 }}>
-                    Prix
-                  </div>
-                  <div className="typo-num" style={{ fontSize: 17, color: "#f5c842" }}>
-                    {prix}
-                  </div>
-                </div>
-              )}
+                📞 Appeler
+              </button>
+              <button
+                className="sheet-btn typo-title"
+                onClick={partager}
+                style={{
+                  padding: 14,
+                  borderRadius: 16,
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  color: "#94a3b8",
+                  fontSize: 14,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  minHeight: 52,
+                  transition: "all 0.15s",
+                }}
+              >
+                {shareMsg || "🔗 Partager"}
+              </button>
             </div>
           </div>
-
-          {/* ── ACTIONS ── */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <button
-              className="sheet-btn typo-title"
-              onClick={() => (window.location.href = `tel:${CHAUFFEUR.phone}`)}
-              style={{
-                padding: 14,
-                borderRadius: 16,
-                background: "rgba(34,197,94,0.1)",
-                border: "1px solid rgba(34,197,94,0.25)",
-                color: "#22c55e",
-                fontSize: 14,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                minHeight: 52,
-                transition: "all 0.15s",
-              }}
-            >
-              📞 Appeler
-            </button>
-            <button
-              className="sheet-btn typo-title"
-              onClick={partager}
-              style={{
-                padding: 14,
-                borderRadius: 16,
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                color: "#94a3b8",
-                fontSize: 14,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                minHeight: 52,
-                transition: "all 0.15s",
-              }}
-            >
-              {shareMsg || "🔗 Partager"}
-            </button>
-          </div>
         </div>
-      </div>
+      )}{" "}
+      {/* fin {resa && ...} bottom sheet */}
     </div>
   );
 }
