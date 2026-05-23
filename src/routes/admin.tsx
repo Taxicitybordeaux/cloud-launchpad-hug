@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate, useLocation } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -14,11 +14,12 @@ export const Route = createFileRoute("/admin")({
 
 function AdminLayout() {
   const navigate = useNavigate();
-  const router = useRouterState();
+  const { pathname: path } = useLocation();
   const [pending, setPending] = useState(0);
-  const path = router.location.pathname;
 
   useEffect(() => {
+    let ch: ReturnType<typeof supabase.channel> | null = null;
+
     const fetchPending = async () => {
       const { count } = await supabase
         .from("reservations")
@@ -27,18 +28,18 @@ function AdminLayout() {
       setPending(count ?? 0);
     };
     fetchPending();
-    const ch = supabase
+    ch = supabase
       .channel("admin-pending")
       .on("postgres_changes", { event: "*", schema: "public", table: "reservations" }, fetchPending)
       .subscribe();
     return () => {
-      supabase.removeChannel(ch);
+      if (ch) supabase.removeChannel(ch);
     };
   }, []);
 
   useEffect(() => {
-    if (path === "/admin") {
-      navigate({ to: "/admin/dashboard" });
+    if (path === "/admin" || path === "/admin/") {
+      navigate({ to: "/admin/dashboard", replace: true });
     }
   }, [path, navigate]);
 
