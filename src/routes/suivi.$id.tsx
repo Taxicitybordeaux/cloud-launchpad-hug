@@ -153,7 +153,9 @@ function SuiviPage() {
   const mapInst = useRef<any>(null);
   const taxiMarker = useRef<any>(null);
   const routeLayer = useRef<any>(null); // tracé taxi → point de RDV / destination
+  const routeOutline = useRef<any>(null); // contour blanc du tracé taxi
   const tripLayer = useRef<any>(null); // tracé départ → destination (pointillés)
+  const tripOutline = useRef<any>(null); // contour blanc du tracé course
   const fromMarker = useRef<any>(null);
   const toMarker = useRef<any>(null);
   // Coords géocodées en cache pour éviter les appels répétés
@@ -285,10 +287,24 @@ function SuiviPage() {
           tripLayer.current.remove();
           tripLayer.current = null;
         }
-        tripLayer.current = L.polyline(
-          route.coords.map((c: [number, number]) => [c[1], c[0]]),
-          { color: "#f5c842", weight: 4, opacity: 0.55, dashArray: "8 6" },
-        ).addTo(map);
+        // Contour blanc pour faire ressortir le tracé
+        const tripCoords = route.coords.map((c: [number, number]) => [c[1], c[0]]);
+        if (tripOutline.current) {
+          tripOutline.current.remove();
+          tripOutline.current = null;
+        }
+        tripOutline.current = L.polyline(tripCoords, {
+          color: "#ffffff",
+          weight: 10,
+          opacity: 0.6,
+          dashArray: "12 8",
+        }).addTo(map);
+        tripLayer.current = L.polyline(tripCoords, {
+          color: "#ff6b00",
+          weight: 6,
+          opacity: 1,
+          dashArray: "12 8",
+        }).addTo(map);
 
         // Centrer la carte sur le trajet complet (toujours, GPS ou pas)
         map.invalidateSize();
@@ -395,10 +411,14 @@ function SuiviPage() {
             routeLayer.current.remove();
             routeLayer.current = null;
           }
-          routeLayer.current = L.polyline(
-            route.coords.map((c: [number, number]) => [c[1], c[0]]),
-            { color: "#3b82f6", weight: 4, opacity: 0.9 },
-          ).addTo(map);
+          const routeCoords = route.coords.map((c: [number, number]) => [c[1], c[0]]);
+          // Contour blanc
+          if (routeOutline.current) {
+            routeOutline.current.remove();
+            routeOutline.current = null;
+          }
+          routeOutline.current = L.polyline(routeCoords, { color: "#ffffff", weight: 10, opacity: 0.55 }).addTo(map);
+          routeLayer.current = L.polyline(routeCoords, { color: "#c026d3", weight: 6, opacity: 1 }).addTo(map);
         }
         if (route) setEta(Math.round(route.dureeS / 60));
 
@@ -420,10 +440,14 @@ function SuiviPage() {
             routeLayer.current.remove();
             routeLayer.current = null;
           }
-          routeLayer.current = L.polyline(
-            route.coords.map((c: [number, number]) => [c[1], c[0]]),
-            { color: "#22c55e", weight: 4, opacity: 0.9 },
-          ).addTo(map);
+          const routeCoords2 = route.coords.map((c: [number, number]) => [c[1], c[0]]);
+          // Contour blanc
+          if (routeOutline.current) {
+            routeOutline.current.remove();
+            routeOutline.current = null;
+          }
+          routeOutline.current = L.polyline(routeCoords2, { color: "#ffffff", weight: 10, opacity: 0.55 }).addTo(map);
+          routeLayer.current = L.polyline(routeCoords2, { color: "#00e676", weight: 6, opacity: 1 }).addTo(map);
         }
         if (route) setEta(Math.round(route.dureeS / 60));
         else {
