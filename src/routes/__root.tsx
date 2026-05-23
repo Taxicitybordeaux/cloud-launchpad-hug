@@ -171,7 +171,6 @@ function RootComponent() {
         session_id: sid,
         event: "visit",
         page: path,
-        referrer: document.referrer || null,
       })
       .then(({ error }) => {
         if (error) console.error("❌ site_analytics insert error:", error.message, error.code);
