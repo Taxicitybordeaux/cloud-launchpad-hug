@@ -102,7 +102,7 @@ function SwipeDeleteRow({
   );
 }
 
-export const Route = createFileRoute("/admin/dashboard")({
+export const Route = createFileRoute("/")({
   head: () => ({ meta: [{ title: "Dashboard — Admin" }, { name: "robots", content: "noindex" }] }),
   component: Dashboard,
 });
@@ -1391,7 +1391,6 @@ function Dashboard() {
     >
       <SkeletonStyles />
       <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}@keyframes pulseDot{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}50%{box-shadow:0 0 0 14px rgba(34,197,94,0.2)}}`}</style>
-
       {/* ── Header ── */}
       <div
         style={{
@@ -1483,10 +1482,8 @@ function Dashboard() {
           </button>
         </div>
       </div>
-
       {/* Mobile responsive styles */}
       <style>{adminMobileCss}</style>
-
       {/* ── GPS — EN HAUT pour accès rapide ── */}
       <div style={{ marginBottom: 24 }}>
         <style>{`.gps-pulse{animation:pulseDot 2s infinite}`}</style>
@@ -1633,7 +1630,6 @@ function Dashboard() {
           </div>
         )}
       </div>
-
       {/* ── KPI Cards ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, marginBottom: 14 }}>
         {statsLoading
@@ -1669,7 +1665,6 @@ function Dashboard() {
           </div>
         )}
       </div>
-
       {/* ── Prochaine course ── */}
       {!statsLoading &&
         nextCourse &&
@@ -1728,7 +1723,6 @@ function Dashboard() {
             </div>
           );
         })()}
-
       {/* ══════════════════════════════
           SECTION COURSES
       ══════════════════════════════ */}
@@ -1954,7 +1948,6 @@ function Dashboard() {
           </div>
         )}
       </div>
-
       {/* ══════════════════════════════
           SECTION AVIS
       ══════════════════════════════ */}
@@ -2342,7 +2335,6 @@ function Dashboard() {
           </div>
         )}
       </div>
-
       {/* ── Modale Accepter / Refuser ── */}
       {confirmAction && (
         <div
@@ -2586,5 +2578,5 @@ function Dashboard() {
         </div>
       )}
     </div>
-  );
+  )
 }
