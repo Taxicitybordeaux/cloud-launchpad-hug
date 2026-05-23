@@ -154,8 +154,8 @@ const adminMobileCss = `
     .admin-root { padding: 12px 10px !important; }
     .admin-header { flex-direction: column !important; align-items: stretch !important; gap: 12px !important; }
     .admin-header-title { font-size: 20px !important; }
-    .admin-header-actions { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; width: 100% !important; }
-    .admin-header-actions > * { display: flex !important; align-items: center !important; justify-content: center !important; min-height: 44px !important; font-size: 13px !important; padding: 8px 10px !important; }
+    .admin-header-actions { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 6px !important; width: 100% !important; }
+    .admin-header-actions > * { display: flex !important; align-items: center !important; justify-content: center !important; min-height: 44px !important; font-size: 12px !important; padding: 6px 8px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; box-sizing: border-box !important; }
     .admin-kpi-grid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
     .admin-stat-val { font-size: 22px !important; }
     .admin-card { padding: 12px 14px !important; border-radius: 16px !important; }
@@ -436,8 +436,8 @@ function Dashboard() {
     const ch = supabase
       .channel("dash-courses")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "reservations" }, (payload) => {
+        const n = payload.new as any;
         if (!initialLoad.current) {
-          const n = payload.new as any;
           const clientName = n.client_name || n.nom || "Client";
           try {
             new Audio("/notification.mp3").play().catch(() => {});
@@ -448,8 +448,8 @@ function Dashboard() {
           if (typeof window !== "undefined" && "Notification" in window) {
             const fire = () => {
               try {
-                new Notification("🔔 Nouvelle réservation", {
-                  body: `${clientName} — ${n.depart || ""} → ${n.arrivee || n.destination || ""}`,
+                new Notification("\u{1F514} Nouvelle réservation", {
+                  body: `${clientName} \u2014 ${n.depart || ""} \u2192 ${n.arrivee || n.destination || ""}`,
                   icon: "/favicon.ico",
                   tag: `reservation-${n.id}`,
                   requireInteraction: true,
@@ -464,13 +464,24 @@ function Dashboard() {
           }
           if (typeof window !== "undefined") {
             const t = document.createElement("div");
-            t.textContent = `🔔 Nouvelle réservation de ${clientName}`;
+            t.textContent = `\u{1F514} Nouvelle réservation de ${clientName}`;
             t.style.cssText = `position:fixed;top:20px;right:20px;background:#0ea5e9;color:white;padding:14px 20px;border-radius:12px;font-family:DM Sans,sans-serif;font-weight:700;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,0.3);`;
             document.body.appendChild(t);
             setTimeout(() => t.remove(), 5000);
           }
         }
-        fetchAll();
+        // FIX: insert chirurgical du nouveau row SANS ecraser les statuts existants.
+        // fetchAll() causait une race condition : re-fetchait tous les items depuis la DB
+        // et ecrasait les mises a jour optimistes pending->refused/accepted non encore commitees.
+        if (n?.id) {
+          setItems((prev) => {
+            if (prev.some((item) => item.id === n.id)) return prev;
+            return [n, ...prev];
+          });
+          // counts recalcules automatiquement par l'effet useEffect sur items
+        }
+        // Refresh uniquement les stats (CA, visiteurs) pas les courses
+        fetchStats();
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "reservations" }, (payload) => {
         // Mise à jour chirurgicale : on patch uniquement la ligne concernée
