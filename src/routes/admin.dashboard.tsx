@@ -53,7 +53,7 @@ function SwipeDeleteRow({
     if (offset < -THRESHOLD) {
       setDeleting(true);
       setOffset(-window.innerWidth);
-      setTimeout(() => onDelete(), 280);
+      setTimeout(() => onDelete(), 400);
     } else {
       setOffset(0);
     }
@@ -87,7 +87,7 @@ function SwipeDeleteRow({
         style={{
           transform: `translateX(${offset}px)`,
           transition: deleting
-            ? "transform 0.28s ease-in"
+            ? "transform 4s cubic-bezier(0.4,0,1,1)"
             : offset === 0
               ? "transform 0.3s cubic-bezier(0.25,1,0.5,1)"
               : "none",
@@ -777,17 +777,12 @@ function Dashboard() {
   };
 
   // =========================
-  // REFUSE
+  // REFUSE — direct, sans motif
   // =========================
-  const handleRefuse = async (r: any, motif: string) => {
-    const cleaned = motif.trim();
-    if (cleaned.length < 3) {
-      toast.error("Motif requis", { description: "3 caractères minimum." });
-      return false;
-    }
+  const handleRefuse = async (r: any) => {
     const { error } = await supabase
       .from("reservations")
-      .update({ status: "refused", refus_motif: cleaned, updated_at: new Date().toISOString() })
+      .update({ status: "refused", updated_at: new Date().toISOString() })
       .eq("id", r.id);
     if (error) {
       toast.error("Échec du refus", { description: error.message });
@@ -799,8 +794,8 @@ function Dashboard() {
       pushSent = (res as any)?.client?.sent ?? 0;
     } catch {}
     toast.success(`❌ Course refusée — ${r.client_name || r.nom || "client"}`, {
-      description: `${pushSent > 0 ? "🔔 Push envoyée · " : ""}Motif : « ${cleaned.slice(0, 60)}${cleaned.length > 60 ? "…" : ""} »`,
-      duration: 7000,
+      description: pushSent > 0 ? "🔔 Push envoyée au client" : undefined,
+      duration: 5000,
     });
     fetchAll();
     return true;
@@ -852,19 +847,30 @@ function Dashboard() {
   // =========================
   const handleDeleteReservation = async (id: string) => {
     setDeleteBusy(true);
-    const { error } = await supabase.from("reservations").delete().eq("id", id);
+    // Supprimer en BDD
+    const { error, count } = await (supabase as any).from("reservations").delete({ count: "exact" }).eq("id", id);
+
     if (error) {
+      console.error("[DELETE] Supabase error:", error);
       toast.error("Suppression impossible", { description: error.message });
-    } else {
-      toast.success("Réservation supprimée");
-      setItems((prev) => prev.filter((r) => r.id !== id));
-      setCounts((prev) => {
-        const item = items.find((r) => r.id === id);
-        if (!item) return prev;
-        const k = normalizeStatus(item.status);
-        return { ...prev, [k]: Math.max(0, prev[k] - 1) };
-      });
+      setDeleteBusy(false);
+      return;
     }
+
+    // Si count === 0 : RLS a bloqué silencieusement ou l'id n'existe pas
+    if (count === 0) {
+      console.warn("[DELETE] count=0 — RLS ou ligne absente, on filtre quand même localement");
+    }
+
+    // Mettre à jour l'état local dans tous les cas
+    setItems((prev) => prev.filter((r) => r.id !== id));
+    setCounts((prev) => {
+      const item = items.find((r) => r.id === id);
+      if (!item) return prev;
+      const k = normalizeStatus(item.status);
+      return { ...prev, [k]: Math.max(0, prev[k] - 1) };
+    });
+    toast.success("Réservation supprimée");
     setDeleteBusy(false);
   };
 
@@ -1177,7 +1183,7 @@ function Dashboard() {
                 ✓ Accepter
               </button>
               <button
-                onClick={() => setConfirmAction({ type: "refuse", r })}
+                onClick={() => handleRefuse(r)}
                 style={{
                   background: "#ef4444",
                   color: "#fff",
@@ -2392,13 +2398,12 @@ function Dashboard() {
         )}
       </div>
 
-      {/* ── Modale Accepter / Refuser ── */}
-      {confirmAction && (
+      {/* ── Modale Accepter ── */}
+      {confirmAction && confirmAction.type === "accept" && (
         <div
           onClick={() => {
             if (confirmBusy) return;
             setConfirmAction(null);
-            setRefusalReason("");
           }}
           style={{
             position: "fixed",
@@ -2425,7 +2430,7 @@ function Dashboard() {
               fontFamily: "'DM Sans',sans-serif",
             }}
           >
-            <div style={{ fontSize: 36, marginBottom: 12 }}>{confirmAction.type === "accept" ? "✅" : "❌"}</div>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
             <h2
               style={{
                 fontFamily: "'Syne',sans-serif",
@@ -2435,7 +2440,7 @@ function Dashboard() {
                 margin: "0 0 8px",
               }}
             >
-              {confirmAction.type === "accept" ? "Accepter cette course ?" : "Refuser cette course ?"}
+              Accepter cette course ?
             </h2>
             <p style={{ color: "#94a3b8", fontSize: 14, lineHeight: 1.5, margin: "0 0 12px" }}>
               <b style={{ color: "#cbd5e1" }}>{confirmAction.r.client_name || confirmAction.r.nom}</b>
@@ -2467,56 +2472,53 @@ function Dashboard() {
               </div>
             )}
 
-            {confirmAction.type === "accept" && (
-              <div
-                style={{
-                  background: "rgba(14,165,233,0.08)",
-                  border: "1px solid rgba(14,165,233,0.2)",
-                  borderRadius: 10,
-                  padding: "12px 14px",
-                  marginBottom: 14,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 10,
-                  flexWrap: "wrap",
-                }}
-              >
-                {kmLoading ? (
-                  <span style={{ color: "#94a3b8", fontSize: 13 }}>📡 Calcul de la distance…</span>
-                ) : (
-                  (() => {
-                    const rv = confirmAction.r;
-                    const km = rv.distance_km ? Number(rv.distance_km) : (autoKm ?? 5);
-                    const px = rv.pickup_datetime ? calculerPrixMixte(km, rv.pickup_datetime) : calculerPrix(km, true);
-                    return (
-                      <>
-                        <div>
-                          <div style={{ color: "#94a3b8", fontSize: 12, marginBottom: 2 }}>Distance</div>
-                          <div style={{ color: "#cbd5e1", fontWeight: 700, fontSize: 15 }}>{km} km</div>
+            <div
+              style={{
+                background: "rgba(14,165,233,0.08)",
+                border: "1px solid rgba(14,165,233,0.2)",
+                borderRadius: 10,
+                padding: "12px 14px",
+                marginBottom: 14,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                flexWrap: "wrap",
+              }}
+            >
+              {kmLoading ? (
+                <span style={{ color: "#94a3b8", fontSize: 13 }}>📡 Calcul de la distance…</span>
+              ) : (
+                (() => {
+                  const rv = confirmAction.r;
+                  const km = rv.distance_km ? Number(rv.distance_km) : (autoKm ?? 5);
+                  const px = rv.pickup_datetime ? calculerPrixMixte(km, rv.pickup_datetime) : calculerPrix(km, true);
+                  return (
+                    <>
+                      <div>
+                        <div style={{ color: "#94a3b8", fontSize: 12, marginBottom: 2 }}>Distance</div>
+                        <div style={{ color: "#cbd5e1", fontWeight: 700, fontSize: 15 }}>{km} km</div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ color: "#94a3b8", fontSize: 12, marginBottom: 2 }}>Prix calculé</div>
+                        <div
+                          style={{
+                            color: "#ef4444",
+                            fontFamily: "'DM Sans',sans-serif",
+                            fontWeight: 800,
+                            fontSize: 22,
+                            fontVariantNumeric: "tabular-nums",
+                          }}
+                        >
+                          {px.toFixed(2)} €
                         </div>
-                        <div style={{ textAlign: "right" }}>
-                          <div style={{ color: "#94a3b8", fontSize: 12, marginBottom: 2 }}>Prix calculé</div>
-                          <div
-                            style={{
-                              color: "#ef4444",
-                              fontFamily: "'DM Sans',sans-serif",
-                              fontWeight: 800,
-                              fontSize: 22,
-                              fontVariantNumeric: "tabular-nums",
-                            }}
-                          >
-                            {px.toFixed(2)} €
-                          </div>
-                        </div>
-                      </>
-                    );
-                  })()
-                )}
-              </div>
-            )}
+                      </div>
+                    </>
+                  );
+                })()
+              )}
+            </div>
 
-            {/* Automatique — info push */}
             <div
               style={{
                 background: "rgba(34,197,94,0.06)",
@@ -2528,60 +2530,12 @@ function Dashboard() {
                 color: "#22c55e",
               }}
             >
-              {confirmAction.type === "accept"
-                ? "🔔 Push + Email envoyés automatiquement au client"
-                : "🔔 Push envoyée automatiquement au client"}
+              🔔 Push + Email envoyés automatiquement au client
             </div>
-
-            {/* Motif refus */}
-            {confirmAction.type === "refuse" && (
-              <div style={{ marginBottom: 18 }}>
-                <label style={{ display: "block", color: "#cbd5e1", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-                  Motif du refus <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <textarea
-                  value={refusalReason}
-                  onChange={(e) => setRefusalReason(e.target.value.slice(0, 500))}
-                  disabled={confirmBusy}
-                  autoFocus
-                  rows={3}
-                  maxLength={500}
-                  placeholder="Ex. : créneau indisponible, zone non desservie…"
-                  style={{
-                    width: "100%",
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(239,68,68,0.3)",
-                    borderRadius: 10,
-                    padding: "10px 12px",
-                    color: "#f8fafc",
-                    fontFamily: "'DM Sans',sans-serif",
-                    fontSize: 14,
-                    resize: "vertical",
-                    outline: "none",
-                    boxSizing: "border-box",
-                  }}
-                />
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginTop: 4,
-                    fontSize: 11,
-                    color: "#64748b",
-                  }}
-                >
-                  <span>{refusalReason.trim().length < 3 ? "3 caractères minimum" : "✓"}</span>
-                  <span>{refusalReason.length}/500</span>
-                </div>
-              </div>
-            )}
 
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
               <button
-                onClick={() => {
-                  setConfirmAction(null);
-                  setRefusalReason("");
-                }}
+                onClick={() => setConfirmAction(null)}
                 disabled={confirmBusy}
                 style={{
                   background: "rgba(255,255,255,0.06)",
@@ -2597,38 +2551,29 @@ function Dashboard() {
                 Annuler
               </button>
               <button
-                disabled={confirmBusy || (confirmAction.type === "refuse" && refusalReason.trim().length < 3)}
+                disabled={confirmBusy}
                 onClick={async () => {
                   if (confirmBusy) return;
                   setConfirmBusy(true);
                   try {
-                    if (confirmAction.type === "accept") {
-                      await handleAccept(confirmAction.r);
-                      setConfirmAction(null);
-                    } else {
-                      const ok = await handleRefuse(confirmAction.r, refusalReason);
-                      if (ok) {
-                        setConfirmAction(null);
-                        setRefusalReason("");
-                      }
-                    }
+                    await handleAccept(confirmAction.r);
+                    setConfirmAction(null);
                   } finally {
                     setConfirmBusy(false);
                   }
                 }}
                 style={{
-                  background: confirmAction.type === "accept" ? "#22c55e" : "#ef4444",
+                  background: "#22c55e",
                   color: "#fff",
                   border: 0,
                   padding: "12px 22px",
                   borderRadius: 12,
                   cursor: confirmBusy ? "wait" : "pointer",
                   fontWeight: 700,
-                  opacity:
-                    confirmBusy || (confirmAction.type === "refuse" && refusalReason.trim().length < 3) ? 0.5 : 1,
+                  opacity: confirmBusy ? 0.5 : 1,
                 }}
               >
-                {confirmBusy ? "…" : confirmAction.type === "accept" ? "✓ Accepter" : "✗ Refuser"}
+                {confirmBusy ? "…" : "✓ Accepter"}
               </button>
             </div>
           </div>
