@@ -42,13 +42,10 @@ function AdminLayout() {
     }
   }, [path, navigate]);
 
-  const logout = () => {
-    sessionStorage.removeItem("admin_pin_ok");
-    navigate({ to: "/login" });
-  };
-
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", background: "#0a0f1e", color: "#f1f5f9" }}>
+    <div
+      style={{ display: "flex", flexDirection: "column", minHeight: "100vh", background: "#0a0f1e", color: "#f1f5f9" }}
+    >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap');
       `}</style>
@@ -74,36 +71,6 @@ function AdminLayout() {
             <div style={{ fontSize: 12, color: "#94a3b8" }}>Page unique, toutes les actions sur une seule vue</div>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 12 }}>
-          <button
-            onClick={() => navigate({ to: "/" })}
-            style={{
-              padding: "10px 16px",
-              borderRadius: 12,
-              border: "1px solid rgba(255,255,255,0.14)",
-              background: "transparent",
-              color: "#f8fafc",
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            Retour au site
-          </button>
-          <button
-            onClick={logout}
-            style={{
-              padding: "10px 16px",
-              borderRadius: 12,
-              border: "1px solid rgba(255,255,255,0.14)",
-              background: "#111827",
-              color: "#f8fafc",
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            Déconnexion
-          </button>
-        </div>
       </header>
 
       <main style={{ flex: 1, minWidth: 0, overflowX: "hidden", padding: "20px 24px" }}>
@@ -117,7 +84,15 @@ function AdminLayout() {
           }}
         >
           <div>
-            <div style={{ fontSize: 14, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>
+            <div
+              style={{
+                fontSize: 14,
+                color: "#94a3b8",
+                textTransform: "uppercase",
+                letterSpacing: "0.14em",
+                marginBottom: 6,
+              }}
+            >
               Dashboard chauffeur
             </div>
             <div style={{ fontSize: 24, fontWeight: 800 }}>Toutes les courses</div>
