@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, useNavigate, useLocation } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -14,8 +14,9 @@ export const Route = createFileRoute("/admin")({
 
 function AdminLayout() {
   const navigate = useNavigate();
-  const { pathname: path } = useLocation();
+  const router = useRouterState();
   const [pending, setPending] = useState(0);
+  const path = router.location.pathname;
 
   useEffect(() => {
     const fetchPending = async () => {
@@ -36,7 +37,7 @@ function AdminLayout() {
   }, []);
 
   useEffect(() => {
-    if (path === "/admin" || path === "/admin/") {
+    if (path === "/admin") {
       navigate({ to: "/admin/dashboard" });
     }
   }, [path, navigate]);
