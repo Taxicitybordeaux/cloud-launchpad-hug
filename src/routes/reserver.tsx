@@ -408,8 +408,7 @@ function ReservationPage() {
       const newTrackingId = crypto.randomUUID();
 
       const fullName = `${f.prenom} ${f.nom}`.trim();
-      const pickupIsoFinal =
-        f.date && f.heure ? `${f.date}T${f.heure}:00` : new Date().toISOString();
+      const pickupIsoFinal = f.date && f.heure ? `${f.date}T${f.heure}:00` : new Date().toISOString();
 
       const { data, error } = await supabase
         .from("reservations")
@@ -520,11 +519,13 @@ function ReservationPage() {
         fontFamily: "'DM Sans',sans-serif",
         display: "flex",
         flexDirection: "column",
+        overflowX: "hidden",
       }}
     >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Clash+Display:wght@700&family=DM+Sans:wght@400;500;600;700&display=swap');
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body { overflow-x: hidden; max-width: 100vw; }
         input, select, button { font-family: 'DM Sans', sans-serif; }
         input[type=date], input[type=time] { color-scheme: light; }
         input[type=text], input[type=tel], input[type=email] { font-size: 16px !important; }
@@ -611,6 +612,7 @@ function ReservationPage() {
           maxHeight: "70vh",
           display: "flex",
           flexDirection: "column",
+          overflowX: "hidden",
         }}
       >
         <div style={{ padding: "12px 0 0", display: "flex", justifyContent: "center", flexShrink: 0 }}>
