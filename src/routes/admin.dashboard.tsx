@@ -154,8 +154,8 @@ const adminMobileCss = `
     .admin-root { padding: 12px 10px !important; }
     .admin-header { flex-direction: column !important; align-items: stretch !important; gap: 12px !important; }
     .admin-header-title { font-size: 20px !important; }
-    .admin-header-actions { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 6px !important; width: 100% !important; }
-    .admin-header-actions > * { display: flex !important; align-items: center !important; justify-content: center !important; min-height: 44px !important; font-size: 12px !important; padding: 6px 8px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; box-sizing: border-box !important; }
+    .admin-header-actions { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; width: 100% !important; }
+    .admin-header-actions > * { display: flex !important; align-items: center !important; justify-content: center !important; min-height: 44px !important; font-size: 13px !important; padding: 8px 10px !important; }
     .admin-kpi-grid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
     .admin-stat-val { font-size: 22px !important; }
     .admin-card { padding: 12px 14px !important; border-radius: 16px !important; }
@@ -327,9 +327,8 @@ function Dashboard() {
   const [avis, setAvis] = useState<any[]>([]);
   const [avisLoading, setAvisLoading] = useState(true);
   const initialLoad = useRef(true);
-  // Refs stables pour éviter que le useEffect realtime se réabonne à chaque render
-  const fetchAllRef = useRef<() => Promise<void>>(async () => {});
-  const fetchStatsRef = useRef<() => Promise<void>>(async () => {});
+  const fetchAllRef = useRef(fetchAll);
+  const fetchStatsRef = useRef(fetchStats);
 
   // ── GPS ──
   const [gpsActive, setGpsActive] = useState(false);
@@ -394,22 +393,12 @@ function Dashboard() {
       return;
     }
     const rows = data ?? [];
-    // FIX: merge au lieu d'écraser — on garde le statut local s'il est plus récent
-    // (évite que fetchCourses écrase les mises à jour optimistes pending->refused/accepted)
-    setItems((prev) => {
-      if (prev.length === 0) return rows;
-      const localById = new Map(prev.map((item) => [item.id, item]));
-      return rows.map((row: any) => {
-        const local = localById.get(row.id);
-        if (!local) return row;
-        // On garde le statut local si différent du statut DB "pending"
-        // (le local est forcément plus à jour : on vient de le modifier)
-        if (local.status !== row.status && row.status === "pending") {
-          return { ...row, status: local.status };
-        }
-        return row;
-      });
+    setItems(rows);
+    const nextCounts = { pending: 0, accepted: 0, refused: 0 };
+    rows.forEach((r: any) => {
+      nextCounts[normalizeStatus(r.status)]++;
     });
+    setCounts(nextCounts);
     setCoursesLoading(false);
     repairMissingPrices(rows);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -431,7 +420,6 @@ function Dashboard() {
     await Promise.all([fetchStats(), fetchCourses(), fetchAvis()]);
     setRefreshing(false);
   }, [fetchStats, fetchCourses, fetchAvis]);
-  // Mise à jour des refs stables (toujours à jour, pas de re-abonnement realtime)
   fetchAllRef.current = fetchAll;
   fetchStatsRef.current = fetchStats;
 
@@ -452,8 +440,8 @@ function Dashboard() {
     const ch = supabase
       .channel("dash-courses")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "reservations" }, (payload) => {
-        const n = payload.new as any;
         if (!initialLoad.current) {
+          const n = payload.new as any;
           const clientName = n.client_name || n.nom || "Client";
           try {
             new Audio("/notification.mp3").play().catch(() => {});
@@ -486,32 +474,22 @@ function Dashboard() {
             setTimeout(() => t.remove(), 5000);
           }
         }
-        // FIX: insert chirurgical du nouveau row SANS ecraser les statuts existants.
-        // fetchAll() causait une race condition : re-fetchait tous les items depuis la DB
-        // et ecrasait les mises a jour optimistes pending->refused/accepted non encore commitees.
+        // Fix: insert local uniquement, sans re-fetch global qui ecrase les statuts
         if (n?.id) {
-          setItems((prev) => {
-            if (prev.some((item) => item.id === n.id)) return prev;
-            return [n, ...prev];
-          });
-          // counts recalcules automatiquement par l'effet useEffect sur items
+          setItems((prev) => (prev.some((item) => item.id === n.id) ? prev : [n, ...prev]));
         }
-        // Refresh uniquement les stats (CA, visiteurs) pas les courses
-        fetchStatsRef.current();
+        fetchStats();
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "reservations" }, (payload) => {
         const updated = payload.new as any;
-        // DEBUG - à retirer après diagnostic
-        console.log("[REALTIME UPDATE]", updated?.id?.slice(0, 8), "status DB:", updated?.status);
+        console.log("[RT UPDATE]", updated?.id?.slice(0, 8), "db:", updated?.status);
         if (updated?.id) {
           setItems((prev) =>
             prev.map((item) => {
               if (item.id !== updated.id) return item;
-              // Protection contre les UPDATE DB qui ramèneraient un statut plus ancien
-              // que le statut local (ex: trigger Supabase qui arrive après l'optimiste)
-              const localStatus = item.status;
-              const dbStatus = updated.status;
-              const statusOrder: Record<string, number> = {
+              console.log("[RT UPDATE] local:", item.status, "-> db:", updated.status);
+              // Ne pas écraser un statut local plus avancé avec un statut DB plus ancien
+              const rank: Record<string, number> = {
                 pending: 0,
                 accepted: 1,
                 refused: 1,
@@ -520,25 +498,22 @@ function Dashboard() {
                 completed: 4,
                 cancelled: 4,
               };
-              const localRank = statusOrder[localStatus] ?? 0;
-              const dbRank = statusOrder[dbStatus] ?? 0;
-              // Si le statut local est "plus avancé" que le DB, on le garde
-              if (localRank > dbRank) {
-                return { ...item, ...updated, status: localStatus };
+              if ((rank[item.status] ?? 0) > (rank[updated.status] ?? 0)) {
+                return { ...item, ...updated, status: item.status };
               }
               return { ...item, ...updated };
             }),
           );
         }
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "site_analytics" }, () => fetchStatsRef.current())
+      .on("postgres_changes", { event: "*", schema: "public", table: "site_analytics" }, () => fetchStats())
       .on("postgres_changes", { event: "*", schema: "public", table: "avis" }, () => fetchAvis())
       .subscribe();
     initialLoad.current = false;
     return () => {
       supabase.removeChannel(ch);
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }); // eslint-disable-line react-hooks/exhaustive-deps
 
   // =========================
   // GPS INIT
