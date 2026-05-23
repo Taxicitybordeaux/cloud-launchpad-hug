@@ -150,13 +150,38 @@ const contactBtn = (color: string): React.CSSProperties => ({
 // Inject global mobile responsive styles into the admin dashboard
 const adminMobileCss = `
   @media (max-width: 640px) {
+    /* Header */
+    .admin-header { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
+    .admin-header-actions { width: 100%; display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 6px !important; }
+    .admin-header-actions a, .admin-header-actions button { justify-content: center !important; min-height: 42px !important; font-size: 12px !important; }
+    .admin-header-title { font-size: 22px !important; }
+    /* KPI */
     .admin-kpi-grid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
-    .admin-card { padding: 14px !important; border-radius: 16px !important; }
-    .admin-section-pad { padding: 12px !important; }
-    .admin-h-title { font-size: 18px !important; }
     .admin-stat-val { font-size: 20px !important; }
+    /* Cards */
+    .admin-card { padding: 14px !important; border-radius: 16px !important; }
+    /* Course card header : empilement vertical */
+    .course-card-head { flex-direction: column !important; gap: 6px !important; }
+    .course-card-head-right { align-self: flex-start !important; }
+    /* Boutons Accepter/Refuser pleine largeur */
+    .accept-refuse-btns { flex-direction: column !important; }
+    .accept-refuse-btns button { width: 100% !important; justify-content: center !important; padding: 16px !important; font-size: 16px !important; }
+    /* Boutons statut pleine largeur */
+    .status-action-btns { flex-wrap: wrap !important; }
+    .status-action-btns button { flex: 1 1 calc(50% - 8px) !important; justify-content: center !important; min-height: 44px !important; }
+    /* GPS */
+    .gps-row { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
+    .gps-btn-row { width: 100% !important; display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+    .gps-btn-row button { width: 100% !important; justify-content: center !important; min-height: 44px !important; }
+    /* Envoyer prix */
+    .send-prix-row { flex-direction: column !important; }
+    .send-prix-row button { width: 100% !important; justify-content: center !important; min-height: 44px !important; }
+    /* Contact btns */
+    .contact-btns { flex-direction: column !important; }
+    .contact-btns a { width: 100% !important; justify-content: center !important; min-height: 44px !important; }
+    /* Misc */
     .admin-hide-mobile { display: none !important; }
-    button, a.contact-btn { min-height: 40px; }
+    .admin-h-title { font-size: 18px !important; }
   }
 `;
 
@@ -1043,14 +1068,17 @@ function Dashboard() {
       <SwipeDeleteRow onDelete={() => handleDeleteReservation(r.id)} disabled={deleteBusy} style={{ marginBottom: 14 }}>
         <div style={{ ...card }}>
           {/* En-tête */}
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <div
+            className="course-card-head"
+            style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}
+          >
             <div>
               <div style={{ color: "#fff", fontWeight: 700, fontSize: 18 }}>{name}</div>
               <div style={{ color: "#cbd5e1", marginTop: 8 }}>
                 🟢 {r.depart} → 📍 {dest}
               </div>
             </div>
-            <div style={{ color: "#64748b", fontSize: 13 }}>
+            <div className="course-card-head-right" style={{ color: "#64748b", fontSize: 13 }}>
               {pickupFormatted ? (
                 <span>
                   🕐 <b style={{ color: "#f8fafc" }}>{pickupFormatted}</b>
@@ -1120,7 +1148,7 @@ function Dashboard() {
 
           {/* ── Boutons PENDING : Accepter / Refuser uniquement ── */}
           {showAcceptRefuse && normalizeStatus(r.status) === "pending" && (
-            <div style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div className="accept-refuse-btns" style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button
                 onClick={async () => {
                   setAutoKm(r.distance_km ? Number(r.distance_km) : null);
@@ -1219,7 +1247,10 @@ function Dashboard() {
                       ✕
                     </button>
                   </div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                  <div
+                    className="send-prix-row"
+                    style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}
+                  >
                     <input
                       type="number"
                       min="1"
@@ -1303,7 +1334,7 @@ function Dashboard() {
 
           {/* ── Boutons statut (automatique — push envoyée à chaque étape) ── */}
           {(normalizeStatus(r.status) === "accepted" || r.status === "en_route" || r.status === "arrived") && (
-            <div style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div className="status-action-btns" style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap" }}>
               {r.status !== "en_route" && (
                 <button
                   onClick={() => handleUpdateReservationStatus(r, "en_route")}
@@ -1394,6 +1425,7 @@ function Dashboard() {
 
       {/* ── Header ── */}
       <div
+        className="admin-header"
         style={{
           display: "flex",
           flexWrap: "wrap",
@@ -1409,11 +1441,17 @@ function Dashboard() {
             alt="Taxi City Bordeaux"
             style={{ width: 48, height: 48, borderRadius: 12, objectFit: "contain", background: "#fff", padding: 3 }}
           />
-          <h1 style={{ fontFamily: "'Syne',sans-serif", fontSize: 26, fontWeight: 800, color: "#f8fafc", margin: 0 }}>
+          <h1
+            className="admin-header-title"
+            style={{ fontFamily: "'Syne',sans-serif", fontSize: 26, fontWeight: 800, color: "#f8fafc", margin: 0 }}
+          >
             Dashboard
           </h1>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <div
+          className="admin-header-actions"
+          style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}
+        >
           {/* Un seul bouton notifications unifié */}
           <EnablePushButton audience="admin" size="sm" label="🔔 Notifs" />
           <a
@@ -1502,7 +1540,7 @@ function Dashboard() {
               padding: "16px 20px",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <div className="gps-row" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
               {/* Indicateur GPS */}
               <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
                 {gpsActive ? (
@@ -1554,50 +1592,56 @@ function Dashboard() {
                     </div>
                   );
                 })()}
-              {/* Bouton terminer course active */}
-              {gpsActive &&
-                activeResaId &&
-                (() => {
-                  const linked = items.find((x) => x.id === activeResaId);
-                  const canComplete = linked && linked.status !== "completed" && linked.status !== "cancelled";
-                  if (!canComplete) return null;
-                  return (
-                    <button
-                      onClick={() => handleUpdateReservationStatus(linked, "completed")}
-                      style={{
-                        background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
-                        color: "#fff",
-                        border: 0,
-                        padding: "10px 18px",
-                        borderRadius: 12,
-                        cursor: "pointer",
-                        fontWeight: 800,
-                        fontSize: 14,
-                        boxShadow: "0 4px 12px rgba(37,99,235,0.3)",
-                      }}
-                    >
-                      🏁 Terminer
-                    </button>
-                  );
-                })()}
-              {/* Bouton toggle GPS unique */}
-              <button
-                onClick={() => (gpsActive ? stopGPS() : startGPS())}
-                style={{
-                  background: gpsActive ? "transparent" : "linear-gradient(135deg, #22c55e, #16a34a)",
-                  color: gpsActive ? "#475569" : "#fff",
-                  border: gpsActive ? "1px solid rgba(255,255,255,0.08)" : "none",
-                  padding: "10px 16px",
-                  borderRadius: 12,
-                  cursor: "pointer",
-                  fontWeight: 700,
-                  fontSize: 13,
-                  boxShadow: gpsActive ? "none" : "0 4px 12px rgba(34,197,94,0.3)",
-                  transition: "all 0.2s",
-                }}
+              {/* Boutons GPS groupés pour mobile */}
+              <div
+                className="gps-btn-row"
+                style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: "auto" }}
               >
-                {gpsActive ? "⏹ Couper" : "▶ Activer"}
-              </button>
+                {/* Bouton terminer course active */}
+                {gpsActive &&
+                  activeResaId &&
+                  (() => {
+                    const linked = items.find((x) => x.id === activeResaId);
+                    const canComplete = linked && linked.status !== "completed" && linked.status !== "cancelled";
+                    if (!canComplete) return null;
+                    return (
+                      <button
+                        onClick={() => handleUpdateReservationStatus(linked, "completed")}
+                        style={{
+                          background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+                          color: "#fff",
+                          border: 0,
+                          padding: "10px 18px",
+                          borderRadius: 12,
+                          cursor: "pointer",
+                          fontWeight: 800,
+                          fontSize: 14,
+                          boxShadow: "0 4px 12px rgba(37,99,235,0.3)",
+                        }}
+                      >
+                        🏁 Terminer
+                      </button>
+                    );
+                  })()}
+                {/* Bouton toggle GPS unique */}
+                <button
+                  onClick={() => (gpsActive ? stopGPS() : startGPS())}
+                  style={{
+                    background: gpsActive ? "transparent" : "linear-gradient(135deg, #22c55e, #16a34a)",
+                    color: gpsActive ? "#475569" : "#fff",
+                    border: gpsActive ? "1px solid rgba(255,255,255,0.08)" : "none",
+                    padding: "10px 16px",
+                    borderRadius: 12,
+                    cursor: "pointer",
+                    fontWeight: 700,
+                    fontSize: 13,
+                    boxShadow: gpsActive ? "none" : "0 4px 12px rgba(34,197,94,0.3)",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  {gpsActive ? "⏹ Couper" : "▶ Activer"}
+                </button>
+              </div>
             </div>
             {/* Mini-map */}
             {gpsActive && (
@@ -1635,7 +1679,10 @@ function Dashboard() {
       </div>
 
       {/* ── KPI Cards ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, marginBottom: 14 }}>
+      <div
+        className="admin-kpi-grid"
+        style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, marginBottom: 14 }}
+      >
         {statsLoading
           ? Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
           : [
@@ -1646,7 +1693,9 @@ function Dashboard() {
             ].map((c, i) => (
               <div key={i} style={card}>
                 <div style={{ fontSize: 22 }}>{c.i}</div>
-                <div style={valCss}>{c.v}</div>
+                <div className="admin-stat-val" style={valCss}>
+                  {c.v}
+                </div>
                 <div style={labelCss}>{c.l}</div>
               </div>
             ))}
@@ -1911,7 +1960,7 @@ function Dashboard() {
                       <span style={{ fontWeight: 700, color: "#fca5a5" }}>Motif :</span> {r.refus_motif}
                     </div>
                   )}
-                  <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <div className="contact-btns" style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
                     {(r.client_phone || r.telephone) && (
                       <>
                         <a href={`tel:${r.client_phone || r.telephone}`} style={contactBtn("#0ea5e9")}>
