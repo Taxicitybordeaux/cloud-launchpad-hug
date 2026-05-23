@@ -219,12 +219,61 @@ function formatParis(iso: string, opts?: Intl.DateTimeFormatOptions) {
   return new Date(iso).toLocaleString("fr-FR", { timeZone: "Europe/Paris", ...opts });
 }
 
+// ─── Jours fériés français ───
+const JOURS_FERIES = new Set([
+  // 2025
+  "2025-01-01",
+  "2025-04-21",
+  "2025-05-01",
+  "2025-05-08",
+  "2025-05-29",
+  "2025-06-09",
+  "2025-07-14",
+  "2025-08-15",
+  "2025-11-01",
+  "2025-11-11",
+  "2025-12-25",
+  // 2026
+  "2026-01-01",
+  "2026-04-06",
+  "2026-05-01",
+  "2026-05-08",
+  "2026-05-14",
+  "2026-05-25",
+  "2026-06-04",
+  "2026-07-14",
+  "2026-08-15",
+  "2026-11-01",
+  "2026-11-11",
+  "2026-12-25",
+  // 2027
+  "2027-01-01",
+  "2027-03-29",
+  "2027-05-01",
+  "2027-05-08",
+  "2027-05-13",
+  "2027-05-24",
+  "2027-07-14",
+  "2027-08-15",
+  "2027-11-01",
+  "2027-11-11",
+  "2027-12-25",
+]);
+
+function isJourFerie(date: Date): boolean {
+  const yyyy = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", year: "numeric" });
+  const mm = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", month: "2-digit" });
+  const dd = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", day: "2-digit" });
+  return JOURS_FERIES.has(`${yyyy}-${mm}-${dd}`);
+}
+
 function isNuit(iso: string): boolean {
-  const h = parseInt(
-    new Date(iso).toLocaleString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", hour12: false }),
-    10,
-  );
-  return h >= 20 || h < 6;
+  const date = new Date(iso);
+  const h = parseInt(date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", hour12: false }), 10);
+  const dimanche = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", weekday: "short" }) === "dim.";
+  const ferie = isJourFerie(date);
+  // Tarif nuit : 20h–6h, OU dimanche, OU jour férié
+  return h >= 20 || h < 6 || dimanche || ferie;
 }
 
 const normalizeStatus = (s: unknown): "pending" | "accepted" | "refused" => {
