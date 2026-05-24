@@ -384,6 +384,18 @@ function Dashboard() {
   const gpsMapRef = useRef<HTMLDivElement>(null);
   const gpsMapInst = useRef<any>(null);
   const gpsMarkerRef = useRef<any>(null);
+  // ── Auto-status refs ──
+  const pickupGeoRef = useRef<{ lat: number; lng: number } | null>(null); // coordonnées de la prise en charge active
+  const autoStatusFiredRef = useRef<Record<string, boolean>>({}); // évite les doubles déclenchements
+
+  // Distance en mètres entre deux coords (Haversine simplifié)
+  const distMetersGps = (a: { lat: number; lng: number }, b: { lat: number; lng: number }): number => {
+    const R = 6371000;
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const x = (toRad(b.lng) - toRad(a.lng)) * Math.cos(toRad((a.lat + b.lat) / 2));
+    const y = toRad(b.lat) - toRad(a.lat);
+    return Math.sqrt(x * x + y * y) * R;
+  };
 
   // =========================
   // FETCH STATS
@@ -676,6 +688,18 @@ function Dashboard() {
       setAutoTransition(true);
       setActiveResaId(next.id);
       activeResaIdRef.current = next.id;
+      // Reset des déclenchements auto pour la nouvelle course
+      delete autoStatusFiredRef.current[`${next.id}_en_route`];
+      delete autoStatusFiredRef.current[`${next.id}_arrived`];
+      // Re-géocoder le départ de la nouvelle course
+      pickupGeoRef.current = null;
+      if (next.depart) {
+        geocodeAddress(next.depart + ", Bordeaux, France")
+          .then((c) => {
+            if (c) pickupGeoRef.current = { lat: c.lat, lng: c.lng };
+          })
+          .catch(() => {});
+      }
       toast.success("🔄 Nouvelle course détectée", {
         description: `${next.client_name || next.nom || "prochain client"}${next.arrivee || next.destination ? ` → ${next.arrivee || next.destination}` : ""}`,
         duration: 6000,
@@ -1046,6 +1070,19 @@ function Dashboard() {
     setActiveResaId(linkedId);
     activeResaIdRef.current = linkedId;
     setGpsActive(true);
+
+    // ── Pré-géocoder l'adresse de prise en charge de la course active ──────
+    pickupGeoRef.current = null;
+    if (linkedId) {
+      const course = items.find((r) => r.id === linkedId);
+      if (course?.depart) {
+        try {
+          const c = await geocodeAddress(course.depart + ", Bordeaux, France");
+          if (c) pickupGeoRef.current = { lat: c.lat, lng: c.lng };
+        } catch {}
+      }
+    }
+
     watchIdRef.current = navigator.geolocation.watchPosition(
       async (pos) => {
         const { latitude, longitude, accuracy: acc, heading: rawHeading } = pos.coords;
@@ -1080,6 +1117,62 @@ function Dashboard() {
           speed: pos.coords.speed ?? 0,
           updated_at: new Date().toISOString(),
         });
+
+        // ── AUTO-STATUS ─────────────────────────────────────────────────────
+        const resaId = activeResaIdRef.current;
+        if (!resaId) return;
+        const fired = autoStatusFiredRef.current;
+
+        // 1) AUTO "en_route" — course acceptée + pickup dans ≤ 30 min (ou sans heure fixe)
+        //    Se déclenche une seule fois par course
+        if (!fired[`${resaId}_en_route`]) {
+          // On relit les items via ref pour ne pas dépendre d'une closure périmée
+          setItems((prev) => {
+            const course = prev.find((r) => r.id === resaId);
+            if (course && course.status === "accepted" && !fired[`${resaId}_en_route`]) {
+              const pickupMs = course.pickup_datetime ? new Date(course.pickup_datetime).getTime() : null;
+              const nowMs = Date.now();
+              // Déclencher si : pas d'heure fixe OU heure dans ≤ 30 min
+              const shouldGo = !pickupMs || pickupMs - nowMs <= 30 * 60 * 1000;
+              if (shouldGo) {
+                fired[`${resaId}_en_route`] = true;
+                // Appel async hors du setState
+                handleUpdateReservationStatus(course, "en_route").then(() => {
+                  toast.success("🚗 En route automatique", {
+                    description: `${course.client_name || course.nom || "Client"} — départ dans ≤ 30 min`,
+                    duration: 5000,
+                  });
+                });
+              }
+            }
+            return prev; // pas de mutation d'état ici
+          });
+        }
+
+        // 2) AUTO "arrived" — distance GPS < 150 m de la prise en charge
+        if (!fired[`${resaId}_arrived`] && pickupGeoRef.current) {
+          const dist = distMetersGps({ lat: latitude, lng: longitude }, pickupGeoRef.current);
+          if (dist < 150) {
+            setItems((prev) => {
+              const course = prev.find((r) => r.id === resaId);
+              if (
+                course &&
+                (course.status === "en_route" || course.status === "accepted") &&
+                !fired[`${resaId}_arrived`]
+              ) {
+                fired[`${resaId}_arrived`] = true;
+                handleUpdateReservationStatus(course, "arrived").then(() => {
+                  toast.success("📍 Arrivé automatique", {
+                    description: `À ${Math.round(dist)} m de la prise en charge`,
+                    duration: 5000,
+                  });
+                });
+              }
+              return prev;
+            });
+          }
+        }
+        // ── FIN AUTO-STATUS ─────────────────────────────────────────────────
       },
       (err) => console.error(err),
       { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 },
@@ -1475,41 +1568,46 @@ function Dashboard() {
 
           {/* ── Boutons statut (automatique — push envoyée à chaque étape) ── */}
           {(normalizeStatus(r.status) === "accepted" || r.status === "en_route" || r.status === "arrived") && (
-            <div className="status-action-btns" style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {r.status !== "en_route" && (
-                <button
-                  onClick={() => handleUpdateReservationStatus(r, "en_route")}
-                  style={{
-                    background: "#f59e0b",
-                    color: "#0a0a14",
-                    border: "none",
-                    padding: "10px 14px",
-                    borderRadius: 12,
-                    cursor: "pointer",
-                    fontWeight: 700,
-                    fontSize: 13,
-                  }}
-                >
-                  🚗 En route
-                </button>
-              )}
-              {r.status !== "arrived" && (
-                <button
-                  onClick={() => handleUpdateReservationStatus(r, "arrived")}
-                  style={{
-                    background: "#22c55e",
-                    color: "#fff",
-                    border: "none",
-                    padding: "10px 14px",
-                    borderRadius: 12,
-                    cursor: "pointer",
-                    fontWeight: 700,
-                    fontSize: 13,
-                  }}
-                >
-                  📍 Arrivé
-                </button>
-              )}
+            <div
+              className="status-action-btns"
+              style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}
+            >
+              {/* Badges auto-gérés (lecture seule) */}
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  padding: "7px 12px",
+                  borderRadius: 10,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  background: r.status === "en_route" ? "rgba(245,158,11,0.2)" : "rgba(255,255,255,0.05)",
+                  border: `1px solid ${r.status === "en_route" ? "rgba(245,158,11,0.5)" : "rgba(255,255,255,0.1)"}`,
+                  color: r.status === "en_route" ? "#f59e0b" : "#475569",
+                }}
+                title="Déclenché automatiquement quand le pickup_datetime approche (≤ 30 min)"
+              >
+                🚗 En route {r.status === "en_route" ? "✓" : "— auto"}
+              </span>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  padding: "7px 12px",
+                  borderRadius: 10,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  background: r.status === "arrived" ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.05)",
+                  border: `1px solid ${r.status === "arrived" ? "rgba(34,197,94,0.5)" : "rgba(255,255,255,0.1)"}`,
+                  color: r.status === "arrived" ? "#22c55e" : "#475569",
+                }}
+                title="Déclenché automatiquement quand le GPS est à moins de 150 m de l'adresse de départ"
+              >
+                📍 Arrivé {r.status === "arrived" ? "✓" : "— auto"}
+              </span>
+              {/* Terminé : reste manuel (seul le chauffeur sait) */}
               {r.status !== "completed" && (
                 <button
                   onClick={() => handleUpdateReservationStatus(r, "completed")}
