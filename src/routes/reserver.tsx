@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix, calculerPrixMixte, PRISE_EN_CHARGE } from "@/lib/tarif";
 import { geocodeAddress, reverseGeocode } from "@/lib/geocode";
 import { EnablePushButton } from "@/components/EnablePushButton";
+import { newSuiviId } from "@/lib/suivi-id";
 
 export const Route = createFileRoute("/reserver")({
   head: () => ({
@@ -364,9 +365,8 @@ function ReservationPage() {
   useEffect(() => {
     const check = async () => {
       try {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from("reservations")
-          .select("id")
           .not("status", "in", "(cancelled,refused,completed)")
           .limit(1);
         if (error) throw error;
@@ -408,50 +408,45 @@ function ReservationPage() {
     setSending(true);
 
     try {
-      const newSuiviId = crypto.randomUUID();
+      const suiviId = newSuiviId();
 
       const fullName = `${f.prenom} ${f.nom}`.trim();
       const pickupIsoFinal = f.date && f.heure ? `${f.date}T${f.heure}:00` : new Date().toISOString();
 
-      const { data, error } = await supabase
-        .from("reservations")
-        .insert({
-          // NOT NULL columns
-          nom: fullName,
-          telephone: f.phone,
-          email: f.email,
-          depart: f.depart,
-          arrivee: f.destination,
-          pickup_datetime: pickupIsoFinal,
-          passagers: f.passagers,
-          service_type: "standard",
-          status: "nouvelle",
-          // Optional / mirror columns
-          suivi_id: newSuiviId,
-          client_name: fullName,
-          client_phone: f.phone,
-          client_email: f.email,
-          destination: f.destination,
-          distance_km: orsResult?.distanceKm ?? 0,
-          nb_passagers: f.passagers,
-          bagages: f.bagages,
-          paiement: f.paiement,
-          tarif_jour: tarifJour,
-          prix_estime: prixAller,
-          source: "form",
-        })
-        .select("id")
-        .single();
+      const { error } = await supabase.from("reservations").insert({
+        // NOT NULL columns
+        nom: fullName,
+        telephone: f.phone,
+        email: f.email,
+        depart: f.depart,
+        arrivee: f.destination,
+        pickup_datetime: pickupIsoFinal,
+        passagers: f.passagers,
+        service_type: "standard",
+        status: "nouvelle",
+        // Optional / mirror columns
+        suivi_id: suiviId,
+        client_name: fullName,
+        client_phone: f.phone,
+        client_email: f.email,
+        destination: f.destination,
+        distance_km: orsResult?.distanceKm ?? 0,
+        nb_passagers: f.passagers,
+        bagages: f.bagages,
+        paiement: f.paiement,
+        tarif_jour: tarifJour,
+        prix_estime: prixAller,
+        source: "form",
+      });
 
       if (error) throw error;
-      if (!data) throw new Error("Aucune donnée retournée par Supabase");
 
       // ── Notif push + email chauffeur ──────────────────────────────────────
       try {
         await fetch("/api/public/notify-reservation", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ reservation_id: data.id }),
+          body: JSON.stringify({ suivi_id: suiviId }),
         });
       } catch (fetchErr) {
         console.error("[notify] push failed", fetchErr);
@@ -464,7 +459,7 @@ function ReservationPage() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              reservation_id: data.id,
+              suivi_id: suiviId,
               nom: fullName,
               email: f.email,
               pickup_datetime: pickupIsoFinal,
@@ -482,7 +477,7 @@ function ReservationPage() {
 
       toast.success(`Réservation confirmée pour ${f.prenom} !`);
       setSending(false);
-      navigate({ to: "/suivi/$id", params: { id: newSuiviId } });
+      navigate({ to: "/suivi/$id", params: { id: suiviId } });
     } catch (err: any) {
       setSending(false);
       toast.error("Erreur lors de la réservation", { description: err?.message });
