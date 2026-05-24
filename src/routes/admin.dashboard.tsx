@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix, calculerPrixMixte } from "@/lib/tarif";
@@ -356,7 +356,6 @@ function Dashboard() {
   const [counts, setCounts] = useState({ pending: 0, accepted: 0, refused: 0 });
 
   // ── Actions ──
-  const [refusalReason, setRefusalReason] = useState("");
   const [cardKm, setCardKm] = useState<Record<string, number>>({});
   const [cardKmLoading, setCardKmLoading] = useState<Record<string, boolean>>({});
   const [deleteBusy, setDeleteBusy] = useState(false);
@@ -385,6 +384,19 @@ function Dashboard() {
   const gpsMapRef = useRef<HTMLDivElement>(null);
   const gpsMapInst = useRef<any>(null);
   const gpsMarkerRef = useRef<any>(null);
+  // ── Auto-status refs ──
+  const pickupGeoRef = useRef<{ lat: number; lng: number } | null>(null); // coordonnées de la prise en charge active
+  const destinationGeoRef = useRef<{ lat: number; lng: number } | null>(null); // coordonnées de la destination active
+  const autoStatusFiredRef = useRef<Record<string, boolean>>({}); // évite les doubles déclenchements
+
+  // Distance en mètres entre deux coords (Haversine simplifié)
+  const distMetersGps = (a: { lat: number; lng: number }, b: { lat: number; lng: number }): number => {
+    const R = 6371000;
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const x = (toRad(b.lng) - toRad(a.lng)) * Math.cos(toRad((a.lat + b.lat) / 2));
+    const y = toRad(b.lat) - toRad(a.lat);
+    return Math.sqrt(x * x + y * y) * R;
+  };
 
   // =========================
   // FETCH STATS
@@ -677,8 +689,31 @@ function Dashboard() {
       setAutoTransition(true);
       setActiveResaId(next.id);
       activeResaIdRef.current = next.id;
+      // Reset des déclenchements auto pour la nouvelle course
+      delete autoStatusFiredRef.current[next.id + "_en_route"];
+      delete autoStatusFiredRef.current[next.id + "_arrived"];
+      delete autoStatusFiredRef.current[next.id + "_completed"];
+      // Re-géocoder le départ de la nouvelle course
+      pickupGeoRef.current = null;
+      destinationGeoRef.current = null;
+      if (next.depart) {
+        geocodeAddress(next.depart + ", Bordeaux, France")
+          .then((c) => {
+            if (c) pickupGeoRef.current = { lat: c.lat, lng: c.lng };
+          })
+          .catch(() => {});
+      }
+      if (next.arrivee || next.destination) {
+        geocodeAddress((next.arrivee || next.destination) + ", Bordeaux, France")
+          .then((c) => {
+            if (c) destinationGeoRef.current = { lat: c.lat, lng: c.lng };
+          })
+          .catch(() => {});
+      }
       toast.success("🔄 Nouvelle course détectée", {
-        description: `${next.client_name || next.nom || "prochain client"}${next.arrivee || next.destination ? ` → ${next.arrivee || next.destination}` : ""}`,
+        description:
+          (next.client_name || next.nom || "prochain client") +
+          (next.arrivee || next.destination ? " → " + (next.arrivee || next.destination) : ""),
         duration: 6000,
       });
       setTimeout(() => setAutoTransition(false), 3000);
@@ -796,18 +831,22 @@ function Dashboard() {
 
     // Enregistrer dans clients
     if (phone) {
-      const { data: existing } = await supabase
-        .from("clients")
-        .select("id,total_courses")
-        .eq("phone", phone)
-        .maybeSingle();
-      if (existing) {
-        await supabase
+      try {
+        const { data: existing } = await supabase
           .from("clients")
-          .update({ total_courses: (existing.total_courses ?? 0) + 1 })
-          .eq("id", existing.id);
-      } else {
-        await supabase.from("clients").insert({ name, phone, email, total_courses: 1 });
+          .select("id,total_courses")
+          .eq("phone", phone)
+          .maybeSingle();
+        if (existing) {
+          await supabase
+            .from("clients")
+            .update({ total_courses: (existing.total_courses ?? 0) + 1 })
+            .eq("id", existing.id);
+        } else {
+          await supabase.from("clients").insert({ name, phone, email, total_courses: 1 });
+        }
+      } catch (clientErr) {
+        console.error("[handleAccept] clients insert/update failed", clientErr);
       }
     }
 
@@ -824,10 +863,14 @@ function Dashboard() {
 
     const notifParts: string[] = [];
 
-    // 🔔 Push automatique (toujours)
+    // 🔔 Push automatique (toujours) — timeout 5s pour ne pas bloquer
     let pushSent = 0;
     try {
-      const pushResult = await notifyReservationStatus({ data: { reservation_id: r.id, status: "accepted" } });
+      const timeout = new Promise<any>((_, reject) => setTimeout(() => reject(new Error("timeout")), 5000));
+      const pushResult = await Promise.race([
+        notifyReservationStatus({ data: { reservation_id: r.id, status: "accepted" } }),
+        timeout,
+      ]);
       pushSent = (pushResult as any)?.client?.sent ?? 0;
     } catch {}
     notifParts.push(pushSent > 0 ? `🔔 Push envoyée` : `🔕 Pas d'abonné push`);
@@ -841,7 +884,8 @@ function Dashboard() {
       const prixStr = `${Number(prixCalcule).toFixed(2)} €`;
       const tarifLabel = tarifNuitCourse ? `Nuit (${TARIF_NUIT_LABEL})` : `Jour (${TARIF_JOUR_LABEL})`;
       try {
-        const res = await fetch("/api/admin/send-course-email", {
+        const emailTimeout = new Promise<any>((_, reject) => setTimeout(() => reject(new Error("timeout")), 6000));
+        const emailFetch = fetch("/api/admin/send-course-email", {
           method: "POST",
           headers: { "Content-Type": "application/json", "X-Admin-Secret": adminSecret },
           body: JSON.stringify({
@@ -861,6 +905,7 @@ function Dashboard() {
             },
           }),
         });
+        const res = await Promise.race([emailFetch, emailTimeout]);
         notifParts.push(res.ok ? `✉️ Email envoyé` : `⚠️ Échec email`);
       } catch {
         notifParts.push("⚠️ Échec email");
@@ -888,7 +933,7 @@ function Dashboard() {
   // =========================
   // REFUSE — direct, sans motif
   // =========================
-  const handleRefuse = async (r: any) => {
+  const handleRefuse = async (r: any): Promise<boolean> => {
     // Mise à jour optimiste IMMÉDIATE — avant tout appel réseau
     setItems((prev) => prev.map((item) => (item.id === r.id ? { ...item, status: "refused" } : item)));
     setCounts((prev) => ({
@@ -903,7 +948,7 @@ function Dashboard() {
       .eq("id", r.id);
     if (error) {
       // Rollback en cas d'erreur
-      setItems((prev) => prev.map((item) => (item.id === r.id ? { ...item, status: "pending" } : item)));
+      setItems((prev) => prev.map((item) => (item.id === r.id ? { ...item, status: r.status } : item)));
       setCounts((prev) => ({
         ...prev,
         pending: prev.pending + 1,
@@ -1037,6 +1082,26 @@ function Dashboard() {
     setActiveResaId(linkedId);
     activeResaIdRef.current = linkedId;
     setGpsActive(true);
+
+    // ── Pré-géocoder l'adresse de prise en charge de la course active ──────
+    pickupGeoRef.current = null;
+    destinationGeoRef.current = null;
+    if (linkedId) {
+      const course = items.find((r) => r.id === linkedId);
+      if (course?.depart) {
+        try {
+          const c = await geocodeAddress(course.depart + ", Bordeaux, France");
+          if (c) pickupGeoRef.current = { lat: c.lat, lng: c.lng };
+        } catch {}
+      }
+      if (course?.arrivee || course?.destination) {
+        try {
+          const c = await geocodeAddress((course.arrivee || course.destination) + ", Bordeaux, France");
+          if (c) destinationGeoRef.current = { lat: c.lat, lng: c.lng };
+        } catch {}
+      }
+    }
+
     watchIdRef.current = navigator.geolocation.watchPosition(
       async (pos) => {
         const { latitude, longitude, accuracy: acc, heading: rawHeading } = pos.coords;
@@ -1071,6 +1136,84 @@ function Dashboard() {
           speed: pos.coords.speed ?? 0,
           updated_at: new Date().toISOString(),
         });
+
+        // ── AUTO-STATUS ─────────────────────────────────────────────────────
+        const resaId = activeResaIdRef.current;
+        if (!resaId) return;
+        const fired = autoStatusFiredRef.current;
+
+        // 1) AUTO "en_route" — course acceptée + pickup dans ≤ 30 min (ou sans heure fixe)
+        //    Se déclenche une seule fois par course
+        const enRouteKey = resaId + "_en_route";
+        if (!fired[enRouteKey]) {
+          // On relit les items via ref pour ne pas dépendre d'une closure périmée
+          setItems((prev) => {
+            const course = prev.find((r) => r.id === resaId);
+            if (course && course.status === "accepted" && !fired[enRouteKey]) {
+              const pickupMs = course.pickup_datetime ? new Date(course.pickup_datetime).getTime() : null;
+              const nowMs = Date.now();
+              // Déclencher si : pas d'heure fixe OU heure dans ≤ 30 min
+              const shouldGo = !pickupMs || pickupMs - nowMs <= 30 * 60 * 1000;
+              if (shouldGo) {
+                fired[enRouteKey] = true;
+                const clientLabel2 = course.client_name || course.nom || "Client";
+                // Appel async hors du setState
+                handleUpdateReservationStatus(course, "en_route").then(() => {
+                  toast.success("🚗 En route automatique", {
+                    description: clientLabel2 + " — départ dans ≤ 30 min",
+                    duration: 5000,
+                  });
+                });
+              }
+            }
+            return prev; // pas de mutation d'état ici
+          });
+        }
+
+        // 2) AUTO "arrived" — distance GPS < 150 m de la prise en charge
+        const arrivedKey = resaId + "_arrived";
+        if (!fired[arrivedKey] && pickupGeoRef.current) {
+          const dist = distMetersGps({ lat: latitude, lng: longitude }, pickupGeoRef.current);
+          if (dist < 150) {
+            setItems((prev) => {
+              const course = prev.find((r) => r.id === resaId);
+              if (course && (course.status === "en_route" || course.status === "accepted") && !fired[arrivedKey]) {
+                fired[arrivedKey] = true;
+                const distArrived = Math.round(dist);
+                handleUpdateReservationStatus(course, "arrived").then(() => {
+                  toast.success("📍 Arrivé automatique", {
+                    description: "À " + distArrived + " m de la prise en charge",
+                    duration: 5000,
+                  });
+                });
+              }
+              return prev;
+            });
+          }
+        }
+        // ── FIN AUTO-STATUS ─────────────────────────────────────────────────
+        // 3) AUTO "completed" — distance GPS < 150 m de la destination (status doit être "arrived")
+        const completedKey = resaId + "_completed";
+        if (!fired[completedKey] && destinationGeoRef.current) {
+          const distDest = distMetersGps({ lat: latitude, lng: longitude }, destinationGeoRef.current);
+          if (distDest < 150) {
+            setItems((prev) => {
+              const course = prev.find((r) => r.id === resaId);
+              if (course && course.status === "arrived" && !fired[completedKey]) {
+                fired[completedKey] = true;
+                const distLabel = Math.round(distDest);
+                const clientLabel = course.client_name || course.nom || "Client";
+                handleUpdateReservationStatus(course, "completed").then(() => {
+                  toast.success("🏁 Course terminée automatiquement", {
+                    description: "À " + distLabel + " m de la destination — " + clientLabel,
+                    duration: 6000,
+                  });
+                });
+              }
+              return prev;
+            });
+          }
+        }
       },
       (err) => console.error(err),
       { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 },
@@ -1284,15 +1427,14 @@ function Dashboard() {
             <div className="accept-refuse-btns" style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button
                 onClick={async () => {
-                  setAutoKm(r.distance_km ? Number(r.distance_km) : null);
                   handleAccept(r);
                   if (!r.distance_km && r.depart && (r.arrivee || r.destination)) {
-                    setKmLoading(true);
+                    setCardKmLoading((prev) => ({ ...prev, [r.id]: true }));
                     try {
                       const km = await fetchDistanceKm(r.depart, r.arrivee || r.destination);
-                      setAutoKm(km);
+                      setCardKm((prev) => ({ ...prev, [r.id]: km }));
                     } finally {
-                      setKmLoading(false);
+                      setCardKmLoading((prev) => ({ ...prev, [r.id]: false }));
                     }
                   }
                 }}
@@ -1467,58 +1609,46 @@ function Dashboard() {
 
           {/* ── Boutons statut (automatique — push envoyée à chaque étape) ── */}
           {(normalizeStatus(r.status) === "accepted" || r.status === "en_route" || r.status === "arrived") && (
-            <div className="status-action-btns" style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {r.status !== "en_route" && (
-                <button
-                  onClick={() => handleUpdateReservationStatus(r, "en_route")}
-                  style={{
-                    background: "#f59e0b",
-                    color: "#0a0a14",
-                    border: "none",
-                    padding: "10px 14px",
-                    borderRadius: 12,
-                    cursor: "pointer",
-                    fontWeight: 700,
-                    fontSize: 13,
-                  }}
-                >
-                  🚗 En route
-                </button>
-              )}
-              {r.status !== "arrived" && (
-                <button
-                  onClick={() => handleUpdateReservationStatus(r, "arrived")}
-                  style={{
-                    background: "#22c55e",
-                    color: "#fff",
-                    border: "none",
-                    padding: "10px 14px",
-                    borderRadius: 12,
-                    cursor: "pointer",
-                    fontWeight: 700,
-                    fontSize: 13,
-                  }}
-                >
-                  📍 Arrivé
-                </button>
-              )}
-              {r.status !== "completed" && (
-                <button
-                  onClick={() => handleUpdateReservationStatus(r, "completed")}
-                  style={{
-                    background: "#2563eb",
-                    color: "#fff",
-                    border: "none",
-                    padding: "10px 14px",
-                    borderRadius: 12,
-                    cursor: "pointer",
-                    fontWeight: 700,
-                    fontSize: 13,
-                  }}
-                >
-                  🏁 Terminé
-                </button>
-              )}
+            <div
+              className="status-action-btns"
+              style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}
+            >
+              {/* Badges auto-gérés (lecture seule) */}
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  padding: "7px 12px",
+                  borderRadius: 10,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  background: r.status === "en_route" ? "rgba(245,158,11,0.2)" : "rgba(255,255,255,0.05)",
+                  border: `1px solid ${r.status === "en_route" ? "rgba(245,158,11,0.5)" : "rgba(255,255,255,0.1)"}`,
+                  color: r.status === "en_route" ? "#f59e0b" : "#475569",
+                }}
+                title="Déclenché automatiquement quand le pickup_datetime approche (≤ 30 min)"
+              >
+                🚗 En route {r.status === "en_route" ? "✓" : "— auto"}
+              </span>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  padding: "7px 12px",
+                  borderRadius: 10,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  background: r.status === "arrived" ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.05)",
+                  border: `1px solid ${r.status === "arrived" ? "rgba(34,197,94,0.5)" : "rgba(255,255,255,0.1)"}`,
+                  color: r.status === "arrived" ? "#22c55e" : "#475569",
+                }}
+                title="Déclenché automatiquement quand le GPS est à moins de 150 m de l'adresse de départ"
+              >
+                📍 Arrivé {r.status === "arrived" ? "✓" : "— auto"}
+              </span>
+
               <button
                 onClick={() => handleUpdateReservationStatus(r, "cancelled")}
                 style={{
@@ -1776,32 +1906,6 @@ function Dashboard() {
                 className="gps-btn-row"
                 style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: "auto" }}
               >
-                {/* Bouton terminer course active */}
-                {gpsActive &&
-                  activeResaId &&
-                  (() => {
-                    const linked = items.find((x) => x.id === activeResaId);
-                    const canComplete = linked && linked.status !== "completed" && linked.status !== "cancelled";
-                    if (!canComplete) return null;
-                    return (
-                      <button
-                        onClick={() => handleUpdateReservationStatus(linked, "completed")}
-                        style={{
-                          background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
-                          color: "#fff",
-                          border: 0,
-                          padding: "10px 18px",
-                          borderRadius: 12,
-                          cursor: "pointer",
-                          fontWeight: 800,
-                          fontSize: 14,
-                          boxShadow: "0 4px 12px rgba(37,99,235,0.3)",
-                        }}
-                      >
-                        🏁 Terminer
-                      </button>
-                    );
-                  })()}
                 {/* Bouton toggle GPS unique */}
                 <button
                   onClick={() => (gpsActive ? stopGPS() : startGPS())}
