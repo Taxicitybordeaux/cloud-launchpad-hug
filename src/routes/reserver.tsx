@@ -294,8 +294,9 @@ function ReservationPage() {
         // fromCoord en [lng, lat] pour OSRM (format GeoJSON)
         setFromCoord([lng, lat]);
         setErrors((prev) => {
-          const { depart: _, ...rest } = prev;
-          return rest;
+          const next = { ...prev };
+          delete next.depart;
+          return next;
         });
         toast.success("Position détectée ✓");
         setGeolocLoading(false);
@@ -329,8 +330,9 @@ function ReservationPage() {
     if (coord) {
       setFromCoord(coord);
       setErrors((prev) => {
-        const { depart: _, ...rest } = prev;
-        return rest;
+        const next = { ...prev };
+        delete next.depart;
+        return next;
       });
     } else {
       setFromCoord(null);
@@ -348,8 +350,9 @@ function ReservationPage() {
     if (coord) {
       setToCoord(coord);
       setErrors((prev) => {
-        const { destination: _, ...rest } = prev;
-        return rest;
+        const next = { ...prev };
+        delete next.destination;
+        return next;
       });
     } else {
       setToCoord(null);
