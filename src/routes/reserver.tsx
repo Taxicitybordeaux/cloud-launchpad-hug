@@ -450,8 +450,8 @@ function ReservationPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ reservation_id: data.id }),
         });
-      } catch (err) {
-        console.error("[notify] push failed", err);
+      } catch (fetchErr) {
+        console.error("[notify] push failed", fetchErr);
       }
 
       // ── Email confirmation au client ──────────────────────────────────────
@@ -472,8 +472,8 @@ function ReservationPage() {
               lang: "fr",
             }),
           });
-        } catch (err) {
-          console.error("[notify-client] email failed", err);
+        } catch (fetchErr) {
+          console.error("[notify-client] email failed", fetchErr);
         }
       }
 
