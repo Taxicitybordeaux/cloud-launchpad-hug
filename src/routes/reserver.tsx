@@ -367,7 +367,8 @@ function ReservationPage() {
       try {
         const { data, error } = await supabase
           .from("reservations")
-          .not("status", "in", "(cancelled,refused,completed)")
+          .select("id", { count: "exact", head: false })
+          .not("status", "in", '("cancelled","refused","completed")')
           .limit(1);
         if (error) throw error;
         setTaxiAvailable(!data || data.length === 0);
@@ -409,7 +410,7 @@ function ReservationPage() {
       const suiviId = newSuiviId();
 
       const fullName = `${f.prenom} ${f.nom}`.trim();
-      const pickupIsoFinal = f.date && f.heure ? `${f.date}T${f.heure}:00` : new Date().toISOString();
+      const pickupIsoFinal = f.date && f.heure ? `${f.date}T${f.heure}:00+00:00` : new Date().toISOString();
 
       const { error } = await supabase.from("reservations").insert({
         // NOT NULL columns
