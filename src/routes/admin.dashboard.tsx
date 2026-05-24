@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix, calculerPrixMixte } from "@/lib/tarif";
@@ -356,7 +356,6 @@ function Dashboard() {
   const [counts, setCounts] = useState({ pending: 0, accepted: 0, refused: 0 });
 
   // ── Actions ──
-  const [refusalReason, setRefusalReason] = useState("");
   const [cardKm, setCardKm] = useState<Record<string, number>>({});
   const [cardKmLoading, setCardKmLoading] = useState<Record<string, boolean>>({});
   const [deleteBusy, setDeleteBusy] = useState(false);
@@ -898,7 +897,7 @@ function Dashboard() {
   // =========================
   // REFUSE — direct, sans motif
   // =========================
-  const handleRefuse = async (r: any) => {
+  const handleRefuse = async (r: any): Promise<boolean> => {
     // Mise à jour optimiste IMMÉDIATE — avant tout appel réseau
     setItems((prev) => prev.map((item) => (item.id === r.id ? { ...item, status: "refused" } : item)));
     setCounts((prev) => ({
@@ -1294,15 +1293,14 @@ function Dashboard() {
             <div className="accept-refuse-btns" style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button
                 onClick={async () => {
-                  setAutoKm(r.distance_km ? Number(r.distance_km) : null);
                   handleAccept(r);
                   if (!r.distance_km && r.depart && (r.arrivee || r.destination)) {
-                    setKmLoading(true);
+                    setCardKmLoading((prev) => ({ ...prev, [r.id]: true }));
                     try {
                       const km = await fetchDistanceKm(r.depart, r.arrivee || r.destination);
-                      setAutoKm(km);
+                      setCardKm((prev) => ({ ...prev, [r.id]: km }));
                     } finally {
-                      setKmLoading(false);
+                      setCardKmLoading((prev) => ({ ...prev, [r.id]: false }));
                     }
                   }
                 }}
