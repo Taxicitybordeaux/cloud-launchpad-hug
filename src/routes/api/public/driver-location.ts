@@ -26,7 +26,7 @@ function corsFor(request: Request) {
     "Access-Control-Allow-Origin": allow,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, x-driver-key",
-    "Vary": "Origin",
+    Vary: "Origin",
   };
 }
 
@@ -52,19 +52,22 @@ export const Route = createFileRoute("/api/public/driver-location")({
           });
         }
         let body;
-        try { body = await request.json(); } catch {
+        try {
+          body = await request.json();
+        } catch {
           return new Response(JSON.stringify({ error: "invalid json" }), {
-            status: 400, headers: { "Content-Type": "application/json", ...corsHeaders },
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
           });
         }
         const parsed = Schema.safeParse(body);
         if (!parsed.success) {
           return new Response(JSON.stringify({ error: parsed.error.flatten() }), {
-            status: 400, headers: { "Content-Type": "application/json", ...corsHeaders },
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
           });
         }
-        const { data: existing } = await supabaseAdmin
-          .from("driver_location").select("id").limit(1).maybeSingle();
+        const { data: existing } = await supabaseAdmin.from("driver_location").select("id").limit(1).maybeSingle();
         const payload = { ...parsed.data, updated_at: new Date().toISOString() };
         if (existing?.id) {
           await supabaseAdmin.from("driver_location").update(payload).eq("id", existing.id);
@@ -72,7 +75,8 @@ export const Route = createFileRoute("/api/public/driver-location")({
           await supabaseAdmin.from("driver_location").insert(payload);
         }
         return new Response(JSON.stringify({ ok: true }), {
-          status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
         });
       },
     },
