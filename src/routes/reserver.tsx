@@ -422,8 +422,7 @@ function ReservationPage() {
         pickup_datetime: pickupIsoFinal,
         passagers: f.passagers,
         service_type: "standard",
-        status: "nouvelle",
-        statut_course: "en_attente",
+        status: "pending",
         // Optional / mirror columns
         suivi_id: suiviId,
         client_name: fullName,
