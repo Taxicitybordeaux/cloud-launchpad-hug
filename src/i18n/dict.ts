@@ -145,7 +145,7 @@ const fr: Dict = {
   "home.how.eyebrow": "Comment ça marche",
   "home.how.title": "Réserver en ligne, c'est 2 minutes",
   "home.how.intro":
-    "Un parcours simple et transparent, de la réservation à la dépose — comme Uber, mais avec un vrai chauffeur local.",
+    "Un parcours simple et transparent, de la réservation à la dépose.",
   "home.how.s1.t": "Remplissez le formulaire",
   "home.how.s1.d": "Départ, destination, date, heure, passagers — 2 minutes chrono.",
   "home.how.s2.t": "Confirmation instantanée",
@@ -157,7 +157,7 @@ const fr: Dict = {
   "home.how.s5.t": "Vous montez à bord",
   "home.how.s5.d": "Vous montez à bord, on s'occupe du reste.",
   "home.how.s6.t": "Règlement",
-  "home.how.s6.d": "Carte, espèces ou bon CPAM — comme vous préférez. Facture remise à la fin.",
+  "home.how.s6.d": "Carte ou espèces — comme vous préférez. Facture remise à la fin.",
   "sim.eyebrow": "Simulateur de tarif",
   "sim.title": "Estimez le prix de votre course",
   "sim.intro":
@@ -649,7 +649,7 @@ const en: Dict = {
   "home.how.s5.t": "You get in",
   "home.how.s5.d": "You get in, we take care of the rest.",
   "home.how.s6.t": "Payment",
-  "home.how.s6.d": "Card, cash or CPAM voucher — as you prefer. Receipt provided at the end.",
+  "home.how.s6.d": "Card or cash — as you prefer. Receipt provided at the end.",
   "sim.eyebrow": "Fare estimator",
   "sim.title": "Estimate your ride price",
   "sim.intro":
@@ -1136,7 +1136,7 @@ const es: Dict = {
   "home.how.s5.t": "Sube al coche",
   "home.how.s5.d": "Sube al coche, nos ocupamos del resto.",
   "home.how.s6.t": "Pago",
-  "home.how.s6.d": "Tarjeta, efectivo o bono CPAM — como prefiera. Factura al final.",
+  "home.how.s6.d": "Tarjeta o efectivo — como prefiera. Factura al final.",
   "sim.eyebrow": "Simulador de tarifa",
   "sim.title": "Estima el precio de tu trayecto",
   "sim.intro":
@@ -1624,7 +1624,7 @@ const it: Dict = {
   "home.how.s5.t": "Sali a bordo",
   "home.how.s5.d": "Sali a bordo, pensiamo a tutto noi.",
   "home.how.s6.t": "Pagamento",
-  "home.how.s6.d": "Carta, contanti o buono CPAM — come preferisci. Ricevuta alla fine.",
+  "home.how.s6.d": "Carta o contanti — come preferisci. Ricevuta alla fine.",
   "sim.eyebrow": "Simulatore tariffa",
   "sim.title": "Stima il prezzo della corsa",
   "sim.intro":
@@ -2110,7 +2110,7 @@ const ar: Dict = {
   "home.how.s5.t": "اصعد إلى السيارة",
   "home.how.s5.d": "اصعد إلى السيارة، نحن نتكفل بالباقي.",
   "home.how.s6.t": "الدفع",
-  "home.how.s6.d": "بطاقة، نقداً أو بون CPAM — كما تفضل. وصل في النهاية.",
+  "home.how.s6.d": "بطاقة أو نقداً — كما تفضل. وصل في النهاية.",
   "sim.eyebrow": "محاكي الأسعار",
   "sim.title": "احسب سعر رحلتك",
   "sim.intro": "أدخل عناوين الانطلاق والوصول — يُحسب السعر تلقائياً بناءً على الوقت الحالي.",
@@ -2602,7 +2602,7 @@ const pt: Dict = {
   "home.how.s5.t": "Entre no carro",
   "home.how.s5.d": "Entre no carro, tratamos do resto.",
   "home.how.s6.t": "Pagamento",
-  "home.how.s6.d": "Cartão, dinheiro ou voucher CPAM — como preferir. Recibo no final.",
+  "home.how.s6.d": "Cartão ou dinheiro — como preferir. Recibo no final.",
   "sim.eyebrow": "Simulador de tarifa",
   "sim.title": "Estime o preço da sua viagem",
   "sim.intro":
