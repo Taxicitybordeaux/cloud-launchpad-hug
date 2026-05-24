@@ -1191,16 +1191,19 @@ function Dashboard() {
         }
         // ── FIN AUTO-STATUS ─────────────────────────────────────────────────
         // 3) AUTO "completed" — distance GPS < 150 m de la destination (status doit être "arrived")
-        if (!fired[`${resaId}_completed`] && destinationGeoRef.current) {
+        const completedKey = resaId + "_completed";
+        if (!fired[completedKey] && destinationGeoRef.current) {
           const distDest = distMetersGps({ lat: latitude, lng: longitude }, destinationGeoRef.current);
           if (distDest < 150) {
             setItems((prev) => {
               const course = prev.find((r) => r.id === resaId);
-              if (course && course.status === "arrived" && !fired[`${resaId}_completed`]) {
-                fired[`${resaId}_completed`] = true;
+              if (course && course.status === "arrived" && !fired[completedKey]) {
+                fired[completedKey] = true;
+                const distLabel = Math.round(distDest);
+                const clientLabel = course.client_name || course.nom || "Client";
                 handleUpdateReservationStatus(course, "completed").then(() => {
                   toast.success("🏁 Course terminée automatiquement", {
-                    description: `À ${Math.round(distDest)} m de la destination — ${course.client_name || course.nom || "Client"}`,
+                    description: "À " + distLabel + " m de la destination — " + clientLabel,
                     duration: 6000,
                   });
                 });
