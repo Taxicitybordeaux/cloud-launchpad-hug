@@ -239,21 +239,21 @@ function HelpPanel({ reservationId, onClose }: { reservationId: string; onClose:
 interface Reservation {
   id: string;
   depart: string;
-  arrivee?: string;
-  destination?: string;
-  pickup_datetime?: string;
-  date_course?: string;
-  heure_course?: string;
+  arrivee?: string | null;
+  destination?: string | null;
+  pickup_datetime?: string | null;
+  date_course?: string | null;
+  heure_course?: string | null;
   status: string;
-  client_name?: string;
-  nom?: string;
-  client_phone?: string;
-  telephone?: string;
-  prix_estime?: string | number;
-  nb_passagers?: number;
-  passagers?: number;
-  tracking_id?: string;
-  distance_km?: number;
+  client_name?: string | null;
+  nom?: string | null;
+  client_phone?: string | null;
+  telephone?: string | null;
+  prix_estime?: string | number | null;
+  nb_passagers?: number | null;
+  passagers?: number | null;
+  tracking_id?: string | null;
+  distance_km?: number | null;
 }
 
 // ── Constantes ────────────────────────────────────────────────────────────────
