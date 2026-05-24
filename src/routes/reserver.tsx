@@ -478,7 +478,7 @@ function ReservationPage() {
 
       toast.success(`Réservation confirmée pour ${f.prenom} !`);
       setSending(false);
-      navigate({ to: "/suivi/$id", params: { id: data.id } });
+      navigate({ to: "/suivi/$id", params: { id: newSuiviId } });
     } catch (err: any) {
       setSending(false);
       toast.error("Erreur lors de la réservation", { description: err?.message });
