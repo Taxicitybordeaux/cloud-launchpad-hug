@@ -783,10 +783,11 @@ function SuiviPage() {
         await applyDriverPosition(data.latitude, data.longitude);
       }
       if (resaIdRef.current) {
-        const { data: rows } = await (supabase as any).rpc("get_reservation_by_tracking", {
-          p_tracking_id: resaIdRef.current,
-        });
-        const r = Array.isArray(rows) ? rows[0] : rows;
+        const { data: r } = await supabase
+          .from("reservations")
+          .select("status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,distance_km")
+          .eq("id", resaIdRef.current)
+          .maybeSingle();
         if (r) setResa((prev) => (prev ? { ...prev, ...r } : prev));
       }
     }, 10_000);
@@ -998,17 +999,24 @@ function SuiviPage() {
         locData?.latitude != null && Number.isFinite(locData.latitude) ? locData.latitude : null;
       const gpsLng: number | null =
         locData?.longitude != null && Number.isFinite(locData.longitude) ? locData.longitude : null;
-      const driverOnline = !!locData?.is_active;
+      const driverOnline =
+        !!locData?.is_active &&
+        locData?.latitude != null &&
+        Number.isFinite(locData.latitude) &&
+        locData?.longitude != null &&
+        Number.isFinite(locData.longitude) &&
+        (locData.latitude !== 0 || locData.longitude !== 0);
       if (gpsLat !== null && gpsLng !== null && (gpsLat !== 0 || gpsLng !== 0) && driverOnline) {
         await initMap(gpsLat, gpsLng);
-        await calculateETA(gpsLat, gpsLng, destCoordsRef.current ?? undefined);
         setTaxiPos({ lat: gpsLat, lng: gpsLng });
         setLastUpdate(new Date());
+        // drawTripRoute d'abord pour peupler destCoordsRef, puis ETA vers la vraie destination
+        if (dep && dest) await drawTripRoute(dep, dest);
+        await calculateETA(gpsLat, gpsLng, destCoordsRef.current ?? undefined);
       } else {
         await initMap(BORDEAUX_CENTER[0], BORDEAUX_CENTER[1]);
+        if (dep && dest) drawTripRoute(dep, dest);
       }
-
-      if (dep && dest) drawTripRoute(dep, dest);
 
       const clientName = ((r.client_name || r.nom) ?? "").toString().trim();
       toast.success("✅ Course trouvée", {
