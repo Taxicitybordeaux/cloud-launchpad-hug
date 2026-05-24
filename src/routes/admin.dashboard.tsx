@@ -361,6 +361,8 @@ function Dashboard() {
   const [cardKmLoading, setCardKmLoading] = useState<Record<string, boolean>>({});
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [autoKm, setAutoKm] = useState<number | null>(null);
+  const [kmLoading, setKmLoading] = useState(false);
   const [customPrix, setCustomPrix] = useState<Record<string, string>>({});
   const [customPrixSending, setCustomPrixSending] = useState<Record<string, boolean>>({});
 
@@ -747,7 +749,7 @@ function Dashboard() {
       return;
     }
     const tarifNuitCourse = r.pickup_datetime ? isNuit(r.pickup_datetime) : r.tarif_jour === false;
-    const km = r.distance_km ? Number(r.distance_km) : 5;
+    const km = r.distance_km ? Number(r.distance_km) : (autoKm ?? 5);
     const prixCalcule = r.pickup_datetime
       ? calculerPrixMixte(km, r.pickup_datetime)
       : calculerPrix(km, !tarifNuitCourse);
