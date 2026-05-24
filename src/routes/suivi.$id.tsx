@@ -1017,12 +1017,12 @@ function SuiviPage() {
       const clientName = ((r.client_name || r.nom) ?? "").toString().trim();
       toast.success("✅ Course trouvée", {
         id: toastId,
-        description: `${clientName ? clientName + " — " : ""}mode ${mode === "multi" ? "multi-courses" : "chauffeur unique"}`,
+        description: `${clientName ? clientName + " — " : ""}chauffeur unique`,
         duration: 4000,
       });
 
       setLoading(false);
-      subscribeRealtime(gpsId, r.id, mode);
+      subscribeRealtime("driver", r.id, "single");
     };
 
     init();
