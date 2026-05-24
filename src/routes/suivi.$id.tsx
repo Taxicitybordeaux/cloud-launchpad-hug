@@ -1837,7 +1837,7 @@ function SuiviPage() {
                 )}
                 {!taxiPos && !courseTerminee && (
                   <div className="typo-body" style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>
-                    GPS chauffeur non actif
+                    ⏳ En attente de la position GPS du chauffeur…
                   </div>
                 )}
               </div>
