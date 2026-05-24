@@ -831,7 +831,7 @@ function Dashboard() {
     // 🔔 Push automatique (toujours) — timeout 5s pour ne pas bloquer
     let pushSent = 0;
     try {
-      const timeout = new Promise<null>((_, reject) => setTimeout(() => reject(new Error("timeout")), 5000));
+      const timeout = new Promise<any>((_, reject) => setTimeout(() => reject(new Error("timeout")), 5000));
       const pushResult = await Promise.race([
         notifyReservationStatus({ data: { reservation_id: r.id, status: "accepted" } }),
         timeout,
@@ -849,7 +849,7 @@ function Dashboard() {
       const prixStr = `${Number(prixCalcule).toFixed(2)} €`;
       const tarifLabel = tarifNuitCourse ? `Nuit (${TARIF_NUIT_LABEL})` : `Jour (${TARIF_JOUR_LABEL})`;
       try {
-        const emailTimeout = new Promise<Response>((_, reject) => setTimeout(() => reject(new Error("timeout")), 6000));
+        const emailTimeout = new Promise<any>((_, reject) => setTimeout(() => reject(new Error("timeout")), 6000));
         const emailFetch = fetch("/api/admin/send-course-email", {
           method: "POST",
           headers: { "Content-Type": "application/json", "X-Admin-Secret": adminSecret },
