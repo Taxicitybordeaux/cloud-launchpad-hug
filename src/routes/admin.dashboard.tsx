@@ -870,9 +870,39 @@ function Dashboard() {
             },
           }),
         });
-        const res = await Promise.race([emailFetch, emailTimeout]);
-        notifParts.push(res.ok ? `✉️ Email envoyé` : `⚠️ Échec email`);
-      } catch (error) {
+        try {
+  const emailTimeout = new Promise<any>((_, reject) =>
+    setTimeout(() => reject(new Error("timeout")), 6000)
+  );
+
+  const emailFetch = fetch("/api/admin/send-course-email", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Admin-Secret": adminSecret,
+    },
+    body: JSON.stringify({
+      templateName: "course-accepted",
+      recipientEmail: email,
+      idempotencyKey: `course-accepted-${r.id}`,
+      templateData: {
+        nom: name,
+        depart: r.depart,
+        arrivee: r.arrivee || r.destination,
+        pickup_datetime: pickupFormatted,
+        prix: prixStr,
+        tarif: tarifLabel,
+        tracking_url: url,
+        passagers: r.nb_passagers || r.passagers || 1,
+        bagages: r.bagages ?? 0,
+      },
+    }),
+  });
+
+  const res = await Promise.race([emailFetch, emailTimeout]);
+
+  notifParts.push(res.ok ? "✉️ Email envoyé" : "⚠️ Échec email");
+} catch (error) {
   console.error("Email error:", error);
   notifParts.push("⚠️ Erreur email");
 }
