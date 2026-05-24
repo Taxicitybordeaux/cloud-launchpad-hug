@@ -29,7 +29,7 @@ const CHAUFFEUR = {
 
 // ── Photo taxi (marqueur carte) ───────────────────────────────────────────────
 const TAXI_ICON_URI =
-  "data:image/jpeg;base64,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";
+  "data:image/jpeg;base64,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";
 
 // ── HelpPanel (FAQ + WhatsApp) ────────────────────────────────────────────────
 function HelpPanel({ reservationId, onClose }: { reservationId: string; onClose: () => void }) {
@@ -254,6 +254,7 @@ interface Reservation {
   passagers?: number | null;
   tracking_id?: string | null;
   distance_km?: number | null;
+  created_at?: string | null;
 }
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -344,12 +345,18 @@ function loadLeaflet(): Promise<void> {
 // ── Composant principal ───────────────────────────────────────────────────────
 function SuiviPage() {
   const { id } = Route.useParams();
+
+  // ── États ─────────────────────────────────────────────────────────────────
   const [resa, setResa] = useState<Reservation | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadStep, setLoadStep] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [taxiPos, setTaxiPos] = useState<{ lat: number; lng: number } | null>(null);
   const [eta, setEta] = useState<number | null>(null);
+  // [FUSION] totalKm depuis tracking — pour la barre de progression départ→destination
+  const [totalKm, setTotalKm] = useState<number | null>(null);
+  // [FUSION] km restants (string) depuis tracking — affiché sous l'ETA
+  const [etaKm, setEtaKm] = useState<string | null>(null);
   const [shareMsg, setShareMsg] = useState("");
   const [courseTerminee, setCourseTerminee] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -363,12 +370,30 @@ function SuiviPage() {
     title: string;
     message: string;
   }>(null);
-  const [deadZonePct] = useState<number>(60);
-  const [autoResume] = useState<boolean>(true);
+  // [FUSION] deadzone & autoResume persistés dans localStorage (depuis tracking)
+  const [deadZonePct, setDeadZonePct] = useState<number>(() => {
+    if (typeof window === "undefined") return 60;
+    const v = Number(window.localStorage.getItem("tcb_tracking_deadzone"));
+    return Number.isFinite(v) && v >= 30 && v <= 90 ? v : 60;
+  });
+  const [autoResume, setAutoResume] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem("tcb_tracking_autoresume") !== "0";
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("tcb_tracking_deadzone", String(deadZonePct));
+    } catch {}
+  }, [deadZonePct]);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("tcb_tracking_autoresume", autoResume ? "1" : "0");
+    } catch {}
+  }, [autoResume]);
 
   const { status: pushStatus, subscribe } = usePushNotifications();
 
-  // Refs carte
+  // ── Refs carte ─────────────────────────────────────────────────────────────
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInst = useRef<any>(null);
   const markerRef = useRef<any>(null);
@@ -421,7 +446,7 @@ function SuiviPage() {
     };
   }, []);
 
-  // ── Animation fluide marqueur (style Uber) ───────────────────────────────
+  // ── Animation fluide marqueur — durée adaptative (depuis tracking) ───────
   const animateMarkerTo = (toLat: number, toLng: number) => {
     const marker = markerRef.current;
     if (!marker) return;
@@ -432,7 +457,9 @@ function SuiviPage() {
     const from = marker.getLatLng();
     const fromLat = from.lat,
       fromLng = from.lng;
-    const duration = 1200;
+    // [FUSION] durée adaptative selon distance (700ms–2200ms) au lieu de 1200ms fixe
+    const dist = distMeters({ lat: fromLat, lng: fromLng }, { lat: toLat, lng: toLng });
+    const duration = Math.min(2200, Math.max(700, dist * 25));
     const startT = performance.now();
     const step = (now: number) => {
       const t = Math.min(1, (now - startT) / duration);
@@ -495,14 +522,19 @@ function SuiviPage() {
     }
   };
 
-  // ── ETA ─────────────────────────────────────────────────────────────────
+  // ── ETA — stocke aussi les km restants (depuis tracking) ────────────────
   const calculateETA = async (lat: number, lng: number, destCoords?: [number, number]) => {
     try {
       const [dLat, dLng] = destCoords ?? BORDEAUX_CENTER;
       const result = await getDistanceAndDurationKm([lng, lat], [dLng, dLat]);
-      if (result) setEta(Math.ceil(result.durationSec / 60));
+      if (result) {
+        setEta(Math.ceil(result.durationSec / 60));
+        // [FUSION] stocker km restants pour l'affichage
+        setEtaKm(result.distanceKm.toFixed(1));
+      }
     } catch {
       setEta(null);
+      setEtaKm(null);
     }
   };
 
@@ -568,7 +600,6 @@ function SuiviPage() {
       }
       animateMarkerTo(lat, lng);
 
-      // Suivi avec zone morte
       if (userPannedRef.current) {
         if (autoResumeRef.current) {
           try {
@@ -620,7 +651,7 @@ function SuiviPage() {
     setUserPanned(false);
   }, []);
 
-  // ── Tracé départ → destination ──────────────────────────────────────────
+  // ── Tracé départ → destination (stocke totalKm) ──────────────────────────
   const drawTripRoute = useCallback(async (depart: string, destination: string) => {
     const map = mapInst.current;
     const L = (window as any).L;
@@ -636,9 +667,8 @@ function SuiviPage() {
     try {
       const route = await getRouteGeoCoords(a, b);
       const coords: [number, number][] = route?.coords ?? [a, b];
-      if (route?.distanceKm) {
-        /* totalKm disponible si besoin */
-      }
+      // [FUSION] stocker la distance totale pour la barre de progression
+      if (route?.distanceKm) setTotalKm(parseFloat(route.distanceKm.toFixed(1)));
 
       if (tripLayer.current) {
         tripLayer.current.remove();
@@ -659,7 +689,6 @@ function SuiviPage() {
         dashArray: "8 6",
       }).addTo(map);
 
-      // Marqueur départ pulsant
       const depIcon = L.divIcon({
         className: "",
         html: `<div style="position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center">
@@ -681,7 +710,6 @@ function SuiviPage() {
       fromMarker.current = L.marker(a, { icon: depIcon }).addTo(map).bindPopup("📍 Prise en charge");
       toMarker.current = L.marker(b, { icon: destIcon }).addTo(map).bindPopup("🏁 Destination");
 
-      // Tracé approche chauffeur si déjà en position
       const driverPos = markerRef.current?.getLatLng();
       if (driverPos) drawApproachLine(driverPos.lat, driverPos.lng, a);
 
@@ -814,6 +842,8 @@ function SuiviPage() {
               return;
             }
             if (["terminee", "terminée", "completed", "done"].includes(newStatus)) {
+              // [FUSION] toast info + message complet (depuis tracking)
+              toast.info("Course terminée", { description: "Merci d'avoir voyagé avec Taxi City Bordeaux." });
               setCourseTerminee(true);
               return;
             }
@@ -856,15 +886,22 @@ function SuiviPage() {
     setLoading(true);
     setError(null);
     setLoadStep(0);
+
+    // [FUSION] analytics visite — identique à tracking
+    const sessionId = sessionStorage.getItem("sid") || Math.random().toString(36).slice(2);
+    sessionStorage.setItem("sid", sessionId);
+    supabase.from("site_analytics").insert({ event: "suivi_open", session_id: sessionId });
+
     const toastId = "suivi-load";
 
     const init = async () => {
-      // 1. Chercher d'abord par tracking_id (UUID valide)
+      // 1. Valider l'ID
       const parsed = trackingIdSchema.safeParse(id);
       let r: Reservation | null = null;
 
       setLoadStep(1);
       if (parsed.success) {
+        // Chercher d'abord par tracking_id
         const { data: byTracking } = await (supabase as any)
           .from("reservations")
           .select(
@@ -875,7 +912,7 @@ function SuiviPage() {
         if (byTracking) r = byTracking;
       }
 
-      // 2. Fallback par id direct
+      // Fallback par id direct
       if (!r) {
         const { data: byId } = await (supabase as any)
           .from("reservations")
@@ -888,6 +925,7 @@ function SuiviPage() {
       }
 
       if (!r) {
+        toast.error("Aucune course trouvée", { id: toastId });
         setError({
           code: "notfound",
           title: "Réservation introuvable",
@@ -897,7 +935,20 @@ function SuiviPage() {
         return;
       }
 
-      // 3. Vérifier statut
+      // [FUSION] Vérification expiration 24h (depuis tracking)
+      const createdAt = r.created_at ? new Date(r.created_at).getTime() : 0;
+      if (createdAt && Date.now() - createdAt > 24 * 60 * 60 * 1000) {
+        toast.error("Lien expiré", { id: toastId });
+        setError({
+          code: "expired",
+          title: "Lien de suivi expiré",
+          message: "Ce lien de suivi a expiré (plus de 24h). Contactez-nous pour en obtenir un nouveau.",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // 2. Vérifier statut
       const status = (r.status || "").toLowerCase();
       if (["refusee", "refused", "annulee", "cancelled", "canceled"].includes(status)) {
         setError({
@@ -928,7 +979,7 @@ function SuiviPage() {
       }
 
       setLoadStep(2);
-      // 4. Mode GPS (single / multi)
+      // 3. Mode GPS (single / multi)
       const { data: settings } = await supabase.from("app_settings").select("tracking_mode").eq("id", 1).maybeSingle();
       const mode = (settings?.tracking_mode === "multi" ? "multi" : "single") as "single" | "multi";
       const gpsId = mode === "multi" ? r.tracking_id || "driver" : "driver";
@@ -947,6 +998,13 @@ function SuiviPage() {
       }
 
       if (dep && dest) drawTripRoute(dep, dest);
+
+      const clientName = ((r.client_name || r.nom) ?? "").toString().trim();
+      toast.success("✅ Course trouvée", {
+        id: toastId,
+        description: `${clientName ? clientName + " — " : ""}mode ${mode === "multi" ? "multi-courses" : "chauffeur unique"}`,
+        duration: 4000,
+      });
 
       setLoading(false);
       subscribeRealtime(gpsId, r.id, mode);
@@ -994,14 +1052,16 @@ function SuiviPage() {
     }
   };
 
-  // ── Refresh manuel ────────────────────────────────────────────────────────
+  // ── Refresh manuel — complet (depuis tracking) ────────────────────────────
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       if (resaIdRef.current) {
         const { data: r } = await supabase
           .from("reservations")
-          .select("status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,distance_km")
+          .select(
+            "status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,distance_km,client_name,nom",
+          )
           .eq("id", resaIdRef.current)
           .maybeSingle();
         if (r) setResa((prev) => (prev ? { ...prev, ...r } : prev));
@@ -1011,6 +1071,7 @@ function SuiviPage() {
         setLastUpdate(new Date());
         await applyDriverPosition(data.latitude, data.longitude);
       }
+      // [FUSION] invalidateSize après refresh (depuis tracking)
       if (mapInst.current) setTimeout(() => mapInst.current?.invalidateSize({ animate: false }), 100);
       toast.success("✅ Informations mises à jour");
     } catch {
@@ -1033,6 +1094,48 @@ function SuiviPage() {
       (supabase as any).from("reservations").update({ status: "completed" }).eq("id", resa.id);
     }
   }, [taxiPos, resa, courseTerminee]);
+
+  // ── Ajout au calendrier (depuis tracking) ────────────────────────────────
+  const addToCalendar = (type: "google" | "apple") => {
+    if (!resa?.pickup_datetime) return;
+    const start = new Date(resa.pickup_datetime);
+    const end = new Date(start.getTime() + 60 * 60_000);
+    const title = encodeURIComponent("Course Taxi City Bordeaux");
+    const details = encodeURIComponent(
+      `Départ : ${resa.depart || "—"}\nDestination : ${resa.destination || resa.arrivee || "—"}\nChauffeur : 06 73 07 23 22`,
+    );
+    const loc = encodeURIComponent(resa.depart || "Bordeaux");
+    if (type === "google") {
+      const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+      window.open(
+        `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${fmt(start)}/${fmt(end)}&details=${details}&location=${loc}`,
+        "_blank",
+        "noopener,noreferrer",
+      );
+    } else {
+      const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+      const ics = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//TaxiCityBordeaux//FR",
+        "BEGIN:VEVENT",
+        `DTSTART:${fmt(start)}`,
+        `DTEND:${fmt(end)}`,
+        "SUMMARY:Course Taxi City Bordeaux",
+        `DESCRIPTION:Départ : ${resa.depart || "—"}\\nDestination : ${resa.destination || resa.arrivee || "—"}`,
+        `LOCATION:${resa.depart || "Bordeaux"}`,
+        "END:VEVENT",
+        "END:VCALENDAR",
+      ].join("\r\n");
+      const blob = new Blob([ics], { type: "text/calendar" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "course-taxi.ics";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  };
 
   // ── UI helpers ────────────────────────────────────────────────────────────
   const statusConfig: Record<string, { label: string; color: string; bg: string; icon: string; pulse: boolean }> = {
@@ -1089,6 +1192,11 @@ function SuiviPage() {
   const passagers = resa?.nb_passagers || resa?.passagers || 1;
   const prix = resa?.prix_estime ? `${Number(resa.prix_estime).toFixed(2)} €` : null;
   const distanceKm = resa?.distance_km ?? null;
+  const clientName = ((resa?.client_name || resa?.nom) ?? "").toString().trim();
+  // [FUSION] calcul barre de progression (depuis tracking)
+  const kmLeft = etaKm ? parseFloat(etaKm) : null;
+  const pctDone =
+    totalKm && kmLeft !== null ? Math.min(100, Math.max(0, Math.round(((totalKm - kmLeft) / totalKm) * 100))) : null;
 
   // ── Écran chargement ──────────────────────────────────────────────────────
   if (loading) {
@@ -1209,49 +1317,233 @@ function SuiviPage() {
             </div>
           ))}
         </div>
+        {/* [FUSION] messages délai + bouton retry (depuis tracking) */}
+        {elapsed > 12 && elapsed <= 30 && (
+          <p style={{ fontSize: 12, color: "#64748b", maxWidth: 300, textAlign: "center", marginTop: 4 }}>
+            La connexion prend plus de temps que prévu…
+          </p>
+        )}
+        {elapsed > 30 && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, marginTop: 6 }}>
+            <p style={{ fontSize: 13, color: "#fbbf24", textAlign: "center", margin: 0 }}>
+              ⏱️ Récupération trop longue. Vérifiez votre connexion.
+            </p>
+            <button
+              onClick={() => {
+                setError(null);
+                setLoading(true);
+                setElapsed(0);
+                setLoadStep(0);
+                setRetryNonce((n) => n + 1);
+              }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "12px 22px",
+                background: "linear-gradient(135deg,#f5c842,#d97706)",
+                color: "#08080f",
+                border: "none",
+                borderRadius: 12,
+                fontFamily: "'Syne',sans-serif",
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: "pointer",
+              }}
+            >
+              🔄 Réessayer
+            </button>
+          </div>
+        )}
       </div>
     );
   }
 
   // ── Écran erreur ─────────────────────────────────────────────────────────
   if (error) {
+    const icon = error.code === "invalid" ? "⚠️" : error.code === "expired" ? "⏱️" : "🔍";
     return (
       <div
         style={{
-          position: "fixed",
-          inset: 0,
+          minHeight: "100vh",
           background: "#08080f",
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          padding: 24,
-          fontFamily: "'DM Sans',sans-serif",
+          gap: 18,
+          padding: 28,
+          textAlign: "center",
         }}
       >
-        <div style={{ textAlign: "center", maxWidth: 340 }}>
-          <div style={{ fontSize: 52, marginBottom: 16 }}>
-            {error.code === "notfound" ? "🔍" : error.code === "invalid" ? "❌" : "🏁"}
-          </div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#f1f5f9", marginBottom: 8 }}>{error.title}</div>
-          <div style={{ color: "#475569", fontSize: 14, lineHeight: 1.6 }}>{error.message}</div>
+        <style>{`@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');`}</style>
+        <div
+          style={{
+            width: 88,
+            height: 88,
+            borderRadius: "50%",
+            background: "rgba(245,158,11,0.12)",
+            border: "2px solid rgba(245,158,11,0.35)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 42,
+          }}
+        >
+          {icon}
+        </div>
+        <div style={{ maxWidth: 380 }}>
+          <h1 style={{ fontFamily: "'Syne',sans-serif", fontWeight: 900, fontSize: 22, color: "#f8fafc", margin: 0 }}>
+            {error.title}
+          </h1>
+          <p
+            style={{
+              fontFamily: "'DM Sans',sans-serif",
+              fontSize: 14,
+              color: "#94a3b8",
+              marginTop: 10,
+              lineHeight: 1.55,
+            }}
+          >
+            {error.message}
+          </p>
+          <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "#334155", marginTop: 12 }}>
+            Code: {id?.slice(0, 12) || "—"}
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+          <button
+            onClick={() => setRetryNonce((n) => n + 1)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "12px 20px",
+              background: "linear-gradient(135deg,#f5c842,#d97706)",
+              color: "#08080f",
+              border: "none",
+              borderRadius: 12,
+              fontFamily: "'Syne',sans-serif",
+              fontWeight: 700,
+              fontSize: 14,
+              cursor: "pointer",
+            }}
+          >
+            🔄 Réessayer
+          </button>
+          <a
+            href="https://taxicitybordeaux.fr"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "12px 20px",
+              background: "rgba(255,255,255,0.06)",
+              color: "#f1f5f9",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 12,
+              fontFamily: "'Syne',sans-serif",
+              fontWeight: 700,
+              fontSize: 14,
+              textDecoration: "none",
+            }}
+          >
+            🏠 Site
+          </a>
           <a
             href="tel:0673072322"
             style={{
               display: "inline-flex",
               alignItems: "center",
               gap: 8,
-              marginTop: 24,
-              padding: "12px 24px",
-              background: "linear-gradient(135deg,#f5c842,#d97706)",
-              borderRadius: 14,
-              color: "#08080f",
-              fontWeight: 700,
-              fontSize: 15,
+              padding: "12px 20px",
+              background: "#22c55e",
+              color: "#fff",
+              borderRadius: 12,
               textDecoration: "none",
+              fontFamily: "'Syne',sans-serif",
+              fontWeight: 700,
+              fontSize: 14,
             }}
           >
-            📞 Nous appeler
+            📞 Appeler
           </a>
+        </div>
+        {/* [FUSION] bloc aide avec WhatsApp contextuel (depuis tracking) */}
+        <div
+          style={{
+            marginTop: 14,
+            padding: "14px 18px",
+            background: "rgba(245,200,66,0.06)",
+            border: "1px solid rgba(245,200,66,0.2)",
+            borderRadius: 14,
+            maxWidth: 380,
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "'Syne',sans-serif",
+              fontWeight: 700,
+              fontSize: 13,
+              color: "#cbd5e1",
+              marginBottom: 8,
+            }}
+          >
+            🆘 Besoin d'aide ?
+          </div>
+          <p
+            style={{
+              fontFamily: "'DM Sans',sans-serif",
+              fontSize: 12,
+              color: "#94a3b8",
+              margin: "0 0 10px",
+              lineHeight: 1.5,
+            }}
+          >
+            Notre équipe vous répond 7j/7.
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+            <a
+              href={`https://wa.me/33673072322?text=${encodeURIComponent(`Bonjour, j'obtiens l'erreur « ${error.title} ». Code : ${id?.slice(0, 12) || "—"}`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "10px 16px",
+                background: "#25D366",
+                color: "#fff",
+                borderRadius: 10,
+                textDecoration: "none",
+                fontFamily: "'Syne',sans-serif",
+                fontWeight: 700,
+                fontSize: 13,
+              }}
+            >
+              💬 WhatsApp
+            </a>
+            <a
+              href="/contact"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "10px 16px",
+                background: "rgba(255,255,255,0.08)",
+                color: "#f1f5f9",
+                border: "1px solid rgba(255,255,255,0.15)",
+                borderRadius: 10,
+                textDecoration: "none",
+                fontFamily: "'Syne',sans-serif",
+                fontWeight: 700,
+                fontSize: 13,
+              }}
+            >
+              ✉️ Assistance
+            </a>
+          </div>
         </div>
       </div>
     );
@@ -1283,6 +1575,7 @@ function SuiviPage() {
         @keyframes pulse    { 0%,100%{opacity:1} 50%{opacity:.4} }
         @keyframes slideUp  { from{transform:translateY(32px);opacity:0} to{transform:translateY(0);opacity:1} }
         @keyframes driverPulse { 0%,100%{box-shadow:0 0 0 0 rgba(245,200,66,0)} 50%{box-shadow:0 0 0 14px rgba(245,200,66,0.15)} }
+        @keyframes spin { to{transform:rotate(360deg)} }
         .sheet-btn:active { transform:scale(0.96); }
         .leaflet-container { background:#0d1117 !important; width:100%!important; height:100%!important; }
         .leaflet-tooltip { background:rgba(10,10,20,0.9)!important; border:1px solid rgba(245,200,66,0.3)!important; color:#f5c842!important; font-weight:700!important; border-radius:8px!important; }
@@ -1323,6 +1616,60 @@ function SuiviPage() {
           >
             🎯 Recentrer
           </button>
+        )}
+
+        {/* [FUSION] réglage zone morte persisté (depuis tracking) */}
+        {taxiPos && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: 12,
+              left: 12,
+              zIndex: 1000,
+              padding: "6px 10px",
+              borderRadius: 10,
+              background: "rgba(10,10,20,0.7)",
+              backdropFilter: "blur(6px)",
+              color: "white",
+              fontSize: 11,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              maxWidth: 220,
+            }}
+          >
+            <span style={{ opacity: 0.8 }}>Suivi</span>
+            <input
+              type="range"
+              min={30}
+              max={90}
+              step={5}
+              value={deadZonePct}
+              onChange={(e) => setDeadZonePct(Number(e.target.value))}
+              style={{ flex: 1, accentColor: "#f5c842" }}
+              aria-label="Zone morte du suivi auto"
+            />
+            <span style={{ opacity: 0.8, minWidth: 28, textAlign: "right" }}>{deadZonePct}%</span>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                cursor: "pointer",
+                paddingLeft: 6,
+                borderLeft: "1px solid rgba(255,255,255,0.15)",
+              }}
+              title="Réactive le suivi auto si le taxi revient dans la zone visible"
+            >
+              <input
+                type="checkbox"
+                checked={autoResume}
+                onChange={(e) => setAutoResume(e.target.checked)}
+                style={{ accentColor: "#f5c842", margin: 0 }}
+              />
+              <span style={{ opacity: 0.85 }}>auto</span>
+            </label>
+          </div>
         )}
 
         {/* Indicateur last update */}
@@ -1432,6 +1779,8 @@ function SuiviPage() {
                     {eta}
                     <span style={{ fontSize: 10, marginLeft: 2, fontWeight: 500 }}>min</span>
                   </span>
+                  {/* [FUSION] km restants affiché sous l'ETA */}
+                  {etaKm && <span style={{ marginLeft: 6, color: "#475569" }}>· {etaKm} km</span>}
                 </div>
               )}
               {courseTerminee && (
@@ -1462,6 +1811,107 @@ function SuiviPage() {
         </div>
 
         <div style={{ padding: "0 20px 4px" }}>
+          {/* [FUSION] Barre de progression départ→destination (depuis tracking) */}
+          {resa.depart && (resa.destination || resa.arrivee) && (
+            <div
+              style={{
+                marginBottom: 14,
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.07)",
+                borderRadius: 16,
+                padding: "16px 16px 14px",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                <span style={{ fontSize: 18, lineHeight: 1 }}>🟢</span>
+                <span style={{ fontSize: 18, lineHeight: 1 }}>🏁</span>
+              </div>
+              <div
+                style={{
+                  position: "relative",
+                  height: 6,
+                  borderRadius: 3,
+                  overflow: "visible",
+                  background: "rgba(255,255,255,0.06)",
+                }}
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    height: "100%",
+                    width: pctDone !== null ? `${pctDone}%` : "0%",
+                    background: "#f5c842",
+                    borderRadius: 3,
+                    transition: "width 0.6s ease",
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "50%",
+                    left: pctDone !== null ? `${pctDone}%` : "0%",
+                    transform: "translate(-50%, -50%)",
+                    transition: "left 0.6s ease",
+                    zIndex: 2,
+                    width: 26,
+                    height: 26,
+                    borderRadius: "50%",
+                    background: "#f5c842",
+                    border: "2px solid #08080f",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 2px 8px rgba(245,200,66,0.45)",
+                  }}
+                >
+                  <img
+                    src={TAXI_ICON_URI}
+                    style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
+                    alt="taxi"
+                  />
+                </div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14 }}>
+                <span
+                  style={{
+                    fontFamily: "'DM Sans',sans-serif",
+                    fontSize: 12,
+                    color: "#475569",
+                    maxWidth: "45%",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {resa.depart}
+                </span>
+                <span
+                  style={{
+                    fontFamily: "'DM Sans',sans-serif",
+                    fontSize: 12,
+                    color: "#475569",
+                    maxWidth: "45%",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    textAlign: "right",
+                  }}
+                >
+                  {resa.destination || resa.arrivee}
+                </span>
+              </div>
+              {pctDone !== null && (
+                <div style={{ textAlign: "center", marginTop: 8 }}>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "#f5c842" }}>
+                    {pctDone}% parcouru · {etaKm} km restants
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ── CHAUFFEUR ── */}
           <div
             style={{
@@ -1520,6 +1970,32 @@ function SuiviPage() {
             </div>
           </div>
 
+          {/* [FUSION] Bandeau client (depuis tracking) */}
+          {clientName && (
+            <div
+              style={{
+                marginBottom: 14,
+                background: "rgba(34,197,94,0.06)",
+                border: "1px solid rgba(34,197,94,0.18)",
+                borderRadius: 14,
+                padding: "12px 16px",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
+              <span style={{ fontSize: 20 }}>👋</span>
+              <div>
+                <div className="typo-label" style={{ fontSize: 10, color: "#334155" }}>
+                  COURSE DE
+                </div>
+                <div className="typo-body" style={{ fontSize: 15, fontWeight: 700, color: "#f1f5f9", marginTop: 3 }}>
+                  {clientName}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ── INFOS COURSE ── */}
           <div
             style={{
@@ -1530,29 +2006,18 @@ function SuiviPage() {
               marginBottom: 14,
             }}
           >
-            {/* Trajet */}
-            <div style={{ display: "flex", gap: 12, alignItems: "stretch", marginBottom: 14 }}>
-              <div
-                style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 3, flexShrink: 0 }}
-              >
+            <div style={{ display: "flex", gap: 14, marginBottom: 14 }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, paddingTop: 4 }}>
                 <div
                   style={{
                     width: 10,
                     height: 10,
                     borderRadius: "50%",
                     background: "#22c55e",
-                    boxShadow: "0 0 0 3px rgba(34,197,94,0.15)",
+                    boxShadow: "0 0 0 3px rgba(34,197,94,0.2)",
                   }}
                 />
-                <div
-                  style={{
-                    width: 1.5,
-                    flex: 1,
-                    background: "linear-gradient(#22c55e, #f5c842)",
-                    margin: "4px 0",
-                    opacity: 0.4,
-                  }}
-                />
+                <div style={{ width: 2, flex: 1, background: "rgba(255,255,255,0.08)", borderRadius: 1 }} />
                 <div
                   style={{
                     width: 10,
@@ -1687,6 +2152,85 @@ function SuiviPage() {
             </div>
           </div>
 
+          {/* [FUSION] Ajout au calendrier (depuis tracking) */}
+          {resa.pickup_datetime &&
+            (() => {
+              const d = new Date(resa.pickup_datetime);
+              const formatted = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+              const time = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+              return (
+                <div
+                  style={{
+                    marginBottom: 14,
+                    background: "rgba(245,158,11,0.06)",
+                    border: "1px solid rgba(245,158,11,0.2)",
+                    borderRadius: 14,
+                    padding: "12px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ fontSize: 20 }}>🕒</span>
+                    <div>
+                      <div className="typo-label" style={{ fontSize: 10, color: "#334155" }}>
+                        PRISE EN CHARGE
+                      </div>
+                      <div
+                        className="typo-body"
+                        style={{
+                          fontSize: 15,
+                          fontWeight: 700,
+                          color: "#f1f5f9",
+                          marginTop: 3,
+                          textTransform: "capitalize",
+                        }}
+                      >
+                        {formatted} · {time}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button
+                      onClick={() => addToCalendar("google")}
+                      title="Ajouter à Google Calendar"
+                      style={{
+                        padding: "7px 12px",
+                        background: "rgba(245,200,66,0.12)",
+                        border: "1px solid rgba(245,200,66,0.3)",
+                        color: "#f5c842",
+                        borderRadius: 10,
+                        cursor: "pointer",
+                        fontSize: 12,
+                        fontWeight: 700,
+                      }}
+                    >
+                      📅 Google
+                    </button>
+                    <button
+                      onClick={() => addToCalendar("apple")}
+                      title="Ajouter à Apple Calendar (.ics)"
+                      style={{
+                        padding: "7px 12px",
+                        background: "rgba(255,255,255,0.06)",
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        color: "#94a3b8",
+                        borderRadius: 10,
+                        cursor: "pointer",
+                        fontSize: 12,
+                        fontWeight: 700,
+                      }}
+                    >
+                      🍎 Apple
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
           {/* ── ACTIONS ── */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
             <button
@@ -1753,7 +2297,10 @@ function SuiviPage() {
                 fontWeight: 600,
               }}
             >
-              {refreshing ? "⏳" : "🔄"} Rafraîchir
+              <span style={{ display: "inline-block", animation: refreshing ? "spin 0.8s linear infinite" : "none" }}>
+                {refreshing ? "⏳" : "🔄"}
+              </span>{" "}
+              Rafraîchir
             </button>
             <button
               className="sheet-btn"
