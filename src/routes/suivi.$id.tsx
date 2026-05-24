@@ -252,7 +252,7 @@ interface Reservation {
   prix_estime?: string | number | null;
   nb_passagers?: number | null;
   passagers?: number | null;
-  tracking_id?: string | null;
+  suivi_id?: string | null;
   distance_km?: number | null;
   created_at?: string | null;
 }
@@ -909,13 +909,13 @@ function SuiviPage() {
 
       setLoadStep(1);
       if (parsed.success) {
-        // Chercher d'abord par tracking_id
+        // Chercher d'abord par suivi_id
         const { data: byTracking } = await (supabase as any)
           .from("reservations")
           .select(
-            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,tracking_id,distance_km,created_at",
+            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,suivi_id,distance_km,created_at",
           )
-          .eq("tracking_id", parsed.data)
+          .eq("suivi_id", parsed.data)
           .maybeSingle();
         if (byTracking) r = byTracking;
       }
@@ -925,7 +925,7 @@ function SuiviPage() {
         const { data: byId } = await (supabase as any)
           .from("reservations")
           .select(
-            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,tracking_id,distance_km,created_at",
+            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,suivi_id,distance_km,created_at",
           )
           .eq("id", id)
           .maybeSingle();
