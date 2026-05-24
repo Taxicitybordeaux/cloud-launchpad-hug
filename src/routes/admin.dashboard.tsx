@@ -2087,41 +2087,44 @@ function Dashboard() {
                     </div>
                   )}
                   <div className="contact-btns" style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {(r.client_phone || r.telephone) && (
-                      <>
-                        <a href={`tel:${r.client_phone || r.telephone}`} style={contactBtn("#0ea5e9")}>
-                          📞 Appeler
-                        </a>
-                        <a
-                          href={`sms:${r.client_phone || r.telephone}?body=${encodeURIComponent(
-                            `Bonjour ${r.client_name || r.nom || ""}, votre taxi Taxi City Bordeaux.`,
-                          )}`}
-                          style={contactBtn("#a855f7")}
-                        >
-                          💬 SMS
-                        </a>
-                        <a
-                          href={`https://wa.me/${(r.client_phone || r.telephone || "").replace(/[^0-9]/g, "").replace(/^0/, "33")}?text=${encodeURIComponent(
-                            `Bonjour ${r.client_name || r.nom || ""}, Taxi City Bordeaux.`,
-                          )}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={contactBtn("#22c55e")}
-                        >
-                          🟢 WhatsApp
-                        </a>
-                      </>
-                    )}
-                    {(r.client_email || r.email) && (
-                      <a
-                        href={`mailto:${r.client_email || r.email}?subject=${encodeURIComponent(
-                          "Votre course Taxi City Bordeaux",
-                        )}`}
-                        style={contactBtn("#f5c842")}
-                      >
-                        ✉️ Email
-                      </a>
-                    )}
+                    {(() => {
+                      const trackUrl = r.tracking_id && typeof window !== "undefined"
+                        ? `${window.location.origin}/suivi/${r.tracking_id}`
+                        : "";
+                      const greet = `Bonjour ${r.client_name || r.nom || ""}, votre taxi Taxi City Bordeaux.`;
+                      const body = trackUrl ? `${greet}\nSuivre votre chauffeur : ${trackUrl}` : greet;
+                      const phone = r.client_phone || r.telephone;
+                      const mail = r.client_email || r.email;
+                      const mailBody = trackUrl
+                        ? `Bonjour ${r.client_name || r.nom || ""},\n\nVoici le lien pour suivre votre chauffeur en temps réel :\n${trackUrl}\n\nTaxi City Bordeaux`
+                        : `Bonjour ${r.client_name || r.nom || ""},\n\nTaxi City Bordeaux`;
+                      return (
+                        <>
+                          {phone && (
+                            <>
+                              <a href={`tel:${phone}`} style={contactBtn("#0ea5e9")}>📞 Appeler</a>
+                              <a href={`sms:${phone}?body=${encodeURIComponent(body)}`} style={contactBtn("#a855f7")}>💬 SMS</a>
+                              <a
+                                href={`https://wa.me/${phone.replace(/[^0-9]/g, "").replace(/^0/, "33")}?text=${encodeURIComponent(body)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={contactBtn("#22c55e")}
+                              >
+                                🟢 WhatsApp
+                              </a>
+                            </>
+                          )}
+                          {mail && (
+                            <a
+                              href={`mailto:${mail}?subject=${encodeURIComponent("Votre course Taxi City Bordeaux")}&body=${encodeURIComponent(mailBody)}`}
+                              style={contactBtn("#f5c842")}
+                            >
+                              ✉️ Email
+                            </a>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               </SwipeDeleteRow>
