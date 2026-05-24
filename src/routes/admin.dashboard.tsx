@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix, calculerPrixMixte } from "@/lib/tarif";
 import { getDistanceAndDurationKm } from "@/lib/osrm";
 import { geocodeAddress } from "@/lib/geocode";
-import { assertTrackingId, newTrackingId } from "@/lib/tracking-id";
+import { assertSuiviId, newSuiviId } from "@/lib/suivi-id";
 import { CourseCardSkeleton, GpsCardSkeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
 import logo from "@/assets/logo.jpeg";
 import { EnablePushButton } from "@/components/EnablePushButton";
@@ -361,8 +361,6 @@ function Dashboard() {
   const [cardKmLoading, setCardKmLoading] = useState<Record<string, boolean>>({});
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [autoKm, setAutoKm] = useState<number | null>(null);
-  const [kmLoading, setKmLoading] = useState(false);
   const [customPrix, setCustomPrix] = useState<Record<string, string>>({});
   const [customPrixSending, setCustomPrixSending] = useState<Record<string, boolean>>({});
 
@@ -738,18 +736,40 @@ function Dashboard() {
   // ACCEPT — seule action manuelle
   // =========================
   const handleAccept = async (r: any) => {
-    let trackingId: string;
+    // ── Vérification conflit de créneau ──
+    if (r.pickup_datetime) {
+      const pickupMs = new Date(r.pickup_datetime).getTime();
+      const BUFFER_MS = 60 * 60 * 1000; // ±1h de tampon
+      const conflict = items.find(
+        (item) =>
+          item.id !== r.id &&
+          item.pickup_datetime &&
+          (item.status === "accepted" || item.status === "en_route" || item.status === "arrived") &&
+          Math.abs(new Date(item.pickup_datetime).getTime() - pickupMs) < BUFFER_MS,
+      );
+      if (conflict) {
+        const conflictTime = formatParis(conflict.pickup_datetime, { timeStyle: "short", dateStyle: "short" });
+        const conflictName = conflict.client_name || conflict.nom || "un client";
+        toast.error("⚠️ Conflit de créneau", {
+          description: `Une course est déjà acceptée pour ${conflictName} à ${conflictTime} (moins d'1h d'écart). Refusez-la d'abord ou ajustez l'horaire.`,
+          duration: 8000,
+        });
+        return;
+      }
+    }
+
+    let suiviId: string;
     try {
-      trackingId = r.tracking_id ? assertTrackingId(r.tracking_id) : newTrackingId();
-      assertTrackingId(trackingId);
+      suiviId = r.suivi_id ? assertSuiviId(r.suivi_id) : newSuiviId();
+      assertSuiviId(suiviId);
     } catch (e) {
       toast.error("Impossible d'accepter la course", {
-        description: e instanceof Error ? e.message : "tracking_id invalide",
+        description: e instanceof Error ? e.message : "suivi_id invalide",
       });
       return;
     }
     const tarifNuitCourse = r.pickup_datetime ? isNuit(r.pickup_datetime) : r.tarif_jour === false;
-    const km = r.distance_km ? Number(r.distance_km) : (autoKm ?? 5);
+    const km = r.distance_km ? Number(r.distance_km) : 5;
     const prixCalcule = r.pickup_datetime
       ? calculerPrixMixte(km, r.pickup_datetime)
       : calculerPrix(km, !tarifNuitCourse);
@@ -758,7 +778,7 @@ function Dashboard() {
       .from("reservations")
       .update({
         status: "accepted",
-        tracking_id: trackingId,
+        suivi_id: suiviId,
         tarif_jour: !tarifNuitCourse,
         distance_km: km,
         prix_estime: prixCalcule,
@@ -795,7 +815,7 @@ function Dashboard() {
       new Audio("/notification.mp3").play().catch(() => {});
     } catch {}
 
-    const url = typeof window !== "undefined" ? `${window.location.origin}/scan/${trackingId}` : "";
+    const url = typeof window !== "undefined" ? `${window.location.origin}/suivi/${suiviId}` : "";
     if (url) {
       try {
         await navigator.clipboard.writeText(url);
@@ -852,7 +872,7 @@ function Dashboard() {
     setItems((prev) =>
       prev.map((item) =>
         item.id === r.id
-          ? { ...item, status: "accepted", tracking_id: trackingId, distance_km: km, prix_estime: prixCalcule }
+          ? { ...item, status: "accepted", suivi_id: suiviId, distance_km: km, prix_estime: prixCalcule }
           : item,
       ),
     );
@@ -1106,9 +1126,8 @@ function Dashboard() {
     const phone = (r.client_phone || r.telephone || "").replace(/\s/g, "");
     const email = r.client_email || r.email || "";
     const trajet = `${r.depart} → ${r.destination || r.arrivee || "—"}`;
-    const trackUrl =
-      r.tracking_id && typeof window !== "undefined" ? `${window.location.origin}/suivi/${r.tracking_id}` : "";
-    const trackingLine = trackUrl ? `\nSuivre votre chauffeur : ${trackUrl}` : "";
+    const trackUrl = r.suivi_id && typeof window !== "undefined" ? `${window.location.origin}/suivi/${r.suivi_id}` : "";
+    const trackingLine = trackUrl ? `\nRetrouvez votre course ici : ${trackUrl}` : "";
     const msg = `Bonjour ${name}, le prix de votre course Taxi City Bordeaux (${trajet}) est de ${val.toFixed(2)} €. Merci.${trackingLine}`;
 
     if (canal === "sms") {
@@ -1517,6 +1536,51 @@ function Dashboard() {
               </button>
             </div>
           )}
+
+          {/* ── Boutons contact : SMS / WhatsApp / Email — uniquement courses acceptées/en cours ── */}
+          {(normalizeStatus(r.status) === "accepted" || r.status === "en_route" || r.status === "arrived") &&
+            (() => {
+              const phone = r.client_phone || r.telephone;
+              const mail = r.client_email || r.email;
+              const trackUrl =
+                r.suivi_id && typeof window !== "undefined" ? `${window.location.origin}/suivi/${r.suivi_id}` : "";
+              const greet = `Bonjour ${r.client_name || r.nom || ""}, votre taxi Taxi City Bordeaux.`;
+              const body = trackUrl ? `${greet}\nRetrouvez votre course ici : ${trackUrl}` : greet;
+              const mailBody = trackUrl
+                ? `Bonjour ${r.client_name || r.nom || ""},\n\nVoici le lien pour retrouver et suivre votre course en temps réel :\n${trackUrl}\n\nTaxi City Bordeaux`
+                : `Bonjour ${r.client_name || r.nom || ""},\n\nTaxi City Bordeaux`;
+              if (!phone && !mail) return null;
+              return (
+                <div className="contact-btns" style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {phone && (
+                    <>
+                      <a href={`tel:${phone}`} style={contactBtn("#0ea5e9")}>
+                        📞 Appeler
+                      </a>
+                      <a href={`sms:${phone}?body=${encodeURIComponent(body)}`} style={contactBtn("#a855f7")}>
+                        💬 SMS
+                      </a>
+                      <a
+                        href={`https://wa.me/${phone.replace(/[^0-9]/g, "").replace(/^0/, "33")}?text=${encodeURIComponent(body)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={contactBtn("#22c55e")}
+                      >
+                        🟢 WhatsApp
+                      </a>
+                    </>
+                  )}
+                  {mail && (
+                    <a
+                      href={`mailto:${mail}?subject=${encodeURIComponent("Votre course Taxi City Bordeaux")}&body=${encodeURIComponent(mailBody)}`}
+                      style={contactBtn("#f5c842")}
+                    >
+                      ✉️ Email
+                    </a>
+                  )}
+                </div>
+              );
+            })()}
         </div>
       </SwipeDeleteRow>
     );
@@ -2019,8 +2083,8 @@ function Dashboard() {
                   <div className="contact-btns" style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
                     {(() => {
                       const trackUrl =
-                        r.tracking_id && typeof window !== "undefined"
-                          ? `${window.location.origin}/suivi/${r.tracking_id}`
+                        r.suivi_id && typeof window !== "undefined"
+                          ? `${window.location.origin}/suivi/${r.suivi_id}`
                           : "";
                       const greet = `Bonjour ${r.client_name || r.nom || ""}, votre taxi Taxi City Bordeaux.`;
                       const body = trackUrl ? `${greet}\nSuivre votre chauffeur : ${trackUrl}` : greet;
