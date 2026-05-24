@@ -1,4 +1,4 @@
-import { Body, Container, Head, Heading, Hr, Html, Preview, Section, Text } from "@react-email/components";
+import { Body, Container, Head, Heading, Hr, Html, Link, Preview, Section, Text } from "@react-email/components";
 import type { TemplateEntry } from "./registry";
 
 type Lang = "fr" | "en" | "es" | "it" | "ar";
@@ -12,6 +12,7 @@ interface Props {
   passagers?: number | string;
   bagages?: number | string;
   reservation_id?: string;
+  unsubscribe_token?: string;
 }
 
 const STR: Record<Lang, Record<string, string>> = {
@@ -28,6 +29,7 @@ const STR: Record<Lang, Record<string, string>> = {
     lug: "Bagages",
     ref: "N° de réservation",
     foot: "Pour toute question : 06 73 07 23 22 — Taxi City Bordeaux",
+    unsub: "Vous recevez cet email car vous avez effectué une réservation. Ne plus recevoir ces emails",
     subj: "Confirmation de votre réservation",
   },
   en: {
@@ -42,6 +44,7 @@ const STR: Record<Lang, Record<string, string>> = {
     lug: "Luggage",
     ref: "Booking number",
     foot: "Any question? +33 6 73 07 23 22 — Taxi City Bordeaux",
+    unsub: "You're receiving this email because you made a booking. Unsubscribe",
     subj: "Your booking confirmation",
   },
   es: {
@@ -56,6 +59,7 @@ const STR: Record<Lang, Record<string, string>> = {
     lug: "Equipaje",
     ref: "Nº de reserva",
     foot: "¿Alguna pregunta? +33 6 73 07 23 22 — Taxi City Bordeaux",
+    unsub: "Recibe este correo porque realizó una reserva. Cancelar suscripción",
     subj: "Confirmación de su reserva",
   },
   it: {
@@ -70,6 +74,7 @@ const STR: Record<Lang, Record<string, string>> = {
     lug: "Bagagli",
     ref: "N° di prenotazione",
     foot: "Domande? +33 6 73 07 23 22 — Taxi City Bordeaux",
+    unsub: "Stai ricevendo questa email perché hai effettuato una prenotazione. Annulla iscrizione",
     subj: "Conferma della sua prenotazione",
   },
   ar: {
@@ -84,6 +89,7 @@ const STR: Record<Lang, Record<string, string>> = {
     lug: "الأمتعة",
     ref: "رقم الحجز",
     foot: "لأي سؤال: +33 6 73 07 23 22 — Taxi City Bordeaux",
+    unsub: "تلقيت هذا البريد الإلكتروني لأنك أجريت حجزاً. إلغاء الاشتراك",
     subj: "تأكيد حجزك",
   },
 };
@@ -141,6 +147,13 @@ const Email = (p: Props) => {
             {ref ? <Row label={s.ref} value={ref} /> : null}
           </Section>
           <Text style={footer}>{s.foot}</Text>
+          {p.unsubscribe_token ? (
+            <Text style={unsubText}>
+              <Link href={`https://taxicitybordeaux.fr/unsubscribe?token=${p.unsubscribe_token}`} style={unsubLink}>
+                {s.unsub}
+              </Link>
+            </Text>
+          ) : null}
         </Container>
       </Body>
     </Html>
@@ -183,3 +196,5 @@ const rowLabel = { color: "#666", fontWeight: 600 };
 const rowValue = { color: "#111" };
 const hr = { borderColor: "#e5e5e5", margin: "12px 0" };
 const footer = { fontSize: "12px", color: "#999", margin: "20px 0 0" };
+const unsubText = { fontSize: "11px", color: "#bbb", margin: "8px 0 0", textAlign: "center" as const };
+const unsubLink = { color: "#bbb", textDecoration: "underline" };
