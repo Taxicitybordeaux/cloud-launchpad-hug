@@ -1031,6 +1031,20 @@ function Dashboard() {
     setActiveResaId(linkedId);
     activeResaIdRef.current = linkedId;
     setGpsActive(true);
+    // Obtenir la position immédiatement avant watchPosition
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude, accuracy: acc } = pos.coords;
+        lastPosRef.current = { lat: latitude, lng: longitude };
+        setGpsPosition({ lat: latitude, lng: longitude });
+        await (supabase as any)
+          .from("driver_gps")
+          .update({ latitude, longitude, accuracy: acc, updated_at: new Date().toISOString() })
+          .eq("id", "driver");
+      },
+      (err) => console.error("getCurrentPosition error:", err),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+    );
     watchIdRef.current = navigator.geolocation.watchPosition(
       async (pos) => {
         const { latitude, longitude, accuracy: acc, heading: rawHeading } = pos.coords;
@@ -1120,7 +1134,8 @@ function Dashboard() {
     const phone = (r.client_phone || r.telephone || "").replace(/\s/g, "");
     const email = r.client_email || r.email || "";
     const trajet = `${r.depart} → ${r.destination || r.arrivee || "—"}`;
-    const trackUrl = r.tracking_id && typeof window !== "undefined" ? `${window.location.origin}/suivi/${r.tracking_id}` : "";
+    const trackUrl =
+      r.tracking_id && typeof window !== "undefined" ? `${window.location.origin}/suivi/${r.tracking_id}` : "";
     const trackingLine = trackUrl ? `\nSuivre votre chauffeur : ${trackUrl}` : "";
     const msg = `Bonjour ${name}, le prix de votre course Taxi City Bordeaux (${trajet}) est de ${val.toFixed(2)} €. Merci.${trackingLine}`;
 
@@ -2090,9 +2105,10 @@ function Dashboard() {
                   )}
                   <div className="contact-btns" style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
                     {(() => {
-                      const trackUrl = r.tracking_id && typeof window !== "undefined"
-                        ? `${window.location.origin}/suivi/${r.tracking_id}`
-                        : "";
+                      const trackUrl =
+                        r.tracking_id && typeof window !== "undefined"
+                          ? `${window.location.origin}/suivi/${r.tracking_id}`
+                          : "";
                       const greet = `Bonjour ${r.client_name || r.nom || ""}, votre taxi Taxi City Bordeaux.`;
                       const body = trackUrl ? `${greet}\nSuivre votre chauffeur : ${trackUrl}` : greet;
                       const phone = r.client_phone || r.telephone;
@@ -2104,8 +2120,12 @@ function Dashboard() {
                         <>
                           {phone && (
                             <>
-                              <a href={`tel:${phone}`} style={contactBtn("#0ea5e9")}>📞 Appeler</a>
-                              <a href={`sms:${phone}?body=${encodeURIComponent(body)}`} style={contactBtn("#a855f7")}>💬 SMS</a>
+                              <a href={`tel:${phone}`} style={contactBtn("#0ea5e9")}>
+                                📞 Appeler
+                              </a>
+                              <a href={`sms:${phone}?body=${encodeURIComponent(body)}`} style={contactBtn("#a855f7")}>
+                                💬 SMS
+                              </a>
                               <a
                                 href={`https://wa.me/${phone.replace(/[^0-9]/g, "").replace(/^0/, "33")}?text=${encodeURIComponent(body)}`}
                                 target="_blank"
