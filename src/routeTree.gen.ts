@@ -33,7 +33,6 @@ import { Route as AdminCoursesRouteImport } from './routes/admin.courses'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as ApiPublicNotifyReservationClientRouteImport } from './routes/api/public/notify-reservation-client'
 import { Route as ApiPublicNotifyReservationRouteImport } from './routes/api/public/notify-reservation'
-import { Route as ApiPublicDriverLocationRouteImport } from './routes/api/public/driver-location'
 import { Route as ApiPublicContactRouteImport } from './routes/api/public/contact'
 import { Route as ApiAdminSendCourseEmailRouteImport } from './routes/api/admin/send-course-email'
 import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
@@ -164,11 +163,6 @@ const ApiPublicNotifyReservationRoute =
     path: '/api/public/notify-reservation',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicDriverLocationRoute = ApiPublicDriverLocationRouteImport.update({
-  id: '/api/public/driver-location',
-  path: '/api/public/driver-location',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiPublicContactRoute = ApiPublicContactRouteImport.update({
   id: '/api/public/contact',
   path: '/api/public/contact',
@@ -232,7 +226,6 @@ export interface FileRoutesByFullPath {
   '/tracking/$id': typeof TrackingIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
   '/api/public/contact': typeof ApiPublicContactRoute
-  '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
@@ -266,7 +259,6 @@ export interface FileRoutesByTo {
   '/tracking/$id': typeof TrackingIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
   '/api/public/contact': typeof ApiPublicContactRoute
-  '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
@@ -301,7 +293,6 @@ export interface FileRoutesById {
   '/tracking/$id': typeof TrackingIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
   '/api/public/contact': typeof ApiPublicContactRoute
-  '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
@@ -337,7 +328,6 @@ export interface FileRouteTypes {
     | '/tracking/$id'
     | '/api/admin/send-course-email'
     | '/api/public/contact'
-    | '/api/public/driver-location'
     | '/api/public/notify-reservation'
     | '/api/public/notify-reservation-client'
     | '/lovable/email/suppression'
@@ -371,7 +361,6 @@ export interface FileRouteTypes {
     | '/tracking/$id'
     | '/api/admin/send-course-email'
     | '/api/public/contact'
-    | '/api/public/driver-location'
     | '/api/public/notify-reservation'
     | '/api/public/notify-reservation-client'
     | '/lovable/email/suppression'
@@ -405,7 +394,6 @@ export interface FileRouteTypes {
     | '/tracking/$id'
     | '/api/admin/send-course-email'
     | '/api/public/contact'
-    | '/api/public/driver-location'
     | '/api/public/notify-reservation'
     | '/api/public/notify-reservation-client'
     | '/lovable/email/suppression'
@@ -436,7 +424,6 @@ export interface RootRouteChildren {
   TrackingIdRoute: typeof TrackingIdRoute
   ApiAdminSendCourseEmailRoute: typeof ApiAdminSendCourseEmailRoute
   ApiPublicContactRoute: typeof ApiPublicContactRoute
-  ApiPublicDriverLocationRoute: typeof ApiPublicDriverLocationRoute
   ApiPublicNotifyReservationRoute: typeof ApiPublicNotifyReservationRoute
   ApiPublicNotifyReservationClientRoute: typeof ApiPublicNotifyReservationClientRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
@@ -617,13 +604,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicNotifyReservationRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/driver-location': {
-      id: '/api/public/driver-location'
-      path: '/api/public/driver-location'
-      fullPath: '/api/public/driver-location'
-      preLoaderRoute: typeof ApiPublicDriverLocationRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/contact': {
       id: '/api/public/contact'
       path: '/api/public/contact'
@@ -722,7 +702,6 @@ const rootRouteChildren: RootRouteChildren = {
   TrackingIdRoute: TrackingIdRoute,
   ApiAdminSendCourseEmailRoute: ApiAdminSendCourseEmailRoute,
   ApiPublicContactRoute: ApiPublicContactRoute,
-  ApiPublicDriverLocationRoute: ApiPublicDriverLocationRoute,
   ApiPublicNotifyReservationRoute: ApiPublicNotifyReservationRoute,
   ApiPublicNotifyReservationClientRoute: ApiPublicNotifyReservationClientRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,

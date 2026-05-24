@@ -771,13 +771,9 @@ function SuiviPage() {
   const startPolling = useCallback(() => {
     if (pollingTimerRef.current) return;
     pollingTimerRef.current = setInterval(async () => {
-      const { data } = await supabase
-        .from("driver_location")
-        .select("latitude,longitude,is_online")
-        .limit(1)
-        .maybeSingle();
+      const { data } = await supabase.from("driver_gps").select("latitude,longitude,is_active").limit(1).maybeSingle();
       if (
-        data?.is_online &&
+        data?.is_active &&
         data.latitude != null &&
         data.longitude != null &&
         Number.isFinite(data.latitude) &&
@@ -801,9 +797,9 @@ function SuiviPage() {
     (_gpsId: string, resaId: string, _mode: "single" | "multi") => {
       const gpsChannel = supabase
         .channel("suivi-driver-location")
-        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "driver_location" }, async (payload) => {
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "driver_gps" }, async (payload) => {
           const d = payload.new as any;
-          if (!d.is_online) return;
+          if (!d.is_active) return;
           setLastUpdate(new Date());
           if (d.latitude != null && d.longitude != null && Number.isFinite(d.latitude) && Number.isFinite(d.longitude))
             await applyDriverPosition(d.latitude, d.longitude);
@@ -992,17 +988,17 @@ function SuiviPage() {
       setLoadStep(2);
 
       setLoadStep(3);
-      // Lecture depuis driver_location (table réelle du chauffeur)
+      // Lecture depuis driver_gps (table réelle du chauffeur)
       const { data: locData } = await supabase
-        .from("driver_location")
-        .select("latitude,longitude,is_online")
+        .from("driver_gps")
+        .select("latitude,longitude,is_active")
         .limit(1)
         .maybeSingle();
       const gpsLat: number | null =
         locData?.latitude != null && Number.isFinite(locData.latitude) ? locData.latitude : null;
       const gpsLng: number | null =
         locData?.longitude != null && Number.isFinite(locData.longitude) ? locData.longitude : null;
-      const driverOnline = locData?.is_online === true;
+      const driverOnline = !!locData?.is_active;
       if (gpsLat !== null && gpsLng !== null && (gpsLat !== 0 || gpsLng !== 0) && driverOnline) {
         await initMap(gpsLat, gpsLng);
         await calculateETA(gpsLat, gpsLng, destCoordsRef.current ?? undefined);
@@ -1017,12 +1013,12 @@ function SuiviPage() {
       const clientName = ((r.client_name || r.nom) ?? "").toString().trim();
       toast.success("✅ Course trouvée", {
         id: toastId,
-        description: `${clientName ? clientName + " — " : ""}chauffeur unique`,
+        description: `${clientName ? clientName + " — " : ""}mode ${mode === "multi" ? "multi-courses" : "chauffeur unique"}`,
         duration: 4000,
       });
 
       setLoading(false);
-      subscribeRealtime("driver", r.id, "single");
+      subscribeRealtime(gpsId, r.id, mode);
     };
 
     init();
@@ -1081,13 +1077,9 @@ function SuiviPage() {
           .maybeSingle();
         if (r) setResa((prev) => (prev ? { ...prev, ...r } : prev));
       }
-      const { data } = await supabase
-        .from("driver_location")
-        .select("latitude,longitude,is_online")
-        .limit(1)
-        .maybeSingle();
+      const { data } = await supabase.from("driver_gps").select("latitude,longitude,is_active").limit(1).maybeSingle();
       if (
-        data?.is_online &&
+        data?.is_active &&
         data?.latitude != null &&
         data?.longitude != null &&
         Number.isFinite(data.latitude) &&
