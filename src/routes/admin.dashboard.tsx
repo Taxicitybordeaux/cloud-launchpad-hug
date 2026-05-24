@@ -872,10 +872,11 @@ function Dashboard() {
         });
         const res = await Promise.race([emailFetch, emailTimeout]);
         notifParts.push(res.ok ? `✉️ Email envoyé` : `⚠️ Échec email`);
-      } catch {
-        notifParts.push("⚠️ Échec email");
-      }
-    }
+      } catch (error) {
+  console.error("Email error:", error);
+  notifParts.push("⚠️ Erreur email");
+}
+       
 
     toast.success(`✅ Course acceptée — ${name || "client"}`, { description: notifParts.join(" · "), duration: 8000 });
     // Mise à jour optimiste immédiate
