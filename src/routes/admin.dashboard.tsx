@@ -796,18 +796,22 @@ function Dashboard() {
 
     // Enregistrer dans clients
     if (phone) {
-      const { data: existing } = await supabase
-        .from("clients")
-        .select("id,total_courses")
-        .eq("phone", phone)
-        .maybeSingle();
-      if (existing) {
-        await supabase
+      try {
+        const { data: existing } = await supabase
           .from("clients")
-          .update({ total_courses: (existing.total_courses ?? 0) + 1 })
-          .eq("id", existing.id);
-      } else {
-        await supabase.from("clients").insert({ name, phone, email, total_courses: 1 });
+          .select("id,total_courses")
+          .eq("phone", phone)
+          .maybeSingle();
+        if (existing) {
+          await supabase
+            .from("clients")
+            .update({ total_courses: (existing.total_courses ?? 0) + 1 })
+            .eq("id", existing.id);
+        } else {
+          await supabase.from("clients").insert({ name, phone, email, total_courses: 1 });
+        }
+      } catch (clientErr) {
+        console.error("[handleAccept] clients insert/update failed", clientErr);
       }
     }
 
@@ -824,10 +828,14 @@ function Dashboard() {
 
     const notifParts: string[] = [];
 
-    // 🔔 Push automatique (toujours)
+    // 🔔 Push automatique (toujours) — timeout 5s pour ne pas bloquer
     let pushSent = 0;
     try {
-      const pushResult = await notifyReservationStatus({ data: { reservation_id: r.id, status: "accepted" } });
+      const timeout = new Promise<null>((_, reject) => setTimeout(() => reject(new Error("timeout")), 5000));
+      const pushResult = await Promise.race([
+        notifyReservationStatus({ data: { reservation_id: r.id, status: "accepted" } }),
+        timeout,
+      ]);
       pushSent = (pushResult as any)?.client?.sent ?? 0;
     } catch {}
     notifParts.push(pushSent > 0 ? `🔔 Push envoyée` : `🔕 Pas d'abonné push`);
@@ -841,7 +849,8 @@ function Dashboard() {
       const prixStr = `${Number(prixCalcule).toFixed(2)} €`;
       const tarifLabel = tarifNuitCourse ? `Nuit (${TARIF_NUIT_LABEL})` : `Jour (${TARIF_JOUR_LABEL})`;
       try {
-        const res = await fetch("/api/admin/send-course-email", {
+        const emailTimeout = new Promise<Response>((_, reject) => setTimeout(() => reject(new Error("timeout")), 6000));
+        const res = await Promise.race([fetch("/api/admin/send-course-email", {
           method: "POST",
           headers: { "Content-Type": "application/json", "X-Admin-Secret": adminSecret },
           body: JSON.stringify({
@@ -859,8 +868,7 @@ function Dashboard() {
               passagers: r.nb_passagers || r.passagers || 1,
               bagages: r.bagages ?? 0,
             },
-          }),
-        });
+          }), emailTimeout]);
         notifParts.push(res.ok ? `✉️ Email envoyé` : `⚠️ Échec email`);
       } catch {
         notifParts.push("⚠️ Échec email");
@@ -903,7 +911,7 @@ function Dashboard() {
       .eq("id", r.id);
     if (error) {
       // Rollback en cas d'erreur
-      setItems((prev) => prev.map((item) => (item.id === r.id ? { ...item, status: "pending" } : item)));
+      setItems((prev) => prev.map((item) => (item.id === r.id ? { ...item, status: r.status } : item)));
       setCounts((prev) => ({
         ...prev,
         pending: prev.pending + 1,
