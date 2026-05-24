@@ -405,7 +405,7 @@ function ReservationPage() {
     setSending(true);
 
     try {
-      const newTrackingId = crypto.randomUUID();
+      const newSuiviId = crypto.randomUUID();
 
       const fullName = `${f.prenom} ${f.nom}`.trim();
       const pickupIsoFinal = f.date && f.heure ? `${f.date}T${f.heure}:00` : new Date().toISOString();
@@ -424,7 +424,7 @@ function ReservationPage() {
           service_type: "standard",
           status: "nouvelle",
           // Optional / mirror columns
-          tracking_id: newTrackingId,
+          suivi_id: newSuiviId,
           client_name: fullName,
           client_phone: f.phone,
           client_email: f.email,
@@ -478,7 +478,7 @@ function ReservationPage() {
 
       toast.success(`Réservation confirmée pour ${f.prenom} !`);
       setSending(false);
-      navigate({ to: "/suivi/$id", params: { id: newTrackingId } });
+      navigate({ to: "/suivi/$id", params: { id: data.id } });
     } catch (err: any) {
       setSending(false);
       toast.error("Erreur lors de la réservation", { description: err?.message });

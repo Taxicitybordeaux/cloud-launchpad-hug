@@ -20,9 +20,7 @@ import { Route as ConfidentialiteRouteImport } from './routes/confidentialite'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AProposRouteImport } from './routes/a-propos'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as TrackingIdRouteImport } from './routes/tracking.$id'
 import { Route as SuiviIdRouteImport } from './routes/suivi.$id'
-import { Route as ScanIdRouteImport } from './routes/scan.$id'
 import { Route as ReservationIdRouteImport } from './routes/reservation.$id'
 import { Route as FinIdRouteImport } from './routes/fin.$id'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
@@ -96,19 +94,9 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TrackingIdRoute = TrackingIdRouteImport.update({
-  id: '/tracking/$id',
-  path: '/tracking/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SuiviIdRoute = SuiviIdRouteImport.update({
   id: '/suivi/$id',
   path: '/suivi/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ScanIdRoute = ScanIdRouteImport.update({
-  id: '/scan/$id',
-  path: '/scan/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReservationIdRoute = ReservationIdRouteImport.update({
@@ -221,9 +209,7 @@ export interface FileRoutesByFullPath {
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/fin/$id': typeof FinIdRoute
   '/reservation/$id': typeof ReservationIdRoute
-  '/scan/$id': typeof ScanIdRoute
   '/suivi/$id': typeof SuiviIdRoute
-  '/tracking/$id': typeof TrackingIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
   '/api/public/contact': typeof ApiPublicContactRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
@@ -254,9 +240,7 @@ export interface FileRoutesByTo {
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/fin/$id': typeof FinIdRoute
   '/reservation/$id': typeof ReservationIdRoute
-  '/scan/$id': typeof ScanIdRoute
   '/suivi/$id': typeof SuiviIdRoute
-  '/tracking/$id': typeof TrackingIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
   '/api/public/contact': typeof ApiPublicContactRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
@@ -288,9 +272,7 @@ export interface FileRoutesById {
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/fin/$id': typeof FinIdRoute
   '/reservation/$id': typeof ReservationIdRoute
-  '/scan/$id': typeof ScanIdRoute
   '/suivi/$id': typeof SuiviIdRoute
-  '/tracking/$id': typeof TrackingIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
   '/api/public/contact': typeof ApiPublicContactRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
@@ -323,9 +305,7 @@ export interface FileRouteTypes {
     | '/email/unsubscribe'
     | '/fin/$id'
     | '/reservation/$id'
-    | '/scan/$id'
     | '/suivi/$id'
-    | '/tracking/$id'
     | '/api/admin/send-course-email'
     | '/api/public/contact'
     | '/api/public/notify-reservation'
@@ -356,9 +336,7 @@ export interface FileRouteTypes {
     | '/email/unsubscribe'
     | '/fin/$id'
     | '/reservation/$id'
-    | '/scan/$id'
     | '/suivi/$id'
-    | '/tracking/$id'
     | '/api/admin/send-course-email'
     | '/api/public/contact'
     | '/api/public/notify-reservation'
@@ -389,9 +367,7 @@ export interface FileRouteTypes {
     | '/email/unsubscribe'
     | '/fin/$id'
     | '/reservation/$id'
-    | '/scan/$id'
     | '/suivi/$id'
-    | '/tracking/$id'
     | '/api/admin/send-course-email'
     | '/api/public/contact'
     | '/api/public/notify-reservation'
@@ -419,9 +395,7 @@ export interface RootRouteChildren {
   CourseIdRoute: typeof CourseIdRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   FinIdRoute: typeof FinIdRoute
-  ScanIdRoute: typeof ScanIdRoute
   SuiviIdRoute: typeof SuiviIdRoute
-  TrackingIdRoute: typeof TrackingIdRoute
   ApiAdminSendCourseEmailRoute: typeof ApiAdminSendCourseEmailRoute
   ApiPublicContactRoute: typeof ApiPublicContactRoute
   ApiPublicNotifyReservationRoute: typeof ApiPublicNotifyReservationRoute
@@ -513,25 +487,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/tracking/$id': {
-      id: '/tracking/$id'
-      path: '/tracking/$id'
-      fullPath: '/tracking/$id'
-      preLoaderRoute: typeof TrackingIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/suivi/$id': {
       id: '/suivi/$id'
       path: '/suivi/$id'
       fullPath: '/suivi/$id'
       preLoaderRoute: typeof SuiviIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/scan/$id': {
-      id: '/scan/$id'
-      path: '/scan/$id'
-      fullPath: '/scan/$id'
-      preLoaderRoute: typeof ScanIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reservation/$id': {
@@ -697,9 +657,7 @@ const rootRouteChildren: RootRouteChildren = {
   CourseIdRoute: CourseIdRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   FinIdRoute: FinIdRoute,
-  ScanIdRoute: ScanIdRoute,
   SuiviIdRoute: SuiviIdRoute,
-  TrackingIdRoute: TrackingIdRoute,
   ApiAdminSendCourseEmailRoute: ApiAdminSendCourseEmailRoute,
   ApiPublicContactRoute: ApiPublicContactRoute,
   ApiPublicNotifyReservationRoute: ApiPublicNotifyReservationRoute,
