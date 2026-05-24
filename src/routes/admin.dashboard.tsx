@@ -690,9 +690,9 @@ function Dashboard() {
       setActiveResaId(next.id);
       activeResaIdRef.current = next.id;
       // Reset des déclenchements auto pour la nouvelle course
-      delete autoStatusFiredRef.current[`${next.id}_en_route`];
-      delete autoStatusFiredRef.current[`${next.id}_arrived`];
-      delete autoStatusFiredRef.current[`${next.id}_completed`];
+      delete autoStatusFiredRef.current[next.id + "_en_route"];
+      delete autoStatusFiredRef.current[next.id + "_arrived"];
+      delete autoStatusFiredRef.current[next.id + "_completed"];
       // Re-géocoder le départ de la nouvelle course
       pickupGeoRef.current = null;
       destinationGeoRef.current = null;
@@ -711,7 +711,9 @@ function Dashboard() {
           .catch(() => {});
       }
       toast.success("🔄 Nouvelle course détectée", {
-        description: `${next.client_name || next.nom || "prochain client"}${next.arrivee || next.destination ? ` → ${next.arrivee || next.destination}` : ""}`,
+        description:
+          (next.client_name || next.nom || "prochain client") +
+          (next.arrivee || next.destination ? " → " + (next.arrivee || next.destination) : ""),
         duration: 6000,
       });
       setTimeout(() => setAutoTransition(false), 3000);
@@ -1142,21 +1144,23 @@ function Dashboard() {
 
         // 1) AUTO "en_route" — course acceptée + pickup dans ≤ 30 min (ou sans heure fixe)
         //    Se déclenche une seule fois par course
-        if (!fired[`${resaId}_en_route`]) {
+        const enRouteKey = resaId + "_en_route";
+        if (!fired[enRouteKey]) {
           // On relit les items via ref pour ne pas dépendre d'une closure périmée
           setItems((prev) => {
             const course = prev.find((r) => r.id === resaId);
-            if (course && course.status === "accepted" && !fired[`${resaId}_en_route`]) {
+            if (course && course.status === "accepted" && !fired[enRouteKey]) {
               const pickupMs = course.pickup_datetime ? new Date(course.pickup_datetime).getTime() : null;
               const nowMs = Date.now();
               // Déclencher si : pas d'heure fixe OU heure dans ≤ 30 min
               const shouldGo = !pickupMs || pickupMs - nowMs <= 30 * 60 * 1000;
               if (shouldGo) {
-                fired[`${resaId}_en_route`] = true;
+                fired[enRouteKey] = true;
+                const clientLabel2 = course.client_name || course.nom || "Client";
                 // Appel async hors du setState
                 handleUpdateReservationStatus(course, "en_route").then(() => {
                   toast.success("🚗 En route automatique", {
-                    description: `${course.client_name || course.nom || "Client"} — départ dans ≤ 30 min`,
+                    description: clientLabel2 + " — départ dans ≤ 30 min",
                     duration: 5000,
                   });
                 });
@@ -1167,20 +1171,18 @@ function Dashboard() {
         }
 
         // 2) AUTO "arrived" — distance GPS < 150 m de la prise en charge
-        if (!fired[`${resaId}_arrived`] && pickupGeoRef.current) {
+        const arrivedKey = resaId + "_arrived";
+        if (!fired[arrivedKey] && pickupGeoRef.current) {
           const dist = distMetersGps({ lat: latitude, lng: longitude }, pickupGeoRef.current);
           if (dist < 150) {
             setItems((prev) => {
               const course = prev.find((r) => r.id === resaId);
-              if (
-                course &&
-                (course.status === "en_route" || course.status === "accepted") &&
-                !fired[`${resaId}_arrived`]
-              ) {
-                fired[`${resaId}_arrived`] = true;
+              if (course && (course.status === "en_route" || course.status === "accepted") && !fired[arrivedKey]) {
+                fired[arrivedKey] = true;
+                const distArrived = Math.round(dist);
                 handleUpdateReservationStatus(course, "arrived").then(() => {
                   toast.success("📍 Arrivé automatique", {
-                    description: `À ${Math.round(dist)} m de la prise en charge`,
+                    description: "À " + distArrived + " m de la prise en charge",
                     duration: 5000,
                   });
                 });
