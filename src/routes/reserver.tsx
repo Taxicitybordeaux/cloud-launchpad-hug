@@ -441,6 +441,7 @@ function ReservationPage() {
         .single();
 
       if (error) throw error;
+      if (!data) throw new Error("Aucune donnée retournée par Supabase");
 
       // ── Notif push + email chauffeur ──────────────────────────────────────
       try {
