@@ -774,7 +774,13 @@ function SuiviPage() {
       const { data } = await supabase.from("driver_gps").select("*").eq("id", gpsIdRef.current).maybeSingle();
       if (data) {
         setLastUpdate(new Date());
-        if (data.latitude && data.longitude) await applyDriverPosition(data.latitude, data.longitude);
+        if (
+          data.latitude != null &&
+          data.longitude != null &&
+          Number.isFinite(data.latitude) &&
+          Number.isFinite(data.longitude)
+        )
+          await applyDriverPosition(data.latitude, data.longitude);
       }
       if (resaIdRef.current) {
         const { data: rows } = await (supabase as any).rpc("get_reservation_by_tracking", {
@@ -800,7 +806,13 @@ function SuiviPage() {
             if (mode === "multi" && d.id !== gpsId) return;
             if (mode === "single" && d.id !== "driver") return;
             setLastUpdate(new Date());
-            if (d.latitude && d.longitude) await applyDriverPosition(d.latitude, d.longitude);
+            if (
+              d.latitude != null &&
+              d.longitude != null &&
+              Number.isFinite(d.latitude) &&
+              Number.isFinite(d.longitude)
+            )
+              await applyDriverPosition(d.latitude, d.longitude);
           },
         )
         .on("system", {}, (status: any) => {
@@ -994,6 +1006,8 @@ function SuiviPage() {
 
       setLoadStep(3);
       const { data: gpsData } = await supabase.from("driver_gps").select("*").eq("id", gpsId).maybeSingle();
+      // DEBUG — à retirer après diagnostic
+      console.warn("[GPS DEBUG] gpsId:", gpsId, "mode:", mode, "gpsData:", JSON.stringify(gpsData));
       const gpsLat: number | null =
         gpsData?.latitude != null && Number.isFinite(gpsData.latitude) ? gpsData.latitude : null;
       const gpsLng: number | null =
@@ -1077,7 +1091,12 @@ function SuiviPage() {
         if (r) setResa((prev) => (prev ? { ...prev, ...r } : prev));
       }
       const { data } = await supabase.from("driver_gps").select("*").eq("id", gpsIdRef.current).maybeSingle();
-      if (data?.latitude && data?.longitude) {
+      if (
+        data?.latitude != null &&
+        data?.longitude != null &&
+        Number.isFinite(data.latitude) &&
+        Number.isFinite(data.longitude)
+      ) {
         setLastUpdate(new Date());
         await applyDriverPosition(data.latitude, data.longitude);
       }
