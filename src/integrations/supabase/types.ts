@@ -570,6 +570,34 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      get_reservation_by_tracking: {
+        Args: { p_tracking_id: string }
+        Returns: {
+          arrivee: string
+          bagages: number
+          client_email: string
+          client_name: string
+          client_phone: string
+          created_at: string
+          date_course: string
+          depart: string
+          destination: string
+          distance_km: number
+          email: string
+          heure_course: string
+          id: string
+          message: string
+          nb_passagers: number
+          nom: string
+          passagers: number
+          pickup_datetime: string
+          prix_estime: number
+          service_type: string
+          status: string
+          telephone: string
+          tracking_id: string
+        }[]
+      }
       get_reservation_public: {
         Args: { p_id: string }
         Returns: {

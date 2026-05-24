@@ -205,11 +205,6 @@ function Home() {
                 }}
               />
             </div>
-            {/* Badge: always visible, repositioned on mobile */}
-            <div className="absolute -bottom-5 right-4 rounded-2xl border border-primary/30 bg-background px-5 py-3 shadow-[var(--shadow-gold)] md:-bottom-6 md:-right-6">
-              <p className="text-2xl font-bold text-primary sm:text-3xl">10+</p>
-              <p className="text-xs uppercase tracking-widest text-muted-foreground">{t("home.why.years")}</p>
-            </div>
           </div>
 
           <div className="mt-4 md:mt-0">
