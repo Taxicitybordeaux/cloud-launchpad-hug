@@ -1607,48 +1607,12 @@ function Dashboard() {
             </div>
           )}
 
-          {/* ── Boutons statut (automatique — push envoyée à chaque étape) ── */}
+          {/* ── Bouton annuler uniquement ── */}
           {(normalizeStatus(r.status) === "accepted" || r.status === "en_route" || r.status === "arrived") && (
             <div
               className="status-action-btns"
               style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}
             >
-              {/* Badges auto-gérés (lecture seule) */}
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 5,
-                  padding: "7px 12px",
-                  borderRadius: 10,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  background: r.status === "en_route" ? "rgba(245,158,11,0.2)" : "rgba(255,255,255,0.05)",
-                  border: `1px solid ${r.status === "en_route" ? "rgba(245,158,11,0.5)" : "rgba(255,255,255,0.1)"}`,
-                  color: r.status === "en_route" ? "#f59e0b" : "#475569",
-                }}
-                title="Déclenché automatiquement quand le pickup_datetime approche (≤ 30 min)"
-              >
-                🚗 En route {r.status === "en_route" ? "✓" : "— auto"}
-              </span>
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 5,
-                  padding: "7px 12px",
-                  borderRadius: 10,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  background: r.status === "arrived" ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.05)",
-                  border: `1px solid ${r.status === "arrived" ? "rgba(34,197,94,0.5)" : "rgba(255,255,255,0.1)"}`,
-                  color: r.status === "arrived" ? "#22c55e" : "#475569",
-                }}
-                title="Déclenché automatiquement quand le GPS est à moins de 150 m de l'adresse de départ"
-              >
-                📍 Arrivé {r.status === "arrived" ? "✓" : "— auto"}
-              </span>
-
               <button
                 onClick={() => handleUpdateReservationStatus(r, "cancelled")}
                 style={{
