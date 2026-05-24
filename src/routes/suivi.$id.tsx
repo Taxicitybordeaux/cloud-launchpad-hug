@@ -6,7 +6,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { getRouteGeoCoords, getDistanceAndDurationKm } from "@/lib/osrm";
 import { geocodeAddress } from "@/lib/geocode";
 import { OSM_TILE_URL, OSM_TILE_OPTIONS } from "@/lib/map";
-import { trackingIdSchema } from "@/lib/tracking-id";
+import { suiviIdSchema } from "@/lib/suivi-id";
 
 export const Route = createFileRoute("/suivi/$id")({
   head: () => ({
@@ -904,7 +904,7 @@ function SuiviPage() {
 
     const init = async () => {
       // 1. Valider l'ID
-      const parsed = trackingIdSchema.safeParse(id);
+      const parsed = suiviIdSchema.safeParse(id);
       let r: Reservation | null = null;
 
       setLoadStep(1);
