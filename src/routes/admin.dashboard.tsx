@@ -386,6 +386,7 @@ function Dashboard() {
   const gpsMarkerRef = useRef<any>(null);
   // ── Auto-status refs ──
   const pickupGeoRef = useRef<{ lat: number; lng: number } | null>(null); // coordonnées de la prise en charge active
+  const destinationGeoRef = useRef<{ lat: number; lng: number } | null>(null); // coordonnées de la destination active
   const autoStatusFiredRef = useRef<Record<string, boolean>>({}); // évite les doubles déclenchements
 
   // Distance en mètres entre deux coords (Haversine simplifié)
@@ -691,12 +692,21 @@ function Dashboard() {
       // Reset des déclenchements auto pour la nouvelle course
       delete autoStatusFiredRef.current[`${next.id}_en_route`];
       delete autoStatusFiredRef.current[`${next.id}_arrived`];
+      delete autoStatusFiredRef.current[`${next.id}_completed`];
       // Re-géocoder le départ de la nouvelle course
       pickupGeoRef.current = null;
+      destinationGeoRef.current = null;
       if (next.depart) {
         geocodeAddress(next.depart + ", Bordeaux, France")
           .then((c) => {
             if (c) pickupGeoRef.current = { lat: c.lat, lng: c.lng };
+          })
+          .catch(() => {});
+      }
+      if (next.arrivee || next.destination) {
+        geocodeAddress((next.arrivee || next.destination) + ", Bordeaux, France")
+          .then((c) => {
+            if (c) destinationGeoRef.current = { lat: c.lat, lng: c.lng };
           })
           .catch(() => {});
       }
@@ -1073,12 +1083,19 @@ function Dashboard() {
 
     // ── Pré-géocoder l'adresse de prise en charge de la course active ──────
     pickupGeoRef.current = null;
+    destinationGeoRef.current = null;
     if (linkedId) {
       const course = items.find((r) => r.id === linkedId);
       if (course?.depart) {
         try {
           const c = await geocodeAddress(course.depart + ", Bordeaux, France");
           if (c) pickupGeoRef.current = { lat: c.lat, lng: c.lng };
+        } catch {}
+      }
+      if (course?.arrivee || course?.destination) {
+        try {
+          const c = await geocodeAddress((course.arrivee || course.destination) + ", Bordeaux, France");
+          if (c) destinationGeoRef.current = { lat: c.lat, lng: c.lng };
         } catch {}
       }
     }
@@ -1173,6 +1190,25 @@ function Dashboard() {
           }
         }
         // ── FIN AUTO-STATUS ─────────────────────────────────────────────────
+        // 3) AUTO "completed" — distance GPS < 150 m de la destination (status doit être "arrived")
+        if (!fired[`${resaId}_completed`] && destinationGeoRef.current) {
+          const distDest = distMetersGps({ lat: latitude, lng: longitude }, destinationGeoRef.current);
+          if (distDest < 150) {
+            setItems((prev) => {
+              const course = prev.find((r) => r.id === resaId);
+              if (course && course.status === "arrived" && !fired[\`${resaId}_completed\`]) {
+                fired[`${resaId}_completed`] = true;
+                handleUpdateReservationStatus(course, "completed").then(() => {
+                  toast.success("🏁 Course terminée automatiquement", {
+                    description: `À ${Math.round(distDest)} m de la destination — ${course.client_name || course.nom || "Client"}`,
+                    duration: 6000,
+                  });
+                });
+              }
+              return prev;
+            });
+          }
+        }
       },
       (err) => console.error(err),
       { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 },
@@ -1607,24 +1643,7 @@ function Dashboard() {
               >
                 📍 Arrivé {r.status === "arrived" ? "✓" : "— auto"}
               </span>
-              {/* Terminé : reste manuel (seul le chauffeur sait) */}
-              {r.status !== "completed" && (
-                <button
-                  onClick={() => handleUpdateReservationStatus(r, "completed")}
-                  style={{
-                    background: "#2563eb",
-                    color: "#fff",
-                    border: "none",
-                    padding: "10px 14px",
-                    borderRadius: 12,
-                    cursor: "pointer",
-                    fontWeight: 700,
-                    fontSize: 13,
-                  }}
-                >
-                  🏁 Terminé
-                </button>
-              )}
+
               <button
                 onClick={() => handleUpdateReservationStatus(r, "cancelled")}
                 style={{
@@ -1882,32 +1901,7 @@ function Dashboard() {
                 className="gps-btn-row"
                 style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: "auto" }}
               >
-                {/* Bouton terminer course active */}
-                {gpsActive &&
-                  activeResaId &&
-                  (() => {
-                    const linked = items.find((x) => x.id === activeResaId);
-                    const canComplete = linked && linked.status !== "completed" && linked.status !== "cancelled";
-                    if (!canComplete) return null;
-                    return (
-                      <button
-                        onClick={() => handleUpdateReservationStatus(linked, "completed")}
-                        style={{
-                          background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
-                          color: "#fff",
-                          border: 0,
-                          padding: "10px 18px",
-                          borderRadius: 12,
-                          cursor: "pointer",
-                          fontWeight: 800,
-                          fontSize: 14,
-                          boxShadow: "0 4px 12px rgba(37,99,235,0.3)",
-                        }}
-                      >
-                        🏁 Terminer
-                      </button>
-                    );
-                  })()}
+
                 {/* Bouton toggle GPS unique */}
                 <button
                   onClick={() => (gpsActive ? stopGPS() : startGPS())}
