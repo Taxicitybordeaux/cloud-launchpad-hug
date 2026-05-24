@@ -2533,4 +2533,4 @@ function Dashboard() {
       {/* ── Modale Accepter ── */}
     </div>
   );
-}
+
