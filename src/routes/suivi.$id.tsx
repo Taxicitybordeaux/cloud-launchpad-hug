@@ -994,14 +994,14 @@ function SuiviPage() {
 
       setLoadStep(3);
       const { data: gpsData } = await supabase.from("driver_gps").select("*").eq("id", gpsId).maybeSingle();
-      const hasValidGps =
-        Number.isFinite(gpsData?.latitude) &&
-        Number.isFinite(gpsData?.longitude) &&
-        (gpsData.latitude !== 0 || gpsData.longitude !== 0);
-      if (hasValidGps) {
-        await initMap(gpsData.latitude, gpsData.longitude);
-        await calculateETA(gpsData.latitude, gpsData.longitude, destCoordsRef.current ?? undefined);
-        setTaxiPos({ lat: gpsData.latitude, lng: gpsData.longitude });
+      const gpsLat: number | null =
+        gpsData?.latitude != null && Number.isFinite(gpsData.latitude) ? gpsData.latitude : null;
+      const gpsLng: number | null =
+        gpsData?.longitude != null && Number.isFinite(gpsData.longitude) ? gpsData.longitude : null;
+      if (gpsLat !== null && gpsLng !== null && (gpsLat !== 0 || gpsLng !== 0)) {
+        await initMap(gpsLat, gpsLng);
+        await calculateETA(gpsLat, gpsLng, destCoordsRef.current ?? undefined);
+        setTaxiPos({ lat: gpsLat, lng: gpsLng });
         setLastUpdate(new Date());
       } else {
         await initMap(BORDEAUX_CENTER[0], BORDEAUX_CENTER[1]);
@@ -1148,6 +1148,14 @@ function SuiviPage() {
   };
 
   // ── UI helpers ────────────────────────────────────────────────────────────
+  // ── invalidateSize dès que le loading se termine ─────────────────────────
+  useEffect(() => {
+    if (!loading && mapInst.current) {
+      setTimeout(() => mapInst.current?.invalidateSize({ animate: false }), 50);
+      setTimeout(() => mapInst.current?.invalidateSize({ animate: false }), 250);
+    }
+  }, [loading]);
+
   const statusConfig: Record<string, { label: string; color: string; bg: string; icon: string; pulse: boolean }> = {
     nouvelle: {
       label: "En attente de confirmation",
@@ -1207,16 +1215,6 @@ function SuiviPage() {
   const kmLeft = etaKm ? parseFloat(etaKm) : null;
   const pctDone =
     totalKm && kmLeft !== null ? Math.min(100, Math.max(0, Math.round(((totalKm - kmLeft) / totalKm) * 100))) : null;
-
-  // ── Écran chargement ──────────────────────────────────────────────────────
-  // ── invalidateSize dès que le loading se termine ─────────────────────────
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
-    if (!loading && mapInst.current) {
-      setTimeout(() => mapInst.current?.invalidateSize({ animate: false }), 50);
-      setTimeout(() => mapInst.current?.invalidateSize({ animate: false }), 250);
-    }
-  }, [loading]);
 
   const _loadingSteps = [
     { label: "Connexion sécurisée…", icon: "🔐" },
