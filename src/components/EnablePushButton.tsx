@@ -82,7 +82,7 @@ export function EnablePushButton({
         const reg = await navigator.serviceWorker.getRegistration("/");
         const sub = await reg?.pushManager.getSubscription();
         setSubscribed(!!sub);
-      } catch (_) {}
+      } catch {}
     })();
   }, []);
 
