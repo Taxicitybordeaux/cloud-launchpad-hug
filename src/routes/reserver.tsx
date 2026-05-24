@@ -365,7 +365,7 @@ function ReservationPage() {
   useEffect(() => {
     const check = async () => {
       try {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("reservations")
           .not("status", "in", "(cancelled,refused,completed)")
           .limit(1);
