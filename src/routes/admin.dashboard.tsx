@@ -489,8 +489,8 @@ function Dashboard() {
     const ch = supabase
       .channel("dash-courses")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "reservations" }, (payload) => {
+        const n = payload.new as any;
         if (!initialLoad.current) {
-          const n = payload.new as any;
           const clientName = n.client_name || n.nom || "Client";
           try {
             new Audio("/notification.mp3").play().catch(() => {});
