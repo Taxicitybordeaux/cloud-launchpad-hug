@@ -1120,7 +1120,9 @@ function Dashboard() {
     const phone = (r.client_phone || r.telephone || "").replace(/\s/g, "");
     const email = r.client_email || r.email || "";
     const trajet = `${r.depart} → ${r.destination || r.arrivee || "—"}`;
-    const msg = `Bonjour ${name}, le prix de votre course Taxi City Bordeaux (${trajet}) est de ${val.toFixed(2)} €. Merci.`;
+    const trackUrl = r.tracking_id && typeof window !== "undefined" ? `${window.location.origin}/suivi/${r.tracking_id}` : "";
+    const trackingLine = trackUrl ? `\nSuivre votre chauffeur : ${trackUrl}` : "";
+    const msg = `Bonjour ${name}, le prix de votre course Taxi City Bordeaux (${trajet}) est de ${val.toFixed(2)} €. Merci.${trackingLine}`;
 
     if (canal === "sms") {
       if (!phone) {
