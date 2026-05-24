@@ -482,7 +482,13 @@ function SuiviPage() {
   // ── Geocode helper ───────────────────────────────────────────────────────
   const geocode = async (q: string): Promise<[number, number] | null> => {
     try {
-      const c = await geocodeAddress(q + ", Bordeaux, France");
+      // N'ajoute ", Bordeaux" que si l'adresse ne contient pas déjà une ville ou un code postal
+      const hasCity =
+        /\b(bordeaux|cenon|mérignac|merignac|pessac|talence|bègles|begles|lormont|floirac|villenave|bouliac|carbon|blanquefort|eysines|le bouscat|bruges|gradignan|cestas)\b/i.test(
+          q,
+        ) || /\b\d{5}\b/.test(q);
+      const query = hasCity ? `${q}, France` : `${q}, Bordeaux, France`;
+      const c = await geocodeAddress(query);
       return c ? [c.lat, c.lng] : null;
     } catch {
       return null;
@@ -988,7 +994,11 @@ function SuiviPage() {
 
       setLoadStep(3);
       const { data: gpsData } = await supabase.from("driver_gps").select("*").eq("id", gpsId).maybeSingle();
-      if (gpsData?.latitude && gpsData?.longitude) {
+      const hasValidGps =
+        Number.isFinite(gpsData?.latitude) &&
+        Number.isFinite(gpsData?.longitude) &&
+        (gpsData.latitude !== 0 || gpsData.longitude !== 0);
+      if (hasValidGps) {
         await initMap(gpsData.latitude, gpsData.longitude);
         await calculateETA(gpsData.latitude, gpsData.longitude, destCoordsRef.current ?? undefined);
         setTaxiPos({ lat: gpsData.latitude, lng: gpsData.longitude });
