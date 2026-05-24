@@ -1196,7 +1196,7 @@ function Dashboard() {
           if (distDest < 150) {
             setItems((prev) => {
               const course = prev.find((r) => r.id === resaId);
-              if (course && course.status === "arrived" && !fired[\`${resaId}_completed\`]) {
+              if (course && course.status === "arrived" && !fired[`${resaId}_completed`]) {
                 fired[`${resaId}_completed`] = true;
                 handleUpdateReservationStatus(course, "completed").then(() => {
                   toast.success("🏁 Course terminée automatiquement", {
@@ -1901,7 +1901,6 @@ function Dashboard() {
                 className="gps-btn-row"
                 style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: "auto" }}
               >
-
                 {/* Bouton toggle GPS unique */}
                 <button
                   onClick={() => (gpsActive ? stopGPS() : startGPS())}
