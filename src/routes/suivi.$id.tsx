@@ -743,11 +743,10 @@ function SuiviPage() {
         if (data.latitude && data.longitude) await applyDriverPosition(data.latitude, data.longitude);
       }
       if (resaIdRef.current) {
-        const { data: r } = await supabase
-          .from("reservations")
-          .select("status,depart,arrivee,destination,prix_estime,pickup_datetime")
-          .eq("id", resaIdRef.current)
-          .maybeSingle();
+        const { data: rows } = await (supabase as any).rpc("get_reservation_by_tracking", {
+          p_tracking_id: resaIdRef.current,
+        });
+        const r = Array.isArray(rows) ? rows[0] : rows;
         if (r) setResa((prev) => (prev ? { ...prev, ...r } : prev));
       }
     }, 10_000);
