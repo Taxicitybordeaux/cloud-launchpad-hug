@@ -391,17 +391,15 @@ function ReservationPage() {
     if (!f.destination.trim()) newErrors.destination = "Requis";
     if (!fromCoord) newErrors.depart = "Adresse de départ non résolue";
     if (!toCoord) newErrors.destination = "Adresse de destination non résolue";
-    if (!orsResult) {
-      if (!newErrors.depart && !newErrors.destination) {
-        setErrors(newErrors);
-        toast.error("En attente du calcul d'itinéraire…");
-        return;
-      }
-    }
-
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       toast.error("Veuillez compléter le formulaire");
+      return;
+    }
+
+    if (!orsResult) {
+      setErrors(newErrors);
+      toast.error("En attente du calcul d'itinéraire…");
       return;
     }
 
