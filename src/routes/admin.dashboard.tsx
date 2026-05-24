@@ -850,7 +850,7 @@ function Dashboard() {
       const tarifLabel = tarifNuitCourse ? `Nuit (${TARIF_NUIT_LABEL})` : `Jour (${TARIF_JOUR_LABEL})`;
       try {
         const emailTimeout = new Promise<Response>((_, reject) => setTimeout(() => reject(new Error("timeout")), 6000));
-        const res = await Promise.race([fetch("/api/admin/send-course-email", {
+        const emailFetch = fetch("/api/admin/send-course-email", {
           method: "POST",
           headers: { "Content-Type": "application/json", "X-Admin-Secret": adminSecret },
           body: JSON.stringify({
@@ -868,7 +868,9 @@ function Dashboard() {
               passagers: r.nb_passagers || r.passagers || 1,
               bagages: r.bagages ?? 0,
             },
-          }), emailTimeout]);
+          }),
+        });
+        const res = await Promise.race([emailFetch, emailTimeout]);
         notifParts.push(res.ok ? `✉️ Email envoyé` : `⚠️ Échec email`);
       } catch {
         notifParts.push("⚠️ Échec email");
@@ -2531,5 +2533,4 @@ function Dashboard() {
       {/* ── Modale Accepter ── */}
     </div>
   );
-}
 }
