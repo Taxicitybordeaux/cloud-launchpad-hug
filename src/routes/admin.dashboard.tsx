@@ -175,9 +175,6 @@ const adminMobileCss = `
     .contact-btns a { justify-content: center !important; min-height: 44px !important; padding: 10px 8px !important; font-size: 12px !important; }
     .avis-actions { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
     .avis-actions button { width: 100% !important; min-height: 44px !important; justify-content: center !important; }
-    .confirm-modal-inner { padding: 20px 16px !important; border-radius: 16px !important; }
-    .confirm-modal-btns { flex-direction: column-reverse !important; }
-    .confirm-modal-btns button { width: 100% !important; min-height: 48px !important; font-size: 16px !important; }
     .admin-hide-mobile { display: none !important; }
     .admin-h-title { font-size: 18px !important; }
   }
@@ -351,7 +348,6 @@ function Dashboard() {
   const [coursesJ, setCoursesJ] = useState(0);
   const [clientsTotal, setClientsTotal] = useState(0);
   const [visitors, setVisitors] = useState(0);
-  const [nextCourse, setNextCourse] = useState<any | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
 
   // ── Courses ──
@@ -360,11 +356,7 @@ function Dashboard() {
   const [counts, setCounts] = useState({ pending: 0, accepted: 0, refused: 0 });
 
   // ── Actions ──
-  const [confirmAction, setConfirmAction] = useState<{ type: "accept" | "refuse"; r: any } | null>(null);
-  const [confirmBusy, setConfirmBusy] = useState(false);
   const [refusalReason, setRefusalReason] = useState("");
-  const [autoKm, setAutoKm] = useState<number | null>(null);
-  const [kmLoading, setKmLoading] = useState(false);
   const [cardKm, setCardKm] = useState<Record<string, number>>({});
   const [cardKmLoading, setCardKmLoading] = useState<Record<string, boolean>>({});
   const [deleteBusy, setDeleteBusy] = useState(false);
@@ -404,7 +396,7 @@ function Dashboard() {
     const monthIso = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
     const nowIso = new Date().toISOString();
     const tomorrowIso = new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString();
-    const [caJR, caMR, cJR, cliR, visR, nextR] = await Promise.all([
+    const [caJR, caMR, cJR, cliR, visR] = await Promise.all([
       supabase.from("courses").select("prix_final").gte("created_at", todayIso),
       supabase.from("courses").select("prix_final").gte("created_at", monthIso),
       supabase
@@ -415,20 +407,12 @@ function Dashboard() {
         .neq("status", "refused"),
       supabase.from("clients").select("id", { count: "exact", head: true }),
       supabase.from("site_analytics").select("session_id").eq("event", "visit").gte("created_at", todayIso),
-      supabase
-        .from("reservations")
-        .select("*")
-        .eq("status", "accepted")
-        .or(`pickup_datetime.gte.${nowIso},pickup_datetime.is.null`)
-        .order("pickup_datetime", { ascending: true, nullsFirst: false })
-        .limit(1),
     ]);
     setCaJ((caJR.data ?? []).reduce((s: number, c: any) => s + (Number(c.prix_final) || 0), 0));
     setCaM((caMR.data ?? []).reduce((s: number, c: any) => s + (Number(c.prix_final) || 0), 0));
     setCoursesJ(cJR.count ?? 0);
     setClientsTotal(cliR.count ?? 0);
     setVisitors(new Set((visR.data ?? []).map((v: any) => v.session_id)).size);
-    setNextCourse((nextR.data ?? [])[0] ?? null);
     setStatsLoading(false);
   }, []);
 
@@ -763,7 +747,7 @@ function Dashboard() {
       return;
     }
     const tarifNuitCourse = r.pickup_datetime ? isNuit(r.pickup_datetime) : r.tarif_jour === false;
-    const km = r.distance_km ? Number(r.distance_km) : (autoKm ?? 5);
+    const km = r.distance_km ? Number(r.distance_km) : 5;
     const prixCalcule = r.pickup_datetime
       ? calculerPrixMixte(km, r.pickup_datetime)
       : calculerPrix(km, !tarifNuitCourse);
@@ -1031,20 +1015,6 @@ function Dashboard() {
     setActiveResaId(linkedId);
     activeResaIdRef.current = linkedId;
     setGpsActive(true);
-    // Obtenir la position immédiatement avant watchPosition
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude, accuracy: acc } = pos.coords;
-        lastPosRef.current = { lat: latitude, lng: longitude };
-        setGpsPosition({ lat: latitude, lng: longitude });
-        await (supabase as any)
-          .from("driver_gps")
-          .update({ latitude, longitude, accuracy: acc, updated_at: new Date().toISOString() })
-          .eq("id", "driver");
-      },
-      (err) => console.error("getCurrentPosition error:", err),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
-    );
     watchIdRef.current = navigator.geolocation.watchPosition(
       async (pos) => {
         const { latitude, longitude, accuracy: acc, heading: rawHeading } = pos.coords;
@@ -1294,7 +1264,7 @@ function Dashboard() {
               <button
                 onClick={async () => {
                   setAutoKm(r.distance_km ? Number(r.distance_km) : null);
-                  setConfirmAction({ type: "accept", r });
+                  handleAccept(r);
                   if (!r.distance_km && r.depart && (r.arrivee || r.destination)) {
                     setKmLoading(true);
                     try {
@@ -1861,65 +1831,6 @@ function Dashboard() {
           </div>
         )}
       </div>
-
-      {/* ── Prochaine course ── */}
-      {!statsLoading &&
-        nextCourse &&
-        (() => {
-          const nuit = isNuit(nextCourse.pickup_datetime);
-          const prix = getPrix(nextCourse);
-          const arrivee = nextCourse.arrivee || nextCourse.destination;
-          return (
-            <div
-              style={{
-                ...card,
-                marginBottom: 24,
-                border: "1px solid rgba(34,197,94,0.35)",
-                background: "rgba(34,197,94,0.06)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                <span style={{ fontSize: 20 }}>🚖</span>
-                <h2
-                  style={{
-                    fontFamily: "'Syne',sans-serif",
-                    fontSize: 15,
-                    fontWeight: 800,
-                    color: "#22c55e",
-                    margin: 0,
-                  }}
-                >
-                  Prochaine course
-                </h2>
-                <span
-                  style={{
-                    marginLeft: "auto",
-                    background: nuit ? "rgba(99,102,241,0.2)" : "rgba(250,204,21,0.15)",
-                    color: nuit ? "#818cf8" : "#fbbf24",
-                    padding: "3px 10px",
-                    borderRadius: 99,
-                    fontSize: 11,
-                    fontWeight: 700,
-                  }}
-                >
-                  {nuit ? `🌙 Nuit` : `☀️ Jour`}
-                </span>
-              </div>
-              <div style={{ color: "#f8fafc", fontWeight: 800, fontSize: 16, marginBottom: 4 }}>
-                {formatParis(nextCourse.pickup_datetime, { dateStyle: "full", timeStyle: "short" })}
-              </div>
-              <div style={{ color: "#cbd5e1", fontSize: 14, marginBottom: 10 }}>
-                🟢 {nextCourse.depart} → 📍 {arrivee || "—"}
-              </div>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 13, color: "#94a3b8" }}>
-                <span>👤 {nextCourse.nom || nextCourse.client_name}</span>
-                <span>👥 {nextCourse.passagers || nextCourse.nb_passagers || 1} pax</span>
-                {prix !== null && <span style={{ color: "#0ea5e9", fontWeight: 700 }}>💰 {prix.toFixed(2)} €</span>}
-                {nextCourse.paiement && <span style={{ color: "#22c55e" }}>{paiementLabel(nextCourse.paiement)}</span>}
-              </div>
-            </div>
-          );
-        })()}
 
       {/* ══════════════════════════════
           SECTION COURSES
@@ -2544,190 +2455,6 @@ function Dashboard() {
       </div>
 
       {/* ── Modale Accepter ── */}
-      {confirmAction && confirmAction.type === "accept" && (
-        <div
-          onClick={() => {
-            if (confirmBusy) return;
-            setConfirmAction(null);
-          }}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.65)",
-            backdropFilter: "blur(6px)",
-            zIndex: 9998,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 20,
-          }}
-        >
-          <div
-            className="confirm-modal-inner"
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: "#0f172a",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 20,
-              padding: 28,
-              maxWidth: 420,
-              width: "100%",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
-              fontFamily: "'DM Sans',sans-serif",
-            }}
-          >
-            <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
-            <h2
-              style={{
-                fontFamily: "'Syne',sans-serif",
-                fontSize: 20,
-                fontWeight: 800,
-                color: "#f8fafc",
-                margin: "0 0 8px",
-              }}
-            >
-              Accepter cette course ?
-            </h2>
-            <p style={{ color: "#94a3b8", fontSize: 14, lineHeight: 1.5, margin: "0 0 12px" }}>
-              <b style={{ color: "#cbd5e1" }}>{confirmAction.r.client_name || confirmAction.r.nom}</b>
-              {" — "}
-              {confirmAction.r.depart} → {confirmAction.r.destination || confirmAction.r.arrivee}
-            </p>
-
-            {confirmAction.r.pickup_datetime && (
-              <div
-                style={{
-                  background: "rgba(14,165,233,0.08)",
-                  border: "1px solid rgba(14,165,233,0.2)",
-                  borderRadius: 10,
-                  padding: "8px 12px",
-                  fontSize: 13,
-                  color: "#cbd5e1",
-                  marginBottom: 10,
-                }}
-              >
-                🕐 {formatParis(confirmAction.r.pickup_datetime, { dateStyle: "full", timeStyle: "short" })}
-                {" · "}
-                <span
-                  style={{ color: isNuit(confirmAction.r.pickup_datetime) ? "#818cf8" : "#fbbf24", fontWeight: 700 }}
-                >
-                  {isNuit(confirmAction.r.pickup_datetime)
-                    ? `🌙 Nuit ${TARIF_NUIT_LABEL}`
-                    : `☀️ Jour ${TARIF_JOUR_LABEL}`}
-                </span>
-              </div>
-            )}
-
-            <div
-              style={{
-                background: "rgba(14,165,233,0.08)",
-                border: "1px solid rgba(14,165,233,0.2)",
-                borderRadius: 10,
-                padding: "12px 14px",
-                marginBottom: 14,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 10,
-                flexWrap: "wrap",
-              }}
-            >
-              {kmLoading ? (
-                <span style={{ color: "#94a3b8", fontSize: 13 }}>📡 Calcul de la distance…</span>
-              ) : (
-                (() => {
-                  const rv = confirmAction.r;
-                  const km = rv.distance_km ? Number(rv.distance_km) : (autoKm ?? 5);
-                  const px = rv.pickup_datetime ? calculerPrixMixte(km, rv.pickup_datetime) : calculerPrix(km, true);
-                  return (
-                    <>
-                      <div>
-                        <div style={{ color: "#94a3b8", fontSize: 12, marginBottom: 2 }}>Distance</div>
-                        <div style={{ color: "#cbd5e1", fontWeight: 700, fontSize: 15 }}>{km} km</div>
-                      </div>
-                      <div style={{ textAlign: "right" }}>
-                        <div style={{ color: "#94a3b8", fontSize: 12, marginBottom: 2 }}>Prix calculé</div>
-                        <div
-                          style={{
-                            color: "#ef4444",
-                            fontFamily: "'DM Sans',sans-serif",
-                            fontWeight: 800,
-                            fontSize: 22,
-                            fontVariantNumeric: "tabular-nums",
-                          }}
-                        >
-                          {px.toFixed(2)} €
-                        </div>
-                      </div>
-                    </>
-                  );
-                })()
-              )}
-            </div>
-
-            <div
-              style={{
-                background: "rgba(34,197,94,0.06)",
-                border: "1px solid rgba(34,197,94,0.2)",
-                borderRadius: 10,
-                padding: "8px 12px",
-                marginBottom: 14,
-                fontSize: 13,
-                color: "#22c55e",
-              }}
-            >
-              🔔 Push + Email envoyés automatiquement au client
-            </div>
-
-            <div
-              className="confirm-modal-btns"
-              style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}
-            >
-              <button
-                onClick={() => setConfirmAction(null)}
-                disabled={confirmBusy}
-                style={{
-                  background: "rgba(255,255,255,0.06)",
-                  color: "#cbd5e1",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  padding: "12px 20px",
-                  borderRadius: 12,
-                  cursor: confirmBusy ? "not-allowed" : "pointer",
-                  fontWeight: 700,
-                  opacity: confirmBusy ? 0.5 : 1,
-                }}
-              >
-                Annuler
-              </button>
-              <button
-                disabled={confirmBusy}
-                onClick={async () => {
-                  if (confirmBusy) return;
-                  setConfirmBusy(true);
-                  try {
-                    await handleAccept(confirmAction.r);
-                    setConfirmAction(null);
-                  } finally {
-                    setConfirmBusy(false);
-                  }
-                }}
-                style={{
-                  background: "#22c55e",
-                  color: "#fff",
-                  border: 0,
-                  padding: "12px 22px",
-                  borderRadius: 12,
-                  cursor: confirmBusy ? "wait" : "pointer",
-                  fontWeight: 700,
-                  opacity: confirmBusy ? 0.5 : 1,
-                }}
-              >
-                {confirmBusy ? "…" : "✓ Accepter"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
