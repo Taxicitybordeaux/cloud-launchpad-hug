@@ -1,13 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
-import { getDistanceAndDurationKm } from "@/lib/osrm";
+import { getRouteGeoCoords, getDistanceAndDurationKm } from "@/lib/osrm";
 import { geocodeAddress } from "@/lib/geocode";
 import { OSM_TILE_URL, OSM_TILE_OPTIONS } from "@/lib/map";
+import { trackingIdSchema } from "@/lib/tracking-id";
 
 export const Route = createFileRoute("/suivi/$id")({
-  head: () => ({ meta: [{ title: "Suivi de votre taxi — Taxi City Bordeaux" }] }),
+  head: () => ({
+    meta: [
+      { title: "Suivi de votre taxi — Taxi City Bordeaux" },
+      { name: "description", content: "Suivez votre taxi en temps réel." },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: SuiviPage,
 });
 
@@ -18,6 +26,283 @@ const CHAUFFEUR = {
   plaque: "HF 450 JG",
   phone: "0673072322",
 };
+
+// ── Photo taxi (marqueur carte) ───────────────────────────────────────────────
+const TAXI_ICON_URI =
+  "data:image/jpeg;base64,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";
+
+// ── HelpPanel (FAQ + WhatsApp) ────────────────────────────────────────────────
+function HelpPanel({ reservationId, onClose }: { reservationId: string; onClose: () => void }) {
+  const [view, setView] = useState<"faq" | "contact">("faq");
+  const [msg, setMsg] = useState("");
+  const [sent, setSent] = useState(false);
+
+  const faqs = [
+    {
+      q: "Où est mon chauffeur ?",
+      a: "La carte affiche sa position en temps réel dès qu'il active son GPS. Si elle est vide, il est encore en route vers vous.",
+    },
+    {
+      q: "Le prix affiché est-il définitif ?",
+      a: "Non, c'est une estimation. Le compteur homologué fait foi à l'arrivée.",
+    },
+    { q: "Mon chauffeur ne répond pas ?", a: "Appelez directement le 06 73 07 23 22 disponible 7j/7 · 24h/24." },
+    {
+      q: "Je ne vois pas les infos départ/destination ?",
+      a: "Elles sont finalisées par notre équipe et apparaîtront automatiquement dès validation.",
+    },
+    { q: "Comment annuler ma course ?", a: "Contactez-nous au 06 73 07 23 22 ou via WhatsApp ci-dessous." },
+  ];
+
+  const sendContact = () => {
+    if (msg.trim().length < 5) return;
+    const waText = encodeURIComponent(`[Support] Réservation ${reservationId.slice(0, 8)}\n\n${msg}`);
+    window.open(`https://wa.me/33673072322?text=${waText}`, "_blank", "noopener,noreferrer");
+    setSent(true);
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.7)",
+        backdropFilter: "blur(6px)",
+        zIndex: 9999,
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "center",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "#0f172a",
+          borderRadius: "24px 24px 0 0",
+          border: "1px solid rgba(255,255,255,0.1)",
+          padding: "28px 20px 40px",
+          width: "100%",
+          maxWidth: 540,
+          maxHeight: "80vh",
+          overflow: "auto",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18, color: "#f8fafc" }}>
+            🆘 Besoin d'aide ?
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: "rgba(255,255,255,0.08)",
+              border: 0,
+              color: "#94a3b8",
+              borderRadius: "50%",
+              width: 32,
+              height: 32,
+              cursor: "pointer",
+              fontSize: 16,
+            }}
+          >
+            ✕
+          </button>
+        </div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+          {(["faq", "contact"] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              style={{
+                flex: 1,
+                padding: 10,
+                borderRadius: 12,
+                border: `1px solid ${view === v ? "rgba(14,165,233,0.5)" : "rgba(255,255,255,0.08)"}`,
+                background: view === v ? "rgba(14,165,233,0.15)" : "rgba(255,255,255,0.04)",
+                color: view === v ? "#0ea5e9" : "#94a3b8",
+                cursor: "pointer",
+                fontWeight: 700,
+                fontSize: 13,
+              }}
+            >
+              {v === "faq" ? "❓ FAQ" : "💬 Nous contacter"}
+            </button>
+          ))}
+        </div>
+        {view === "faq" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {faqs.map((f, i) => (
+              <details
+                key={i}
+                style={{
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  borderRadius: 14,
+                  padding: "14px 16px",
+                }}
+              >
+                <summary
+                  style={{
+                    fontFamily: "'Syne',sans-serif",
+                    fontWeight: 700,
+                    color: "#f1f5f9",
+                    cursor: "pointer",
+                    fontSize: 14,
+                  }}
+                >
+                  {f.q}
+                </summary>
+                <p
+                  style={{
+                    fontFamily: "'DM Sans',sans-serif",
+                    fontSize: 13,
+                    color: "#94a3b8",
+                    margin: "10px 0 0",
+                    lineHeight: 1.55,
+                  }}
+                >
+                  {f.a}
+                </p>
+              </details>
+            ))}
+          </div>
+        )}
+        {view === "contact" && (
+          <div>
+            {sent ? (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: 24,
+                  color: "#22c55e",
+                  fontFamily: "'Syne',sans-serif",
+                  fontWeight: 700,
+                }}
+              >
+                ✅ Message envoyé via WhatsApp !
+              </div>
+            ) : (
+              <>
+                <div
+                  style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "#475569", marginBottom: 10 }}
+                >
+                  ID Réservation: {reservationId.slice(0, 12)}…
+                </div>
+                <textarea
+                  value={msg}
+                  onChange={(e) => setMsg(e.target.value)}
+                  placeholder="Décrivez votre problème…"
+                  rows={4}
+                  style={{
+                    width: "100%",
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 12,
+                    padding: "12px 14px",
+                    color: "#f8fafc",
+                    fontFamily: "'DM Sans',sans-serif",
+                    fontSize: 14,
+                    resize: "vertical",
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+                <button
+                  onClick={sendContact}
+                  disabled={msg.trim().length < 5}
+                  style={{
+                    marginTop: 12,
+                    width: "100%",
+                    height: 50,
+                    background: msg.trim().length < 5 ? "rgba(37,211,102,0.3)" : "#25D366",
+                    color: "#fff",
+                    border: 0,
+                    borderRadius: 14,
+                    fontFamily: "'Syne',sans-serif",
+                    fontWeight: 800,
+                    fontSize: 15,
+                    cursor: msg.trim().length < 5 ? "not-allowed" : "pointer",
+                  }}
+                >
+                  💬 Envoyer via WhatsApp
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+interface Reservation {
+  id: string;
+  depart: string;
+  arrivee?: string;
+  destination?: string;
+  pickup_datetime?: string;
+  date_course?: string;
+  heure_course?: string;
+  status: string;
+  client_name?: string;
+  nom?: string;
+  client_phone?: string;
+  telephone?: string;
+  prix_estime?: string | number;
+  nb_passagers?: number;
+  passagers?: number;
+  tracking_id?: string;
+  distance_km?: number;
+}
+
+// ── Constantes ────────────────────────────────────────────────────────────────
+const BORDEAUX_CENTER: [number, number] = [44.8378, -0.5792];
+const ARRIVAL_THRESHOLD_M = 120;
+const shownIncompleteToast = new Set<string>();
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function formatPickup(r: Reservation): string {
+  if (r.pickup_datetime) {
+    try {
+      return new Date(r.pickup_datetime).toLocaleString("fr-FR", {
+        timeZone: "Europe/Paris",
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {}
+  }
+  if (r.date_course && r.heure_course) return `${r.date_course} à ${r.heure_course}`;
+  return "—";
+}
+
+function distMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const x = (toRad(b.lng) - toRad(a.lng)) * Math.cos(toRad((a.lat + b.lat) / 2));
+  const y = toRad(b.lat) - toRad(a.lat);
+  return Math.sqrt(x * x + y * y) * R;
+}
+
+function closestIndexOnRoute(lat: number, lng: number, coords: [number, number][]) {
+  let best = 0,
+    bestD = Infinity;
+  for (let i = 0; i < coords.length; i++) {
+    const d = distMeters({ lat, lng }, { lat: coords[i][0], lng: coords[i][1] });
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  return best;
+}
+
+function ease(t: number) {
+  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+}
 
 // ── Leaflet loader ────────────────────────────────────────────────────────────
 function loadLeaflet(): Promise<void> {
@@ -43,7 +328,7 @@ function loadLeaflet(): Promise<void> {
       }, 50);
       setTimeout(() => {
         clearInterval(poll);
-        (window as any).L ? resolve() : reject();
+        (window as any).L ? resolve() : reject(new Error("Leaflet timeout"));
       }, 8000);
       return;
     }
@@ -51,458 +336,654 @@ function loadLeaflet(): Promise<void> {
     s.id = "leaflet-js";
     s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
     s.onload = () => resolve();
-    s.onerror = () => reject();
+    s.onerror = () => reject(new Error("Leaflet load error"));
     document.head.appendChild(s);
   });
 }
 
-// ── OSRM : chemin le plus long avec polyline ──────────────────────────────────
-async function getOsrmLongestPolyline(
-  from: [number, number], // [lng, lat]
-  to: [number, number], // [lng, lat]
-): Promise<{ coords: [number, number][]; distanceKm: number; dureeS: number } | null> {
-  const url =
-    `https://router.project-osrm.org/route/v1/driving/` +
-    `${from[0]},${from[1]};${to[0]},${to[1]}` +
-    `?overview=full&geometries=geojson&alternatives=3&steps=false`;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const json = await res.json();
-    if (!json.routes?.length) return null;
-    const longest = json.routes.reduce((b: any, r: any) => (r.distance > b.distance ? r : b));
-    return {
-      coords: (longest.geometry?.coordinates ?? []) as [number, number][],
-      distanceKm: Math.round((longest.distance / 1000) * 10) / 10,
-      dureeS: Math.round(longest.duration),
-    };
-  } catch {
-    return null;
-  }
-}
-
-interface Reservation {
-  id: string;
-  depart: string;
-  arrivee?: string;
-  destination?: string;
-  pickup_datetime?: string;
-  date_course?: string;
-  heure_course?: string;
-  status: string;
-  client_name?: string;
-  nom?: string;
-  client_phone?: string;
-  telephone?: string;
-  prix_estime?: string | number;
-  nb_passagers?: number;
-  passagers?: number;
-  tracking_id?: string;
-  distance_km?: number;
-}
-
-interface TaxiPos {
-  lat: number;
-  lng: number;
-  heading: number;
-}
-
-function formatPickup(r: Reservation): string {
-  if (r.pickup_datetime) {
-    try {
-      return new Date(r.pickup_datetime).toLocaleString("fr-FR", {
-        timeZone: "Europe/Paris",
-        weekday: "short",
-        day: "numeric",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } catch {}
-  }
-  if (r.date_course && r.heure_course) return `${r.date_course} à ${r.heure_course}`;
-  return "—";
-}
-
-// Distance en mètres entre deux coords GPS
-function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371000;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-// Seuil (mètres) pour considérer que le taxi est arrivé à destination
-const ARRIVAL_THRESHOLD_M = 120;
-
+// ── Composant principal ───────────────────────────────────────────────────────
 function SuiviPage() {
   const { id } = Route.useParams();
   const [resa, setResa] = useState<Reservation | null>(null);
-  const [taxiPos, setTaxiPos] = useState<TaxiPos | null>(null);
-  const [eta, setEta] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadStep, setLoadStep] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+  const [taxiPos, setTaxiPos] = useState<{ lat: number; lng: number } | null>(null);
+  const [eta, setEta] = useState<number | null>(null);
   const [shareMsg, setShareMsg] = useState("");
-  const [mapReady, setMapReady] = useState(false);
   const [courseTerminee, setCourseTerminee] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [userPanned, setUserPanned] = useState(false);
+  const [mapHeight, setMapHeight] = useState(260);
+  const [retryNonce, setRetryNonce] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [error, setError] = useState<null | {
+    code: "invalid" | "expired" | "notfound";
+    title: string;
+    message: string;
+  }>(null);
+  const [deadZonePct] = useState<number>(60);
+  const [autoResume] = useState<boolean>(true);
+
   const { status: pushStatus, subscribe } = usePushNotifications();
 
+  // Refs carte
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInst = useRef<any>(null);
-  const taxiMarker = useRef<any>(null);
-  const routeLayer = useRef<any>(null); // tracé taxi → point de RDV / destination
-  const routeOutline = useRef<any>(null); // contour blanc du tracé taxi
-  const tripLayer = useRef<any>(null); // tracé départ → destination (pointillés)
-  const tripOutline = useRef<any>(null); // contour blanc du tracé course
+  const markerRef = useRef<any>(null);
+  const routeLayer = useRef<any>(null);
+  const routeOutline = useRef<any>(null);
+  const tripLayer = useRef<any>(null);
+  const tripOutline = useRef<any>(null);
+  const approachLayer = useRef<any>(null);
   const fromMarker = useRef<any>(null);
   const toMarker = useRef<any>(null);
-  // Coords géocodées en cache pour éviter les appels répétés
+  const approachCoords = useRef<[number, number][]>([]);
+  const lastAppliedPos = useRef<{ lat: number; lng: number; t: number } | null>(null);
+  const lastApproachAt = useRef<number>(0);
+  const animFrame = useRef<number | null>(null);
+  const lastDriverPos = useRef<{ lat: number; lng: number } | null>(null);
+  const initialZoom = useRef<number | null>(null);
+  const userPannedRef = useRef(false);
+  const autoResumeRef = useRef(true);
+
+  // Refs data
   const depGeoRef = useRef<{ lat: number; lng: number } | null>(null);
   const arrGeoRef = useRef<{ lat: number; lng: number } | null>(null);
+  const destCoordsRef = useRef<[number, number] | null>(null);
+  const pickupCoordsRef = useRef<[number, number] | null>(null);
+  const resaIdRef = useRef<string>("");
+  const gpsIdRef = useRef<string>("driver");
+  const modeRef = useRef<"single" | "multi">("single");
+  const channelRef = useRef<any>(null);
+  const pollingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const connectionStateRef = useRef<"connected" | "disconnected">("disconnected");
+  const notifScheduledRef = useRef(false);
 
-  // ── Chargement réservation ────────────────────────────────────────────────
   useEffect(() => {
-    const load = async () => {
-      let r: Reservation | null = null;
-      const { data: byTracking } = await (supabase as any)
-        .from("reservations")
-        .select(
-          "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,tracking_id,distance_km",
+    userPannedRef.current = userPanned;
+  }, [userPanned]);
+  useEffect(() => {
+    autoResumeRef.current = autoResume;
+  }, [autoResume]);
+
+  // ── Hauteur carte dynamique (iOS Safari) ────────────────────────────────
+  useEffect(() => {
+    const update = () => setMapHeight(Math.min(Math.max(Math.round(window.innerHeight * 0.4), 220), 380));
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+    };
+  }, []);
+
+  // ── Animation fluide marqueur (style Uber) ───────────────────────────────
+  const animateMarkerTo = (toLat: number, toLng: number) => {
+    const marker = markerRef.current;
+    if (!marker) return;
+    if (animFrame.current !== null) {
+      cancelAnimationFrame(animFrame.current);
+      animFrame.current = null;
+    }
+    const from = marker.getLatLng();
+    const fromLat = from.lat,
+      fromLng = from.lng;
+    const duration = 1200;
+    const startT = performance.now();
+    const step = (now: number) => {
+      const t = Math.min(1, (now - startT) / duration);
+      const k = ease(t);
+      const lat = fromLat + (toLat - fromLat) * k;
+      const lng = fromLng + (toLng - fromLng) * k;
+      marker.setLatLng([lat, lng]);
+      const route = approachCoords.current;
+      if (route.length > 1 && approachLayer.current) {
+        const idx = closestIndexOnRoute(lat, lng, route);
+        const tail: [number, number][] = [[lat, lng], ...route.slice(idx + 1)];
+        if (tail.length >= 2) approachLayer.current.setLatLngs(tail);
+      }
+      if (t < 1) animFrame.current = requestAnimationFrame(step);
+      else animFrame.current = null;
+    };
+    animFrame.current = requestAnimationFrame(step);
+  };
+
+  // ── Geocode helper ───────────────────────────────────────────────────────
+  const geocode = async (q: string): Promise<[number, number] | null> => {
+    try {
+      const c = await geocodeAddress(q + ", Bordeaux, France");
+      return c ? [c.lat, c.lng] : null;
+    } catch {
+      return null;
+    }
+  };
+
+  // ── Tracé ligne bleue chauffeur → prise en charge ────────────────────────
+  const drawApproachLine = async (driverLat: number, driverLng: number, pickup: [number, number]) => {
+    const map = mapInst.current;
+    const L = (window as any).L;
+    if (!map || !L) return;
+    try {
+      const route = await getRouteGeoCoords([driverLng, driverLat], [pickup[1], pickup[0]]);
+      const coords: [number, number][] = route?.coords ?? [[driverLat, driverLng], pickup];
+      approachCoords.current = coords;
+      if (approachLayer.current) approachLayer.current.setLatLngs(coords);
+      else
+        approachLayer.current = L.polyline(coords, {
+          color: "#0ea5e9",
+          weight: 5,
+          opacity: 0.95,
+          lineCap: "round",
+          lineJoin: "round",
+        }).addTo(map);
+    } catch {
+      const fallback: [number, number][] = [[driverLat, driverLng], pickup];
+      approachCoords.current = fallback;
+      if (approachLayer.current) approachLayer.current.setLatLngs(fallback);
+      else
+        approachLayer.current = L.polyline(fallback, {
+          color: "#0ea5e9",
+          weight: 5,
+          opacity: 0.95,
+          lineCap: "round",
+          lineJoin: "round",
+        }).addTo(map);
+    }
+  };
+
+  // ── ETA ─────────────────────────────────────────────────────────────────
+  const calculateETA = async (lat: number, lng: number, destCoords?: [number, number]) => {
+    try {
+      const [dLat, dLng] = destCoords ?? BORDEAUX_CENTER;
+      const result = await getDistanceAndDurationKm([lng, lat], [dLng, dLat]);
+      if (result) setEta(Math.ceil(result.durationSec / 60));
+    } catch {
+      setEta(null);
+    }
+  };
+
+  // ── Init carte ───────────────────────────────────────────────────────────
+  const initMap = async (lat: number, lng: number) => {
+    try {
+      await loadLeaflet();
+    } catch {
+      return;
+    }
+    const L = (window as any).L;
+    if (!L || !mapRef.current) return;
+    if (mapInst.current) {
+      try {
+        mapInst.current.remove();
+      } catch {}
+      mapInst.current = null;
+      markerRef.current = null;
+    }
+    const map = L.map(mapRef.current, { center: [lat, lng], zoom: 14, zoomControl: false });
+    initialZoom.current = 14;
+    map.on("dragstart", () => setUserPanned(true));
+    map.on("zoomstart", (e: any) => {
+      if (e?.hard !== false) setUserPanned(true);
+    });
+    L.tileLayer(OSM_TILE_URL, OSM_TILE_OPTIONS).addTo(map);
+    L.control.zoom({ position: "bottomright" }).addTo(map);
+    const icon = L.divIcon({
+      className: "",
+      html: `<div style="width:48px;height:48px;border-radius:50%;border:3px solid #f5c842;overflow:hidden;box-shadow:0 0 0 0 rgba(245,200,66,0);animation:driverPulse 2s infinite"><img src="${TAXI_ICON_URI}" style="width:100%;height:100%;object-fit:cover" /></div>`,
+      iconSize: [48, 48],
+      iconAnchor: [24, 24],
+    });
+    markerRef.current = L.marker([lat, lng], { icon }).addTo(map);
+    mapInst.current = map;
+    setTimeout(() => map.invalidateSize({ animate: false }), 300);
+    setTimeout(() => map.invalidateSize({ animate: false }), 500);
+  };
+
+  // ── Appliquer position chauffeur ────────────────────────────────────────
+  const applyDriverPosition = useCallback(
+    async (lat: number, lng: number) => {
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      const map = mapInst.current;
+      if (!map) {
+        await initMap(lat, lng);
+        lastAppliedPos.current = { lat, lng, t: Date.now() };
+        return;
+      }
+      const now = Date.now();
+      const last = lastAppliedPos.current;
+      if (last) {
+        const moved = distMeters(last, { lat, lng });
+        if (moved < 8 && now - last.t < 4000) return;
+      }
+      lastAppliedPos.current = { lat, lng, t: now };
+      lastDriverPos.current = { lat, lng };
+      setTaxiPos({ lat, lng });
+
+      if (pickupCoordsRef.current && now - lastApproachAt.current > 15000) {
+        lastApproachAt.current = now;
+        drawApproachLine(lat, lng, pickupCoordsRef.current);
+      }
+      animateMarkerTo(lat, lng);
+
+      // Suivi avec zone morte
+      if (userPannedRef.current) {
+        if (autoResumeRef.current) {
+          try {
+            const bounds = map.getBounds();
+            const sw = bounds.getSouthWest(),
+              ne = bounds.getNorthEast();
+            const margin = (1 - deadZonePct / 100) / 2;
+            const inside =
+              lat >= sw.lat + (ne.lat - sw.lat) * margin &&
+              lat <= ne.lat - (ne.lat - sw.lat) * margin &&
+              lng >= sw.lng + (ne.lng - sw.lng) * margin &&
+              lng <= ne.lng - (ne.lng - sw.lng) * margin;
+            if (inside) {
+              setUserPanned(false);
+              userPannedRef.current = false;
+            }
+          } catch {}
+        }
+        await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
+        return;
+      }
+      try {
+        const c = map.getCenter();
+        if (distMeters({ lat: c.lat, lng: c.lng }, { lat, lng }) < 15) {
+          await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
+          return;
+        }
+        const bounds = map.getBounds();
+        const sw = bounds.getSouthWest(),
+          ne = bounds.getNorthEast();
+        const margin = (1 - deadZonePct / 100) / 2;
+        const outside =
+          lat < sw.lat + (ne.lat - sw.lat) * margin ||
+          lat > ne.lat - (ne.lat - sw.lat) * margin ||
+          lng < sw.lng + (ne.lng - sw.lng) * margin ||
+          lng > ne.lng - (ne.lng - sw.lng) * margin;
+        if (outside) map.panTo([lat, lng], { animate: true, duration: 1.4, easeLinearity: 0.25, noMoveStart: true });
+      } catch {}
+      await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
+    },
+    [deadZonePct],
+  );
+
+  const recenterOnDriver = useCallback(() => {
+    const map = mapInst.current,
+      pos = lastDriverPos.current;
+    if (!map || !pos) return;
+    map.setView([pos.lat, pos.lng], initialZoom.current ?? map.getZoom(), { animate: true, duration: 0.8 });
+    setUserPanned(false);
+  }, []);
+
+  // ── Tracé départ → destination ──────────────────────────────────────────
+  const drawTripRoute = useCallback(async (depart: string, destination: string) => {
+    const map = mapInst.current;
+    const L = (window as any).L;
+    if (!map || !L) return;
+    const [a, b] = await Promise.all([geocode(depart), geocode(destination)]);
+    if (!a || !b) return;
+
+    depGeoRef.current = { lat: a[0], lng: a[1] };
+    arrGeoRef.current = { lat: b[0], lng: b[1] };
+    destCoordsRef.current = b;
+    pickupCoordsRef.current = a;
+
+    try {
+      const route = await getRouteGeoCoords(a, b);
+      const coords: [number, number][] = route?.coords ?? [a, b];
+      if (route?.distanceKm) {
+        /* totalKm disponible si besoin */
+      }
+
+      if (tripLayer.current) {
+        tripLayer.current.remove();
+        tripLayer.current = null;
+      }
+      if (tripOutline.current) {
+        tripOutline.current.remove();
+        tripOutline.current = null;
+      }
+
+      tripOutline.current = L.polyline(coords, { color: "#ffffff", weight: 10, opacity: 0.6, dashArray: "12 8" }).addTo(
+        map,
+      );
+      tripLayer.current = L.polyline(coords, {
+        color: "rgba(255,255,255,0.25)",
+        weight: 6,
+        opacity: 1,
+        dashArray: "8 6",
+      }).addTo(map);
+
+      // Marqueur départ pulsant
+      const depIcon = L.divIcon({
+        className: "",
+        html: `<div style="position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center">
+          <span style="position:absolute;inset:0;border-radius:50%;background:rgba(34,197,94,0.35);animation:gpsRing 1.6s ease-out infinite"></span>
+          <span style="position:absolute;inset:6px;border-radius:50%;background:rgba(34,197,94,0.5);animation:gpsRing 1.6s ease-out infinite;animation-delay:.4s"></span>
+          <div style="position:relative;width:30px;height:30px;background:#22c55e;border-radius:50%;border:3px solid white;box-shadow:0 4px 14px rgba(34,197,94,0.7);display:flex;align-items:center;justify-content:center;font-size:15px">📍</div></div>
+        <style>@keyframes gpsRing{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.6);opacity:0}}</style>`,
+        iconSize: [44, 44],
+        iconAnchor: [22, 22],
+      });
+      const destIcon = L.divIcon({
+        className: "",
+        html: `<div style="width:34px;height:34px;background:#ef4444;border-radius:50%;border:3px solid white;box-shadow:0 2px 10px rgba(239,68,68,0.6);display:flex;align-items:center;justify-content:center;font-size:16px">🏁</div>`,
+        iconSize: [34, 34],
+        iconAnchor: [17, 17],
+      });
+      if (fromMarker.current) fromMarker.current.remove();
+      if (toMarker.current) toMarker.current.remove();
+      fromMarker.current = L.marker(a, { icon: depIcon }).addTo(map).bindPopup("📍 Prise en charge");
+      toMarker.current = L.marker(b, { icon: destIcon }).addTo(map).bindPopup("🏁 Destination");
+
+      // Tracé approche chauffeur si déjà en position
+      const driverPos = markerRef.current?.getLatLng();
+      if (driverPos) drawApproachLine(driverPos.lat, driverPos.lng, a);
+
+      map.invalidateSize();
+      map.fitBounds(L.latLngBounds([...coords, markerRef.current?.getLatLng()].filter(Boolean)).pad(0.2), {
+        animate: true,
+        duration: 0.8,
+      });
+    } catch {}
+  }, []);
+
+  // ── Notification avant prise en charge ──────────────────────────────────
+  const schedulePickupNotification = useCallback((pickupDatetime: string) => {
+    if (notifScheduledRef.current) return;
+    notifScheduledRef.current = true;
+    const pickupMs = new Date(pickupDatetime).getTime();
+    const now = Date.now();
+    const diff = pickupMs - now;
+    if (diff > 0 && diff <= 30 * 60_000) {
+      toast.warning(`⏰ Prise en charge dans ${Math.round(diff / 60_000)} min`, {
+        description: "Préparez-vous ! Le chauffeur arrive bientôt.",
+        duration: 8000,
+      });
+    }
+    const notifMs = pickupMs - 15 * 60_000;
+    if (notifMs > now) {
+      if (typeof Notification !== "undefined" && Notification.permission === "default")
+        Notification.requestPermission();
+      setTimeout(() => {
+        const formatted = new Date(pickupDatetime).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+        toast.warning(`🚕 Prise en charge dans 15 min`, {
+          description: `Votre taxi est prévu à ${formatted}. Soyez prêt !`,
+          duration: 10000,
+        });
+        if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+          new Notification("🚕 Taxi City Bordeaux", {
+            body: `Votre prise en charge est prévue à ${formatted}. Votre chauffeur arrive !`,
+            icon: "/favicon.ico",
+          });
+        }
+      }, notifMs - now);
+    }
+  }, []);
+
+  // ── Polling fallback ────────────────────────────────────────────────────
+  const stopPolling = useCallback(() => {
+    if (pollingTimerRef.current) {
+      clearInterval(pollingTimerRef.current);
+      pollingTimerRef.current = null;
+    }
+  }, []);
+
+  const startPolling = useCallback(() => {
+    if (pollingTimerRef.current) return;
+    pollingTimerRef.current = setInterval(async () => {
+      const { data } = await supabase.from("driver_gps").select("*").eq("id", gpsIdRef.current).maybeSingle();
+      if (data) {
+        setLastUpdate(new Date());
+        if (data.latitude && data.longitude) await applyDriverPosition(data.latitude, data.longitude);
+      }
+      if (resaIdRef.current) {
+        const { data: r } = await supabase
+          .from("reservations")
+          .select("status,depart,arrivee,destination,prix_estime,pickup_datetime")
+          .eq("id", resaIdRef.current)
+          .maybeSingle();
+        if (r) setResa((prev) => (prev ? { ...prev, ...r } : prev));
+      }
+    }, 10_000);
+  }, [applyDriverPosition]);
+
+  // ── Realtime ─────────────────────────────────────────────────────────────
+  const subscribeRealtime = useCallback(
+    (gpsId: string, resaId: string, mode: "single" | "multi") => {
+      const filter = mode === "multi" ? `id=eq.${gpsId}` : undefined;
+      const gpsChannel = supabase
+        .channel(`suivi-gps-${gpsId}`)
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "driver_gps", ...(filter ? { filter } : {}) },
+          async (payload) => {
+            const d = payload.new as any;
+            if (mode === "multi" && d.id !== gpsId) return;
+            if (mode === "single" && d.id !== "driver") return;
+            setLastUpdate(new Date());
+            if (d.latitude && d.longitude) await applyDriverPosition(d.latitude, d.longitude);
+          },
         )
-        .eq("tracking_id", id)
-        .maybeSingle();
-      if (byTracking) {
-        r = byTracking;
-      } else {
+        .on("system", {}, (status: any) => {
+          const s = (status?.status || "").toLowerCase();
+          if (s === "subscribed") {
+            connectionStateRef.current = "connected";
+            stopPolling();
+            if (reconnectTimerRef.current) {
+              clearTimeout(reconnectTimerRef.current);
+              reconnectTimerRef.current = null;
+            }
+          } else if (
+            ["channel_error", "timed_out", "closed"].includes(s) &&
+            connectionStateRef.current === "connected"
+          ) {
+            connectionStateRef.current = "disconnected";
+            toast.warning("⚡ Connexion interrompue", {
+              description: "Passage en mode polling. Reconnexion en cours…",
+              duration: 5000,
+            });
+            startPolling();
+            reconnectTimerRef.current = setTimeout(() => {
+              stopPolling();
+              setRetryNonce((n) => n + 1);
+            }, 8000);
+          }
+        })
+        .subscribe();
+
+      const resaChannel = supabase
+        .channel(`suivi-resa-${resaId}`)
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "reservations", filter: `id=eq.${resaId}` },
+          (payload) => {
+            const r = payload.new as any;
+            const newStatus = (r.status || "").toLowerCase();
+            if (["refusee", "refused", "annulee", "cancelled", "canceled"].includes(newStatus)) {
+              toast.error("Course annulée", { description: "Cette réservation n'est plus active." });
+              setError({
+                code: "expired",
+                title: "Course annulée ou refusée",
+                message: "Cette course n'est plus active.",
+              });
+              return;
+            }
+            if (["terminee", "terminée", "completed", "done"].includes(newStatus)) {
+              setCourseTerminee(true);
+              return;
+            }
+            setResa((prev) => {
+              if (!prev) return prev;
+              const next = { ...prev, ...r };
+              if (prev.prix_estime !== r.prix_estime && r.prix_estime)
+                toast.info("💶 Prix mis à jour", { description: `${r.prix_estime} €` });
+              if (prev.destination !== r.destination && r.destination)
+                toast.info("📍 Destination mise à jour", { description: r.destination });
+              if (
+                next.depart &&
+                (next.destination || next.arrivee) &&
+                (prev.depart !== next.depart || prev.destination !== next.destination)
+              ) {
+                drawTripRoute(next.depart, next.destination || next.arrivee!);
+              }
+              return next;
+            });
+          },
+        )
+        .subscribe();
+
+      channelRef.current = [gpsChannel, resaChannel];
+    },
+    [applyDriverPosition, startPolling, stopPolling, drawTripRoute],
+  );
+
+  // ── Chrono chargement ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!loading) return;
+    const start = Date.now();
+    const t = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 250);
+    return () => clearInterval(t);
+  }, [loading]);
+
+  // ── Chargement principal ────────────────────────────────────────────────
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setLoading(true);
+    setError(null);
+    setLoadStep(0);
+    const toastId = "suivi-load";
+
+    const init = async () => {
+      // 1. Chercher d'abord par tracking_id (UUID valide)
+      const parsed = trackingIdSchema.safeParse(id);
+      let r: Reservation | null = null;
+
+      setLoadStep(1);
+      if (parsed.success) {
+        const { data: byTracking } = await (supabase as any)
+          .from("reservations")
+          .select(
+            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,tracking_id,distance_km,created_at",
+          )
+          .eq("tracking_id", parsed.data)
+          .maybeSingle();
+        if (byTracking) r = byTracking;
+      }
+
+      // 2. Fallback par id direct
+      if (!r) {
         const { data: byId } = await (supabase as any)
           .from("reservations")
           .select(
-            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,tracking_id,distance_km",
+            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,tracking_id,distance_km,created_at",
           )
           .eq("id", id)
           .maybeSingle();
         r = byId;
       }
-      if (r && ["completed", "terminee", "terminée"].includes(r.status)) setCourseTerminee(true);
-      setResa(r);
-      setLoading(false);
-    };
-    load();
-  }, [id]);
 
-  // ── Init carte ────────────────────────────────────────────────────────────
-  // Dépend de `loading` : le DOM de la carte n'existe qu'une fois le chargement terminé
-  useEffect(() => {
-    if (loading || !resa) return; // attendre que le composant principal soit rendu
-    if (mapInst.current) return; // déjà initialisée, ne pas recommencer
-    let mounted = true;
-    const init = async () => {
-      try {
-        await loadLeaflet();
-      } catch {
+      if (!r) {
+        setError({
+          code: "notfound",
+          title: "Réservation introuvable",
+          message: "Ce lien de suivi n'est pas valide ou a expiré.",
+        });
+        setLoading(false);
         return;
       }
-      if (!mounted || !mapRef.current) return;
-      const L = (window as any).L;
+
+      // 3. Vérifier statut
+      const status = (r.status || "").toLowerCase();
+      if (["refusee", "refused", "annulee", "cancelled", "canceled"].includes(status)) {
+        setError({
+          code: "expired",
+          title: "Course annulée ou refusée",
+          message: "Cette course n'est plus active. Contactez-nous pour en créer une nouvelle.",
+        });
+        setLoading(false);
+        return;
+      }
+      if (["terminee", "terminée", "completed", "done"].includes(status)) {
+        setCourseTerminee(true);
+      }
+
+      resaIdRef.current = r.id;
+      setResa(r);
+
+      if (r.pickup_datetime) schedulePickupNotification(r.pickup_datetime);
+
+      const dep = r.depart,
+        dest = r.destination ?? r.arrivee;
+      if (!dep && !dest && r.prix_estime == null && !shownIncompleteToast.has(r.id)) {
+        shownIncompleteToast.add(r.id);
+        toast.warning("ℹ️ Détails incomplets", {
+          description: "Départ, destination et prix seront disponibles très prochainement.",
+          duration: 7000,
+        });
+      }
+
+      setLoadStep(2);
+      // 4. Mode GPS (single / multi)
+      const { data: settings } = await supabase.from("app_settings").select("tracking_mode").eq("id", 1).maybeSingle();
+      const mode = (settings?.tracking_mode === "multi" ? "multi" : "single") as "single" | "multi";
+      const gpsId = mode === "multi" ? r.tracking_id || "driver" : "driver";
+      gpsIdRef.current = gpsId;
+      modeRef.current = mode;
+
+      setLoadStep(3);
+      const { data: gpsData } = await supabase.from("driver_gps").select("*").eq("id", gpsId).maybeSingle();
+      if (gpsData?.latitude && gpsData?.longitude) {
+        await initMap(gpsData.latitude, gpsData.longitude);
+        await calculateETA(gpsData.latitude, gpsData.longitude, destCoordsRef.current ?? undefined);
+        setTaxiPos({ lat: gpsData.latitude, lng: gpsData.longitude });
+        setLastUpdate(new Date());
+      } else {
+        await initMap(BORDEAUX_CENTER[0], BORDEAUX_CENTER[1]);
+      }
+
+      if (dep && dest) drawTripRoute(dep, dest);
+
+      setLoading(false);
+      subscribeRealtime(gpsId, r.id, mode);
+    };
+
+    init();
+    return () => {
+      const ch = channelRef.current;
+      if (Array.isArray(ch)) ch.forEach((c) => c && supabase.removeChannel(c));
+      else if (ch) supabase.removeChannel(ch);
+      channelRef.current = null;
+      stopPolling();
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      if (animFrame.current !== null) {
+        cancelAnimationFrame(animFrame.current);
+        animFrame.current = null;
+      }
+      if (approachLayer.current) {
+        approachLayer.current.remove();
+        approachLayer.current = null;
+      }
       if (mapInst.current) {
         mapInst.current.remove();
         mapInst.current = null;
-      }
-      const map = L.map(mapRef.current, {
-        center: [44.8378, -0.5792],
-        zoom: 13,
-        zoomControl: false,
-        attributionControl: false,
-      });
-      L.tileLayer(OSM_TILE_URL, OSM_TILE_OPTIONS).addTo(map);
-      L.control.zoom({ position: "bottomright" }).addTo(map);
-      mapInst.current = map;
-      setTimeout(() => {
-        map.invalidateSize();
-        setMapReady(true);
-      }, 400);
-      setTimeout(() => map.invalidateSize(), 800);
-    };
-    init();
-    return () => {
-      mounted = false;
-      mapInst.current?.remove();
-      mapInst.current = null;
-    };
-  }, [loading, resa]);
-
-  // ── Afficher tracé de la course (départ → destination) — toujours ────────
-  // S'enclenche dès que la carte est prête, quel que soit le statut
-  useEffect(() => {
-    if (!resa || !mapReady) return;
-    const map = mapInst.current;
-    const L = (window as any).L;
-    if (!map || !L) return;
-
-    const drawTrip = async () => {
-      const depAddr = resa.depart;
-      const arrAddr = resa.arrivee || resa.destination;
-      if (!depAddr || !arrAddr) return;
-
-      const [depGeo, arrGeo] = await Promise.all([
-        geocodeAddress(depAddr + ", Bordeaux, France").catch(() => null),
-        geocodeAddress(arrAddr + ", Bordeaux, France").catch(() => null),
-      ]);
-      if (!depGeo || !arrGeo) return;
-
-      // Mise en cache pour la détection d'arrivée
-      depGeoRef.current = depGeo;
-      arrGeoRef.current = arrGeo;
-
-      const fromLngLat: [number, number] = [depGeo.lng, depGeo.lat];
-      const toLngLat: [number, number] = [arrGeo.lng, arrGeo.lat];
-
-      // Marqueur départ
-      const depIcon = L.divIcon({
-        className: "",
-        html: `<div style="width:14px;height:14px;background:#22c55e;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 4px rgba(34,197,94,0.25)"></div>`,
-        iconSize: [14, 14],
-        iconAnchor: [7, 7],
-      });
-      if (fromMarker.current) fromMarker.current.remove();
-      fromMarker.current = L.marker([depGeo.lat, depGeo.lng], { icon: depIcon })
-        .bindTooltip("Départ", { permanent: false, direction: "top" })
-        .addTo(map);
-
-      // Marqueur destination
-      const arrIcon = L.divIcon({
-        className: "",
-        html: `<div style="width:14px;height:14px;background:#f5c842;border-radius:3px;border:3px solid #1a1a2e;box-shadow:0 0 0 4px rgba(245,200,66,0.25)"></div>`,
-        iconSize: [14, 14],
-        iconAnchor: [7, 7],
-      });
-      if (toMarker.current) toMarker.current.remove();
-      toMarker.current = L.marker([arrGeo.lat, arrGeo.lng], { icon: arrIcon })
-        .bindTooltip("Destination", { permanent: false, direction: "top" })
-        .addTo(map);
-
-      // Tracé pointillé départ → destination
-      const route = await getOsrmLongestPolyline(fromLngLat, toLngLat);
-      if (route && route.coords.length > 1) {
-        if (tripLayer.current) {
-          tripLayer.current.remove();
-          tripLayer.current = null;
-        }
-        // Contour blanc pour faire ressortir le tracé
-        const tripCoords = route.coords.map((c: [number, number]) => [c[1], c[0]]);
-        if (tripOutline.current) {
-          tripOutline.current.remove();
-          tripOutline.current = null;
-        }
-        tripOutline.current = L.polyline(tripCoords, {
-          color: "#ffffff",
-          weight: 10,
-          opacity: 0.6,
-          dashArray: "12 8",
-        }).addTo(map);
-        tripLayer.current = L.polyline(tripCoords, {
-          color: "#ff6b00",
-          weight: 6,
-          opacity: 1,
-          dashArray: "12 8",
-        }).addTo(map);
-
-        // Centrer la carte sur le trajet complet (toujours, GPS ou pas)
-        map.invalidateSize();
-        map.fitBounds(
-          L.latLngBounds([
-            [depGeo.lat, depGeo.lng],
-            [arrGeo.lat, arrGeo.lng],
-          ]).pad(0.25),
-          { animate: true, duration: 0.8 },
-        );
+        markerRef.current = null;
       }
     };
+  }, [id, retryNonce, subscribeRealtime, stopPolling, schedulePickupNotification, drawTripRoute]);
 
-    drawTrip();
-  }, [resa, mapReady]);
-
-  // ── Position GPS temps réel du taxi ──────────────────────────────────────
-  useEffect(() => {
-    const loadInitial = async () => {
-      const { data } = await (supabase as any)
-        .from("driver_gps")
-        .select("latitude,longitude,heading,is_active")
-        .eq("id", "driver")
-        .maybeSingle();
-      if (data?.is_active && data.latitude) {
-        setTaxiPos({ lat: data.latitude, lng: data.longitude, heading: data.heading ?? 0 });
-      }
-    };
-    loadInitial();
-
-    const channel = (supabase as any)
-      .channel("taxi-gps-suivi")
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "driver_gps",
-          filter: "id=eq.driver",
-        },
-        (payload: any) => {
-          const d = payload.new;
-          if (d?.is_active && d.latitude) {
-            setTaxiPos({ lat: d.latitude, lng: d.longitude, heading: d.heading ?? 0 });
-          }
-        },
-      )
-      .subscribe();
-
-    return () => {
-      (supabase as any).removeChannel(channel);
-    };
-  }, []);
-
-  // ── Mise à jour marqueur taxi + tracé + ETA + détection fin de course ─────
-  useEffect(() => {
-    const map = mapInst.current;
-    const L = (window as any).L;
-    if (!map || !L || !taxiPos || !mapReady || !resa) return;
-
-    const taxiIcon = L.divIcon({
-      className: "",
-      html: `<div style="position:relative;width:56px;height:56px;">
-        <div style="position:absolute;inset:-8px;border-radius:50%;background:rgba(245,200,66,0.15);animation:gpsRing 2s ease-out infinite;"></div>
-        <div style="position:absolute;inset:-4px;border-radius:50%;background:rgba(245,200,66,0.1);animation:gpsRing 2s ease-out 0.6s infinite;"></div>
-        <div style="position:absolute;inset:0;border-radius:50%;background:rgba(10,10,20,0.9);border:2.5px solid rgba(245,200,66,0.7);display:flex;align-items:center;justify-content:center;">
-          <span style="font-size:26px;display:block;transform:rotate(${taxiPos.heading}deg);transition:transform 0.8s cubic-bezier(.4,0,.2,1);">🚕</span>
-        </div>
-      </div>`,
-      iconSize: [56, 56],
-      iconAnchor: [28, 28],
-    });
-
-    if (taxiMarker.current) {
-      taxiMarker.current.setLatLng([taxiPos.lat, taxiPos.lng]);
-      taxiMarker.current.setIcon(taxiIcon);
-    } else {
-      taxiMarker.current = L.marker([taxiPos.lat, taxiPos.lng], { icon: taxiIcon, zIndexOffset: 1000 }).addTo(map);
-    }
-
-    const isEnRoute = ["en_route", "accepted", "arrived"].includes(resa.status);
-    const isEnAttente = ["nouvelle", "pending"].includes(resa.status);
-
-    const updateRoute = async () => {
-      const taxiLngLat: [number, number] = [taxiPos.lng, taxiPos.lat];
-
-      if (isEnRoute && arrGeoRef.current) {
-        // ── EN ROUTE : taxi → destination ───────────────────────────────────
-        const arrGeo = arrGeoRef.current;
-        const arrLngLat: [number, number] = [arrGeo.lng, arrGeo.lat];
-
-        // Détection fin de course : taxi < seuil de la destination
-        const distToArr = distanceMeters(taxiPos.lat, taxiPos.lng, arrGeo.lat, arrGeo.lng);
-        if (distToArr < ARRIVAL_THRESHOLD_M && !courseTerminee) {
-          setCourseTerminee(true);
-          // Mise à jour statut en BDD
-          await (supabase as any).from("reservations").update({ status: "completed" }).eq("id", resa.id);
-          setResa((prev) => (prev ? { ...prev, status: "completed" } : prev));
-        }
-
-        const route = await getOsrmLongestPolyline(taxiLngLat, arrLngLat);
-        if (route && route.coords.length > 1) {
-          if (routeLayer.current) {
-            routeLayer.current.remove();
-            routeLayer.current = null;
-          }
-          const routeCoords = route.coords.map((c: [number, number]) => [c[1], c[0]]);
-          // Contour blanc
-          if (routeOutline.current) {
-            routeOutline.current.remove();
-            routeOutline.current = null;
-          }
-          routeOutline.current = L.polyline(routeCoords, { color: "#ffffff", weight: 10, opacity: 0.55 }).addTo(map);
-          routeLayer.current = L.polyline(routeCoords, { color: "#c026d3", weight: 6, opacity: 1 }).addTo(map);
-        }
-        if (route) setEta(Math.round(route.dureeS / 60));
-
-        map.fitBounds(
-          L.latLngBounds([
-            [taxiPos.lat, taxiPos.lng],
-            [arrGeo.lat, arrGeo.lng],
-          ]).pad(0.3),
-          { animate: true, duration: 0.8 },
-        );
-      } else if (isEnAttente && depGeoRef.current) {
-        // ── EN ATTENTE : taxi → point de prise en charge ────────────────────
-        const depGeo = depGeoRef.current;
-        const depLngLat: [number, number] = [depGeo.lng, depGeo.lat];
-
-        const route = await getOsrmLongestPolyline(taxiLngLat, depLngLat);
-        if (route && route.coords.length > 1) {
-          if (routeLayer.current) {
-            routeLayer.current.remove();
-            routeLayer.current = null;
-          }
-          const routeCoords2 = route.coords.map((c: [number, number]) => [c[1], c[0]]);
-          // Contour blanc
-          if (routeOutline.current) {
-            routeOutline.current.remove();
-            routeOutline.current = null;
-          }
-          routeOutline.current = L.polyline(routeCoords2, { color: "#ffffff", weight: 10, opacity: 0.55 }).addTo(map);
-          routeLayer.current = L.polyline(routeCoords2, { color: "#00e676", weight: 6, opacity: 1 }).addTo(map);
-        }
-        if (route) setEta(Math.round(route.dureeS / 60));
-        else {
-          getDistanceAndDurationKm(taxiLngLat, depLngLat).then((r) => {
-            if (r) setEta(Math.round(r.durationSec / 60));
-          });
-        }
-
-        map.fitBounds(
-          L.latLngBounds([
-            [taxiPos.lat, taxiPos.lng],
-            [depGeo.lat, depGeo.lng],
-          ]).pad(0.3),
-          { animate: true, duration: 0.8 },
-        );
-      }
-    };
-
-    updateRoute();
-  }, [taxiPos, mapReady, resa, courseTerminee]);
-
-  // ── Écoute changement de statut ───────────────────────────────────────────
-  useEffect(() => {
-    if (!resa) return;
-    const channel = (supabase as any)
-      .channel("resa-statut-suivi")
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "reservations",
-          filter: `id=eq.${resa.id}`,
-        },
-        (payload: any) => {
-          const updated = { ...resa, ...payload.new };
-          if (["completed", "terminee", "terminée"].includes(updated.status)) setCourseTerminee(true);
-          setResa((prev) => (prev ? { ...prev, ...payload.new } : prev));
-        },
-      )
-      .subscribe();
-    return () => {
-      (supabase as any).removeChannel(channel);
-    };
-  }, [resa?.id]);
-
-  // ── Abonnement push auto client ───────────────────────────────────────────
+  // ── Push notifications auto ──────────────────────────────────────────────
   useEffect(() => {
     if (!resa || pushStatus !== "idle") return;
     subscribe("client", resa.id).catch(() => {});
   }, [resa, pushStatus, subscribe]);
 
+  // ── Partager ─────────────────────────────────────────────────────────────
   const partager = async () => {
     const url = `${window.location.origin}/suivi/${id}`;
     try {
@@ -514,6 +995,47 @@ function SuiviPage() {
     }
   };
 
+  // ── Refresh manuel ────────────────────────────────────────────────────────
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      if (resaIdRef.current) {
+        const { data: r } = await supabase
+          .from("reservations")
+          .select("status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,distance_km")
+          .eq("id", resaIdRef.current)
+          .maybeSingle();
+        if (r) setResa((prev) => (prev ? { ...prev, ...r } : prev));
+      }
+      const { data } = await supabase.from("driver_gps").select("*").eq("id", gpsIdRef.current).maybeSingle();
+      if (data?.latitude && data?.longitude) {
+        setLastUpdate(new Date());
+        await applyDriverPosition(data.latitude, data.longitude);
+      }
+      if (mapInst.current) setTimeout(() => mapInst.current?.invalidateSize({ animate: false }), 100);
+      toast.success("✅ Informations mises à jour");
+    } catch {
+      toast.error("Échec du rafraîchissement");
+    } finally {
+      setRefreshing(false);
+    }
+  }, [applyDriverPosition]);
+
+  // ── Détection fin de course (GPS) ────────────────────────────────────────
+  useEffect(() => {
+    if (!taxiPos || !resa || courseTerminee || !arrGeoRef.current) return;
+    if (!["en_route", "accepted", "arrived"].includes(resa.status)) return;
+    const dist = distMeters(
+      { lat: taxiPos.lat, lng: taxiPos.lng },
+      { lat: arrGeoRef.current.lat, lng: arrGeoRef.current.lng },
+    );
+    if (dist < ARRIVAL_THRESHOLD_M) {
+      setCourseTerminee(true);
+      (supabase as any).from("reservations").update({ status: "completed" }).eq("id", resa.id);
+    }
+  }, [taxiPos, resa, courseTerminee]);
+
+  // ── UI helpers ────────────────────────────────────────────────────────────
   const statusConfig: Record<string, { label: string; color: string; bg: string; icon: string; pulse: boolean }> = {
     nouvelle: {
       label: "En attente de confirmation",
@@ -569,39 +1091,131 @@ function SuiviPage() {
   const prix = resa?.prix_estime ? `${Number(resa.prix_estime).toFixed(2)} €` : null;
   const distanceKm = resa?.distance_km ?? null;
 
-  // ── Chargement ────────────────────────────────────────────────────────────
+  // ── Écran chargement ──────────────────────────────────────────────────────
   if (loading) {
+    const steps = [
+      { label: "Connexion sécurisée…", icon: "🔐" },
+      { label: "Recherche de la course…", icon: "🔎" },
+      { label: "Récupération de la position GPS…", icon: "📡" },
+      { label: "Calcul de l'itinéraire…", icon: "🗺️" },
+    ];
+    const pct = [20, 45, 70, 95][loadStep] ?? 20;
     return (
       <div
         style={{
-          position: "fixed",
-          inset: 0,
+          minHeight: "100vh",
           background: "#08080f",
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
+          gap: 22,
+          padding: 24,
           fontFamily: "'DM Sans',sans-serif",
         }}
       >
+        <style>{`@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');@keyframes spinTaxi{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}@keyframes liveDot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.7)}}`}</style>
+        <div
+          style={{
+            position: "relative",
+            width: 110,
+            height: 110,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <svg width="110" height="110" style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)" }}>
+            <circle cx="55" cy="55" r="48" stroke="rgba(245,200,66,0.12)" strokeWidth="6" fill="none" />
+            <circle
+              cx="55"
+              cy="55"
+              r="48"
+              stroke="#f5c842"
+              strokeWidth="6"
+              fill="none"
+              strokeLinecap="round"
+              strokeDasharray={2 * Math.PI * 48}
+              strokeDashoffset={2 * Math.PI * 48 * (1 - pct / 100)}
+              style={{ transition: "stroke-dashoffset 0.4s ease" }}
+            />
+          </svg>
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: "50%",
+              overflow: "hidden",
+              border: "3px solid #f5c842",
+              animation: "spinTaxi 2s linear infinite",
+            }}
+          >
+            <img src={TAXI_ICON_URI} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="taxi" />
+          </div>
+        </div>
         <div style={{ textAlign: "center" }}>
           <div
             style={{
-              fontSize: 52,
-              marginBottom: 16,
-              display: "inline-block",
-              animation: "floatTaxi 1.4s ease-in-out infinite",
+              fontFamily: "'Syne',sans-serif",
+              fontWeight: 800,
+              fontSize: 20,
+              color: "#f8fafc",
+              marginBottom: 6,
             }}
           >
-            🚕
+            {steps[loadStep].icon} {steps[loadStep].label}
           </div>
-          <div style={{ color: "#475569", fontSize: 14 }}>Chargement du suivi…</div>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: "#f5c842" }}>
+            {Math.round(pct)}% · {elapsed}s
+          </div>
         </div>
-        <style>{`@keyframes floatTaxi { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }`}</style>
+        <div style={{ width: "min(320px,80vw)", display: "flex", flexDirection: "column", gap: 8 }}>
+          {steps.map((s, i) => (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                opacity: i <= loadStep ? 1 : 0.35,
+                transition: "opacity 0.3s",
+              }}
+            >
+              <span
+                style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: "50%",
+                  background: i < loadStep ? "#22c55e" : i === loadStep ? "#f5c842" : "rgba(255,255,255,0.1)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 11,
+                  color: "#fff",
+                  fontWeight: 700,
+                  animation: i === loadStep ? "liveDot 1.2s infinite" : "none",
+                }}
+              >
+                {i < loadStep ? "✓" : ""}
+              </span>
+              <span
+                style={{
+                  fontFamily: "'DM Sans',sans-serif",
+                  fontSize: 13,
+                  color: i <= loadStep ? "#e2e8f0" : "#334155",
+                }}
+              >
+                {s.icon} {s.label}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
 
-  if (!resa) {
+  // ── Écran erreur ─────────────────────────────────────────────────────────
+  if (error) {
     return (
       <div
         style={{
@@ -615,17 +1229,38 @@ function SuiviPage() {
           fontFamily: "'DM Sans',sans-serif",
         }}
       >
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#f1f5f9", marginBottom: 8 }}>
-            Réservation introuvable
+        <div style={{ textAlign: "center", maxWidth: 340 }}>
+          <div style={{ fontSize: 52, marginBottom: 16 }}>
+            {error.code === "notfound" ? "🔍" : error.code === "invalid" ? "❌" : "🏁"}
           </div>
-          <div style={{ color: "#475569", fontSize: 14 }}>Ce lien de suivi n'est pas valide ou a expiré.</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#f1f5f9", marginBottom: 8 }}>{error.title}</div>
+          <div style={{ color: "#475569", fontSize: 14, lineHeight: 1.6 }}>{error.message}</div>
+          <a
+            href="tel:0673072322"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              marginTop: 24,
+              padding: "12px 24px",
+              background: "linear-gradient(135deg,#f5c842,#d97706)",
+              borderRadius: 14,
+              color: "#08080f",
+              fontWeight: 700,
+              fontSize: 15,
+              textDecoration: "none",
+            }}
+          >
+            📞 Nous appeler
+          </a>
         </div>
       </div>
     );
   }
 
+  if (!resa) return null;
+
+  // ── Page principale ───────────────────────────────────────────────────────
   return (
     <div
       style={{
@@ -639,36 +1274,89 @@ function SuiviPage() {
       }}
     >
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Syne:wght@700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Syne:wght@700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        /* ── Système typographique ──────────────────────────────────────────
-           • Titres / noms propres  → Syne 700-800  (identité, premium)
-           • Chiffres / codes       → Space Grotesk 600-700  (lisibilité numérique)
-           • Corps / labels         → DM Sans 400-600  (clarté)
-        ──────────────────────────────────────────────────────────────────── */
         .typo-title   { font-family: 'Syne', sans-serif; font-weight: 800; letter-spacing: -0.025em; }
         .typo-num     { font-family: 'Space Grotesk', sans-serif; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
         .typo-label   { font-family: 'DM Sans', sans-serif; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; }
         .typo-body    { font-family: 'DM Sans', sans-serif; font-weight: 500; }
-        @keyframes gpsRing { 0%{transform:scale(1);opacity:.6} 100%{transform:scale(2.2);opacity:0} }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-        @keyframes slideUp { from{transform:translateY(32px);opacity:0} to{transform:translateY(0);opacity:1} }
-        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+        @keyframes gpsRing  { 0%{transform:scale(1);opacity:.6} 100%{transform:scale(2.2);opacity:0} }
+        @keyframes pulse    { 0%,100%{opacity:1} 50%{opacity:.4} }
+        @keyframes slideUp  { from{transform:translateY(32px);opacity:0} to{transform:translateY(0);opacity:1} }
+        @keyframes driverPulse { 0%,100%{box-shadow:0 0 0 0 rgba(245,200,66,0)} 50%{box-shadow:0 0 0 14px rgba(245,200,66,0.15)} }
         .sheet-btn:active { transform:scale(0.96); }
-        .leaflet-container { background:#0d1117 !important; }
-        .leaflet-tooltip { background: rgba(10,10,20,0.9) !important; border: 1px solid rgba(245,200,66,0.3) !important; color: #f5c842 !important; font-weight: 700 !important; border-radius: 8px !important; }
-        .leaflet-tooltip-top::before { border-top-color: rgba(245,200,66,0.3) !important; }
-        /* ── Optimisation mobile ────────────────────────────────────────────── */
+        .leaflet-container { background:#0d1117 !important; width:100%!important; height:100%!important; }
+        .leaflet-tooltip { background:rgba(10,10,20,0.9)!important; border:1px solid rgba(245,200,66,0.3)!important; color:#f5c842!important; font-weight:700!important; border-radius:8px!important; }
         .bottom-sheet { max-height: 58vh; }
         @media (max-height: 700px) { .bottom-sheet { max-height: 42vh; } }
         @media (max-height: 600px) { .bottom-sheet { max-height: 38vh; } }
         @media (max-width: 430px) { .bottom-sheet { max-height: 50vh; } }
-        .map-zone { flex: 1; position: relative; min-height: 0; }
+        button, a { touch-action: manipulation; }
+        details summary::-webkit-details-marker { display: none; }
       `}</style>
 
+      {showHelp && <HelpPanel reservationId={resa.id} onClose={() => setShowHelp(false)} />}
+
       {/* ── MAP ── */}
-      <div className="map-zone" style={{ flex: 1, position: "relative", minHeight: 0 }}>
+      <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
         <div ref={mapRef} style={{ position: "absolute", inset: 0 }} />
+
+        {/* Bouton recentrer */}
+        {userPanned && taxiPos && (
+          <button
+            onClick={recenterOnDriver}
+            style={{
+              position: "absolute",
+              top: 16,
+              right: 16,
+              zIndex: 1000,
+              background: "rgba(10,10,20,0.9)",
+              border: "1px solid rgba(245,200,66,0.4)",
+              color: "#f5c842",
+              borderRadius: 12,
+              padding: "8px 14px",
+              fontFamily: "'Syne',sans-serif",
+              fontWeight: 700,
+              fontSize: 13,
+              cursor: "pointer",
+              backdropFilter: "blur(8px)",
+            }}
+          >
+            🎯 Recentrer
+          </button>
+        )}
+
+        {/* Indicateur last update */}
+        {lastUpdate && (
+          <div
+            style={{
+              position: "absolute",
+              top: 16,
+              left: 16,
+              zIndex: 1000,
+              background: "rgba(10,10,20,0.75)",
+              border: "1px solid rgba(34,197,94,0.3)",
+              borderRadius: 10,
+              padding: "5px 10px",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <div
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: "50%",
+                background: "#22c55e",
+                animation: "pulse 2s infinite",
+              }}
+            />
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#64748b" }}>
+              {lastUpdate.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+            </span>
+          </div>
+        )}
 
         {/* Gradient bas */}
         <div
@@ -703,7 +1391,7 @@ function SuiviPage() {
           <div style={{ width: 40, height: 4, background: "rgba(255,255,255,0.1)", borderRadius: 9 }} />
         </div>
 
-        {/* ── BLOC STATUT ── */}
+        {/* ── STATUT ── */}
         <div style={{ padding: "0 20px 12px" }}>
           <div
             style={{
@@ -736,20 +1424,17 @@ function SuiviPage() {
               <div className="typo-title" style={{ fontSize: 13, color: statut.color }}>
                 {statut.label}
               </div>
-              {eta !== null &&
-                taxiPos &&
-                !courseTerminee &&
-                ["nouvelle", "pending", "accepted", "en_route", "arrived"].includes(effectiveStatus) && (
-                  <div className="typo-body" style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                    {["en_route", "arrived", "accepted"].includes(effectiveStatus)
-                      ? "Arrivée dans "
-                      : "Prise en charge dans "}
-                    <span className="typo-num" style={{ color: "#f5c842", fontSize: 14 }}>
-                      {eta}
-                      <span style={{ fontSize: 10, marginLeft: 2, fontWeight: 500 }}>min</span>
-                    </span>
-                  </div>
-                )}
+              {eta !== null && taxiPos && !courseTerminee && (
+                <div className="typo-body" style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+                  {["en_route", "arrived", "accepted"].includes(effectiveStatus)
+                    ? "Arrivée dans "
+                    : "Prise en charge dans "}
+                  <span className="typo-num" style={{ color: "#f5c842", fontSize: 14 }}>
+                    {eta}
+                    <span style={{ fontSize: 10, marginLeft: 2, fontWeight: 500 }}>min</span>
+                  </span>
+                </div>
+              )}
               {courseTerminee && (
                 <div className="typo-body" style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
                   Destination atteinte
@@ -757,7 +1442,7 @@ function SuiviPage() {
               )}
               {!taxiPos && !courseTerminee && (
                 <div className="typo-body" style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>
-                  Trajet affiché sur la carte
+                  GPS chauffeur non actif
                 </div>
               )}
             </div>
@@ -797,15 +1482,11 @@ function SuiviPage() {
                 height: 56,
                 borderRadius: 16,
                 flexShrink: 0,
-                background: "rgba(245,200,66,0.1)",
-                border: "1.5px solid rgba(245,200,66,0.25)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 26,
+                overflow: "hidden",
+                border: "2px solid rgba(245,200,66,0.3)",
               }}
             >
-              👤
+              <img src={TAXI_ICON_URI} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="taxi" />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="typo-title" style={{ fontSize: 18, color: "#f1f5f9" }}>
@@ -852,7 +1533,6 @@ function SuiviPage() {
           >
             {/* Trajet */}
             <div style={{ display: "flex", gap: 12, alignItems: "stretch", marginBottom: 14 }}>
-              {/* Timeline */}
               <div
                 style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 3, flexShrink: 0 }}
               >
@@ -884,7 +1564,6 @@ function SuiviPage() {
                   }}
                 />
               </div>
-              {/* Adresses */}
               <div
                 style={{
                   flex: 1,
@@ -933,12 +1612,12 @@ function SuiviPage() {
                 </div>
               </div>
             </div>
-
             {/* Méta */}
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <div
                 style={{
                   flex: 1,
+                  minWidth: 80,
                   background: "rgba(255,255,255,0.04)",
                   borderRadius: 12,
                   padding: "9px 10px",
@@ -999,7 +1678,7 @@ function SuiviPage() {
                   }}
                 >
                   <div className="typo-label" style={{ fontSize: 9, color: "#64748b", marginBottom: 4 }}>
-                    Prix
+                    Prix est.
                   </div>
                   <div className="typo-num" style={{ fontSize: 17, color: "#f5c842" }}>
                     {prix}
@@ -1010,7 +1689,7 @@ function SuiviPage() {
           </div>
 
           {/* ── ACTIONS ── */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
             <button
               className="sheet-btn typo-title"
               onClick={() => (window.location.href = `tel:${CHAUFFEUR.phone}`)}
@@ -1052,6 +1731,51 @@ function SuiviPage() {
               }}
             >
               {shareMsg || "🔗 Partager"}
+            </button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <button
+              className="sheet-btn"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              style={{
+                padding: 12,
+                borderRadius: 14,
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                color: "#475569",
+                fontSize: 13,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                fontFamily: "'DM Sans',sans-serif",
+                fontWeight: 600,
+              }}
+            >
+              {refreshing ? "⏳" : "🔄"} Rafraîchir
+            </button>
+            <button
+              className="sheet-btn"
+              onClick={() => setShowHelp(true)}
+              style={{
+                padding: 12,
+                borderRadius: 14,
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                color: "#475569",
+                fontSize: 13,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                fontFamily: "'DM Sans',sans-serif",
+                fontWeight: 600,
+              }}
+            >
+              🆘 Aide
             </button>
           </div>
         </div>
