@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
 import {
   CheckCircle2,
   Calendar,
@@ -15,6 +15,7 @@ import {
 import { buildReservationMessage, whatsappLink } from "@/lib/whatsapp";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useT, useI18n } from "@/i18n/I18nProvider";
+import { getReservationPublic, cancelReservationPublic } from "@/lib/reservation.functions";
 
 export const Route = createFileRoute("/reservation/$id")({
   head: () => ({
@@ -50,6 +51,8 @@ function ConfirmationPage() {
   const [cancelling, setCancelling] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const { status: pushStatus, subscribe } = usePushNotifications();
+  const fetchReservation = useServerFn(getReservationPublic);
+  const cancelReservation = useServerFn(cancelReservationPublic);
   // Redirection automatique après 5 secondes si réservation valide et non annulée
   useEffect(() => {
     if (reservation && !["annulee", "cancelled", "canceled"].includes(reservation.status)) {
@@ -69,24 +72,34 @@ function ConfirmationPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase.rpc("get_reservation_public", { p_id: id });
-      if (cancelled) return;
-      if (error || !data || data.length === 0) setNotFound(true);
-      else setReservation(data[0] as Reservation);
-      setLoading(false);
+      try {
+        const row = await fetchReservation({ data: { id } });
+        if (cancelled) return;
+        if (!row) setNotFound(true);
+        else setReservation(row as Reservation);
+      } catch {
+        if (!cancelled) setNotFound(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, fetchReservation]);
 
   const handleCancel = async () => {
     setCancelling(true);
-    const { data, error } = await supabase.rpc("cancel_reservation_public", { p_id: id });
-    setCancelling(false);
-    if (!error && data) {
-      setReservation((r) => (r ? { ...r, status: "cancelled" } : r));
-      setConfirmCancel(false);
+    try {
+      const res = await cancelReservation({ data: { id } });
+      if (res?.ok) {
+        setReservation((r) => (r ? { ...r, status: "cancelled" } : r));
+        setConfirmCancel(false);
+      }
+    } catch {
+      // silencieux : l'UI reste sur l'écran de confirmation
+    } finally {
+      setCancelling(false);
     }
   };
 

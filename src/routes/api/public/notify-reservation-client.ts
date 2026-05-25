@@ -26,14 +26,25 @@ export const Route = createFileRoute('/api/public/notify-reservation-client')({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const requestId = crypto.randomUUID()
+        const log = (event: string, extra: Record<string, unknown> = {}) =>
+          console.log(`[notify-reservation-client] ${event}`, JSON.stringify({ requestId, ...extra }))
+
+        log('incoming', {
+          url: request.url,
+          origin: request.headers.get('origin'),
+          referer: request.headers.get('referer'),
+          userAgent: request.headers.get('user-agent'),
+        })
+
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
         const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-        if (!supabaseUrl || !serviceKey) return Response.json({ error: 'cfg' }, { status: 500 })
+        if (!supabaseUrl || !serviceKey) { log('error', { stage: 'cfg' }); return Response.json({ error: 'cfg' }, { status: 500 }) }
 
         let raw: unknown
-        try { raw = await request.json() } catch { return Response.json({ error: 'json' }, { status: 400 }) }
+        try { raw = await request.json() } catch { log('error', { stage: 'json' }); return Response.json({ error: 'json' }, { status: 400 }) }
         const parsed = schema.safeParse(raw)
-        if (!parsed.success) return Response.json({ error: 'invalid' }, { status: 400 })
+        if (!parsed.success) { log('error', { stage: 'validation', issues: parsed.error.flatten() }); return Response.json({ error: 'invalid' }, { status: 400 }) }
         const data = parsed.data
 
         const supabase = createClient(supabaseUrl, serviceKey)
@@ -45,25 +56,26 @@ export const Route = createFileRoute('/api/public/notify-reservation-client')({
           .select('email')
           .eq('id', data.reservation_id)
           .maybeSingle()
-        if (lookupError) return Response.json({ error: 'lookup' }, { status: 500 })
-        if (!reservation) return Response.json({ error: 'not_found' }, { status: 404 })
-        if (
-          !reservation.email ||
-          reservation.email.trim().toLowerCase() !== data.email.trim().toLowerCase()
-        ) {
+        if (lookupError) { log('error', { stage: 'lookup', message: lookupError.message }); return Response.json({ error: 'lookup' }, { status: 500 }) }
+        if (!reservation) { log('error', { stage: 'not_found', reservation_id: data.reservation_id }); return Response.json({ error: 'not_found' }, { status: 404 }) }
+        if (!reservation.email || reservation.email.trim().toLowerCase() !== data.email.trim().toLowerCase()) {
+          log('error', { stage: 'forbidden', reservation_id: data.reservation_id })
           return Response.json({ error: 'forbidden' }, { status: 403 })
         }
 
         const tpl = TEMPLATES[TEMPLATE_NAME]
-        if (!tpl) return Response.json({ error: 'tpl' }, { status: 500 })
+        if (!tpl) { log('error', { stage: 'tpl_missing' }); return Response.json({ error: 'tpl' }, { status: 500 }) }
 
         const recipient = data.email
         const messageId = crypto.randomUUID()
         const idempotencyKey = `client-confirm-${data.reservation_id}`
 
-        // Idempotency gate: insert the log row FIRST. The unique index on
-        // idempotency_key (where status <> 'failed') will reject duplicates
-        // atomically, so a double-click cannot trigger two sends.
+        log('prepared', {
+          template: TEMPLATE_NAME, recipient, messageId, idempotencyKey,
+          from: `${SITE_NAME} <noreply@${SENDER_DOMAIN}>`,
+          replyTo: 'taxi.city033@gmail.com', senderDomain: SENDER_DOMAIN, fromDomain: FROM_DOMAIN,
+        })
+
         const { error: logError } = await supabase.from('email_send_log').insert({
           message_id: messageId,
           template_name: TEMPLATE_NAME,
@@ -72,9 +84,8 @@ export const Route = createFileRoute('/api/public/notify-reservation-client')({
           idempotency_key: idempotencyKey,
         })
         if (logError) {
-          if ((logError as any).code === '23505') {
-            return Response.json({ success: true, deduped: true })
-          }
+          if ((logError as any).code === '23505') { log('deduped', { idempotencyKey }); return Response.json({ success: true, deduped: true }) }
+          log('error', { stage: 'log_insert', message: (logError as any).message })
           return Response.json({ error: 'log' }, { status: 500 })
         }
 
@@ -117,13 +128,14 @@ export const Route = createFileRoute('/api/public/notify-reservation-client')({
           },
         })
         if (error) {
-          // Mark as failed so the unique index allows a retry.
+          log('error', { stage: 'enqueue', message: error.message })
           await supabase.from('email_send_log')
             .update({ status: 'failed', error_message: 'enqueue' })
             .eq('message_id', messageId)
           return Response.json({ error: 'enqueue' }, { status: 500 })
         }
-        return Response.json({ success: true })
+        log('enqueued', { queue: 'transactional_emails', messageId })
+        return Response.json({ success: true, messageId })
       },
     },
   },
