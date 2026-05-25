@@ -13,10 +13,12 @@ import { template as contactMessage } from "./contact-message";
 import { template as reservationClientConfirmation } from "./reservation-client-confirmation";
 import { template as courseAccepted } from "./course-accepted";
 import { template as newReservationAdmin } from "./new-reservation-admin";
+import { template as customPrice } from "./custom-price";
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
   "contact-message": contactMessage,
   "reservation-client-confirmation": reservationClientConfirmation,
   "course-accepted": courseAccepted,
   "new-reservation-admin": newReservationAdmin,
+  "custom-price": customPrice,
 };
