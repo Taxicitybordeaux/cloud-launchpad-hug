@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix, calculerPrixMixte } from "@/lib/tarif";
-import { getDistanceAndDurationKm, fetchRoute, OSRM_BASE } from "@/lib/osrm";
+import { getDistanceAndDurationKm, fetchRoute, fetchRouteCoordinates } from "@/lib/osrm";
 import { geocodeAddress } from "@/lib/geocode";
 import { assertSuiviId, newSuiviId } from "@/lib/suivi-id";
 import { CourseCardSkeleton, GpsCardSkeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
