@@ -415,17 +415,6 @@ function SectionHeader({
 }
 
 function Dashboard() {
-  // ── Auth guard (sessionStorage, cohérent avec login.tsx) ──
-  const [authChecked, setAuthChecked] = useState(false);
-  useEffect(() => {
-    if (sessionStorage.getItem("admin_pin_ok") === "1") {
-      setAuthChecked(true);
-    } else {
-      window.location.href = "/login";
-    }
-  }, []);
-  if (!authChecked) return <div style={{ minHeight: "100vh", background: "#020817" }} />;
-
   // ── KPI stats ──
   const [caJ, setCaJ] = useState(0);
   const [caM, setCaM] = useState(0);
@@ -2275,6 +2264,11 @@ function Dashboard() {
   // =========================
   // RENDER
   // =========================
+  if (typeof sessionStorage !== "undefined" && sessionStorage.getItem("admin_pin_ok") !== "1") {
+    window.location.href = "/login";
+    return <div style={{ minHeight: "100vh", background: "#020817" }} />;
+  }
+
   return (
     <div
       className="admin-root"
