@@ -597,7 +597,7 @@ function SuiviPage() {
       const last = lastAppliedPos.current;
       if (last) {
         const moved = distMeters(last, { lat, lng });
-        if (moved < 8 && now - last.t < 4000) return;
+        if (moved < 3 && now - last.t < 4000) return;
       }
       lastAppliedPos.current = { lat, lng, t: now };
       lastDriverPos.current = { lat, lng };
@@ -977,14 +977,16 @@ function SuiviPage() {
         return;
       }
 
-      // [FUSION] Vérification expiration 24h (depuis tracking)
+      // Vérification expiration : 12h après la prise en charge (ou après création si pas de date de course)
       const createdAt = r.created_at ? new Date(r.created_at).getTime() : 0;
-      if (createdAt && Date.now() - createdAt > 24 * 60 * 60 * 1000) {
+      const expiryBase = r.pickup_datetime ? new Date(r.pickup_datetime).getTime() : createdAt;
+      if (expiryBase && Date.now() - expiryBase > 12 * 60 * 60 * 1000) {
         toast.error("Lien expiré", { id: toastId });
         setError({
           code: "expired",
           title: "Lien de suivi expiré",
-          message: "Ce lien de suivi a expiré (plus de 24h). Contactez-nous pour en obtenir un nouveau.",
+          message:
+            "Ce lien de suivi a expiré (plus de 12h après la course). Contactez-nous pour en obtenir un nouveau.",
         });
         setLoading(false);
         return;
