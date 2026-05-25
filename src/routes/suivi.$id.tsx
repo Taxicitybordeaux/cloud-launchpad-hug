@@ -1089,7 +1089,7 @@ function SuiviPage() {
         const { data: r } = await supabase
           .from("reservations")
           .select(
-            "status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,bagages,distance_km,client_name,nom",
+            "status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,bagages,distance_km,client_name,nom,route_coords,route_label",
           )
           .eq("id", resaIdRef.current)
           .maybeSingle();
