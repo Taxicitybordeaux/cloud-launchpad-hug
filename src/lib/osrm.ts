@@ -19,7 +19,7 @@ export const OSRM_AUTH_HEADER = DEFAULT_OSRM_AUTH_HEADER.trim();
 
 type RouteOptions = {
   overview?: 'full' | 'simplified' | 'false';
-  alternatives?: boolean;
+  alternatives?: boolean | number;
   steps?: boolean;
   geometries?: 'geojson' | 'polyline' | 'polyline6';
 };
@@ -42,7 +42,11 @@ export async function fetchRoute(
   const [toLng, toLat] = to;
   const url = new URL(`${OSRM_BASE}/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}`);
   url.searchParams.set('overview', opts.overview ?? 'false');
-  url.searchParams.set('alternatives', opts.alternatives ? 'true' : 'false');
+  const altVal = opts.alternatives;
+  url.searchParams.set(
+    'alternatives',
+    typeof altVal === 'number' ? String(altVal) : altVal ? 'true' : 'false',
+  );
   url.searchParams.set('steps', opts.steps ? 'true' : 'false');
   url.searchParams.set('geometries', opts.geometries ?? 'polyline');
 

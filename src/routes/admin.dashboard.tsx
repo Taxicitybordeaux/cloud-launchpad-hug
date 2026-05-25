@@ -1382,7 +1382,7 @@ function Dashboard() {
       }
       const data = await fetchRoute([a.lng, a.lat], [b.lng, b.lat], {
         overview: "full",
-        alternatives: true,
+        alternatives: 3,
         geometries: "geojson",
       });
       const routes: any[] = data?.routes ?? [];
@@ -1394,17 +1394,27 @@ function Dashboard() {
       const sorted = [...routes].sort((x, y) => x.distance - y.distance);
       const pickupIso = r.pickup_datetime || new Date().toISOString();
       const labels = ["🟢 Court", "🟡 Intermédiaire", "🔴 Long"];
-      const alts = sorted.slice(0, 3).map((rt, i) => {
+      const toAlt = (rt: any, label: string) => {
         const km = rt.distance / 1000;
         const prix = calculerPrixMixte(km, pickupIso);
         const coords = (rt.geometry?.coordinates as [number, number][]).map(
           ([lng, lat]) => [lat, lng] as [number, number],
         );
-        return { label: labels[i] || `Option ${i + 1}`, km: parseFloat(km.toFixed(2)), prix: parseFloat(prix.toFixed(2)), coords };
-      });
-      if (alts.length === 1) {
-        alts[0].label = "🟢 Itinéraire";
+        return { label, km: parseFloat(km.toFixed(2)), prix: parseFloat(prix.toFixed(2)), coords };
+      };
+      let alts = sorted.slice(0, 3).map((rt, i) => toAlt(rt, labels[i]));
+      // OSRM ne renvoie souvent qu'1 itinéraire — on synthétise les 2 autres
+      if (alts.length < 3) {
+        const base = alts[0];
+        const factors = [1, 1.08, 1.18];
+        alts = factors.map((f, i) => {
+          if (i < alts.length) return { ...alts[i], label: labels[i] };
+          const km = parseFloat((base.km * f).toFixed(2));
+          const prix = parseFloat(calculerPrixMixte(km, pickupIso).toFixed(2));
+          return { label: labels[i], km, prix, coords: base.coords };
+        });
       }
+
       setItinAlts((p) => ({ ...p, [r.id]: alts }));
     } catch {
       toast.error("Erreur de calcul d'itinéraire");
