@@ -252,6 +252,7 @@ interface Reservation {
   prix_estime?: string | number | null;
   nb_passagers?: number | null;
   passagers?: number | null;
+  bagages?: number | null;
   suivi_id?: string | null;
   distance_km?: number | null;
   created_at?: string | null;
@@ -785,7 +786,7 @@ function SuiviPage() {
       if (resaIdRef.current) {
         const { data: r } = await supabase
           .from("reservations")
-          .select("status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,distance_km")
+          .select("status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,bagages,distance_km")
           .eq("id", resaIdRef.current)
           .maybeSingle();
         if (r) setResa((prev) => (prev ? { ...prev, ...r } : prev));
@@ -913,7 +914,7 @@ function SuiviPage() {
         const { data: byTracking } = await (supabase as any)
           .from("reservations")
           .select(
-            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,suivi_id,distance_km,created_at",
+            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,bagages,suivi_id,distance_km,created_at",
           )
           .eq("suivi_id", parsed.data)
           .maybeSingle();
@@ -925,7 +926,7 @@ function SuiviPage() {
         const { data: byId } = await (supabase as any)
           .from("reservations")
           .select(
-            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,suivi_id,distance_km,created_at",
+            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,bagages,suivi_id,distance_km,created_at",
           )
           .eq("id", id)
           .maybeSingle();
@@ -1079,7 +1080,7 @@ function SuiviPage() {
         const { data: r } = await supabase
           .from("reservations")
           .select(
-            "status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,distance_km,client_name,nom",
+            "status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,bagages,distance_km,client_name,nom",
           )
           .eq("id", resaIdRef.current)
           .maybeSingle();
@@ -1223,6 +1224,7 @@ function SuiviPage() {
   const statut = statusConfig[effectiveStatus] ?? statusConfig.pending;
   const arrivee = resa?.arrivee || resa?.destination || "—";
   const passagers = resa?.nb_passagers || resa?.passagers || 1;
+  const bagages = resa?.bagages ?? 0;
   const prix = resa?.prix_estime ? `${Number(resa.prix_estime).toFixed(2)} €` : null;
   const distanceKm = resa?.distance_km ?? null;
   const clientName = ((resa?.client_name || resa?.nom) ?? "").toString().trim();
@@ -2175,6 +2177,22 @@ function SuiviPage() {
                   </div>
                   <div className="typo-num" style={{ fontSize: 15, color: "#cbd5e1" }}>
                     👥 {passagers}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    borderRadius: 12,
+                    padding: "9px 12px",
+                    textAlign: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <div className="typo-label" style={{ fontSize: 9, color: "#475569", marginBottom: 4 }}>
+                    Bagages
+                  </div>
+                  <div className="typo-num" style={{ fontSize: 15, color: "#cbd5e1" }}>
+                    🧳 {bagages}
                   </div>
                 </div>
                 {prix && (
