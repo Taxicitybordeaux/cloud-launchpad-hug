@@ -924,6 +924,7 @@ function Dashboard() {
             recipientEmail: email,
             idempotencyKey: `course-accepted-${r.id}`,
             templateData: {
+              lang: (r as any).lang || "fr",
               nom: name,
               depart: r.depart,
               arrivee: r.arrivee || r.destination,

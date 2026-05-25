@@ -1,0 +1,1 @@
+ALTER TABLE public.reservations ADD COLUMN IF NOT EXISTS lang TEXT NOT NULL DEFAULT 'fr' CHECK (lang IN ('fr','en','es','it','ar','pt'));
