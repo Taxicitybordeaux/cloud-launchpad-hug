@@ -1688,7 +1688,7 @@ function Dashboard() {
           )}
 
           {/* ── Modifier le prix ── */}
-          {(normalizeStatus(r.status) === "accepted" || r.status === "en_route" || r.status === "arrived") && (
+          {(normalizeStatus(r.status) === "accepted" || normalizeStatus(r.status) === "pending" || r.status === "en_route" || r.status === "arrived") && (
             <div style={{ marginTop: 14 }}>
               {!customPrix[r.id + "_open"] ? (
                 <button
