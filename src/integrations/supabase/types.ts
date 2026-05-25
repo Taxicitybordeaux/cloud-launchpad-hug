@@ -390,6 +390,7 @@ export type Database = {
           service_type: string
           source: string | null
           status: string
+          suivi_id: string | null
           tarif_jour: boolean | null
           telephone: string
           tracking_id: string | null
@@ -420,6 +421,7 @@ export type Database = {
           service_type?: string
           source?: string | null
           status?: string
+          suivi_id?: string | null
           tarif_jour?: boolean | null
           telephone: string
           tracking_id?: string | null
@@ -450,6 +452,7 @@ export type Database = {
           service_type?: string
           source?: string | null
           status?: string
+          suivi_id?: string | null
           tarif_jour?: boolean | null
           telephone?: string
           tracking_id?: string | null
