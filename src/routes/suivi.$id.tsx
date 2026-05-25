@@ -661,7 +661,7 @@ function SuiviPage() {
   }, []);
 
   // ── Tracé départ → destination (stocke totalKm) ──────────────────────────
-  const drawTripRoute = useCallback(async (depart: string, destination: string) => {
+  const drawTripRoute = useCallback(async (depart: string, destination: string, cachedCoords?: [number, number][] | null) => {
     const map = mapInst.current;
     const L = (window as any).L;
     if (!map || !L) return;
@@ -674,10 +674,17 @@ function SuiviPage() {
     pickupCoordsRef.current = a;
 
     try {
-      const route = await getRouteGeoCoords(a, b);
-      const coords: [number, number][] = route?.coords ?? [a, b];
+      let coords: [number, number][];
+      let distanceKm: number | undefined;
+      if (cachedCoords && Array.isArray(cachedCoords) && cachedCoords.length > 1) {
+        coords = cachedCoords as [number, number][];
+      } else {
+        const route = await getRouteGeoCoords(a, b);
+        coords = route?.coords ?? [a, b];
+        distanceKm = route?.distanceKm;
+      }
       // [FUSION] stocker la distance totale pour la barre de progression
-      if (route?.distanceKm) setTotalKm(parseFloat(route.distanceKm.toFixed(1)));
+      if (distanceKm) setTotalKm(parseFloat(distanceKm.toFixed(1)));
 
       if (tripLayer.current) {
         tripLayer.current.remove();
