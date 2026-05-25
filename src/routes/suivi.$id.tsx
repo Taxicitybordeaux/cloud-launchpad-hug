@@ -256,6 +256,8 @@ interface Reservation {
   suivi_id?: string | null;
   distance_km?: number | null;
   created_at?: string | null;
+  route_coords?: any;
+  route_label?: string | null;
 }
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -659,7 +661,7 @@ function SuiviPage() {
   }, []);
 
   // ── Tracé départ → destination (stocke totalKm) ──────────────────────────
-  const drawTripRoute = useCallback(async (depart: string, destination: string) => {
+  const drawTripRoute = useCallback(async (depart: string, destination: string, cachedCoords?: [number, number][] | null) => {
     const map = mapInst.current;
     const L = (window as any).L;
     if (!map || !L) return;
@@ -672,10 +674,17 @@ function SuiviPage() {
     pickupCoordsRef.current = a;
 
     try {
-      const route = await getRouteGeoCoords(a, b);
-      const coords: [number, number][] = route?.coords ?? [a, b];
+      let coords: [number, number][];
+      let distanceKm: number | undefined;
+      if (cachedCoords && Array.isArray(cachedCoords) && cachedCoords.length > 1) {
+        coords = cachedCoords as [number, number][];
+      } else {
+        const route = await getRouteGeoCoords(a, b);
+        coords = route?.coords ?? [a, b];
+        distanceKm = route?.distanceKm;
+      }
       // [FUSION] stocker la distance totale pour la barre de progression
-      if (route?.distanceKm) setTotalKm(parseFloat(route.distanceKm.toFixed(1)));
+      if (distanceKm) setTotalKm(parseFloat(distanceKm.toFixed(1)));
 
       if (tripLayer.current) {
         tripLayer.current.remove();
@@ -786,7 +795,7 @@ function SuiviPage() {
       if (resaIdRef.current) {
         const { data: r } = await supabase
           .from("reservations")
-          .select("status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,bagages,distance_km")
+          .select("status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,bagages,distance_km,route_coords,route_label")
           .eq("id", resaIdRef.current)
           .maybeSingle();
         if (r) setResa((prev) => (prev ? { ...prev, ...r } : prev));
@@ -866,9 +875,11 @@ function SuiviPage() {
               if (
                 next.depart &&
                 (next.destination || next.arrivee) &&
-                (prev.depart !== next.depart || prev.destination !== next.destination)
+                (prev.depart !== next.depart ||
+                  prev.destination !== next.destination ||
+                  JSON.stringify(prev.route_coords) !== JSON.stringify(r.route_coords))
               ) {
-                drawTripRoute(next.depart, next.destination || next.arrivee!);
+                drawTripRoute(next.depart, next.destination || next.arrivee!, next.route_coords);
               }
               return next;
             });
@@ -914,7 +925,7 @@ function SuiviPage() {
         const { data: byTracking } = await (supabase as any)
           .from("reservations")
           .select(
-            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,bagages,suivi_id,distance_km,created_at",
+            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,bagages,suivi_id,distance_km,created_at,route_coords,route_label",
           )
           .eq("suivi_id", parsed.data)
           .maybeSingle();
@@ -926,7 +937,7 @@ function SuiviPage() {
         const { data: byId } = await (supabase as any)
           .from("reservations")
           .select(
-            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,bagages,suivi_id,distance_km,created_at",
+            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,bagages,suivi_id,distance_km,created_at,route_coords,route_label",
           )
           .eq("id", id)
           .maybeSingle();
@@ -1012,11 +1023,11 @@ function SuiviPage() {
         setTaxiPos({ lat: gpsLat, lng: gpsLng });
         setLastUpdate(new Date());
         // drawTripRoute d'abord pour peupler destCoordsRef, puis ETA vers la vraie destination
-        if (dep && dest) await drawTripRoute(dep, dest);
+        if (dep && dest) await drawTripRoute(dep, dest, r.route_coords);
         await calculateETA(gpsLat, gpsLng, destCoordsRef.current ?? undefined);
       } else {
         await initMap(BORDEAUX_CENTER[0], BORDEAUX_CENTER[1]);
-        if (dep && dest) drawTripRoute(dep, dest);
+        if (dep && dest) drawTripRoute(dep, dest, r.route_coords);
       }
 
       const clientName = ((r.client_name || r.nom) ?? "").toString().trim();
@@ -1080,7 +1091,7 @@ function SuiviPage() {
         const { data: r } = await supabase
           .from("reservations")
           .select(
-            "status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,bagages,distance_km,client_name,nom",
+            "status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,bagages,distance_km,client_name,nom,route_coords,route_label",
           )
           .eq("id", resaIdRef.current)
           .maybeSingle();

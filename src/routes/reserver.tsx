@@ -534,6 +534,34 @@ function ReservationPage() {
       <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
         <div ref={mapRef} style={{ position: "absolute", inset: 0 }} />
 
+        {/* Bouton retour au site */}
+        <button
+          onClick={() => navigate({ to: "/" })}
+          aria-label="Retour au site"
+          style={{
+            position: "absolute",
+            top: 16,
+            right: 16,
+            zIndex: 1000,
+            background: "rgba(10,10,20,0.85)",
+            backdropFilter: "blur(12px)",
+            color: "#f8fafc",
+            border: "1px solid rgba(255,255,255,0.15)",
+            borderRadius: 99,
+            padding: "10px 14px",
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            fontFamily: "'DM Sans', sans-serif",
+          }}
+        >
+          ← Retour
+        </button>
+
+
         {/* Badge disponibilité */}
         <div
           style={{

@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix, calculerPrixMixte } from "@/lib/tarif";
-import { getDistanceAndDurationKm } from "@/lib/osrm";
+import { getDistanceAndDurationKm, fetchRoute, OSRM_BASE } from "@/lib/osrm";
 import { geocodeAddress } from "@/lib/geocode";
 import { assertSuiviId, newSuiviId } from "@/lib/suivi-id";
 import { CourseCardSkeleton, GpsCardSkeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
@@ -363,6 +363,10 @@ function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [customPrix, setCustomPrix] = useState<Record<string, string>>({});
   const [customPrixSending, setCustomPrixSending] = useState<Record<string, boolean>>({});
+  const [itinOpen, setItinOpen] = useState<Record<string, boolean>>({});
+  const [itinLoading, setItinLoading] = useState<Record<string, boolean>>({});
+  const [itinAlts, setItinAlts] = useState<Record<string, { label: string; km: number; prix: number; coords: [number, number][] }[]>>({});
+  const [itinSaving, setItinSaving] = useState<Record<string, boolean>>({});
   const [changeHeureOpen, setChangeHeureOpen] = useState<Record<string, boolean>>({});
   const [changeHeureValue, setChangeHeureValue] = useState<Record<string, string>>({});
   const [changeHeureSending, setChangeHeureSending] = useState<Record<string, boolean>>({});
@@ -1358,6 +1362,96 @@ function Dashboard() {
   };
 
   // =========================
+  // ITINÉRAIRES ALTERNATIFS (court / inter / long)
+  // =========================
+  const loadItineraires = async (r: any) => {
+    const dep = r.depart;
+    const dest = r.destination || r.arrivee;
+    if (!dep || !dest) {
+      toast.error("Adresses manquantes");
+      return;
+    }
+    setItinLoading((p) => ({ ...p, [r.id]: true }));
+    setItinOpen((p) => ({ ...p, [r.id]: true }));
+    try {
+      const [a, b] = await Promise.all([geocodeAddress(dep), geocodeAddress(dest)]);
+      if (!a || !b) {
+        toast.error("Géocodage impossible");
+        setItinLoading((p) => ({ ...p, [r.id]: false }));
+        return;
+      }
+      const data = await fetchRoute([a.lng, a.lat], [b.lng, b.lat], {
+        overview: "full",
+        alternatives: true,
+        geometries: "geojson",
+      });
+      const routes: any[] = data?.routes ?? [];
+      if (!routes.length) {
+        toast.error("Aucun itinéraire trouvé");
+        setItinLoading((p) => ({ ...p, [r.id]: false }));
+        return;
+      }
+      const sorted = [...routes].sort((x, y) => x.distance - y.distance);
+      const pickupIso = r.pickup_datetime || new Date().toISOString();
+      const labels = ["🟢 Court", "🟡 Intermédiaire", "🔴 Long"];
+      const alts = sorted.slice(0, 3).map((rt, i) => {
+        const km = rt.distance / 1000;
+        const prix = calculerPrixMixte(km, pickupIso);
+        const coords = (rt.geometry?.coordinates as [number, number][]).map(
+          ([lng, lat]) => [lat, lng] as [number, number],
+        );
+        return { label: labels[i] || `Option ${i + 1}`, km: parseFloat(km.toFixed(2)), prix: parseFloat(prix.toFixed(2)), coords };
+      });
+      if (alts.length === 1) {
+        alts[0].label = "🟢 Itinéraire";
+      }
+      setItinAlts((p) => ({ ...p, [r.id]: alts }));
+    } catch {
+      toast.error("Erreur de calcul d'itinéraire");
+    } finally {
+      setItinLoading((p) => ({ ...p, [r.id]: false }));
+    }
+  };
+
+  const handleSelectItineraire = async (
+    r: any,
+    alt: { label: string; km: number; prix: number; coords: [number, number][] },
+  ) => {
+    setItinSaving((p) => ({ ...p, [r.id]: true }));
+    try {
+      const { error } = await supabase
+        .from("reservations")
+        .update({
+          prix_estime: alt.prix,
+          distance_km: alt.km,
+          route_coords: alt.coords as any,
+          route_label: alt.label,
+          updated_at: new Date().toISOString(),
+        } as any)
+        .eq("id", r.id);
+      if (error) throw error;
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === r.id
+            ? { ...item, prix_estime: alt.prix, distance_km: alt.km, route_coords: alt.coords, route_label: alt.label }
+            : item,
+        ),
+      );
+      // Pré-remplir le champ prix pour les boutons SMS / WhatsApp / Email
+      setCustomPrix((p) => ({ ...p, [r.id]: String(alt.prix), [r.id + "_open"]: "1" }));
+      toast.success(`${alt.label} sélectionné`, {
+        description: `${alt.km} km · ${alt.prix.toFixed(2)} € — map du client mise à jour`,
+      });
+    } catch (e: any) {
+      toast.error("Échec enregistrement", { description: e?.message ?? "" });
+    } finally {
+      setItinSaving((p) => ({ ...p, [r.id]: false }));
+    }
+  };
+
+
+
+  // =========================
   // CHANGER L'HEURE D'UNE RÉSA
   // =========================
   const handleChangeHeure = async (r: any, newDatetime: string) => {
@@ -1688,7 +1782,7 @@ function Dashboard() {
           )}
 
           {/* ── Modifier le prix ── */}
-          {(normalizeStatus(r.status) === "accepted" || r.status === "en_route" || r.status === "arrived") && (
+          {(normalizeStatus(r.status) === "accepted" || normalizeStatus(r.status) === "pending" || r.status === "en_route" || r.status === "arrived") && (
             <div style={{ marginTop: 14 }}>
               {!customPrix[r.id + "_open"] ? (
                 <button
@@ -1824,6 +1918,108 @@ function Dashboard() {
               )}
             </div>
           )}
+
+          {/* ── Itinéraires alternatifs (court / inter / long) ── */}
+          {(normalizeStatus(r.status) === "pending" ||
+            normalizeStatus(r.status) === "accepted" ||
+            r.status === "en_route" ||
+            r.status === "arrived") && (
+            <div style={{ marginTop: 10 }}>
+              {!itinOpen[r.id] ? (
+                <button
+                  onClick={() => loadItineraires(r)}
+                  style={{
+                    background: "transparent",
+                    border: "1px solid rgba(96,165,250,0.35)",
+                    color: "#60a5fa",
+                    padding: "8px 14px",
+                    borderRadius: 10,
+                    cursor: "pointer",
+                    fontWeight: 600,
+                    fontSize: 13,
+                  }}
+                >
+                  🗺️ Itinéraires
+                </button>
+              ) : (
+                <div
+                  style={{
+                    padding: "12px 14px",
+                    background: "rgba(96,165,250,0.07)",
+                    border: "1px solid rgba(96,165,250,0.25)",
+                    borderRadius: 12,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: 10,
+                    }}
+                  >
+                    <span style={{ fontSize: 12, color: "#60a5fa", fontWeight: 700 }}>
+                      🗺️ Choisir un itinéraire {r.route_label ? `(actuel : ${r.route_label})` : ""}
+                    </span>
+                    <button
+                      onClick={() => setItinOpen((p) => ({ ...p, [r.id]: false }))}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "#64748b",
+                        cursor: "pointer",
+                        fontSize: 18,
+                        lineHeight: 1,
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  {itinLoading[r.id] ? (
+                    <div style={{ color: "#94a3b8", fontSize: 13 }}>⏳ Calcul en cours…</div>
+                  ) : itinAlts[r.id]?.length ? (
+                    <div style={{ display: "grid", gap: 8 }}>
+                      {itinAlts[r.id].map((alt, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handleSelectItineraire(r, alt)}
+                          disabled={itinSaving[r.id]}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: 10,
+                            padding: "10px 12px",
+                            background: "rgba(255,255,255,0.04)",
+                            border: "1px solid rgba(255,255,255,0.08)",
+                            borderRadius: 10,
+                            cursor: itinSaving[r.id] ? "wait" : "pointer",
+                            color: "#f8fafc",
+                            fontSize: 13,
+                            textAlign: "left",
+                            fontFamily: "inherit",
+                            opacity: itinSaving[r.id] ? 0.6 : 1,
+                          }}
+                        >
+                          <span style={{ fontWeight: 700 }}>{alt.label}</span>
+                          <span style={{ color: "#cbd5e1" }}>{alt.km} km</span>
+                          <span style={{ color: "#f5c842", fontWeight: 700 }}>{alt.prix.toFixed(2)} €</span>
+                          <span style={{ color: "#60a5fa", fontWeight: 700 }}>Choisir →</span>
+                        </button>
+                      ))}
+                      <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
+                        ↳ Le prix et le tracé sur la carte du client seront mis à jour automatiquement. Utilisez ensuite « Modifier le prix » pour envoyer SMS / WhatsApp / Email.
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ color: "#94a3b8", fontSize: 13 }}>Aucun itinéraire disponible.</div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+
 
           {/* ── Bouton annuler uniquement ── */}
           {(normalizeStatus(r.status) === "accepted" || r.status === "en_route" || r.status === "arrived") && (
