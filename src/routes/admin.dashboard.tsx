@@ -362,6 +362,9 @@ function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [customPrix, setCustomPrix] = useState<Record<string, string>>({});
   const [customPrixSending, setCustomPrixSending] = useState<Record<string, boolean>>({});
+  const [changeHeureOpen, setChangeHeureOpen] = useState<Record<string, boolean>>({});
+  const [changeHeureValue, setChangeHeureValue] = useState<Record<string, string>>({});
+  const [changeHeureSending, setChangeHeureSending] = useState<Record<string, boolean>>({});
 
   // ── Avis ──
   const [avis, setAvis] = useState<any[]>([]);
@@ -771,28 +774,6 @@ function Dashboard() {
   // ACCEPT — seule action manuelle
   // =========================
   const handleAccept = async (r: any) => {
-    // ── Vérification conflit de créneau ──
-    if (r.pickup_datetime) {
-      const pickupMs = new Date(r.pickup_datetime).getTime();
-      const BUFFER_MS = 60 * 60 * 1000; // ±1h de tampon
-      const conflict = items.find(
-        (item) =>
-          item.id !== r.id &&
-          item.pickup_datetime &&
-          (item.status === "accepted" || item.status === "en_route" || item.status === "arrived") &&
-          Math.abs(new Date(item.pickup_datetime).getTime() - pickupMs) < BUFFER_MS,
-      );
-      if (conflict) {
-        const conflictTime = formatParis(conflict.pickup_datetime, { timeStyle: "short", dateStyle: "short" });
-        const conflictName = conflict.client_name || conflict.nom || "un client";
-        toast.error("⚠️ Conflit de créneau", {
-          description: `Une course est déjà acceptée pour ${conflictName} à ${conflictTime} (moins d'1h d'écart). Refusez-la d'abord ou ajustez l'horaire.`,
-          duration: 8000,
-        });
-        return;
-      }
-    }
-
     let suiviId: string;
     try {
       suiviId = r.suivi_id ? assertSuiviId(r.suivi_id) : newSuiviId();
@@ -1326,6 +1307,75 @@ function Dashboard() {
     setItems((prev) => prev.map((item) => (item.id === r.id ? { ...item, prix_estime: val } : item)));
   };
 
+  // =========================
+  // CHANGER L'HEURE D'UNE RÉSA
+  // =========================
+  const handleChangeHeure = async (r: any, newDatetime: string) => {
+    if (!newDatetime) return;
+    setChangeHeureSending((p) => ({ ...p, [r.id]: true }));
+    try {
+      const { error } = await supabase
+        .from("reservations")
+        .update({ pickup_datetime: newDatetime, updated_at: new Date().toISOString() })
+        .eq("id", r.id);
+      if (error) throw error;
+
+      // Mise à jour optimiste locale
+      setItems((prev) => prev.map((item) => (item.id === r.id ? { ...item, pickup_datetime: newDatetime } : item)));
+
+      // ── Email automatique au client ──
+      const email = r.client_email || r.email;
+      const name = r.client_name || r.nom || "Client";
+      const newFormatted = formatParis(newDatetime, { dateStyle: "full", timeStyle: "short" });
+      const oldFormatted = r.pickup_datetime
+        ? formatParis(r.pickup_datetime, { dateStyle: "full", timeStyle: "short" })
+        : "—";
+
+      if (email) {
+        try {
+          await fetch("/api/admin/send-course-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Admin-Secret": "admin-pin-call" },
+            body: JSON.stringify({
+              templateName: "reschedule",
+              recipientEmail: email,
+              idempotencyKey: `reschedule-${r.id}-${Date.now()}`,
+              templateData: {
+                nom: name,
+                depart: r.depart,
+                arrivee: r.destination || r.arrivee || "—",
+                old_datetime: oldFormatted,
+                new_datetime: newFormatted,
+              },
+            }),
+          });
+          toast.success("🕐 Heure modifiée", {
+            description: `${name} · Nouveau créneau : ${newFormatted} · ✉️ Email envoyé`,
+            duration: 7000,
+          });
+        } catch {
+          toast.success("🕐 Heure modifiée", {
+            description: `${name} · Nouveau créneau : ${newFormatted} · ⚠️ Email non envoyé`,
+            duration: 7000,
+          });
+        }
+      } else {
+        toast.success("🕐 Heure modifiée", {
+          description: `${name} · Nouveau créneau : ${newFormatted}`,
+          duration: 6000,
+        });
+      }
+
+      // Fermer le panneau
+      setChangeHeureOpen((p) => ({ ...p, [r.id]: false }));
+      setChangeHeureValue((p) => ({ ...p, [r.id]: "" }));
+    } catch (err: any) {
+      toast.error("Impossible de modifier l'heure", { description: err?.message });
+    } finally {
+      setChangeHeureSending((p) => ({ ...p, [r.id]: false }));
+    }
+  };
+
   // ─── Course card ───
   function CourseCard({ r, showAcceptRefuse }: { r: any; showAcceptRefuse?: boolean }) {
     const name = r.client_name || r.nom;
@@ -1344,6 +1394,19 @@ function Dashboard() {
     const pickupFormatted = r.pickup_datetime
       ? formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })
       : null;
+
+    // Détection conflit horaire (±1h avec une résa acceptée/en_route/arrivée)
+    const hasConflict = (() => {
+      if (!r.pickup_datetime || normalizeStatus(r.status) !== "pending") return false;
+      const pickupMs = new Date(r.pickup_datetime).getTime();
+      return items.some(
+        (item) =>
+          item.id !== r.id &&
+          item.pickup_datetime &&
+          (item.status === "accepted" || item.status === "en_route" || item.status === "arrived") &&
+          Math.abs(new Date(item.pickup_datetime).getTime() - pickupMs) < 60 * 60 * 1000,
+      );
+    })();
 
     return (
       <SwipeDeleteRow onDelete={() => handleDeleteReservation(r.id)} disabled={deleteBusy} style={{ marginBottom: 14 }}>
@@ -1424,6 +1487,106 @@ function Dashboard() {
               }}
             >
               <span style={{ fontWeight: 700, color: "#fca5a5" }}>Motif du refus :</span> {r.refus_motif}
+            </div>
+          )}
+
+          {/* ── Alerte conflit + bouton Changer l'heure ── */}
+          {hasConflict && (
+            <div
+              style={{
+                marginTop: 14,
+                padding: "10px 14px",
+                background: "rgba(245,158,11,0.08)",
+                border: "1px solid rgba(245,158,11,0.35)",
+                borderRadius: 12,
+              }}
+            >
+              <div
+                style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: changeHeureOpen[r.id] ? 12 : 0 }}
+              >
+                <span style={{ fontSize: 14 }}>⚠️</span>
+                <span style={{ fontSize: 13, color: "#fbbf24", fontWeight: 700, flex: 1 }}>
+                  Conflit de créneau — une course est déjà planifiée à cette heure
+                </span>
+                <button
+                  onClick={() => setChangeHeureOpen((p) => ({ ...p, [r.id]: !p[r.id] }))}
+                  style={{
+                    background: "rgba(245,158,11,0.15)",
+                    border: "1px solid rgba(245,158,11,0.4)",
+                    color: "#f59e0b",
+                    padding: "6px 12px",
+                    borderRadius: 9,
+                    cursor: "pointer",
+                    fontWeight: 700,
+                    fontSize: 12,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  🕐 Changer l'heure
+                </button>
+              </div>
+              {changeHeureOpen[r.id] && (
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <input
+                    type="datetime-local"
+                    value={
+                      changeHeureValue[r.id] ??
+                      (r.pickup_datetime ? new Date(r.pickup_datetime).toISOString().slice(0, 16) : "")
+                    }
+                    onChange={(e) => setChangeHeureValue((p) => ({ ...p, [r.id]: e.target.value }))}
+                    style={{
+                      flex: 1,
+                      minWidth: 180,
+                      padding: "9px 12px",
+                      borderRadius: 10,
+                      border: "1px solid rgba(245,158,11,0.4)",
+                      background: "rgba(255,255,255,0.05)",
+                      color: "#f8fafc",
+                      fontSize: 14,
+                      outline: "none",
+                      boxSizing: "border-box",
+                      colorScheme: "dark",
+                    }}
+                  />
+                  <button
+                    onClick={() =>
+                      handleChangeHeure(
+                        r,
+                        changeHeureValue[r.id] ? new Date(changeHeureValue[r.id]).toISOString() : r.pickup_datetime,
+                      )
+                    }
+                    disabled={changeHeureSending[r.id]}
+                    style={{
+                      background: changeHeureSending[r.id] ? "rgba(245,158,11,0.1)" : "rgba(245,158,11,0.2)",
+                      border: "1px solid rgba(245,158,11,0.5)",
+                      color: "#f59e0b",
+                      padding: "9px 16px",
+                      borderRadius: 10,
+                      cursor: changeHeureSending[r.id] ? "wait" : "pointer",
+                      fontWeight: 700,
+                      fontSize: 13,
+                      opacity: changeHeureSending[r.id] ? 0.6 : 1,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {changeHeureSending[r.id] ? "⏳ Envoi…" : "✓ Confirmer"}
+                  </button>
+                  <button
+                    onClick={() => setChangeHeureOpen((p) => ({ ...p, [r.id]: false }))}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "#64748b",
+                      cursor: "pointer",
+                      fontSize: 18,
+                      lineHeight: 1,
+                      padding: "4px",
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
