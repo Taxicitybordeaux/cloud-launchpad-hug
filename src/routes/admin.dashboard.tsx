@@ -8,7 +8,7 @@ import { geocodeAddress } from "@/lib/geocode";
 import { assertSuiviId, newSuiviId } from "@/lib/suivi-id";
 import { CourseCardSkeleton, GpsCardSkeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
 import logo from "@/assets/logo.jpeg";
-import { EnablePushButton } from "@/components/EnablePushButton";
+
 import { notifyReservationStatus, notifyNewReservation, subscribePush } from "@/lib/push.functions";
 import { getFcmToken } from "@/lib/firebase";
 
