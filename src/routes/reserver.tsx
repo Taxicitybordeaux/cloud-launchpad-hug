@@ -574,7 +574,11 @@ function ReservationPage() {
               letterSpacing: 0.2,
             }}
           >
-            🚕 {taxiAvailable === null ? t("res.geo.loading") : taxiAvailable ? "Taxi disponible" : "Taxi en course"}
+            {taxiAvailable === null
+              ? t("res.geo.loading")
+              : taxiAvailable
+                ? t("taxi.badge.available")
+                : t("taxi.badge.busy")}
           </span>
         </div>
 
@@ -683,11 +687,9 @@ function ReservationPage() {
               <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>🚕</span>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#fca5a5", marginBottom: 2 }}>
-                  Taxi actuellement en course
+                  {t("taxi.banner.busy.title")}
                 </div>
-                <div style={{ fontSize: 12, color: "#fecaca", lineHeight: 1.4 }}>
-                  Vous pouvez tout de même réserver — votre demande sera prise en charge dès que le taxi sera libre.
-                </div>
+                <div style={{ fontSize: 12, color: "#fecaca", lineHeight: 1.4 }}>{t("taxi.banner.busy.desc")}</div>
               </div>
             </div>
           )}
@@ -704,9 +706,7 @@ function ReservationPage() {
               }}
             >
               <span style={{ fontSize: 18, flexShrink: 0 }}>✅</span>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#86efac" }}>
-                Taxi disponible — réservation confirmée rapidement !
-              </div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#86efac" }}>{t("taxi.banner.available.msg")}</div>
             </div>
           )}
 
