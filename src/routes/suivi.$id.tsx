@@ -661,81 +661,87 @@ function SuiviPage() {
   }, []);
 
   // ── Tracé départ → destination (stocke totalKm) ──────────────────────────
-  const drawTripRoute = useCallback(async (depart: string, destination: string, cachedCoords?: [number, number][] | null) => {
-    const map = mapInst.current;
-    const L = (window as any).L;
-    if (!map || !L) return;
-    const [a, b] = await Promise.all([geocode(depart), geocode(destination)]);
-    if (!a || !b) return;
+  const drawTripRoute = useCallback(
+    async (depart: string, destination: string, cachedCoords?: [number, number][] | null) => {
+      const map = mapInst.current;
+      const L = (window as any).L;
+      if (!map || !L) return;
+      const [a, b] = await Promise.all([geocode(depart), geocode(destination)]);
+      if (!a || !b) return;
 
-    depGeoRef.current = { lat: a[0], lng: a[1] };
-    arrGeoRef.current = { lat: b[0], lng: b[1] };
-    destCoordsRef.current = b;
-    pickupCoordsRef.current = a;
+      depGeoRef.current = { lat: a[0], lng: a[1] };
+      arrGeoRef.current = { lat: b[0], lng: b[1] };
+      destCoordsRef.current = b;
+      pickupCoordsRef.current = a;
 
-    try {
-      let coords: [number, number][];
-      let distanceKm: number | undefined;
-      if (cachedCoords && Array.isArray(cachedCoords) && cachedCoords.length > 1) {
-        coords = cachedCoords as [number, number][];
-      } else {
-        const route = await getRouteGeoCoords(a, b);
-        coords = route?.coords ?? [a, b];
-        distanceKm = route?.distanceKm;
-      }
-      // [FUSION] stocker la distance totale pour la barre de progression
-      if (distanceKm) setTotalKm(parseFloat(distanceKm.toFixed(1)));
+      try {
+        let coords: [number, number][];
+        let distanceKm: number | undefined;
+        if (cachedCoords && Array.isArray(cachedCoords) && cachedCoords.length > 1) {
+          coords = cachedCoords as [number, number][];
+        } else {
+          const route = await getRouteGeoCoords(a, b);
+          coords = route?.coords ?? [a, b];
+          distanceKm = route?.distanceKm;
+        }
+        // [FUSION] stocker la distance totale pour la barre de progression
+        if (distanceKm) setTotalKm(parseFloat(distanceKm.toFixed(1)));
 
-      if (tripLayer.current) {
-        tripLayer.current.remove();
-        tripLayer.current = null;
-      }
-      if (tripOutline.current) {
-        tripOutline.current.remove();
-        tripOutline.current = null;
-      }
+        if (tripLayer.current) {
+          tripLayer.current.remove();
+          tripLayer.current = null;
+        }
+        if (tripOutline.current) {
+          tripOutline.current.remove();
+          tripOutline.current = null;
+        }
 
-      tripOutline.current = L.polyline(coords, { color: "#ffffff", weight: 10, opacity: 0.6, dashArray: "12 8" }).addTo(
-        map,
-      );
-      tripLayer.current = L.polyline(coords, {
-        color: "rgba(255,255,255,0.25)",
-        weight: 6,
-        opacity: 1,
-        dashArray: "8 6",
-      }).addTo(map);
+        tripOutline.current = L.polyline(coords, {
+          color: "#ffffff",
+          weight: 10,
+          opacity: 0.6,
+          dashArray: "12 8",
+        }).addTo(map);
+        tripLayer.current = L.polyline(coords, {
+          color: "rgba(255,255,255,0.25)",
+          weight: 6,
+          opacity: 1,
+          dashArray: "8 6",
+        }).addTo(map);
 
-      const depIcon = L.divIcon({
-        className: "",
-        html: `<div style="position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center">
+        const depIcon = L.divIcon({
+          className: "",
+          html: `<div style="position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center">
           <span style="position:absolute;inset:0;border-radius:50%;background:rgba(34,197,94,0.35);animation:gpsRing 1.6s ease-out infinite"></span>
           <span style="position:absolute;inset:6px;border-radius:50%;background:rgba(34,197,94,0.5);animation:gpsRing 1.6s ease-out infinite;animation-delay:.4s"></span>
           <div style="position:relative;width:30px;height:30px;background:#22c55e;border-radius:50%;border:3px solid white;box-shadow:0 4px 14px rgba(34,197,94,0.7);display:flex;align-items:center;justify-content:center;font-size:15px">📍</div></div>
         <style>@keyframes gpsRing{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.6);opacity:0}}</style>`,
-        iconSize: [44, 44],
-        iconAnchor: [22, 22],
-      });
-      const destIcon = L.divIcon({
-        className: "",
-        html: `<div style="width:34px;height:34px;background:#ef4444;border-radius:50%;border:3px solid white;box-shadow:0 2px 10px rgba(239,68,68,0.6);display:flex;align-items:center;justify-content:center;font-size:16px">🏁</div>`,
-        iconSize: [34, 34],
-        iconAnchor: [17, 17],
-      });
-      if (fromMarker.current) fromMarker.current.remove();
-      if (toMarker.current) toMarker.current.remove();
-      fromMarker.current = L.marker(a, { icon: depIcon }).addTo(map).bindPopup("📍 Prise en charge");
-      toMarker.current = L.marker(b, { icon: destIcon }).addTo(map).bindPopup("🏁 Destination");
+          iconSize: [44, 44],
+          iconAnchor: [22, 22],
+        });
+        const destIcon = L.divIcon({
+          className: "",
+          html: `<div style="width:34px;height:34px;background:#ef4444;border-radius:50%;border:3px solid white;box-shadow:0 2px 10px rgba(239,68,68,0.6);display:flex;align-items:center;justify-content:center;font-size:16px">🏁</div>`,
+          iconSize: [34, 34],
+          iconAnchor: [17, 17],
+        });
+        if (fromMarker.current) fromMarker.current.remove();
+        if (toMarker.current) toMarker.current.remove();
+        fromMarker.current = L.marker(a, { icon: depIcon }).addTo(map).bindPopup("📍 Prise en charge");
+        toMarker.current = L.marker(b, { icon: destIcon }).addTo(map).bindPopup("🏁 Destination");
 
-      const driverPos = markerRef.current?.getLatLng();
-      if (driverPos) drawApproachLine(driverPos.lat, driverPos.lng, a);
+        const driverPos = markerRef.current?.getLatLng();
+        if (driverPos) drawApproachLine(driverPos.lat, driverPos.lng, a);
 
-      map.invalidateSize();
-      map.fitBounds(L.latLngBounds([...coords, markerRef.current?.getLatLng()].filter(Boolean)).pad(0.2), {
-        animate: true,
-        duration: 0.8,
-      });
-    } catch {}
-  }, []);
+        map.invalidateSize();
+        map.fitBounds(L.latLngBounds([...coords, markerRef.current?.getLatLng()].filter(Boolean)).pad(0.2), {
+          animate: true,
+          duration: 0.8,
+        });
+      } catch {}
+    },
+    [],
+  );
 
   // ── Notification avant prise en charge ──────────────────────────────────
   const schedulePickupNotification = useCallback((pickupDatetime: string) => {
@@ -795,7 +801,9 @@ function SuiviPage() {
       if (resaIdRef.current) {
         const { data: r } = await supabase
           .from("reservations")
-          .select("status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,bagages,distance_km,route_coords,route_label")
+          .select(
+            "status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,bagages,distance_km,route_coords,route_label",
+          )
           .eq("id", resaIdRef.current)
           .maybeSingle();
         if (r) setResa((prev) => (prev ? { ...prev, ...r } : prev));
@@ -1676,60 +1684,6 @@ function SuiviPage() {
           >
             🎯 Recentrer
           </button>
-        )}
-
-        {/* [FUSION] réglage zone morte persisté (depuis tracking) */}
-        {taxiPos && (
-          <div
-            style={{
-              position: "absolute",
-              bottom: 12,
-              left: 12,
-              zIndex: 1000,
-              padding: "6px 10px",
-              borderRadius: 10,
-              background: "rgba(10,10,20,0.7)",
-              backdropFilter: "blur(6px)",
-              color: "white",
-              fontSize: 11,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              maxWidth: 220,
-            }}
-          >
-            <span style={{ opacity: 0.8 }}>Suivi</span>
-            <input
-              type="range"
-              min={30}
-              max={90}
-              step={5}
-              value={deadZonePct}
-              onChange={(e) => setDeadZonePct(Number(e.target.value))}
-              style={{ flex: 1, accentColor: "#f5c842" }}
-              aria-label="Zone morte du suivi auto"
-            />
-            <span style={{ opacity: 0.8, minWidth: 28, textAlign: "right" }}>{deadZonePct}%</span>
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                cursor: "pointer",
-                paddingLeft: 6,
-                borderLeft: "1px solid rgba(255,255,255,0.15)",
-              }}
-              title="Réactive le suivi auto si le taxi revient dans la zone visible"
-            >
-              <input
-                type="checkbox"
-                checked={autoResume}
-                onChange={(e) => setAutoResume(e.target.checked)}
-                style={{ accentColor: "#f5c842", margin: 0 }}
-              />
-              <span style={{ opacity: 0.85 }}>auto</span>
-            </label>
-          </div>
         )}
 
         {/* Indicateur last update */}
