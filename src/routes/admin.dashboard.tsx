@@ -1335,8 +1335,9 @@ function Dashboard() {
   // =========================
   // ENVOYER NOUVEAU PRIX
   // =========================
-  const handleSendCustomPrix = async (r: any, canal: "sms" | "whatsapp" | "email") => {
-    const valStr = (customPrix[r.id] ?? "").trim().replace(",", ".");
+  const handleSendCustomPrix = async (r: any, canal: "sms" | "whatsapp" | "email", prixOverride?: number) => {
+    const rawStr = prixOverride != null ? String(prixOverride) : (customPrix[r.id] ?? "");
+    const valStr = rawStr.trim().replace(",", ".");
     const val = parseFloat(valStr);
     if (!valStr || isNaN(val) || val <= 0) {
       toast.error("Prix invalide", { description: "Entrez un montant valide (ex: 18.50)" });
@@ -1370,6 +1371,7 @@ function Dashboard() {
       }
       setCustomPrixSending((p) => ({ ...p, [r.id]: true }));
       try {
+        const km = r.distance_km ? Number(r.distance_km) : null;
         const res = await fetch("/api/admin/send-course-email", {
           method: "POST",
           headers: { "Content-Type": "application/json", "X-Admin-Secret": "admin-pin-call" },
@@ -1382,12 +1384,25 @@ function Dashboard() {
               depart: r.depart,
               arrivee: r.destination || r.arrivee || "—",
               prix: `${val.toFixed(2)} €`,
+              distance_km: km ? `${km} km` : undefined,
+              pickup_datetime: r.pickup_datetime
+                ? formatParis(r.pickup_datetime, { dateStyle: "full", timeStyle: "short" })
+                : undefined,
             },
           }),
         });
-        toast[res.ok ? "success" : "error"](res.ok ? `✉️ Email envoyé à ${email}` : "Échec envoi email");
-      } catch {
-        toast.error("Erreur réseau");
+        if (!res.ok) {
+          let errMsg = "Échec envoi email";
+          try {
+            const errBody = await res.json();
+            errMsg = errBody?.error || errBody?.message || `Erreur ${res.status}`;
+          } catch {}
+          toast.error(errMsg);
+        } else {
+          toast.success(`✉️ Email envoyé à ${email}`);
+        }
+      } catch (err: any) {
+        toast.error("Erreur réseau", { description: err?.message ?? "" });
       } finally {
         setCustomPrixSending((p) => ({ ...p, [r.id]: false }));
       }
@@ -1523,9 +1538,10 @@ function Dashboard() {
         ),
       );
       // Pré-remplir le champ prix pour les boutons SMS / WhatsApp / Email
-      setCustomPrix((p) => ({ ...p, [r.id]: String(alt.prix), [r.id + "_open"]: "1" }));
+      // Note: on passe aussi prixOverride directement aux handlers pour éviter le problème de closure async
+      setCustomPrix((p) => ({ ...p, [r.id]: alt.prix.toFixed(2), [r.id + "_open"]: "1" }));
       toast.success(`${alt.label} sélectionné`, {
-        description: `${alt.km} km · ${alt.prix.toFixed(2)} € — map du client mise à jour`,
+        description: `${alt.km} km · ${alt.prix.toFixed(2)} € — utilisez SMS / WhatsApp / Email pour envoyer le prix au client`,
       });
     } catch (e: any) {
       toast.error("Échec enregistrement", { description: e?.message ?? "" });
@@ -1946,7 +1962,10 @@ function Dashboard() {
                     {(r.client_phone || r.telephone) && (
                       <>
                         <button
-                          onClick={() => handleSendCustomPrix(r, "sms")}
+                          onClick={() => {
+                            const v = parseFloat((customPrix[r.id] ?? "").replace(",", "."));
+                            handleSendCustomPrix(r, "sms", isNaN(v) ? undefined : v);
+                          }}
                           style={{
                             background: "rgba(168,85,247,0.15)",
                             border: "1px solid rgba(168,85,247,0.4)",
@@ -1961,7 +1980,10 @@ function Dashboard() {
                           💬 SMS
                         </button>
                         <button
-                          onClick={() => handleSendCustomPrix(r, "whatsapp")}
+                          onClick={() => {
+                            const v = parseFloat((customPrix[r.id] ?? "").replace(",", "."));
+                            handleSendCustomPrix(r, "whatsapp", isNaN(v) ? undefined : v);
+                          }}
                           style={{
                             background: "rgba(34,197,94,0.12)",
                             border: "1px solid rgba(34,197,94,0.35)",
@@ -1979,7 +2001,10 @@ function Dashboard() {
                     )}
                     {(r.client_email || r.email) && (
                       <button
-                        onClick={() => handleSendCustomPrix(r, "email")}
+                        onClick={() => {
+                          const v = parseFloat((customPrix[r.id] ?? "").replace(",", "."));
+                          handleSendCustomPrix(r, "email", isNaN(v) ? undefined : v);
+                        }}
                         disabled={customPrixSending[r.id]}
                         style={{
                           background: "rgba(245,200,66,0.12)",
