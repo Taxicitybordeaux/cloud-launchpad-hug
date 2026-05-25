@@ -89,7 +89,7 @@ export const Route = createFileRoute('/api/public/contact')({
           payload: {
             message_id: messageId,
             to: recipient,
-            from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
+            from: `${SITE_NAME} <noreply@${SENDER_DOMAIN}>`,
             reply_to: data.email,
             sender_domain: SENDER_DOMAIN,
             subject,
