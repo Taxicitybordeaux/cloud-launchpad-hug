@@ -16,7 +16,6 @@ import { template as newReservationAdmin } from "./new-reservation-admin";
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
   "contact-message": contactMessage,
-  "contact-message": contactMessage,
   "reservation-client-confirmation": reservationClientConfirmation,
   "course-accepted": courseAccepted,
   "new-reservation-admin": newReservationAdmin,
