@@ -876,7 +876,7 @@ function Dashboard() {
     notifParts.push(pushSent > 0 ? `🔔 Push envoyée` : `🔕 Pas d'abonné push`);
 
     // ✉️ Email automatique (si email disponible)
-    if (email && url) {
+    if (email) {
       const adminSecret = "admin-pin-call";
       const pickupFormatted = r.pickup_datetime
         ? formatParis(r.pickup_datetime, { dateStyle: "full", timeStyle: "short" })

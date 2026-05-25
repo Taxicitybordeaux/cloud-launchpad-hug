@@ -5,15 +5,9 @@ import { sendPushToAudience } from "@/lib/push.server";
 
 export type PushAudience = "admin" | "chauffeur" | "client";
 
-export const getVapidPublicKey = createServerFn({ method: "GET" }).handler(async () => {
-  return { key: process.env.VAPID_PUBLIC_KEY ?? "" };
-});
-
 const subSchema = z.object({
   audience: z.enum(["admin", "chauffeur", "client"]),
-  endpoint: z.string().url().max(2000),
-  p256dh: z.string().min(1).max(500),
-  auth: z.string().min(1).max(500),
+  fcm_token: z.string().min(10).max(500),
   reservation_id: z.string().uuid().optional().nullable(),
   user_agent: z.string().max(500).optional().nullable(),
 });
@@ -21,13 +15,12 @@ const subSchema = z.object({
 export const subscribePush = createServerFn({ method: "POST" })
   .inputValidator((input) => subSchema.parse(input))
   .handler(async ({ data }) => {
-    // upsert by endpoint
+    const endpoint = `fcm://${data.fcm_token}`;
     const { error } = await supabaseAdmin.from("push_subscriptions").upsert(
       {
         audience: data.audience,
-        endpoint: data.endpoint,
-        p256dh: data.p256dh,
-        auth: data.auth,
+        endpoint,
+        fcm_token: data.fcm_token,
         reservation_id: data.reservation_id ?? null,
         user_agent: data.user_agent ?? null,
         last_seen_at: new Date().toISOString(),
@@ -42,31 +35,23 @@ export const subscribePush = createServerFn({ method: "POST" })
   });
 
 export const unsubscribePush = createServerFn({ method: "POST" })
-  .inputValidator((input) => z.object({ endpoint: z.string().url().max(2000) }).parse(input))
+  .inputValidator((input) => z.object({ fcm_token: z.string().min(10).max(500) }).parse(input))
   .handler(async ({ data }) => {
-    await supabaseAdmin.from("push_subscriptions").delete().eq("endpoint", data.endpoint);
+    await supabaseAdmin.from("push_subscriptions").delete().eq("fcm_token", data.fcm_token);
     return { ok: true };
   });
 
 export const sendTestPush = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ audience: z.enum(["admin", "chauffeur", "client"]) }).parse(input))
   .handler(async ({ data }) => {
-    const result = await sendPushToAudience(data.audience, {
+    return sendPushToAudience(data.audience, {
       title: "🔔 Test notification",
       body: `Notification test envoyée à l'audience « ${data.audience} ».`,
       url: data.audience === "client" ? "/" : "/admin/dashboard",
       tag: "test-push",
     });
-    return result;
   });
 
-// ─────────────────────────────────────────────────────────────────
-// Nouvelle réservation → push admin + push chauffeur + email taxi
-// ─────────────────────────────────────────────────────────────────
-// FIX: notifyNewReservation est appelé côté client (formulaire public, pas connecté).
-// requireSupabaseAuth causait un 401 systématique → la notification ne partait jamais.
-// La sécurité est assurée par supabaseAdmin côté serveur (clé service_role) +
-// validation que la réservation existe vraiment en base avant d'envoyer quoi que ce soit.
 export const notifyNewReservation = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ reservation_id: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
@@ -84,7 +69,6 @@ export const notifyNewReservation = createServerFn({ method: "POST" })
     const phone = r.client_phone || r.telephone || "";
     const email = r.client_email || r.email || "";
 
-    // ── Push admin ──
     const adminResult = await sendPushToAudience("admin", {
       title: "🔔 Nouvelle réservation",
       body: `${clientName} — ${trajet}`,
@@ -93,7 +77,6 @@ export const notifyNewReservation = createServerFn({ method: "POST" })
       requireInteraction: true,
     });
 
-    // ── Push chauffeur ──
     const chauffeurResult = await sendPushToAudience("chauffeur", {
       title: "🚕 Nouvelle course en attente",
       body: `${clientName} — ${trajet}`,
@@ -102,7 +85,6 @@ export const notifyNewReservation = createServerFn({ method: "POST" })
       requireInteraction: true,
     });
 
-    // ── Email taxi (résumé réservation) ──
     let emailSent = false;
     try {
       const pickupFormatted = r.pickup_datetime
@@ -177,7 +159,6 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
     };
     const l = labels[data.status];
 
-    // ── Push client ──
     const result = await sendPushToAudience(
       "client",
       {
@@ -189,7 +170,6 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
       { reservationId: r.id },
     );
 
-    // ── Retourner le corps SMS pour en_route et arrived (déclenché depuis le dashboard) ──
     let smsBody: string | null = null;
     if (smsPhone && data.status === "en_route") {
       smsBody = encodeURIComponent(
@@ -202,7 +182,6 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
       );
     }
 
-    // ── Push chauffeur à l'acceptation ──
     let chauffeurResult = { sent: 0, removed: 0 };
     if (data.status === "accepted") {
       chauffeurResult = await sendPushToAudience("chauffeur", {

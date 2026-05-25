@@ -112,7 +112,8 @@ export const Route = createFileRoute('/api/public/notify-reservation')({
           payload: {
             message_id: messageId,
             to: recipient,
-            from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
+            from: `${SITE_NAME} <noreply@${SENDER_DOMAIN}>`,
+            reply_to: 'taxi.city033@gmail.com',
             sender_domain: SENDER_DOMAIN,
             subject,
             html,
