@@ -283,7 +283,6 @@ const normalizeStatus = (s: unknown): "pending" | "accepted" | "refused" => {
 type ItineraryAlt = { label: string; km: number; prix: number; coords: [number, number][] };
 
 const toRad = (deg: number) => (deg * Math.PI) / 180;
-const toDeg = (rad: number) => (rad * 180) / Math.PI;
 
 function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
   const dLat = toRad(b.lat - a.lat);
@@ -1512,7 +1511,7 @@ function Dashboard() {
 
   const handleSelectItineraire = async (
     r: any,
-    alt: { label: string; km: number; prix: number; coords: [number, number][] },
+    alt: ItineraryAlt,
   ) => {
     setItinSaving((p) => ({ ...p, [r.id]: true }));
     try {
