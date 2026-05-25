@@ -252,6 +252,7 @@ interface Reservation {
   prix_estime?: string | number | null;
   nb_passagers?: number | null;
   passagers?: number | null;
+  bagages?: number | null;
   suivi_id?: string | null;
   distance_km?: number | null;
   created_at?: string | null;
