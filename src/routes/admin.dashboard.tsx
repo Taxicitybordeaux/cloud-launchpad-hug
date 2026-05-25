@@ -1662,7 +1662,8 @@ function Dashboard() {
             <div>
               <div style={{ color: "#fff", fontWeight: 700, fontSize: 18 }}>{name}</div>
               <div style={{ color: "#cbd5e1", marginTop: 8 }}>
-                🟢 {r.depart} → 📍 {dest}
+                <div>🟢 {r.depart}</div>
+                <div style={{ marginTop: 2 }}>📍 {dest}</div>
               </div>
             </div>
             <div className="course-card-head-right" style={{ color: "#64748b", fontSize: 13 }}>
@@ -2091,25 +2092,30 @@ function Dashboard() {
                           disabled={itinSaving[r.id]}
                           style={{
                             display: "flex",
-                            justifyContent: "space-between",
+                            flexWrap: "wrap",
+                            justifyContent: "center",
                             alignItems: "center",
-                            gap: 10,
-                            padding: "10px 12px",
+                            gap: 8,
+                            padding: "12px",
                             background: "rgba(255,255,255,0.04)",
                             border: "1px solid rgba(255,255,255,0.08)",
                             borderRadius: 10,
                             cursor: itinSaving[r.id] ? "wait" : "pointer",
                             color: "#f8fafc",
                             fontSize: 13,
-                            textAlign: "left",
+                            textAlign: "center",
                             fontFamily: "inherit",
                             opacity: itinSaving[r.id] ? 0.6 : 1,
+                            width: "100%",
                           }}
                         >
-                          <span style={{ fontWeight: 700 }}>{alt.label}</span>
+                          <span style={{ fontWeight: 700, flexBasis: "100%", textAlign: "center" }}>{alt.label}</span>
                           <span style={{ color: "#cbd5e1" }}>{alt.km} km</span>
+                          <span style={{ color: "#64748b" }}>·</span>
                           <span style={{ color: "#f5c842", fontWeight: 700 }}>{alt.prix.toFixed(2)} €</span>
-                          <span style={{ color: "#60a5fa", fontWeight: 700 }}>Choisir →</span>
+                          <span style={{ color: "#60a5fa", fontWeight: 700, flexBasis: "100%", textAlign: "center" }}>
+                            Choisir →
+                          </span>
                         </button>
                       ))}
                       <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
@@ -2583,7 +2589,8 @@ function Dashboard() {
                     <div>
                       <div style={{ color: "#fff", fontWeight: 700, fontSize: 16 }}>{r.client_name || r.nom}</div>
                       <div style={{ color: "#94a3b8", marginTop: 6, fontSize: 13 }}>
-                        🟢 {r.depart} → 📍 {r.destination || r.arrivee}
+                        <div>🟢 {r.depart}</div>
+                        <div style={{ marginTop: 2 }}>📍 {r.destination || r.arrivee}</div>
                       </div>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
@@ -2628,7 +2635,8 @@ function Dashboard() {
                     <div>
                       <div style={{ color: "#fff", fontWeight: 700, fontSize: 16 }}>{r.client_name || r.nom}</div>
                       <div style={{ color: "#cbd5e1", marginTop: 6, fontSize: 13 }}>
-                        🟢 {r.depart} → 📍 {r.destination || r.arrivee}
+                        <div>🟢 {r.depart}</div>
+                        <div style={{ marginTop: 2 }}>📍 {r.destination || r.arrivee}</div>
                       </div>
                     </div>
                     <div style={{ color: "#64748b", fontSize: 13 }}>
