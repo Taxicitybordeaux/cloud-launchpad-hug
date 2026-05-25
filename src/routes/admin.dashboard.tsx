@@ -439,7 +439,7 @@ function Dashboard() {
   const [customPrixSending, setCustomPrixSending] = useState<Record<string, boolean>>({});
   const [itinOpen, setItinOpen] = useState<Record<string, boolean>>({});
   const [itinLoading, setItinLoading] = useState<Record<string, boolean>>({});
-  const [itinAlts, setItinAlts] = useState<Record<string, { label: string; km: number; prix: number; coords: [number, number][] }[]>>({});
+  const [itinAlts, setItinAlts] = useState<Record<string, ItineraryAlt[]>>({});
   const [itinSaving, setItinSaving] = useState<Record<string, boolean>>({});
   const [changeHeureOpen, setChangeHeureOpen] = useState<Record<string, boolean>>({});
   const [changeHeureValue, setChangeHeureValue] = useState<Record<string, string>>({});
@@ -1448,46 +1448,45 @@ function Dashboard() {
     setItinLoading((p) => ({ ...p, [r.id]: true }));
     setItinOpen((p) => ({ ...p, [r.id]: true }));
     try {
-      const [a, b] = await Promise.all([geocodeAddress(dep), geocodeAddress(dest)]);
+      const [a, b] = await Promise.all([geocodeForRoute(dep), geocodeForRoute(dest)]);
       if (!a || !b) {
         toast.error("Géocodage impossible");
+        const pickupIso = r.pickup_datetime || new Date().toISOString();
+        const km = Number(r.distance_km) || 5;
+        setItinAlts((p) => ({
+          ...p,
+          [r.id]: [1, 1.08, 1.18].map((factor, i) => {
+            const labels = ["🟢 Court", "🟡 Intermédiaire", "🔴 Long"];
+            const finalKm = parseFloat((km * factor).toFixed(2));
+            return { label: labels[i], km: finalKm, prix: parseFloat(calculerPrixMixte(finalKm, pickupIso).toFixed(2)), coords: [] };
+          }),
+        }));
         setItinLoading((p) => ({ ...p, [r.id]: false }));
         return;
       }
-      const data = await fetchRoute([a.lng, a.lat], [b.lng, b.lat], {
-        overview: "full",
-        alternatives: 3,
-        geometries: "geojson",
-      });
-      const routes: any[] = data?.routes ?? [];
-      if (!routes.length) {
-        toast.error("Aucun itinéraire trouvé");
-        setItinLoading((p) => ({ ...p, [r.id]: false }));
-        return;
-      }
-      const sorted = [...routes].sort((x, y) => x.distance - y.distance);
       const pickupIso = r.pickup_datetime || new Date().toISOString();
       const labels = ["🟢 Court", "🟡 Intermédiaire", "🔴 Long"];
-      const toAlt = (rt: any, label: string) => {
-        const km = rt.distance / 1000;
-        const prix = calculerPrixMixte(km, pickupIso);
-        const coords = (rt.geometry?.coordinates as [number, number][]).map(
-          ([lng, lat]) => [lat, lng] as [number, number],
-        );
-        return { label, km: parseFloat(km.toFixed(2)), prix: parseFloat(prix.toFixed(2)), coords };
-      };
-      let alts = sorted.slice(0, 3).map((rt, i) => toAlt(rt, labels[i]));
-      // OSRM ne renvoie souvent qu'1 itinéraire — on synthétise les 2 autres
+      const directKm = haversineKm(a, b);
+      const detours = [0, Math.max(1.2, directKm * 0.08), Math.max(2.2, directKm * 0.16)];
+      const routeAttempts = await Promise.all(
+        detours.map((detour, i) => {
+          const points: [number, number][] = detour
+            ? [[a.lng, a.lat], [detourPoint(a, b, detour).lng, detourPoint(a, b, detour).lat], [b.lng, b.lat]]
+            : [[a.lng, a.lat], [b.lng, b.lat]];
+          return fetchRouteCoordinates(points, { overview: "full", alternatives: i === 0 ? 3 : false, geometries: "geojson" })
+            .then((data) => (data?.routes ?? []).map((route: any) => routeToAlt(route, labels[i], pickupIso)).filter(Boolean) as ItineraryAlt[])
+            .catch(() => [] as ItineraryAlt[]);
+        }),
+      );
+
+      const unique = new Map<string, ItineraryAlt>();
+      routeAttempts.flat().forEach((alt) => unique.set(`${Math.round(alt.km * 10)}`, alt));
+      let alts = [...unique.values()].sort((x, y) => x.km - y.km).slice(0, 3);
       if (alts.length < 3) {
-        const base = alts[0];
-        const factors = [1, 1.08, 1.18];
-        alts = factors.map((f, i) => {
-          if (i < alts.length) return { ...alts[i], label: labels[i] };
-          const km = parseFloat((base.km * f).toFixed(2));
-          const prix = parseFloat(calculerPrixMixte(km, pickupIso).toFixed(2));
-          return { label: labels[i], km, prix, coords: base.coords };
-        });
+        const fallback = fallbackItineraries(a, b, pickupIso);
+        alts = [...alts, ...fallback].sort((x, y) => x.km - y.km).slice(0, 3);
       }
+      alts = alts.slice(0, 3).map((alt, i) => ({ ...alt, label: labels[i] }));
 
       setItinAlts((p) => ({ ...p, [r.id]: alts }));
     } catch {
