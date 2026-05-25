@@ -5,6 +5,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useI18n } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/mes-courses")({
   head: () => ({ meta: [{ title: "Mes courses — Taxi City Bordeaux" }] }),
