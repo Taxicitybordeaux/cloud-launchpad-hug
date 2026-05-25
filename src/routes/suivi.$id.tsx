@@ -2179,6 +2179,22 @@ function SuiviPage() {
                     👥 {passagers}
                   </div>
                 </div>
+                <div
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    borderRadius: 12,
+                    padding: "9px 12px",
+                    textAlign: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <div className="typo-label" style={{ fontSize: 9, color: "#475569", marginBottom: 4 }}>
+                    Bagages
+                  </div>
+                  <div className="typo-num" style={{ fontSize: 15, color: "#cbd5e1" }}>
+                    🧳 {bagages}
+                  </div>
+                </div>
                 {prix && (
                   <div
                     style={{
