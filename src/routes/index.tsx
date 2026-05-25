@@ -14,6 +14,7 @@ import {
   ArrowRight,
   Quote,
   HelpCircle,
+  MessageCircle,
 } from "lucide-react";
 import logo from "@/assets/logo.jpeg";
 import heroCar from "@/assets/hero-bordeaux.jpg";
@@ -25,7 +26,6 @@ import bestDunePilat from "@/assets/best-dune-pilat.jpg";
 import bestSaintEmilion from "@/assets/best-saint-emilion.jpg";
 import bestMiroirEau from "@/assets/best-miroir-eau.jpg";
 import { useT } from "@/i18n/I18nProvider";
-// FareSimulator removed from home page per request
 import { ReviewForm } from "@/components/ReviewForm";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -45,6 +45,7 @@ export const Route = createFileRoute("/")({
 
 const PHONE = "0673072322";
 const PHONE_DISPLAY = "06 73 07 23 22";
+const WHATSAPP = `https://wa.me/33${PHONE.replace(/^0/, "")}`;
 
 function Home() {
   const t = useT();
@@ -65,7 +66,6 @@ function Home() {
         <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/80 via-black/55 to-black/25" />
         <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/85 via-black/40 to-black/10 sm:hidden" />
 
-        {/* Mobile: shorter padding; desktop: more breathing room */}
         <div className="mx-auto max-w-7xl px-4 pt-10 pb-16 text-white sm:pt-14 sm:pb-20 md:pt-24 md:pb-32">
           <div className="max-w-2xl">
             <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-black/40 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.2em] text-primary backdrop-blur sm:px-4 sm:py-1.5 sm:text-[11px]">
@@ -73,7 +73,6 @@ function Home() {
               {t("home.hero.badge")}
             </span>
 
-            {/* Smaller h1 on mobile to avoid overflow */}
             <h1 className="mt-5 font-display text-4xl font-bold leading-[1.05] text-white sm:text-5xl md:text-6xl lg:text-7xl">
               {t("home.hero.title.before")} <span className="italic text-primary">{t("home.hero.title.city")}</span>
               <br className="hidden md:block" />
@@ -84,7 +83,6 @@ function Home() {
               {t("home.hero.subtitle")}
             </p>
 
-            {/* Trust badges — wrap on very small screens */}
             <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-white/80 sm:mt-8 sm:gap-x-7 sm:text-sm">
               <span className="inline-flex items-center gap-1.5">
                 <Clock className="h-4 w-4 text-primary" /> {t("home.hero.tag1")}
@@ -110,7 +108,6 @@ function Home() {
           <p className="max-w-md text-sm text-muted-foreground">{t("home.dest.intro")}</p>
         </div>
 
-        {/* Horizontal scroll on mobile, 3-col grid on md+ */}
         <div className="mt-8 grid auto-cols-[80vw] grid-flow-col gap-4 overflow-x-auto pb-3 [overflow-scrolling:touch] [-webkit-overflow-scrolling:touch] sm:auto-cols-[60vw] md:grid-flow-row md:grid-cols-3 md:overflow-visible md:pb-0 md:gap-5">
           {[
             { img: destGare, title: t("home.dest.gare.title"), sub: t("home.dest.gare.sub") },
@@ -152,7 +149,6 @@ function Home() {
             <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">{t("home.best.intro")}</p>
           </div>
 
-          {/* 2-col grid on mobile, 4-col on lg */}
           <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
             {[
               { img: bestMiroirEau, title: t("home.best.miroir.title"), sub: t("home.best.miroir.sub") },
@@ -392,7 +388,7 @@ function Home() {
       </section>
 
       {/* CTA */}
-      <section className="mx-auto max-w-7xl px-4 py-12 sm:py-16 md:py-20">
+      <section className="mx-auto max-w-7xl px-4 py-12 pb-32 sm:py-16 sm:pb-36 md:py-20 md:pb-40">
         <div className="relative overflow-hidden rounded-3xl border border-primary/30 bg-card p-8 text-center sm:p-10 md:p-16">
           <div className="absolute inset-0 bg-[var(--gradient-gold)] opacity-10" />
           <div className="relative">
@@ -417,6 +413,38 @@ function Home() {
           </div>
         </div>
       </section>
+
+      {/* BARRE FLOTTANTE BAS — Appeler · WhatsApp · Réserver */}
+      <div className="fixed bottom-0 inset-x-0 z-50 flex border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        {/* Appeler */}
+        <a
+          href={`tel:${PHONE}`}
+          className="flex flex-1 flex-col items-center justify-center gap-1 py-3 text-xs font-semibold text-foreground/80 transition hover:text-primary active:scale-95"
+        >
+          <Phone className="h-5 w-5" />
+          <span>Appeler</span>
+        </a>
+
+        {/* WhatsApp */}
+        <a
+          href={WHATSAPP}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex flex-1 flex-col items-center justify-center gap-1 py-3 text-xs font-semibold text-foreground/80 transition hover:text-primary active:scale-95"
+        >
+          <MessageCircle className="h-5 w-5" />
+          <span>WhatsApp</span>
+        </a>
+
+        {/* Réserver */}
+        <Link
+          to="/reservation"
+          className="flex flex-1 flex-col items-center justify-center gap-1 bg-primary py-3 text-xs font-semibold text-primary-foreground transition active:scale-95"
+        >
+          <ArrowRight className="h-5 w-5" />
+          <span>Réserver</span>
+        </Link>
+      </div>
     </>
   );
 }
@@ -458,7 +486,6 @@ function Testimonials() {
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">{t("home.test.eyebrow")}</p>
           <h2 className="mt-3 font-display text-3xl font-bold sm:text-4xl md:text-5xl">{t("home.test.title")}</h2>
         </div>
-        {/* Horizontal scroll on mobile, 3-col grid on md+ */}
         <div className="mt-8 grid auto-cols-[85vw] grid-flow-col gap-4 overflow-x-auto pb-3 [overflow-scrolling:touch] [-webkit-overflow-scrolling:touch] sm:auto-cols-[60vw] md:grid-flow-row md:grid-cols-3 md:overflow-visible md:pb-0 md:gap-6 md:mt-12">
           {items.map((r) => (
             <figure
