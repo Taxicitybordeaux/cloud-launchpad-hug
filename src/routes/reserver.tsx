@@ -644,11 +644,33 @@ function ReservationPage() {
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Clash Display'" }}>
-                {t("res.title")}
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+              <a
+                href="/"
+                style={{
+                  marginTop: 4,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "6px 11px",
+                  background: "rgba(255,255,255,0.1)",
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  borderRadius: 10,
+                  color: "#cbd5e1",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  textDecoration: "none",
+                  flexShrink: 0,
+                }}
+              >
+                ← Site
+              </a>
+              <div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Clash Display'" }}>
+                  {t("res.title")}
+                </div>
+                <div style={{ fontSize: 13, color: "#cbd5e1", marginTop: 4 }}>{t("res.intro")}</div>
               </div>
-              <div style={{ fontSize: 13, color: "#cbd5e1", marginTop: 4 }}>{t("res.intro")}</div>
             </div>
             <select
               value={lang}
