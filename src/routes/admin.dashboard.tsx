@@ -404,12 +404,18 @@ function Dashboard() {
 
   // =========================
   // AUTO-SUBSCRIBE FCM (admin + chauffeur)
-  // S'abonne automatiquement au chargement du dashboard, sans bouton.
+  // S'abonne automatiquement au chargement, délai 3s pour ne pas bloquer.
   // =========================
   useEffect(() => {
-    if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator)) return;
+    if (
+      typeof window === "undefined" ||
+      !("Notification" in window) ||
+      !("serviceWorker" in navigator) ||
+      !("PushManager" in window)
+    )
+      return;
     let cancelled = false;
-    const autoSubscribe = async () => {
+    const timer = setTimeout(async () => {
       try {
         const fcm = await getFcmToken();
         if (!fcm || cancelled) return;
@@ -431,13 +437,17 @@ function Dashboard() {
             },
           }),
         ]);
+        if (!cancelled) {
+          localStorage.setItem("fcm_token", fcm);
+          console.info("[push] auto-subscribe dashboard OK — admin + chauffeur");
+        }
       } catch (e) {
         console.warn("[push] auto-subscribe dashboard failed", e);
       }
-    };
-    autoSubscribe();
+    }, 3000);
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, []);
 
