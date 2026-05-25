@@ -18,7 +18,9 @@ export const Route = createRootRoute({
     <div className="flex min-h-screen items-center justify-center">
       <div className="text-center">
         <h1 className="text-2xl font-bold">Page introuvable</h1>
-        <a href="/" className="text-primary underline">Retour à l'accueil</a>
+        <a href="/" className="text-primary underline">
+          Retour à l'accueil
+        </a>
       </div>
     </div>
   ),
@@ -32,7 +34,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <I18nProvider>
-          <Outlet />
           {children}
           <Toaster />
         </I18nProvider>
