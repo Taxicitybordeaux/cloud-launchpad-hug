@@ -17,7 +17,15 @@ interface Props {
   bagages?: string | number;
 }
 
-const STR: Record<Lang, Record<string, string>> = {
+type Strings = {
+  tag: string; preview: string; previewPrice: string; previewTrack: string;
+  hi: string; confirmed: string; intro: string;
+  when: string; from: string; to: string; paxLug: string;
+  pax: (n: any) => string; lug: (n: any) => string;
+  price: string; trackBtn: string; trackLink: string;
+  call: (p: string) => string; footer: string; subject: string;
+};
+const STR: Record<Lang, Strings> = {
   fr: {
     tag: "Course confirmée",
     preview: "Course confirmée",
