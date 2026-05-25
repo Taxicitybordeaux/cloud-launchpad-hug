@@ -149,7 +149,6 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
 
     // Labels traduits selon la langue de la réservation
     const resLang = ((r as any).lang as Lang) || "fr";
-    const d = DICTS[resLang] ?? DICTS["fr"];
 
     const PUSH_LABELS: Record<Lang, Record<string, { title: string; body: string }>> = {
       fr: {
