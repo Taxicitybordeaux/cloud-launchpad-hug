@@ -23,7 +23,6 @@ type Screen = "login" | "change";
 function LoginPage() {
   const navigate = useNavigate();
 
-  // Redirect if already logged in
   useEffect(() => {
     if (sessionStorage.getItem(SESSION_KEY) === "1") {
       navigate({ to: "/admin/dashboard" });
@@ -36,7 +35,6 @@ function LoginPage() {
   const [error, setError] = useState("");
   const [shake, setShake] = useState(false);
 
-  // Change password fields
   const [oldPwd, setOldPwd] = useState("");
   const [newPwd, setNewPwd] = useState("");
   const [newPwd2, setNewPwd2] = useState("");
