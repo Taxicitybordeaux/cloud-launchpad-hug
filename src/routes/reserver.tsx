@@ -127,6 +127,19 @@ function ReservationPage() {
   const [today, setToday] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [completedReservation, setCompletedReservation] = useState<{
+    suiviId: string;
+    nom: string;
+    email: string;
+    pickup: string;
+    depart: string;
+    arrivee: string;
+    passagers: number;
+    bagages: number;
+  } | null>(null);
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   const [fromCoord, setFromCoord] = useState<[number, number] | null>(null);
   const [toCoord, setToCoord] = useState<[number, number] | null>(null);
@@ -449,29 +462,6 @@ function ReservationPage() {
         });
       } catch (fetchErr) {
         console.error("[notify] push failed", fetchErr);
-      }
-
-      // ── Email confirmation au client ──────────────────────────────────────
-      if (f.email) {
-        try {
-          await fetch("/api/public/notify-reservation-client", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              suivi_id: suiviId,
-              nom: fullName,
-              email: f.email,
-              pickup_datetime: pickupIsoFinal,
-              depart: f.depart,
-              arrivee: f.destination,
-              passagers: f.passagers,
-              bagages: f.bagages,
-              lang: "fr",
-            }),
-          });
-        } catch (fetchErr) {
-          console.error("[notify-client] email failed", fetchErr);
-        }
       }
 
       toast.success(`Réservation confirmée pour ${f.prenom} !`);
