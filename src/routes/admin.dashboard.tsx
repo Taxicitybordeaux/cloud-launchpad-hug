@@ -1482,7 +1482,8 @@ function Dashboard() {
       routeAttempts.flat().forEach((alt) => unique.set(`${Math.round(alt.km * 10)}`, alt));
       let alts = [...unique.values()].sort((x, y) => x.km - y.km).slice(0, 3);
       if (alts.length < 3) {
-        const fallback = fallbackItineraries(a, b, pickupIso);
+        const baseCoords = alts[0]?.coords ?? [];
+        const fallback = fallbackItineraries(a, b, pickupIso, baseCoords);
         alts = [...alts, ...fallback].sort((x, y) => x.km - y.km).slice(0, 3);
       }
       alts = alts.slice(0, 3).map((alt, i) => ({ ...alt, label: labels[i] }));
