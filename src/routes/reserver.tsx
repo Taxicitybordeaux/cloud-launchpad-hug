@@ -8,7 +8,7 @@ import { EnablePushButton } from "@/components/EnablePushButton";
 import { newSuiviId } from "@/lib/suivi-id";
 import { subscribePush } from "@/lib/push.functions";
 import { getFcmToken } from "@/lib/firebase";
-import { DICTS, LANGUAGES, type Lang } from "@/lib/dict";
+import { DICTS, LANGUAGES, type Lang } from "@/lib/dict.ts";
 
 export const Route = createFileRoute("/reserver")({
   head: () => ({
