@@ -38,9 +38,15 @@ export async function fetchRoute(
   to: [number, number],
   opts: RouteOptions = { overview: 'false', alternatives: false, steps: false, geometries: 'polyline' },
 ) {
-  const [fromLng, fromLat] = from;
-  const [toLng, toLat] = to;
-  const url = new URL(`${OSRM_BASE}/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}`);
+  return fetchRouteCoordinates([from, to], opts);
+}
+
+export async function fetchRouteCoordinates(
+  coordinates: [number, number][],
+  opts: RouteOptions = { overview: 'false', alternatives: false, steps: false, geometries: 'polyline' },
+) {
+  const path = coordinates.map(([lng, lat]) => `${lng},${lat}`).join(';');
+  const url = new URL(`${OSRM_BASE}/route/v1/driving/${path}`);
   url.searchParams.set('overview', opts.overview ?? 'false');
   const altVal = opts.alternatives;
   url.searchParams.set(
@@ -85,6 +91,7 @@ export async function getRouteGeoCoords(from: [number, number], to: [number, num
 export default {
   OSRM_BASE,
   fetchRoute,
+  fetchRouteCoordinates,
   getDistanceAndDurationKm,
   getRouteGeoCoords,
 };
