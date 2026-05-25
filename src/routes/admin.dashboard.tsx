@@ -280,6 +280,80 @@ const normalizeStatus = (s: unknown): "pending" | "accepted" | "refused" => {
   return "pending";
 };
 
+type ItineraryAlt = { label: string; km: number; prix: number; coords: [number, number][] };
+
+const toRad = (deg: number) => (deg * Math.PI) / 180;
+const toDeg = (rad: number) => (rad * 180) / Math.PI;
+
+function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+async function geocodeForRoute(address: string) {
+  const trimmed = address.trim();
+  const attempts = [trimmed, `${trimmed}, Bordeaux, France`];
+  for (const query of attempts) {
+    const coord = await geocodeAddress(query);
+    if (coord) return coord;
+  }
+  return null;
+}
+
+function detourPoint(a: { lat: number; lng: number }, b: { lat: number; lng: number }, strengthKm: number) {
+  const midLat = (a.lat + b.lat) / 2;
+  const midLng = (a.lng + b.lng) / 2;
+  const dx = (b.lng - a.lng) * Math.cos(toRad(midLat));
+  const dy = b.lat - a.lat;
+  const len = Math.sqrt(dx * dx + dy * dy) || 1;
+  const side = a.lng <= b.lng ? 1 : -1;
+  const normalX = (-dy / len) * side;
+  const normalY = (dx / len) * side;
+  return {
+    lat: midLat + (normalY * strengthKm) / 111,
+    lng: midLng + (normalX * strengthKm) / (111 * Math.cos(toRad(midLat)) || 1),
+  };
+}
+
+function routeToAlt(route: any, label: string, pickupIso: string): ItineraryAlt | null {
+  const points = route?.geometry?.coordinates;
+  if (!Array.isArray(points) || points.length < 2 || !route?.distance) return null;
+  const km = route.distance / 1000;
+  const prix = calculerPrixMixte(km, pickupIso);
+  return {
+    label,
+    km: parseFloat(km.toFixed(2)),
+    prix: parseFloat(prix.toFixed(2)),
+    coords: points.map(([lng, lat]: [number, number]) => [lat, lng] as [number, number]),
+  };
+}
+
+function fallbackItineraries(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+  pickupIso: string,
+): ItineraryAlt[] {
+  const directKm = Math.max(haversineKm(a, b) * 1.3, 1);
+  const labels = ["🟢 Court", "🟡 Intermédiaire", "🔴 Long"];
+  const factors = [1, 1.08, 1.18];
+  return labels.map((label, i) => {
+    const km = parseFloat((directKm * factors[i]).toFixed(2));
+    return {
+      label,
+      km,
+      prix: parseFloat(calculerPrixMixte(km, pickupIso).toFixed(2)),
+      coords: [
+        [a.lat, a.lng],
+        [b.lat, b.lng],
+      ],
+    };
+  });
+}
+
 // ─── Section header ───
 function SectionHeader({
   color,
