@@ -314,13 +314,13 @@ export type Database = {
       push_subscriptions: {
         Row: {
           audience: string
-          auth: string
+          auth: string | null
           created_at: string
           endpoint: string
           fcm_token: string | null
           id: string
           last_seen_at: string
-          p256dh: string
+          p256dh: string | null
           reservation_id: string | null
           updated_at: string | null
           user_agent: string | null
@@ -328,13 +328,13 @@ export type Database = {
         }
         Insert: {
           audience: string
-          auth: string
+          auth?: string | null
           created_at?: string
           endpoint: string
           fcm_token?: string | null
           id?: string
           last_seen_at?: string
-          p256dh: string
+          p256dh?: string | null
           reservation_id?: string | null
           updated_at?: string | null
           user_agent?: string | null
@@ -342,13 +342,13 @@ export type Database = {
         }
         Update: {
           audience?: string
-          auth?: string
+          auth?: string | null
           created_at?: string
           endpoint?: string
           fcm_token?: string | null
           id?: string
           last_seen_at?: string
-          p256dh?: string
+          p256dh?: string | null
           reservation_id?: string | null
           updated_at?: string | null
           user_agent?: string | null
