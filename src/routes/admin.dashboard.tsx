@@ -1919,6 +1919,108 @@ function Dashboard() {
             </div>
           )}
 
+          {/* ── Itinéraires alternatifs (court / inter / long) ── */}
+          {(normalizeStatus(r.status) === "pending" ||
+            normalizeStatus(r.status) === "accepted" ||
+            r.status === "en_route" ||
+            r.status === "arrived") && (
+            <div style={{ marginTop: 10 }}>
+              {!itinOpen[r.id] ? (
+                <button
+                  onClick={() => loadItineraires(r)}
+                  style={{
+                    background: "transparent",
+                    border: "1px solid rgba(96,165,250,0.35)",
+                    color: "#60a5fa",
+                    padding: "8px 14px",
+                    borderRadius: 10,
+                    cursor: "pointer",
+                    fontWeight: 600,
+                    fontSize: 13,
+                  }}
+                >
+                  🗺️ Itinéraires
+                </button>
+              ) : (
+                <div
+                  style={{
+                    padding: "12px 14px",
+                    background: "rgba(96,165,250,0.07)",
+                    border: "1px solid rgba(96,165,250,0.25)",
+                    borderRadius: 12,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: 10,
+                    }}
+                  >
+                    <span style={{ fontSize: 12, color: "#60a5fa", fontWeight: 700 }}>
+                      🗺️ Choisir un itinéraire {r.route_label ? `(actuel : ${r.route_label})` : ""}
+                    </span>
+                    <button
+                      onClick={() => setItinOpen((p) => ({ ...p, [r.id]: false }))}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "#64748b",
+                        cursor: "pointer",
+                        fontSize: 18,
+                        lineHeight: 1,
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  {itinLoading[r.id] ? (
+                    <div style={{ color: "#94a3b8", fontSize: 13 }}>⏳ Calcul en cours…</div>
+                  ) : itinAlts[r.id]?.length ? (
+                    <div style={{ display: "grid", gap: 8 }}>
+                      {itinAlts[r.id].map((alt, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handleSelectItineraire(r, alt)}
+                          disabled={itinSaving[r.id]}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: 10,
+                            padding: "10px 12px",
+                            background: "rgba(255,255,255,0.04)",
+                            border: "1px solid rgba(255,255,255,0.08)",
+                            borderRadius: 10,
+                            cursor: itinSaving[r.id] ? "wait" : "pointer",
+                            color: "#f8fafc",
+                            fontSize: 13,
+                            textAlign: "left",
+                            fontFamily: "inherit",
+                            opacity: itinSaving[r.id] ? 0.6 : 1,
+                          }}
+                        >
+                          <span style={{ fontWeight: 700 }}>{alt.label}</span>
+                          <span style={{ color: "#cbd5e1" }}>{alt.km} km</span>
+                          <span style={{ color: "#f5c842", fontWeight: 700 }}>{alt.prix.toFixed(2)} €</span>
+                          <span style={{ color: "#60a5fa", fontWeight: 700 }}>Choisir →</span>
+                        </button>
+                      ))}
+                      <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
+                        ↳ Le prix et le tracé sur la carte du client seront mis à jour automatiquement. Utilisez ensuite « Modifier le prix » pour envoyer SMS / WhatsApp / Email.
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ color: "#94a3b8", fontSize: 13 }}>Aucun itinéraire disponible.</div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+
+
           {/* ── Bouton annuler uniquement ── */}
           {(normalizeStatus(r.status) === "accepted" || r.status === "en_route" || r.status === "arrived") && (
             <div
