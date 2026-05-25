@@ -56,25 +56,26 @@ export const Route = createFileRoute('/api/public/notify-reservation-client')({
           .select('email')
           .eq('id', data.reservation_id)
           .maybeSingle()
-        if (lookupError) return Response.json({ error: 'lookup' }, { status: 500 })
-        if (!reservation) return Response.json({ error: 'not_found' }, { status: 404 })
-        if (
-          !reservation.email ||
-          reservation.email.trim().toLowerCase() !== data.email.trim().toLowerCase()
-        ) {
+        if (lookupError) { log('error', { stage: 'lookup', message: lookupError.message }); return Response.json({ error: 'lookup' }, { status: 500 }) }
+        if (!reservation) { log('error', { stage: 'not_found', reservation_id: data.reservation_id }); return Response.json({ error: 'not_found' }, { status: 404 }) }
+        if (!reservation.email || reservation.email.trim().toLowerCase() !== data.email.trim().toLowerCase()) {
+          log('error', { stage: 'forbidden', reservation_id: data.reservation_id })
           return Response.json({ error: 'forbidden' }, { status: 403 })
         }
 
         const tpl = TEMPLATES[TEMPLATE_NAME]
-        if (!tpl) return Response.json({ error: 'tpl' }, { status: 500 })
+        if (!tpl) { log('error', { stage: 'tpl_missing' }); return Response.json({ error: 'tpl' }, { status: 500 }) }
 
         const recipient = data.email
         const messageId = crypto.randomUUID()
         const idempotencyKey = `client-confirm-${data.reservation_id}`
 
-        // Idempotency gate: insert the log row FIRST. The unique index on
-        // idempotency_key (where status <> 'failed') will reject duplicates
-        // atomically, so a double-click cannot trigger two sends.
+        log('prepared', {
+          template: TEMPLATE_NAME, recipient, messageId, idempotencyKey,
+          from: `${SITE_NAME} <noreply@${SENDER_DOMAIN}>`,
+          replyTo: 'taxi.city033@gmail.com', senderDomain: SENDER_DOMAIN, fromDomain: FROM_DOMAIN,
+        })
+
         const { error: logError } = await supabase.from('email_send_log').insert({
           message_id: messageId,
           template_name: TEMPLATE_NAME,
@@ -83,9 +84,8 @@ export const Route = createFileRoute('/api/public/notify-reservation-client')({
           idempotency_key: idempotencyKey,
         })
         if (logError) {
-          if ((logError as any).code === '23505') {
-            return Response.json({ success: true, deduped: true })
-          }
+          if ((logError as any).code === '23505') { log('deduped', { idempotencyKey }); return Response.json({ success: true, deduped: true }) }
+          log('error', { stage: 'log_insert', message: (logError as any).message })
           return Response.json({ error: 'log' }, { status: 500 })
         }
 
