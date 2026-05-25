@@ -1,11 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
+import { DICTS, type Lang } from "@/lib/dict";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sendPushToAudience } from "@/lib/push.server";
 
 export type PushAudience = "admin" | "chauffeur" | "client";
-
-const CHAUFFEUR_PHONE = "+33673072322";
 
 const subSchema = z.object({
   audience: z.enum(["admin", "chauffeur", "client"]),
@@ -136,7 +135,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { data: r } = await supabaseAdmin
       .from("reservations")
-      .select("id, nom, client_name, client_phone, telephone, depart, arrivee, destination, tracking_id")
+      .select("id, nom, client_name, client_phone, telephone, depart, arrivee, destination, tracking_id, lang")
       .eq("id", data.reservation_id)
       .maybeSingle();
     if (!r) throw new Error("not_found");
@@ -148,18 +147,69 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
     const url = r.tracking_id ? `/suivi/${r.tracking_id}` : `/reservation/${r.id}`;
     const appUrl = process.env.APP_URL ?? "";
 
-    const labels: Record<string, { title: string; body: string }> = {
-      accepted: {
-        title: "✅ Course acceptée",
-        body: `Bonjour ${clientName}, votre course a été confirmée par le chauffeur.`,
+    // Labels traduits selon la langue de la réservation
+    const resLang = ((r as any).lang as Lang) || "fr";
+    const d = DICTS[resLang] ?? DICTS["fr"];
+
+    const PUSH_LABELS: Record<Lang, Record<string, { title: string; body: string }>> = {
+      fr: {
+        accepted: { title: "✅ Course acceptée", body: `Bonjour ${clientName}, votre course a été confirmée.` },
+        refused: { title: "❌ Course refusée", body: `Bonjour ${clientName}, votre demande n'a pas pu être acceptée.` },
+        en_route: { title: "🚗 Chauffeur en route", body: `Votre chauffeur est en route vers vous — ${r.depart}.` },
+        arrived: { title: "📍 Taxi à proximité", body: `Votre taxi est arrivé au point de prise en charge.` },
+        completed: { title: "🏁 Course terminée", body: `Merci d'avoir voyagé avec Taxi City Bordeaux.` },
+        cancelled: { title: "Course annulée", body: "Votre course a été annulée." },
       },
-      refused: { title: "❌ Course refusée", body: `Bonjour ${clientName}, votre demande n'a pas pu être acceptée.` },
-      en_route: { title: "🚗 Chauffeur en route", body: `Votre chauffeur est en route vers vous — ${r.depart}.` },
-      arrived: { title: "📍 Taxi à proximité", body: `Votre taxi est arrivé au point de prise en charge.` },
-      completed: { title: "🏁 Course terminée", body: `Merci d'avoir voyagé avec Taxi City Bordeaux.` },
-      cancelled: { title: "Course annulée", body: "Votre course a été annulée." },
+      en: {
+        accepted: { title: "✅ Booking confirmed", body: `Hello ${clientName}, your ride has been confirmed.` },
+        refused: { title: "❌ Booking refused", body: `Hello ${clientName}, your request could not be accepted.` },
+        en_route: { title: "🚗 Driver on the way", body: `Your driver is heading to you — ${r.depart}.` },
+        arrived: { title: "📍 Taxi nearby", body: `Your taxi has arrived at the pickup point.` },
+        completed: { title: "🏁 Ride completed", body: `Thank you for travelling with Taxi City Bordeaux.` },
+        cancelled: { title: "Ride cancelled", body: "Your ride has been cancelled." },
+      },
+      es: {
+        accepted: { title: "✅ Reserva confirmada", body: `Hola ${clientName}, su carrera ha sido confirmada.` },
+        refused: { title: "❌ Reserva rechazada", body: `Hola ${clientName}, su solicitud no pudo ser aceptada.` },
+        en_route: { title: "🚗 Conductor en camino", body: `Su conductor está en camino — ${r.depart}.` },
+        arrived: { title: "📍 Taxi cerca", body: `Su taxi ha llegado al punto de recogida.` },
+        completed: { title: "🏁 Carrera terminada", body: `Gracias por viajar con Taxi City Bordeaux.` },
+        cancelled: { title: "Carrera cancelada", body: "Su carrera ha sido cancelada." },
+      },
+      pt: {
+        accepted: { title: "✅ Reserva confirmada", body: `Olá ${clientName}, a sua corrida foi confirmada.` },
+        refused: { title: "❌ Reserva recusada", body: `Olá ${clientName}, o seu pedido não pôde ser aceite.` },
+        en_route: { title: "🚗 Motorista a caminho", body: `O seu motorista está a caminho — ${r.depart}.` },
+        arrived: { title: "📍 Táxi próximo", body: `O seu táxi chegou ao ponto de recolha.` },
+        completed: { title: "🏁 Corrida terminada", body: `Obrigado por viajar com Taxi City Bordeaux.` },
+        cancelled: { title: "Corrida cancelada", body: "A sua corrida foi cancelada." },
+      },
+      it: {
+        accepted: {
+          title: "✅ Prenotazione confermata",
+          body: `Salve ${clientName}, la sua corsa è stata confermata.`,
+        },
+        refused: {
+          title: "❌ Prenotazione rifiutata",
+          body: `Salve ${clientName}, la sua richiesta non è stata accettata.`,
+        },
+        en_route: { title: "🚗 Autista in arrivo", body: `Il suo autista è in arrivo — ${r.depart}.` },
+        arrived: { title: "📍 Taxi nelle vicinanze", body: `Il suo taxi è arrivato al punto di partenza.` },
+        completed: { title: "🏁 Corsa terminata", body: `Grazie per aver viaggiato con Taxi City Bordeaux.` },
+        cancelled: { title: "Corsa annullata", body: "La sua corsa è stata annullata." },
+      },
+      ar: {
+        accepted: { title: "✅ تم تأكيد الحجز", body: `مرحباً ${clientName}، تم تأكيد رحلتك.` },
+        refused: { title: "❌ تم رفض الحجز", body: `مرحباً ${clientName}، لم نتمكن من قبول طلبك.` },
+        en_route: { title: "🚗 السائق في الطريق", body: `سائقك في طريقه إليك — ${r.depart}.` },
+        arrived: { title: "📍 السيارة قريبة", body: `وصلت سيارتك إلى نقطة الالتقاء.` },
+        completed: { title: "🏁 انتهت الرحلة", body: `شكراً للتنقل مع Taxi City Bordeaux.` },
+        cancelled: { title: "تم إلغاء الرحلة", body: "تم إلغاء رحلتك." },
+      },
     };
-    const l = labels[data.status];
+
+    const langLabels = PUSH_LABELS[resLang] ?? PUSH_LABELS["fr"];
+    const l = langLabels[data.status];
 
     const result = await sendPushToAudience(
       "client",
@@ -184,46 +234,16 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
       );
     }
 
-    const chauffeurLabels: Partial<Record<string, { title: string; body: string }>> = {
-      accepted: { title: "🚕 Nouvelle course assignée", body: `${clientName} — ${trajet}` },
-      en_route: { title: "🚗 Course démarrée", body: `En route vers ${r.depart} — ${clientName}` },
-      arrived: { title: "📍 Arrivé au point de prise en charge", body: `${clientName} vous attend au départ.` },
-      completed: { title: "🏁 Course terminée", body: `Course avec ${clientName} terminée.` },
-    };
-
     let chauffeurResult = { sent: 0, removed: 0 };
-    const chauffeurLabel = chauffeurLabels[data.status];
-    if (chauffeurLabel) {
+    if (data.status === "accepted") {
       chauffeurResult = await sendPushToAudience("chauffeur", {
-        ...chauffeurLabel,
+        title: "🚕 Nouvelle course assignée",
+        body: `${clientName} — ${trajet}`,
         url: "/admin/dashboard",
-        tag: `chauffeur-${data.status}-${r.id}`,
-        requireInteraction: ["accepted", "en_route", "arrived"].includes(data.status),
+        tag: `assign-${r.id}`,
+        requireInteraction: true,
       });
     }
 
-    // SMS de secours chauffeur si push non reçue
-    let chauffeurSmsBody: string | null = null;
-    if (chauffeurResult.sent === 0) {
-      if (data.status === "accepted") {
-        chauffeurSmsBody = encodeURIComponent(
-          `🚕 Nouvelle course assignée\n${clientName} — ${trajet}\n📲 Dashboard : ${appUrl}/admin/dashboard`,
-        );
-      } else if (data.status === "en_route") {
-        chauffeurSmsBody = encodeURIComponent(`🚗 Course démarrée — ${clientName}\nEn route vers ${r.depart}`);
-      } else if (data.status === "arrived") {
-        chauffeurSmsBody = encodeURIComponent(`📍 Arrivé au point de prise en charge — ${clientName}`);
-      } else if (data.status === "completed") {
-        chauffeurSmsBody = encodeURIComponent(`🏁 Course terminée — ${clientName}`);
-      }
-    }
-
-    return {
-      client: result,
-      chauffeur: chauffeurResult,
-      smsPhone: smsPhone || null,
-      smsBody,
-      chauffeurSmsPhone: chauffeurResult.sent === 0 && chauffeurSmsBody ? CHAUFFEUR_PHONE : null,
-      chauffeurSmsBody,
-    };
+    return { client: result, chauffeur: chauffeurResult, smsPhone: smsPhone || null, smsBody };
   });
