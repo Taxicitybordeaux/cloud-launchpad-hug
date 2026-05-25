@@ -996,6 +996,11 @@ function Dashboard() {
       if (typeof window !== "undefined" && (result as any)?.smsPhone && (result as any)?.smsBody) {
         window.open(`sms:${(result as any).smsPhone}?body=${(result as any).smsBody}`, "_blank");
       }
+      if (typeof window !== "undefined" && (result as any)?.chauffeurSmsPhone && (result as any)?.chauffeurSmsBody) {
+        setTimeout(() => {
+          window.open(`sms:${(result as any).chauffeurSmsPhone}?body=${(result as any).chauffeurSmsBody}`, "_blank");
+        }, 500);
+      }
       const notifLabel =
         status === "en_route"
           ? " · 🔔 Push + SMS envoyés"
