@@ -336,8 +336,9 @@ function fallbackItineraries(
   b: { lat: number; lng: number },
   pickupIso: string,
   baseCoords: [number, number][] = [],
+  baseKm?: number,
 ): ItineraryAlt[] {
-  const directKm = Math.max(haversineKm(a, b) * 1.3, 1);
+  const directKm = Math.max(baseKm ?? haversineKm(a, b) * 1.3, 1);
   const labels = ["🟢 Court", "🟡 Intermédiaire", "🔴 Long"];
   const factors = [1, 1.08, 1.18];
   return labels.map((label, i) => {
@@ -1482,7 +1483,7 @@ function Dashboard() {
       let alts = [...unique.values()].sort((x, y) => x.km - y.km).slice(0, 3);
       if (alts.length < 3) {
         const baseCoords = alts[0]?.coords ?? [];
-        const fallback = fallbackItineraries(a, b, pickupIso, baseCoords);
+        const fallback = fallbackItineraries(a, b, pickupIso, baseCoords, alts[0]?.km);
         for (const alt of fallback) {
           if (alts.length >= 3) break;
           if (!alts.some((existing) => Math.abs(existing.km - alt.km) < 0.1)) alts.push(alt);
