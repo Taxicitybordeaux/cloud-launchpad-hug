@@ -8,7 +8,7 @@ import { geocodeAddress } from "@/lib/geocode";
 import { assertSuiviId, newSuiviId } from "@/lib/suivi-id";
 import { CourseCardSkeleton, GpsCardSkeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
 import logo from "@/assets/logo.jpeg";
-import { EnablePushButton } from "@/components/EnablePushButton";
+
 import { notifyReservationStatus, notifyNewReservation, subscribePush } from "@/lib/push.functions";
 import { getFcmToken } from "@/lib/firebase";
 
@@ -1943,8 +1943,7 @@ function Dashboard() {
           className="admin-header-actions"
           style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}
         >
-          {/* Un seul bouton notifications unifié */}
-          <EnablePushButton audience="admin" size="sm" label="🔔 Notifs" />
+          {/* Notifications natives auto-activées au chargement */}
           <a
             href="/"
             style={{
