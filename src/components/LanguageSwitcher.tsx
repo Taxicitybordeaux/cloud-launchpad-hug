@@ -1,60 +1,49 @@
-import { useEffect, useRef, useState } from "react";
-import { Globe, Check } from "lucide-react";
-import { useI18n } from "@/i18n/I18nProvider";
-import { LANGUAGES, type Lang } from "@/i18n/dict";
+import { createRootRoute, HeadContent, Outlet, Scripts, useRouterState } from "@tanstack/react-router";
+import * as React from "react";
+import { Toaster } from "@/components/ui/sonner";
+import { I18nProvider } from "@/i18n/I18nProvider";
+import { SiteHeader } from "@/components/SiteHeader";
+import appCss from "@/styles.css?url";
 
-export function LanguageSwitcher({ className = "" }: { className?: string }) {
-  const { lang, setLang } = useI18n();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const current = LANGUAGES.find((l) => l.code === lang) ?? LANGUAGES[0];
+export const Route = createRootRoute({
+  head: () => ({
+    meta: [
+      { charSet: "utf-8" },
+      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { title: "Taxi City Bordeaux" },
+    ],
+    links: [{ rel: "stylesheet", href: appCss }],
+  }),
+  shellComponent: RootDocument,
+  notFoundComponent: () => (
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="text-center">
+        <h1 className="text-2xl font-bold">Page introuvable</h1>
+        <a href="/" className="text-primary underline">
+          Retour à l'accueil
+        </a>
+      </div>
+    </div>
+  ),
+});
 
-  useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, []);
+function RootDocument({ children }: { children: React.ReactNode }) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const showHeader = !pathname.startsWith("/reservation");
 
   return (
-    <div ref={ref} className={`relative ${className}`}>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-label="Language"
-        className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border text-sm font-medium transition hover:border-primary sm:h-10 sm:w-auto sm:gap-1.5 sm:px-2.5"
-      >
-        <Globe className="h-4 w-4 text-primary" />
-        <span className="hidden sm:inline">{current.flag}</span>
-        <span className="hidden sm:inline uppercase text-xs">{current.code}</span>
-      </button>
-      {open && (
-        <>
-          {/* Overlay transparent pour fermer au touch sur mobile */}
-          <div className="fixed inset-0 z-[99]" onClick={() => setOpen(false)} />
-          <div className="absolute end-0 z-[100] mt-2 w-48 overflow-hidden rounded-xl border border-border bg-background shadow-xl">
-            {LANGUAGES.map((l) => (
-              <button
-                key={l.code}
-                type="button"
-                onClick={() => {
-                  setLang(l.code as Lang);
-                  setOpen(false);
-                }}
-                className={`flex w-full items-center justify-between gap-2 px-3 py-2.5 text-sm transition hover:bg-secondary ${
-                  l.code === lang ? "text-primary font-semibold" : ""
-                }`}
-              >
-                <span className="flex items-center gap-2">
-                  <span>{l.flag}</span> {l.label}
-                </span>
-                {l.code === lang && <Check className="h-4 w-4" />}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
+    <html lang="fr">
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        <I18nProvider>
+          {showHeader && <SiteHeader />}
+          {children}
+          <Toaster />
+        </I18nProvider>
+        <Scripts />
+      </body>
+    </html>
   );
 }
