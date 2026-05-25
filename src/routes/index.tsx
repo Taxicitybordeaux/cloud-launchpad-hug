@@ -414,35 +414,38 @@ function Home() {
         </div>
       </section>
 
-      {/* BARRE FLOTTANTE BAS — Appeler · WhatsApp · Réserver */}
-      <div className="fixed bottom-0 inset-x-0 z-50 flex border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        {/* Appeler */}
-        <a
-          href={`tel:${PHONE}`}
-          className="flex flex-1 flex-col items-center justify-center gap-1 py-3 text-xs font-semibold text-foreground/80 transition hover:text-primary active:scale-95"
-        >
-          <Phone className="h-5 w-5" />
-          <span>Appeler</span>
-        </a>
-
+      {/* BARRE FLOTTANTE BAS — WhatsApp · Appeler · Réserver */}
+      <div className="fixed bottom-0 inset-x-0 z-50 flex" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         {/* WhatsApp */}
         <a
           href={WHATSAPP}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex flex-1 flex-col items-center justify-center gap-1 py-3 text-xs font-semibold text-foreground/80 transition hover:text-primary active:scale-95"
+          className="flex flex-1 flex-col items-center justify-center gap-1 py-3.5 text-xs font-semibold text-white transition active:brightness-90"
+          style={{ backgroundColor: "#25D366" }}
         >
           <MessageCircle className="h-5 w-5" />
           <span>WhatsApp</span>
         </a>
 
+        {/* Appeler */}
+        <a
+          href={`tel:${PHONE}`}
+          className="flex flex-1 flex-col items-center justify-center gap-1 py-3.5 text-xs font-semibold text-white transition active:brightness-90"
+          style={{ backgroundColor: "#1B3A6B" }}
+        >
+          <Phone className="h-5 w-5" />
+          <span>Appeler</span>
+        </a>
+
         {/* Réserver */}
         <Link
           to="/reservation"
-          className="flex flex-1 flex-col items-center justify-center gap-1 bg-primary py-3 text-xs font-semibold text-primary-foreground transition active:scale-95"
+          className="flex flex-1 flex-col items-center justify-center gap-1 py-3.5 text-xs font-semibold text-white transition active:brightness-90"
+          style={{ backgroundColor: "#00B4D8" }}
         >
           <ArrowRight className="h-5 w-5" />
-          <span>Réserver</span>
+          <span>Réservation</span>
         </Link>
       </div>
     </>
