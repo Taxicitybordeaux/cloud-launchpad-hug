@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { DICTS, type Lang } from "@/lib/dict";
+import { DICTS, type Lang } from "@/i18n/dict";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sendPushToAudience } from "@/lib/push.server";
