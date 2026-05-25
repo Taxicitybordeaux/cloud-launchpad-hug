@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix, calculerPrixMixte } from "@/lib/tarif";
-import { getDistanceAndDurationKm, fetchRoute, OSRM_BASE } from "@/lib/osrm";
+import { getDistanceAndDurationKm, fetchRouteCoordinates } from "@/lib/osrm";
 import { geocodeAddress } from "@/lib/geocode";
 import { assertSuiviId, newSuiviId } from "@/lib/suivi-id";
 import { CourseCardSkeleton, GpsCardSkeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
@@ -280,6 +280,78 @@ const normalizeStatus = (s: unknown): "pending" | "accepted" | "refused" => {
   return "pending";
 };
 
+type ItineraryAlt = { label: string; km: number; prix: number; coords: [number, number][] };
+
+const toRad = (deg: number) => (deg * Math.PI) / 180;
+
+function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+async function geocodeForRoute(address: string) {
+  const trimmed = address.trim();
+  const attempts = [trimmed, `${trimmed}, Bordeaux, France`];
+  for (const query of attempts) {
+    const coord = await geocodeAddress(query);
+    if (coord) return coord;
+  }
+  return null;
+}
+
+function detourPoint(a: { lat: number; lng: number }, b: { lat: number; lng: number }, strengthKm: number) {
+  const midLat = (a.lat + b.lat) / 2;
+  const midLng = (a.lng + b.lng) / 2;
+  const dx = (b.lng - a.lng) * Math.cos(toRad(midLat));
+  const dy = b.lat - a.lat;
+  const len = Math.sqrt(dx * dx + dy * dy) || 1;
+  const side = a.lng <= b.lng ? 1 : -1;
+  const normalX = (-dy / len) * side;
+  const normalY = (dx / len) * side;
+  return {
+    lat: midLat + (normalY * strengthKm) / 111,
+    lng: midLng + (normalX * strengthKm) / (111 * Math.cos(toRad(midLat)) || 1),
+  };
+}
+
+function routeToAlt(route: any, label: string, pickupIso: string): ItineraryAlt | null {
+  const points = route?.geometry?.coordinates;
+  if (!Array.isArray(points) || points.length < 2 || !route?.distance) return null;
+  const km = route.distance / 1000;
+  const prix = calculerPrixMixte(km, pickupIso);
+  return {
+    label,
+    km: parseFloat(km.toFixed(2)),
+    prix: parseFloat(prix.toFixed(2)),
+    coords: points.map(([lng, lat]: [number, number]) => [lat, lng] as [number, number]),
+  };
+}
+
+function fallbackItineraries(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+  pickupIso: string,
+  baseCoords: [number, number][] = [],
+  baseKm?: number,
+): ItineraryAlt[] {
+  const directKm = Math.max(baseKm ?? haversineKm(a, b) * 1.3, 1);
+  const labels = ["🟢 Court", "🟡 Intermédiaire", "🔴 Long"];
+  const factors = [1, 1.08, 1.18];
+  return labels.map((label, i) => {
+    const km = parseFloat((directKm * factors[i]).toFixed(2));
+    return {
+      label,
+      km,
+      prix: parseFloat(calculerPrixMixte(km, pickupIso).toFixed(2)),
+      coords: baseCoords,
+    };
+  });
+}
+
 // ─── Section header ───
 function SectionHeader({
   color,
@@ -365,7 +437,7 @@ function Dashboard() {
   const [customPrixSending, setCustomPrixSending] = useState<Record<string, boolean>>({});
   const [itinOpen, setItinOpen] = useState<Record<string, boolean>>({});
   const [itinLoading, setItinLoading] = useState<Record<string, boolean>>({});
-  const [itinAlts, setItinAlts] = useState<Record<string, { label: string; km: number; prix: number; coords: [number, number][] }[]>>({});
+  const [itinAlts, setItinAlts] = useState<Record<string, ItineraryAlt[]>>({});
   const [itinSaving, setItinSaving] = useState<Record<string, boolean>>({});
   const [changeHeureOpen, setChangeHeureOpen] = useState<Record<string, boolean>>({});
   const [changeHeureValue, setChangeHeureValue] = useState<Record<string, string>>({});
@@ -1374,50 +1446,65 @@ function Dashboard() {
     setItinLoading((p) => ({ ...p, [r.id]: true }));
     setItinOpen((p) => ({ ...p, [r.id]: true }));
     try {
-      const [a, b] = await Promise.all([geocodeAddress(dep), geocodeAddress(dest)]);
+      const [a, b] = await Promise.all([geocodeForRoute(dep), geocodeForRoute(dest)]);
       if (!a || !b) {
         toast.error("Géocodage impossible");
+        const pickupIso = r.pickup_datetime || new Date().toISOString();
+        const km = Number(r.distance_km) || 5;
+        setItinAlts((p) => ({
+          ...p,
+          [r.id]: [1, 1.08, 1.18].map((factor, i) => {
+            const labels = ["🟢 Court", "🟡 Intermédiaire", "🔴 Long"];
+            const finalKm = parseFloat((km * factor).toFixed(2));
+            return { label: labels[i], km: finalKm, prix: parseFloat(calculerPrixMixte(finalKm, pickupIso).toFixed(2)), coords: [] };
+          }),
+        }));
         setItinLoading((p) => ({ ...p, [r.id]: false }));
         return;
       }
-      const data = await fetchRoute([a.lng, a.lat], [b.lng, b.lat], {
-        overview: "full",
-        alternatives: 3,
-        geometries: "geojson",
-      });
-      const routes: any[] = data?.routes ?? [];
-      if (!routes.length) {
-        toast.error("Aucun itinéraire trouvé");
-        setItinLoading((p) => ({ ...p, [r.id]: false }));
-        return;
-      }
-      const sorted = [...routes].sort((x, y) => x.distance - y.distance);
       const pickupIso = r.pickup_datetime || new Date().toISOString();
       const labels = ["🟢 Court", "🟡 Intermédiaire", "🔴 Long"];
-      const toAlt = (rt: any, label: string) => {
-        const km = rt.distance / 1000;
-        const prix = calculerPrixMixte(km, pickupIso);
-        const coords = (rt.geometry?.coordinates as [number, number][]).map(
-          ([lng, lat]) => [lat, lng] as [number, number],
-        );
-        return { label, km: parseFloat(km.toFixed(2)), prix: parseFloat(prix.toFixed(2)), coords };
-      };
-      let alts = sorted.slice(0, 3).map((rt, i) => toAlt(rt, labels[i]));
-      // OSRM ne renvoie souvent qu'1 itinéraire — on synthétise les 2 autres
+      const directKm = haversineKm(a, b);
+      const detours = [0, Math.max(1.2, directKm * 0.08), Math.max(2.2, directKm * 0.16)];
+      const routeAttempts = await Promise.all(
+        detours.map((detour, i) => {
+          const mid = detour ? detourPoint(a, b, detour) : null;
+          const points: [number, number][] = mid
+            ? [[a.lng, a.lat], [mid.lng, mid.lat], [b.lng, b.lat]]
+            : [[a.lng, a.lat], [b.lng, b.lat]];
+          return fetchRouteCoordinates(points, { overview: "full", alternatives: i === 0 ? 3 : false, geometries: "geojson" })
+            .then((data) => (data?.routes ?? []).map((route: any) => routeToAlt(route, labels[i], pickupIso)).filter(Boolean) as ItineraryAlt[])
+            .catch(() => [] as ItineraryAlt[]);
+        }),
+      );
+
+      const unique = new Map<string, ItineraryAlt>();
+      routeAttempts.flat().forEach((alt) => unique.set(`${Math.round(alt.km * 10)}`, alt));
+      let alts = [...unique.values()].sort((x, y) => x.km - y.km).slice(0, 3);
       if (alts.length < 3) {
-        const base = alts[0];
-        const factors = [1, 1.08, 1.18];
-        alts = factors.map((f, i) => {
-          if (i < alts.length) return { ...alts[i], label: labels[i] };
-          const km = parseFloat((base.km * f).toFixed(2));
-          const prix = parseFloat(calculerPrixMixte(km, pickupIso).toFixed(2));
-          return { label: labels[i], km, prix, coords: base.coords };
-        });
+        const baseCoords = alts[0]?.coords ?? [];
+        const fallback = fallbackItineraries(a, b, pickupIso, baseCoords, alts[0]?.km);
+        for (const alt of fallback) {
+          if (alts.length >= 3) break;
+          if (!alts.some((existing) => Math.abs(existing.km - alt.km) < 0.1)) alts.push(alt);
+        }
+        alts = alts.sort((x, y) => x.km - y.km).slice(0, 3);
       }
+      alts = alts.slice(0, 3).map((alt, i) => ({ ...alt, label: labels[i] }));
 
       setItinAlts((p) => ({ ...p, [r.id]: alts }));
-    } catch {
-      toast.error("Erreur de calcul d'itinéraire");
+    } catch (e: any) {
+      const pickupIso = r.pickup_datetime || new Date().toISOString();
+      const km = Number(r.distance_km) || 5;
+      const labels = ["🟢 Court", "🟡 Intermédiaire", "🔴 Long"];
+      setItinAlts((p) => ({
+        ...p,
+        [r.id]: [1, 1.08, 1.18].map((factor, i) => {
+          const finalKm = parseFloat((km * factor).toFixed(2));
+          return { label: labels[i], km: finalKm, prix: parseFloat(calculerPrixMixte(finalKm, pickupIso).toFixed(2)), coords: [] };
+        }),
+      }));
+      toast.warning("Itinéraires calculés avec la distance existante", { description: e?.message ?? "" });
     } finally {
       setItinLoading((p) => ({ ...p, [r.id]: false }));
     }
@@ -1425,7 +1512,7 @@ function Dashboard() {
 
   const handleSelectItineraire = async (
     r: any,
-    alt: { label: string; km: number; prix: number; coords: [number, number][] },
+    alt: ItineraryAlt,
   ) => {
     setItinSaving((p) => ({ ...p, [r.id]: true }));
     try {
