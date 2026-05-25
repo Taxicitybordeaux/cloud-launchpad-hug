@@ -1154,7 +1154,13 @@ function Dashboard() {
   // GPS CONTROLS
   // =========================
   // ── Push position to Supabase ──────────────────────────────────────────────
-  const pushPosition = async (latitude: number, longitude: number, acc: number, computedHeading: number | null, speed: number) => {
+  const pushPosition = async (
+    latitude: number,
+    longitude: number,
+    acc: number,
+    computedHeading: number | null,
+    speed: number,
+  ) => {
     await (supabase as any)
       .from("driver_gps")
       .update({
@@ -1210,8 +1216,29 @@ function Dashboard() {
       }
     }
 
-    // ── Handler position ────────────────────────────────────────────────────
-    const onPosition = async (pos: GeolocationPosition) => {
+    // ── Handlers définis avant watchPosition pour éviter les refs circulaires ──
+    const handleError = (err: GeolocationPositionError) => {
+      console.error("GPS error", err.code, err.message);
+      const msgs: Record<number, string> = {
+        1: "Permission GPS refusée. Autorisez la localisation dans les réglages.",
+        2: "Position GPS indisponible (intérieur ?). Retry dans 8s…",
+        3: "GPS timeout. Retry dans 8s…",
+      };
+      setGpsError(msgs[err.code] ?? "Erreur GPS inconnue.");
+      if (err.code !== 1) {
+        if (gpsRetryTimerRef.current) clearTimeout(gpsRetryTimerRef.current);
+        gpsRetryTimerRef.current = setTimeout(() => {
+          if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+          watchIdRef.current = navigator.geolocation.watchPosition(handlePosition, handleError, {
+            enableHighAccuracy: true,
+            maximumAge: 0,
+            timeout: 15000,
+          });
+        }, 8000);
+      }
+    };
+
+    const handlePosition = async (pos: GeolocationPosition) => {
       const { latitude, longitude, accuracy: acc, heading: rawHeading } = pos.coords;
       setGpsError(null);
       let computedHeading = rawHeading ?? null;
@@ -1230,130 +1257,95 @@ function Dashboard() {
       setGpsUpdateCount((n) => n + 1);
       await pushPosition(latitude, longitude, acc, computedHeading, pos.coords.speed ?? 0);
 
-        // ── AUTO-STATUS ─────────────────────────────────────────────────────
-        const resaId = activeResaIdRef.current;
-        if (!resaId) return;
-        const fired = autoStatusFiredRef.current;
+      // ── AUTO-STATUS ─────────────────────────────────────────────────────
+      const resaId = activeResaIdRef.current;
+      if (!resaId) return;
+      const fired = autoStatusFiredRef.current;
 
-        // 1) AUTO "en_route" — course acceptée + pickup dans ≤ 30 min (ou sans heure fixe)
-        //    Se déclenche une seule fois par course
-        const enRouteKey = resaId + "_en_route";
-        if (!fired[enRouteKey]) {
-          // On relit les items via ref pour ne pas dépendre d'une closure périmée
+      const enRouteKey = resaId + "_en_route";
+      if (!fired[enRouteKey]) {
+        setItems((prev) => {
+          const course = prev.find((r) => r.id === resaId);
+          if (course && course.status === "accepted" && !fired[enRouteKey]) {
+            const pickupMs = course.pickup_datetime ? new Date(course.pickup_datetime).getTime() : null;
+            const nowMs = Date.now();
+            const shouldGo = !pickupMs || pickupMs - nowMs <= 30 * 60 * 1000;
+            if (shouldGo) {
+              fired[enRouteKey] = true;
+              const clientLabel2 = course.client_name || course.nom || "Client";
+              handleUpdateReservationStatus(course, "en_route").then(() => {
+                toast.success("🚗 En route automatique", {
+                  description: clientLabel2 + " — départ dans ≤ 30 min",
+                  duration: 5000,
+                });
+              });
+            }
+          }
+          return prev;
+        });
+      }
+
+      const arrivedKey = resaId + "_arrived";
+      if (!fired[arrivedKey] && pickupGeoRef.current) {
+        const dist = distMetersGps({ lat: latitude, lng: longitude }, pickupGeoRef.current);
+        if (dist < 150) {
           setItems((prev) => {
             const course = prev.find((r) => r.id === resaId);
-            if (course && course.status === "accepted" && !fired[enRouteKey]) {
-              const pickupMs = course.pickup_datetime ? new Date(course.pickup_datetime).getTime() : null;
-              const nowMs = Date.now();
-              // Déclencher si : pas d'heure fixe OU heure dans ≤ 30 min
-              const shouldGo = !pickupMs || pickupMs - nowMs <= 30 * 60 * 1000;
-              if (shouldGo) {
-                fired[enRouteKey] = true;
-                const clientLabel2 = course.client_name || course.nom || "Client";
-                // Appel async hors du setState
-                handleUpdateReservationStatus(course, "en_route").then(() => {
-                  toast.success("🚗 En route automatique", {
-                    description: clientLabel2 + " — départ dans ≤ 30 min",
-                    duration: 5000,
-                  });
+            if (course && (course.status === "en_route" || course.status === "accepted") && !fired[arrivedKey]) {
+              fired[arrivedKey] = true;
+              const distArrived = Math.round(dist);
+              handleUpdateReservationStatus(course, "arrived").then(() => {
+                toast.success("📍 Arrivée détectée automatiquement", {
+                  description: "À " + distArrived + " m de la prise en charge",
+                  duration: 5000,
                 });
-              }
+              });
             }
-            return prev; // pas de mutation d'état ici
+            return prev;
           });
         }
+      }
 
-        // 2) AUTO "arrived" — distance GPS < 150 m de la prise en charge
-        const arrivedKey = resaId + "_arrived";
-        if (!fired[arrivedKey] && pickupGeoRef.current) {
-          const dist = distMetersGps({ lat: latitude, lng: longitude }, pickupGeoRef.current);
-          if (dist < 150) {
-            setItems((prev) => {
-              const course = prev.find((r) => r.id === resaId);
-              if (course && (course.status === "en_route" || course.status === "accepted") && !fired[arrivedKey]) {
-                fired[arrivedKey] = true;
-                const distArrived = Math.round(dist);
-                handleUpdateReservationStatus(course, "arrived").then(() => {
-                  toast.success("📍 Arrivé automatique", {
-                    description: "À " + distArrived + " m de la prise en charge",
-                    duration: 5000,
-                  });
+      const completedKey = resaId + "_completed";
+      if (!fired[completedKey] && destinationGeoRef.current) {
+        const distDest = distMetersGps({ lat: latitude, lng: longitude }, destinationGeoRef.current);
+        if (distDest < 100) {
+          setItems((prev) => {
+            const course = prev.find((r) => r.id === resaId);
+            if (course && course.status === "arrived" && !fired[completedKey]) {
+              fired[completedKey] = true;
+              const distLabel = Math.round(distDest);
+              const clientLabel = course.client_name || course.nom || "Client";
+              handleUpdateReservationStatus(course, "completed").then(() => {
+                toast.success("🏁 Course terminée automatiquement", {
+                  description: "À " + distLabel + " m de la destination — " + clientLabel,
+                  duration: 6000,
                 });
-              }
-              return prev;
-            });
-          }
+              });
+            }
+            return prev;
+          });
         }
-        // ── FIN AUTO-STATUS ─────────────────────────────────────────────────
-        // 3) AUTO "completed" — distance GPS < 150 m de la destination (status doit être "arrived")
-        const completedKey = resaId + "_completed";
-        if (!fired[completedKey] && destinationGeoRef.current) {
-          const distDest = distMetersGps({ lat: latitude, lng: longitude }, destinationGeoRef.current);
-          if (distDest < 150) {
-            setItems((prev) => {
-              const course = prev.find((r) => r.id === resaId);
-              if (course && course.status === "arrived" && !fired[completedKey]) {
-                fired[completedKey] = true;
-                const distLabel = Math.round(distDest);
-                const clientLabel = course.client_name || course.nom || "Client";
-                handleUpdateReservationStatus(course, "completed").then(() => {
-                  toast.success("🏁 Course terminée automatiquement", {
-                    description: "À " + distLabel + " m de la destination — " + clientLabel,
-                    duration: 6000,
-                  });
-                });
-              }
-              return prev;
-            });
-          }
-        }
-      },
-      (err) => console.error(err),
-      { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 },
-    );
-  };
-
-  // ── onError handler ────────────────────────────────────────────────────────
-  const onGpsError = (err: GeolocationPositionError) => {
-    console.error("GPS error", err.code, err.message);
-    const msgs: Record<number, string> = {
-      1: "Permission GPS refusée. Autorisez la localisation dans les réglages.",
-      2: "Position GPS indisponible (intérieur ?). Retry dans 8s…",
-      3: "GPS timeout. Retry dans 8s…",
+      }
     };
-    setGpsError(msgs[err.code] ?? "Erreur GPS inconnue.");
 
-    // Retry automatique sauf si permission refusée
-    if (err.code !== 1) {
-      if (gpsRetryTimerRef.current) clearTimeout(gpsRetryTimerRef.current);
-      gpsRetryTimerRef.current = setTimeout(() => {
-        if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = navigator.geolocation.watchPosition(
-          onPosition,
-          onGpsError,
-          { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
-        );
-      }, 8000);
-    }
-  };
+    // Démarrer watchPosition
+    watchIdRef.current = navigator.geolocation.watchPosition(handlePosition, handleError, {
+      enableHighAccuracy: true,
+      maximumAge: 0,
+      timeout: 15000,
+    });
 
-  // Démarrer watchPosition
-  watchIdRef.current = navigator.geolocation.watchPosition(
-    onPosition,
-    onGpsError,
-    { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
-  );
-
-  // ── Heartbeat : push la dernière position toutes les 5s pour garder is_active vivant ──
-  if (gpsHeartbeatRef.current) clearInterval(gpsHeartbeatRef.current);
-  gpsHeartbeatRef.current = setInterval(async () => {
-    const pos = lastKnownPosRef.current;
-    if (!pos) return;
-    await (supabase as any)
-      .from("driver_gps")
-      .update({ is_active: true, latitude: pos.lat, longitude: pos.lng, updated_at: new Date().toISOString() })
-      .eq("id", "driver");
-  }, 5000);
+    // ── Heartbeat toutes les 5s pour garder is_active vivant ────────────
+    if (gpsHeartbeatRef.current) clearInterval(gpsHeartbeatRef.current);
+    gpsHeartbeatRef.current = setInterval(async () => {
+      const pos = lastKnownPosRef.current;
+      if (!pos) return;
+      await (supabase as any)
+        .from("driver_gps")
+        .update({ is_active: true, latitude: pos.lat, longitude: pos.lng, updated_at: new Date().toISOString() })
+        .eq("id", "driver");
+    }, 5000);
   };
 
   const stopGPS = async () => {
@@ -2408,10 +2400,23 @@ function Dashboard() {
                   <>
                     <div
                       className="gps-pulse"
-                      style={{ width: 14, height: 14, background: gpsError ? "#f59e0b" : "#22c55e", borderRadius: "50%", flexShrink: 0 }}
+                      style={{
+                        width: 14,
+                        height: 14,
+                        background: gpsError ? "#f59e0b" : "#22c55e",
+                        borderRadius: "50%",
+                        flexShrink: 0,
+                      }}
                     />
                     <div>
-                      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, color: gpsError ? "#f59e0b" : "#22c55e" }}>
+                      <div
+                        style={{
+                          fontFamily: "'Syne',sans-serif",
+                          fontWeight: 800,
+                          fontSize: 15,
+                          color: gpsError ? "#f59e0b" : "#22c55e",
+                        }}
+                      >
                         {gpsError ? "⚠️ GPS — signal faible" : "📡 GPS actif"}
                       </div>
                       {gpsError ? (
