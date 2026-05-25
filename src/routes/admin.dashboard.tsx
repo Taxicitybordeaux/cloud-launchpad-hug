@@ -415,6 +415,13 @@ function SectionHeader({
 }
 
 function Dashboard() {
+  // ── Auth guard ──
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) window.location.href = "/admin/login";
+    });
+  }, []);
+
   // ── KPI stats ──
   const [caJ, setCaJ] = useState(0);
   const [caM, setCaM] = useState(0);
