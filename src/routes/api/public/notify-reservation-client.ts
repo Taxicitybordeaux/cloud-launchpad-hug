@@ -26,14 +26,25 @@ export const Route = createFileRoute('/api/public/notify-reservation-client')({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const requestId = crypto.randomUUID()
+        const log = (event: string, extra: Record<string, unknown> = {}) =>
+          console.log(`[notify-reservation-client] ${event}`, JSON.stringify({ requestId, ...extra }))
+
+        log('incoming', {
+          url: request.url,
+          origin: request.headers.get('origin'),
+          referer: request.headers.get('referer'),
+          userAgent: request.headers.get('user-agent'),
+        })
+
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
         const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-        if (!supabaseUrl || !serviceKey) return Response.json({ error: 'cfg' }, { status: 500 })
+        if (!supabaseUrl || !serviceKey) { log('error', { stage: 'cfg' }); return Response.json({ error: 'cfg' }, { status: 500 }) }
 
         let raw: unknown
-        try { raw = await request.json() } catch { return Response.json({ error: 'json' }, { status: 400 }) }
+        try { raw = await request.json() } catch { log('error', { stage: 'json' }); return Response.json({ error: 'json' }, { status: 400 }) }
         const parsed = schema.safeParse(raw)
-        if (!parsed.success) return Response.json({ error: 'invalid' }, { status: 400 })
+        if (!parsed.success) { log('error', { stage: 'validation', issues: parsed.error.flatten() }); return Response.json({ error: 'invalid' }, { status: 400 }) }
         const data = parsed.data
 
         const supabase = createClient(supabaseUrl, serviceKey)
