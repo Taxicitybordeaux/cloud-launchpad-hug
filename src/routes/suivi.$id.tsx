@@ -1224,6 +1224,7 @@ function SuiviPage() {
   const statut = statusConfig[effectiveStatus] ?? statusConfig.pending;
   const arrivee = resa?.arrivee || resa?.destination || "—";
   const passagers = resa?.nb_passagers || resa?.passagers || 1;
+  const bagages = resa?.bagages ?? 0;
   const prix = resa?.prix_estime ? `${Number(resa.prix_estime).toFixed(2)} €` : null;
   const distanceKm = resa?.distance_km ?? null;
   const clientName = ((resa?.client_name || resa?.nom) ?? "").toString().trim();
