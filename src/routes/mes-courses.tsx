@@ -5,7 +5,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useI18n } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/mes-courses")({
   head: () => ({ meta: [{ title: "Mes courses — Taxi City Bordeaux" }] }),
@@ -331,7 +330,6 @@ function CourseCard({ course, onRebook }: { course: Course; onRebook: (c: Course
 
 function RebookModal({ course, onClose }: { course: Course; onClose: () => void }) {
   const navigate = useNavigate();
-  const { lang } = useI18n();
   const [date, setDate] = useState("");
   const [heure, setHeure] = useState("");
   const [loading, setLoading] = useState(false);
@@ -356,7 +354,6 @@ function RebookModal({ course, onClose }: { course: Course; onClose: () => void 
         status: "pending",
         pickup_datetime: new Date(`${date}T${heure}`).toISOString(),
         session_id: sid,
-        lang,
       }).select("id").single();
 
       if (error) throw error;

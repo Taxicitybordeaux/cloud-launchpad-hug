@@ -1,11 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
-import { type Lang } from "@/i18n/dict";
+import { DICTS, type Lang } from "@/i18n/dict";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sendPushToAudience } from "@/lib/push.server";
 
-// Ré-export depuis push.server pour éviter la définition dupliquée
-export type { PushAudience } from "@/lib/push.server";
+export type PushAudience = "admin" | "chauffeur" | "client";
 
 const subSchema = z.object({
   audience: z.enum(["admin", "chauffeur", "client"]),
@@ -150,7 +149,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { data: r } = await supabaseAdmin
       .from("reservations")
-      .select("id, nom, client_name, client_phone, telephone, depart, arrivee, destination, tracking_id")
+      .select("id, nom, client_name, client_phone, telephone, depart, arrivee, destination, tracking_id, lang")
       .eq("id", data.reservation_id)
       .maybeSingle();
     if (!r) throw new Error("not_found");

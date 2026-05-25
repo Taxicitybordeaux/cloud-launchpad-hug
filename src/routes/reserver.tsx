@@ -103,7 +103,7 @@ function SwipeDeleteRow({
   );
 }
 
-export const Route = createFileRoute("/reserver")({
+export const Route = createFileRoute("/admin/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Admin" }, { name: "robots", content: "noindex" }] }),
   component: Dashboard,
 });

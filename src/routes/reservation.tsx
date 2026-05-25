@@ -1,26 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { FareSimulator } from "@/components/FareSimulator";
-import { SiteHeader } from "@/components/SiteHeader";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
+// Le formulaire de réservation unique est désormais sur /reserver.
+// Cette ancienne route redirige automatiquement pour éviter d'avoir deux formulaires.
 export const Route = createFileRoute("/reservation")({
-  head: () => ({
-    meta: [
-      { title: "Réservation — Taxi City Bordeaux" },
-      { name: "description", content: "Réservez votre taxi à Bordeaux en quelques secondes. Estimation tarifaire et réservation en ligne." },
-      { property: "og:title", content: "Réservation — Taxi City Bordeaux" },
-      { property: "og:description", content: "Réservez votre taxi à Bordeaux en quelques secondes." },
-    ],
-  }),
-  component: ReservationPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/reserver" });
+  },
+  component: () => null,
 });
-
-function ReservationPage() {
-  return (
-    <div className="min-h-screen bg-background">
-      <SiteHeader />
-      <main className="pt-20">
-        <FareSimulator />
-      </main>
-    </div>
-  );
-}

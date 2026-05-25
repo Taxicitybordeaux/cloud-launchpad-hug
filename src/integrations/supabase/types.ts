@@ -379,7 +379,6 @@ export type Database = {
           email: string | null
           heure_course: string | null
           id: string
-          lang: string
           message: string | null
           nb_passagers: number | null
           nom: string
@@ -411,7 +410,6 @@ export type Database = {
           email?: string | null
           heure_course?: string | null
           id?: string
-          lang?: string
           message?: string | null
           nb_passagers?: number | null
           nom: string
@@ -443,7 +441,6 @@ export type Database = {
           email?: string | null
           heure_course?: string | null
           id?: string
-          lang?: string
           message?: string | null
           nb_passagers?: number | null
           nom?: string
