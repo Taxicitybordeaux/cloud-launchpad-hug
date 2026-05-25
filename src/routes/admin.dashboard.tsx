@@ -9,7 +9,8 @@ import { assertSuiviId, newSuiviId } from "@/lib/suivi-id";
 import { CourseCardSkeleton, GpsCardSkeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
 import logo from "@/assets/logo.jpeg";
 import { EnablePushButton } from "@/components/EnablePushButton";
-import { notifyReservationStatus, notifyNewReservation } from "@/lib/push.functions";
+import { notifyReservationStatus, notifyNewReservation, subscribePush } from "@/lib/push.functions";
+import { getFcmToken } from "@/lib/firebase";
 
 const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_TILE_OPTIONS = { attribution: "© OpenStreetMap contributors", maxZoom: 19 };
@@ -400,6 +401,45 @@ function Dashboard() {
     const y = toRad(b.lat) - toRad(a.lat);
     return Math.sqrt(x * x + y * y) * R;
   };
+
+  // =========================
+  // AUTO-SUBSCRIBE FCM (admin + chauffeur)
+  // S'abonne automatiquement au chargement du dashboard, sans bouton.
+  // =========================
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator)) return;
+    let cancelled = false;
+    const autoSubscribe = async () => {
+      try {
+        const fcm = await getFcmToken();
+        if (!fcm || cancelled) return;
+        await Promise.all([
+          subscribePush({
+            data: {
+              audience: "admin",
+              fcm_token: fcm,
+              reservation_id: null,
+              user_agent: navigator.userAgent.slice(0, 500),
+            },
+          }),
+          subscribePush({
+            data: {
+              audience: "chauffeur",
+              fcm_token: fcm,
+              reservation_id: null,
+              user_agent: navigator.userAgent.slice(0, 500),
+            },
+          }),
+        ]);
+      } catch (e) {
+        console.warn("[push] auto-subscribe dashboard failed", e);
+      }
+    };
+    autoSubscribe();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // =========================
   // FETCH STATS
