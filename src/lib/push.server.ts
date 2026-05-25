@@ -152,6 +152,17 @@ async function sendFcmToToken(
 
 type SubRow = { id: string; fcm_token: string | null };
 
+/**
+ * Alias pratique : envoie un push à l'audience "client" pour une réservation donnée.
+ * Conserve la compatibilité avec les imports { PushToReservation } from "@/lib/push.server".
+ */
+export async function PushToReservation(
+  reservationId: string,
+  payload: PushPayload,
+): Promise<{ sent: number; removed: number }> {
+  return sendPushToAudience("client", payload, { reservationId });
+}
+
 export async function sendPushToAudience(
   audience: PushAudience,
   payload: PushPayload,
