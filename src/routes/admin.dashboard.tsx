@@ -420,7 +420,7 @@ function Dashboard() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (!data.session) {
-        window.location.href = "/admin/login";
+        window.location.href = "/login";
       } else {
         setAuthChecked(true);
       }
@@ -2367,7 +2367,7 @@ function Dashboard() {
           <button
             onClick={async () => {
               await supabase.auth.signOut();
-              window.location.href = "/admin/login";
+              window.location.href = "/login";
             }}
             style={{
               padding: "8px 14px",
