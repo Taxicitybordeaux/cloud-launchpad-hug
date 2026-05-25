@@ -875,9 +875,11 @@ function SuiviPage() {
               if (
                 next.depart &&
                 (next.destination || next.arrivee) &&
-                (prev.depart !== next.depart || prev.destination !== next.destination)
+                (prev.depart !== next.depart ||
+                  prev.destination !== next.destination ||
+                  JSON.stringify(prev.route_coords) !== JSON.stringify(r.route_coords))
               ) {
-                drawTripRoute(next.depart, next.destination || next.arrivee!);
+                drawTripRoute(next.depart, next.destination || next.arrivee!, next.route_coords);
               }
               return next;
             });
