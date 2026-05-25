@@ -468,6 +468,10 @@ function Dashboard() {
   const pickupGeoRef = useRef<{ lat: number; lng: number } | null>(null); // coordonnées de la prise en charge active
   const destinationGeoRef = useRef<{ lat: number; lng: number } | null>(null); // coordonnées de la destination active
   const autoStatusFiredRef = useRef<Record<string, boolean>>({}); // évite les doubles déclenchements
+  const [gpsError, setGpsError] = useState<string | null>(null);
+  const gpsHeartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const gpsRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastKnownPosRef = useRef<{ lat: number; lng: number } | null>(null);
 
   // Distance en mètres entre deux coords (Haversine simplifié)
   const distMetersGps = (a: { lat: number; lng: number }, b: { lat: number; lng: number }): number => {
@@ -1149,8 +1153,35 @@ function Dashboard() {
   // =========================
   // GPS CONTROLS
   // =========================
+  // ── Push position to Supabase ──────────────────────────────────────────────
+  const pushPosition = async (latitude: number, longitude: number, acc: number, computedHeading: number | null, speed: number) => {
+    await (supabase as any)
+      .from("driver_gps")
+      .update({
+        latitude,
+        longitude,
+        accuracy: acc,
+        heading: computedHeading,
+        is_active: true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", "driver");
+    await (supabase as any).from("taxi_positions").upsert({
+      id: "00000000-0000-0000-0000-000000000001",
+      lat: latitude,
+      lng: longitude,
+      heading: computedHeading ?? 0,
+      speed: speed ?? 0,
+      updated_at: new Date().toISOString(),
+    });
+  };
+
   const startGPS = async (resaId?: string) => {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) {
+      setGpsError("GPS non disponible sur cet appareil.");
+      return;
+    }
+    setGpsError(null);
     await (supabase as any)
       .from("driver_gps")
       .update({ is_active: true, updated_at: new Date().toISOString() })
@@ -1179,40 +1210,25 @@ function Dashboard() {
       }
     }
 
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      async (pos) => {
-        const { latitude, longitude, accuracy: acc, heading: rawHeading } = pos.coords;
-        let computedHeading = rawHeading ?? null;
-        if ((computedHeading === null || computedHeading === 0) && lastPosRef.current) {
-          const dLat = latitude - lastPosRef.current.lat;
-          const dLng = longitude - lastPosRef.current.lng;
-          if (Math.abs(dLat) > 0.00001 || Math.abs(dLng) > 0.00001) {
-            computedHeading = (Math.atan2(dLng, dLat) * 180) / Math.PI;
-            if (computedHeading < 0) computedHeading += 360;
-          }
+    // ── Handler position ────────────────────────────────────────────────────
+    const onPosition = async (pos: GeolocationPosition) => {
+      const { latitude, longitude, accuracy: acc, heading: rawHeading } = pos.coords;
+      setGpsError(null);
+      let computedHeading = rawHeading ?? null;
+      if ((computedHeading === null || computedHeading === 0) && lastPosRef.current) {
+        const dLat = latitude - lastPosRef.current.lat;
+        const dLng = longitude - lastPosRef.current.lng;
+        if (Math.abs(dLat) > 0.00001 || Math.abs(dLng) > 0.00001) {
+          computedHeading = (Math.atan2(dLng, dLat) * 180) / Math.PI;
+          if (computedHeading < 0) computedHeading += 360;
         }
-        lastPosRef.current = { lat: latitude, lng: longitude };
-        setGpsPosition({ lat: latitude, lng: longitude });
-        setGpsAccuracy(Math.round(acc));
-        setGpsUpdateCount((n) => n + 1);
-        await (supabase as any)
-          .from("driver_gps")
-          .update({
-            latitude,
-            longitude,
-            accuracy: acc,
-            heading: computedHeading,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", "driver");
-        await (supabase as any).from("taxi_positions").upsert({
-          id: "00000000-0000-0000-0000-000000000001",
-          lat: latitude,
-          lng: longitude,
-          heading: computedHeading ?? 0,
-          speed: pos.coords.speed ?? 0,
-          updated_at: new Date().toISOString(),
-        });
+      }
+      lastPosRef.current = { lat: latitude, lng: longitude };
+      lastKnownPosRef.current = { lat: latitude, lng: longitude };
+      setGpsPosition({ lat: latitude, lng: longitude });
+      setGpsAccuracy(Math.round(acc));
+      setGpsUpdateCount((n) => n + 1);
+      await pushPosition(latitude, longitude, acc, computedHeading, pos.coords.speed ?? 0);
 
         // ── AUTO-STATUS ─────────────────────────────────────────────────────
         const resaId = activeResaIdRef.current;
@@ -1297,9 +1313,57 @@ function Dashboard() {
     );
   };
 
+  // ── onError handler ────────────────────────────────────────────────────────
+  const onGpsError = (err: GeolocationPositionError) => {
+    console.error("GPS error", err.code, err.message);
+    const msgs: Record<number, string> = {
+      1: "Permission GPS refusée. Autorisez la localisation dans les réglages.",
+      2: "Position GPS indisponible (intérieur ?). Retry dans 8s…",
+      3: "GPS timeout. Retry dans 8s…",
+    };
+    setGpsError(msgs[err.code] ?? "Erreur GPS inconnue.");
+
+    // Retry automatique sauf si permission refusée
+    if (err.code !== 1) {
+      if (gpsRetryTimerRef.current) clearTimeout(gpsRetryTimerRef.current);
+      gpsRetryTimerRef.current = setTimeout(() => {
+        if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = navigator.geolocation.watchPosition(
+          onPosition,
+          onGpsError,
+          { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
+        );
+      }, 8000);
+    }
+  };
+
+  // Démarrer watchPosition
+  watchIdRef.current = navigator.geolocation.watchPosition(
+    onPosition,
+    onGpsError,
+    { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
+  );
+
+  // ── Heartbeat : push la dernière position toutes les 5s pour garder is_active vivant ──
+  if (gpsHeartbeatRef.current) clearInterval(gpsHeartbeatRef.current);
+  gpsHeartbeatRef.current = setInterval(async () => {
+    const pos = lastKnownPosRef.current;
+    if (!pos) return;
+    await (supabase as any)
+      .from("driver_gps")
+      .update({ is_active: true, latitude: pos.lat, longitude: pos.lng, updated_at: new Date().toISOString() })
+      .eq("id", "driver");
+  }, 5000);
+  };
+
   const stopGPS = async () => {
     if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
     watchIdRef.current = null;
+    if (gpsHeartbeatRef.current) clearInterval(gpsHeartbeatRef.current);
+    gpsHeartbeatRef.current = null;
+    if (gpsRetryTimerRef.current) clearTimeout(gpsRetryTimerRef.current);
+    gpsRetryTimerRef.current = null;
+    lastKnownPosRef.current = null;
     await (supabase as any)
       .from("driver_gps")
       .update({ is_active: false, destination: null, prix_estime: null })
@@ -1308,6 +1372,7 @@ function Dashboard() {
     setGpsPosition(null);
     setGpsAccuracy(null);
     setGpsUpdateCount(0);
+    setGpsError(null);
     setActiveResaId(null);
     activeResaIdRef.current = null;
     setAutoTransition(false);
@@ -2343,17 +2408,21 @@ function Dashboard() {
                   <>
                     <div
                       className="gps-pulse"
-                      style={{ width: 14, height: 14, background: "#22c55e", borderRadius: "50%", flexShrink: 0 }}
+                      style={{ width: 14, height: 14, background: gpsError ? "#f59e0b" : "#22c55e", borderRadius: "50%", flexShrink: 0 }}
                     />
                     <div>
-                      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, color: "#22c55e" }}>
-                        📡 GPS actif
+                      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, color: gpsError ? "#f59e0b" : "#22c55e" }}>
+                        {gpsError ? "⚠️ GPS — signal faible" : "📡 GPS actif"}
                       </div>
-                      {gpsPosition && (
+                      {gpsError ? (
+                        <div style={{ fontSize: 12, color: "#f59e0b", marginTop: 2 }}>{gpsError}</div>
+                      ) : gpsPosition ? (
                         <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
                           {gpsPosition.lat.toFixed(4)}, {gpsPosition.lng.toFixed(4)}{" "}
                           {gpsAccuracy !== null && `· ±${gpsAccuracy}m`} · {gpsUpdateCount} màj
                         </div>
+                      ) : (
+                        <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>Acquisition du signal…</div>
                       )}
                     </div>
                   </>
