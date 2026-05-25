@@ -5,6 +5,8 @@ import { sendPushToAudience } from "@/lib/push.server";
 
 export type PushAudience = "admin" | "chauffeur" | "client";
 
+const CHAUFFEUR_PHONE = "+33673072322";
+
 const subSchema = z.object({
   audience: z.enum(["admin", "chauffeur", "client"]),
   fcm_token: z.string().min(10).max(500),
@@ -182,16 +184,46 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
       );
     }
 
+    const chauffeurLabels: Partial<Record<string, { title: string; body: string }>> = {
+      accepted: { title: "🚕 Nouvelle course assignée", body: `${clientName} — ${trajet}` },
+      en_route: { title: "🚗 Course démarrée", body: `En route vers ${r.depart} — ${clientName}` },
+      arrived: { title: "📍 Arrivé au point de prise en charge", body: `${clientName} vous attend au départ.` },
+      completed: { title: "🏁 Course terminée", body: `Course avec ${clientName} terminée.` },
+    };
+
     let chauffeurResult = { sent: 0, removed: 0 };
-    if (data.status === "accepted") {
+    const chauffeurLabel = chauffeurLabels[data.status];
+    if (chauffeurLabel) {
       chauffeurResult = await sendPushToAudience("chauffeur", {
-        title: "🚕 Nouvelle course assignée",
-        body: `${clientName} — ${trajet}`,
+        ...chauffeurLabel,
         url: "/admin/dashboard",
-        tag: `assign-${r.id}`,
-        requireInteraction: true,
+        tag: `chauffeur-${data.status}-${r.id}`,
+        requireInteraction: ["accepted", "en_route", "arrived"].includes(data.status),
       });
     }
 
-    return { client: result, chauffeur: chauffeurResult, smsPhone: smsPhone || null, smsBody };
+    // SMS de secours chauffeur si push non reçue
+    let chauffeurSmsBody: string | null = null;
+    if (chauffeurResult.sent === 0) {
+      if (data.status === "accepted") {
+        chauffeurSmsBody = encodeURIComponent(
+          `🚕 Nouvelle course assignée\n${clientName} — ${trajet}\n📲 Dashboard : ${appUrl}/admin/dashboard`,
+        );
+      } else if (data.status === "en_route") {
+        chauffeurSmsBody = encodeURIComponent(`🚗 Course démarrée — ${clientName}\nEn route vers ${r.depart}`);
+      } else if (data.status === "arrived") {
+        chauffeurSmsBody = encodeURIComponent(`📍 Arrivé au point de prise en charge — ${clientName}`);
+      } else if (data.status === "completed") {
+        chauffeurSmsBody = encodeURIComponent(`🏁 Course terminée — ${clientName}`);
+      }
+    }
+
+    return {
+      client: result,
+      chauffeur: chauffeurResult,
+      smsPhone: smsPhone || null,
+      smsBody,
+      chauffeurSmsPhone: chauffeurResult.sent === 0 && chauffeurSmsBody ? CHAUFFEUR_PHONE : null,
+      chauffeurSmsBody,
+    };
   });
