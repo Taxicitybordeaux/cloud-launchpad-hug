@@ -597,7 +597,7 @@ function SuiviPage() {
       const last = lastAppliedPos.current;
       if (last) {
         const moved = distMeters(last, { lat, lng });
-        if (moved < 3 && now - last.t < 4000) return;
+        if (moved < 8 && now - last.t < 4000) return;
       }
       lastAppliedPos.current = { lat, lng, t: now };
       lastDriverPos.current = { lat, lng };
@@ -977,16 +977,14 @@ function SuiviPage() {
         return;
       }
 
-      // Vérification expiration : 12h après la prise en charge (ou après création si pas de date de course)
+      // [FUSION] Vérification expiration 24h (depuis tracking)
       const createdAt = r.created_at ? new Date(r.created_at).getTime() : 0;
-      const expiryBase = r.pickup_datetime ? new Date(r.pickup_datetime).getTime() : createdAt;
-      if (expiryBase && Date.now() - expiryBase > 12 * 60 * 60 * 1000) {
+      if (createdAt && Date.now() - createdAt > 24 * 60 * 60 * 1000) {
         toast.error("Lien expiré", { id: toastId });
         setError({
           code: "expired",
           title: "Lien de suivi expiré",
-          message:
-            "Ce lien de suivi a expiré (plus de 12h après la course). Contactez-nous pour en obtenir un nouveau.",
+          message: "Ce lien de suivi a expiré (plus de 24h). Contactez-nous pour en obtenir un nouveau.",
         });
         setLoading(false);
         return;
@@ -1741,60 +1739,6 @@ function SuiviPage() {
           >
             🎯 Recentrer
           </button>
-        )}
-
-        {/* [FUSION] réglage zone morte persisté (depuis tracking) */}
-        {taxiPos && (
-          <div
-            style={{
-              position: "absolute",
-              bottom: 12,
-              left: 12,
-              zIndex: 1000,
-              padding: "6px 10px",
-              borderRadius: 10,
-              background: "rgba(10,10,20,0.7)",
-              backdropFilter: "blur(6px)",
-              color: "white",
-              fontSize: 11,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              maxWidth: 220,
-            }}
-          >
-            <span style={{ opacity: 0.8 }}>Suivi</span>
-            <input
-              type="range"
-              min={30}
-              max={90}
-              step={5}
-              value={deadZonePct}
-              onChange={(e) => setDeadZonePct(Number(e.target.value))}
-              style={{ flex: 1, accentColor: "#f5c842" }}
-              aria-label="Zone morte du suivi auto"
-            />
-            <span style={{ opacity: 0.8, minWidth: 28, textAlign: "right" }}>{deadZonePct}%</span>
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                cursor: "pointer",
-                paddingLeft: 6,
-                borderLeft: "1px solid rgba(255,255,255,0.15)",
-              }}
-              title="Réactive le suivi auto si le taxi revient dans la zone visible"
-            >
-              <input
-                type="checkbox"
-                checked={autoResume}
-                onChange={(e) => setAutoResume(e.target.checked)}
-                style={{ accentColor: "#f5c842", margin: 0 }}
-              />
-              <span style={{ opacity: 0.85 }}>auto</span>
-            </label>
-          </div>
         )}
 
         {/* Indicateur last update */}
