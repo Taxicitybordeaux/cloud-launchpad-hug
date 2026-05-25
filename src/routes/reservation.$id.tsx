@@ -51,6 +51,8 @@ function ConfirmationPage() {
   const [cancelling, setCancelling] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const { status: pushStatus, subscribe } = usePushNotifications();
+  const fetchReservation = useServerFn(getReservationPublic);
+  const cancelReservation = useServerFn(cancelReservationPublic);
   // Redirection automatique après 5 secondes si réservation valide et non annulée
   useEffect(() => {
     if (reservation && !["annulee", "cancelled", "canceled"].includes(reservation.status)) {
