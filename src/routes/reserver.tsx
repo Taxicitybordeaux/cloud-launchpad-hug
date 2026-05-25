@@ -1943,8 +1943,7 @@ function Dashboard() {
           className="admin-header-actions"
           style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}
         >
-          {/* Un seul bouton notifications unifié */}
-          <EnablePushButton audience="admin" size="sm" label="🔔 Notifs" />
+          {/* Notifications natives auto-activées au chargement */}
           <a
             href="/"
             style={{
