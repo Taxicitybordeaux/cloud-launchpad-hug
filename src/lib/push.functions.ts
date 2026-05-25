@@ -88,13 +88,7 @@ export const notifyNewReservation = createServerFn({ method: "POST" })
 
     let emailSent = false;
     try {
-      const pickupFormatted = r.pickup_datetime
-        ? new Date(r.pickup_datetime).toLocaleString("fr-FR", {
-            timeZone: "Europe/Paris",
-            dateStyle: "full",
-            timeStyle: "short",
-          })
-        : "—";
+      // Route principale (admin)
       const res = await fetch(`${process.env.APP_URL ?? ""}/api/admin/send-course-email`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Admin-Secret": "admin-pin-call" },
@@ -108,7 +102,7 @@ export const notifyNewReservation = createServerFn({ method: "POST" })
             email,
             depart: r.depart,
             arrivee: r.arrivee || r.destination || "—",
-            pickup_datetime: pickupFormatted,
+            pickup_datetime: r.pickup_datetime ?? "",
             passagers: r.nb_passagers || r.passagers || 1,
             bagages: r.bagages ?? 0,
             admin_url: `${process.env.APP_URL ?? ""}/admin/dashboard`,
@@ -116,8 +110,28 @@ export const notifyNewReservation = createServerFn({ method: "POST" })
         }),
       });
       emailSent = res.ok;
+      if (!res.ok) {
+        console.warn("[notifyNewReservation] admin route failed, trying public fallback", res.status);
+        // Fallback vers la route publique qui est autonome et fiable
+        const fallback = await fetch(`${process.env.APP_URL ?? ""}/api/public/notify-reservation`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reservation_id: r.id }),
+        });
+        emailSent = fallback.ok;
+        if (!fallback.ok) console.error("[notifyNewReservation] public fallback also failed", fallback.status);
+      }
     } catch (e) {
       console.error("[notifyNewReservation] email failed", e);
+      // Dernier recours
+      try {
+        const fallback = await fetch(`${process.env.APP_URL ?? ""}/api/public/notify-reservation`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reservation_id: r.id }),
+        });
+        emailSent = fallback.ok;
+      } catch {}
     }
 
     return { admin: adminResult, chauffeur: chauffeurResult, emailSent };
