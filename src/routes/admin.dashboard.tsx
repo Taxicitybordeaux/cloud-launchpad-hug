@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix, calculerPrixMixte } from "@/lib/tarif";
-import { getDistanceAndDurationKm, fetchRoute, fetchRouteCoordinates } from "@/lib/osrm";
+import { getDistanceAndDurationKm, fetchRouteCoordinates } from "@/lib/osrm";
 import { geocodeAddress } from "@/lib/geocode";
 import { assertSuiviId, newSuiviId } from "@/lib/suivi-id";
 import { CourseCardSkeleton, GpsCardSkeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
@@ -1470,8 +1470,9 @@ function Dashboard() {
       const detours = [0, Math.max(1.2, directKm * 0.08), Math.max(2.2, directKm * 0.16)];
       const routeAttempts = await Promise.all(
         detours.map((detour, i) => {
-          const points: [number, number][] = detour
-            ? [[a.lng, a.lat], [detourPoint(a, b, detour).lng, detourPoint(a, b, detour).lat], [b.lng, b.lat]]
+          const mid = detour ? detourPoint(a, b, detour) : null;
+          const points: [number, number][] = mid
+            ? [[a.lng, a.lat], [mid.lng, mid.lat], [b.lng, b.lat]]
             : [[a.lng, a.lat], [b.lng, b.lat]];
           return fetchRouteCoordinates(points, { overview: "full", alternatives: i === 0 ? 3 : false, geometries: "geojson" })
             .then((data) => (data?.routes ?? []).map((route: any) => routeToAlt(route, labels[i], pickupIso)).filter(Boolean) as ItineraryAlt[])
@@ -1489,8 +1490,18 @@ function Dashboard() {
       alts = alts.slice(0, 3).map((alt, i) => ({ ...alt, label: labels[i] }));
 
       setItinAlts((p) => ({ ...p, [r.id]: alts }));
-    } catch {
-      toast.error("Erreur de calcul d'itinéraire");
+    } catch (e: any) {
+      const pickupIso = r.pickup_datetime || new Date().toISOString();
+      const km = Number(r.distance_km) || 5;
+      const labels = ["🟢 Court", "🟡 Intermédiaire", "🔴 Long"];
+      setItinAlts((p) => ({
+        ...p,
+        [r.id]: [1, 1.08, 1.18].map((factor, i) => {
+          const finalKm = parseFloat((km * factor).toFixed(2));
+          return { label: labels[i], km: finalKm, prix: parseFloat(calculerPrixMixte(finalKm, pickupIso).toFixed(2)), coords: [] };
+        }),
+      }));
+      toast.warning("Itinéraires calculés avec la distance existante", { description: e?.message ?? "" });
     } finally {
       setItinLoading((p) => ({ ...p, [r.id]: false }));
     }
