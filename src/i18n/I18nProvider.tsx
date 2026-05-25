@@ -27,16 +27,16 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     try {
+      // Uniquement si l'utilisateur a fait un choix explicite (localStorage)
+      // On n'utilise JAMAIS navigator.language pour éviter que Google
+      // et les bots anglophones indexent la version anglaise.
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored && isLang(stored)) {
         setLangState(stored);
         applyDocDir(stored);
-        return;
-      }
-      const nav = (navigator.language || "fr").slice(0, 2).toLowerCase();
-      if (isLang(nav)) {
-        setLangState(nav);
-        applyDocDir(nav);
+      } else {
+        // Pas de choix stocké → on reste en français (défaut SSR)
+        applyDocDir("fr");
       }
     } catch {
       /* noop */
