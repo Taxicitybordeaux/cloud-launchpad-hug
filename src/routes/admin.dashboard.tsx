@@ -336,6 +336,7 @@ function fallbackItineraries(
   a: { lat: number; lng: number },
   b: { lat: number; lng: number },
   pickupIso: string,
+  baseCoords: [number, number][] = [],
 ): ItineraryAlt[] {
   const directKm = Math.max(haversineKm(a, b) * 1.3, 1);
   const labels = ["🟢 Court", "🟡 Intermédiaire", "🔴 Long"];
@@ -346,10 +347,7 @@ function fallbackItineraries(
       label,
       km,
       prix: parseFloat(calculerPrixMixte(km, pickupIso).toFixed(2)),
-      coords: [
-        [a.lat, a.lng],
-        [b.lat, b.lng],
-      ],
+      coords: baseCoords,
     };
   });
 }
