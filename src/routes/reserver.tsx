@@ -516,28 +516,65 @@ function ReservationPage() {
             position: "absolute",
             top: 16,
             left: 16,
-            background: "rgba(10,10,20,0.85)",
+            background:
+              taxiAvailable === false
+                ? "rgba(239,68,68,0.15)"
+                : taxiAvailable === true
+                  ? "rgba(34,197,94,0.15)"
+                  : "rgba(10,10,20,0.85)",
             backdropFilter: "blur(12px)",
             borderRadius: 99,
-            padding: "6px 14px",
+            padding: "7px 14px",
             display: "flex",
             alignItems: "center",
-            gap: 6,
-            border: "1px solid rgba(245,200,66,0.2)",
+            gap: 7,
+            border:
+              taxiAvailable === false
+                ? "1px solid rgba(239,68,68,0.5)"
+                : taxiAvailable === true
+                  ? "1px solid rgba(34,197,94,0.5)"
+                  : "1px solid rgba(245,200,66,0.2)",
             zIndex: 100,
+            boxShadow:
+              taxiAvailable === false
+                ? "0 0 12px rgba(239,68,68,0.25)"
+                : taxiAvailable === true
+                  ? "0 0 12px rgba(34,197,94,0.2)"
+                  : "none",
           }}
         >
-          <div
+          {/* Point clignotant */}
+          <div style={{ position: "relative", width: 9, height: 9, flexShrink: 0 }}>
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                borderRadius: "50%",
+                background: taxiAvailable === false ? "#ef4444" : taxiAvailable === true ? "#22c55e" : "#94a3b8",
+                animation: taxiAvailable !== null ? "pulse 1.8s ease-in-out infinite" : "none",
+              }}
+            />
+            {taxiAvailable !== null && (
+              <div
+                style={{
+                  position: "absolute",
+                  inset: -3,
+                  borderRadius: "50%",
+                  background: taxiAvailable === false ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)",
+                  animation: "pulse 1.8s ease-in-out infinite",
+                }}
+              />
+            )}
+          </div>
+          <span
             style={{
-              width: 8,
-              height: 8,
-              borderRadius: "50%",
-              background: taxiAvailable === false ? "#ef4444" : taxiAvailable === true ? "#22c55e" : "#94a3b8",
-              animation: "pulse 1.8s ease-in-out infinite",
+              fontSize: 12,
+              fontWeight: 700,
+              color: taxiAvailable === false ? "#fca5a5" : taxiAvailable === true ? "#86efac" : "#94a3b8",
+              letterSpacing: 0.2,
             }}
-          />
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#e0e0e0" }}>
-            {taxiAvailable === null ? t("res.geo.loading") : taxiAvailable ? t("common.available_247") : "Indisponible"}
+          >
+            🚕 {taxiAvailable === null ? t("res.geo.loading") : taxiAvailable ? "Taxi disponible" : "Taxi en course"}
           </span>
         </div>
 
@@ -629,6 +666,49 @@ function ReservationPage() {
               ))}
             </select>
           </div>
+
+          {/* ── Bannière disponibilité taxi ── */}
+          {taxiAvailable === false && (
+            <div
+              style={{
+                background: "rgba(239,68,68,0.12)",
+                border: "1px solid rgba(239,68,68,0.35)",
+                borderRadius: 12,
+                padding: "10px 14px",
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 10,
+              }}
+            >
+              <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>🚕</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#fca5a5", marginBottom: 2 }}>
+                  Taxi actuellement en course
+                </div>
+                <div style={{ fontSize: 12, color: "#fecaca", lineHeight: 1.4 }}>
+                  Vous pouvez tout de même réserver — votre demande sera prise en charge dès que le taxi sera libre.
+                </div>
+              </div>
+            </div>
+          )}
+          {taxiAvailable === true && (
+            <div
+              style={{
+                background: "rgba(34,197,94,0.1)",
+                border: "1px solid rgba(34,197,94,0.3)",
+                borderRadius: 12,
+                padding: "10px 14px",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+              }}
+            >
+              <span style={{ fontSize: 18, flexShrink: 0 }}>✅</span>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#86efac" }}>
+                Taxi disponible — réservation confirmée rapidement !
+              </div>
+            </div>
+          )}
 
           <form
             onSubmit={handleSubmit}
