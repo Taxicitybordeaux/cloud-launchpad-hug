@@ -453,32 +453,36 @@ function ReservationPage() {
       const fullName = `${f.prenom} ${f.nom}`.trim();
       const pickupIsoFinal = f.date && f.heure ? toParisIso(f.date, f.heure) : new Date().toISOString();
 
-      const { error } = await supabase.from("reservations").insert({
-        // NOT NULL columns
-        nom: fullName,
-        telephone: f.phone,
-        email: f.email,
-        depart: f.depart,
-        arrivee: f.destination,
-        pickup_datetime: pickupIsoFinal,
-        passagers: f.passagers,
-        service_type: "standard",
-        status: "pending",
-        // Optional / mirror columns
-        suivi_id: suiviId,
-        client_name: fullName,
-        client_phone: f.phone,
-        client_email: f.email,
-        destination: f.destination,
-        distance_km: orsResult?.distanceKm ?? 0,
-        nb_passagers: f.passagers,
-        bagages: f.bagages,
-        paiement: f.paiement,
-        tarif_jour: tarifJour,
-        prix_estime: prixAller,
-        source: "form",
-        lang: lang as any,
-      });
+      const { data: inserted, error } = await supabase
+        .from("reservations")
+        .insert({
+          // NOT NULL columns
+          nom: fullName,
+          telephone: f.phone,
+          email: f.email,
+          depart: f.depart,
+          arrivee: f.destination,
+          pickup_datetime: pickupIsoFinal,
+          passagers: f.passagers,
+          service_type: "standard",
+          status: "pending",
+          // Optional / mirror columns
+          suivi_id: suiviId,
+          client_name: fullName,
+          client_phone: f.phone,
+          client_email: f.email,
+          destination: f.destination,
+          distance_km: orsResult?.distanceKm ?? 0,
+          nb_passagers: f.passagers,
+          bagages: f.bagages,
+          paiement: f.paiement,
+          tarif_jour: tarifJour,
+          prix_estime: prixAller,
+          source: "form",
+          lang: lang as any,
+        })
+        .select("id")
+        .single();
 
       if (error) throw error;
 
@@ -487,7 +491,7 @@ function ReservationPage() {
         await fetch("/api/public/notify-reservation", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ suivi_id: suiviId }),
+          body: JSON.stringify({ reservation_id: inserted.id }),
         });
       } catch (fetchErr) {
         console.error("[notify] push failed", fetchErr);
