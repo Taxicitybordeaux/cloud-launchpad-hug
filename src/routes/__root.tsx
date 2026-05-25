@@ -1,7 +1,8 @@
-import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
+import { createRootRoute, HeadContent, Outlet, Scripts, useRouterState } from "@tanstack/react-router";
 import * as React from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { I18nProvider } from "@/i18n/I18nProvider";
+import { SiteHeader } from "@/components/SiteHeader";
 import appCss from "@/styles.css?url";
 
 export const Route = createRootRoute({
@@ -27,6 +28,9 @@ export const Route = createRootRoute({
 });
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const showHeader = !pathname.startsWith("/reservation");
+
   return (
     <html lang="fr">
       <head>
@@ -34,6 +38,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <I18nProvider>
+          {showHeader && <SiteHeader />}
           {children}
           <Toaster />
         </I18nProvider>
