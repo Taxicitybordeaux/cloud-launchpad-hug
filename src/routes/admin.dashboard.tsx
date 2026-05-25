@@ -418,13 +418,28 @@ function Dashboard() {
   // ── Auth guard ──
   const [authChecked, setAuthChecked] = useState(false);
   useEffect(() => {
+    // getSession d'abord pour le cas où la session est déjà là
     supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) {
-        window.location.href = "/login";
-      } else {
+      if (data.session) {
         setAuthChecked(true);
       }
     });
+    // onAuthStateChange gère la restauration asynchrone de session
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        setAuthChecked(true);
+      } else {
+        // Attendre un tick pour éviter les faux négatifs au montage
+        setTimeout(() => {
+          supabase.auth.getSession().then(({ data }) => {
+            if (!data.session) window.location.href = "/login";
+          });
+        }, 500);
+      }
+    });
+    return () => subscription.unsubscribe();
   }, []);
   if (!authChecked) return null;
 
