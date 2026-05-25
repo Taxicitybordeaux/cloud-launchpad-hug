@@ -29,7 +29,7 @@ export const Route = createRootRoute({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const showHeader = !pathname.startsWith("/reservation");
+  const showHeader = !pathname.startsWith("/reserver");
 
   return (
     <html lang="fr">
