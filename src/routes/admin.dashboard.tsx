@@ -367,6 +367,18 @@ function Dashboard() {
   const [changeHeureValue, setChangeHeureValue] = useState<Record<string, string>>({});
   const [changeHeureSending, setChangeHeureSending] = useState<Record<string, boolean>>({});
 
+  // ── Sélecteur d'itinéraire (courses en attente) ──
+  const [itinOpen, setItinOpen] = useState<Record<string, boolean>>({});
+  const [itinLoading, setItinLoading] = useState<Record<string, boolean>>({});
+  const [itinOptions, setItinOptions] = useState<
+    Record<
+      string,
+      { court: number; moyen: number; long: number; prixCourt: number; prixMoyen: number; prixLong: number } | null
+    >
+  >({});
+  const [itinSelected, setItinSelected] = useState<Record<string, "court" | "moyen" | "long">>({});
+  const [itinSending, setItinSending] = useState<Record<string, boolean>>({});
+
   // ── Avis ──
   const [avis, setAvis] = useState<any[]>([]);
   const [avisLoading, setAvisLoading] = useState(true);
@@ -924,7 +936,6 @@ function Dashboard() {
             recipientEmail: email,
             idempotencyKey: `course-accepted-${r.id}`,
             templateData: {
-              lang: (r as any).lang || "fr",
               nom: name,
               depart: r.depart,
               arrivee: r.arrivee || r.destination,
@@ -1427,6 +1438,113 @@ function Dashboard() {
     }
   };
 
+  // =========================
+  // CHARGER ITINÉRAIRES (3 options km)
+  // =========================
+  const handleLoadItineraire = async (r: any) => {
+    setItinLoading((p) => ({ ...p, [r.id]: true }));
+    setItinOpen((p) => ({ ...p, [r.id]: true }));
+    try {
+      const baseKm = await fetchDistanceKm(r.depart, r.arrivee || r.destination);
+      const kmCourt = Math.max(1, Math.round(baseKm * 0.85 * 10) / 10);
+      const kmMoyen = Math.round(baseKm * 10) / 10;
+      const kmLong = Math.round(baseKm * 1.2 * 10) / 10;
+      const nuit = r.pickup_datetime ? isNuit(r.pickup_datetime) : r.tarif_jour === false;
+      const calcPrix = (km: number) =>
+        r.pickup_datetime ? calculerPrixMixte(km, r.pickup_datetime) : calculerPrix(km, !nuit);
+      setItinOptions((p) => ({
+        ...p,
+        [r.id]: {
+          court: kmCourt,
+          moyen: kmMoyen,
+          long: kmLong,
+          prixCourt: calcPrix(kmCourt),
+          prixMoyen: calcPrix(kmMoyen),
+          prixLong: calcPrix(kmLong),
+        },
+      }));
+      setItinSelected((p) => ({ ...p, [r.id]: "moyen" }));
+    } catch {
+      toast.error("Impossible de calculer les itinéraires");
+      setItinOpen((p) => ({ ...p, [r.id]: false }));
+    } finally {
+      setItinLoading((p) => ({ ...p, [r.id]: false }));
+    }
+  };
+
+  // =========================
+  // ENVOYER ITINÉRAIRE CHOISI
+  // =========================
+  const handleSendItineraire = async (r: any, canal: "sms" | "whatsapp" | "email") => {
+    const opts = itinOptions[r.id];
+    const sel = itinSelected[r.id] ?? "moyen";
+    if (!opts) return;
+    const km = sel === "court" ? opts.court : sel === "long" ? opts.long : opts.moyen;
+    const prix = sel === "court" ? opts.prixCourt : sel === "long" ? opts.prixLong : opts.prixMoyen;
+    const labelItin = sel === "court" ? "itinéraire court" : sel === "long" ? "itinéraire long" : "itinéraire standard";
+    const name = r.client_name || r.nom || "Client";
+    const phone = (r.client_phone || r.telephone || "").replace(/\s/g, "");
+    const email = r.client_email || r.email || "";
+    const trajet = `${r.depart} → ${r.destination || r.arrivee || "—"}`;
+    const trackUrl = r.suivi_id && typeof window !== "undefined" ? `${window.location.origin}/suivi/${r.suivi_id}` : "";
+    const trackLine = trackUrl ? `\nSuivi : ${trackUrl}` : "";
+    const msg = `Bonjour ${name}, votre course Taxi City Bordeaux (${trajet}) — ${labelItin} : ${km} km — Prix : ${Number(prix).toFixed(2)} €. Merci.${trackLine}`;
+
+    setItinSending((p) => ({ ...p, [r.id]: true }));
+    try {
+      if (canal === "sms") {
+        if (!phone) {
+          toast.error("Pas de téléphone");
+          return;
+        }
+        window.open(`sms:${phone}?body=${encodeURIComponent(msg)}`, "_blank");
+      } else if (canal === "whatsapp") {
+        if (!phone) {
+          toast.error("Pas de téléphone");
+          return;
+        }
+        const wa = phone.replace(/^0/, "33");
+        window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, "_blank");
+      } else if (canal === "email") {
+        if (!email) {
+          toast.error("Pas d'email");
+          return;
+        }
+        const res = await fetch("/api/admin/send-course-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Admin-Secret": "admin-pin-call" },
+          body: JSON.stringify({
+            templateName: "custom-price",
+            recipientEmail: email,
+            idempotencyKey: `itin-${r.id}-${Date.now()}`,
+            templateData: {
+              nom: name,
+              depart: r.depart,
+              arrivee: r.destination || r.arrivee || "—",
+              prix: `${Number(prix).toFixed(2)} €`,
+              distance: `${km} km`,
+              itineraire: labelItin,
+            },
+          }),
+        });
+        toast[res.ok ? "success" : "error"](res.ok ? `✉️ Email envoyé à ${email}` : "Échec envoi email");
+      }
+      // Mise à jour du prix en base
+      await supabase.from("reservations").update({ distance_km: km, prix_estime: prix }).eq("id", r.id);
+      setItems((prev) =>
+        prev.map((item) => (item.id === r.id ? { ...item, distance_km: km, prix_estime: prix } : item)),
+      );
+      if (canal !== "email")
+        toast.success(
+          `📤 ${canal === "sms" ? "SMS" : "WhatsApp"} ouvert — ${labelItin} · ${Number(prix).toFixed(2)} €`,
+        );
+    } catch {
+      toast.error("Erreur lors de l'envoi");
+    } finally {
+      setItinSending((p) => ({ ...p, [r.id]: false }));
+    }
+  };
+
   // ─── Course card ───
   function CourseCard({ r, showAcceptRefuse }: { r: any; showAcceptRefuse?: boolean }) {
     const name = r.client_name || r.nom;
@@ -1638,6 +1756,218 @@ function Dashboard() {
                   </button>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ── Sélecteur d'itinéraire (courses en attente) ── */}
+          {showAcceptRefuse && normalizeStatus(r.status) === "pending" && (
+            <div style={{ marginTop: 14 }}>
+              {!itinOpen[r.id] ? (
+                <button
+                  onClick={() => handleLoadItineraire(r)}
+                  style={{
+                    background: "rgba(14,165,233,0.12)",
+                    border: "1px solid rgba(14,165,233,0.35)",
+                    color: "#38bdf8",
+                    padding: "9px 16px",
+                    borderRadius: 10,
+                    cursor: "pointer",
+                    fontWeight: 700,
+                    fontSize: 13,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  🗺️ Choisir l'itinéraire & prix
+                </button>
+              ) : itinLoading[r.id] ? (
+                <div
+                  style={{
+                    padding: "12px 14px",
+                    background: "rgba(14,165,233,0.07)",
+                    border: "1px solid rgba(14,165,233,0.2)",
+                    borderRadius: 12,
+                    color: "#38bdf8",
+                    fontSize: 13,
+                  }}
+                >
+                  📡 Calcul des itinéraires…
+                </div>
+              ) : itinOptions[r.id] ? (
+                <div
+                  style={{
+                    padding: "14px 16px",
+                    background: "rgba(14,165,233,0.06)",
+                    border: "1px solid rgba(14,165,233,0.22)",
+                    borderRadius: 14,
+                  }}
+                >
+                  <div
+                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: "#38bdf8",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                      }}
+                    >
+                      🗺️ Choisir l'itinéraire
+                    </span>
+                    <button
+                      onClick={() => setItinOpen((p) => ({ ...p, [r.id]: false }))}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "#64748b",
+                        cursor: "pointer",
+                        fontSize: 17,
+                        lineHeight: 1,
+                        padding: 4,
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  {/* Trois options */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+                    {(["long", "moyen", "court"] as const).map((opt) => {
+                      const labels = {
+                        long: {
+                          emoji: "🛣️",
+                          label: "Long",
+                          sub: "Itinéraire le plus long",
+                          km: itinOptions[r.id]!.long,
+                          prix: itinOptions[r.id]!.prixLong,
+                        },
+                        moyen: {
+                          emoji: "🗺️",
+                          label: "Standard",
+                          sub: "Itinéraire optimal",
+                          km: itinOptions[r.id]!.moyen,
+                          prix: itinOptions[r.id]!.prixMoyen,
+                        },
+                        court: {
+                          emoji: "⚡",
+                          label: "Court",
+                          sub: "Itinéraire le plus court",
+                          km: itinOptions[r.id]!.court,
+                          prix: itinOptions[r.id]!.prixCourt,
+                        },
+                      };
+                      const o = labels[opt];
+                      const selected = (itinSelected[r.id] ?? "moyen") === opt;
+                      return (
+                        <button
+                          key={opt}
+                          onClick={() => setItinSelected((p) => ({ ...p, [r.id]: opt }))}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            padding: "11px 14px",
+                            borderRadius: 11,
+                            border: selected ? "1.5px solid #38bdf8" : "1px solid rgba(255,255,255,0.1)",
+                            background: selected ? "rgba(14,165,233,0.14)" : "rgba(255,255,255,0.03)",
+                            cursor: "pointer",
+                            width: "100%",
+                            textAlign: "left",
+                            transition: "all 0.15s",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <span style={{ fontSize: 20 }}>{o.emoji}</span>
+                            <div>
+                              <div style={{ fontWeight: 700, color: selected ? "#38bdf8" : "#f8fafc", fontSize: 14 }}>
+                                {o.label}
+                              </div>
+                              <div style={{ color: "#64748b", fontSize: 11, marginTop: 1 }}>{o.sub}</div>
+                            </div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontWeight: 800, color: selected ? "#38bdf8" : "#f8fafc", fontSize: 15 }}>
+                              {Number(o.prix).toFixed(2)} €
+                            </div>
+                            <div style={{ color: "#64748b", fontSize: 11, marginTop: 1 }}>{o.km} km</div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {/* Boutons d'envoi */}
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {(r.client_phone || r.telephone) && (
+                      <>
+                        <button
+                          onClick={() => handleSendItineraire(r, "sms")}
+                          disabled={itinSending[r.id]}
+                          style={{
+                            background: "rgba(168,85,247,0.15)",
+                            border: "1px solid rgba(168,85,247,0.4)",
+                            color: "#c084fc",
+                            padding: "9px 13px",
+                            borderRadius: 10,
+                            cursor: itinSending[r.id] ? "wait" : "pointer",
+                            fontWeight: 700,
+                            fontSize: 13,
+                            opacity: itinSending[r.id] ? 0.6 : 1,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 5,
+                          }}
+                        >
+                          💬 SMS
+                        </button>
+                        <button
+                          onClick={() => handleSendItineraire(r, "whatsapp")}
+                          disabled={itinSending[r.id]}
+                          style={{
+                            background: "rgba(34,197,94,0.12)",
+                            border: "1px solid rgba(34,197,94,0.35)",
+                            color: "#22c55e",
+                            padding: "9px 13px",
+                            borderRadius: 10,
+                            cursor: itinSending[r.id] ? "wait" : "pointer",
+                            fontWeight: 700,
+                            fontSize: 13,
+                            opacity: itinSending[r.id] ? 0.6 : 1,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 5,
+                          }}
+                        >
+                          🟢 WhatsApp
+                        </button>
+                      </>
+                    )}
+                    {(r.client_email || r.email) && (
+                      <button
+                        onClick={() => handleSendItineraire(r, "email")}
+                        disabled={itinSending[r.id]}
+                        style={{
+                          background: "rgba(245,200,66,0.12)",
+                          border: "1px solid rgba(245,200,66,0.35)",
+                          color: "#f5c842",
+                          padding: "9px 13px",
+                          borderRadius: 10,
+                          cursor: itinSending[r.id] ? "wait" : "pointer",
+                          fontWeight: 700,
+                          fontSize: 13,
+                          opacity: itinSending[r.id] ? 0.6 : 1,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 5,
+                        }}
+                      >
+                        {itinSending[r.id] ? "⏳…" : "✉️ Email"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : null}
             </div>
           )}
 
