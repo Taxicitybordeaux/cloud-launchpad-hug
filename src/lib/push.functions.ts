@@ -1,10 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
-import { DICTS, type Lang } from "@/i18n/dict";
+import { type Lang } from "@/i18n/dict";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sendPushToAudience } from "@/lib/push.server";
 
-export type PushAudience = "admin" | "chauffeur" | "client";
+// Ré-export depuis push.server pour éviter la définition dupliquée
+export type { PushAudience } from "@/lib/push.server";
 
 const subSchema = z.object({
   audience: z.enum(["admin", "chauffeur", "client"]),
