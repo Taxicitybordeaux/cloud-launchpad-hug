@@ -787,13 +787,18 @@ function SuiviPage() {
   const startPolling = useCallback(() => {
     if (pollingTimerRef.current) return;
     pollingTimerRef.current = setInterval(async () => {
-      const { data } = await supabase.from("driver_gps").select("latitude,longitude,is_active").limit(1).maybeSingle();
+      const { data } = await supabase
+        .from("driver_gps")
+        .select("latitude,longitude,is_active")
+        .eq("id", "driver")
+        .maybeSingle();
       if (
         data?.is_active &&
         data.latitude != null &&
         data.longitude != null &&
         Number.isFinite(data.latitude) &&
-        Number.isFinite(data.longitude)
+        Number.isFinite(data.longitude) &&
+        (data.latitude !== 0 || data.longitude !== 0)
       ) {
         setLastUpdate(new Date());
         await applyDriverPosition(data.latitude, data.longitude);
@@ -808,44 +813,54 @@ function SuiviPage() {
           .maybeSingle();
         if (r) setResa((prev) => (prev ? { ...prev, ...r } : prev));
       }
-    }, 10_000);
+    }, 5_000);
   }, [applyDriverPosition]);
 
   // ── Realtime ─────────────────────────────────────────────────────────────
   const subscribeRealtime = useCallback(
     (_gpsId: string, resaId: string, _mode: "single" | "multi") => {
+      // Démarre le polling immédiatement comme filet de sécurité
+      // Il sera stoppé dès que le realtime confirme "subscribed"
+      startPolling();
+
       const gpsChannel = supabase
         .channel("suivi-driver-location")
         .on("postgres_changes", { event: "UPDATE", schema: "public", table: "driver_gps" }, async (payload) => {
           const d = payload.new as any;
           if (!d.is_active) return;
-          setLastUpdate(new Date());
-          if (d.latitude != null && d.longitude != null && Number.isFinite(d.latitude) && Number.isFinite(d.longitude))
+          if (
+            d.latitude != null &&
+            d.longitude != null &&
+            Number.isFinite(d.latitude) &&
+            Number.isFinite(d.longitude) &&
+            (d.latitude !== 0 || d.longitude !== 0)
+          ) {
+            setLastUpdate(new Date());
             await applyDriverPosition(d.latitude, d.longitude);
+          }
         })
         .on("system", {}, (status: any) => {
           const s = (status?.status || "").toLowerCase();
           if (s === "subscribed") {
             connectionStateRef.current = "connected";
+            // Realtime OK → on peut couper le polling
             stopPolling();
             if (reconnectTimerRef.current) {
               clearTimeout(reconnectTimerRef.current);
               reconnectTimerRef.current = null;
             }
-          } else if (
-            ["channel_error", "timed_out", "closed"].includes(s) &&
-            connectionStateRef.current === "connected"
-          ) {
+          } else if (["channel_error", "timed_out", "closed"].includes(s)) {
             connectionStateRef.current = "disconnected";
-            toast.warning("⚡ Connexion interrompue", {
-              description: "Passage en mode polling. Reconnexion en cours…",
-              duration: 5000,
-            });
+            // Relance le polling de secours
             startPolling();
-            reconnectTimerRef.current = setTimeout(() => {
-              stopPolling();
-              setRetryNonce((n) => n + 1);
-            }, 8000);
+            // Tente de se reconnecter via retryNonce après 10s
+            if (!reconnectTimerRef.current) {
+              reconnectTimerRef.current = setTimeout(() => {
+                reconnectTimerRef.current = null;
+                stopPolling();
+                setRetryNonce((n) => n + 1);
+              }, 10_000);
+            }
           }
         })
         .subscribe();
@@ -868,7 +883,6 @@ function SuiviPage() {
               return;
             }
             if (["terminee", "terminée", "completed", "done"].includes(newStatus)) {
-              // [FUSION] toast info + message complet (depuis tracking)
               toast.info("Course terminée", { description: "Merci d'avoir voyagé avec Taxi City Bordeaux." });
               setCourseTerminee(true);
               return;
@@ -1013,7 +1027,7 @@ function SuiviPage() {
       const { data: locData } = await supabase
         .from("driver_gps")
         .select("latitude,longitude,is_active")
-        .limit(1)
+        .eq("id", "driver")
         .maybeSingle();
       const gpsLat: number | null =
         locData?.latitude != null && Number.isFinite(locData.latitude) ? locData.latitude : null;
@@ -1049,8 +1063,44 @@ function SuiviPage() {
       subscribeRealtime("driver", r.id, "single");
     };
 
+    // ── Reconnexion automatique : reprise de veille / retour réseau ────────
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible" && resaIdRef.current) {
+        // Recharger la position immédiatement
+        supabase
+          .from("driver_gps")
+          .select("latitude,longitude,is_active")
+          .eq("id", "driver")
+          .maybeSingle()
+          .then(({ data }) => {
+            if (
+              data?.is_active &&
+              data.latitude != null &&
+              data.longitude != null &&
+              Number.isFinite(data.latitude) &&
+              Number.isFinite(data.longitude) &&
+              (data.latitude !== 0 || data.longitude !== 0)
+            ) {
+              setLastUpdate(new Date());
+              applyDriverPosition(data.latitude, data.longitude);
+            }
+          });
+        // Si le realtime était coupé, forcer une reconnexion complète
+        if (connectionStateRef.current === "disconnected") {
+          setRetryNonce((n) => n + 1);
+        }
+      }
+    };
+    const handleOnline = () => {
+      if (resaIdRef.current) setRetryNonce((n) => n + 1);
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("online", handleOnline);
+
     init();
     return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("online", handleOnline);
       const ch = channelRef.current;
       if (Array.isArray(ch)) ch.forEach((c) => c && supabase.removeChannel(c));
       else if (ch) supabase.removeChannel(ch);
@@ -1105,13 +1155,18 @@ function SuiviPage() {
           .maybeSingle();
         if (r) setResa((prev) => (prev ? { ...prev, ...r } : prev));
       }
-      const { data } = await supabase.from("driver_gps").select("latitude,longitude,is_active").limit(1).maybeSingle();
+      const { data } = await supabase
+        .from("driver_gps")
+        .select("latitude,longitude,is_active")
+        .eq("id", "driver")
+        .maybeSingle();
       if (
         data?.is_active &&
         data?.latitude != null &&
         data?.longitude != null &&
         Number.isFinite(data.latitude) &&
-        Number.isFinite(data.longitude)
+        Number.isFinite(data.longitude) &&
+        (data.latitude !== 0 || data.longitude !== 0)
       ) {
         setLastUpdate(new Date());
         await applyDriverPosition(data.latitude, data.longitude);
@@ -1684,6 +1739,60 @@ function SuiviPage() {
           >
             🎯 Recentrer
           </button>
+        )}
+
+        {/* [FUSION] réglage zone morte persisté (depuis tracking) */}
+        {taxiPos && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: 12,
+              left: 12,
+              zIndex: 1000,
+              padding: "6px 10px",
+              borderRadius: 10,
+              background: "rgba(10,10,20,0.7)",
+              backdropFilter: "blur(6px)",
+              color: "white",
+              fontSize: 11,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              maxWidth: 220,
+            }}
+          >
+            <span style={{ opacity: 0.8 }}>Suivi</span>
+            <input
+              type="range"
+              min={30}
+              max={90}
+              step={5}
+              value={deadZonePct}
+              onChange={(e) => setDeadZonePct(Number(e.target.value))}
+              style={{ flex: 1, accentColor: "#f5c842" }}
+              aria-label="Zone morte du suivi auto"
+            />
+            <span style={{ opacity: 0.8, minWidth: 28, textAlign: "right" }}>{deadZonePct}%</span>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                cursor: "pointer",
+                paddingLeft: 6,
+                borderLeft: "1px solid rgba(255,255,255,0.15)",
+              }}
+              title="Réactive le suivi auto si le taxi revient dans la zone visible"
+            >
+              <input
+                type="checkbox"
+                checked={autoResume}
+                onChange={(e) => setAutoResume(e.target.checked)}
+                style={{ accentColor: "#f5c842", margin: 0 }}
+              />
+              <span style={{ opacity: 0.85 }}>auto</span>
+            </label>
+          </div>
         )}
 
         {/* Indicateur last update */}
