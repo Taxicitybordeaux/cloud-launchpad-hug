@@ -60,19 +60,17 @@ async function resolveAudience(pathname: string): Promise<PushAudience> {
 
     if (!session?.user) return audienceFromPath(pathname);
 
-    // Cherche le rôle dans la table profiles (adaptez le nom si différent)
-    const { data: profile, error } = await supabase
-      .from("profiles")
+    // Cherche le rôle dans la table user_roles
+    const { data: roles, error } = await supabase
+      .from("user_roles")
       .select("role")
-      .eq("id", session.user.id)
-      .maybeSingle();
+      .eq("user_id", session.user.id);
 
-    if (error || !profile?.role) return audienceFromPath(pathname);
+    if (error || !roles || roles.length === 0) return audienceFromPath(pathname);
 
-    const role = profile.role as string;
-
-    if (role === "admin") return "admin";
-    if (role === "chauffeur") return "chauffeur";
+    const roleList = roles.map((r) => r.role as string);
+    if (roleList.includes("admin")) return "admin";
+    if (roleList.includes("chauffeur")) return "chauffeur";
     return "client";
   } catch {
     // En cas d'erreur réseau, fallback sur le pathname
