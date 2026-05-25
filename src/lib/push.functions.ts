@@ -150,7 +150,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { data: r } = await supabaseAdmin
       .from("reservations")
-      .select("id, nom, client_name, client_phone, telephone, depart, arrivee, destination, tracking_id, lang")
+      .select("id, nom, client_name, client_phone, telephone, depart, arrivee, destination, tracking_id")
       .eq("id", data.reservation_id)
       .maybeSingle();
     if (!r) throw new Error("not_found");
