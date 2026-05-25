@@ -982,42 +982,7 @@ function Dashboard() {
     } catch {}
     notifParts.push(pushSent > 0 ? `🔔 Push envoyée` : `🔕 Pas d'abonné push`);
 
-    // ✉️ Email automatique (si email disponible)
-    if (email) {
-      const adminSecret = "admin-pin-call";
-      const pickupFormatted = r.pickup_datetime
-        ? formatParis(r.pickup_datetime, { dateStyle: "full", timeStyle: "short" })
-        : undefined;
-      const prixStr = `${Number(prixCalcule).toFixed(2)} €`;
-      const tarifLabel = tarifNuitCourse ? `Nuit (${TARIF_NUIT_LABEL})` : `Jour (${TARIF_JOUR_LABEL})`;
-      try {
-        const emailTimeout = new Promise<any>((_, reject) => setTimeout(() => reject(new Error("timeout")), 6000));
-        const emailFetch = fetch("/api/admin/send-course-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Admin-Secret": adminSecret },
-          body: JSON.stringify({
-            templateName: "course-accepted",
-            recipientEmail: email,
-            idempotencyKey: `course-accepted-${r.id}`,
-            templateData: {
-              nom: name,
-              depart: r.depart,
-              arrivee: r.arrivee || r.destination,
-              pickup_datetime: pickupFormatted,
-              prix: prixStr,
-              tarif: tarifLabel,
-              tracking_url: url,
-              passagers: r.nb_passagers || r.passagers || 1,
-              bagages: r.bagages ?? 0,
-            },
-          }),
-        });
-        const res = await Promise.race([emailFetch, emailTimeout]);
-        notifParts.push(res.ok ? `✉️ Email envoyé` : `⚠️ Échec email`);
-      } catch {
-        notifParts.push("⚠️ Échec email");
-      }
-    }
+    // ✉️ Email désactivé — à envoyer manuellement via "Modifier le prix"
 
     toast.success(`✅ Course acceptée — ${name || "client"}`, { description: notifParts.join(" · "), duration: 8000 });
     // Mise à jour optimiste immédiate
@@ -1456,7 +1421,12 @@ function Dashboard() {
           [r.id]: [1, 1.08, 1.18].map((factor, i) => {
             const labels = ["🟢 Court", "🟡 Intermédiaire", "🔴 Long"];
             const finalKm = parseFloat((km * factor).toFixed(2));
-            return { label: labels[i], km: finalKm, prix: parseFloat(calculerPrixMixte(finalKm, pickupIso).toFixed(2)), coords: [] };
+            return {
+              label: labels[i],
+              km: finalKm,
+              prix: parseFloat(calculerPrixMixte(finalKm, pickupIso).toFixed(2)),
+              coords: [],
+            };
           }),
         }));
         setItinLoading((p) => ({ ...p, [r.id]: false }));
@@ -1470,10 +1440,26 @@ function Dashboard() {
         detours.map((detour, i) => {
           const mid = detour ? detourPoint(a, b, detour) : null;
           const points: [number, number][] = mid
-            ? [[a.lng, a.lat], [mid.lng, mid.lat], [b.lng, b.lat]]
-            : [[a.lng, a.lat], [b.lng, b.lat]];
-          return fetchRouteCoordinates(points, { overview: "full", alternatives: i === 0 ? 3 : false, geometries: "geojson" })
-            .then((data) => (data?.routes ?? []).map((route: any) => routeToAlt(route, labels[i], pickupIso)).filter(Boolean) as ItineraryAlt[])
+            ? [
+                [a.lng, a.lat],
+                [mid.lng, mid.lat],
+                [b.lng, b.lat],
+              ]
+            : [
+                [a.lng, a.lat],
+                [b.lng, b.lat],
+              ];
+          return fetchRouteCoordinates(points, {
+            overview: "full",
+            alternatives: i === 0 ? 3 : false,
+            geometries: "geojson",
+          })
+            .then(
+              (data) =>
+                (data?.routes ?? [])
+                  .map((route: any) => routeToAlt(route, labels[i], pickupIso))
+                  .filter(Boolean) as ItineraryAlt[],
+            )
             .catch(() => [] as ItineraryAlt[]);
         }),
       );
@@ -1501,7 +1487,12 @@ function Dashboard() {
         ...p,
         [r.id]: [1, 1.08, 1.18].map((factor, i) => {
           const finalKm = parseFloat((km * factor).toFixed(2));
-          return { label: labels[i], km: finalKm, prix: parseFloat(calculerPrixMixte(finalKm, pickupIso).toFixed(2)), coords: [] };
+          return {
+            label: labels[i],
+            km: finalKm,
+            prix: parseFloat(calculerPrixMixte(finalKm, pickupIso).toFixed(2)),
+            coords: [],
+          };
         }),
       }));
       toast.warning("Itinéraires calculés avec la distance existante", { description: e?.message ?? "" });
@@ -1510,10 +1501,7 @@ function Dashboard() {
     }
   };
 
-  const handleSelectItineraire = async (
-    r: any,
-    alt: ItineraryAlt,
-  ) => {
+  const handleSelectItineraire = async (r: any, alt: ItineraryAlt) => {
     setItinSaving((p) => ({ ...p, [r.id]: true }));
     try {
       const { error } = await supabase
@@ -1545,8 +1533,6 @@ function Dashboard() {
       setItinSaving((p) => ({ ...p, [r.id]: false }));
     }
   };
-
-
 
   // =========================
   // CHANGER L'HEURE D'UNE RÉSA
@@ -1879,7 +1865,7 @@ function Dashboard() {
           )}
 
           {/* ── Modifier le prix ── */}
-          {(normalizeStatus(r.status) === "accepted" || normalizeStatus(r.status) === "pending" || r.status === "en_route" || r.status === "arrived") && (
+          {(normalizeStatus(r.status) === "accepted" || r.status === "en_route" || r.status === "arrived") && (
             <div style={{ marginTop: 14 }}>
               {!customPrix[r.id + "_open"] ? (
                 <button
@@ -2017,10 +2003,7 @@ function Dashboard() {
           )}
 
           {/* ── Itinéraires alternatifs (court / inter / long) ── */}
-          {(normalizeStatus(r.status) === "pending" ||
-            normalizeStatus(r.status) === "accepted" ||
-            r.status === "en_route" ||
-            r.status === "arrived") && (
+          {(normalizeStatus(r.status) === "accepted" || r.status === "en_route" || r.status === "arrived") && (
             <div style={{ marginTop: 10 }}>
               {!itinOpen[r.id] ? (
                 <button
@@ -2105,7 +2088,8 @@ function Dashboard() {
                         </button>
                       ))}
                       <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
-                        ↳ Le prix et le tracé sur la carte du client seront mis à jour automatiquement. Utilisez ensuite « Modifier le prix » pour envoyer SMS / WhatsApp / Email.
+                        ↳ Le prix et le tracé sur la carte du client seront mis à jour automatiquement. Utilisez ensuite
+                        « Modifier le prix » pour envoyer SMS / WhatsApp / Email.
                       </div>
                     </div>
                   ) : (
@@ -2115,8 +2099,6 @@ function Dashboard() {
               )}
             </div>
           )}
-
-
 
           {/* ── Bouton annuler uniquement ── */}
           {(normalizeStatus(r.status) === "accepted" || r.status === "en_route" || r.status === "arrived") && (
