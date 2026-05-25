@@ -416,11 +416,17 @@ function SectionHeader({
 
 function Dashboard() {
   // ── Auth guard ──
+  const [authChecked, setAuthChecked] = useState(false);
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) window.location.href = "/admin/login";
+      if (!data.session) {
+        window.location.href = "/admin/login";
+      } else {
+        setAuthChecked(true);
+      }
     });
   }, []);
+  if (!authChecked) return null;
 
   // ── KPI stats ──
   const [caJ, setCaJ] = useState(0);
