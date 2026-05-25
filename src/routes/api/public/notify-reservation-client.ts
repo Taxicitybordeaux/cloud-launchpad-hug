@@ -128,13 +128,14 @@ export const Route = createFileRoute('/api/public/notify-reservation-client')({
           },
         })
         if (error) {
-          // Mark as failed so the unique index allows a retry.
+          log('error', { stage: 'enqueue', message: error.message })
           await supabase.from('email_send_log')
             .update({ status: 'failed', error_message: 'enqueue' })
             .eq('message_id', messageId)
           return Response.json({ error: 'enqueue' }, { status: 500 })
         }
-        return Response.json({ success: true })
+        log('enqueued', { queue: 'transactional_emails', messageId })
+        return Response.json({ success: true, messageId })
       },
     },
   },
