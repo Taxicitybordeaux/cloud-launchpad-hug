@@ -363,6 +363,10 @@ function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [customPrix, setCustomPrix] = useState<Record<string, string>>({});
   const [customPrixSending, setCustomPrixSending] = useState<Record<string, boolean>>({});
+  const [itinOpen, setItinOpen] = useState<Record<string, boolean>>({});
+  const [itinLoading, setItinLoading] = useState<Record<string, boolean>>({});
+  const [itinAlts, setItinAlts] = useState<Record<string, { label: string; km: number; prix: number; coords: [number, number][] }[]>>({});
+  const [itinSaving, setItinSaving] = useState<Record<string, boolean>>({});
   const [changeHeureOpen, setChangeHeureOpen] = useState<Record<string, boolean>>({});
   const [changeHeureValue, setChangeHeureValue] = useState<Record<string, string>>({});
   const [changeHeureSending, setChangeHeureSending] = useState<Record<string, boolean>>({});
