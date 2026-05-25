@@ -256,7 +256,7 @@ interface Reservation {
   suivi_id?: string | null;
   distance_km?: number | null;
   created_at?: string | null;
-  route_coords?: [number, number][] | null;
+  route_coords?: any;
   route_label?: string | null;
 }
 
