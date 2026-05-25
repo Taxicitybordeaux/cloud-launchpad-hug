@@ -1484,7 +1484,11 @@ function Dashboard() {
       if (alts.length < 3) {
         const baseCoords = alts[0]?.coords ?? [];
         const fallback = fallbackItineraries(a, b, pickupIso, baseCoords);
-        alts = [...alts, ...fallback].sort((x, y) => x.km - y.km).slice(0, 3);
+        for (const alt of fallback) {
+          if (alts.length >= 3) break;
+          if (!alts.some((existing) => Math.abs(existing.km - alt.km) < 0.1)) alts.push(alt);
+        }
+        alts = alts.sort((x, y) => x.km - y.km).slice(0, 3);
       }
       alts = alts.slice(0, 3).map((alt, i) => ({ ...alt, label: labels[i] }));
 
