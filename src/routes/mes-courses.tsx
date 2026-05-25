@@ -331,6 +331,7 @@ function CourseCard({ course, onRebook }: { course: Course; onRebook: (c: Course
 
 function RebookModal({ course, onClose }: { course: Course; onClose: () => void }) {
   const navigate = useNavigate();
+  const { lang } = useI18n();
   const [date, setDate] = useState("");
   const [heure, setHeure] = useState("");
   const [loading, setLoading] = useState(false);
@@ -355,6 +356,7 @@ function RebookModal({ course, onClose }: { course: Course; onClose: () => void 
         status: "pending",
         pickup_datetime: new Date(`${date}T${heure}`).toISOString(),
         session_id: sid,
+        lang,
       }).select("id").single();
 
       if (error) throw error;
