@@ -72,24 +72,34 @@ function ConfirmationPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase.rpc("get_reservation_public", { p_id: id });
-      if (cancelled) return;
-      if (error || !data || data.length === 0) setNotFound(true);
-      else setReservation(data[0] as Reservation);
-      setLoading(false);
+      try {
+        const row = await fetchReservation({ data: { id } });
+        if (cancelled) return;
+        if (!row) setNotFound(true);
+        else setReservation(row as Reservation);
+      } catch {
+        if (!cancelled) setNotFound(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, fetchReservation]);
 
   const handleCancel = async () => {
     setCancelling(true);
-    const { data, error } = await supabase.rpc("cancel_reservation_public", { p_id: id });
-    setCancelling(false);
-    if (!error && data) {
-      setReservation((r) => (r ? { ...r, status: "cancelled" } : r));
-      setConfirmCancel(false);
+    try {
+      const res = await cancelReservation({ data: { id } });
+      if (res?.ok) {
+        setReservation((r) => (r ? { ...r, status: "cancelled" } : r));
+        setConfirmCancel(false);
+      }
+    } catch {
+      // silencieux : l'UI reste sur l'écran de confirmation
+    } finally {
+      setCancelling(false);
     }
   };
 
