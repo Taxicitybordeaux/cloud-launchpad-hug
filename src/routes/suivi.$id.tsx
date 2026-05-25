@@ -923,7 +923,7 @@ function SuiviPage() {
         const { data: byTracking } = await (supabase as any)
           .from("reservations")
           .select(
-            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,bagages,suivi_id,distance_km,created_at",
+            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,bagages,suivi_id,distance_km,created_at,route_coords,route_label",
           )
           .eq("suivi_id", parsed.data)
           .maybeSingle();
@@ -935,7 +935,7 @@ function SuiviPage() {
         const { data: byId } = await (supabase as any)
           .from("reservations")
           .select(
-            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,bagages,suivi_id,distance_km,created_at",
+            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,bagages,suivi_id,distance_km,created_at,route_coords,route_label",
           )
           .eq("id", id)
           .maybeSingle();
