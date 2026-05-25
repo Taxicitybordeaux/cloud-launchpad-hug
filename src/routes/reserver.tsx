@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix, calculerPrixMixte, PRISE_EN_CHARGE } from "@/lib/tarif";
 import { geocodeAddress, reverseGeocode } from "@/lib/geocode";
-import { EnablePushButton } from "@/components/EnablePushButton";
 import { newSuiviId } from "@/lib/suivi-id";
 import { subscribePush } from "@/lib/push.functions";
 import { getFcmToken } from "@/lib/firebase";
@@ -130,19 +129,6 @@ function ReservationPage() {
   const [today, setToday] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [completedReservation, setCompletedReservation] = useState<{
-    suiviId: string;
-    nom: string;
-    email: string;
-    pickup: string;
-    depart: string;
-    arrivee: string;
-    passagers: number;
-    bagages: number;
-  } | null>(null);
-  const [emailSending, setEmailSending] = useState(false);
-  const [emailSent, setEmailSent] = useState(false);
 
   const [fromCoord, setFromCoord] = useState<[number, number] | null>(null);
   const [toCoord, setToCoord] = useState<[number, number] | null>(null);
@@ -471,7 +457,7 @@ function ReservationPage() {
         tarif_jour: tarifJour,
         prix_estime: prixAller,
         source: "form",
-        lang,
+        lang: lang as any,
       });
 
       if (error) throw error;
@@ -583,7 +569,7 @@ function ReservationPage() {
                 animation: "spin 0.8s linear infinite",
               }}
             />
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#f5c842" }}>{t("rsim.loading")}…</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#f5c842" }}>{t("rsim.loading")}</span>
           </div>
         )}
       </div>
@@ -934,7 +920,7 @@ function ReservationPage() {
 
             {!orsResult && !calcLoading && fromCoord && toCoord && (
               <div style={{ color: "#fecaca", fontSize: 12, textAlign: "center", marginTop: -8 }}>
-                L'itinéraire n'a pas pu être calculé. Vérifiez vos adresses.
+                {t("res.geo.err.unavailable")}
               </div>
             )}
           </form>
