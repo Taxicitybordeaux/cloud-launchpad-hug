@@ -252,6 +252,7 @@ interface Reservation {
   prix_estime?: string | number | null;
   nb_passagers?: number | null;
   passagers?: number | null;
+  bagages?: number | null;
   suivi_id?: string | null;
   distance_km?: number | null;
   created_at?: string | null;
@@ -785,7 +786,7 @@ function SuiviPage() {
       if (resaIdRef.current) {
         const { data: r } = await supabase
           .from("reservations")
-          .select("status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,distance_km")
+          .select("status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,bagages,distance_km")
           .eq("id", resaIdRef.current)
           .maybeSingle();
         if (r) setResa((prev) => (prev ? { ...prev, ...r } : prev));
@@ -913,7 +914,7 @@ function SuiviPage() {
         const { data: byTracking } = await (supabase as any)
           .from("reservations")
           .select(
-            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,suivi_id,distance_km,created_at",
+            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,bagages,suivi_id,distance_km,created_at",
           )
           .eq("suivi_id", parsed.data)
           .maybeSingle();
@@ -925,7 +926,7 @@ function SuiviPage() {
         const { data: byId } = await (supabase as any)
           .from("reservations")
           .select(
-            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,suivi_id,distance_km,created_at",
+            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,bagages,suivi_id,distance_km,created_at",
           )
           .eq("id", id)
           .maybeSingle();
@@ -1079,7 +1080,7 @@ function SuiviPage() {
         const { data: r } = await supabase
           .from("reservations")
           .select(
-            "status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,distance_km,client_name,nom",
+            "status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,bagages,distance_km,client_name,nom",
           )
           .eq("id", resaIdRef.current)
           .maybeSingle();
