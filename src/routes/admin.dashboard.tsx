@@ -1362,6 +1362,96 @@ function Dashboard() {
   };
 
   // =========================
+  // ITINÉRAIRES ALTERNATIFS (court / inter / long)
+  // =========================
+  const loadItineraires = async (r: any) => {
+    const dep = r.depart;
+    const dest = r.destination || r.arrivee;
+    if (!dep || !dest) {
+      toast.error("Adresses manquantes");
+      return;
+    }
+    setItinLoading((p) => ({ ...p, [r.id]: true }));
+    setItinOpen((p) => ({ ...p, [r.id]: true }));
+    try {
+      const [a, b] = await Promise.all([geocodeAddress(dep), geocodeAddress(dest)]);
+      if (!a || !b) {
+        toast.error("Géocodage impossible");
+        setItinLoading((p) => ({ ...p, [r.id]: false }));
+        return;
+      }
+      const data = await fetchRoute([a.lng, a.lat], [b.lng, b.lat], {
+        overview: "full",
+        alternatives: true,
+        geometries: "geojson",
+      });
+      const routes: any[] = data?.routes ?? [];
+      if (!routes.length) {
+        toast.error("Aucun itinéraire trouvé");
+        setItinLoading((p) => ({ ...p, [r.id]: false }));
+        return;
+      }
+      const sorted = [...routes].sort((x, y) => x.distance - y.distance);
+      const pickupIso = r.pickup_datetime || new Date().toISOString();
+      const labels = ["🟢 Court", "🟡 Intermédiaire", "🔴 Long"];
+      const alts = sorted.slice(0, 3).map((rt, i) => {
+        const km = rt.distance / 1000;
+        const prix = calculerPrixMixte(km, pickupIso);
+        const coords = (rt.geometry?.coordinates as [number, number][]).map(
+          ([lng, lat]) => [lat, lng] as [number, number],
+        );
+        return { label: labels[i] || `Option ${i + 1}`, km: parseFloat(km.toFixed(2)), prix: parseFloat(prix.toFixed(2)), coords };
+      });
+      if (alts.length === 1) {
+        alts[0].label = "🟢 Itinéraire";
+      }
+      setItinAlts((p) => ({ ...p, [r.id]: alts }));
+    } catch {
+      toast.error("Erreur de calcul d'itinéraire");
+    } finally {
+      setItinLoading((p) => ({ ...p, [r.id]: false }));
+    }
+  };
+
+  const handleSelectItineraire = async (
+    r: any,
+    alt: { label: string; km: number; prix: number; coords: [number, number][] },
+  ) => {
+    setItinSaving((p) => ({ ...p, [r.id]: true }));
+    try {
+      const { error } = await supabase
+        .from("reservations")
+        .update({
+          prix_estime: alt.prix,
+          distance_km: alt.km,
+          route_coords: alt.coords as any,
+          route_label: alt.label,
+          updated_at: new Date().toISOString(),
+        } as any)
+        .eq("id", r.id);
+      if (error) throw error;
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === r.id
+            ? { ...item, prix_estime: alt.prix, distance_km: alt.km, route_coords: alt.coords, route_label: alt.label }
+            : item,
+        ),
+      );
+      // Pré-remplir le champ prix pour les boutons SMS / WhatsApp / Email
+      setCustomPrix((p) => ({ ...p, [r.id]: String(alt.prix), [r.id + "_open"]: "1" }));
+      toast.success(`${alt.label} sélectionné`, {
+        description: `${alt.km} km · ${alt.prix.toFixed(2)} € — map du client mise à jour`,
+      });
+    } catch (e: any) {
+      toast.error("Échec enregistrement", { description: e?.message ?? "" });
+    } finally {
+      setItinSaving((p) => ({ ...p, [r.id]: false }));
+    }
+  };
+
+
+
+  // =========================
   // CHANGER L'HEURE D'UNE RÉSA
   // =========================
   const handleChangeHeure = async (r: any, newDatetime: string) => {
