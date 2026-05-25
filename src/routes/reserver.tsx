@@ -6,6 +6,9 @@ import { calculerPrix, calculerPrixMixte, PRISE_EN_CHARGE } from "@/lib/tarif";
 import { geocodeAddress, reverseGeocode } from "@/lib/geocode";
 import { EnablePushButton } from "@/components/EnablePushButton";
 import { newSuiviId } from "@/lib/suivi-id";
+import { subscribePush } from "@/lib/push.functions";
+import { getFcmToken } from "@/lib/firebase";
+import { DICTS, LANGUAGES, type Lang } from "@/lib/dict";
 
 export const Route = createFileRoute("/reserver")({
   head: () => ({
@@ -164,6 +167,11 @@ function ReservationPage() {
 
   const set = (k: keyof FormState, v: any) => setF((p) => ({ ...p, [k]: v }));
 
+  const [lang, setLang] = useState<Lang>("fr");
+  const d = DICTS[lang];
+  const t = (k: string) => d[k] ?? DICTS["fr"][k] ?? k;
+  const dir = lang === "ar" ? "rtl" : "ltr";
+
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInst = useRef<any>(null);
   const routeLayer = useRef<any>(null);
@@ -312,17 +320,17 @@ function ReservationPage() {
           delete next.depart;
           return next;
         });
-        toast.success("Position détectée ✓");
+        toast.success(t("res.geo.btn") + " ✓");
         setGeolocLoading(false);
       },
       (err) => {
         setGeolocLoading(false);
         const msg =
           err.code === 1
-            ? "Permission refusée — saisissez l'adresse manuellement"
+            ? t("res.geo.err.denied")
             : err.code === 2
-              ? "Position introuvable"
-              : "Délai dépassé";
+              ? t("res.geo.err.unavailable")
+              : t("res.geo.err.timeout");
         toast.error(msg);
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
@@ -392,28 +400,42 @@ function ReservationPage() {
     check();
   }, []);
 
+  // ── Auto-push client au chargement ──────────────────────────────────────
+  useEffect(() => {
+    const registerPush = async () => {
+      try {
+        const token = await getFcmToken();
+        if (!token) return;
+        await subscribePush({ data: { audience: "client", fcm_token: token, user_agent: navigator.userAgent } });
+      } catch {
+        // silencieux — pas bloquant
+      }
+    };
+    registerPush();
+  }, []);
+
   // ── Soumission ────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const newErrors: Record<string, string> = {};
-    if (!f.prenom.trim()) newErrors.prenom = "Requis";
-    if (!f.nom.trim()) newErrors.nom = "Requis";
-    if (!f.phone.trim()) newErrors.phone = "Requis";
-    if (!f.email.trim()) newErrors.email = "Requis";
-    if (!f.depart.trim()) newErrors.depart = "Requis";
-    if (!f.destination.trim()) newErrors.destination = "Requis";
-    if (!fromCoord) newErrors.depart = "Adresse de départ non résolue";
-    if (!toCoord) newErrors.destination = "Adresse de destination non résolue";
+    if (!f.prenom.trim()) newErrors.prenom = t("res.err.required");
+    if (!f.nom.trim()) newErrors.nom = t("res.err.required");
+    if (!f.phone.trim()) newErrors.phone = t("res.err.required");
+    if (!f.email.trim()) newErrors.email = t("res.err.required");
+    if (!f.depart.trim()) newErrors.depart = t("res.err.required");
+    if (!f.destination.trim()) newErrors.destination = t("res.err.required");
+    if (!fromCoord) newErrors.depart = t("res.geo.err.unavailable");
+    if (!toCoord) newErrors.destination = t("res.geo.err.unavailable");
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      toast.error("Veuillez compléter le formulaire");
+      toast.error(t("res.err.required"));
       return;
     }
 
     if (!orsResult) {
       setErrors(newErrors);
-      toast.error("En attente du calcul d'itinéraire…");
+      toast.error(t("rsim.loading"));
       return;
     }
 
@@ -449,6 +471,7 @@ function ReservationPage() {
         tarif_jour: tarifJour,
         prix_estime: prixAller,
         source: "form",
+        lang,
       });
 
       if (error) throw error;
@@ -464,12 +487,12 @@ function ReservationPage() {
         console.error("[notify] push failed", fetchErr);
       }
 
-      toast.success(`Réservation confirmée pour ${f.prenom} !`);
+      toast.success(`${t("conf.ok.title")} ${f.prenom}`);
       setSending(false);
       navigate({ to: "/suivi/$id", params: { id: suiviId } });
     } catch (err: any) {
       setSending(false);
-      toast.error("Erreur lors de la réservation", { description: err?.message });
+      toast.error(t("res.err.global"), { description: err?.message });
     }
   };
 
@@ -528,7 +551,7 @@ function ReservationPage() {
             }}
           />
           <span style={{ fontSize: 12, fontWeight: 600, color: "#e0e0e0" }}>
-            {taxiAvailable === null ? "Vérification..." : taxiAvailable ? "Disponible" : "Indisponible"}
+            {taxiAvailable === null ? t("res.geo.loading") : taxiAvailable ? t("common.available_247") : "Indisponible"}
           </span>
         </div>
 
@@ -560,13 +583,14 @@ function ReservationPage() {
                 animation: "spin 0.8s linear infinite",
               }}
             />
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#f5c842" }}>Calcul…</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#f5c842" }}>{t("rsim.loading")}…</span>
           </div>
         )}
       </div>
 
       {/* ── Bottom sheet ── */}
       <div
+        dir={dir}
         style={{
           flexShrink: 0,
           background: "linear-gradient(180deg, #0f4bbf 0%, #0a3aa1 100%)",
@@ -592,11 +616,32 @@ function ReservationPage() {
             gap: 20,
           }}
         >
-          <div>
-            <div style={{ fontSize: 24, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Clash Display'" }}>
-              Réserver votre taxi
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Clash Display'" }}>
+                {t("res.title")}
+              </div>
+              <div style={{ fontSize: 13, color: "#cbd5e1", marginTop: 4 }}>{t("res.intro")}</div>
             </div>
-            <div style={{ fontSize: 13, color: "#cbd5e1", marginTop: 4 }}>En quelques étapes seulement</div>
+            <select
+              value={lang}
+              onChange={(e) => setLang(e.target.value as Lang)}
+              style={{
+                background: "rgba(255,255,255,0.12)",
+                border: "1px solid rgba(255,255,255,0.2)",
+                color: "#f5f5f5",
+                borderRadius: 8,
+                padding: "6px 8px",
+                fontSize: 13,
+                cursor: "pointer",
+              }}
+            >
+              {LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code} style={{ background: "#1e3a8a", color: "#f5f5f5" }}>
+                  {l.flag} {l.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <form
@@ -607,12 +652,12 @@ function ReservationPage() {
             {/* ── Coordonnées ── */}
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>
-                👤 Vos coordonnées
+                {t("res.loc.contact_section")}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 {[
-                  { k: "prenom" as const, label: "Prénom", ph: "Jean" },
-                  { k: "nom" as const, label: "Nom", ph: "Dupont" },
+                  { k: "prenom" as const, label: t("res.loc.firstname"), ph: "Jean" },
+                  { k: "nom" as const, label: t("res.loc.lastname"), ph: "Dupont" },
                 ].map(({ k, label, ph }) => (
                   <div key={k}>
                     <label
@@ -638,8 +683,8 @@ function ReservationPage() {
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10 }}>
                 {[
-                  { k: "phone" as const, label: "Téléphone", ph: "06 12 34 56 78", type: "tel" },
-                  { k: "email" as const, label: "Email", ph: "jean@exemple.fr", type: "email" },
+                  { k: "phone" as const, label: t("res.loc.phone"), ph: "06 12 34 56 78", type: "tel" },
+                  { k: "email" as const, label: t("res.loc.email"), ph: "jean@exemple.fr", type: "email" },
                 ].map(({ k, label, ph, type }) => (
                   <div key={k}>
                     <label
@@ -668,13 +713,13 @@ function ReservationPage() {
             {/* ── Adresses ── */}
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>
-                📍 Où allons-nous ?
+                {t("res.loc.ride_section")}
               </div>
 
               {/* Départ : saisie libre + bouton géoloc */}
               <div style={{ marginBottom: 10 }}>
                 <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
-                  Départ
+                  {t("res.loc.from")}
                 </label>
                 <div style={{ position: "relative" }}>
                   <input
@@ -718,14 +763,14 @@ function ReservationPage() {
                 </div>
                 {errors.depart && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.depart}</div>}
                 {fromCoord && !errors.depart && (
-                  <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>✓ Position résolue</div>
+                  <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>✓ {t("res.geo.btn")}</div>
                 )}
               </div>
 
               {/* Destination */}
               <div>
                 <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
-                  Destination
+                  {t("res.loc.to")}
                 </label>
                 <input
                   type="text"
@@ -735,7 +780,7 @@ function ReservationPage() {
                     setToCoord(null);
                   }}
                   onBlur={resolveDestinationAddress}
-                  placeholder="Ex: Aéroport Bordeaux-Mérignac"
+                  placeholder={t("res.f.to.ph")}
                   autoComplete="off"
                   autoCorrect="off"
                   autoCapitalize="off"
@@ -747,7 +792,7 @@ function ReservationPage() {
                   <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.destination}</div>
                 )}
                 {toCoord && !errors.destination && (
-                  <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>✓ Destination résolue</div>
+                  <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>✓ {t("res.loc.to")}</div>
                 )}
               </div>
 
@@ -771,7 +816,7 @@ function ReservationPage() {
                     </div>
                   </div>
                   <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 11, color: "#cbd5e1", marginBottom: 2 }}>Prix estimé</div>
+                    <div style={{ fontSize: 11, color: "#cbd5e1", marginBottom: 2 }}>{t("rsim.estimate")}</div>
                     <div style={{ fontSize: 22, fontWeight: 800, color: "#f5c842", fontFamily: "'Clash Display'" }}>
                       {prixAller.toFixed(2)} €
                     </div>
@@ -787,11 +832,13 @@ function ReservationPage() {
 
             {/* ── Date/heure ── */}
             <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>🕐 Quand ?</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>
+                🕐 {t("res.loc.date_label")}
+              </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div>
                   <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
-                    Date
+                    {t("res.loc.date_label")}
                   </label>
                   <input
                     type="date"
@@ -803,7 +850,7 @@ function ReservationPage() {
                 </div>
                 <div>
                   <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
-                    Heure
+                    {t("res.loc.time_label")}
                   </label>
                   <input
                     type="time"
@@ -817,11 +864,13 @@ function ReservationPage() {
 
             {/* ── Passagers / Bagages ── */}
             <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>👥 Détails</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>
+                👥 {t("res.f.passengers")}
+              </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div>
                   <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
-                    Passagers
+                    {t("res.f.passengers")}
                   </label>
                   <select
                     value={f.passagers}
@@ -830,14 +879,14 @@ function ReservationPage() {
                   >
                     {[1, 2, 3, 4, 5, 6].map((n) => (
                       <option key={n} value={n}>
-                        {n} passager{n > 1 ? "s" : ""}
+                        {n} {n > 1 ? t("res.loc.passengers_pl") : t("res.loc.passenger_sg")}
                       </option>
                     ))}
                   </select>
                 </div>
                 <div>
                   <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
-                    Bagages
+                    {t("res.f.luggage")}
                   </label>
                   <select
                     value={f.bagages}
@@ -846,7 +895,7 @@ function ReservationPage() {
                   >
                     {[0, 1, 2, 3, 4, 5].map((n) => (
                       <option key={n} value={n}>
-                        {n} bagage{n > 1 ? "s" : ""}
+                        {n} {n > 1 ? t("res.loc.luggage_pl") : t("res.loc.luggage_sg")}
                       </option>
                     ))}
                   </select>
@@ -857,34 +906,12 @@ function ReservationPage() {
             {/* ── Paiement ── */}
             <div>
               <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
-                Mode de paiement
+                {t("res.loc.payment_section")}
               </label>
               <select value={f.paiement} onChange={(e) => set("paiement", e.target.value)} style={inputStyle()}>
-                <option value="especes">💵 Espèces</option>
-                <option value="cb">💳 Carte bancaire</option>
+                <option value="especes">{t("res.loc.cash")}</option>
+                <option value="cb">{t("res.loc.card")}</option>
               </select>
-            </div>
-
-            {/* ── Notifications ── */}
-            <div
-              style={{
-                padding: "12px 14px",
-                background: "rgba(245,200,66,0.08)",
-                borderRadius: 10,
-                border: "1px solid rgba(245,200,66,0.2)",
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-              }}
-            >
-              <div style={{ fontSize: 13, color: "#f5f5f5", fontWeight: 600 }}>🔔 Notifications push</div>
-              <div style={{ fontSize: 12, color: "#cbd5e1" }}>
-                Activez les notifications pour suivre votre course en temps réel.
-              </div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <EnablePushButton audience="client" variant="secondary" size="sm" label="Notifs client" />
-                <EnablePushButton audience="chauffeur" variant="outline" size="sm" label="Notifs chauffeur" />
-              </div>
             </div>
 
             {/* ── Bouton réserver ── */}
@@ -902,7 +929,7 @@ function ReservationPage() {
                 cursor: sending ? "wait" : "pointer",
               }}
             >
-              {sending ? "⏳ Réservation en cours…" : "✓ Réserver ma course"}
+              {sending ? t("res.sending") : t("res.send")}
             </button>
 
             {!orsResult && !calcLoading && fromCoord && toCoord && (
