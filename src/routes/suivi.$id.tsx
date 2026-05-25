@@ -795,7 +795,7 @@ function SuiviPage() {
       if (resaIdRef.current) {
         const { data: r } = await supabase
           .from("reservations")
-          .select("status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,bagages,distance_km")
+          .select("status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,bagages,distance_km,route_coords,route_label")
           .eq("id", resaIdRef.current)
           .maybeSingle();
         if (r) setResa((prev) => (prev ? { ...prev, ...r } : prev));
