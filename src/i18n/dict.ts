@@ -515,6 +515,7 @@ const fr: Dict = {
   "qr.feat5.d": "Par client, par scan",
   "qr.cta": "📞 Réserver — 06 73 07 23 22",
   "rsim.title": "Simulateur de prix",
+  "rsim.estimate": "Tarif estimé",
   "rsim.day": "Tarif jour (7h–19h) — 2,16 €/km",
   "rsim.night": "Tarif nuit (19h–7h) — 3,24 €/km",
   "rsim.partition": "{j}% jour / {n}% nuit",
