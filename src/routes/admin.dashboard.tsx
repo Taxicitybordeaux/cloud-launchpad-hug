@@ -415,33 +415,16 @@ function SectionHeader({
 }
 
 function Dashboard() {
-  // ── Auth guard ──
+  // ── Auth guard (sessionStorage, cohérent avec login.tsx) ──
   const [authChecked, setAuthChecked] = useState(false);
   useEffect(() => {
-    // getSession d'abord pour le cas où la session est déjà là
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        setAuthChecked(true);
-      }
-    });
-    // onAuthStateChange gère la restauration asynchrone de session
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        setAuthChecked(true);
-      } else {
-        // Attendre un tick pour éviter les faux négatifs au montage
-        setTimeout(() => {
-          supabase.auth.getSession().then(({ data }) => {
-            if (!data.session) window.location.href = "/login";
-          });
-        }, 500);
-      }
-    });
-    return () => subscription.unsubscribe();
+    if (sessionStorage.getItem("admin_pin_ok") === "1") {
+      setAuthChecked(true);
+    } else {
+      window.location.href = "/login";
+    }
   }, []);
-  if (!authChecked) return null;
+  if (!authChecked) return <div style={{ minHeight: "100vh", background: "#020817" }} />;
 
   // ── KPI stats ──
   const [caJ, setCaJ] = useState(0);
