@@ -531,6 +531,14 @@ const fr: Dict = {
   "rsim.mixed": "Tarif mixte — votre trajet déborde sur le tarif nuit",
   "rsim.fees": "* Des frais de réservation peuvent être appliqués",
   "rsim.indicative": "Prix indicatif — le compteur fait foi",
+
+  // Taxi availability badge & banner
+  "taxi.badge.available": "🚕 Taxi disponible",
+  "taxi.badge.busy": "🚕 Taxi en course",
+  "taxi.banner.busy.title": "Taxi actuellement en course",
+  "taxi.banner.busy.desc":
+    "Vous pouvez tout de même réserver — votre demande sera prise en charge dès que le taxi sera libre.",
+  "taxi.banner.available.msg": "Taxi disponible — réservation confirmée rapidement !",
 };
 
 const en: Dict = {
@@ -1015,6 +1023,13 @@ const en: Dict = {
   "rsim.mixed": "Mixed rate — your trip overlaps with the night rate",
   "rsim.fees": "* Booking fees may apply",
   "rsim.indicative": "Indicative price — the meter is authoritative",
+
+  // Taxi availability badge & banner
+  "taxi.badge.available": "🚕 Taxi available",
+  "taxi.badge.busy": "🚕 Taxi on a ride",
+  "taxi.banner.busy.title": "Taxi currently on a ride",
+  "taxi.banner.busy.desc": "You can still book — your request will be handled as soon as the taxi is free.",
+  "taxi.banner.available.msg": "Taxi available — booking confirmed quickly!",
 };
 
 const es: Dict = {
@@ -1504,6 +1519,13 @@ const es: Dict = {
   "rsim.mixed": "Tarifa mixta — tu trayecto entra en la tarifa nocturna",
   "rsim.fees": "* Pueden aplicarse gastos de reserva",
   "rsim.indicative": "Precio indicativo — el taxímetro tiene preferencia",
+
+  // Taxi availability badge & banner
+  "taxi.badge.available": "🚕 Taxi disponible",
+  "taxi.badge.busy": "🚕 Taxi en carrera",
+  "taxi.banner.busy.title": "Taxi actualmente en carrera",
+  "taxi.banner.busy.desc": "Puede reservar de todas formas — su solicitud se atenderá en cuanto el taxi esté libre.",
+  "taxi.banner.available.msg": "Taxi disponible — ¡reserva confirmada rápidamente!",
 };
 
 const it: Dict = {
@@ -1994,6 +2016,14 @@ const it: Dict = {
   "rsim.mixed": "Tariffa mista — il tragitto rientra nella tariffa notturna",
   "rsim.fees": "* Possono essere applicate spese di prenotazione",
   "rsim.indicative": "Prezzo indicativo — fa fede il tassametro",
+
+  // Taxi availability badge & banner
+  "taxi.badge.available": "🚕 Taxi disponibile",
+  "taxi.badge.busy": "🚕 Taxi in corsa",
+  "taxi.banner.busy.title": "Taxi attualmente in corsa",
+  "taxi.banner.busy.desc":
+    "Puoi comunque prenotare — la tua richiesta sarà presa in carico non appena il taxi sarà libero.",
+  "taxi.banner.available.msg": "Taxi disponibile — prenotazione confermata rapidamente!",
 };
 
 // Dictionnaire arabe — traductions clés ; fallback automatique sur le français pour les clés manquantes.
@@ -2473,6 +2503,13 @@ const ar: Dict = {
   "rsim.mixed": "تعرفة مختلطة — رحلتك تمتد إلى التعرفة الليلية",
   "rsim.fees": "* قد تطبق رسوم الحجز",
   "rsim.indicative": "سعر إرشادي — العداد هو المرجع",
+
+  // Taxi availability badge & banner
+  "taxi.badge.available": "🚕 سيارة الأجرة متاحة",
+  "taxi.badge.busy": "🚕 سيارة الأجرة في رحلة",
+  "taxi.banner.busy.title": "سيارة الأجرة في رحلة حالياً",
+  "taxi.banner.busy.desc": "يمكنك الحجز على أي حال — سيتم معالجة طلبك فور انتهاء الرحلة الحالية.",
+  "taxi.banner.available.msg": "سيارة الأجرة متاحة — سيتم تأكيد الحجز بسرعة!",
 };
 
 const pt: Dict = {
@@ -2981,6 +3018,13 @@ const pt: Dict = {
   "rsim.mixed": "Tarifa mista — o trajeto entra na tarifa noturna",
   "rsim.fees": "* Podem aplicar-se taxas de reserva",
   "rsim.indicative": "Preço indicativo — o taxímetro prevalece",
+
+  // Taxi availability badge & banner
+  "taxi.badge.available": "🚕 Táxi disponível",
+  "taxi.badge.busy": "🚕 Táxi em corrida",
+  "taxi.banner.busy.title": "Táxi atualmente em corrida",
+  "taxi.banner.busy.desc": "Pode reservar na mesma — o seu pedido será tratado assim que o táxi estiver livre.",
+  "taxi.banner.available.msg": "Táxi disponível — reserva confirmada rapidamente!",
 };
 
 export const DICTS: Record<Lang, Dict> = { fr, en, es, pt, it, ar };
