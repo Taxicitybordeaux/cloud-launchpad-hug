@@ -124,6 +124,26 @@ const inputStyle = (hasError?: boolean): React.CSSProperties => ({
   minHeight: 48,
 });
 
+/**
+ * Construit un ISO string avec l'offset réel Europe/Paris
+ * à partir d'une date "YYYY-MM-DD" et d'une heure "HH:MM".
+ * Évite la confusion UTC / local qui fausse les calculs nuit et mixte.
+ */
+function toParisIso(date: string, heure: string): string {
+  // On crée un Date "naïf" pour interroger l'offset Paris à ce moment précis
+  const naive = new Date(`${date}T${heure}:00`);
+  // Offset = diff entre l'heure locale du navigateur et l'heure Paris
+  const localStr = naive.toLocaleString("en-US", { timeZone: "Europe/Paris" });
+  const parisDate = new Date(localStr);
+  const offsetMs = naive.getTime() - parisDate.getTime();
+  const offsetMin = Math.round(offsetMs / 60000); // ex: -120 en été, -60 en hiver
+  const sign = offsetMin <= 0 ? "+" : "-";
+  const absMin = Math.abs(offsetMin);
+  const hh = String(Math.floor(absMin / 60)).padStart(2, "0");
+  const mm = String(absMin % 60).padStart(2, "0");
+  return `${date}T${heure}:00${sign}${hh}:${mm}`;
+}
+
 function ReservationPage() {
   const navigate = useNavigate();
   const [today, setToday] = useState("");
@@ -164,7 +184,7 @@ function ReservationPage() {
   const fromMarker = useRef<any>(null);
   const toMarker = useRef<any>(null);
 
-  const pickupIso = f.date && f.heure ? `${f.date}T${f.heure}:00` : null;
+  const pickupIso = f.date && f.heure ? toParisIso(f.date, f.heure) : null;
   const heureNum = f.heure ? parseInt(f.heure.split(":")[0], 10) : 12;
   const tarifJour = heureNum >= 7 && heureNum < 19;
   const prixAller =
@@ -431,7 +451,7 @@ function ReservationPage() {
       const suiviId = newSuiviId();
 
       const fullName = `${f.prenom} ${f.nom}`.trim();
-      const pickupIsoFinal = f.date && f.heure ? `${f.date}T${f.heure}:00+00:00` : new Date().toISOString();
+      const pickupIsoFinal = f.date && f.heure ? toParisIso(f.date, f.heure) : new Date().toISOString();
 
       const { error } = await supabase.from("reservations").insert({
         // NOT NULL columns
@@ -644,33 +664,11 @@ function ReservationPage() {
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-              <a
-                href="/"
-                style={{
-                  marginTop: 4,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  padding: "6px 11px",
-                  background: "rgba(255,255,255,0.1)",
-                  border: "1px solid rgba(255,255,255,0.18)",
-                  borderRadius: 10,
-                  color: "#cbd5e1",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  textDecoration: "none",
-                  flexShrink: 0,
-                }}
-              >
-                ← Site
-              </a>
-              <div>
-                <div style={{ fontSize: 24, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Clash Display'" }}>
-                  {t("res.title")}
-                </div>
-                <div style={{ fontSize: 13, color: "#cbd5e1", marginTop: 4 }}>{t("res.intro")}</div>
+            <div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Clash Display'" }}>
+                {t("res.title")}
               </div>
+              <div style={{ fontSize: 13, color: "#cbd5e1", marginTop: 4 }}>{t("res.intro")}</div>
             </div>
             <select
               value={lang}
