@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Bell, BellOff, BellRing } from "lucide-react";
 import { toast } from "sonner";
-import { requestAndSaveFCMToken } from "@/lib/firebase";
+import { getFcmToken } from "@/lib/firebase";
+import { subscribePush, unsubscribePush } from "@/lib/push.functions";
 
 type Props = {
   audience: "admin" | "chauffeur" | "client";
@@ -13,49 +15,7 @@ type Props = {
   label?: string;
 };
 
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const raw = atob(base64);
-  const out = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; ++i) out[i] = raw.charCodeAt(i);
-  return out;
-}
-
-async function getVapidKey(): Promise<string | null> {
-  try {
-    const res = await fetch("/api/push/vapid-public-key");
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.key ?? null;
-  } catch {
-    return null;
-  }
-}
-
-async function apiSubscribe(payload: {
-  audience: string;
-  endpoint: string;
-  p256dh: string;
-  auth: string;
-  reservation_id?: string | null;
-  user_agent?: string;
-}): Promise<void> {
-  const res = await fetch("/api/push/subscribe", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) throw new Error("subscribe_failed");
-}
-
-async function apiUnsubscribe(endpoint: string): Promise<void> {
-  await fetch("/api/push/unsubscribe", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ endpoint }),
-  });
-}
+const STORAGE_KEY = "fcm_token";
 
 export function EnablePushButton({
   audience,
@@ -69,67 +29,40 @@ export function EnablePushButton({
   const [subscribed, setSubscribed] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  const subscribeFn = useServerFn(subscribePush);
+  const unsubscribeFn = useServerFn(unsubscribePush);
+
   useEffect(() => {
     const ok =
       typeof window !== "undefined" &&
+      "Notification" in window &&
       "serviceWorker" in navigator &&
-      "PushManager" in window &&
-      "Notification" in window;
+      "PushManager" in window;
     setSupported(ok);
     if (!ok) return;
-    (async () => {
-      try {
-        const reg = await navigator.serviceWorker.getRegistration("/");
-        const sub = await reg?.pushManager.getSubscription();
-        setSubscribed(!!sub);
-      } catch {}
-    })();
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored && Notification.permission === "granted") setSubscribed(true);
   }, []);
 
   const enable = async () => {
     setBusy(true);
     try {
-      const perm = await Notification.requestPermission();
-      if (perm !== "granted") {
+      const fcm = await getFcmToken();
+      if (!fcm) {
         toast.error("Permission refusée", {
           description: "Activez les notifications dans les réglages du navigateur.",
         });
         return;
       }
-
-      let reg = await navigator.serviceWorker.getRegistration("/");
-      if (!reg) reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-      await navigator.serviceWorker.ready;
-
-      const key = await getVapidKey();
-      if (!key) {
-        toast.error("Clé VAPID manquante");
-        return;
-      }
-
-      let sub = await reg.pushManager.getSubscription();
-      if (!sub) {
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(key),
-        });
-      }
-
-      const json = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
-
-      await apiSubscribe({
-        audience,
-        endpoint: json.endpoint,
-        p256dh: json.keys.p256dh,
-        auth: json.keys.auth,
-        reservation_id: reservationId ?? null,
-        user_agent: navigator.userAgent.slice(0, 500),
+      await subscribeFn({
+        data: {
+          audience,
+          fcm_token: fcm,
+          reservation_id: reservationId ?? null,
+          user_agent: navigator.userAgent.slice(0, 500),
+        },
       });
-
-      // En parallèle : enregistrer aussi le token Firebase Cloud Messaging
-      // (les deux canaux coexistent, FCM nécessite une clé service-account côté serveur pour envoyer)
-      requestAndSaveFCMToken(audience).catch((err) => console.warn("[FCM] register failed", err));
-
+      localStorage.setItem(STORAGE_KEY, fcm);
       setSubscribed(true);
       toast.success("Notifications activées 🔔");
     } catch (e: any) {
@@ -143,11 +76,10 @@ export function EnablePushButton({
   const disable = async () => {
     setBusy(true);
     try {
-      const reg = await navigator.serviceWorker.getRegistration("/");
-      const sub = await reg?.pushManager.getSubscription();
-      if (sub) {
-        await apiUnsubscribe(sub.endpoint);
-        await sub.unsubscribe();
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        await unsubscribeFn({ data: { fcm_token: stored } });
+        localStorage.removeItem(STORAGE_KEY);
       }
       setSubscribed(false);
       toast.success("Notifications désactivées");

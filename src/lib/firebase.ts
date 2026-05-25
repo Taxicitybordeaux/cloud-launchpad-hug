@@ -1,9 +1,7 @@
-// Firebase Cloud Messaging client integration
-// Credentials Web Firebase sont publics par design — OK en clair côté client.
-
+// Firebase Cloud Messaging — client integration
+// Les credentials Web Firebase sont publics par design.
 import { initializeApp, type FirebaseApp } from "firebase/app";
 import { getMessaging, getToken, onMessage, isSupported, type Messaging } from "firebase/messaging";
-import { supabase } from "@/integrations/supabase/client";
 
 export const firebaseConfig = {
   apiKey: "AIzaSyB8wYcBq5-KVdPDAnXGcWzcCkTYmftTKdY",
@@ -14,6 +12,7 @@ export const firebaseConfig = {
   appId: "1:702667833979:web:653978ae325adfa06898de",
 };
 
+// Clé VAPID *Web Push* de Firebase (Console → Cloud Messaging → Web configuration)
 export const FCM_VAPID_KEY =
   "BPCVh_FRLBkhOWLLxdaKnD29L6HRNS44w4wHX_AE2DV0a0-Uc6OoofT8SldZ-V4_yMWInXt4xqbvkhGiFW-_N20";
 
@@ -37,76 +36,33 @@ export async function initFirebase(): Promise<Messaging | null> {
   }
 }
 
-/**
- * Demande la permission, récupère le token FCM, et enregistre dans push_subscriptions.
- * Idempotent : on upsert sur (endpoint = token) pour éviter les doublons.
- */
-export async function requestAndSaveFCMToken(audience: "admin" | "chauffeur" | "client" = "client"): Promise<string | null> {
+export async function getFcmToken(): Promise<string | null> {
   if (typeof window === "undefined") return null;
-  if (!("Notification" in window)) return null;
+  if (!("Notification" in window) || !("serviceWorker" in navigator)) return null;
 
   const msg = await initFirebase();
   if (!msg) return null;
 
   try {
-    const permission = await Notification.requestPermission();
-    if (permission !== "granted") {
-      console.warn("[FCM] Permission denied");
-      return null;
-    }
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") return null;
 
-    // Le SW Firebase doit être enregistré
-    let swReg: ServiceWorkerRegistration | undefined;
-    if ("serviceWorker" in navigator) {
-      try {
-        swReg =
-          (await navigator.serviceWorker.getRegistration("/firebase-messaging-sw.js")) ||
-          (await navigator.serviceWorker.register("/firebase-messaging-sw.js", { scope: "/" }));
-        await navigator.serviceWorker.ready;
-      } catch (err) {
-        console.warn("[FCM] SW registration failed", err);
-      }
-    }
+    const swReg =
+      (await navigator.serviceWorker.getRegistration("/firebase-messaging-sw.js")) ||
+      (await navigator.serviceWorker.register("/firebase-messaging-sw.js", { scope: "/" }));
+    await navigator.serviceWorker.ready;
 
     const token = await getToken(msg, {
       vapidKey: FCM_VAPID_KEY,
       serviceWorkerRegistration: swReg,
     });
-
-    if (!token) {
-      console.warn("[FCM] No token returned");
-      return null;
-    }
-
-    // Sauvegarder le token dans push_subscriptions
-    // On utilise l'endpoint = token FCM pour rester unique
-    const fakeP256dh = "fcm";
-    const fakeAuth = "fcm";
-    try {
-      await supabase.from("push_subscriptions").insert({
-        audience,
-        endpoint: `fcm://${token}`,
-        p256dh: fakeP256dh,
-        auth: fakeAuth,
-        fcm_token: token,
-        user_agent: navigator.userAgent.slice(0, 500),
-      });
-    } catch (err) {
-      // Ignore les conflits d'unicité — l'utilisateur a juste déjà ce token enregistré
-      console.warn("[FCM] save token (probable duplicate):", err);
-    }
-
-    return token;
+    return token || null;
   } catch (err) {
-    console.error("[FCM] requestAndSaveFCMToken failed", err);
+    console.error("[FCM] getFcmToken failed", err);
     return null;
   }
 }
 
-/**
- * Écoute les messages reçus en premier plan (app ouverte).
- * Les messages en arrière-plan sont gérés par firebase-messaging-sw.js
- */
 export function onForegroundMessage(callback: (payload: any) => void): () => void {
   let unsub: (() => void) | null = null;
   initFirebase().then((msg) => {
