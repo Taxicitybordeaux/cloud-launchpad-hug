@@ -1023,11 +1023,11 @@ function SuiviPage() {
         setTaxiPos({ lat: gpsLat, lng: gpsLng });
         setLastUpdate(new Date());
         // drawTripRoute d'abord pour peupler destCoordsRef, puis ETA vers la vraie destination
-        if (dep && dest) await drawTripRoute(dep, dest);
+        if (dep && dest) await drawTripRoute(dep, dest, r.route_coords);
         await calculateETA(gpsLat, gpsLng, destCoordsRef.current ?? undefined);
       } else {
         await initMap(BORDEAUX_CENTER[0], BORDEAUX_CENTER[1]);
-        if (dep && dest) drawTripRoute(dep, dest);
+        if (dep && dest) drawTripRoute(dep, dest, r.route_coords);
       }
 
       const clientName = ((r.client_name || r.nom) ?? "").toString().trim();
