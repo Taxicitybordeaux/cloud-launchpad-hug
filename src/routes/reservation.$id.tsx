@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
 import {
   CheckCircle2,
   Calendar,
@@ -15,6 +15,7 @@ import {
 import { buildReservationMessage, whatsappLink } from "@/lib/whatsapp";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useT, useI18n } from "@/i18n/I18nProvider";
+import { getReservationPublic, cancelReservationPublic } from "@/lib/reservation.functions";
 
 export const Route = createFileRoute("/reservation/$id")({
   head: () => ({
