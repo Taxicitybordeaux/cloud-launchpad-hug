@@ -50,16 +50,17 @@ async function geocodeFullAddress(address: string): Promise<{ coord: [number, nu
 }
 
 // ─── OSRM : passe par l'Edge Function Supabase (évite les blocages CORS) ─────
+const SUPABASE_URL = "https://auiagkpdpnfqxfngisfc.supabase.co";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1aWFna3BkcG5mcXhmbmdpc2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0MzU2NzUsImV4cCI6MjA5NDAxMTY3NX0.MkW2KzCYHvQ0GEjjP3_puf3PkCHWaYcvW2bI1ctTuJU";
+
 async function getOsrmRouteLongest(from: [number, number], to: [number, number]): Promise<OrsResult | null> {
   try {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-
-    const res = await fetch(`${supabaseUrl}/functions/v1/osrm-route`, {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/osrm-route`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${supabaseAnonKey}`,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify({
         from_lng: from[0],
