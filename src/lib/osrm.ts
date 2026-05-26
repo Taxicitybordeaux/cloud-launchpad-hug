@@ -9,10 +9,12 @@
  * - OSRM_DISTANCE_FACTOR       → conservé pour les calculs locaux (fallback haversine, routeToAlt…)
  */
 
-// Facteur correctif appliqué localement pour les calculs de fallback.
-// NB : l'Edge Function applique déjà ce facteur côté serveur —
-// ne PAS le réappliquer sur le résultat de getDistanceAndDurationKm.
-export const OSRM_DISTANCE_FACTOR = 1.2;
+// Facteur correctif appliqué UNIQUEMENT dans les calculs locaux de fallback haversine.
+// L'Edge Function (get_osrm_route SQL) applique déjà son propre facteur (1.32) —
+// ne PAS réappliquer sur le résultat de getDistanceAndDurationKm.
+// routeToAlt utilise les routes brutes OSRM (fetchRouteCoordinates) → on n'applique
+// aucun facteur supplémentaire : la distance brute suffit pour les alternatives visuelles.
+export const OSRM_DISTANCE_FACTOR = 1.0;
 
 // ─── getDistanceAndDurationKm ────────────────────────────────────────────────
 // Utilisé pour le calcul de prix (reserver.tsx via getOsrmRouteLongest,
