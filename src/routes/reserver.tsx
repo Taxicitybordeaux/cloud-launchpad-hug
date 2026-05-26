@@ -349,7 +349,7 @@ function ReservationPage() {
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
     );
-  }, []);
+  }, [t]);
 
   // Tentative auto au chargement (sans bloquer)
   useEffect(() => {
