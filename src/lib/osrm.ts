@@ -12,7 +12,7 @@
 // Facteur correctif appliqué localement pour les calculs de fallback.
 // NB : l'Edge Function applique déjà ce facteur côté serveur —
 // ne PAS le réappliquer sur le résultat de getDistanceAndDurationKm.
-export const OSRM_DISTANCE_FACTOR = 1.15;
+export const OSRM_DISTANCE_FACTOR = 1.2;
 
 // ─── getDistanceAndDurationKm ────────────────────────────────────────────────
 // Utilisé pour le calcul de prix (reserver.tsx via getOsrmRouteLongest,
