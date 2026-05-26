@@ -24,10 +24,15 @@ export async function searchAddress(query: string, limit = 5): Promise<Autocompl
     url.searchParams.set("q", query.trim());
     url.searchParams.set("format", "json");
     url.searchParams.set("limit", String(limit));
-    url.searchParams.set("countrycodes", "fr");
     url.searchParams.set("accept-language", "fr");
+    // Pas de restriction countrycodes pour les adresses hors France (aéroports, etc.)
     appendApiKey(url);
-    const res = await fetch(url.toString(), { headers: { "Accept-Language": "fr" } });
+    const res = await fetch(url.toString(), {
+      headers: {
+        "Accept-Language": "fr",
+        "User-Agent": "TaxiCityBordeaux/1.0 (taxicitybordeaux.fr)",
+      },
+    });
     if (!res.ok) return [];
     const data = await res.json();
     return (data ?? []).slice(0, limit).map((item: any) => ({
@@ -80,7 +85,12 @@ export async function reverseGeocode(lat: number, lng: number): Promise<string |
     url.searchParams.set("addressdetails", "1");
     url.searchParams.set("accept-language", "fr");
     appendApiKey(url);
-    const res = await fetch(url.toString(), { headers: { "Accept-Language": "fr" } });
+    const res = await fetch(url.toString(), {
+      headers: {
+        "Accept-Language": "fr",
+        "User-Agent": "TaxiCityBordeaux/1.0 (taxicitybordeaux.fr)",
+      },
+    });
     if (!res.ok) return null;
     const data = await res.json();
     if (!data) return null;
