@@ -83,3 +83,19 @@ export async function fetchRouteCoordinates(
     return null;
   }
 }
+
+// ─── getRouteGeoCoords ───────────────────────────────────────────────────────
+// Alias pratique utilisé dans suivi/$id.tsx pour récupérer les coordonnées
+// [lat, lng][] d'un itinéraire entre deux points.
+export async function getRouteGeoCoords(
+  from: [number, number], // [lng, lat]
+  to: [number, number], // [lng, lat]
+): Promise<[number, number][]> {
+  const data = await fetchRouteCoordinates([from, to], {
+    overview: "full",
+    geometries: "geojson",
+  });
+  if (!data?.routes?.[0]?.geometry?.coordinates) return [];
+  // OSRM renvoie [lng, lat], on inverse en [lat, lng] pour Leaflet
+  return (data.routes[0].geometry.coordinates as [number, number][]).map(([lng, lat]) => [lat, lng]);
+}
