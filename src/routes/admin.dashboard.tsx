@@ -295,7 +295,22 @@ function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: num
 
 async function geocodeForRoute(address: string) {
   const trimmed = address.trim();
-  const attempts = [trimmed, `${trimmed}, Bordeaux, France`];
+
+  // Simplifier les adresses trop longues (ex: adresses Nominatim complètes)
+  // On garde seulement les 2 premiers segments séparés par une virgule
+  const parts = trimmed
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const short = parts.slice(0, 2).join(", ");
+
+  const attempts = [
+    trimmed, // adresse complète telle quelle
+    short, // version courte (rue + ville)
+    `${short}, France`, // version courte + pays
+    `${parts[0]}, Bordeaux, France`, // juste la rue + Bordeaux
+  ].filter((v, i, arr) => arr.indexOf(v) === i); // dédupliquer
+
   for (const query of attempts) {
     const coord = await geocodeAddress(query);
     if (coord) return coord;
