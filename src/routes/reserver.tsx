@@ -47,23 +47,31 @@ async function geocodeFullAddress(address: string): Promise<[number, number] | n
   return c ? [c.lng, c.lat] : null;
 }
 
-// ─── OSRM : prend le chemin le plus LONG parmi les alternatives ───────────────
+// ─── OSRM : passe par l'Edge Function Supabase (évite les blocages CORS) ─────
 async function getOsrmRouteLongest(from: [number, number], to: [number, number]): Promise<OrsResult | null> {
-  // On demande jusqu'à 3 alternatives à OSRM
-  const url =
-    `https://router.project-osrm.org/route/v1/driving/` +
-    `${from[0]},${from[1]};${to[0]},${to[1]}` +
-    `?overview=false&alternatives=3&steps=false`;
   try {
-    const res = await fetch(url);
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+    const res = await fetch(`${supabaseUrl}/functions/v1/osrm-route`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${supabaseAnonKey}`,
+      },
+      body: JSON.stringify({
+        from_lng: from[0],
+        from_lat: from[1],
+        to_lng: to[0],
+        to_lat: to[1],
+      }),
+    });
     if (!res.ok) return null;
     const json = await res.json();
-    if (!json.routes || json.routes.length === 0) return null;
-    // Prendre le chemin avec la DISTANCE la plus longue
-    const longest = json.routes.reduce((best: any, r: any) => (r.distance > best.distance ? r : best));
+    if (json?.error) return null;
     return {
-      distanceKm: Math.round((longest.distance / 1000) * 10) / 10,
-      dureeS: Math.round(longest.duration),
+      distanceKm: json.distance_km,
+      dureeS: json.duration_sec,
     };
   } catch {
     return null;
@@ -560,7 +568,6 @@ function ReservationPage() {
         >
           ← Retour
         </button>
-
 
         {/* Badge disponibilité */}
         <div
