@@ -497,29 +497,6 @@ function ReservationPage() {
         console.error("[notify] push failed", fetchErr);
       }
 
-      // ── Email de confirmation au client ───────────────────────────────────
-      if (f.email) {
-        try {
-          await fetch("/api/public/notify-reservation-client", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              lang,
-              nom: fullName,
-              email: f.email,
-              pickup_datetime: pickupIsoFinal,
-              depart: f.depart,
-              arrivee: f.destination,
-              passagers: f.passagers,
-              bagages: f.bagages,
-              reservation_id: inserted.id,
-            }),
-          });
-        } catch (fetchErr) {
-          console.error("[notify-client] email failed", fetchErr);
-        }
-      }
-
       toast.success(`${t("conf.ok.title")} ${f.prenom}`);
       setSending(false);
       navigate({ to: "/suivi/$id", params: { id: suiviId } });
