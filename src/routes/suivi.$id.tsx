@@ -5,7 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { getRouteGeoCoords, getDistanceAndDurationKm } from "@/lib/osrm";
 import { geocodeAddress } from "@/lib/geocode";
-import { OSM_TILE_URL, OSM_TILE_OPTIONS } from "@/lib/map";
+const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+const OSM_TILE_OPTIONS = { attribution: "© OpenStreetMap contributors", maxZoom: 19 };
 import { suiviIdSchema } from "@/lib/suivi-id";
 
 export const Route = createFileRoute("/suivi/$id")({
