@@ -25,14 +25,15 @@ export const OSRM_AUTH_HEADER = DEFAULT_OSRM_AUTH_HEADER.trim();
  * Coefficient de correction distance OSRM → réalité terrain (référence Google Maps).
  * OSRM sous-estime légèrement les distances par rapport à Google Maps.
  * Calibrer sur vos trajets réels : ratio = distance_gmaps / distance_osrm_brute.
- * Configurable via VITE_OSRM_DISTANCE_FACTOR dans le .env (défaut : 1.15).
+ * Configurable via VITE_OSRM_DISTANCE_FACTOR dans le .env (défaut : 1.32).
+ * Calibré sur trajets réels Bordeaux : OSRM retourne ~8.3 km pour un trajet Google Maps à 11 km → ratio 1.32.
  */
 const DEFAULT_OSRM_DISTANCE_FACTOR =
   typeof import.meta !== "undefined" && import.meta.env?.VITE_OSRM_DISTANCE_FACTOR
     ? parseFloat(import.meta.env.VITE_OSRM_DISTANCE_FACTOR as string)
-    : 1.15;
+    : 1.32;
 export const OSRM_DISTANCE_FACTOR =
-  isNaN(DEFAULT_OSRM_DISTANCE_FACTOR) || DEFAULT_OSRM_DISTANCE_FACTOR <= 0 ? 1.15 : DEFAULT_OSRM_DISTANCE_FACTOR;
+  isNaN(DEFAULT_OSRM_DISTANCE_FACTOR) || DEFAULT_OSRM_DISTANCE_FACTOR <= 0 ? 1.32 : DEFAULT_OSRM_DISTANCE_FACTOR;
 
 type RouteOptions = {
   overview?: "full" | "simplified" | "false";
