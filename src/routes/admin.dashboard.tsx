@@ -321,7 +321,7 @@ function detourPoint(a: { lat: number; lng: number }, b: { lat: number; lng: num
 function routeToAlt(route: any, label: string, pickupIso: string): ItineraryAlt | null {
   const points = route?.geometry?.coordinates;
   if (!Array.isArray(points) || points.length < 2 || !route?.distance) return null;
-  const km = route.distance / 1000;
+  const km = (route.distance / 1000) * 1.15; // ×1.15 correctif OSRM vs réalité terrain (Google Maps)
   const prix = calculerPrixMixte(km, pickupIso);
   return {
     label,
