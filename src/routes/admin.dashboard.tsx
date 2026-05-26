@@ -321,7 +321,6 @@ function detourPoint(a: { lat: number; lng: number }, b: { lat: number; lng: num
 function routeToAlt(route: any, label: string, pickupIso: string): ItineraryAlt | null {
   const points = route?.geometry?.coordinates;
   if (!Array.isArray(points) || points.length < 2 || !route?.distance) return null;
-  // fetchRouteCoordinates retourne la distance brute OSRM → on applique OSRM_DISTANCE_FACTOR ici
   const km = (route.distance / 1000) * OSRM_DISTANCE_FACTOR;
   const prix = calculerPrixMixte(km, pickupIso);
   return {
@@ -1508,7 +1507,7 @@ function Dashboard() {
       const pickupIso = r.pickup_datetime || new Date().toISOString();
       const labels = ["🟢 Court", "🟡 Intermédiaire", "🔴 Long"];
       const storedKm = Number(r.distance_km) || 0;
-      const directKm = storedKm > 0 ? storedKm : haversineKm(a, b) * 1.15; // ×1.15 haversine → distance routière estimée (fallback sans OSRM)
+      const directKm = storedKm > 0 ? storedKm : haversineKm(a, b) * OSRM_DISTANCE_FACTOR; // facteur terrain calibré
       const detours = [0, Math.max(1.2, directKm * 0.08), Math.max(2.2, directKm * 0.16)];
       const routeAttempts = await Promise.all(
         detours.map((detour, i) => {
