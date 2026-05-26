@@ -321,7 +321,8 @@ function detourPoint(a: { lat: number; lng: number }, b: { lat: number; lng: num
 function routeToAlt(route: any, label: string, pickupIso: string): ItineraryAlt | null {
   const points = route?.geometry?.coordinates;
   if (!Array.isArray(points) || points.length < 2 || !route?.distance) return null;
-  const km = (route.distance / 1000) * OSRM_DISTANCE_FACTOR;
+  // Distance nette : brut OSRM × 1.32 (facteur correctif taxi Bordeaux)
+  const km = (route.distance / 1000) * 1.32;
   const prix = calculerPrixMixte(km, pickupIso);
   return {
     label,
@@ -1508,11 +1509,13 @@ function Dashboard() {
       const labels = ["🟢 Court", "🟡 Intermédiaire", "🔴 Long"];
       // Toujours recalculer via OSRM (distance_km en base peut être une ancienne valeur brute sans facteur)
       const freshRoute = await getDistanceAndDurationKm([a.lng, a.lat], [b.lng, b.lat]);
-      const directKm =
-        freshRoute && freshRoute.distanceKm > 0
-          ? freshRoute.distanceKm // OSRM_DISTANCE_FACTOR déjà appliqué dans getDistanceAndDurationKm
-          : haversineKm(a, b) * OSRM_DISTANCE_FACTOR;
-      const detours = [0, Math.max(1.2, directKm * 0.08), Math.max(2.2, directKm * 0.16)];
+      // directKmBrut = distance géographique réelle pour positionner les waypoints de détour.
+      // L'Edge Function renvoie distanceKm déjà × 1.32 → on divise pour avoir la distance brute OSRM.
+      // Les distances affichées (nettes) viennent de routeToAlt qui applique × 1.32 sur le brut.
+      const SQL_FACTOR = 1.32;
+      const directKmBrut =
+        freshRoute && freshRoute.distanceKm > 0 ? freshRoute.distanceKm / SQL_FACTOR : haversineKm(a, b);
+      const detours = [0, Math.max(0.8, directKmBrut * 0.07), Math.max(1.5, directKmBrut * 0.14)];
       const routeAttempts = await Promise.all(
         detours.map((detour, i) => {
           const mid = detour ? detourPoint(a, b, detour) : null;
