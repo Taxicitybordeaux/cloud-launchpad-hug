@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix, calculerPrixMixte, PRISE_EN_CHARGE } from "@/lib/tarif";
-import { geocodeAddress, reverseGeocode } from "@/lib/geocode";
+import { geocodeAddress, reverseGeocode, searchAddress } from "@/lib/geocode";
 import { newSuiviId } from "@/lib/suivi-id";
 import { subscribePush } from "@/lib/push.functions";
 import { getFcmToken } from "@/lib/firebase";
@@ -40,11 +40,13 @@ interface OrsResult {
   dureeS: number;
 }
 
-async function geocodeFullAddress(address: string): Promise<[number, number] | null> {
-  // Essai avec Bordeaux, puis sans
-  let c = await geocodeAddress(address + ", Bordeaux, France");
-  if (!c) c = await geocodeAddress(address);
-  return c ? [c.lng, c.lat] : null;
+async function geocodeFullAddress(address: string): Promise<{ coord: [number, number]; label: string } | null> {
+  // Essai 1 : adresse telle quelle, essai 2 : avec ", France"
+  let results = await searchAddress(address, 1);
+  if (!results.length) results = await searchAddress(address + ", France", 1);
+  if (!results.length) return null;
+  const r = results[0];
+  return { coord: [r.coord[1], r.coord[0]], label: r.label };
 }
 
 // ─── OSRM : passe par l'Edge Function Supabase (évite les blocages CORS) ─────
@@ -323,8 +325,15 @@ function ReservationPage() {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
 
-        // reverseGeocode(lat, lng) — même signature que l'original
-        const adresse = await reverseGeocode(lat, lng).catch(() => null);
+        // Tentative 1 : reverse geocoding → adresse lisible
+        let adresse = await reverseGeocode(lat, lng).catch(() => null);
+
+        // Tentative 2 : si reverseGeocode échoue (CORS, timeout…),
+        // on cherche via searchAddress avec les coordonnées
+        if (!adresse) {
+          const fallback = await searchAddress(`${lat}, ${lng}`, 1).catch(() => []);
+          adresse = fallback[0]?.label ?? null;
+        }
 
         set("depart", adresse ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
         // fromCoord en [lng, lat] pour OSRM (format GeoJSON)
@@ -349,7 +358,7 @@ function ReservationPage() {
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
     );
-  }, [t]);
+  }, []);
 
   // Tentative auto au chargement (sans bloquer)
   useEffect(() => {
@@ -361,10 +370,11 @@ function ReservationPage() {
     const value = f.depart.trim();
     if (!value) return;
     setCalcLoading(true);
-    const coord = await geocodeFullAddress(value);
+    const result = await geocodeFullAddress(value);
     setCalcLoading(false);
-    if (coord) {
-      setFromCoord(coord);
+    if (result) {
+      setFromCoord(result.coord);
+      set("depart", result.label);
       setErrors((prev) => {
         const next = { ...prev };
         delete next.depart;
@@ -381,10 +391,11 @@ function ReservationPage() {
     const value = f.destination.trim();
     if (!value) return;
     setCalcLoading(true);
-    const coord = await geocodeFullAddress(value);
+    const result = await geocodeFullAddress(value);
     setCalcLoading(false);
-    if (coord) {
-      setToCoord(coord);
+    if (result) {
+      setToCoord(result.coord);
+      set("destination", result.label);
       setErrors((prev) => {
         const next = { ...prev };
         delete next.destination;
