@@ -85,8 +85,7 @@ export async function fetchRouteCoordinates(
 }
 
 // ─── getRouteGeoCoords ───────────────────────────────────────────────────────
-// Alias pratique utilisé dans suivi/$id.tsx pour récupérer les coordonnées
-// [lat, lng][] d'un itinéraire entre deux points.
+// Utilisé dans suivi/$id.tsx pour récupérer la polyline [lat, lng][] d'un itinéraire.
 export async function getRouteGeoCoords(
   from: [number, number], // [lng, lat]
   to: [number, number], // [lng, lat]
@@ -96,6 +95,6 @@ export async function getRouteGeoCoords(
     geometries: "geojson",
   });
   if (!data?.routes?.[0]?.geometry?.coordinates) return [];
-  // OSRM renvoie [lng, lat], on inverse en [lat, lng] pour Leaflet
+  // OSRM renvoie [lng, lat] → on inverse en [lat, lng] pour Leaflet
   return (data.routes[0].geometry.coordinates as [number, number][]).map(([lng, lat]) => [lat, lng]);
 }
