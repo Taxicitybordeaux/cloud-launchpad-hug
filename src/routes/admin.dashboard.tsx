@@ -321,7 +321,7 @@ function detourPoint(a: { lat: number; lng: number }, b: { lat: number; lng: num
 function routeToAlt(route: any, label: string, pickupIso: string): ItineraryAlt | null {
   const points = route?.geometry?.coordinates;
   if (!Array.isArray(points) || points.length < 2 || !route?.distance) return null;
-  const km = (route.distance / 1000) * 1.15; // ×1.15 correctif OSRM vs réalité terrain (Google Maps)
+  const km = route.distance / 1000; // le correctif OSRM_DISTANCE_FACTOR est déjà appliqué dans osrm.ts
   const prix = calculerPrixMixte(km, pickupIso);
   return {
     label,
@@ -871,7 +871,7 @@ function Dashboard() {
     if (a && b) {
       try {
         const dd = await getDistanceAndDurationKm([a.lng, a.lat], [b.lng, b.lat]);
-        if (dd && dd.distanceKm && dd.distanceKm > 0) return Math.round(dd.distanceKm * 1.15 * 10) / 10; // ×1.15 correctif OSRM vs réalité terrain
+        if (dd && dd.distanceKm && dd.distanceKm > 0) return Math.round(dd.distanceKm * 10) / 10; // correctif déjà appliqué dans osrm.ts (OSRM_DISTANCE_FACTOR)
       } catch {}
       const dLat = ((b.lat - a.lat) * Math.PI) / 180;
       const dLng = ((b.lng - a.lng) * Math.PI) / 180;
@@ -1507,7 +1507,7 @@ function Dashboard() {
       const pickupIso = r.pickup_datetime || new Date().toISOString();
       const labels = ["🟢 Court", "🟡 Intermédiaire", "🔴 Long"];
       const storedKm = Number(r.distance_km) || 0;
-      const directKm = storedKm > 0 ? storedKm : haversineKm(a, b) * 1.15; // ×1.15 correctif OSRM vs réalité terrain
+      const directKm = storedKm > 0 ? storedKm : haversineKm(a, b) * 1.15; // ×1.15 haversine → distance routière estimée (fallback sans OSRM)
       const detours = [0, Math.max(1.2, directKm * 0.08), Math.max(2.2, directKm * 0.16)];
       const routeAttempts = await Promise.all(
         detours.map((detour, i) => {
