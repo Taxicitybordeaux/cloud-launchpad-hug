@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix, calculerPrixMixte } from "@/lib/tarif";
-import { getDistanceAndDurationKm, fetchRouteCoordinates } from "@/lib/osrm";
+import { getDistanceAndDurationKm, fetchRouteCoordinates, OSRM_DISTANCE_FACTOR } from "@/lib/osrm";
 import { geocodeAddress } from "@/lib/geocode";
 import { assertSuiviId, newSuiviId } from "@/lib/suivi-id";
 import { CourseCardSkeleton, GpsCardSkeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
@@ -321,7 +321,8 @@ function detourPoint(a: { lat: number; lng: number }, b: { lat: number; lng: num
 function routeToAlt(route: any, label: string, pickupIso: string): ItineraryAlt | null {
   const points = route?.geometry?.coordinates;
   if (!Array.isArray(points) || points.length < 2 || !route?.distance) return null;
-  const km = route.distance / 1000; // le correctif OSRM_DISTANCE_FACTOR est déjà appliqué dans osrm.ts
+  // fetchRouteCoordinates retourne la distance brute OSRM → on applique OSRM_DISTANCE_FACTOR ici
+  const km = (route.distance / 1000) * OSRM_DISTANCE_FACTOR;
   const prix = calculerPrixMixte(km, pickupIso);
   return {
     label,
