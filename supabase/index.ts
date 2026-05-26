@@ -3,7 +3,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const OSRM_DISTANCE_FACTOR = 1.2;
+const OSRM_DISTANCE_FACTOR = 1.0;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
