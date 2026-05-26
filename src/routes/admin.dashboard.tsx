@@ -1506,8 +1506,12 @@ function Dashboard() {
       }
       const pickupIso = r.pickup_datetime || new Date().toISOString();
       const labels = ["🟢 Court", "🟡 Intermédiaire", "🔴 Long"];
-      const storedKm = Number(r.distance_km) || 0;
-      const directKm = storedKm > 0 ? storedKm : haversineKm(a, b) * OSRM_DISTANCE_FACTOR; // facteur terrain calibré
+      // Toujours recalculer via OSRM (distance_km en base peut être une ancienne valeur brute sans facteur)
+      const freshRoute = await getDistanceAndDurationKm([a.lng, a.lat], [b.lng, b.lat]);
+      const directKm =
+        freshRoute && freshRoute.distanceKm > 0
+          ? freshRoute.distanceKm // OSRM_DISTANCE_FACTOR déjà appliqué dans getDistanceAndDurationKm
+          : haversineKm(a, b) * OSRM_DISTANCE_FACTOR;
       const detours = [0, Math.max(1.2, directKm * 0.08), Math.max(2.2, directKm * 0.16)];
       const routeAttempts = await Promise.all(
         detours.map((detour, i) => {
