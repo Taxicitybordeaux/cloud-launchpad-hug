@@ -21,6 +21,19 @@ export const OSRM_API_KEY = DEFAULT_OSRM_KEY.trim();
 export const OSRM_KEY_PARAM = DEFAULT_OSRM_KEY_PARAM.trim() || "api_key";
 export const OSRM_AUTH_HEADER = DEFAULT_OSRM_AUTH_HEADER.trim();
 
+/**
+ * Coefficient de correction distance OSRM → réalité terrain (référence Google Maps).
+ * OSRM sous-estime légèrement les distances par rapport à Google Maps.
+ * Calibrer sur vos trajets réels : ratio = distance_gmaps / distance_osrm_brute.
+ * Configurable via VITE_OSRM_DISTANCE_FACTOR dans le .env (défaut : 1.15).
+ */
+const DEFAULT_OSRM_DISTANCE_FACTOR =
+  typeof import.meta !== "undefined" && import.meta.env?.VITE_OSRM_DISTANCE_FACTOR
+    ? parseFloat(import.meta.env.VITE_OSRM_DISTANCE_FACTOR as string)
+    : 1.15;
+export const OSRM_DISTANCE_FACTOR =
+  isNaN(DEFAULT_OSRM_DISTANCE_FACTOR) || DEFAULT_OSRM_DISTANCE_FACTOR <= 0 ? 1.15 : DEFAULT_OSRM_DISTANCE_FACTOR;
+
 type RouteOptions = {
   overview?: "full" | "simplified" | "false";
   alternatives?: boolean | number;
@@ -70,7 +83,7 @@ export async function getDistanceAndDurationKm(from: [number, number], to: [numb
     const data = await fetchRoute(from, to, { overview: "false", alternatives: false, steps: false });
     const route = data?.routes?.[0];
     if (!route) return null;
-    return { distanceKm: (route.distance / 1000) * 1.15, durationSec: route.duration }; // ×1.15 correctif OSRM vs réalité terrain
+    return { distanceKm: (route.distance / 1000) * OSRM_DISTANCE_FACTOR, durationSec: route.duration };
   } catch (err) {
     return null;
   }
@@ -84,7 +97,7 @@ export async function getRouteGeoCoords(from: [number, number], to: [number, num
     const coords = (route.geometry?.coordinates as [number, number][]).map(
       ([lng, lat]) => [lat, lng] as [number, number],
     );
-    return { coords, distanceKm: (route.distance / 1000) * 1.15, durationSec: route.duration }; // ×1.15 correctif OSRM vs réalité terrain
+    return { coords, distanceKm: (route.distance / 1000) * OSRM_DISTANCE_FACTOR, durationSec: route.duration };
   } catch {
     return null;
   }
