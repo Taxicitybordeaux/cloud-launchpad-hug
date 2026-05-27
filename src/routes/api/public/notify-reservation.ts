@@ -8,7 +8,6 @@ import { sendPushToAudience } from "@/lib/push.server";
 
 const SITE_NAME = "Taxi City Bordeaux";
 const SENDER_DOMAIN = "notify.taxicitybordeaux.fr";
-const FROM_DOMAIN = "taxicitybordeaux.fr";
 const TEMPLATE_NAME = "new-reservation-admin";
 
 const schema = z.object({
@@ -39,8 +38,6 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
 
         const supabase = createClient(supabaseUrl, serviceKey);
 
-        // Pull the reservation server-side. The caller only sends an id, so they
-        // cannot fabricate the contents of the notification email to the operator.
         const { data: reservation, error: lookupError } = await supabase
           .from("reservations")
           .select(
@@ -54,7 +51,7 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
         const data = {
           ...reservation,
           phone: reservation.telephone,
-          admin_url: `${process.env.APP_URL || "https://taxicitybordeaux.fr"}/admin/dashboard`,
+          admin_url: "https://taxicitybordeaux.fr/admin/dashboard",
         };
         const template = TEMPLATES[TEMPLATE_NAME];
         if (!template || !template.to) {
@@ -64,8 +61,6 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
         const messageId = crypto.randomUUID();
         const idempotencyKey = `reservation-${reservationId}`;
 
-        // Idempotency gate: insert log row first; the unique index on
-        // idempotency_key (where status <> 'failed') rejects duplicates.
         const { error: logError } = await supabase.from("email_send_log").insert({
           message_id: messageId,
           template_name: TEMPLATE_NAME,
@@ -84,7 +79,7 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
         const text = await render(element, { plainText: true });
         const subject = typeof template.subject === "function" ? template.subject(data as any) : template.subject;
 
-        // ensure unsubscribe token (one per email address)
+        // Unsubscribe token
         const normalized = recipient.toLowerCase();
         let unsubscribeToken: string;
         const { data: existing } = await supabase
@@ -111,44 +106,48 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
           if (stored?.token) unsubscribeToken = stored.token;
         }
 
-        // Send directly via the bridge (same as send-course-email.ts) instead of enqueue_email.
-        const sendResp = await fetch(
-          `${process.env.APP_URL || "https://taxicitybordeaux.fr"}/lovable/email/transactional/send`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              message_id: messageId,
-              to: recipient,
-              from: `${SITE_NAME} <noreply@${SENDER_DOMAIN}>`,
-              reply_to: "taxi.city033@gmail.com",
-              sender_domain: SENDER_DOMAIN,
-              subject,
-              html,
-              text,
-              purpose: "transactional",
-              label: TEMPLATE_NAME,
-              idempotency_key: idempotencyKey,
-              unsubscribe_token: unsubscribeToken,
-            }),
+        // Toujours pointer vers la prod, jamais vers l'origine de la requête entrante
+        // (qui peut être l'URL de preview Lovable si le client est sur preview).
+        // On ajoute Authorization: Bearer <serviceKey> exactement comme send-course-email.ts.
+        const EMAIL_BRIDGE_URL = "https://taxicitybordeaux.fr/lovable/email/transactional/send";
+        console.log("[notify-reservation] → bridge:", EMAIL_BRIDGE_URL, "messageId:", messageId);
+
+        const sendResp = await fetch(EMAIL_BRIDGE_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceKey}`,
           },
-        );
+          body: JSON.stringify({
+            message_id: messageId,
+            to: recipient,
+            from: `${SITE_NAME} <noreply@${SENDER_DOMAIN}>`,
+            reply_to: "taxi.city033@gmail.com",
+            sender_domain: SENDER_DOMAIN,
+            subject,
+            html,
+            text,
+            purpose: "transactional",
+            label: TEMPLATE_NAME,
+            idempotency_key: idempotencyKey,
+            unsubscribe_token: unsubscribeToken,
+          }),
+        });
 
         if (!sendResp.ok) {
           const errBody = await sendResp.text().catch(() => "");
-          console.error("[notify-reservation] send failed", sendResp.status, errBody);
-          // Mark as failed so the unique index allows a retry.
+          console.error("[notify-reservation] bridge error", sendResp.status, errBody);
           await supabase
             .from("email_send_log")
-            .update({ status: "failed", error_message: `send ${sendResp.status}` })
+            .update({ status: "failed", error_message: `send ${sendResp.status}: ${errBody}` })
             .eq("message_id", messageId);
           return Response.json({ error: "send_failed" }, { status: 500 });
         }
 
-        // Update log to sent.
         await supabase.from("email_send_log").update({ status: "sent" }).eq("message_id", messageId);
 
-        // Fire-and-forget push to admins AND chauffeurs (don't block the email flow)
+        console.log("[notify-reservation] sent ok, messageId:", messageId);
+
         try {
           await Promise.all([
             sendPushToAudience("admin", {
