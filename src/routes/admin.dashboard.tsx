@@ -1535,19 +1535,31 @@ function Dashboard() {
         .filter(Boolean)
         .sort((x: ItineraryAlt, y: ItineraryAlt) => x.km - y.km);
 
-      // Court = le plus court × 0.80, Intermédiaire = 2ème × 0.84
-      // Long = le plus long de TOUTES les alternatives (sans facteur)
-      const longest = allAlts.length > 0 ? allAlts[allAlts.length - 1] : null;
-      const shortList = allAlts.slice(0, 2);
+      // Court × 0.80, Intermédiaire × 0.84 sur les routes OSRM standard
       const OSRM_CORRECTION = [0.8, 0.84];
-
-      let alts: ItineraryAlt[] = shortList.map((alt: ItineraryAlt, i: number) => {
+      let alts: ItineraryAlt[] = allAlts.slice(0, 2).map((alt: ItineraryAlt, i: number) => {
         const km = parseFloat((alt.km * OSRM_CORRECTION[i]).toFixed(2));
         return { ...alt, label: labels[i], km, prix: parseFloat(calculerPrixMixte(km, pickupIso).toFixed(2)) };
       });
 
-      if (longest) {
-        alts.push({ ...longest, label: labels[2] });
+      // Trajet long : appel séparé avec exclude=motorway pour forcer les routes urbaines
+      const coords = `${a.lng},${a.lat};${b.lng},${b.lat}`;
+      const longRouteData = await fetch(
+        `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&alternatives=3&geometries=geojson&steps=false&exclude=motorway`,
+      )
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null);
+
+      const longRoutes = (longRouteData?.routes ?? [])
+        .map((route: any) => routeToAlt(route, labels[2], pickupIso))
+        .filter(Boolean)
+        .sort((x: ItineraryAlt, y: ItineraryAlt) => y.km - x.km); // tri décroissant → le plus long en premier
+
+      if (longRoutes.length > 0) {
+        alts.push(longRoutes[0]);
+      } else if (allAlts.length > 0) {
+        const fallbackLong = allAlts[allAlts.length - 1];
+        alts.push({ ...fallbackLong, label: labels[2] });
       }
 
       // Fallback si OSRM renvoie moins de 3 routes
