@@ -487,12 +487,21 @@ function SuiviPage() {
   // ── Geocode helper ───────────────────────────────────────────────────────
   const geocode = async (q: string): Promise<[number, number] | null> => {
     try {
+      // Tronquer l'adresse à la première ligne significative pour éviter les ambiguïtés Nominatim
+      // Ex: "20 Av. Jean Monnet\nVillenave-d'Ornon\n33140" → "20 Av. Jean Monnet, Villenave-d'Ornon"
+      const cleaned = q
+        .split(/[\n\r]+/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .slice(0, 2) // garder max 2 lignes (rue + ville)
+        .join(", ");
+
       // N'ajoute ", Bordeaux" que si l'adresse ne contient pas déjà une ville ou un code postal
       const hasCity =
-        /\b(bordeaux|cenon|mérignac|merignac|pessac|talence|bègles|begles|lormont|floirac|villenave|bouliac|carbon|blanquefort|eysines|le bouscat|bruges|gradignan|cestas)\b/i.test(
-          q,
-        ) || /\b\d{5}\b/.test(q);
-      const query = hasCity ? `${q}, France` : `${q}, Bordeaux, France`;
+        /\b(bordeaux|cenon|mérignac|merignac|pessac|talence|bègles|begles|lormont|floirac|villenave|bouliac|carbon|blanquefort|eysines|le bouscat|bruges|gradignan|cestas|mérignac)\b/i.test(
+          cleaned,
+        ) || /\b\d{5}\b/.test(cleaned);
+      const query = hasCity ? `${cleaned}, France` : `${cleaned}, Bordeaux, France`;
       const c = await geocodeAddress(query);
       return c ? [c.lat, c.lng] : null;
     } catch {
@@ -676,7 +685,11 @@ function SuiviPage() {
       const L = (window as any).L;
       if (!map || !L) return;
       const [a, b] = await Promise.all([geocode(depart), geocode(destination)]);
-      if (!a || !b) return;
+      // Si le géocodage échoue, centrer sur Bordeaux plutôt que de laisser la carte dézoomée
+      if (!a || !b) {
+        if (!a && !b && mapInst.current) mapInst.current.setView(BORDEAUX_CENTER, 13, { animate: false });
+        return;
+      }
 
       depGeoRef.current = { lat: a[0], lng: a[1] };
       arrGeoRef.current = { lat: b[0], lng: b[1] };
@@ -1311,7 +1324,14 @@ function SuiviPage() {
 
   const effectiveStatus = courseTerminee ? "completed" : (resa?.status ?? "pending");
   const statut = statusConfig[effectiveStatus] ?? statusConfig.pending;
-  const arrivee = resa?.arrivee || resa?.destination || "—";
+  // Retourne la première ligne non vide d'une adresse (évite le pavé complet en affichage)
+  const cleanAddr = (addr?: string | null) =>
+    addr
+      ?.split(/[\n\r]+/)
+      .map((s) => s.trim())
+      .filter(Boolean)[0] ?? "—";
+
+  const arrivee = cleanAddr(resa?.arrivee || resa?.destination);
   const passagers = resa?.nb_passagers || resa?.passagers || 1;
   const bagages = resa?.bagages ?? 0;
   const prix = resa?.prix_estime ? `${Number(resa.prix_estime).toFixed(2)} €` : null;
@@ -1969,7 +1989,7 @@ function SuiviPage() {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {resa.depart}
+                    {cleanAddr(resa.depart)}
                   </span>
                   <span
                     style={{
@@ -1983,7 +2003,7 @@ function SuiviPage() {
                       textAlign: "right",
                     }}
                   >
-                    {resa.destination || resa.arrivee}
+                    {cleanAddr(resa.destination || resa.arrivee)}
                   </span>
                 </div>
                 {pctDone !== null && (
@@ -2137,7 +2157,7 @@ function SuiviPage() {
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {resa.depart}
+                      {cleanAddr(resa.depart)}
                     </div>
                   </div>
                   <div>
