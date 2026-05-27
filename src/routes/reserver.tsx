@@ -99,10 +99,25 @@ async function getOsrmRouteLongest(from: [number, number], to: [number, number])
     if (!res.ok) return null;
     const json = await res.json();
     if (json?.error) return null;
+
+    const rawDistKm: number = json.distance_km;
+    const rawDureeS: number = json.duration_sec;
+
+    // ── Sanity check : un taxi bordelais ne devrait jamais dépasser 500 km
+    //    ni 8 heures de trajet. Si l'API retourne une valeur aberrante
+    //    (coordonnées mal envoyées, bug serveur, route mal calculée),
+    //    on rejette le résultat plutôt que d'afficher un prix absurde.
+    const MAX_DISTANCE_KM = 500;
+    const MAX_DUREE_S = 8 * 3600; // 8 h
+    if (rawDistKm > MAX_DISTANCE_KM || rawDureeS > MAX_DUREE_S) {
+      console.warn(`[OSRM] Résultat aberrant rejeté : ${rawDistKm} km, ${Math.round(rawDureeS / 60)} min`);
+      return null;
+    }
+
     // × 1.2 pour aligner sur le trajet long affiché dans l'admin (même facteur)
     return {
-      distanceKm: parseFloat((json.distance_km * 1.2).toFixed(2)),
-      dureeS: json.duration_sec,
+      distanceKm: parseFloat((rawDistKm * 1.2).toFixed(2)),
+      dureeS: rawDureeS,
     };
   } catch {
     return null;
@@ -307,7 +322,7 @@ function ReservationPage() {
   function calculerPrixMixteLocal(distKm: number, pickupMs: number, dureeS: number): number {
     const TARIF_JOUR_KM = 2.16;
     const TARIF_NUIT_KM = 3.24;
-    const PRISE = 3.5;
+    const PRISE = 2.83;
     if (distKm <= 0) return PRISE;
     const steps = Math.max(Math.round(dureeS / 60), 1);
     const stepMs = (dureeS * 1000) / steps;
@@ -327,12 +342,12 @@ function ReservationPage() {
 
   const prixAller: number = (() => {
     if (!orsResult) return PRISE_EN_CHARGE;
-    if (pickupIso) {
-      // Calcul mixte local précis (proportionnel à la durée du trajet)
-      return calculerPrixMixteLocal(orsResult.distanceKm, new Date(pickupIso).getTime(), orsResult.dureeS);
-    }
-    // Pas de date/heure : on utilise calculerPrix avec tarif jour par défaut
-    return calculerPrix(orsResult.distanceKm, true);
+    const raw = pickupIso
+      ? calculerPrixMixteLocal(orsResult.distanceKm, new Date(pickupIso).getTime(), orsResult.dureeS)
+      : calculerPrix(orsResult.distanceKm, true);
+    // Garde-fou : prix > 2000 EUR = bug de données, on n affiche pas
+    const MAX_PRIX = 2000;
+    return raw > MAX_PRIX ? PRISE_EN_CHARGE : raw;
   })();
 
   useEffect(() => {
