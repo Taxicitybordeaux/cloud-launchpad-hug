@@ -73,7 +73,7 @@ async function geocodeFullAddress(address: string): Promise<{ coord: [number, nu
   if (!results.length) results = await searchAddress(address + ", France", 1);
   if (!results.length) return null;
   const r = results[0];
-  return { coord: [r.coord[0], r.coord[1]], label: shortLabel(r.label) }; // [lng, lat] cohérent avec géoloc native
+  return { coord: [r.coord[0], r.coord[1]], label: shortLabel(r.label) }; // [lng, lat] — cohérent avec géoloc native
 }
 
 // ─── OSRM : passe par l'Edge Function Supabase (évite les blocages CORS) ─────
@@ -109,19 +109,29 @@ async function getOsrmRouteLongest(from: [number, number], to: [number, number])
   }
 }
 
-// ─── OSRM polyline : chemin le plus long ─────────────────────────────────────
+// ─── OSRM polyline : via Edge Function Supabase (évite CORS mobile) ────────────
 async function getOsrmPolylineLongest(from: [number, number], to: [number, number]): Promise<[number, number][]> {
-  const url =
-    `https://router.project-osrm.org/route/v1/driving/` +
-    `${from[0]},${from[1]};${to[0]},${to[1]}` +
-    `?overview=full&geometries=geojson&alternatives=3&steps=false`;
   try {
-    const res = await fetch(url);
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/osrm-route`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        from_lng: from[0],
+        from_lat: from[1],
+        to_lng: to[0],
+        to_lat: to[1],
+        overview: "full",
+        geometries: "geojson",
+        alternatives: 3,
+      }),
+    });
     if (!res.ok) return [];
     const json = await res.json();
-    if (!json.routes || json.routes.length === 0) return [];
-    const longest = json.routes.reduce((best: any, r: any) => (r.distance > best.distance ? r : best));
-    return (longest.geometry?.coordinates ?? []) as [number, number][];
+    if (json?.error || !json?.geometry?.coordinates) return [];
+    return json.geometry.coordinates as [number, number][];
   } catch {
     return [];
   }
@@ -224,14 +234,106 @@ function ReservationPage() {
   const toMarker = useRef<any>(null);
 
   const pickupIso = f.date && f.heure ? toParisIso(f.date, f.heure) : null;
-  const heureNum = f.heure ? parseInt(f.heure.split(":")[0], 10) : 12;
-  const tarifJour = heureNum >= 7 && heureNum < 19;
-  const prixAller =
-    orsResult && pickupIso
-      ? calculerPrixMixte(orsResult.distanceKm, pickupIso)
-      : orsResult
-        ? calculerPrix(orsResult.distanceKm, tarifJour)
-        : PRISE_EN_CHARGE;
+
+  // ── Tarification Paris : 7h-19h = Jour, 19h-7h = Nuit
+  //    Dimanche et jours fériés → Nuit toute la journée
+  //    Si le trajet chevauche la frontière 7h ou 19h → calcul mixte proportionnel ──
+  const JOURS_FERIES_RES = new Set([
+    "2025-01-01",
+    "2025-04-21",
+    "2025-05-01",
+    "2025-05-08",
+    "2025-05-29",
+    "2025-06-09",
+    "2025-07-14",
+    "2025-08-15",
+    "2025-11-01",
+    "2025-11-11",
+    "2025-12-25",
+    "2026-01-01",
+    "2026-04-06",
+    "2026-05-01",
+    "2026-05-08",
+    "2026-05-14",
+    "2026-05-25",
+    "2026-06-04",
+    "2026-07-14",
+    "2026-08-15",
+    "2026-11-01",
+    "2026-11-11",
+    "2026-12-25",
+    "2027-01-01",
+    "2027-03-29",
+    "2027-05-01",
+    "2027-05-08",
+    "2027-05-13",
+    "2027-05-24",
+    "2027-07-14",
+    "2027-08-15",
+    "2027-11-01",
+    "2027-11-11",
+    "2027-12-25",
+  ]);
+
+  function isJourFerieRes(date: Date): boolean {
+    const yyyy = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", year: "numeric" });
+    const mm = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", month: "2-digit" });
+    const dd = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", day: "2-digit" });
+    return JOURS_FERIES_RES.has(`${yyyy}-${mm}-${dd}`);
+  }
+
+  // Retourne l'heure Paris (0-23) d'un timestamp ms
+  function heureParis(ms: number): number {
+    return parseInt(
+      new Date(ms).toLocaleString("fr-FR", {
+        timeZone: "Europe/Paris",
+        hour: "2-digit",
+        hour12: false,
+      }),
+      10,
+    );
+  }
+
+  // Vrai si ce moment est tarifé "nuit" (dimanche, férié, ou 19h-7h Paris)
+  function isMomentNuit(ms: number): boolean {
+    const date = new Date(ms);
+    const h = heureParis(ms);
+    const dimanche = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", weekday: "short" }) === "dim.";
+    return h >= 19 || h < 7 || dimanche || isJourFerieRes(date);
+  }
+
+  // Calcule le prix mixte proportionnel pour un trajet de distKm démarrant à pickupMs
+  // en découpant le trajet en tranches de 1 minute et pondérant jour/nuit
+  function calculerPrixMixteLocal(distKm: number, pickupMs: number, dureeS: number): number {
+    const TARIF_JOUR_KM = 2.16;
+    const TARIF_NUIT_KM = 3.24;
+    const PRISE = 3.5;
+    if (distKm <= 0) return PRISE;
+    const steps = Math.max(Math.round(dureeS / 60), 1);
+    const stepMs = (dureeS * 1000) / steps;
+    let jourKm = 0;
+    let nuitKm = 0;
+    for (let i = 0; i < steps; i++) {
+      const tMs = pickupMs + i * stepMs;
+      const frac = distKm / steps;
+      if (isMomentNuit(tMs)) nuitKm += frac;
+      else jourKm += frac;
+    }
+    return parseFloat((PRISE + jourKm * TARIF_JOUR_KM + nuitKm * TARIF_NUIT_KM).toFixed(2));
+  }
+
+  // tarifJour : utilisé uniquement pour le badge affiché, basé sur l'heure de départ
+  const tarifJour = pickupIso ? !isMomentNuit(new Date(pickupIso).getTime()) : true;
+
+  const prixAller: number = (() => {
+    if (!orsResult) return PRISE_EN_CHARGE;
+    if (pickupIso) {
+      // Calcul mixte local précis (proportionnel à la durée du trajet)
+      return calculerPrixMixteLocal(orsResult.distanceKm, new Date(pickupIso).getTime(), orsResult.dureeS);
+    }
+    // Pas de date/heure : on utilise calculerPrix avec tarif jour par défaut
+    return calculerPrix(orsResult.distanceKm, true);
+  })();
 
   useEffect(() => {
     const d = new Date().toISOString().split("T")[0];
@@ -389,11 +491,6 @@ function ReservationPage() {
     );
   }, []);
 
-  // Tentative auto au chargement (sans bloquer)
-  useEffect(() => {
-    handleGeolocate();
-  }, [handleGeolocate]);
-
   // ── Résoudre adresse départ (saisie manuelle) ────────────────────────────
   const resolveDepartAddress = useCallback(async () => {
     const value = f.depart.trim();
@@ -481,16 +578,27 @@ function ReservationPage() {
     if (!f.destination.trim()) newErrors.destination = t("res.err.required");
     if (!fromCoord) newErrors.depart = t("res.geo.err.unavailable");
     if (!toCoord) newErrors.destination = t("res.geo.err.unavailable");
+    if (!f.date.trim()) newErrors.date = t("res.err.required");
+    if (!f.heure.trim()) newErrors.heure = t("res.err.required");
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       toast.error(t("res.err.required"));
       return;
     }
 
-    if (!orsResult) {
-      setErrors(newErrors);
-      toast.error(t("rsim.loading"));
-      return;
+    // Fallback distance si OSRM indisponible : haversine × 1.3 (évite de bloquer la résa)
+    let distanceKm = orsResult?.distanceKm ?? 0;
+    let dureeS = orsResult?.dureeS ?? 0;
+    if (!orsResult && fromCoord && toCoord) {
+      const R = 6371;
+      const dLat = ((toCoord[1] - fromCoord[1]) * Math.PI) / 180;
+      const dLng = ((toCoord[0] - fromCoord[0]) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos((fromCoord[1] * Math.PI) / 180) * Math.cos((toCoord[1] * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+      distanceKm = parseFloat((R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.3).toFixed(2));
+      dureeS = Math.round((distanceKm / 30) * 3600); // ~30 km/h en ville
+      toast.warning("Distance estimée (GPS indisponible) — le prix peut être ajusté par le chauffeur.");
     }
 
     setSending(true);
@@ -520,12 +628,14 @@ function ReservationPage() {
           client_phone: f.phone,
           client_email: f.email,
           destination: f.destination,
-          distance_km: orsResult?.distanceKm ?? 0,
+          distance_km: distanceKm,
           nb_passagers: f.passagers,
           bagages: f.bagages,
           paiement: f.paiement,
           tarif_jour: tarifJour,
-          prix_estime: prixAller,
+          prix_estime: pickupIso
+            ? calculerPrixMixteLocal(distanceKm, new Date(pickupIso).getTime(), dureeS)
+            : prixAller,
           source: "form",
           lang: lang as any,
         })
@@ -979,6 +1089,11 @@ function ReservationPage() {
                     <div style={{ fontSize: 14, color: "#f5c842", fontWeight: 700 }}>
                       {orsResult.distanceKm} km · {Math.round(orsResult.dureeS / 60)} min
                     </div>
+                    <div
+                      style={{ fontSize: 11, color: tarifJour ? "#fbbf24" : "#818cf8", marginTop: 2, fontWeight: 600 }}
+                    >
+                      {tarifJour ? "☀️ Tarif jour (7h-19h)" : "🌙 Tarif nuit (19h-7h / dim. / férié)"}
+                    </div>
                   </div>
                   <div style={{ textAlign: "right" }}>
                     <div style={{ fontSize: 11, color: "#cbd5e1", marginBottom: 2 }}>{t("rsim.estimate")}</div>
@@ -1010,8 +1125,9 @@ function ReservationPage() {
                     value={f.date}
                     onChange={(e) => set("date", e.target.value)}
                     min={today}
-                    style={inputStyle()}
+                    style={inputStyle(!!errors.date)}
                   />
+                  {errors.date && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.date}</div>}
                 </div>
                 <div>
                   <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
@@ -1021,8 +1137,9 @@ function ReservationPage() {
                     type="time"
                     value={f.heure}
                     onChange={(e) => set("heure", e.target.value)}
-                    style={inputStyle()}
+                    style={inputStyle(!!errors.heure)}
                   />
+                  {errors.heure && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.heure}</div>}
                 </div>
               </div>
             </div>
