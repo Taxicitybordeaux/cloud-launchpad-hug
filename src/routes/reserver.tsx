@@ -73,7 +73,8 @@ async function geocodeFullAddress(address: string): Promise<{ coord: [number, nu
   if (!results.length) results = await searchAddress(address + ", France", 1);
   if (!results.length) return null;
   const r = results[0];
-  return { coord: [r.coord[0], r.coord[1]], label: shortLabel(r.label) }; // [lng, lat] — cohérent avec géoloc native
+  // searchAddress retourne [lat, lng] — on stocke dans ce même ordre
+  return { coord: [r.coord[0], r.coord[1]], label: shortLabel(r.label) };
 }
 
 // ─── OSRM : passe par l'Edge Function Supabase (évite les blocages CORS) ─────
@@ -90,10 +91,10 @@ async function getOsrmRouteLongest(from: [number, number], to: [number, number])
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify({
-        from_lng: from[0],
-        from_lat: from[1],
-        to_lng: to[0],
-        to_lat: to[1],
+        from_lat: from[0],
+        from_lng: from[1],
+        to_lat: to[0],
+        to_lng: to[1],
       }),
     });
     if (!res.ok) {
@@ -121,11 +122,11 @@ async function getOsrmRouteLongest(from: [number, number], to: [number, number])
     //    à vol d'oiseau entre les deux points. Si c'est le cas, l'API a retourné
     //    une route aberrante (coordonnées inversées, bug serveur, etc.)
     const R = 6371;
-    const dLat = ((from[1] - to[1]) * Math.PI) / 180;
-    const dLng = ((from[0] - to[0]) * Math.PI) / 180;
+    const dLat = ((from[0] - to[0]) * Math.PI) / 180;
+    const dLng = ((from[1] - to[1]) * Math.PI) / 180;
     const a =
       Math.sin(dLat / 2) ** 2 +
-      Math.cos((from[1] * Math.PI) / 180) * Math.cos((to[1] * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+      Math.cos((from[0] * Math.PI) / 180) * Math.cos((to[0] * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
     const volOiseauKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     // Ratio routier normal : 1.1× à 2× la distance à vol d'oiseau max
     if (rawDistKm > volOiseauKm * 10 || rawDistKm < 0.05) {
@@ -155,10 +156,10 @@ async function getOsrmPolylineLongest(from: [number, number], to: [number, numbe
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify({
-        from_lng: from[0],
-        from_lat: from[1],
-        to_lng: to[0],
-        to_lat: to[1],
+        from_lat: from[0],
+        from_lng: from[1],
+        to_lat: to[0],
+        to_lng: to[1],
         overview: "full",
         geometries: "geojson",
         alternatives: 3,
@@ -426,7 +427,7 @@ function ReservationPage() {
         iconAnchor: [8, 8],
       });
       if (fromMarker.current) fromMarker.current.remove();
-      fromMarker.current = L.marker([fromCoord[1], fromCoord[0]], { icon }).addTo(map);
+      fromMarker.current = L.marker([fromCoord[0], fromCoord[1]], { icon }).addTo(map);
     }
 
     if (toCoord) {
@@ -437,7 +438,7 @@ function ReservationPage() {
         iconAnchor: [8, 8],
       });
       if (toMarker.current) toMarker.current.remove();
-      toMarker.current = L.marker([toCoord[1], toCoord[0]], { icon }).addTo(map);
+      toMarker.current = L.marker([toCoord[0], toCoord[1]], { icon }).addTo(map);
     }
 
     if (fromCoord && toCoord) {
@@ -455,15 +456,15 @@ function ReservationPage() {
           ).addTo(mapInst.current);
           mapInst.current.fitBounds(
             L.latLngBounds([
-              [fromCoord[1], fromCoord[0]],
-              [toCoord[1], toCoord[0]],
+              [fromCoord[0], fromCoord[1]],
+              [toCoord[0], toCoord[1]],
               ...coords.map((c) => [c[1], c[0]]),
             ]).pad(0.25),
           );
         }
       });
     } else if (fromCoord) {
-      map.setView([fromCoord[1], fromCoord[0]], 14);
+      map.setView([fromCoord[0], fromCoord[1]], 14);
     }
   }, [fromCoord, toCoord]);
 
@@ -503,8 +504,8 @@ function ReservationPage() {
         }
 
         set("depart", adresse ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
-        // fromCoord en [lng, lat] pour OSRM (format GeoJSON)
-        setFromCoord([lng, lat]);
+        // fromCoord en [lat, lng]
+        setFromCoord([lat, lng]);
         setErrors((prev) => {
           const next = { ...prev };
           delete next.depart;
@@ -627,11 +628,11 @@ function ReservationPage() {
     let dureeS = orsResult?.dureeS ?? 0;
     if (!orsResult && fromCoord && toCoord) {
       const R = 6371;
-      const dLat = ((toCoord[1] - fromCoord[1]) * Math.PI) / 180;
-      const dLng = ((toCoord[0] - fromCoord[0]) * Math.PI) / 180;
+      const dLat = ((toCoord[0] - fromCoord[0]) * Math.PI) / 180;
+      const dLng = ((toCoord[1] - fromCoord[1]) * Math.PI) / 180;
       const a =
         Math.sin(dLat / 2) ** 2 +
-        Math.cos((fromCoord[1] * Math.PI) / 180) * Math.cos((toCoord[1] * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+        Math.cos((fromCoord[0] * Math.PI) / 180) * Math.cos((toCoord[0] * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
       distanceKm = parseFloat((R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.3).toFixed(2));
       dureeS = Math.round((distanceKm / 30) * 3600); // ~30 km/h en ville
       toast.warning("Distance estimée (GPS indisponible) — le prix peut être ajusté par le chauffeur.");
