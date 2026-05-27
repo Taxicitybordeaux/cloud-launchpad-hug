@@ -727,8 +727,10 @@ function Dashboard() {
   // GPS mini-map
   useEffect(() => {
     if (!gpsActive || !gpsMapRef.current) return;
-    const L = (window as any).L;
+    // Flag pour détecter si le cleanup a tourné avant la fin de l'init async
+    let cancelled = false;
     const initMap = async () => {
+      const L = (window as any).L;
       if (!L) {
         await new Promise<void>((resolve) => {
           if (!document.getElementById("leaflet-css-admin")) {
@@ -745,17 +747,25 @@ function Dashboard() {
             s.onload = () => resolve();
             document.head.appendChild(s);
           } else {
-            const poll = setInterval(() => {
-              if ((window as any).L) {
-                clearInterval(poll);
-                resolve();
-              }
-            }, 50);
+            // Script déjà présent mais window.L peut ne pas être encore dispo :
+            // on poll jusqu'à ce qu'il soit prêt (fix Bug 4 : resolve() jamais appelé)
+            if ((window as any).L) {
+              resolve();
+            } else {
+              const poll = setInterval(() => {
+                if ((window as any).L) {
+                  clearInterval(poll);
+                  resolve();
+                }
+              }, 50);
+            }
           }
         });
       }
+      // Bug 3 : si le cleanup a déjà tourné (gpsActive → false pendant l'await),
+      // on n'initialise pas la map pour éviter une fuite mémoire / crash.
+      if (cancelled || !gpsMapRef.current || gpsMapInst.current) return;
       const Lx = (window as any).L;
-      if (!gpsMapRef.current || gpsMapInst.current) return;
       const center: [number, number] = gpsPosition ? [gpsPosition.lat, gpsPosition.lng] : [44.8378, -0.5792];
       const map = Lx.map(gpsMapRef.current, { center, zoom: 15, zoomControl: true, attributionControl: false });
       Lx.tileLayer(OSM_TILE_URL, OSM_TILE_OPTIONS).addTo(map);
@@ -771,6 +781,7 @@ function Dashboard() {
     };
     initMap();
     return () => {
+      cancelled = true;
       if (gpsMapInst.current) {
         gpsMapInst.current.remove();
         gpsMapInst.current = null;
@@ -1196,6 +1207,10 @@ function Dashboard() {
       return;
     }
     setGpsError(null);
+    // ── Reset des refs de position pour éviter qu'un heartbeat parte
+    // avec des coordonnées obsolètes si le GPS est redémarré ──────────────
+    lastPosRef.current = null;
+    lastKnownPosRef.current = null;
     await (supabase as any)
       .from("driver_gps")
       .update({ is_active: true, updated_at: new Date().toISOString() })
@@ -1225,26 +1240,10 @@ function Dashboard() {
     }
 
     // ── Handlers définis avant watchPosition pour éviter les refs circulaires ──
-    const handleError = (err: GeolocationPositionError) => {
-      console.error("GPS error", err.code, err.message);
-      const msgs: Record<number, string> = {
-        1: "Permission GPS refusée. Autorisez la localisation dans les réglages.",
-        2: "Position GPS indisponible (intérieur ?). Retry dans 8s…",
-        3: "GPS timeout. Retry dans 8s…",
-      };
-      setGpsError(msgs[err.code] ?? "Erreur GPS inconnue.");
-      if (err.code !== 1) {
-        if (gpsRetryTimerRef.current) clearTimeout(gpsRetryTimerRef.current);
-        gpsRetryTimerRef.current = setTimeout(() => {
-          if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
-          watchIdRef.current = navigator.geolocation.watchPosition(handlePosition, handleError, {
-            enableHighAccuracy: true,
-            maximumAge: 0,
-            timeout: 15000,
-          });
-        }, 8000);
-      }
-    };
+    // handleErrorRef permet à handlePosition d'être déclaré avant handleError
+    // tout en permettant à handleError de rappeler watchPosition avec handlePosition
+    // (évite le ReferenceError sur les const non hoistées).
+    const handleErrorRef: { current: ((err: GeolocationPositionError) => void) | null } = { current: null };
 
     const handlePosition = async (pos: GeolocationPosition) => {
       const { latitude, longitude, accuracy: acc, heading: rawHeading } = pos.coords;
@@ -1336,6 +1335,31 @@ function Dashboard() {
         }
       }
     };
+
+    // handleError est déclaré APRÈS handlePosition pour éviter le ReferenceError
+    // (les const ne sont pas hoistées en JS). handleErrorRef permet le retry.
+    const handleError = (err: GeolocationPositionError) => {
+      console.error("GPS error", err.code, err.message);
+      const msgs: Record<number, string> = {
+        1: "Permission GPS refusée. Autorisez la localisation dans les réglages.",
+        2: "Position GPS indisponible (intérieur ?). Retry dans 8s…",
+        3: "GPS timeout. Retry dans 8s…",
+      };
+      setGpsError(msgs[err.code] ?? "Erreur GPS inconnue.");
+      if (err.code !== 1) {
+        if (gpsRetryTimerRef.current) clearTimeout(gpsRetryTimerRef.current);
+        gpsRetryTimerRef.current = setTimeout(() => {
+          if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+          // On utilise les fonctions locales déjà déclarées — plus de problème de hoisting
+          watchIdRef.current = navigator.geolocation.watchPosition(handlePosition, handleError, {
+            enableHighAccuracy: true,
+            maximumAge: 0,
+            timeout: 15000,
+          });
+        }, 8000);
+      }
+    };
+    handleErrorRef.current = handleError;
 
     // Démarrer watchPosition
     watchIdRef.current = navigator.geolocation.watchPosition(handlePosition, handleError, {
