@@ -72,8 +72,9 @@ async function getOsrmRouteLongest(from: [number, number], to: [number, number])
     if (!res.ok) return null;
     const json = await res.json();
     if (json?.error) return null;
+    // × 1.2 pour aligner sur le trajet long affiché dans l'admin (même facteur)
     return {
-      distanceKm: json.distance_km,
+      distanceKm: parseFloat((json.distance_km * 1.2).toFixed(2)),
       dureeS: json.duration_sec,
     };
   } catch {
