@@ -1529,26 +1529,26 @@ function Dashboard() {
         },
       ).catch(() => null);
 
-      // Facteurs correctifs par position pour aligner OSRM sur les distances Google Maps.
-      // OSRM surévalue les trajets courts dans ce secteur (Bordeaux/Gironde).
-      // Court × 0.80 | Intermédiaire × 0.84 | Long × 1.00
-      const OSRM_CORRECTION = [0.8, 0.84, 1.0];
-
       const routes = osrmData?.routes ?? [];
-      let alts: ItineraryAlt[] = routes
+      const allAlts = routes
         .map((route: any) => routeToAlt(route, "", pickupIso))
         .filter(Boolean)
-        .sort((x: ItineraryAlt, y: ItineraryAlt) => x.km - y.km)
-        .slice(0, 3)
-        .map((alt: ItineraryAlt, i: number) => {
-          const km = parseFloat((alt.km * OSRM_CORRECTION[i]).toFixed(2));
-          return {
-            ...alt,
-            label: labels[i],
-            km,
-            prix: parseFloat(calculerPrixMixte(km, pickupIso).toFixed(2)),
-          };
-        });
+        .sort((x: ItineraryAlt, y: ItineraryAlt) => x.km - y.km);
+
+      // Court = le plus court × 0.80, Intermédiaire = 2ème × 0.84
+      // Long = le plus long de TOUTES les alternatives (sans facteur)
+      const longest = allAlts.length > 0 ? allAlts[allAlts.length - 1] : null;
+      const shortList = allAlts.slice(0, 2);
+      const OSRM_CORRECTION = [0.8, 0.84];
+
+      let alts: ItineraryAlt[] = shortList.map((alt: ItineraryAlt, i: number) => {
+        const km = parseFloat((alt.km * OSRM_CORRECTION[i]).toFixed(2));
+        return { ...alt, label: labels[i], km, prix: parseFloat(calculerPrixMixte(km, pickupIso).toFixed(2)) };
+      });
+
+      if (longest) {
+        alts.push({ ...longest, label: labels[2] });
+      }
 
       // Fallback si OSRM renvoie moins de 3 routes
       if (alts.length < 3) {
