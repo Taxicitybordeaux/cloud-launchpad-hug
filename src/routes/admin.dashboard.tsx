@@ -295,7 +295,14 @@ function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: num
 
 async function geocodeForRoute(address: string) {
   const trimmed = address.trim();
-  const attempts = [trimmed, `${trimmed}, Bordeaux, France`];
+  const parts = trimmed
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const short = parts.slice(0, 2).join(", ");
+  const attempts = [trimmed, short, `${short}, France`, `${parts[0]}, Bordeaux, France`, `${parts[0]}, France`].filter(
+    (v, i, arr) => v.length > 3 && arr.indexOf(v) === i,
+  );
   for (const query of attempts) {
     const coord = await geocodeAddress(query);
     if (coord) return coord;
