@@ -1507,66 +1507,42 @@ function Dashboard() {
       }
       const pickupIso = r.pickup_datetime || new Date().toISOString();
       const labels = ["🟢 Court", "🟡 Intermédiaire", "🔴 Long"];
-      // Récupérer la distance du trajet COURT (direct, 1 seule route) pour calculer les waypoints.
-      // On appelle fetchRouteCoordinates directement (alternatives=false = trajet le plus court OSRM).
-      // getDistanceAndDurationKm renvoie le plus LONG via Edge Function → pas adapté pour la base des détours.
-      const shortRouteData = await fetchRouteCoordinates(
+
+      // Un seul appel OSRM avec alternatives=3 → OSRM renvoie jusqu'à 3 vraies routes différentes.
+      // On les trie par distance croissante → court / intermédiaire / long naturels.
+      const osrmData = await fetchRouteCoordinates(
         [
           [a.lng, a.lat],
           [b.lng, b.lat],
         ],
         {
           overview: "full",
-          alternatives: false,
+          alternatives: 3,
           geometries: "geojson",
         },
       ).catch(() => null);
-      const shortKm = shortRouteData?.routes?.[0]?.distance
-        ? shortRouteData.routes[0].distance / 1000
-        : haversineKm(a, b);
-      const directKmBrut = shortKm > 0 ? shortKm : haversineKm(a, b);
-      const detours = [0, Math.max(0.3, directKmBrut * 0.025), Math.max(0.6, directKmBrut * 0.05)];
-      const routeAttempts = await Promise.all(
-        detours.map((detour, i) => {
-          const mid = detour ? detourPoint(a, b, detour) : null;
-          const points: [number, number][] = mid
-            ? [
-                [a.lng, a.lat],
-                [mid.lng, mid.lat],
-                [b.lng, b.lat],
-              ]
-            : [
-                [a.lng, a.lat],
-                [b.lng, b.lat],
-              ];
-          return fetchRouteCoordinates(points, {
-            overview: "full",
-            alternatives: i === 0 ? 3 : false,
-            geometries: "geojson",
-          })
-            .then(
-              (data) =>
-                (data?.routes ?? [])
-                  .map((route: any) => routeToAlt(route, labels[i], pickupIso))
-                  .filter(Boolean) as ItineraryAlt[],
-            )
-            .catch(() => [] as ItineraryAlt[]);
-        }),
-      );
 
-      const unique = new Map<string, ItineraryAlt>();
-      routeAttempts.flat().forEach((alt) => unique.set(`${Math.round(alt.km * 10)}`, alt));
-      let alts = [...unique.values()].sort((x, y) => x.km - y.km).slice(0, 3);
+      const routes = osrmData?.routes ?? [];
+      let alts: ItineraryAlt[] = routes
+        .map((route: any) => routeToAlt(route, "", pickupIso))
+        .filter(Boolean)
+        .sort((x: ItineraryAlt, y: ItineraryAlt) => x.km - y.km)
+        .slice(0, 3)
+        .map((alt: ItineraryAlt, i: number) => ({ ...alt, label: labels[i] }));
+
+      // Fallback si OSRM renvoie moins de 3 routes
       if (alts.length < 3) {
         const baseCoords = alts[0]?.coords ?? [];
         const fallback = fallbackItineraries(a, b, pickupIso, baseCoords, alts[0]?.km);
         for (const alt of fallback) {
           if (alts.length >= 3) break;
-          if (!alts.some((existing) => Math.abs(existing.km - alt.km) < 0.1)) alts.push(alt);
+          if (!alts.some((existing) => Math.abs(existing.km - alt.km) < 0.5)) alts.push(alt);
         }
-        alts = alts.sort((x, y) => x.km - y.km).slice(0, 3);
+        alts = alts
+          .sort((x, y) => x.km - y.km)
+          .slice(0, 3)
+          .map((alt, i) => ({ ...alt, label: labels[i] }));
       }
-      alts = alts.slice(0, 3).map((alt, i) => ({ ...alt, label: labels[i] }));
 
       setItinAlts((p) => ({ ...p, [r.id]: alts }));
     } catch (e: any) {
