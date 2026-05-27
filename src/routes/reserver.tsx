@@ -41,8 +41,30 @@ interface OrsResult {
 }
 
 function shortLabel(label: string): string {
-  const parts = label.split(",").map((s) => s.trim());
-  return parts.slice(0, 2).join(", ");
+  const parts = label
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (parts.length === 0) return label;
+
+  // Mots-clés indiquant un nom de lieu (aéroport, gare, hôpital, centre...)
+  const isNamedPlace =
+    /aéroport|airport|gare|station|hôpital|hopital|clinique|université|universite|centre|stade|mairie|église|eglise|château|chateau|lycée|lycee|école|ecole/i.test(
+      parts[0],
+    );
+
+  if (isNamedPlace) {
+    // Cherche la ville : première partie qui ne contient pas de chiffre et n'est pas un code postal ni une région connue
+    const skipWords =
+      /gironde|nouvelle-aquitaine|aquitaine|france|métropolitaine|metropolitaine|département|region|^\d{5}$/i;
+    const ville = parts.slice(1).find((p) => !skipWords.test(p) && !/^\d/.test(p));
+    return ville ? `${parts[0]}, ${ville}` : parts[0];
+  }
+
+  // Adresse classique : rue + ville (ignore code postal, département, région, France)
+  const skipWords = /gironde|nouvelle-aquitaine|aquitaine|france|métropolitaine|metropolitaine|^\d{5}$/i;
+  const kept = parts.filter((p) => !skipWords.test(p));
+  return kept.slice(0, 2).join(", ");
 }
 
 async function geocodeFullAddress(address: string): Promise<{ coord: [number, number]; label: string } | null> {
