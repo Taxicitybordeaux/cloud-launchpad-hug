@@ -40,13 +40,18 @@ interface OrsResult {
   dureeS: number;
 }
 
+function shortLabel(label: string): string {
+  const parts = label.split(",").map((s) => s.trim());
+  return parts.slice(0, 2).join(", ");
+}
+
 async function geocodeFullAddress(address: string): Promise<{ coord: [number, number]; label: string } | null> {
   // Essai 1 : adresse telle quelle, essai 2 : avec ", France"
   let results = await searchAddress(address, 1);
   if (!results.length) results = await searchAddress(address + ", France", 1);
   if (!results.length) return null;
   const r = results[0];
-  return { coord: [r.coord[1], r.coord[0]], label: r.label };
+  return { coord: [r.coord[1], r.coord[0]], label: shortLabel(r.label) };
 }
 
 // ─── OSRM : passe par l'Edge Function Supabase (évite les blocages CORS) ─────
