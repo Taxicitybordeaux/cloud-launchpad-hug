@@ -347,8 +347,8 @@ function fallbackItineraries(
   baseKm?: number,
 ): ItineraryAlt[] {
   const directKm = Math.max(baseKm ?? haversineKm(a, b) * 1.3, 1);
-  const labels = ["🟢 Court", "🟡 Intermédiaire", "🔴 Long"];
-  const factors = [1, 1.08, 1.18];
+  const labels = ["🟢 Court", "🔴 Long"];
+  const factors = [1, 1.18];
   return labels.map((label, i) => {
     const km = parseFloat((directKm * factors[i]).toFixed(2));
     return {
@@ -1553,8 +1553,8 @@ function Dashboard() {
         const km = Number(r.distance_km) || 5;
         setItinAlts((p) => ({
           ...p,
-          [r.id]: [1, 1.08, 1.18].map((factor, i) => {
-            const labels = ["🟢 Court", "🟡 Intermédiaire", "🔴 Long"];
+          [r.id]: [1, 1.18].map((factor, i) => {
+            const labels = ["🟢 Court", "🔴 Long"];
             const finalKm = parseFloat((km * factor).toFixed(2));
             return {
               label: labels[i],
@@ -1568,10 +1568,9 @@ function Dashboard() {
         return;
       }
       const pickupIso = r.pickup_datetime || new Date().toISOString();
-      const labels = ["🟢 Court", "🟡 Intermédiaire", "🔴 Long"];
+      const labels = ["🟢 Court", "🔴 Long"];
 
-      // Un seul appel OSRM avec alternatives=3 → OSRM renvoie jusqu'à 3 vraies routes différentes.
-      // On les trie par distance croissante → court / intermédiaire / long naturels.
+      // Appel OSRM avec alternatives=2 → on prend le plus court et le plus long.
       const osrmData = await fetchRouteCoordinates(
         [
           [a.lng, a.lat],
@@ -1579,7 +1578,7 @@ function Dashboard() {
         ],
         {
           overview: "full",
-          alternatives: 3,
+          alternatives: 2,
           geometries: "geojson",
         },
       ).catch(() => null);
@@ -1590,36 +1589,28 @@ function Dashboard() {
         .filter(Boolean)
         .sort((x: ItineraryAlt, y: ItineraryAlt) => x.km - y.km);
 
-      // Les distances OSRM sont déjà corrigées par OSRM_DISTANCE_FACTOR dans osrm.ts.
-      // On n'applique plus de facteur supplémentaire ici pour éviter la double correction.
-      let alts: ItineraryAlt[] = allAlts.slice(0, 2).map((alt: ItineraryAlt, i: number) => ({
-        ...alt,
-        label: labels[i],
-      }));
-
-      // Trajet long : route la plus longue × 1.15 (écart réaliste)
-      if (allAlts.length > 0) {
-        const longestAlt = allAlts[allAlts.length - 1];
-        const km = parseFloat((longestAlt.km * 1.15).toFixed(2));
-        alts.push({
-          ...longestAlt,
-          label: labels[2],
-          km,
-          prix: parseFloat(calculerPrixMixte(km, pickupIso).toFixed(2)),
-        });
+      // Court = le plus court, Long = le plus long parmi les routes OSRM
+      let alts: ItineraryAlt[] = [];
+      if (allAlts.length >= 2) {
+        alts = [
+          { ...allAlts[0], label: labels[0] },
+          { ...allAlts[allAlts.length - 1], label: labels[1] },
+        ];
+      } else if (allAlts.length === 1) {
+        alts = [{ ...allAlts[0], label: labels[0] }];
       }
 
-      // Fallback si OSRM renvoie moins de 3 routes
-      if (alts.length < 3) {
+      // Fallback si OSRM renvoie moins de 2 routes
+      if (alts.length < 2) {
         const baseCoords = alts[0]?.coords ?? [];
         const fallback = fallbackItineraries(a, b, pickupIso, baseCoords, alts[0]?.km);
         for (const alt of fallback) {
-          if (alts.length >= 3) break;
+          if (alts.length >= 2) break;
           if (!alts.some((existing) => Math.abs(existing.km - alt.km) < 0.5)) alts.push(alt);
         }
         alts = alts
           .sort((x, y) => x.km - y.km)
-          .slice(0, 3)
+          .slice(0, 2)
           .map((alt, i) => ({ ...alt, label: labels[i] }));
       }
 
@@ -1627,10 +1618,10 @@ function Dashboard() {
     } catch (e: any) {
       const pickupIso = r.pickup_datetime || new Date().toISOString();
       const km = Number(r.distance_km) || 5;
-      const labels = ["🟢 Court", "🟡 Intermédiaire", "🔴 Long"];
+      const labels = ["🟢 Court", "🔴 Long"];
       setItinAlts((p) => ({
         ...p,
-        [r.id]: [1, 1.08, 1.18].map((factor, i) => {
+        [r.id]: [1, 1.18].map((factor, i) => {
           const finalKm = parseFloat((km * factor).toFixed(2));
           return {
             label: labels[i],
