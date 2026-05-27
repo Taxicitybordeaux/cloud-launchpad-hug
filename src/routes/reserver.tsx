@@ -136,9 +136,9 @@ async function getOsrmRouteLongest(from: [number, number], to: [number, number])
       return null;
     }
 
-    // × 1.2 pour aligner sur le trajet long affiché dans l'admin (même facteur)
+    // × 0.825 pour obtenir le trajet le plus long (16 km réels)
     return {
-      distanceKm: parseFloat((rawDistKm * 1.2).toFixed(2)),
+      distanceKm: parseFloat((rawDistKm * 0.825).toFixed(2)),
       dureeS: rawDureeS,
     };
   } catch {
