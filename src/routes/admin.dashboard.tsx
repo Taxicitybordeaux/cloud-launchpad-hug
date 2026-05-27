@@ -719,8 +719,11 @@ function Dashboard() {
     };
     initGPS();
     return () => {
+      // Nettoyage complet à la destruction du composant
       if (watchIdRef.current !== null && typeof navigator !== "undefined")
         navigator.geolocation.clearWatch(watchIdRef.current);
+      if (gpsHeartbeatRef.current) clearInterval(gpsHeartbeatRef.current);
+      if (gpsRetryTimerRef.current) clearTimeout(gpsRetryTimerRef.current);
     };
   }, []);
 
@@ -845,18 +848,18 @@ function Dashboard() {
       delete autoStatusFiredRef.current[next.id + "_en_route"];
       delete autoStatusFiredRef.current[next.id + "_arrived"];
       delete autoStatusFiredRef.current[next.id + "_completed"];
-      // Re-géocoder le départ de la nouvelle course
+      // Re-géocoder le départ de la nouvelle course avec multi-tentatives
       pickupGeoRef.current = null;
       destinationGeoRef.current = null;
       if (next.depart) {
-        geocodeAddress(next.depart + ", Bordeaux, France")
+        geocodeForRoute(next.depart)
           .then((c) => {
             if (c) pickupGeoRef.current = { lat: c.lat, lng: c.lng };
           })
           .catch(() => {});
       }
       if (next.arrivee || next.destination) {
-        geocodeAddress((next.arrivee || next.destination) + ", Bordeaux, France")
+        geocodeForRoute(next.arrivee || next.destination)
           .then((c) => {
             if (c) destinationGeoRef.current = { lat: c.lat, lng: c.lng };
           })
@@ -880,18 +883,14 @@ function Dashboard() {
   // CALCUL DISTANCE
   // =========================
   const fetchDistanceKm = async (depart: string, arrivee: string): Promise<number> => {
-    const geocode = async (address: string) => {
-      try {
-        return await geocodeAddress(address + ", Bordeaux, France");
-      } catch {}
-      return null;
-    };
-    const [a, b] = await Promise.all([geocode(depart), geocode(arrivee)]);
+    // On utilise geocodeForRoute qui tente plusieurs variantes d'adresse (plus robuste)
+    const [a, b] = await Promise.all([geocodeForRoute(depart), geocodeForRoute(arrivee)]);
     if (a && b) {
       try {
         const dd = await getDistanceAndDurationKm([a.lng, a.lat], [b.lng, b.lat]);
-        if (dd && dd.distanceKm && dd.distanceKm > 0) return Math.round(dd.distanceKm * 10) / 10; // correctif déjà appliqué dans osrm.ts (OSRM_DISTANCE_FACTOR)
+        if (dd && dd.distanceKm && dd.distanceKm > 0) return Math.round(dd.distanceKm * 10) / 10;
       } catch {}
+      // Fallback haversine × 1.3 si OSRM échoue
       const dLat = ((b.lat - a.lat) * Math.PI) / 180;
       const dLng = ((b.lng - a.lng) * Math.PI) / 180;
       const sin2 =
@@ -1180,31 +1179,53 @@ function Dashboard() {
     computedHeading: number | null,
     speed: number,
   ) => {
-    await (supabase as any)
-      .from("driver_gps")
-      .update({
-        latitude,
-        longitude,
-        accuracy: acc,
-        heading: computedHeading,
-        is_active: true,
+    // Try/catch global : une erreur réseau ne doit jamais bloquer le GPS
+    try {
+      await (supabase as any)
+        .from("driver_gps")
+        .update({
+          latitude,
+          longitude,
+          accuracy: acc,
+          heading: computedHeading,
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", "driver");
+    } catch (e) {
+      console.warn("[GPS] pushPosition driver_gps failed", e);
+    }
+    try {
+      await (supabase as any).from("taxi_positions").upsert({
+        id: "00000000-0000-0000-0000-000000000001",
+        lat: latitude,
+        lng: longitude,
+        heading: computedHeading ?? 0,
+        speed: speed ?? 0,
         updated_at: new Date().toISOString(),
-      })
-      .eq("id", "driver");
-    await (supabase as any).from("taxi_positions").upsert({
-      id: "00000000-0000-0000-0000-000000000001",
-      lat: latitude,
-      lng: longitude,
-      heading: computedHeading ?? 0,
-      speed: speed ?? 0,
-      updated_at: new Date().toISOString(),
-    });
+      });
+    } catch (e) {
+      console.warn("[GPS] pushPosition taxi_positions failed", e);
+    }
   };
 
   const startGPS = async (resaId?: string) => {
     if (!navigator.geolocation) {
       setGpsError("GPS non disponible sur cet appareil.");
       return;
+    }
+    // Guard : si un watchPosition est déjà actif, on le stoppe proprement avant de redémarrer
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    if (gpsHeartbeatRef.current) {
+      clearInterval(gpsHeartbeatRef.current);
+      gpsHeartbeatRef.current = null;
+    }
+    if (gpsRetryTimerRef.current) {
+      clearTimeout(gpsRetryTimerRef.current);
+      gpsRetryTimerRef.current = null;
     }
     setGpsError(null);
     // ── Reset des refs de position pour éviter qu'un heartbeat parte
@@ -1227,13 +1248,13 @@ function Dashboard() {
       const course = items.find((r) => r.id === linkedId);
       if (course?.depart) {
         try {
-          const c = await geocodeAddress(course.depart + ", Bordeaux, France");
+          const c = await geocodeForRoute(course.depart);
           if (c) pickupGeoRef.current = { lat: c.lat, lng: c.lng };
         } catch {}
       }
       if (course?.arrivee || course?.destination) {
         try {
-          const c = await geocodeAddress((course.arrivee || course.destination) + ", Bordeaux, France");
+          const c = await geocodeForRoute(course.arrivee || course.destination);
           if (c) destinationGeoRef.current = { lat: c.lat, lng: c.lng };
         } catch {}
       }
@@ -1271,45 +1292,49 @@ function Dashboard() {
 
       const enRouteKey = resaId + "_en_route";
       if (!fired[enRouteKey]) {
-        setItems((prev) => {
-          const course = prev.find((r) => r.id === resaId);
-          if (course && course.status === "accepted" && !fired[enRouteKey]) {
-            const pickupMs = course.pickup_datetime ? new Date(course.pickup_datetime).getTime() : null;
-            const nowMs = Date.now();
-            const shouldGo = !pickupMs || pickupMs - nowMs <= 30 * 60 * 1000;
-            if (shouldGo) {
-              fired[enRouteKey] = true;
-              const clientLabel2 = course.client_name || course.nom || "Client";
-              handleUpdateReservationStatus(course, "en_route").then(() => {
-                toast.success("🚗 En route automatique", {
-                  description: clientLabel2 + " — départ dans ≤ 30 min",
-                  duration: 5000,
-                });
-              });
-            }
-          }
-          return prev;
+        // Lire items via ref pour éviter la closure stale dans setItems
+        const course = await new Promise<any>((res) => {
+          setItems((prev) => {
+            res(prev.find((r) => r.id === resaId) ?? null);
+            return prev; // pas de mutation
+          });
         });
+        if (course && course.status === "accepted") {
+          const pickupMs = course.pickup_datetime ? new Date(course.pickup_datetime).getTime() : null;
+          const nowMs = Date.now();
+          const shouldGo = !pickupMs || pickupMs - nowMs <= 30 * 60 * 1000;
+          if (shouldGo && !fired[enRouteKey]) {
+            fired[enRouteKey] = true;
+            const clientLabel2 = course.client_name || course.nom || "Client";
+            handleUpdateReservationStatus(course, "en_route").then(() => {
+              toast.success("🚗 En route automatique", {
+                description: clientLabel2 + " — départ dans ≤ 30 min",
+                duration: 5000,
+              });
+            });
+          }
+        }
       }
 
       const arrivedKey = resaId + "_arrived";
       if (!fired[arrivedKey] && pickupGeoRef.current) {
         const dist = distMetersGps({ lat: latitude, lng: longitude }, pickupGeoRef.current);
         if (dist < 150) {
-          setItems((prev) => {
-            const course = prev.find((r) => r.id === resaId);
-            if (course && (course.status === "en_route" || course.status === "accepted") && !fired[arrivedKey]) {
-              fired[arrivedKey] = true;
-              const distArrived = Math.round(dist);
-              handleUpdateReservationStatus(course, "arrived").then(() => {
-                toast.success("📍 Arrivée détectée automatiquement", {
-                  description: "À " + distArrived + " m de la prise en charge",
-                  duration: 5000,
-                });
-              });
-            }
-            return prev;
+          const course = await new Promise<any>((res) => {
+            setItems((prev) => {
+              res(prev.find((r) => r.id === resaId) ?? null);
+              return prev;
+            });
           });
+          if (course && (course.status === "en_route" || course.status === "accepted") && !fired[arrivedKey]) {
+            fired[arrivedKey] = true;
+            handleUpdateReservationStatus(course, "arrived").then(() => {
+              toast.success("📍 Arrivée détectée automatiquement", {
+                description: "À " + Math.round(dist) + " m de la prise en charge",
+                duration: 5000,
+              });
+            });
+          }
         }
       }
 
@@ -1317,21 +1342,22 @@ function Dashboard() {
       if (!fired[completedKey] && destinationGeoRef.current) {
         const distDest = distMetersGps({ lat: latitude, lng: longitude }, destinationGeoRef.current);
         if (distDest < 100) {
-          setItems((prev) => {
-            const course = prev.find((r) => r.id === resaId);
-            if (course && course.status === "arrived" && !fired[completedKey]) {
-              fired[completedKey] = true;
-              const distLabel = Math.round(distDest);
-              const clientLabel = course.client_name || course.nom || "Client";
-              handleUpdateReservationStatus(course, "completed").then(() => {
-                toast.success("🏁 Course terminée automatiquement", {
-                  description: "À " + distLabel + " m de la destination — " + clientLabel,
-                  duration: 6000,
-                });
-              });
-            }
-            return prev;
+          const course = await new Promise<any>((res) => {
+            setItems((prev) => {
+              res(prev.find((r) => r.id === resaId) ?? null);
+              return prev;
+            });
           });
+          if (course && course.status === "arrived" && !fired[completedKey]) {
+            fired[completedKey] = true;
+            const clientLabel = course.client_name || course.nom || "Client";
+            handleUpdateReservationStatus(course, "completed").then(() => {
+              toast.success("🏁 Course terminée automatiquement", {
+                description: "À " + Math.round(distDest) + " m de la destination — " + clientLabel,
+                duration: 6000,
+              });
+            });
+          }
         }
       }
     };
@@ -1388,10 +1414,15 @@ function Dashboard() {
     if (gpsRetryTimerRef.current) clearTimeout(gpsRetryTimerRef.current);
     gpsRetryTimerRef.current = null;
     lastKnownPosRef.current = null;
-    await (supabase as any)
-      .from("driver_gps")
-      .update({ is_active: false, destination: null, prix_estime: null })
-      .eq("id", "driver");
+    lastPosRef.current = null;
+    try {
+      await (supabase as any)
+        .from("driver_gps")
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq("id", "driver");
+    } catch (e) {
+      console.warn("[GPS] stopGPS DB update failed", e);
+    }
     setGpsActive(false);
     setGpsPosition(null);
     setGpsAccuracy(null);
@@ -1559,18 +1590,17 @@ function Dashboard() {
         .filter(Boolean)
         .sort((x: ItineraryAlt, y: ItineraryAlt) => x.km - y.km);
 
-      // Court × 0.80, Intermédiaire × 0.84 sur les routes OSRM standard
-      const OSRM_CORRECTION = [0.8, 0.84];
-      let alts: ItineraryAlt[] = allAlts.slice(0, 2).map((alt: ItineraryAlt, i: number) => {
-        const km = parseFloat((alt.km * OSRM_CORRECTION[i]).toFixed(2));
-        return { ...alt, label: labels[i], km, prix: parseFloat(calculerPrixMixte(km, pickupIso).toFixed(2)) };
-      });
+      // Les distances OSRM sont déjà corrigées par OSRM_DISTANCE_FACTOR dans osrm.ts.
+      // On n'applique plus de facteur supplémentaire ici pour éviter la double correction.
+      let alts: ItineraryAlt[] = allAlts.slice(0, 2).map((alt: ItineraryAlt, i: number) => ({
+        ...alt,
+        label: labels[i],
+      }));
 
-      // Trajet long : on prend le plus long des alternatives OSRM × 1.45
-      // (OSRM retourne ~16km max, × 1.45 = ~23km, cohérent avec Google Maps)
+      // Trajet long : route la plus longue × 1.15 (écart réaliste)
       if (allAlts.length > 0) {
         const longestAlt = allAlts[allAlts.length - 1];
-        const km = parseFloat((longestAlt.km * 1.2).toFixed(2));
+        const km = parseFloat((longestAlt.km * 1.15).toFixed(2));
         alts.push({
           ...longestAlt,
           label: labels[2],
