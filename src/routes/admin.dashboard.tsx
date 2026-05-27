@@ -1525,7 +1525,7 @@ function Dashboard() {
         ? shortRouteData.routes[0].distance / 1000
         : haversineKm(a, b);
       const directKmBrut = shortKm > 0 ? shortKm : haversineKm(a, b);
-      const detours = [0, Math.max(0.8, directKmBrut * 0.07), Math.max(1.5, directKmBrut * 0.14)];
+      const detours = [0, Math.max(0.3, directKmBrut * 0.025), Math.max(0.6, directKmBrut * 0.05)];
       const routeAttempts = await Promise.all(
         detours.map((detour, i) => {
           const mid = detour ? detourPoint(a, b, detour) : null;
