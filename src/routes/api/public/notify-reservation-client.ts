@@ -146,33 +146,43 @@ export const Route = createFileRoute("/api/public/notify-reservation-client")({
           if (stored?.token) unsubscribeToken = stored.token;
         }
 
-        const { error } = await supabase.rpc("enqueue_email", {
-          queue_name: "transactional_emails",
-          payload: {
-            message_id: messageId,
-            to: recipient,
-            from: `${SITE_NAME} <noreply@${SENDER_DOMAIN}>`,
-            reply_to: "taxi.city033@gmail.com",
-            sender_domain: SENDER_DOMAIN,
-            subject,
-            html,
-            text,
-            purpose: "transactional",
-            label: TEMPLATE_NAME,
-            idempotency_key: idempotencyKey,
-            unsubscribe_token: unsubscribeToken,
-            queued_at: new Date().toISOString(),
+        // Send directly via the bridge (same as send-course-email.ts) instead of enqueue_email.
+        const sendResp = await fetch(
+          `${process.env.APP_URL || "https://taxicitybordeaux.fr"}/lovable/email/transactional/send`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              message_id: messageId,
+              to: recipient,
+              from: `${SITE_NAME} <noreply@${SENDER_DOMAIN}>`,
+              reply_to: "taxi.city033@gmail.com",
+              sender_domain: SENDER_DOMAIN,
+              subject,
+              html,
+              text,
+              purpose: "transactional",
+              label: TEMPLATE_NAME,
+              idempotency_key: idempotencyKey,
+              unsubscribe_token: unsubscribeToken,
+            }),
           },
-        });
-        if (error) {
-          log("error", { stage: "enqueue", message: error.message });
+        );
+
+        if (!sendResp.ok) {
+          const errBody = await sendResp.text().catch(() => "");
+          log("error", { stage: "send", status: sendResp.status, body: errBody });
           await supabase
             .from("email_send_log")
-            .update({ status: "failed", error_message: "enqueue" })
+            .update({ status: "failed", error_message: `send ${sendResp.status}` })
             .eq("message_id", messageId);
-          return Response.json({ error: "enqueue" }, { status: 500 });
+          return Response.json({ error: "send_failed" }, { status: 500 });
         }
-        log("enqueued", { queue: "transactional_emails", messageId });
+
+        // Update log to sent.
+        await supabase.from("email_send_log").update({ status: "sent" }).eq("message_id", messageId);
+
+        log("sent", { queue: "transactional_emails", messageId });
         return Response.json({ success: true, messageId });
       },
     },
