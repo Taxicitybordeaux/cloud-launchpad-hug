@@ -174,7 +174,7 @@ function useRoute(from: [number, number] | null, to: [number, number] | null) {
       try {
         const dd = await getDistanceAndDurationKm(from, to);
         if (dd && dd.distanceKm != null) {
-          setRoute({ km: Math.round(dd.distanceKm * 10) / 10, durationSec: Math.round(dd.durationSec) });
+          setRoute({ km: Math.round(dd.distanceKm * 10) / 10, durationSec: Math.round(dd.dureeS) });
         } else {
           throw new Error('no route');
         }
