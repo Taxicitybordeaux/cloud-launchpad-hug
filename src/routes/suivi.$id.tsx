@@ -506,7 +506,8 @@ function SuiviPage() {
     const L = (window as any).L;
     if (!map || !L) return;
     try {
-      const route = await getRouteGeoCoords([driverLng, driverLat], [pickup[1], pickup[0]]);
+      const routeApproach = await getRouteGeoCoords([driverLng, driverLat], [pickup[1], pickup[0]]);
+      const route = routeApproach;
       const coords: [number, number][] = route?.coords ?? [[driverLat, driverLng], pickup];
       approachCoords.current = coords;
       if (approachLayer.current) approachLayer.current.setLatLngs(coords);
@@ -537,11 +538,17 @@ function SuiviPage() {
   const calculateETA = async (lat: number, lng: number, destCoords?: [number, number]) => {
     try {
       const [dLat, dLng] = destCoords ?? BORDEAUX_CENTER;
+      // Appel OSRM direct (même source que totalKm) pour que pctDone soit cohérent
+      const route = await getRouteGeoCoords([lng, lat], [dLng, dLat]);
+      if (route.distanceKm && route.distanceKm > 0) {
+        setEtaKm(route.distanceKm.toFixed(1));
+      }
+      // Durée via Edge Function (plus précise pour l'ETA affiché)
       const result = await getDistanceAndDurationKm([lng, lat], [dLng, dLat]);
       if (result) {
         setEta(Math.ceil(result.dureeS / 60));
-        // [FUSION] stocker km restants pour l'affichage
-        setEtaKm(result.distanceKm.toFixed(1));
+        // Si pas de distanceKm OSRM direct, fallback sur Edge Function
+        if (!route.distanceKm) setEtaKm(result.distanceKm.toFixed(1));
       }
     } catch {
       setEta(null);
@@ -681,13 +688,19 @@ function SuiviPage() {
         let distanceKm: number | undefined;
         if (cachedCoords && Array.isArray(cachedCoords) && cachedCoords.length > 1) {
           coords = cachedCoords as [number, number][];
+          // Calculer distanceKm depuis les coordonnées en cache via haversine sommée
+          let d = 0;
+          for (let i = 1; i < coords.length; i++) {
+            d += distMeters({ lat: coords[i - 1][0], lng: coords[i - 1][1] }, { lat: coords[i][0], lng: coords[i][1] });
+          }
+          distanceKm = d / 1000;
         } else {
           const route = await getRouteGeoCoords(a, b);
-          coords = route?.coords ?? [a, b];
-          distanceKm = route?.distanceKm;
+          coords = route.coords.length > 0 ? route.coords : [a, b];
+          distanceKm = route.distanceKm;
         }
         // [FUSION] stocker la distance totale pour la barre de progression
-        if (distanceKm) setTotalKm(parseFloat(distanceKm.toFixed(1)));
+        if (distanceKm && distanceKm > 0) setTotalKm(parseFloat(distanceKm.toFixed(1)));
 
         if (tripLayer.current) {
           tripLayer.current.remove();
