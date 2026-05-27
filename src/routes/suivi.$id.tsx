@@ -484,29 +484,28 @@ function SuiviPage() {
     animFrame.current = requestAnimationFrame(step);
   };
 
-  // ── Geocode helper ───────────────────────────────────────────────────────
+  // ── Geocode helper avec retry (3 tentatives, délai exponentiel) ─────────
   const geocode = async (q: string): Promise<[number, number] | null> => {
-    try {
-      // Tronquer l'adresse à la première ligne significative pour éviter les ambiguïtés Nominatim
-      // Ex: "20 Av. Jean Monnet\nVillenave-d'Ornon\n33140" → "20 Av. Jean Monnet, Villenave-d'Ornon"
-      const cleaned = q
-        .split(/[\n\r]+/)
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .slice(0, 2) // garder max 2 lignes (rue + ville)
-        .join(", ");
+    const hasCity =
+      /\b(bordeaux|cenon|mérignac|merignac|pessac|talence|bègles|begles|lormont|floirac|villenave|bouliac|carbon|blanquefort|eysines|le bouscat|bruges|gradignan|cestas)\b/i.test(
+        q,
+      ) || /\b\d{5}\b/.test(q);
+    const query = hasCity ? `${q}, France` : `${q}, Bordeaux, France`;
 
-      // N'ajoute ", Bordeaux" que si l'adresse ne contient pas déjà une ville ou un code postal
-      const hasCity =
-        /\b(bordeaux|cenon|mérignac|merignac|pessac|talence|bègles|begles|lormont|floirac|villenave|bouliac|carbon|blanquefort|eysines|le bouscat|bruges|gradignan|cestas|mérignac)\b/i.test(
-          cleaned,
-        ) || /\b\d{5}\b/.test(cleaned);
-      const query = hasCity ? `${cleaned}, France` : `${cleaned}, Bordeaux, France`;
-      const c = await geocodeAddress(query);
-      return c ? [c.lat, c.lng] : null;
-    } catch {
-      return null;
+    // 3 tentatives avec backoff exponentiel (0ms, 800ms, 2000ms)
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        if (attempt > 0) await new Promise((r) => setTimeout(r, attempt * 800));
+        const c = await geocodeAddress(query);
+        if (c) return [c.lat, c.lng];
+      } catch {}
     }
+    // Dernier recours : essai sans qualificatif de ville
+    try {
+      const c = await geocodeAddress(`${q}, France`);
+      if (c) return [c.lat, c.lng];
+    } catch {}
+    return null;
   };
 
   // ── Tracé ligne bleue chauffeur → prise en charge ────────────────────────
@@ -545,8 +544,16 @@ function SuiviPage() {
 
   // ── ETA — stocke aussi les km restants (depuis tracking) ────────────────
   const calculateETA = async (lat: number, lng: number, destCoords?: [number, number]) => {
+    // Utiliser la destination passée en paramètre, ou la ref courante, JAMAIS BORDEAUX_CENTER
+    const dest = destCoords ?? destCoordsRef.current;
+    if (!dest) {
+      // Pas de destination connue → ne pas afficher de valeur fausse
+      setEta(null);
+      setEtaKm(null);
+      return;
+    }
     try {
-      const [dLat, dLng] = destCoords ?? BORDEAUX_CENTER;
+      const [dLat, dLng] = dest;
       // Appel OSRM direct (même source que totalKm) pour que pctDone soit cohérent
       const route = await getRouteGeoCoords([lng, lat], [dLng, dLat]);
       if (route.distanceKm && route.distanceKm > 0) {
@@ -556,7 +563,6 @@ function SuiviPage() {
       const result = await getDistanceAndDurationKm([lng, lat], [dLng, dLat]);
       if (result) {
         setEta(Math.ceil(result.dureeS / 60));
-        // Si pas de distanceKm OSRM direct, fallback sur Edge Function
         if (!route.distanceKm) setEtaKm(result.distanceKm.toFixed(1));
       }
     } catch {
@@ -609,12 +615,29 @@ function SuiviPage() {
       if (!map) {
         await initMap(lat, lng);
         lastAppliedPos.current = { lat, lng, t: Date.now() };
+        lastDriverPos.current = { lat, lng };
+        setTaxiPos({ lat, lng });
+        // Après initMap, redessiner le trajet si pas encore fait
+        if (!destCoordsRef.current && resaIdRef.current) {
+          const { data: rData } = await supabase
+            .from("reservations")
+            .select("depart,arrivee,destination,route_coords")
+            .eq("id", resaIdRef.current)
+            .maybeSingle();
+          if (rData?.depart && (rData?.destination || rData?.arrivee)) {
+            await drawTripRoute(rData.depart, rData.destination || rData.arrivee!, rData.route_coords);
+          }
+        }
+        await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
         return;
       }
       const now = Date.now();
       const last = lastAppliedPos.current;
       if (last) {
         const moved = distMeters(last, { lat, lng });
+        // Ignorer seulement si : mouvement < 8m ET mise à jour très récente (< 4s)
+        // → évite les doubles-updates rapides, mais laisse passer si le chauffeur
+        //   est vraiment immobile depuis plus de 4s (on veut quand même recalculer l'ETA)
         if (moved < 8 && now - last.t < 4000) return;
       }
       lastAppliedPos.current = { lat, lng, t: now };
@@ -645,6 +668,7 @@ function SuiviPage() {
             }
           } catch {}
         }
+        // Toujours passer destCoordsRef.current (valeur fraîche, pas closure)
         await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
         return;
       }
@@ -681,13 +705,22 @@ function SuiviPage() {
   // ── Tracé départ → destination (stocke totalKm) ──────────────────────────
   const drawTripRoute = useCallback(
     async (depart: string, destination: string, cachedCoords?: [number, number][] | null) => {
-      const map = mapInst.current;
+      // Attendre que la carte soit prête (elle peut ne pas l'être encore)
+      let map = mapInst.current;
+      if (!map) {
+        // Retry pendant 5s max
+        for (let i = 0; i < 10; i++) {
+          await new Promise((r) => setTimeout(r, 500));
+          map = mapInst.current;
+          if (map) break;
+        }
+      }
       const L = (window as any).L;
       if (!map || !L) return;
+
       const [a, b] = await Promise.all([geocode(depart), geocode(destination)]);
-      // Si le géocodage échoue, centrer sur Bordeaux plutôt que de laisser la carte dézoomée
       if (!a || !b) {
-        if (!a && !b && mapInst.current) mapInst.current.setView(BORDEAUX_CENTER, 13, { animate: false });
+        console.warn("[drawTripRoute] Geocode échoué pour:", !a ? depart : destination);
         return;
       }
 
@@ -701,18 +734,17 @@ function SuiviPage() {
         let distanceKm: number | undefined;
         if (cachedCoords && Array.isArray(cachedCoords) && cachedCoords.length > 1) {
           coords = cachedCoords as [number, number][];
-          // Calculer distanceKm depuis les coordonnées en cache via haversine sommée
           let d = 0;
           for (let i = 1; i < coords.length; i++) {
             d += distMeters({ lat: coords[i - 1][0], lng: coords[i - 1][1] }, { lat: coords[i][0], lng: coords[i][1] });
           }
           distanceKm = d / 1000;
         } else {
-          const route = await getRouteGeoCoords(a, b);
+          // getRouteGeoCoords attend [lng, lat] (format GeoJSON/OSRM), pas [lat, lng]
+          const route = await getRouteGeoCoords([a[1], a[0]], [b[1], b[0]]);
           coords = route.coords.length > 0 ? route.coords : [a, b];
           distanceKm = route.distanceKm;
         }
-        // [FUSION] stocker la distance totale pour la barre de progression
         if (distanceKm && distanceKm > 0) setTotalKm(parseFloat(distanceKm.toFixed(1)));
 
         if (tripLayer.current) {
@@ -768,6 +800,7 @@ function SuiviPage() {
         });
       } catch {}
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 
@@ -829,6 +862,17 @@ function SuiviPage() {
         (data.latitude !== 0 || data.longitude !== 0)
       ) {
         setLastUpdate(new Date());
+        // Si le trajet n'est pas encore tracé, le faire avant d'appliquer la position
+        if (!destCoordsRef.current && resaIdRef.current) {
+          const { data: rData } = await supabase
+            .from("reservations")
+            .select("depart,arrivee,destination,route_coords")
+            .eq("id", resaIdRef.current)
+            .maybeSingle();
+          if (rData?.depart && (rData?.destination || rData?.arrivee)) {
+            await drawTripRoute(rData.depart, rData.destination || rData.arrivee!, rData.route_coords);
+          }
+        }
         await applyDriverPosition(data.latitude, data.longitude);
       }
       if (resaIdRef.current) {
@@ -842,17 +886,19 @@ function SuiviPage() {
         if (r) setResa((prev) => (prev ? { ...prev, ...r } : prev));
       }
     }, 5_000);
-  }, [applyDriverPosition]);
+  }, [applyDriverPosition, drawTripRoute]);
 
   // ── Realtime ─────────────────────────────────────────────────────────────
   const subscribeRealtime = useCallback(
     (_gpsId: string, resaId: string, _mode: "single" | "multi") => {
       // Démarre le polling immédiatement comme filet de sécurité
-      // Il sera stoppé dès que le realtime confirme "subscribed"
       startPolling();
 
+      // Nom de channel unique par session pour éviter les collisions entre onglets
+      const sessionSuffix = Math.random().toString(36).slice(2, 8);
+
       const gpsChannel = supabase
-        .channel("suivi-driver-location")
+        .channel(`suivi-driver-location-${sessionSuffix}`)
         .on("postgres_changes", { event: "UPDATE", schema: "public", table: "driver_gps" }, async (payload) => {
           const d = payload.new as any;
           if (!d.is_active) return;
@@ -871,7 +917,6 @@ function SuiviPage() {
           const s = (status?.status || "").toLowerCase();
           if (s === "subscribed") {
             connectionStateRef.current = "connected";
-            // Realtime OK → on peut couper le polling
             stopPolling();
             if (reconnectTimerRef.current) {
               clearTimeout(reconnectTimerRef.current);
@@ -879,9 +924,7 @@ function SuiviPage() {
             }
           } else if (["channel_error", "timed_out", "closed"].includes(s)) {
             connectionStateRef.current = "disconnected";
-            // Relance le polling de secours
             startPolling();
-            // Tente de se reconnecter via retryNonce après 10s
             if (!reconnectTimerRef.current) {
               reconnectTimerRef.current = setTimeout(() => {
                 reconnectTimerRef.current = null;
@@ -894,7 +937,7 @@ function SuiviPage() {
         .subscribe();
 
       const resaChannel = supabase
-        .channel(`suivi-resa-${resaId}`)
+        .channel(`suivi-resa-${resaId}-${sessionSuffix}`)
         .on(
           "postgres_changes",
           { event: "UPDATE", schema: "public", table: "reservations", filter: `id=eq.${resaId}` },
@@ -929,7 +972,13 @@ function SuiviPage() {
                   prev.destination !== next.destination ||
                   JSON.stringify(prev.route_coords) !== JSON.stringify(r.route_coords))
               ) {
-                drawTripRoute(next.depart, next.destination || next.arrivee!, next.route_coords);
+                // Redessiner le tracé puis recalculer l'ETA avec la nouvelle destination
+                drawTripRoute(next.depart, next.destination || next.arrivee!, next.route_coords).then(() => {
+                  const driverPos = lastDriverPos.current;
+                  if (driverPos && destCoordsRef.current) {
+                    calculateETA(driverPos.lat, driverPos.lng, destCoordsRef.current);
+                  }
+                });
               }
               return next;
             });
@@ -1072,12 +1121,19 @@ function SuiviPage() {
         await initMap(gpsLat, gpsLng);
         setTaxiPos({ lat: gpsLat, lng: gpsLng });
         setLastUpdate(new Date());
-        // drawTripRoute d'abord pour peupler destCoordsRef, puis ETA vers la vraie destination
-        if (dep && dest) await drawTripRoute(dep, dest, r.route_coords);
+        // drawTripRoute d'abord pour peupler destCoordsRef, PUIS ETA vers la vraie destination
+        if (dep && dest) {
+          await drawTripRoute(dep, dest, r.route_coords);
+        }
+        // destCoordsRef est maintenant peuplé par drawTripRoute
         await calculateETA(gpsLat, gpsLng, destCoordsRef.current ?? undefined);
       } else {
+        // Driver offline : initMap sur Bordeaux, puis tracer le trajet
         await initMap(BORDEAUX_CENTER[0], BORDEAUX_CENTER[1]);
-        if (dep && dest) drawTripRoute(dep, dest, r.route_coords);
+        if (dep && dest) {
+          // drawTripRoute attend que map soit prêt (retry interne), pas besoin d'await ici
+          drawTripRoute(dep, dest, r.route_coords);
+        }
       }
 
       const clientName = ((r.client_name || r.nom) ?? "").toString().trim();
@@ -1094,13 +1150,12 @@ function SuiviPage() {
     // ── Reconnexion automatique : reprise de veille / retour réseau ────────
     const handleVisibility = () => {
       if (document.visibilityState === "visible" && resaIdRef.current) {
-        // Recharger la position immédiatement
         supabase
           .from("driver_gps")
           .select("latitude,longitude,is_active")
           .eq("id", "driver")
           .maybeSingle()
-          .then(({ data }) => {
+          .then(async ({ data }) => {
             if (
               data?.is_active &&
               data.latitude != null &&
@@ -1110,10 +1165,20 @@ function SuiviPage() {
               (data.latitude !== 0 || data.longitude !== 0)
             ) {
               setLastUpdate(new Date());
+              // Si le trajet n'est pas tracé (ex: retour de veille longue), le redessiner
+              if (!destCoordsRef.current) {
+                const { data: rData } = await supabase
+                  .from("reservations")
+                  .select("depart,arrivee,destination,route_coords")
+                  .eq("id", resaIdRef.current)
+                  .maybeSingle();
+                if (rData?.depart && (rData?.destination || rData?.arrivee)) {
+                  await drawTripRoute(rData.depart, rData.destination || rData.arrivee!, rData.route_coords);
+                }
+              }
               applyDriverPosition(data.latitude, data.longitude);
             }
           });
-        // Si le realtime était coupé, forcer une reconnexion complète
         if (connectionStateRef.current === "disconnected") {
           setRetryNonce((n) => n + 1);
         }
@@ -1143,11 +1208,36 @@ function SuiviPage() {
         approachLayer.current.remove();
         approachLayer.current = null;
       }
+      if (tripLayer.current) {
+        tripLayer.current.remove();
+        tripLayer.current = null;
+      }
+      if (tripOutline.current) {
+        tripOutline.current.remove();
+        tripOutline.current = null;
+      }
+      if (fromMarker.current) {
+        fromMarker.current.remove();
+        fromMarker.current = null;
+      }
+      if (toMarker.current) {
+        toMarker.current.remove();
+        toMarker.current = null;
+      }
       if (mapInst.current) {
         mapInst.current.remove();
         mapInst.current = null;
         markerRef.current = null;
       }
+      // Remettre à zéro toutes les refs GPS pour éviter les états fantômes après reconnexion
+      destCoordsRef.current = null;
+      pickupCoordsRef.current = null;
+      arrGeoRef.current = null;
+      depGeoRef.current = null;
+      lastAppliedPos.current = null;
+      lastDriverPos.current = null;
+      lastApproachAt.current = 0;
+      approachCoords.current = [];
     };
   }, [id, retryNonce, subscribeRealtime, stopPolling, schedulePickupNotification, drawTripRoute]);
 
@@ -1173,6 +1263,7 @@ function SuiviPage() {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
+      let currentResa: Reservation | null = null;
       if (resaIdRef.current) {
         const { data: r } = await supabase
           .from("reservations")
@@ -1181,7 +1272,12 @@ function SuiviPage() {
           )
           .eq("id", resaIdRef.current)
           .maybeSingle();
-        if (r) setResa((prev) => (prev ? { ...prev, ...r } : prev));
+        if (r) {
+          setResa((prev) => {
+            currentResa = prev ? { ...prev, ...r } : r;
+            return currentResa;
+          });
+        }
       }
       const { data } = await supabase
         .from("driver_gps")
@@ -1197,9 +1293,16 @@ function SuiviPage() {
         (data.latitude !== 0 || data.longitude !== 0)
       ) {
         setLastUpdate(new Date());
+        // Si le tracé n'est pas encore affiché, tenter de le redessiner d'abord
+        if (!destCoordsRef.current && currentResa?.depart && (currentResa?.destination || currentResa?.arrivee)) {
+          await drawTripRoute(
+            currentResa.depart,
+            currentResa.destination || currentResa.arrivee!,
+            currentResa.route_coords,
+          );
+        }
         await applyDriverPosition(data.latitude, data.longitude);
       }
-      // [FUSION] invalidateSize après refresh (depuis tracking)
       if (mapInst.current) setTimeout(() => mapInst.current?.invalidateSize({ animate: false }), 100);
       toast.success("✅ Informations mises à jour");
     } catch {
@@ -1207,17 +1310,22 @@ function SuiviPage() {
     } finally {
       setRefreshing(false);
     }
-  }, [applyDriverPosition]);
+  }, [applyDriverPosition, drawTripRoute]);
 
   // ── Détection fin de course (GPS) ────────────────────────────────────────
   useEffect(() => {
-    if (!taxiPos || !resa || courseTerminee || !arrGeoRef.current) return;
+    if (!taxiPos || !resa || courseTerminee) return;
     if (!["en_route", "accepted", "arrived"].includes(resa.status)) return;
-    const dist = distMeters(
-      { lat: taxiPos.lat, lng: taxiPos.lng },
-      { lat: arrGeoRef.current.lat, lng: arrGeoRef.current.lng },
-    );
-    if (dist < ARRIVAL_THRESHOLD_M) {
+
+    // Fallback : si arrGeoRef n'est pas peuplé mais destCoordsRef l'est, l'utiliser
+    const arrRef =
+      arrGeoRef.current ??
+      (destCoordsRef.current ? { lat: destCoordsRef.current[0], lng: destCoordsRef.current[1] } : null);
+    if (!arrRef) return;
+
+    const dist = distMeters({ lat: taxiPos.lat, lng: taxiPos.lng }, arrRef);
+    // Seuil élargi à 200m pour compenser la précision variable du GPS
+    if (dist < 200) {
       setCourseTerminee(true);
       (supabase as any).from("reservations").update({ status: "completed" }).eq("id", resa.id);
     }
@@ -1324,14 +1432,7 @@ function SuiviPage() {
 
   const effectiveStatus = courseTerminee ? "completed" : (resa?.status ?? "pending");
   const statut = statusConfig[effectiveStatus] ?? statusConfig.pending;
-  // Retourne la première ligne non vide d'une adresse (évite le pavé complet en affichage)
-  const cleanAddr = (addr?: string | null) =>
-    addr
-      ?.split(/[\n\r]+/)
-      .map((s) => s.trim())
-      .filter(Boolean)[0] ?? "—";
-
-  const arrivee = cleanAddr(resa?.arrivee || resa?.destination);
+  const arrivee = resa?.arrivee || resa?.destination || "—";
   const passagers = resa?.nb_passagers || resa?.passagers || 1;
   const bagages = resa?.bagages ?? 0;
   const prix = resa?.prix_estime ? `${Number(resa.prix_estime).toFixed(2)} €` : null;
@@ -1989,7 +2090,7 @@ function SuiviPage() {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {cleanAddr(resa.depart)}
+                    {resa.depart}
                   </span>
                   <span
                     style={{
@@ -2003,7 +2104,7 @@ function SuiviPage() {
                       textAlign: "right",
                     }}
                   >
-                    {cleanAddr(resa.destination || resa.arrivee)}
+                    {resa.destination || resa.arrivee}
                   </span>
                 </div>
                 {pctDone !== null && (
@@ -2157,7 +2258,7 @@ function SuiviPage() {
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {cleanAddr(resa.depart)}
+                      {resa.depart}
                     </div>
                   </div>
                   <div>
