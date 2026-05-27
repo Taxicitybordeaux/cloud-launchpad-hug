@@ -270,8 +270,8 @@ function isNuit(iso: string): boolean {
   const h = parseInt(date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", hour12: false }), 10);
   const dimanche = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", weekday: "short" }) === "dim.";
   const ferie = isJourFerie(date);
-  // Tarif nuit : 20h–6h, OU dimanche, OU jour férié
-  return h >= 20 || h < 6 || dimanche || ferie;
+  // Tarif nuit : 19h–7h Paris, OU dimanche, OU jour férié
+  return h >= 19 || h < 7 || dimanche || ferie;
 }
 
 const normalizeStatus = (s: unknown): "pending" | "accepted" | "refused" => {
