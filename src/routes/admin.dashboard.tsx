@@ -295,22 +295,7 @@ function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: num
 
 async function geocodeForRoute(address: string) {
   const trimmed = address.trim();
-
-  // Simplifier les adresses trop longues (ex: adresses Nominatim complètes)
-  // On garde seulement les 2 premiers segments séparés par une virgule
-  const parts = trimmed
-    .split(",")
-    .map((p) => p.trim())
-    .filter(Boolean);
-  const short = parts.slice(0, 2).join(", ");
-
-  const attempts = [
-    trimmed, // adresse complète telle quelle
-    short, // version courte (rue + ville)
-    `${short}, France`, // version courte + pays
-    `${parts[0]}, Bordeaux, France`, // juste la rue + Bordeaux
-  ].filter((v, i, arr) => arr.indexOf(v) === i); // dédupliquer
-
+  const attempts = [trimmed, `${trimmed}, Bordeaux, France`];
   for (const query of attempts) {
     const coord = await geocodeAddress(query);
     if (coord) return coord;
@@ -1522,10 +1507,24 @@ function Dashboard() {
       }
       const pickupIso = r.pickup_datetime || new Date().toISOString();
       const labels = ["🟢 Court", "🟡 Intermédiaire", "🔴 Long"];
-      // Toujours recalculer via OSRM (distance_km en base peut être une ancienne valeur brute sans facteur)
-      const freshRoute = await getDistanceAndDurationKm([a.lng, a.lat], [b.lng, b.lat]);
-      // directKmBrut = distance du trajet direct (sans facteur, Edge Function factor=1.0)
-      const directKmBrut = freshRoute && freshRoute.distanceKm > 0 ? freshRoute.distanceKm : haversineKm(a, b) * 1.15;
+      // Récupérer la distance du trajet COURT (direct, 1 seule route) pour calculer les waypoints.
+      // On appelle fetchRouteCoordinates directement (alternatives=false = trajet le plus court OSRM).
+      // getDistanceAndDurationKm renvoie le plus LONG via Edge Function → pas adapté pour la base des détours.
+      const shortRouteData = await fetchRouteCoordinates(
+        [
+          [a.lng, a.lat],
+          [b.lng, b.lat],
+        ],
+        {
+          overview: "full",
+          alternatives: false,
+          geometries: "geojson",
+        },
+      ).catch(() => null);
+      const shortKm = shortRouteData?.routes?.[0]?.distance
+        ? shortRouteData.routes[0].distance / 1000
+        : haversineKm(a, b);
+      const directKmBrut = shortKm > 0 ? shortKm : haversineKm(a, b);
       const detours = [0, Math.max(0.8, directKmBrut * 0.07), Math.max(1.5, directKmBrut * 0.14)];
       const routeAttempts = await Promise.all(
         detours.map((detour, i) => {
