@@ -96,21 +96,42 @@ async function getOsrmRouteLongest(from: [number, number], to: [number, number])
         to_lat: to[1],
       }),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn("[OSRM] HTTP error:", res.status, res.statusText);
+      return null;
+    }
     const json = await res.json();
-    if (json?.error) return null;
+    console.log("[OSRM] Réponse brute:", JSON.stringify(json));
+    if (json?.error) {
+      console.warn("[OSRM] Erreur API:", json.error);
+      return null;
+    }
 
-    const rawDistKm: number = json.distance_km;
-    const rawDureeS: number = json.duration_sec;
+    // Accepte plusieurs nommages possibles selon la version de l'Edge Function
+    const rawDistKm: number =
+      json.distance_km ?? json.distanceKm ?? json.distance ?? json.routes?.[0]?.distance / 1000 ?? 0;
+    const rawDureeS: number = json.duration_sec ?? json.durationSec ?? json.duration ?? json.routes?.[0]?.duration ?? 0;
 
-    // ── Sanity check : un taxi bordelais ne devrait jamais dépasser 500 km
-    //    ni 8 heures de trajet. Si l'API retourne une valeur aberrante
-    //    (coordonnées mal envoyées, bug serveur, route mal calculée),
-    //    on rejette le résultat plutôt que d'afficher un prix absurde.
-    const MAX_DISTANCE_KM = 500;
-    const MAX_DUREE_S = 8 * 3600; // 8 h
-    if (rawDistKm > MAX_DISTANCE_KM || rawDureeS > MAX_DUREE_S) {
-      console.warn(`[OSRM] Résultat aberrant rejeté : ${rawDistKm} km, ${Math.round(rawDureeS / 60)} min`);
+    if (!rawDistKm || !rawDureeS) {
+      console.warn("[OSRM] Champs manquants dans la réponse:", json);
+      return null;
+    }
+
+    // ── Sanity check : la distance routière ne peut pas être > 10× la distance
+    //    à vol d'oiseau entre les deux points. Si c'est le cas, l'API a retourné
+    //    une route aberrante (coordonnées inversées, bug serveur, etc.)
+    const R = 6371;
+    const dLat = ((from[1] - to[1]) * Math.PI) / 180;
+    const dLng = ((from[0] - to[0]) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((from[1] * Math.PI) / 180) * Math.cos((to[1] * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+    const volOiseauKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    // Ratio routier normal : 1.1× à 2× la distance à vol d'oiseau max
+    if (rawDistKm > volOiseauKm * 10 || rawDistKm < 0.05) {
+      console.warn(
+        `[OSRM] Résultat aberrant rejeté : ${rawDistKm} km routiers pour ${volOiseauKm.toFixed(2)} km vol d'oiseau`,
+      );
       return null;
     }
 
