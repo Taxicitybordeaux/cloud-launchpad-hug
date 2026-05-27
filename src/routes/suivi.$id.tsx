@@ -539,7 +539,7 @@ function SuiviPage() {
       const [dLat, dLng] = destCoords ?? BORDEAUX_CENTER;
       const result = await getDistanceAndDurationKm([lng, lat], [dLng, dLat]);
       if (result) {
-        setEta(Math.ceil(result.durationSec / 60));
+        setEta(Math.ceil(result.dureeS / 60));
         // [FUSION] stocker km restants pour l'affichage
         setEtaKm(result.distanceKm.toFixed(1));
       }
