@@ -1546,7 +1546,7 @@ function Dashboard() {
       // (OSRM retourne ~16km max, × 1.45 = ~23km, cohérent avec Google Maps)
       if (allAlts.length > 0) {
         const longestAlt = allAlts[allAlts.length - 1];
-        const km = parseFloat((longestAlt.km * 1.45).toFixed(2));
+        const km = parseFloat((longestAlt.km * 1.3).toFixed(2));
         alts.push({
           ...longestAlt,
           label: labels[2],
