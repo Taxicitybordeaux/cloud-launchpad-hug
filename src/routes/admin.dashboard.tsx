@@ -1737,20 +1737,21 @@ function Dashboard() {
           >
             <div>
               <div style={{ color: "#fff", fontWeight: 700, fontSize: 18 }}>{name}</div>
-              <div style={{ color: "#cbd5e1", marginTop: 8 }}>
+              <div style={{ color: "#64748b", fontSize: 12, marginTop: 2 }}>
+                {pickupFormatted ? (
+                  <span>
+                    🕐 <b style={{ color: "#94a3b8" }}>{pickupFormatted}</b>
+                  </span>
+                ) : (
+                  new Date(r.created_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })
+                )}
+              </div>
+              <div style={{ color: "#cbd5e1", marginTop: 6 }}>
                 <div>🟢 {r.depart}</div>
                 <div style={{ marginTop: 2 }}>📍 {dest}</div>
               </div>
             </div>
-            <div className="course-card-head-right" style={{ color: "#64748b", fontSize: 13 }}>
-              {pickupFormatted ? (
-                <span>
-                  🕐 <b style={{ color: "#f8fafc" }}>{pickupFormatted}</b>
-                </span>
-              ) : (
-                new Date(r.created_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })
-              )}
-            </div>
+            <div className="course-card-head-right" style={{ color: "#64748b", fontSize: 13 }}></div>
           </div>
 
           {/* Infos */}
@@ -2686,6 +2687,11 @@ function Dashboard() {
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                     <div>
                       <div style={{ color: "#fff", fontWeight: 700, fontSize: 16 }}>{r.client_name || r.nom}</div>
+                      <div style={{ color: "#64748b", fontSize: 12, marginTop: 2 }}>
+                        {r.pickup_datetime
+                          ? formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })
+                          : new Date(r.created_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
+                      </div>
                       <div style={{ color: "#94a3b8", marginTop: 6, fontSize: 13 }}>
                         <div>🟢 {r.depart}</div>
                         <div style={{ marginTop: 2 }}>📍 {r.destination || r.arrivee}</div>
@@ -2693,11 +2699,6 @@ function Dashboard() {
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
                       <StatusBadge s={r.status} />
-                      <span style={{ color: "#64748b", fontSize: 12 }}>
-                        {r.pickup_datetime
-                          ? formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })
-                          : new Date(r.created_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
-                      </span>
                     </div>
                   </div>
                   {(() => {
@@ -2732,16 +2733,17 @@ function Dashboard() {
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                     <div>
                       <div style={{ color: "#fff", fontWeight: 700, fontSize: 16 }}>{r.client_name || r.nom}</div>
+                      <div style={{ color: "#64748b", fontSize: 12, marginTop: 2 }}>
+                        {r.pickup_datetime
+                          ? formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })
+                          : new Date(r.created_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
+                      </div>
                       <div style={{ color: "#cbd5e1", marginTop: 6, fontSize: 13 }}>
                         <div>🟢 {r.depart}</div>
                         <div style={{ marginTop: 2 }}>📍 {r.destination || r.arrivee}</div>
                       </div>
                     </div>
-                    <div style={{ color: "#64748b", fontSize: 13 }}>
-                      {r.pickup_datetime
-                        ? formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })
-                        : new Date(r.created_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
-                    </div>
+                    <div style={{ color: "#64748b", fontSize: 13 }}></div>
                   </div>
                   <div
                     style={{
