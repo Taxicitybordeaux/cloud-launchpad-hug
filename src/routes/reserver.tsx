@@ -67,21 +67,16 @@ function shortLabel(label: string): string {
   return kept.slice(0, 2).join(", ");
 }
 
-// ─── Coordonnées : TOUT en [lat, lng] (format Leaflet) ───────────────────────
-// Les appels OSRM/GeoJSON font le swap [lng, lat] au moment de l'appel.
-
 async function geocodeFullAddress(address: string): Promise<{ coord: [number, number]; label: string } | null> {
   // Essai 1 : adresse telle quelle, essai 2 : avec ", France"
   let results = await searchAddress(address, 1);
   if (!results.length) results = await searchAddress(address + ", France", 1);
   if (!results.length) return null;
   const r = results[0];
-  // r.coord est [lng, lat] (GeoJSON) → on retourne [lat, lng] (Leaflet)
-  return { coord: [r.coord[1], r.coord[0]], label: shortLabel(r.label) };
+  return { coord: [r.coord[0], r.coord[1]], label: shortLabel(r.label) }; // [lng, lat] cohérent avec géoloc native
 }
 
 // ─── OSRM : passe par l'Edge Function Supabase (évite les blocages CORS) ─────
-// from / to sont en [lat, lng] — on swap pour l'Edge Function qui attend lng/lat
 const SUPABASE_URL = "https://auiagkpdpnfqxfngisfc.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1aWFna3BkcG5mcXhmbmdpc2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0MzU2NzUsImV4cCI6MjA5NDAxMTY3NX0.MkW2KzCYHvQ0GEjjP3_puf3PkCHWaYcvW2bI1ctTuJU";
@@ -95,11 +90,10 @@ async function getOsrmRouteLongest(from: [number, number], to: [number, number])
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify({
-        // from/to sont [lat, lng] → Edge Function attend lng/lat
-        from_lng: from[1],
-        from_lat: from[0],
-        to_lng: to[1],
-        to_lat: to[0],
+        from_lng: from[0],
+        from_lat: from[1],
+        to_lng: to[0],
+        to_lat: to[1],
       }),
     });
     if (!res.ok) return null;
@@ -115,24 +109,21 @@ async function getOsrmRouteLongest(from: [number, number], to: [number, number])
   }
 }
 
-// ─── OSRM polyline : chemin le plus long — from/to en [lat, lng] ─────────────
+// ─── OSRM polyline : chemin le plus long ─────────────────────────────────────
 async function getOsrmPolylineLongest(from: [number, number], to: [number, number]): Promise<[number, number][]> {
-  // OSRM public attend lng,lat dans l'URL
   const url =
     `https://router.project-osrm.org/route/v1/driving/` +
-    `${from[1]},${from[0]};${to[1]},${to[0]}` +
+    `${from[0]},${from[1]};${to[0]},${to[1]}` +
     `?overview=full&geometries=geojson&alternatives=3&steps=false`;
   try {
     const res = await fetch(url);
-    if (!res.ok) throw new Error("OSRM public non disponible");
+    if (!res.ok) return [];
     const json = await res.json();
     if (!json.routes || json.routes.length === 0) return [];
     const longest = json.routes.reduce((best: any, r: any) => (r.distance > best.distance ? r : best));
-    // OSRM retourne [lng, lat] dans geometry.coordinates → convertir en [lat, lng] pour Leaflet
-    return (longest.geometry?.coordinates ?? []).map((c: [number, number]) => [c[1], c[0]] as [number, number]);
+    return (longest.geometry?.coordinates ?? []) as [number, number][];
   } catch {
-    // Fallback : ligne droite entre les deux points si OSRM public est indisponible
-    return [from, to];
+    return [];
   }
 }
 
@@ -149,26 +140,11 @@ function loadLeaflet(): Promise<void> {
       l.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
       document.head.appendChild(l);
     }
-    // Si le script est déjà dans le DOM (injection précédente), attendre qu'il soit prêt
-    const existing = document.getElementById("leaflet-js") as HTMLScriptElement | null;
-    if (existing) {
-      const poll = setInterval(() => {
-        if ((window as any).L) {
-          clearInterval(poll);
-          resolve();
-        }
-      }, 50);
-      setTimeout(() => {
-        clearInterval(poll);
-        (window as any).L ? resolve() : reject(new Error("Leaflet timeout"));
-      }, 8000);
-      return;
-    }
     const s = document.createElement("script");
     s.id = "leaflet-js";
     s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
     s.onload = () => resolve();
-    s.onerror = () => reject(new Error("Leaflet load error"));
+    s.onerror = () => reject();
     document.head.appendChild(s);
   });
 }
@@ -300,73 +276,57 @@ function ReservationPage() {
 
   // ── Marqueurs + tracé (chemin le plus long) ───────────────────────────────
   useEffect(() => {
-    if (!fromCoord && !toCoord) return;
-    let cancelled = false;
+    const map = mapInst.current;
+    const L = (window as any).L;
+    if (!map || !L) return;
 
-    // Attendre que la carte soit initialisée (race condition avec initMap async)
-    const applyMarkers = async () => {
-      let map = mapInst.current;
-      if (!map) {
-        for (let i = 0; i < 20; i++) {
-          await new Promise((r) => setTimeout(r, 150));
-          if (cancelled) return;
-          map = mapInst.current;
-          if (map) break;
+    if (fromCoord) {
+      const icon = L.divIcon({
+        className: "",
+        html: `<div style="width:16px;height:16px;background:#22c55e;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 4px rgba(34,197,94,0.3)"></div>`,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
+      });
+      if (fromMarker.current) fromMarker.current.remove();
+      fromMarker.current = L.marker([fromCoord[1], fromCoord[0]], { icon }).addTo(map);
+    }
+
+    if (toCoord) {
+      const icon = L.divIcon({
+        className: "",
+        html: `<div style="width:16px;height:16px;background:#f5c842;border-radius:50%;border:3px solid #1a1a2e;box-shadow:0 0 0 4px rgba(245,200,66,0.3)"></div>`,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
+      });
+      if (toMarker.current) toMarker.current.remove();
+      toMarker.current = L.marker([toCoord[1], toCoord[0]], { icon }).addTo(map);
+    }
+
+    if (fromCoord && toCoord) {
+      // Toujours le chemin le plus long
+      getOsrmPolylineLongest(fromCoord, toCoord).then((coords) => {
+        if (!mapInst.current || !L) return;
+        if (routeLayer.current) {
+          routeLayer.current.remove();
+          routeLayer.current = null;
         }
-      }
-      const L = (window as any).L;
-      if (!map || !L || cancelled) return;
-
-      // Coords sont en [lat, lng] — Leaflet attend [lat, lng] directement
-      if (fromCoord) {
-        const icon = L.divIcon({
-          className: "",
-          html: `<div style="width:16px;height:16px;background:#22c55e;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 4px rgba(34,197,94,0.3)"></div>`,
-          iconSize: [16, 16],
-          iconAnchor: [8, 8],
-        });
-        if (fromMarker.current) fromMarker.current.remove();
-        fromMarker.current = L.marker(fromCoord, { icon }).addTo(map);
-      }
-
-      if (toCoord) {
-        const icon = L.divIcon({
-          className: "",
-          html: `<div style="width:16px;height:16px;background:#f5c842;border-radius:50%;border:3px solid #1a1a2e;box-shadow:0 0 0 4px rgba(245,200,66,0.3)"></div>`,
-          iconSize: [16, 16],
-          iconAnchor: [8, 8],
-        });
-        if (toMarker.current) toMarker.current.remove();
-        toMarker.current = L.marker(toCoord, { icon }).addTo(map);
-      }
-
-      if (fromCoord && toCoord) {
-        getOsrmPolylineLongest(fromCoord, toCoord).then((coords) => {
-          if (cancelled) return;
-          const m = mapInst.current;
-          if (!m || !L) return;
-          if (routeLayer.current) {
-            routeLayer.current.remove();
-            routeLayer.current = null;
-          }
-          // coords est déjà en [lat, lng] après le fix de getOsrmPolylineLongest
-          if (coords.length >= 2) {
-            routeLayer.current = L.polyline(coords, { color: "#f5c842", weight: 5, opacity: 0.95 }).addTo(m);
-            m.fitBounds(L.latLngBounds([fromCoord, toCoord, ...coords]).pad(0.25));
-          } else {
-            // Fallback : centrer sur les deux points si pas de tracé
-            m.fitBounds(L.latLngBounds([fromCoord, toCoord]).pad(0.3));
-          }
-        });
-      } else if (fromCoord) {
-        map.setView(fromCoord, 14);
-      }
-    };
-
-    applyMarkers();
-    return () => {
-      cancelled = true;
-    };
+        if (coords.length > 1) {
+          routeLayer.current = L.polyline(
+            coords.map((c) => [c[1], c[0]]),
+            { color: "#f5c842", weight: 5, opacity: 0.95 },
+          ).addTo(mapInst.current);
+          mapInst.current.fitBounds(
+            L.latLngBounds([
+              [fromCoord[1], fromCoord[0]],
+              [toCoord[1], toCoord[0]],
+              ...coords.map((c) => [c[1], c[0]]),
+            ]).pad(0.25),
+          );
+        }
+      });
+    } else if (fromCoord) {
+      map.setView([fromCoord[1], fromCoord[0]], 14);
+    }
   }, [fromCoord, toCoord]);
 
   // ── OSRM : recalcul distance/prix (chemin le plus long) ───────────────────
@@ -375,22 +335,17 @@ function ReservationPage() {
       setOrsResult(null);
       return;
     }
-    let cancelled = false;
     setCalcLoading(true);
     getOsrmRouteLongest(fromCoord, toCoord).then((r) => {
-      if (cancelled) return;
       setOrsResult(r);
       setCalcLoading(false);
     });
-    return () => {
-      cancelled = true;
-    };
   }, [fromCoord, toCoord]);
 
   // ── Géolocalisation départ (navigateur client) ───────────────────────────
-  const handleGeolocate = useCallback(async (silent = false) => {
+  const handleGeolocate = useCallback(async () => {
     if (!navigator.geolocation) {
-      if (!silent) toast.error("Géolocalisation non disponible");
+      toast.error("Géolocalisation non disponible");
       return;
     }
     setGeolocLoading(true);
@@ -410,20 +365,18 @@ function ReservationPage() {
         }
 
         set("depart", adresse ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
-        // Stocker en [lat, lng] — cohérent avec geocodeFullAddress
-        setFromCoord([lat, lng]);
+        // fromCoord en [lng, lat] pour OSRM (format GeoJSON)
+        setFromCoord([lng, lat]);
         setErrors((prev) => {
           const next = { ...prev };
           delete next.depart;
           return next;
         });
-        if (!silent) toast.success(t("res.geo.btn") + " ✓");
+        toast.success(t("res.geo.btn") + " ✓");
         setGeolocLoading(false);
       },
       (err) => {
         setGeolocLoading(false);
-        // En mode silencieux (appel auto au chargement), ne pas afficher d'erreur
-        if (silent) return;
         const msg =
           err.code === 1
             ? t("res.geo.err.denied")
@@ -436,25 +389,19 @@ function ReservationPage() {
     );
   }, []);
 
-  // Tentative auto au chargement (silencieuse — ne pas afficher d'erreur si refus)
+  // Tentative auto au chargement (sans bloquer)
   useEffect(() => {
-    handleGeolocate(true);
+    handleGeolocate();
   }, [handleGeolocate]);
-
-  const lastResolvedDepart = useRef<string>("");
-  const lastResolvedDest = useRef<string>("");
 
   // ── Résoudre adresse départ (saisie manuelle) ────────────────────────────
   const resolveDepartAddress = useCallback(async () => {
     const value = f.depart.trim();
     if (!value) return;
-    // Ne pas re-géocoder si l'adresse n'a pas changé depuis la dernière résolution
-    if (value === lastResolvedDepart.current && fromCoord) return;
     setCalcLoading(true);
     const result = await geocodeFullAddress(value);
     setCalcLoading(false);
     if (result) {
-      lastResolvedDepart.current = value;
       setFromCoord(result.coord);
       set("depart", result.label);
       setErrors((prev) => {
@@ -466,19 +413,16 @@ function ReservationPage() {
       setFromCoord(null);
       setErrors((prev) => ({ ...prev, depart: "Adresse introuvable" }));
     }
-  }, [f.depart, fromCoord]);
+  }, [f.depart]);
 
   // ── Résoudre adresse destination ─────────────────────────────────────────
   const resolveDestinationAddress = useCallback(async () => {
     const value = f.destination.trim();
     if (!value) return;
-    // Ne pas re-géocoder si l'adresse n'a pas changé depuis la dernière résolution
-    if (value === lastResolvedDest.current && toCoord) return;
     setCalcLoading(true);
     const result = await geocodeFullAddress(value);
     setCalcLoading(false);
     if (result) {
-      lastResolvedDest.current = value;
       setToCoord(result.coord);
       set("destination", result.label);
       setErrors((prev) => {
@@ -490,7 +434,7 @@ function ReservationPage() {
       setToCoord(null);
       setErrors((prev) => ({ ...prev, destination: "Adresse introuvable" }));
     }
-  }, [f.destination, toCoord]);
+  }, [f.destination]);
 
   // ── Disponibilité taxi ────────────────────────────────────────────────────
   useEffect(() => {
@@ -528,10 +472,6 @@ function ReservationPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Si les adresses sont saisies mais pas encore géocodées (ex: pas de blur), les résoudre maintenant
-    if (f.depart.trim() && !fromCoord) await resolveDepartAddress();
-    if (f.destination.trim() && !toCoord) await resolveDestinationAddress();
-
     const newErrors: Record<string, string> = {};
     if (!f.prenom.trim()) newErrors.prenom = t("res.err.required");
     if (!f.nom.trim()) newErrors.nom = t("res.err.required");
@@ -548,6 +488,7 @@ function ReservationPage() {
     }
 
     if (!orsResult) {
+      setErrors(newErrors);
       toast.error(t("rsim.loading"));
       return;
     }
