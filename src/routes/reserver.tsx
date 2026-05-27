@@ -68,13 +68,32 @@ function shortLabel(label: string): string {
 }
 
 async function geocodeFullAddress(address: string): Promise<{ coord: [number, number]; label: string } | null> {
-  // Essai 1 : adresse telle quelle, essai 2 : avec ", France"
-  let results = await searchAddress(address, 1);
-  if (!results.length) results = await searchAddress(address + ", France", 1);
-  if (!results.length) return null;
-  const r = results[0];
-  // searchAddress retourne [lat, lng] — on stocke dans ce même ordre
-  return { coord: [r.coord[0], r.coord[1]], label: shortLabel(r.label) };
+  const trimmed = address.trim();
+  const parts = trimmed
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const short = parts.slice(0, 2).join(", ");
+
+  // Plusieurs variantes pour maximiser les chances de trouver lieux nommés et adresses
+  const attempts = [
+    trimmed,
+    trimmed + ", France",
+    short,
+    short + ", France",
+    parts[0] + ", Bordeaux, France",
+    parts[0] + ", Gironde, France",
+    parts[0] + ", France",
+  ].filter((v, i, arr) => v.length > 2 && arr.indexOf(v) === i);
+
+  for (const query of attempts) {
+    const results = await searchAddress(query, 1);
+    if (results.length) {
+      const r = results[0];
+      return { coord: [r.coord[0], r.coord[1]], label: shortLabel(r.label) };
+    }
+  }
+  return null;
 }
 
 // ─── OSRM : passe par l'Edge Function Supabase (évite les blocages CORS) ─────
