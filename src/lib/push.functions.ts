@@ -6,8 +6,6 @@ import { sendPushToAudience } from "@/lib/push.server";
 
 export type PushAudience = "admin" | "chauffeur" | "client";
 
-// Format FCM web token : généralement <instanceID>:APA91b... (alphanum, `-`, `_`, `:`).
-// Longueur typique 140-300 caractères.
 const FCM_TOKEN_RE = /^[A-Za-z0-9_\-:]{50,500}$/;
 
 const subSchema = z.object({
@@ -57,6 +55,9 @@ export const sendTestPush = createServerFn({ method: "POST" })
     });
   });
 
+// URL de prod hardcodée — process.env.APP_URL est vide en contexte serveur Lovable
+const APP_URL = "https://taxicitybordeaux.fr";
+
 export const notifyNewReservation = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ reservation_id: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
@@ -92,8 +93,8 @@ export const notifyNewReservation = createServerFn({ method: "POST" })
 
     let emailSent = false;
     try {
-      // Route principale (admin)
-      const res = await fetch(`${process.env.APP_URL ?? ""}/api/admin/send-course-email`, {
+      console.log("[notifyNewReservation] calling send-course-email →", `${APP_URL}/api/admin/send-course-email`);
+      const res = await fetch(`${APP_URL}/api/admin/send-course-email`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Admin-Secret": "admin-pin-call" },
         body: JSON.stringify({
@@ -109,33 +110,17 @@ export const notifyNewReservation = createServerFn({ method: "POST" })
             pickup_datetime: r.pickup_datetime ?? "",
             passagers: r.nb_passagers || r.passagers || 1,
             bagages: r.bagages ?? 0,
-            admin_url: `${process.env.APP_URL ?? ""}/admin/dashboard`,
+            admin_url: `${APP_URL}/admin/dashboard`,
           },
         }),
       });
       emailSent = res.ok;
       if (!res.ok) {
-        console.warn("[notifyNewReservation] admin route failed, trying public fallback", res.status);
-        // Fallback vers la route publique qui est autonome et fiable
-        const fallback = await fetch(`${process.env.APP_URL ?? ""}/api/public/notify-reservation`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ reservation_id: r.id }),
-        });
-        emailSent = fallback.ok;
-        if (!fallback.ok) console.error("[notifyNewReservation] public fallback also failed", fallback.status);
+        const errBody = await res.text().catch(() => "");
+        console.warn("[notifyNewReservation] send-course-email failed", res.status, errBody);
       }
     } catch (e) {
-      console.error("[notifyNewReservation] email failed", e);
-      // Dernier recours
-      try {
-        const fallback = await fetch(`${process.env.APP_URL ?? ""}/api/public/notify-reservation`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ reservation_id: r.id }),
-        });
-        emailSent = fallback.ok;
-      } catch {}
+      console.error("[notifyNewReservation] email fetch threw", e);
     }
 
     return { admin: adminResult, chauffeur: chauffeurResult, emailSent };
@@ -163,9 +148,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
     const phone = r.client_phone || r.telephone || "";
     const smsPhone = phone.replace(/[^\d]/g, "").replace(/^0/, "+33");
     const url = r.tracking_id ? `/suivi/${r.tracking_id}` : `/reservation/${r.id}`;
-    const appUrl = process.env.APP_URL ?? "";
 
-    // Labels traduits selon la langue de la réservation
     const resLang = ((r as any).lang as Lang) || "fr";
 
     const PUSH_LABELS: Record<Lang, Record<string, { title: string; body: string }>> = {
@@ -232,7 +215,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
       "client",
       {
         ...l,
-        url: `${appUrl}${url}`,
+        url: `${APP_URL}${url}`,
         tag: `res-${r.id}`,
         requireInteraction: ["en_route", "arrived"].includes(data.status),
       },
@@ -242,7 +225,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
     let smsBody: string | null = null;
     if (smsPhone && data.status === "en_route") {
       smsBody = encodeURIComponent(
-        `Bonjour ${clientName},\nVotre chauffeur est en route vers vous !\n${r.depart}\n📲 Suivez en direct : ${appUrl}${url}\nTel: 06 73 07 23 22`,
+        `Bonjour ${clientName},\nVotre chauffeur est en route vers vous !\n${r.depart}\n📲 Suivez en direct : ${APP_URL}${url}\nTel: 06 73 07 23 22`,
       );
     }
     if (smsPhone && data.status === "arrived") {
