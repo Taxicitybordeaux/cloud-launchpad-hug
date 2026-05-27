@@ -7,7 +7,6 @@ import { TEMPLATES } from "@/lib/email-templates/registry";
 
 const SITE_NAME = "Taxi City Bordeaux";
 const SENDER_DOMAIN = "notify.taxicitybordeaux.fr";
-const FROM_DOMAIN = "taxicitybordeaux.fr";
 const TEMPLATE_NAME = "reservation-client-confirmation";
 
 const schema = z.object({
@@ -34,7 +33,6 @@ export const Route = createFileRoute("/api/public/notify-reservation-client")({
           url: request.url,
           origin: request.headers.get("origin"),
           referer: request.headers.get("referer"),
-          userAgent: request.headers.get("user-agent"),
         });
 
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -60,8 +58,7 @@ export const Route = createFileRoute("/api/public/notify-reservation-client")({
 
         const supabase = createClient(supabaseUrl, serviceKey);
 
-        // Verify the reservation exists AND the supplied email matches the stored one.
-        // Prevents using this endpoint as an open email relay.
+        // Vérifie que la résa existe et que l'email correspond — anti-relay
         const { data: reservation, error: lookupError } = await supabase
           .from("reservations")
           .select("email")
@@ -90,17 +87,6 @@ export const Route = createFileRoute("/api/public/notify-reservation-client")({
         const messageId = crypto.randomUUID();
         const idempotencyKey = `client-confirm-${data.reservation_id}`;
 
-        log("prepared", {
-          template: TEMPLATE_NAME,
-          recipient,
-          messageId,
-          idempotencyKey,
-          from: `${SITE_NAME} <noreply@${SENDER_DOMAIN}>`,
-          replyTo: "taxi.city033@gmail.com",
-          senderDomain: SENDER_DOMAIN,
-          fromDomain: FROM_DOMAIN,
-        });
-
         const { error: logError } = await supabase.from("email_send_log").insert({
           message_id: messageId,
           template_name: TEMPLATE_NAME,
@@ -121,6 +107,7 @@ export const Route = createFileRoute("/api/public/notify-reservation-client")({
         const text = await render(element, { plainText: true });
         const subject = typeof tpl.subject === "function" ? tpl.subject(data as any) : tpl.subject;
 
+        // Unsubscribe token
         const normalized = recipient.toLowerCase();
         let unsubscribeToken = "";
         const { data: existing } = await supabase
@@ -146,43 +133,46 @@ export const Route = createFileRoute("/api/public/notify-reservation-client")({
           if (stored?.token) unsubscribeToken = stored.token;
         }
 
-        // Send directly via the bridge (same as send-course-email.ts) instead of enqueue_email.
-        const sendResp = await fetch(
-          `${process.env.APP_URL || "https://taxicitybordeaux.fr"}/lovable/email/transactional/send`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              message_id: messageId,
-              to: recipient,
-              from: `${SITE_NAME} <noreply@${SENDER_DOMAIN}>`,
-              reply_to: "taxi.city033@gmail.com",
-              sender_domain: SENDER_DOMAIN,
-              subject,
-              html,
-              text,
-              purpose: "transactional",
-              label: TEMPLATE_NAME,
-              idempotency_key: idempotencyKey,
-              unsubscribe_token: unsubscribeToken,
-            }),
+        // URL hardcodée vers la prod — jamais dérivée de la requête entrante
+        // + Authorization: Bearer <serviceKey> comme send-course-email.ts
+        const EMAIL_BRIDGE_URL = "https://taxicitybordeaux.fr/lovable/email/transactional/send";
+        log("sending", { bridge: EMAIL_BRIDGE_URL, messageId });
+
+        const sendResp = await fetch(EMAIL_BRIDGE_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceKey}`,
           },
-        );
+          body: JSON.stringify({
+            message_id: messageId,
+            to: recipient,
+            from: `${SITE_NAME} <noreply@${SENDER_DOMAIN}>`,
+            reply_to: "taxi.city033@gmail.com",
+            sender_domain: SENDER_DOMAIN,
+            subject,
+            html,
+            text,
+            purpose: "transactional",
+            label: TEMPLATE_NAME,
+            idempotency_key: idempotencyKey,
+            unsubscribe_token: unsubscribeToken,
+          }),
+        });
 
         if (!sendResp.ok) {
           const errBody = await sendResp.text().catch(() => "");
           log("error", { stage: "send", status: sendResp.status, body: errBody });
           await supabase
             .from("email_send_log")
-            .update({ status: "failed", error_message: `send ${sendResp.status}` })
+            .update({ status: "failed", error_message: `send ${sendResp.status}: ${errBody}` })
             .eq("message_id", messageId);
           return Response.json({ error: "send_failed" }, { status: 500 });
         }
 
-        // Update log to sent.
         await supabase.from("email_send_log").update({ status: "sent" }).eq("message_id", messageId);
 
-        log("sent", { queue: "transactional_emails", messageId });
+        log("sent", { messageId });
         return Response.json({ success: true, messageId });
       },
     },
