@@ -301,6 +301,7 @@ function ReservationPage() {
   // ── Marqueurs + tracé (chemin le plus long) ───────────────────────────────
   useEffect(() => {
     if (!fromCoord && !toCoord) return;
+    let cancelled = false;
 
     // Attendre que la carte soit initialisée (race condition avec initMap async)
     const applyMarkers = async () => {
@@ -308,12 +309,13 @@ function ReservationPage() {
       if (!map) {
         for (let i = 0; i < 20; i++) {
           await new Promise((r) => setTimeout(r, 150));
+          if (cancelled) return;
           map = mapInst.current;
           if (map) break;
         }
       }
       const L = (window as any).L;
-      if (!map || !L) return;
+      if (!map || !L || cancelled) return;
 
       // Coords sont en [lat, lng] — Leaflet attend [lat, lng] directement
       if (fromCoord) {
@@ -340,6 +342,7 @@ function ReservationPage() {
 
       if (fromCoord && toCoord) {
         getOsrmPolylineLongest(fromCoord, toCoord).then((coords) => {
+          if (cancelled) return;
           const m = mapInst.current;
           if (!m || !L) return;
           if (routeLayer.current) {
@@ -361,6 +364,9 @@ function ReservationPage() {
     };
 
     applyMarkers();
+    return () => {
+      cancelled = true;
+    };
   }, [fromCoord, toCoord]);
 
   // ── OSRM : recalcul distance/prix (chemin le plus long) ───────────────────
@@ -369,11 +375,16 @@ function ReservationPage() {
       setOrsResult(null);
       return;
     }
+    let cancelled = false;
     setCalcLoading(true);
     getOsrmRouteLongest(fromCoord, toCoord).then((r) => {
+      if (cancelled) return;
       setOrsResult(r);
       setCalcLoading(false);
     });
+    return () => {
+      cancelled = true;
+    };
   }, [fromCoord, toCoord]);
 
   // ── Géolocalisation départ (navigateur client) ───────────────────────────
@@ -430,14 +441,20 @@ function ReservationPage() {
     handleGeolocate(true);
   }, [handleGeolocate]);
 
+  const lastResolvedDepart = useRef<string>("");
+  const lastResolvedDest = useRef<string>("");
+
   // ── Résoudre adresse départ (saisie manuelle) ────────────────────────────
   const resolveDepartAddress = useCallback(async () => {
     const value = f.depart.trim();
     if (!value) return;
+    // Ne pas re-géocoder si l'adresse n'a pas changé depuis la dernière résolution
+    if (value === lastResolvedDepart.current && fromCoord) return;
     setCalcLoading(true);
     const result = await geocodeFullAddress(value);
     setCalcLoading(false);
     if (result) {
+      lastResolvedDepart.current = value;
       setFromCoord(result.coord);
       set("depart", result.label);
       setErrors((prev) => {
@@ -449,16 +466,19 @@ function ReservationPage() {
       setFromCoord(null);
       setErrors((prev) => ({ ...prev, depart: "Adresse introuvable" }));
     }
-  }, [f.depart]);
+  }, [f.depart, fromCoord]);
 
   // ── Résoudre adresse destination ─────────────────────────────────────────
   const resolveDestinationAddress = useCallback(async () => {
     const value = f.destination.trim();
     if (!value) return;
+    // Ne pas re-géocoder si l'adresse n'a pas changé depuis la dernière résolution
+    if (value === lastResolvedDest.current && toCoord) return;
     setCalcLoading(true);
     const result = await geocodeFullAddress(value);
     setCalcLoading(false);
     if (result) {
+      lastResolvedDest.current = value;
       setToCoord(result.coord);
       set("destination", result.label);
       setErrors((prev) => {
@@ -470,7 +490,7 @@ function ReservationPage() {
       setToCoord(null);
       setErrors((prev) => ({ ...prev, destination: "Adresse introuvable" }));
     }
-  }, [f.destination]);
+  }, [f.destination, toCoord]);
 
   // ── Disponibilité taxi ────────────────────────────────────────────────────
   useEffect(() => {
@@ -508,6 +528,10 @@ function ReservationPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Si les adresses sont saisies mais pas encore géocodées (ex: pas de blur), les résoudre maintenant
+    if (f.depart.trim() && !fromCoord) await resolveDepartAddress();
+    if (f.destination.trim() && !toCoord) await resolveDestinationAddress();
+
     const newErrors: Record<string, string> = {};
     if (!f.prenom.trim()) newErrors.prenom = t("res.err.required");
     if (!f.nom.trim()) newErrors.nom = t("res.err.required");
@@ -524,7 +548,6 @@ function ReservationPage() {
     }
 
     if (!orsResult) {
-      setErrors(newErrors);
       toast.error(t("rsim.loading"));
       return;
     }
