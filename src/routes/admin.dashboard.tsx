@@ -1529,13 +1529,26 @@ function Dashboard() {
         },
       ).catch(() => null);
 
+      // Facteurs correctifs par position pour aligner OSRM sur les distances Google Maps.
+      // OSRM surévalue les trajets courts dans ce secteur (Bordeaux/Gironde).
+      // Court × 0.80 | Intermédiaire × 0.84 | Long × 1.00
+      const OSRM_CORRECTION = [0.8, 0.84, 1.0];
+
       const routes = osrmData?.routes ?? [];
       let alts: ItineraryAlt[] = routes
         .map((route: any) => routeToAlt(route, "", pickupIso))
         .filter(Boolean)
         .sort((x: ItineraryAlt, y: ItineraryAlt) => x.km - y.km)
         .slice(0, 3)
-        .map((alt: ItineraryAlt, i: number) => ({ ...alt, label: labels[i] }));
+        .map((alt: ItineraryAlt, i: number) => {
+          const km = parseFloat((alt.km * OSRM_CORRECTION[i]).toFixed(2));
+          return {
+            ...alt,
+            label: labels[i],
+            km,
+            prix: parseFloat(calculerPrixMixte(km, pickupIso).toFixed(2)),
+          };
+        });
 
       // Fallback si OSRM renvoie moins de 3 routes
       if (alts.length < 3) {
