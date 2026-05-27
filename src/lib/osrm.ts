@@ -91,12 +91,20 @@ export async function fetchRouteCoordinates(
 export async function getRouteGeoCoords(
   from: [number, number], // [lng, lat]
   to: [number, number], // [lng, lat]
-): Promise<[number, number][]> {
+): Promise<{ coords: [number, number][]; distanceKm: number; durationSec: number } | null> {
   const data = await fetchRouteCoordinates([from, to], {
     overview: "full",
     geometries: "geojson",
   });
-  if (!data?.routes?.[0]?.geometry?.coordinates) return [];
+  const route = data?.routes?.[0];
+  if (!route?.geometry?.coordinates) return null;
   // OSRM renvoie [lng, lat] → on inverse en [lat, lng] pour Leaflet
-  return (data.routes[0].geometry.coordinates as [number, number][]).map(([lng, lat]) => [lat, lng]);
+  const coords = (route.geometry.coordinates as [number, number][]).map(
+    ([lng, lat]) => [lat, lng] as [number, number],
+  );
+  return {
+    coords,
+    distanceKm: (route.distance ?? 0) / 1000,
+    durationSec: route.duration ?? 0,
+  };
 }
