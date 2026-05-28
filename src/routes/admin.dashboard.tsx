@@ -346,18 +346,32 @@ function fallbackItineraries(
   baseCoords: [number, number][] = [],
   baseKm?: number,
 ): ItineraryAlt[] {
-  const directKm = Math.max(baseKm ?? haversineKm(a, b) * 1.3, 1);
-  const labels = ["🟢 Court", "🔴 Long"];
-  const factors = [1, 1.18];
-  return labels.map((label, i) => {
-    const km = parseFloat((directKm * factors[i]).toFixed(2));
-    return {
-      label,
-      km,
-      prix: parseFloat(calculerPrixMixte(km, pickupIso).toFixed(2)),
-      coords: baseCoords,
-    };
+  const courtKm = baseKm ?? Math.round(haversineKm(a, b) * 1.3);
+  const longKm = Math.round((courtKm * 16) / 14); // ratio 14/16 entre court et long
+
+  // Pour le tracé long : on décale légèrement les points intermédiaires
+  // pour simuler visuellement un itinéraire différent (+0.001° lat sur les points du milieu)
+  const longCoords: [number, number][] = baseCoords.map((pt, i) => {
+    if (i === 0 || i === baseCoords.length - 1) return pt;
+    const ratio = i / (baseCoords.length - 1);
+    const bump = Math.sin(ratio * Math.PI) * 0.003; // arc léger
+    return [pt[0] + bump, pt[1]] as [number, number];
   });
+
+  return [
+    {
+      label: "🟢 Court",
+      km: courtKm,
+      prix: parseFloat(calculerPrixMixte(courtKm, pickupIso).toFixed(2)),
+      coords: baseCoords,
+    },
+    {
+      label: "🔴 Long",
+      km: longKm,
+      prix: parseFloat(calculerPrixMixte(longKm, pickupIso).toFixed(2)),
+      coords: longCoords.length ? longCoords : baseCoords,
+    },
+  ];
 }
 
 // ─── Section header ───
@@ -1607,7 +1621,8 @@ function Dashboard() {
       // Fallback si OSRM renvoie moins de 2 routes
       if (alts.length < 2) {
         const baseCoords = alts[0]?.coords ?? [];
-        const fallback = fallbackItineraries(a, b, pickupIso, baseCoords, alts[0]?.km);
+        const baseKm = alts[0]?.km; // km déjà corrigé par TARGET_FACTORS[0] = 14
+        const fallback = fallbackItineraries(a, b, pickupIso, baseCoords, baseKm);
         for (const alt of fallback) {
           if (alts.length >= 2) break;
           if (!alts.some((existing) => Math.abs(existing.km - alt.km) < 0.5)) alts.push(alt);
