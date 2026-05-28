@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix, calculerPrixMixte, PRISE_EN_CHARGE } from "@/lib/tarif";
-import { geocodeAddress, reverseGeocode, searchAddress } from "@/lib/geocode";
+import { reverseGeocode, searchAddress } from "@/lib/geocode";
 import { newSuiviId } from "@/lib/suivi-id";
 import { subscribePush } from "@/lib/push.functions";
 import { getFcmToken } from "@/lib/firebase";
@@ -803,8 +803,7 @@ function ReservationPage() {
     const origin = fromCoord ?? BORDEAUX_CENTER;
     const [result, nearbyChoices] = await Promise.all([geocodeFullAddress(value), searchNearbyAddressChoices(value, origin, 20)]);
     setCalcLoading(false);
-    const resultDistance = result ? distanceKmBetween(origin, result.coord) : Infinity;
-    const exactEnough = Boolean(result && resultDistance <= 20 && isPlausibleAddressMatch(value, result.label));
+    const exactEnough = Boolean(result && isPlausibleAddressMatch(value, result.label));
     if (exactEnough && result) {
       setDestinationChoices([]);
       setToCoord(result.coord);
