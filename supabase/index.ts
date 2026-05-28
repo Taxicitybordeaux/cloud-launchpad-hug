@@ -1,9 +1,7 @@
-// supabase/functions/osrm-route/index.ts
-// Déployer avec : supabase functions deploy osrm-route --project-ref TON_PROJECT_REF
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const OSRM_DISTANCE_FACTOR = 1.0;
+const ORS_API_KEY =
+  "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImNhMGVmYTZiNGQ2MzQ3ZGJhZDJmMmY0ZDc2YjYyYTIwIiwiaCI6Im11cm11cjY0In0=";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { from_lng, from_lat, to_lng, to_lat } = await req.json();
+    const { from_lng, from_lat, to_lng, to_lat, overview, geometries, alternatives } = await req.json();
 
     if (from_lng == null || from_lat == null || to_lng == null || to_lat == null) {
       return new Response(JSON.stringify({ error: true, message: "Paramètres manquants" }), {
@@ -25,14 +23,31 @@ serve(async (req) => {
       });
     }
 
-    const url =
-      `https://router.project-osrm.org/route/v1/driving/` +
-      `${from_lng},${from_lat};${to_lng},${to_lat}` +
-      `?overview=false&alternatives=3&steps=false`;
+    // OpenRouteService Directions API
+    // Format : [longitude, latitude]
+    const body = {
+      coordinates: [
+        [from_lng, from_lat],
+        [to_lng, to_lat],
+      ],
+      preference: "recommended", // itinéraire recommandé (le plus rapide/pratique)
+      units: "km",
+      language: "fr-FR",
+      ...(overview ? { geometry: true, geometry_format: geometries ?? "geojson" } : {}),
+    };
 
-    const res = await fetch(url);
+    const res = await fetch("https://api.openrouteservice.org/v2/directions/driving-car/json", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: ORS_API_KEY,
+      },
+      body: JSON.stringify(body),
+    });
+
     if (!res.ok) {
-      return new Response(JSON.stringify({ error: true, message: "OSRM unreachable" }), {
+      const errText = await res.text();
+      return new Response(JSON.stringify({ error: true, message: `ORS error: ${errText}` }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -47,11 +62,24 @@ serve(async (req) => {
       });
     }
 
-    // Trajet le plus LONG parmi les alternatives
-    const longest = json.routes.reduce((best: any, r: any) => (r.distance > best.distance ? r : best));
+    const route = json.routes[0];
+    const distance_km = Math.round(route.summary.distance * 10) / 10; // déjà en km (units: "km")
+    const duration_sec = Math.round(route.summary.duration); // en secondes
 
-    const distance_km = Math.round((longest.distance / 1000) * OSRM_DISTANCE_FACTOR * 10) / 10;
-    const duration_sec = Math.round(longest.duration);
+    // Si la géométrie est demandée (pour la carte admin)
+    if (overview && route.geometry) {
+      return new Response(
+        JSON.stringify({
+          distance_km,
+          duration_sec,
+          geometry: route.geometry, // GeoJSON LineString
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
 
     return new Response(JSON.stringify({ distance_km, duration_sec }), {
       status: 200,
