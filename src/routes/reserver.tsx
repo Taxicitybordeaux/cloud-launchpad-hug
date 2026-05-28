@@ -129,7 +129,7 @@ async function getOsrmRouteLongest(from: [number, number], to: [number, number])
 
     // Accepte plusieurs nommages possibles selon la version de l'Edge Function
     const rawDistKm: number =
-      json.distance_km ?? json.distanceKm ?? json.distance ?? (json.routes?.[0]?.distance ? json.routes[0].distance / 1000 : 0);
+      json.distance_km ?? json.distanceKm ?? json.distance ?? json.routes?.[0]?.distance / 1000 ?? 0;
     const rawDureeS: number = json.duration_sec ?? json.durationSec ?? json.duration ?? json.routes?.[0]?.duration ?? 0;
 
     if (!rawDistKm || !rawDureeS) {
@@ -236,14 +236,24 @@ const inputStyle = (hasError?: boolean): React.CSSProperties => ({
  * Évite la confusion UTC / local qui fausse les calculs nuit et mixte.
  */
 function toParisIso(date: string, heure: string): string {
-  // On crée un Date "naïf" pour interroger l'offset Paris à ce moment précis
-  const naive = new Date(`${date}T${heure}:00`);
-  // Offset = diff entre l'heure locale du navigateur et l'heure Paris
-  const localStr = naive.toLocaleString("en-US", { timeZone: "Europe/Paris" });
-  const parisDate = new Date(localStr);
-  const offsetMs = naive.getTime() - parisDate.getTime();
-  const offsetMin = Math.round(offsetMs / 60000); // ex: -120 en été, -60 en hiver
-  const sign = offsetMin <= 0 ? "+" : "-";
+  // Construit un ISO string avec l'offset exact Europe/Paris (gère heure d'été/hiver)
+  // Méthode fiable : on forge une date UTC telle que l'heure Paris soit bien celle saisie
+  const probe = new Date(`${date}T${heure}:00Z`); // UTC naïf
+  const parisStr = probe.toLocaleString("en-US", {
+    timeZone: "Europe/Paris",
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+  const parisDate = new Date(parisStr);
+  // offsetMs : combien de ms il faut ajouter à UTC pour obtenir l'heure Paris
+  const offsetMs = parisDate.getTime() - probe.getTime();
+  const offsetMin = Math.round(offsetMs / 60000); // +120 en été, +60 en hiver
+  const sign = offsetMin >= 0 ? "+" : "-";
   const absMin = Math.abs(offsetMin);
   const hh = String(Math.floor(absMin / 60)).padStart(2, "0");
   const mm = String(absMin % 60).padStart(2, "0");
