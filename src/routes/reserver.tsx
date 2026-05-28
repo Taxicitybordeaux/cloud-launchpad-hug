@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix, calculerPrixMixte, PRISE_EN_CHARGE } from "@/lib/tarif";
-import { geocodeAddress, reverseGeocode, searchAddress } from "@/lib/geocode";
+import { reverseGeocode, searchAddress } from "@/lib/geocode";
 import { newSuiviId } from "@/lib/suivi-id";
 import { subscribePush } from "@/lib/push.functions";
 import { getFcmToken } from "@/lib/firebase";
@@ -39,6 +39,12 @@ interface OrsResult {
   distanceKm: number;
   dureeS: number;
 }
+
+type AddressChoice = {
+  label: string;
+  coord: [number, number];
+  distanceKm: number;
+};
 
 function shortLabel(label: string): string {
   const parts = label
@@ -91,6 +97,188 @@ async function geocodeFullAddress(address: string): Promise<{ coord: [number, nu
     if (results.length) {
       const r = results[0];
       return { coord: [r.coord[0], r.coord[1]], label: shortLabel(r.label) };
+    }
+  }
+  return null;
+}
+
+function distanceKmBetween(a: [number, number], b: [number, number]): number {
+  const R = 6371;
+  const dLat = ((b[0] - a[0]) * Math.PI) / 180;
+  const dLng = ((b[1] - a[1]) * Math.PI) / 180;
+  const x =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((a[0] * Math.PI) / 180) * Math.cos((b[0] * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+}
+
+function normalizeAddressText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function usefulSearchTokens(query: string): string[] {
+  const skip = new Set([
+    "rue",
+    "avenue",
+    "av",
+    "boulevard",
+    "bd",
+    "route",
+    "chemin",
+    "place",
+    "allee",
+    "impasse",
+    "cours",
+    "de",
+    "du",
+    "des",
+    "la",
+    "le",
+    "les",
+    "d",
+    "l",
+    "a",
+    "au",
+    "aux",
+    "france",
+    "gironde",
+  ]);
+  return normalizeAddressText(query)
+    .split(" ")
+    .filter((token) => token.length >= 3 && !skip.has(token))
+    .slice(0, 4);
+}
+
+function isPlausibleAddressMatch(query: string, label: string): boolean {
+  const tokens = usefulSearchTokens(query);
+  if (tokens.length === 0) return true;
+  const normalizedLabel = normalizeAddressText(label);
+  const hits = tokens.filter((token) => normalizedLabel.includes(token)).length;
+  return hits >= Math.min(2, tokens.length) || normalizedLabel.includes(tokens[0]);
+}
+
+function dedupeAddressChoices(choices: AddressChoice[]): AddressChoice[] {
+  const seen = new Set<string>();
+  return choices.filter((choice) => {
+    const key = `${choice.label.toLowerCase()}-${choice.coord[0].toFixed(4)}-${choice.coord[1].toFixed(4)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+async function searchPhotonAddress(query: string, origin: [number, number]): Promise<AddressChoice[]> {
+  try {
+    const url = new URL("https://photon.komoot.io/api/");
+    url.searchParams.set("q", query);
+    url.searchParams.set("limit", "8");
+    url.searchParams.set("lang", "fr");
+    url.searchParams.set("lat", String(origin[0]));
+    url.searchParams.set("lon", String(origin[1]));
+    const res = await fetch(url.toString());
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data?.features)) return [];
+    return data.features
+      .map((feature: any) => {
+        const coords = feature?.geometry?.coordinates;
+        if (!Array.isArray(coords) || coords.length < 2) return null;
+        const props = feature.properties ?? {};
+        const label = [props.name, props.street, props.postcode, props.city || props.county]
+          .filter(Boolean)
+          .join(", ");
+        const coord: [number, number] = [Number(coords[1]), Number(coords[0])];
+        if (!label || !Number.isFinite(coord[0]) || !Number.isFinite(coord[1])) return null;
+        return { label: shortLabel(label), coord, distanceKm: distanceKmBetween(origin, coord) };
+      })
+      .filter(Boolean) as AddressChoice[];
+  } catch {
+    return [];
+  }
+}
+
+async function searchOverpassPois(query: string, origin: [number, number], radiusKm: number): Promise<AddressChoice[]> {
+  const token = usefulSearchTokens(query)[0];
+  if (!token) return [];
+  const safeToken = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const radiusM = Math.round(radiusKm * 1000);
+  const body = `[out:json][timeout:8];(
+node(around:${radiusM},${origin[0]},${origin[1]})["name"~"${safeToken}",i];
+way(around:${radiusM},${origin[0]},${origin[1]})["name"~"${safeToken}",i];
+relation(around:${radiusM},${origin[0]},${origin[1]})["name"~"${safeToken}",i];
+);out center tags 20;`;
+  try {
+    const res = await fetch("https://overpass-api.de/api/interpreter", { method: "POST", body });
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data?.elements)) return [];
+    return data.elements
+      .map((item: any) => {
+        const lat = Number(item.lat ?? item.center?.lat);
+        const lng = Number(item.lon ?? item.center?.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+        const tags = item.tags ?? {};
+        const label = [tags.name, tags["addr:housenumber"] && tags["addr:street"] ? `${tags["addr:housenumber"]} ${tags["addr:street"]}` : tags["addr:street"], tags["addr:postcode"], tags["addr:city"]]
+          .filter(Boolean)
+          .join(", ");
+        if (!label) return null;
+        const coord: [number, number] = [lat, lng];
+        return { label: shortLabel(label), coord, distanceKm: distanceKmBetween(origin, coord) };
+      })
+      .filter(Boolean) as AddressChoice[];
+  } catch {
+    return [];
+  }
+}
+
+async function searchNearbyAddressChoices(query: string, origin: [number, number], radiusKm = 20): Promise<AddressChoice[]> {
+  const variants = [query, `${query}, Gironde`, `${query}, Bordeaux`, `${query}, France`];
+  const nominatimGroups = await Promise.all(variants.map((variant) => searchAddress(variant, 8).catch(() => [])));
+  const nominatimChoices = nominatimGroups.flat().map((item) => ({
+    label: shortLabel(item.label),
+    coord: item.coord,
+    distanceKm: distanceKmBetween(origin, item.coord),
+  }));
+  const [photonChoices, overpassChoices] = await Promise.all([
+    searchPhotonAddress(query, origin),
+    searchOverpassPois(query, origin, radiusKm),
+  ]);
+  const tokens = usefulSearchTokens(query);
+  return dedupeAddressChoices([...nominatimChoices, ...photonChoices, ...overpassChoices])
+    .filter((choice) => choice.distanceKm <= radiusKm && isPlausibleAddressMatch(query, choice.label))
+    .sort((a, b) => {
+      const aLabel = normalizeAddressText(a.label);
+      const bLabel = normalizeAddressText(b.label);
+      const aHits = tokens.filter((token) => aLabel.includes(token)).length;
+      const bHits = tokens.filter((token) => bLabel.includes(token)).length;
+      return bHits - aHits || a.distanceKm - b.distanceKm;
+    })
+    .slice(0, 4);
+}
+
+function getBrowserPosition(options: PositionOptions): Promise<GeolocationPosition> {
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, options);
+  });
+}
+
+async function getIpApproxPosition(): Promise<{ lat: number; lng: number } | null> {
+  const endpoints = ["https://ipapi.co/json/", "https://ipwho.is/"];
+  for (const endpoint of endpoints) {
+    try {
+      const res = await fetch(endpoint);
+      if (!res.ok) continue;
+      const data = await res.json();
+      const lat = Number(data.latitude ?? data.lat);
+      const lng = Number(data.longitude ?? data.lon ?? data.lng);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+    } catch {
+      // Essai du service gratuit suivant.
     }
   }
   return null;
@@ -280,6 +468,7 @@ function ReservationPage() {
   const [calcLoading, setCalcLoading] = useState(false);
   const [geolocLoading, setGeolocLoading] = useState(false);
   const [taxiAvailable, setTaxiAvailable] = useState<boolean | null>(null);
+  const [destinationChoices, setDestinationChoices] = useState<AddressChoice[]>([]);
 
   const [f, setF] = useState<FormState>({
     depart: "",
@@ -526,9 +715,7 @@ function ReservationPage() {
     }
     setGeolocLoading(true);
 
-    const onSuccess = async (pos: GeolocationPosition) => {
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
+    const applyPosition = async (lat: number, lng: number, approximate = false) => {
 
       // Tentative 1 : reverse geocoding → adresse lisible
       let adresse = await reverseGeocode(lat, lng).catch(() => null);
@@ -547,75 +734,44 @@ function ReservationPage() {
         delete next.depart;
         return next;
       });
-      toast.success(t("res.geo.btn") + " ✓");
+      toast.success(approximate ? "Zone détectée automatiquement — ajustez l’adresse si besoin" : t("res.geo.btn") + " ✓");
       setGeolocLoading(false);
     };
 
-    const onError = (err: GeolocationPositionError) => {
+    const applyFallback = async (err?: GeolocationPositionError) => {
+      const fallback = await getIpApproxPosition();
+      if (fallback) {
+        await applyPosition(fallback.lat, fallback.lng, true);
+        return;
+      }
       setGeolocLoading(false);
       const msg =
-        err.code === 1
+        err?.code === 1
           ? t("res.geo.err.denied")
-          : err.code === 2
+          : err?.code === 2
             ? t("res.geo.err.unavailable")
             : t("res.geo.err.timeout");
       toast.error(msg);
     };
 
-    // Stratégie précision maximale compatible Android + iOS :
-    // On lance watchPosition haute précision et on garde la meilleure position
-    // reçue jusqu'à accuracy <= 20m ou timeout 15s — puis on stop.
-    // Chaîné sans setTimeout pour satisfaire iOS Safari.
-    let watchId: number | null = null;
-    let bestPos: GeolocationPosition | null = null;
-    let settled = false;
-
-    const finish = (pos: GeolocationPosition) => {
-      if (settled) return;
-      settled = true;
-      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
-      onSuccess(pos);
-    };
-
-    const hardTimeout = setTimeout(() => {
-      if (!settled && bestPos) finish(bestPos);
-      else if (!settled) onError({ code: 3, message: "timeout" } as GeolocationPositionError);
-    }, 15000);
-
-    watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        if (!bestPos || pos.coords.accuracy < bestPos.coords.accuracy) bestPos = pos;
-        // Dès qu'on atteint une précision <= 20m on valide immédiatement
-        if (pos.coords.accuracy <= 20) {
-          clearTimeout(hardTimeout);
-          finish(pos);
+    try {
+      if (navigator.permissions?.query) {
+        const permission = await navigator.permissions.query({ name: "geolocation" as PermissionName });
+        if (permission.state === "denied") {
+          await applyFallback({ code: 1, message: "denied" } as GeolocationPositionError);
+          return;
         }
-      },
-      (err) => {
-        clearTimeout(hardTimeout);
-        // Sur iOS/Android, le 1er callback peut être PERMISSION_DENIED à tort :
-        // on chaîne un 2ème appel direct sans setTimeout (respecte la pile iOS)
-        if (err.code === 1) {
-          navigator.geolocation.getCurrentPosition(
-            (pos) => {
-              clearTimeout(hardTimeout);
-              finish(pos);
-            },
-            (e) => {
-              clearTimeout(hardTimeout);
-              onError(e);
-            },
-            { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
-          );
-        } else {
-          if (bestPos) {
-            clearTimeout(hardTimeout);
-            finish(bestPos);
-          } else onError(err);
-        }
-      },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
-    );
+      }
+      let pos: GeolocationPosition;
+      try {
+        pos = await getBrowserPosition({ enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 });
+      } catch {
+        pos = await getBrowserPosition({ enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 });
+      }
+      await applyPosition(pos.coords.latitude, pos.coords.longitude);
+    } catch (err) {
+      await applyFallback(err as GeolocationPositionError);
+    }
   }, []);
 
   // ── Résoudre adresse départ (saisie manuelle) ────────────────────────────
@@ -644,9 +800,12 @@ function ReservationPage() {
     const value = f.destination.trim();
     if (!value) return;
     setCalcLoading(true);
-    const result = await geocodeFullAddress(value);
+    const origin = fromCoord ?? BORDEAUX_CENTER;
+    const [result, nearbyChoices] = await Promise.all([geocodeFullAddress(value), searchNearbyAddressChoices(value, origin, 20)]);
     setCalcLoading(false);
-    if (result) {
+    const exactEnough = Boolean(result && isPlausibleAddressMatch(value, result.label));
+    if (exactEnough && result) {
+      setDestinationChoices([]);
       setToCoord(result.coord);
       set("destination", result.label);
       setErrors((prev) => {
@@ -654,11 +813,19 @@ function ReservationPage() {
         delete next.destination;
         return next;
       });
-    } else {
+    } else if (nearbyChoices.length) {
+      setDestinationChoices(nearbyChoices);
       setToCoord(null);
-      setErrors((prev) => ({ ...prev, destination: "Adresse introuvable" }));
+      setErrors((prev) => ({
+        ...prev,
+        destination: "Sélectionnez une adresse proposée dans un rayon de 20 km",
+      }));
+    } else {
+      setDestinationChoices([]);
+      setToCoord(null);
+      setErrors((prev) => ({ ...prev, destination: "Adresse introuvable — précisez la ville ou choisissez un lieu proche" }));
     }
-  }, [f.destination]);
+  }, [f.destination, fromCoord]);
 
   // ── Disponibilité taxi ────────────────────────────────────────────────────
   useEffect(() => {
@@ -1180,6 +1347,7 @@ function ReservationPage() {
                   onChange={(e) => {
                     set("destination", e.target.value);
                     setToCoord(null);
+                    setDestinationChoices([]);
                   }}
                   onBlur={resolveDestinationAddress}
                   placeholder={t("res.f.to.ph")}
@@ -1192,6 +1360,42 @@ function ReservationPage() {
                 />
                 {errors.destination && (
                   <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.destination}</div>
+                )}
+                {destinationChoices.length > 0 && (
+                  <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
+                    {destinationChoices.map((choice) => (
+                      <button
+                        key={`${choice.label}-${choice.coord[0]}-${choice.coord[1]}`}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          set("destination", choice.label);
+                          setToCoord(choice.coord);
+                          setDestinationChoices([]);
+                          setErrors((prev) => {
+                            const next = { ...prev };
+                            delete next.destination;
+                            return next;
+                          });
+                        }}
+                        style={{
+                          width: "100%",
+                          textAlign: "left",
+                          padding: "10px 12px",
+                          borderRadius: 10,
+                          border: "1px solid rgba(245,200,66,0.35)",
+                          background: "rgba(245,200,66,0.1)",
+                          color: "#f8fafc",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <span style={{ display: "block", fontSize: 13, fontWeight: 700 }}>{choice.label}</span>
+                        <span style={{ display: "block", fontSize: 11, color: "#fde68a", marginTop: 2 }}>
+                          à {choice.distanceKm.toFixed(1)} km du départ
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 )}
                 {toCoord && !errors.destination && (
                   <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>✓ {t("res.loc.to")}</div>
