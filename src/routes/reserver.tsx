@@ -129,7 +129,7 @@ async function getOsrmRouteLongest(from: [number, number], to: [number, number])
 
     // Accepte plusieurs nommages possibles selon la version de l'Edge Function
     const rawDistKm: number =
-      json.distance_km ?? json.distanceKm ?? json.distance ?? (json.routes?.[0]?.distance ? json.routes[0].distance / 1000 : 0);
+      json.distance_km ?? json.distanceKm ?? json.distance ?? json.routes?.[0]?.distance / 1000 ?? 0;
     const rawDureeS: number = json.duration_sec ?? json.durationSec ?? json.duration ?? json.routes?.[0]?.duration ?? 0;
 
     if (!rawDistKm || !rawDureeS) {
@@ -349,16 +349,15 @@ function ReservationPage() {
     return JOURS_FERIES_RES.has(`${yyyy}-${mm}-${dd}`);
   }
 
-  // Retourne l'heure Paris (0-23) d'un timestamp ms
+  // Retourne l'heure Paris (0-23) d'un timestamp ms — fiable sur tous navigateurs
   function heureParis(ms: number): number {
-    return parseInt(
-      new Date(ms).toLocaleString("fr-FR", {
-        timeZone: "Europe/Paris",
-        hour: "2-digit",
-        hour12: false,
-      }),
-      10,
-    );
+    const parts = new Intl.DateTimeFormat("fr-FR", {
+      timeZone: "Europe/Paris",
+      hour: "numeric",
+      hourCycle: "h23",
+    }).formatToParts(new Date(ms));
+    const h = parts.find((p) => p.type === "hour");
+    return h ? parseInt(h.value, 10) : 0;
   }
 
   // Vrai si ce moment est tarifé "nuit" (dimanche, férié, ou 19h-7h Paris)
