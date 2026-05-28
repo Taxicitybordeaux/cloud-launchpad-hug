@@ -129,7 +129,7 @@ async function getOsrmRouteLongest(from: [number, number], to: [number, number])
 
     // Accepte plusieurs nommages possibles selon la version de l'Edge Function
     const rawDistKm: number =
-      json.distance_km ?? json.distanceKm ?? json.distance ?? (json.routes?.[0]?.distance ? json.routes[0].distance / 1000 : 0);
+      json.distance_km ?? json.distanceKm ?? json.distance ?? json.routes?.[0]?.distance / 1000 ?? 0;
     const rawDureeS: number = json.duration_sec ?? json.durationSec ?? json.duration ?? json.routes?.[0]?.duration ?? 0;
 
     if (!rawDistKm || !rawDureeS) {
@@ -236,28 +236,35 @@ const inputStyle = (hasError?: boolean): React.CSSProperties => ({
  * Évite la confusion UTC / local qui fausse les calculs nuit et mixte.
  */
 function toParisIso(date: string, heure: string): string {
-  // Construit un ISO string avec l'offset exact Europe/Paris (gère heure d'été/hiver)
-  // Méthode fiable : on forge une date UTC telle que l'heure Paris soit bien celle saisie
-  const probe = new Date(`${date}T${heure}:00Z`); // UTC naïf
-  const parisStr = probe.toLocaleString("en-US", {
-    timeZone: "Europe/Paris",
-    hour12: false,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-  const parisDate = new Date(parisStr);
-  // offsetMs : combien de ms il faut ajouter à UTC pour obtenir l'heure Paris
-  const offsetMs = parisDate.getTime() - probe.getTime();
-  const offsetMin = Math.round(offsetMs / 60000); // +120 en été, +60 en hiver
-  const sign = offsetMin >= 0 ? "+" : "-";
-  const absMin = Math.abs(offsetMin);
-  const hh = String(Math.floor(absMin / 60)).padStart(2, "0");
-  const mm = String(absMin % 60).padStart(2, "0");
-  return `${date}T${heure}:00${sign}${hh}:${mm}`;
+  // On forge directement un ISO en heure locale Paris en cherchant le bon offset UTC.
+  // Principe : on cherche l'offset réel de Europe/Paris pour ce moment précis,
+  // sans passer par le fuseau du navigateur qui peut être différent.
+  const [h, m] = heure.split(":").map(Number);
+  const [y, mo, d] = date.split("-").map(Number);
+  // Estimation initiale : UTC = heure Paris - 2h (été) ou -1h (hiver)
+  // On itère pour trouver l'offset exact
+  for (const guessOffset of [120, 60, 0]) {
+    const utcMs = Date.UTC(y, mo - 1, d, h - Math.floor(guessOffset / 60), m - (guessOffset % 60));
+    const check = new Intl.DateTimeFormat("fr-FR", {
+      timeZone: "Europe/Paris",
+      hour: "numeric",
+      minute: "numeric",
+      hourCycle: "h23",
+    }).formatToParts(new Date(utcMs));
+    const hPart = check.find((p) => p.type === "hour");
+    const mPart = check.find((p) => p.type === "minute");
+    const hVal = hPart ? parseInt(hPart.value, 10) : -1;
+    const mVal = mPart ? parseInt(mPart.value, 10) : -1;
+    if (hVal === h && mVal === m) {
+      const sign = guessOffset >= 0 ? "+" : "-";
+      const absMin = Math.abs(guessOffset);
+      const hh = String(Math.floor(absMin / 60)).padStart(2, "0");
+      const mm = String(absMin % 60).padStart(2, "0");
+      return `${date}T${heure}:00${sign}${hh}:${mm}`;
+    }
+  }
+  // Fallback ultime : ISO sans offset (heure locale navigateur)
+  return `${date}T${heure}:00`;
 }
 
 function ReservationPage() {
