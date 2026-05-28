@@ -468,6 +468,7 @@ function ReservationPage() {
   const [calcLoading, setCalcLoading] = useState(false);
   const [geolocLoading, setGeolocLoading] = useState(false);
   const [taxiAvailable, setTaxiAvailable] = useState<boolean | null>(null);
+  const [destinationChoices, setDestinationChoices] = useState<AddressChoice[]>([]);
 
   const [f, setF] = useState<FormState>({
     depart: "",
@@ -714,9 +715,7 @@ function ReservationPage() {
     }
     setGeolocLoading(true);
 
-    const onSuccess = async (pos: GeolocationPosition) => {
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
+    const applyPosition = async (lat: number, lng: number, approximate = false) => {
 
       // Tentative 1 : reverse geocoding → adresse lisible
       let adresse = await reverseGeocode(lat, lng).catch(() => null);
@@ -735,75 +734,44 @@ function ReservationPage() {
         delete next.depart;
         return next;
       });
-      toast.success(t("res.geo.btn") + " ✓");
+      toast.success(approximate ? "Zone détectée automatiquement — ajustez l’adresse si besoin" : t("res.geo.btn") + " ✓");
       setGeolocLoading(false);
     };
 
-    const onError = (err: GeolocationPositionError) => {
+    const applyFallback = async (err?: GeolocationPositionError) => {
+      const fallback = await getIpApproxPosition();
+      if (fallback) {
+        await applyPosition(fallback.lat, fallback.lng, true);
+        return;
+      }
       setGeolocLoading(false);
       const msg =
-        err.code === 1
+        err?.code === 1
           ? t("res.geo.err.denied")
-          : err.code === 2
+          : err?.code === 2
             ? t("res.geo.err.unavailable")
             : t("res.geo.err.timeout");
       toast.error(msg);
     };
 
-    // Stratégie précision maximale compatible Android + iOS :
-    // On lance watchPosition haute précision et on garde la meilleure position
-    // reçue jusqu'à accuracy <= 20m ou timeout 15s — puis on stop.
-    // Chaîné sans setTimeout pour satisfaire iOS Safari.
-    let watchId: number | null = null;
-    let bestPos: GeolocationPosition | null = null;
-    let settled = false;
-
-    const finish = (pos: GeolocationPosition) => {
-      if (settled) return;
-      settled = true;
-      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
-      onSuccess(pos);
-    };
-
-    const hardTimeout = setTimeout(() => {
-      if (!settled && bestPos) finish(bestPos);
-      else if (!settled) onError({ code: 3, message: "timeout" } as GeolocationPositionError);
-    }, 15000);
-
-    watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        if (!bestPos || pos.coords.accuracy < bestPos.coords.accuracy) bestPos = pos;
-        // Dès qu'on atteint une précision <= 20m on valide immédiatement
-        if (pos.coords.accuracy <= 20) {
-          clearTimeout(hardTimeout);
-          finish(pos);
+    try {
+      if (navigator.permissions?.query) {
+        const permission = await navigator.permissions.query({ name: "geolocation" as PermissionName });
+        if (permission.state === "denied") {
+          await applyFallback({ code: 1, message: "denied" } as GeolocationPositionError);
+          return;
         }
-      },
-      (err) => {
-        clearTimeout(hardTimeout);
-        // Sur iOS/Android, le 1er callback peut être PERMISSION_DENIED à tort :
-        // on chaîne un 2ème appel direct sans setTimeout (respecte la pile iOS)
-        if (err.code === 1) {
-          navigator.geolocation.getCurrentPosition(
-            (pos) => {
-              clearTimeout(hardTimeout);
-              finish(pos);
-            },
-            (e) => {
-              clearTimeout(hardTimeout);
-              onError(e);
-            },
-            { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
-          );
-        } else {
-          if (bestPos) {
-            clearTimeout(hardTimeout);
-            finish(bestPos);
-          } else onError(err);
-        }
-      },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
-    );
+      }
+      let pos: GeolocationPosition;
+      try {
+        pos = await getBrowserPosition({ enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 });
+      } catch {
+        pos = await getBrowserPosition({ enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 });
+      }
+      await applyPosition(pos.coords.latitude, pos.coords.longitude);
+    } catch (err) {
+      await applyFallback(err as GeolocationPositionError);
+    }
   }, []);
 
   // ── Résoudre adresse départ (saisie manuelle) ────────────────────────────
@@ -832,9 +800,13 @@ function ReservationPage() {
     const value = f.destination.trim();
     if (!value) return;
     setCalcLoading(true);
-    const result = await geocodeFullAddress(value);
+    const origin = fromCoord ?? BORDEAUX_CENTER;
+    const [result, nearbyChoices] = await Promise.all([geocodeFullAddress(value), searchNearbyAddressChoices(value, origin, 20)]);
     setCalcLoading(false);
-    if (result) {
+    const resultDistance = result ? distanceKmBetween(origin, result.coord) : Infinity;
+    const exactEnough = result && resultDistance <= 20 && isPlausibleAddressMatch(value, result.label);
+    if (exactEnough) {
+      setDestinationChoices([]);
       setToCoord(result.coord);
       set("destination", result.label);
       setErrors((prev) => {
@@ -842,11 +814,19 @@ function ReservationPage() {
         delete next.destination;
         return next;
       });
-    } else {
+    } else if (nearbyChoices.length) {
+      setDestinationChoices(nearbyChoices);
       setToCoord(null);
-      setErrors((prev) => ({ ...prev, destination: "Adresse introuvable" }));
+      setErrors((prev) => ({
+        ...prev,
+        destination: "Sélectionnez une adresse proposée dans un rayon de 20 km",
+      }));
+    } else {
+      setDestinationChoices([]);
+      setToCoord(null);
+      setErrors((prev) => ({ ...prev, destination: "Adresse introuvable — précisez la ville ou choisissez un lieu proche" }));
     }
-  }, [f.destination]);
+  }, [f.destination, fromCoord]);
 
   // ── Disponibilité taxi ────────────────────────────────────────────────────
   useEffect(() => {
