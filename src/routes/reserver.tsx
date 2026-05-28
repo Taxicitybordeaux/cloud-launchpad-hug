@@ -352,10 +352,9 @@ async function getOsrmRouteLongest(from: [number, number], to: [number, number])
       return null;
     }
 
-    // × 0.825 pour obtenir le trajet le plus long (16 km réels)
+    // Distance réelle retournée par ORS — pas de facteur correctif
     return {
-      // Arrondi au km entier le plus proche pour stabiliser malgré les variations OSRM
-      distanceKm: Math.round(rawDistKm * 0.8448),
+      distanceKm: Math.round(rawDistKm * 10) / 10,
       dureeS: rawDureeS,
     };
   } catch {

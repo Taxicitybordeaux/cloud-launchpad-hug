@@ -1643,18 +1643,15 @@ function Dashboard() {
         .filter(Boolean)
         .sort((x: ItineraryAlt, y: ItineraryAlt) => x.km - y.km);
 
-      // Court = le plus court × 0.7451 → 14 km / Long = le plus long × 0.7217 → 16 km
-      const TARGET_FACTORS = [0.7451, 0.6991];
+      // Distance réelle ORS — pas de facteur correctif
       let alts: ItineraryAlt[] = [];
       if (allAlts.length >= 2) {
-        const pairs = [allAlts[0], allAlts[allAlts.length - 1]];
-        alts = pairs.map((alt: ItineraryAlt, i: number) => {
-          const km = Math.round(alt.km * TARGET_FACTORS[i]);
-          return { ...alt, label: labels[i], km, prix: parseFloat(calculerPrixMixte(km, pickupIso).toFixed(2)) };
-        });
+        alts = [
+          { ...allAlts[0], label: labels[0] },
+          { ...allAlts[allAlts.length - 1], label: labels[1] },
+        ];
       } else if (allAlts.length === 1) {
-        const km = Math.round(allAlts[0].km * TARGET_FACTORS[0]);
-        alts = [{ ...allAlts[0], label: labels[0], km, prix: parseFloat(calculerPrixMixte(km, pickupIso).toFixed(2)) }];
+        alts = [{ ...allAlts[0], label: labels[0] }];
       }
 
       // Fallback si OSRM renvoie moins de 2 routes
