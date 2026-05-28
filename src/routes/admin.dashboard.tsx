@@ -1401,8 +1401,8 @@ function Dashboard() {
         if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = navigator.geolocation.watchPosition(handlePosition, handleError, {
           enableHighAccuracy: true,
-          maximumAge: 0,
-          timeout: 15000,
+          maximumAge: 30000,
+          timeout: 60000,
         });
       }, 8000);
     };
@@ -1417,12 +1417,11 @@ function Dashboard() {
       if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = navigator.geolocation.watchPosition(handlePosition, handleError, {
         enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 15000,
+        maximumAge: 30000,
+        timeout: 60000,
       });
     };
 
-    // Appel initial haute précision pour obtenir la meilleure position rapidement
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         handlePosition(pos);
@@ -1430,7 +1429,6 @@ function Dashboard() {
       },
       (err) => {
         if (err.code === 1) {
-          // Faux positif possible → 2ème essai direct haute précision (sans setTimeout)
           navigator.geolocation.getCurrentPosition(
             (pos) => {
               handlePosition(pos);
@@ -1438,14 +1436,14 @@ function Dashboard() {
             },
             () => {
               startWatch();
-            }, // watchPosition tente quand même
-            { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
+            },
+            { enableHighAccuracy: false, timeout: 30000, maximumAge: 300000 },
           );
         } else {
-          startWatch(); // timeout/unavailable → watchPosition prend le relais
+          startWatch();
         }
       },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 12000 },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 },
     );
 
     // ── Heartbeat toutes les 5s pour garder is_active vivant ────────────
