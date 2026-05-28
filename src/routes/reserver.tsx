@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrix, calculerPrixMixte, PRISE_EN_CHARGE } from "@/lib/tarif";
 import { reverseGeocode, searchAddress } from "@/lib/geocode";
+import { getDistanceAndDurationKm } from "@/lib/osrm";
 import { newSuiviId } from "@/lib/suivi-id";
 import { subscribePush } from "@/lib/push.functions";
 import { getFcmToken } from "@/lib/firebase";
@@ -297,70 +298,6 @@ async function getIpApproxPosition(): Promise<{ lat: number; lng: number } | nul
 const SUPABASE_URL = "https://auiagkpdpnfqxfngisfc.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1aWFna3BkcG5mcXhmbmdpc2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0MzU2NzUsImV4cCI6MjA5NDAxMTY3NX0.MkW2KzCYHvQ0GEjjP3_puf3PkCHWaYcvW2bI1ctTuJU";
-
-async function getOsrmRouteLongest(from: [number, number], to: [number, number]): Promise<OrsResult | null> {
-  try {
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/osrm-route`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({
-        from_lat: from[0],
-        from_lng: from[1],
-        to_lat: to[0],
-        to_lng: to[1],
-      }),
-    });
-    if (!res.ok) {
-      console.warn("[OSRM] HTTP error:", res.status, res.statusText);
-      return null;
-    }
-    const json = await res.json();
-    console.log("[OSRM] Réponse brute:", JSON.stringify(json));
-    if (json?.error) {
-      console.warn("[OSRM] Erreur API:", json.error);
-      return null;
-    }
-
-    // Accepte plusieurs nommages possibles selon la version de l'Edge Function
-    const routeDistanceKm = typeof json.routes?.[0]?.distance === "number" ? json.routes[0].distance / 1000 : undefined;
-    const rawDistKm: number = json.distance_km ?? json.distanceKm ?? json.distance ?? routeDistanceKm ?? 0;
-    const rawDureeS: number = json.duration_sec ?? json.durationSec ?? json.duration ?? json.routes?.[0]?.duration ?? 0;
-
-    if (!rawDistKm || !rawDureeS) {
-      console.warn("[OSRM] Champs manquants dans la réponse:", json);
-      return null;
-    }
-
-    // ── Sanity check : la distance routière ne peut pas être > 10× la distance
-    //    à vol d'oiseau entre les deux points. Si c'est le cas, l'API a retourné
-    //    une route aberrante (coordonnées inversées, bug serveur, etc.)
-    const R = 6371;
-    const dLat = ((from[0] - to[0]) * Math.PI) / 180;
-    const dLng = ((from[1] - to[1]) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos((from[0] * Math.PI) / 180) * Math.cos((to[0] * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-    const volOiseauKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    // Ratio routier normal : 1.1× à 2× la distance à vol d'oiseau max
-    if (rawDistKm > volOiseauKm * 10 || rawDistKm < 0.05) {
-      console.warn(
-        `[OSRM] Résultat aberrant rejeté : ${rawDistKm} km routiers pour ${volOiseauKm.toFixed(2)} km vol d'oiseau`,
-      );
-      return null;
-    }
-
-    // Distance réelle retournée par ORS — pas de facteur correctif
-    return {
-      distanceKm: Math.round(rawDistKm * 10) / 10,
-      dureeS: rawDureeS,
-    };
-  } catch {
-    return null;
-  }
-}
 
 // ─── OSRM polyline : via Edge Function Supabase (évite CORS mobile) ────────────
 async function getOsrmPolylineLongest(from: [number, number], to: [number, number]): Promise<[number, number][]> {
@@ -708,7 +645,8 @@ function ReservationPage() {
       return;
     }
     setCalcLoading(true);
-    getOsrmRouteLongest(fromCoord, toCoord).then((r) => {
+    // fromCoord = [lat, lng] → getDistanceAndDurationKm attend [lng, lat]
+    getDistanceAndDurationKm([fromCoord[1], fromCoord[0]], [toCoord[1], toCoord[0]]).then((r) => {
       setOrsResult(r);
       setCalcLoading(false);
     });
@@ -767,7 +705,7 @@ function ReservationPage() {
     const hardTimeout = setTimeout(() => {
       if (!settled && bestPos) finish(bestPos);
       else if (!settled) applyFallback({ code: 3, message: "timeout" } as GeolocationPositionError);
-    }, 15000);
+    }, 60000);
 
     const finish = (pos: GeolocationPosition) => {
       if (settled) return;
@@ -791,7 +729,7 @@ function ReservationPage() {
         else if (bestPos) applyPosition(bestPos.coords.latitude, bestPos.coords.longitude);
         else applyFallback(err);
       },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
+      { enableHighAccuracy: true, maximumAge: 30000, timeout: 60000 },
     );
   }, []);
 
