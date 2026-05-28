@@ -89,15 +89,16 @@ export async function fetchRouteCoordinates(
 export async function getRouteGeoCoords(
   from: [number, number], // [lng, lat]
   to: [number, number], // [lng, lat]
-): Promise<{ coords: [number, number][]; distanceKm: number | undefined }> {
+): Promise<{ coords: [number, number][]; distanceKm: number; durationSec: number }> {
   const data = await fetchRouteCoordinates([from, to], {
     overview: "full",
     geometries: "geojson",
   });
-  if (!data?.routes?.[0]?.geometry?.coordinates) return { coords: [], distanceKm: undefined };
+  if (!data?.routes?.[0]?.geometry?.coordinates) return { coords: [], distanceKm: 0, durationSec: 0 };
   const route = data.routes[0];
   // OSRM renvoie [lng, lat] → on inverse en [lat, lng] pour Leaflet
   const coords = (route.geometry.coordinates as [number, number][]).map(([lng, lat]) => [lat, lng] as [number, number]);
-  const distanceKm = route.distance ? route.distance / 1000 : undefined;
-  return { coords, distanceKm };
+  const distanceKm = route.distance ? route.distance / 1000 : 0;
+  const durationSec = route.duration ?? 0;
+  return { coords, distanceKm, durationSec };
 }
