@@ -804,8 +804,8 @@ function ReservationPage() {
     const [result, nearbyChoices] = await Promise.all([geocodeFullAddress(value), searchNearbyAddressChoices(value, origin, 20)]);
     setCalcLoading(false);
     const resultDistance = result ? distanceKmBetween(origin, result.coord) : Infinity;
-    const exactEnough = result && resultDistance <= 20 && isPlausibleAddressMatch(value, result.label);
-    if (exactEnough) {
+    const exactEnough = Boolean(result && resultDistance <= 20 && isPlausibleAddressMatch(value, result.label));
+    if (exactEnough && result) {
       setDestinationChoices([]);
       setToCoord(result.coord);
       set("destination", result.label);
@@ -1348,6 +1348,7 @@ function ReservationPage() {
                   onChange={(e) => {
                     set("destination", e.target.value);
                     setToCoord(null);
+                    setDestinationChoices([]);
                   }}
                   onBlur={resolveDestinationAddress}
                   placeholder={t("res.f.to.ph")}
@@ -1360,6 +1361,42 @@ function ReservationPage() {
                 />
                 {errors.destination && (
                   <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.destination}</div>
+                )}
+                {destinationChoices.length > 0 && (
+                  <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
+                    {destinationChoices.map((choice) => (
+                      <button
+                        key={`${choice.label}-${choice.coord[0]}-${choice.coord[1]}`}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          set("destination", choice.label);
+                          setToCoord(choice.coord);
+                          setDestinationChoices([]);
+                          setErrors((prev) => {
+                            const next = { ...prev };
+                            delete next.destination;
+                            return next;
+                          });
+                        }}
+                        style={{
+                          width: "100%",
+                          textAlign: "left",
+                          padding: "10px 12px",
+                          borderRadius: 10,
+                          border: "1px solid rgba(245,200,66,0.35)",
+                          background: "rgba(245,200,66,0.1)",
+                          color: "#f8fafc",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <span style={{ display: "block", fontSize: 13, fontWeight: 700 }}>{choice.label}</span>
+                        <span style={{ display: "block", fontSize: 11, color: "#fde68a", marginTop: 2 }}>
+                          à {choice.distanceKm.toFixed(1)} km du départ
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 )}
                 {toCoord && !errors.destination && (
                   <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>✓ {t("res.loc.to")}</div>
