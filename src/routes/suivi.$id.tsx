@@ -1263,7 +1263,7 @@ function SuiviPage() {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      let currentResa: Reservation | null = null;
+      let currentResa: any = null;
       if (resaIdRef.current) {
         const { data: r } = await supabase
           .from("reservations")
