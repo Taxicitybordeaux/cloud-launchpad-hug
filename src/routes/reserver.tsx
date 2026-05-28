@@ -189,9 +189,7 @@ async function searchPhotonAddress(query: string, origin: [number, number]): Pro
         const coords = feature?.geometry?.coordinates;
         if (!Array.isArray(coords) || coords.length < 2) return null;
         const props = feature.properties ?? {};
-        const label = [props.name, props.street, props.postcode, props.city || props.county]
-          .filter(Boolean)
-          .join(", ");
+        const label = [props.name, props.street, props.postcode, props.city || props.county].filter(Boolean).join(", ");
         const coord: [number, number] = [Number(coords[1]), Number(coords[0])];
         if (!label || !Number.isFinite(coord[0]) || !Number.isFinite(coord[1])) return null;
         return { label: shortLabel(label), coord, distanceKm: distanceKmBetween(origin, coord) };
@@ -223,7 +221,14 @@ relation(around:${radiusM},${origin[0]},${origin[1]})["name"~"${safeToken}",i];
         const lng = Number(item.lon ?? item.center?.lon);
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
         const tags = item.tags ?? {};
-        const label = [tags.name, tags["addr:housenumber"] && tags["addr:street"] ? `${tags["addr:housenumber"]} ${tags["addr:street"]}` : tags["addr:street"], tags["addr:postcode"], tags["addr:city"]]
+        const label = [
+          tags.name,
+          tags["addr:housenumber"] && tags["addr:street"]
+            ? `${tags["addr:housenumber"]} ${tags["addr:street"]}`
+            : tags["addr:street"],
+          tags["addr:postcode"],
+          tags["addr:city"],
+        ]
           .filter(Boolean)
           .join(", ");
         if (!label) return null;
@@ -236,7 +241,11 @@ relation(around:${radiusM},${origin[0]},${origin[1]})["name"~"${safeToken}",i];
   }
 }
 
-async function searchNearbyAddressChoices(query: string, origin: [number, number], radiusKm = 20): Promise<AddressChoice[]> {
+async function searchNearbyAddressChoices(
+  query: string,
+  origin: [number, number],
+  radiusKm = 20,
+): Promise<AddressChoice[]> {
   const variants = [query, `${query}, Gironde`, `${query}, Bordeaux`, `${query}, France`];
   const nominatimGroups = await Promise.all(variants.map((variant) => searchAddress(variant, 8).catch(() => [])));
   const nominatimChoices = nominatimGroups.flat().map((item) => ({
@@ -316,8 +325,7 @@ async function getOsrmRouteLongest(from: [number, number], to: [number, number])
     }
 
     // Accepte plusieurs nommages possibles selon la version de l'Edge Function
-    const routeDistanceKm =
-      typeof json.routes?.[0]?.distance === "number" ? json.routes[0].distance / 1000 : undefined;
+    const routeDistanceKm = typeof json.routes?.[0]?.distance === "number" ? json.routes[0].distance / 1000 : undefined;
     const rawDistKm: number = json.distance_km ?? json.distanceKm ?? json.distance ?? routeDistanceKm ?? 0;
     const rawDureeS: number = json.duration_sec ?? json.durationSec ?? json.duration ?? json.routes?.[0]?.duration ?? 0;
 
@@ -708,7 +716,9 @@ function ReservationPage() {
   }, [fromCoord, toCoord]);
 
   // ── Géolocalisation départ (navigateur client) ───────────────────────────
-  const handleGeolocate = useCallback(async () => {
+  const handleGeolocate = useCallback(() => {
+    // ⚠️ PAS async ici — iOS Safari bloque le GPS si la fonction est async
+    // car elle sort immédiatement de la pile synchrone du tap utilisateur.
     if (!navigator.geolocation) {
       toast.error("Géolocalisation non disponible");
       return;
@@ -716,17 +726,11 @@ function ReservationPage() {
     setGeolocLoading(true);
 
     const applyPosition = async (lat: number, lng: number, approximate = false) => {
-
-      // Tentative 1 : reverse geocoding → adresse lisible
       let adresse = await reverseGeocode(lat, lng).catch(() => null);
-
-      // Tentative 2 : si reverseGeocode échoue (CORS, timeout…),
-      // on cherche via searchAddress avec les coordonnées
       if (!adresse) {
         const fallback = await searchAddress(`${lat}, ${lng}`, 1).catch(() => []);
         adresse = fallback[0]?.label ?? null;
       }
-
       set("depart", adresse ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
       setFromCoord([lat, lng]);
       setErrors((prev) => {
@@ -734,7 +738,9 @@ function ReservationPage() {
         delete next.depart;
         return next;
       });
-      toast.success(approximate ? "Zone détectée automatiquement — ajustez l’adresse si besoin" : t("res.geo.btn") + " ✓");
+      toast.success(
+        approximate ? "Zone détectée automatiquement — ajustez l'adresse si besoin" : t("res.geo.btn") + " ✓",
+      );
       setGeolocLoading(false);
     };
 
@@ -754,24 +760,40 @@ function ReservationPage() {
       toast.error(msg);
     };
 
-    try {
-      if (navigator.permissions?.query) {
-        const permission = await navigator.permissions.query({ name: "geolocation" as PermissionName });
-        if (permission.state === "denied") {
-          await applyFallback({ code: 1, message: "denied" } as GeolocationPositionError);
-          return;
-        }
-      }
-      let pos: GeolocationPosition;
-      try {
-        pos = await getBrowserPosition({ enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 });
-      } catch {
-        pos = await getBrowserPosition({ enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 });
-      }
-      await applyPosition(pos.coords.latitude, pos.coords.longitude);
-    } catch (err) {
-      await applyFallback(err as GeolocationPositionError);
-    }
+    // watchPosition lancé directement dans la pile sync du tap (requis iOS Safari)
+    let watchId: number | null = null;
+    let bestPos: GeolocationPosition | null = null;
+    let settled = false;
+
+    const hardTimeout = setTimeout(() => {
+      if (!settled && bestPos) finish(bestPos);
+      else if (!settled) applyFallback({ code: 3, message: "timeout" } as GeolocationPositionError);
+    }, 15000);
+
+    const finish = (pos: GeolocationPosition) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(hardTimeout);
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+      applyPosition(pos.coords.latitude, pos.coords.longitude);
+    };
+
+    watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        if (!bestPos || pos.coords.accuracy < bestPos.coords.accuracy) bestPos = pos;
+        if (pos.coords.accuracy <= 20) finish(pos);
+      },
+      (err) => {
+        clearTimeout(hardTimeout);
+        if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+        settled = true;
+        if (err.code === 1)
+          applyFallback(err); // permission refusée → fallback IP
+        else if (bestPos) applyPosition(bestPos.coords.latitude, bestPos.coords.longitude);
+        else applyFallback(err);
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
+    );
   }, []);
 
   // ── Résoudre adresse départ (saisie manuelle) ────────────────────────────
@@ -801,7 +823,10 @@ function ReservationPage() {
     if (!value) return;
     setCalcLoading(true);
     const origin = fromCoord ?? BORDEAUX_CENTER;
-    const [result, nearbyChoices] = await Promise.all([geocodeFullAddress(value), searchNearbyAddressChoices(value, origin, 20)]);
+    const [result, nearbyChoices] = await Promise.all([
+      geocodeFullAddress(value),
+      searchNearbyAddressChoices(value, origin, 20),
+    ]);
     setCalcLoading(false);
     const exactEnough = Boolean(result && isPlausibleAddressMatch(value, result.label));
     if (exactEnough && result) {
@@ -823,7 +848,10 @@ function ReservationPage() {
     } else {
       setDestinationChoices([]);
       setToCoord(null);
-      setErrors((prev) => ({ ...prev, destination: "Adresse introuvable — précisez la ville ou choisissez un lieu proche" }));
+      setErrors((prev) => ({
+        ...prev,
+        destination: "Adresse introuvable — précisez la ville ou choisissez un lieu proche",
+      }));
     }
   }, [f.destination, fromCoord]);
 
