@@ -625,7 +625,7 @@ function SuiviPage() {
             .eq("id", resaIdRef.current)
             .maybeSingle();
           if (rData?.depart && (rData?.destination || rData?.arrivee)) {
-            await drawTripRoute(rData.depart, rData.destination || rData.arrivee!, rData.route_coords);
+            await drawTripRoute(rData.depart, rData.destination || rData.arrivee!, rData.route_coords as [number, number][] | null);
           }
         }
         await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
