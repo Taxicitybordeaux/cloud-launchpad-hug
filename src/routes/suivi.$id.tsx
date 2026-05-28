@@ -1274,7 +1274,7 @@ function SuiviPage() {
           .maybeSingle();
         if (r) {
           setResa((prev) => {
-            currentResa = prev ? { ...prev, ...r } : r;
+            currentResa = (prev ? { ...prev, ...r } : (r as unknown as Reservation));
             return currentResa;
           });
         }
