@@ -12,7 +12,7 @@
 // Facteur correctif appliqué localement pour les calculs de fallback.
 // NB : l'Edge Function applique déjà ce facteur côté serveur —
 // ne PAS le réappliquer sur le résultat de getDistanceAndDurationKm.
-export const OSRM_DISTANCE_FACTOR = 1.2;
+export const OSRM_DISTANCE_FACTOR = 1.0; // ORS retourne des distances précises, pas de facteur correctif
 
 // ─── getDistanceAndDurationKm ────────────────────────────────────────────────
 // Utilisé pour le calcul de prix (reserver.tsx via getOsrmRouteLongest,
@@ -56,8 +56,8 @@ export async function getDistanceAndDurationKm(
 }
 
 // ─── fetchRouteCoordinates ───────────────────────────────────────────────────
-// Utilisé uniquement pour afficher la polyline sur la carte (admin_dashboard.tsx).
-// Appelle OSRM directement — pas de calcul de prix, pas besoin de passer par le serveur.
+// Utilisé pour afficher la polyline sur la carte (admin_dashboard.tsx).
+// Passe par l'Edge Function ORS pour éviter les blocages CORS et avoir des distances précises.
 export async function fetchRouteCoordinates(
   points: [number, number][], // tableau de [lng, lat]
   options: {
@@ -66,19 +66,43 @@ export async function fetchRouteCoordinates(
     geometries?: "geojson" | "polyline" | "polyline6";
   } = {},
 ): Promise<any | null> {
-  const coords = points.map(([lng, lat]) => `${lng},${lat}`).join(";");
-  const params = new URLSearchParams();
-  if (options.overview !== undefined) params.set("overview", String(options.overview));
-  if (options.alternatives !== undefined) params.set("alternatives", String(options.alternatives));
-  if (options.geometries) params.set("geometries", options.geometries);
-  params.set("steps", "false");
-
-  const url = `https://router.project-osrm.org/route/v1/driving/${coords}?${params.toString()}`;
-
+  if (points.length < 2) return null;
   try {
-    const res = await fetch(url);
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+    const [from, to] = [points[0], points[points.length - 1]];
+    const res = await fetch(`${supabaseUrl}/functions/v1/osrm-route`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${supabaseAnonKey}`,
+      },
+      body: JSON.stringify({
+        from_lng: from[0],
+        from_lat: from[1],
+        to_lng: to[0],
+        to_lat: to[1],
+        overview: options.overview ?? "full",
+        geometries: options.geometries ?? "geojson",
+        alternatives: options.alternatives ?? false,
+      }),
+    });
     if (!res.ok) return null;
-    return await res.json();
+    const json = await res.json();
+    if (json?.error) return null;
+    // On retourne un format compatible avec l'ancien format OSRM attendu par admin_dashboard
+    return {
+      routes: [
+        {
+          distance: (json.distance_km ?? 0) * 1000,
+          duration: json.duration_sec ?? 0,
+          geometry: json.geometry ?? null,
+        },
+      ],
+      distance_km: json.distance_km,
+      duration_sec: json.duration_sec,
+    };
   } catch {
     return null;
   }
@@ -94,11 +118,12 @@ export async function getRouteGeoCoords(
     overview: "full",
     geometries: "geojson",
   });
-  if (!data?.routes?.[0]?.geometry?.coordinates) return { coords: [], distanceKm: 0, durationSec: 0 };
+  if (!data?.routes?.[0]?.geometry) return { coords: [], distanceKm: 0, durationSec: 0 };
   const route = data.routes[0];
-  // OSRM renvoie [lng, lat] → on inverse en [lat, lng] pour Leaflet
-  const coords = (route.geometry.coordinates as [number, number][]).map(([lng, lat]) => [lat, lng] as [number, number]);
-  const distanceKm = route.distance ? route.distance / 1000 : 0;
-  const durationSec = route.duration ?? 0;
+  // ORS renvoie GeoJSON geometry — coordinates en [lng, lat] → inverser pour Leaflet
+  const coordinates = route.geometry?.coordinates ?? [];
+  const coords = (coordinates as [number, number][]).map(([lng, lat]) => [lat, lng] as [number, number]);
+  const distanceKm = data.distance_km ?? (route.distance ? route.distance / 1000 : 0);
+  const durationSec = data.duration_sec ?? route.duration ?? 0;
   return { coords, distanceKm, durationSec };
 }
