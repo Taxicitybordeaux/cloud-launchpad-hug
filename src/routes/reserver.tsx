@@ -299,7 +299,7 @@ const SUPABASE_URL = "https://auiagkpdpnfqxfngisfc.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1aWFna3BkcG5mcXhmbmdpc2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0MzU2NzUsImV4cCI6MjA5NDAxMTY3NX0.MkW2KzCYHvQ0GEjjP3_puf3PkCHWaYcvW2bI1ctTuJU";
 
-// ─── OSRM polyline : via Edge Function Supabase (évite CORS mobile) ────────────
+// ─── ORS polyline : via Edge Function Supabase ──────────────────────────────
 async function getOsrmPolylineLongest(from: [number, number], to: [number, number]): Promise<[number, number][]> {
   try {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/osrm-route`, {
@@ -309,19 +309,22 @@ async function getOsrmPolylineLongest(from: [number, number], to: [number, numbe
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify({
+        from_lng: from[1], // from = [lat, lng] → ORS attend lng en premier
         from_lat: from[0],
-        from_lng: from[1],
-        to_lat: to[0],
         to_lng: to[1],
+        to_lat: to[0],
         overview: "full",
         geometries: "geojson",
-        alternatives: 3,
       }),
     });
     if (!res.ok) return [];
     const json = await res.json();
-    if (json?.error || !json?.geometry?.coordinates) return [];
-    return json.geometry.coordinates as [number, number][];
+    if (json?.error) return [];
+    // ORS retourne geometry en GeoJSON : { type: "LineString", coordinates: [[lng,lat],...] }
+    const coords: [number, number][] = json?.geometry?.coordinates ?? [];
+    if (!coords.length) return [];
+    // Inverser [lng, lat] → [lat, lng] pour Leaflet
+    return coords.map(([lng, lat]) => [lat, lng] as [number, number]);
   } catch {
     return [];
   }
