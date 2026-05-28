@@ -1378,36 +1378,71 @@ function Dashboard() {
     };
 
     // handleError est déclaré APRÈS handlePosition pour éviter le ReferenceError
-    // (les const ne sont pas hoistées en JS). handleErrorRef permet le retry.
     const handleError = (err: GeolocationPositionError) => {
       console.error("GPS error", err.code, err.message);
+
+      if (err.code === 1) {
+        // Vraie permission refusée
+        setGpsError("Permission GPS refusée. Autorisez la localisation dans les réglages.");
+        return;
+      }
+
       const msgs: Record<number, string> = {
-        1: "Permission GPS refusée. Autorisez la localisation dans les réglages.",
         2: "Position GPS indisponible (intérieur ?). Retry dans 8s…",
         3: "GPS timeout. Retry dans 8s…",
       };
       setGpsError(msgs[err.code] ?? "Erreur GPS inconnue.");
-      if (err.code !== 1) {
-        if (gpsRetryTimerRef.current) clearTimeout(gpsRetryTimerRef.current);
-        gpsRetryTimerRef.current = setTimeout(() => {
-          if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
-          // On utilise les fonctions locales déjà déclarées — plus de problème de hoisting
-          watchIdRef.current = navigator.geolocation.watchPosition(handlePosition, handleError, {
-            enableHighAccuracy: true,
-            maximumAge: 0,
-            timeout: 15000,
-          });
-        }, 8000);
-      }
+      if (gpsRetryTimerRef.current) clearTimeout(gpsRetryTimerRef.current);
+      gpsRetryTimerRef.current = setTimeout(() => {
+        if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = navigator.geolocation.watchPosition(handlePosition, handleError, {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 15000,
+        });
+      }, 8000);
     };
     handleErrorRef.current = handleError;
 
-    // Démarrer watchPosition
-    watchIdRef.current = navigator.geolocation.watchPosition(handlePosition, handleError, {
-      enableHighAccuracy: true,
-      maximumAge: 0,
-      timeout: 15000,
-    });
+    // ── Démarrage précision maximale compatible Android + iOS ───────────────
+    // watchPosition haute précision dès le départ — iOS et Android acceptent
+    // ce pattern tant qu'on reste dans la pile synchrone du geste utilisateur.
+    // En cas de PERMISSION_DENIED (faux positif Android), on chaîne un
+    // getCurrentPosition direct sans setTimeout (respecte la pile iOS Safari).
+    const startWatch = () => {
+      if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = navigator.geolocation.watchPosition(handlePosition, handleError, {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 15000,
+      });
+    };
+
+    // Appel initial haute précision pour obtenir la meilleure position rapidement
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        handlePosition(pos);
+        startWatch();
+      },
+      (err) => {
+        if (err.code === 1) {
+          // Faux positif possible → 2ème essai direct haute précision (sans setTimeout)
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              handlePosition(pos);
+              startWatch();
+            },
+            () => {
+              startWatch();
+            }, // watchPosition tente quand même
+            { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
+          );
+        } else {
+          startWatch(); // timeout/unavailable → watchPosition prend le relais
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 12000 },
+    );
 
     // ── Heartbeat toutes les 5s pour garder is_active vivant ────────────
     if (gpsHeartbeatRef.current) clearInterval(gpsHeartbeatRef.current);
