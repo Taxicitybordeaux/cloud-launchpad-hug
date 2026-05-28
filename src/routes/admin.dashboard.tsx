@@ -1224,7 +1224,7 @@ function Dashboard() {
     }
   };
 
-  const startGPS = async (resaId?: string) => {
+  const startGPS = (resaId?: string) => {
     if (!navigator.geolocation) {
       setGpsError("GPS non disponible sur cet appareil.");
       return;
@@ -1243,37 +1243,41 @@ function Dashboard() {
       gpsRetryTimerRef.current = null;
     }
     setGpsError(null);
-    // ── Reset des refs de position pour éviter qu'un heartbeat parte
-    // avec des coordonnées obsolètes si le GPS est redémarré ──────────────
     lastPosRef.current = null;
     lastKnownPosRef.current = null;
-    await (supabase as any)
-      .from("driver_gps")
-      .update({ is_active: true, updated_at: new Date().toISOString() })
-      .eq("id", "driver");
+
     const linkedId = resaId ?? null;
     setActiveResaId(linkedId);
     activeResaIdRef.current = linkedId;
     setGpsActive(true);
 
-    // ── Pré-géocoder l'adresse de prise en charge de la course active ──────
-    pickupGeoRef.current = null;
-    destinationGeoRef.current = null;
-    if (linkedId) {
-      const course = items.find((r) => r.id === linkedId);
-      if (course?.depart) {
-        try {
-          const c = await geocodeForRoute(course.depart);
-          if (c) pickupGeoRef.current = { lat: c.lat, lng: c.lng };
-        } catch {}
+    // ── Les awaits (Supabase + géocodage) sont faits APRÈS le lancement du GPS
+    // pour rester dans la pile synchrone du tap — iOS Safari exige ça
+    // pour autoriser la géolocalisation. On les décale via Promise.resolve().
+    Promise.resolve().then(async () => {
+      await (supabase as any)
+        .from("driver_gps")
+        .update({ is_active: true, updated_at: new Date().toISOString() })
+        .eq("id", "driver");
+
+      pickupGeoRef.current = null;
+      destinationGeoRef.current = null;
+      if (linkedId) {
+        const course = items.find((r) => r.id === linkedId);
+        if (course?.depart) {
+          try {
+            const c = await geocodeForRoute(course.depart);
+            if (c) pickupGeoRef.current = { lat: c.lat, lng: c.lng };
+          } catch {}
+        }
+        if (course?.arrivee || course?.destination) {
+          try {
+            const c = await geocodeForRoute(course.arrivee || course.destination);
+            if (c) destinationGeoRef.current = { lat: c.lat, lng: c.lng };
+          } catch {}
+        }
       }
-      if (course?.arrivee || course?.destination) {
-        try {
-          const c = await geocodeForRoute(course.arrivee || course.destination);
-          if (c) destinationGeoRef.current = { lat: c.lat, lng: c.lng };
-        } catch {}
-      }
-    }
+    });
 
     // ── Handlers définis avant watchPosition pour éviter les refs circulaires ──
     // handleErrorRef permet à handlePosition d'être déclaré avant handleError
