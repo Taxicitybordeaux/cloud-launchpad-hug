@@ -128,8 +128,8 @@ async function getOsrmRouteLongest(from: [number, number], to: [number, number])
     }
 
     // Accepte plusieurs nommages possibles selon la version de l'Edge Function
-    const routeDistanceKm = json.routes?.[0]?.distance != null ? json.routes[0].distance / 1000 : undefined;
-    const rawDistKm: number = json.distance_km ?? json.distanceKm ?? json.distance ?? routeDistanceKm ?? 0;
+    const rawDistKm: number =
+      json.distance_km ?? json.distanceKm ?? json.distance ?? json.routes?.[0]?.distance / 1000 ?? 0;
     const rawDureeS: number = json.duration_sec ?? json.durationSec ?? json.duration ?? json.routes?.[0]?.duration ?? 0;
 
     if (!rawDistKm || !rawDureeS) {
@@ -524,43 +524,96 @@ function ReservationPage() {
       return;
     }
     setGeolocLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
 
-        // Tentative 1 : reverse geocoding → adresse lisible
-        let adresse = await reverseGeocode(lat, lng).catch(() => null);
+    const onSuccess = async (pos: GeolocationPosition) => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
 
-        // Tentative 2 : si reverseGeocode échoue (CORS, timeout…),
-        // on cherche via searchAddress avec les coordonnées
-        if (!adresse) {
-          const fallback = await searchAddress(`${lat}, ${lng}`, 1).catch(() => []);
-          adresse = fallback[0]?.label ?? null;
+      // Tentative 1 : reverse geocoding → adresse lisible
+      let adresse = await reverseGeocode(lat, lng).catch(() => null);
+
+      // Tentative 2 : si reverseGeocode échoue (CORS, timeout…),
+      // on cherche via searchAddress avec les coordonnées
+      if (!adresse) {
+        const fallback = await searchAddress(`${lat}, ${lng}`, 1).catch(() => []);
+        adresse = fallback[0]?.label ?? null;
+      }
+
+      set("depart", adresse ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+      setFromCoord([lat, lng]);
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.depart;
+        return next;
+      });
+      toast.success(t("res.geo.btn") + " ✓");
+      setGeolocLoading(false);
+    };
+
+    const onError = (err: GeolocationPositionError) => {
+      setGeolocLoading(false);
+      const msg =
+        err.code === 1
+          ? t("res.geo.err.denied")
+          : err.code === 2
+            ? t("res.geo.err.unavailable")
+            : t("res.geo.err.timeout");
+      toast.error(msg);
+    };
+
+    // Stratégie précision maximale compatible Android + iOS :
+    // On lance watchPosition haute précision et on garde la meilleure position
+    // reçue jusqu'à accuracy <= 20m ou timeout 15s — puis on stop.
+    // Chaîné sans setTimeout pour satisfaire iOS Safari.
+    let watchId: number | null = null;
+    let bestPos: GeolocationPosition | null = null;
+    let settled = false;
+
+    const finish = (pos: GeolocationPosition) => {
+      if (settled) return;
+      settled = true;
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+      onSuccess(pos);
+    };
+
+    const hardTimeout = setTimeout(() => {
+      if (!settled && bestPos) finish(bestPos);
+      else if (!settled) onError({ code: 3, message: "timeout" } as GeolocationPositionError);
+    }, 15000);
+
+    watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        if (!bestPos || pos.coords.accuracy < bestPos.coords.accuracy) bestPos = pos;
+        // Dès qu'on atteint une précision <= 20m on valide immédiatement
+        if (pos.coords.accuracy <= 20) {
+          clearTimeout(hardTimeout);
+          finish(pos);
         }
-
-        set("depart", adresse ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
-        // fromCoord en [lat, lng]
-        setFromCoord([lat, lng]);
-        setErrors((prev) => {
-          const next = { ...prev };
-          delete next.depart;
-          return next;
-        });
-        toast.success(t("res.geo.btn") + " ✓");
-        setGeolocLoading(false);
       },
       (err) => {
-        setGeolocLoading(false);
-        const msg =
-          err.code === 1
-            ? t("res.geo.err.denied")
-            : err.code === 2
-              ? t("res.geo.err.unavailable")
-              : t("res.geo.err.timeout");
-        toast.error(msg);
+        clearTimeout(hardTimeout);
+        // Sur iOS/Android, le 1er callback peut être PERMISSION_DENIED à tort :
+        // on chaîne un 2ème appel direct sans setTimeout (respecte la pile iOS)
+        if (err.code === 1) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              clearTimeout(hardTimeout);
+              finish(pos);
+            },
+            (e) => {
+              clearTimeout(hardTimeout);
+              onError(e);
+            },
+            { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
+          );
+        } else {
+          if (bestPos) {
+            clearTimeout(hardTimeout);
+            finish(bestPos);
+          } else onError(err);
+        }
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
     );
   }, []);
 
