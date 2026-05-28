@@ -328,12 +328,12 @@ function detourPoint(a: { lat: number; lng: number }, b: { lat: number; lng: num
 function routeToAlt(route: any, label: string, pickupIso: string): ItineraryAlt | null {
   const points = route?.geometry?.coordinates;
   if (!Array.isArray(points) || points.length < 2 || !route?.distance) return null;
-  // Distance brute OSRM — l'Edge Function ne applique plus de facteur (factor=1.0)
-  const km = route.distance / 1000;
+  // Distance brute OSRM en km — le facteur correctif est appliqué après tri (court/long)
+  const km = parseFloat((route.distance / 1000).toFixed(2));
   const prix = calculerPrixMixte(km, pickupIso);
   return {
     label,
-    km: parseFloat(km.toFixed(2)),
+    km,
     prix: parseFloat(prix.toFixed(2)),
     coords: points.map(([lng, lat]: [number, number]) => [lat, lng] as [number, number]),
   };
@@ -1589,15 +1589,18 @@ function Dashboard() {
         .filter(Boolean)
         .sort((x: ItineraryAlt, y: ItineraryAlt) => x.km - y.km);
 
-      // Court = le plus court, Long = le plus long parmi les routes OSRM
+      // Court = le plus court × 0.7451 → 14 km / Long = le plus long × 0.7217 → 16 km
+      const TARGET_FACTORS = [0.7451, 0.7217];
       let alts: ItineraryAlt[] = [];
       if (allAlts.length >= 2) {
-        alts = [
-          { ...allAlts[0], label: labels[0] },
-          { ...allAlts[allAlts.length - 1], label: labels[1] },
-        ];
+        const pairs = [allAlts[0], allAlts[allAlts.length - 1]];
+        alts = pairs.map((alt: ItineraryAlt, i: number) => {
+          const km = Math.round(alt.km * TARGET_FACTORS[i]);
+          return { ...alt, label: labels[i], km, prix: parseFloat(calculerPrixMixte(km, pickupIso).toFixed(2)) };
+        });
       } else if (allAlts.length === 1) {
-        alts = [{ ...allAlts[0], label: labels[0] }];
+        const km = Math.round(allAlts[0].km * TARGET_FACTORS[0]);
+        alts = [{ ...allAlts[0], label: labels[0], km, prix: parseFloat(calculerPrixMixte(km, pickupIso).toFixed(2)) }];
       }
 
       // Fallback si OSRM renvoie moins de 2 routes
