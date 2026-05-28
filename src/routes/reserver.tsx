@@ -129,7 +129,7 @@ async function getOsrmRouteLongest(from: [number, number], to: [number, number])
 
     // Accepte plusieurs nommages possibles selon la version de l'Edge Function
     const rawDistKm: number =
-      json.distance_km ?? json.distanceKm ?? json.distance ?? (json.routes?.[0]?.distance ? json.routes[0].distance / 1000 : 0);
+      json.distance_km ?? json.distanceKm ?? json.distance ?? json.routes?.[0]?.distance / 1000 ?? 0;
     const rawDureeS: number = json.duration_sec ?? json.durationSec ?? json.duration ?? json.routes?.[0]?.duration ?? 0;
 
     if (!rawDistKm || !rawDureeS) {
