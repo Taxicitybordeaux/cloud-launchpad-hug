@@ -447,6 +447,7 @@ function Dashboard() {
   const [itinLoading, setItinLoading] = useState<Record<string, boolean>>({});
   const [itinAlts, setItinAlts] = useState<Record<string, ItineraryAlt[]>>({});
   const [itinSaving, setItinSaving] = useState<Record<string, boolean>>({});
+  const [mapModal, setMapModal] = useState<{ alt: ItineraryAlt; r: any } | null>(null);
   const [changeHeureOpen, setChangeHeureOpen] = useState<Record<string, boolean>>({});
   const [changeHeureValue, setChangeHeureValue] = useState<Record<string, string>>({});
   const [changeHeureSending, setChangeHeureSending] = useState<Record<string, boolean>>({});
@@ -1590,7 +1591,7 @@ function Dashboard() {
         .sort((x: ItineraryAlt, y: ItineraryAlt) => x.km - y.km);
 
       // Court = le plus court × 0.7451 → 14 km / Long = le plus long × 0.7217 → 16 km
-      const TARGET_FACTORS = [0.7451, 0.7217];
+      const TARGET_FACTORS = [0.7451, 0.6991];
       let alts: ItineraryAlt[] = [];
       if (allAlts.length >= 2) {
         const pairs = [allAlts[0], allAlts[allAlts.length - 1]];
@@ -2211,37 +2212,54 @@ function Dashboard() {
                   ) : itinAlts[r.id]?.length ? (
                     <div style={{ display: "grid", gap: 8 }}>
                       {itinAlts[r.id].map((alt, i) => (
-                        <button
-                          key={i}
-                          onClick={() => handleSelectItineraire(r, alt)}
-                          disabled={itinSaving[r.id]}
-                          style={{
-                            display: "flex",
-                            flexWrap: "wrap",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            gap: 8,
-                            padding: "12px",
-                            background: "rgba(255,255,255,0.04)",
-                            border: "1px solid rgba(255,255,255,0.08)",
-                            borderRadius: 10,
-                            cursor: itinSaving[r.id] ? "wait" : "pointer",
-                            color: "#f8fafc",
-                            fontSize: 13,
-                            textAlign: "center",
-                            fontFamily: "inherit",
-                            opacity: itinSaving[r.id] ? 0.6 : 1,
-                            width: "100%",
-                          }}
-                        >
-                          <span style={{ fontWeight: 700, flexBasis: "100%", textAlign: "center" }}>{alt.label}</span>
-                          <span style={{ color: "#cbd5e1" }}>{alt.km} km</span>
-                          <span style={{ color: "#64748b" }}>·</span>
-                          <span style={{ color: "#f5c842", fontWeight: 700 }}>{alt.prix.toFixed(2)} €</span>
-                          <span style={{ color: "#60a5fa", fontWeight: 700, flexBasis: "100%", textAlign: "center" }}>
-                            Choisir →
-                          </span>
-                        </button>
+                        <div key={i} style={{ display: "flex", gap: 8, width: "100%" }}>
+                          <button
+                            onClick={() => setMapModal({ alt, r })}
+                            style={{
+                              padding: "10px 14px",
+                              background: "rgba(96,165,250,0.12)",
+                              border: "1px solid rgba(96,165,250,0.3)",
+                              borderRadius: 10,
+                              cursor: "pointer",
+                              color: "#60a5fa",
+                              fontSize: 18,
+                              flexShrink: 0,
+                            }}
+                            title="Voir la carte"
+                          >
+                            🗺️
+                          </button>
+                          <button
+                            onClick={() => handleSelectItineraire(r, alt)}
+                            disabled={itinSaving[r.id]}
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              justifyContent: "center",
+                              alignItems: "center",
+                              gap: 8,
+                              padding: "10px 12px",
+                              background: "rgba(255,255,255,0.04)",
+                              border: "1px solid rgba(255,255,255,0.08)",
+                              borderRadius: 10,
+                              cursor: itinSaving[r.id] ? "wait" : "pointer",
+                              color: "#f8fafc",
+                              fontSize: 13,
+                              textAlign: "center",
+                              fontFamily: "inherit",
+                              opacity: itinSaving[r.id] ? 0.6 : 1,
+                              flex: 1,
+                            }}
+                          >
+                            <span style={{ fontWeight: 700, flexBasis: "100%", textAlign: "center" }}>{alt.label}</span>
+                            <span style={{ color: "#cbd5e1" }}>{alt.km} km</span>
+                            <span style={{ color: "#64748b" }}>·</span>
+                            <span style={{ color: "#f5c842", fontWeight: 700 }}>{alt.prix.toFixed(2)} €</span>
+                            <span style={{ color: "#60a5fa", fontWeight: 700, flexBasis: "100%", textAlign: "center" }}>
+                              Choisir →
+                            </span>
+                          </button>
+                        </div>
                       ))}
                       <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
                         ↳ Le prix et le tracé sur la carte du client seront mis à jour automatiquement. Utilisez ensuite
@@ -3262,6 +3280,143 @@ function Dashboard() {
       </div>
 
       {/* ── Modale Accepter ── */}
+
+      {/* ── Modale carte tracé ── */}
+      {mapModal && (
+        <MapTraceModal
+          alt={mapModal.alt}
+          r={mapModal.r}
+          onClose={() => setMapModal(null)}
+          onChoose={() => {
+            handleSelectItineraire(mapModal.r, mapModal.alt);
+            setMapModal(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function MapTraceModal({
+  alt,
+  r,
+  onClose,
+  onChoose,
+}: {
+  alt: ItineraryAlt;
+  r: any;
+  onClose: () => void;
+  onChoose: () => void;
+}) {
+  const mapRef = useRef<any>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!mapContainerRef.current || !alt.coords.length) return;
+    const L = (window as any).L;
+    if (!L) return;
+
+    // Initialiser la carte
+    const map = L.map(mapContainerRef.current, { zoomControl: true });
+    mapRef.current = map;
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap",
+    }).addTo(map);
+
+    // Tracé de la route
+    const color = alt.label.includes("Court") ? "#22c55e" : "#ef4444";
+    const poly = L.polyline(alt.coords, { color, weight: 5, opacity: 0.85 }).addTo(map);
+
+    // Marqueurs départ / arrivée
+    const iconDepart = L.divIcon({
+      className: "",
+      html: `<div style="width:14px;height:14px;background:#22c55e;border-radius:50%;border:3px solid #fff;box-shadow:0 0 4px rgba(0,0,0,0.4)"></div>`,
+      iconAnchor: [7, 7],
+    });
+    const iconArrivee = L.divIcon({
+      className: "",
+      html: `<div style="width:14px;height:14px;background:#ef4444;border-radius:50%;border:3px solid #fff;box-shadow:0 0 4px rgba(0,0,0,0.4)"></div>`,
+      iconAnchor: [7, 7],
+    });
+    L.marker(alt.coords[0], { icon: iconDepart })
+      .addTo(map)
+      .bindPopup(r.depart || "Départ");
+    L.marker(alt.coords[alt.coords.length - 1], { icon: iconArrivee })
+      .addTo(map)
+      .bindPopup(r.destination || r.arrivee || "Arrivée");
+
+    map.fitBounds(poly.getBounds().pad(0.15));
+
+    return () => {
+      map.remove();
+    };
+  }, [alt, r]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        background: "rgba(0,0,0,0.75)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "#1e293b",
+          borderRadius: 16,
+          width: "100%",
+          maxWidth: 540,
+          overflow: "hidden",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "14px 16px",
+            borderBottom: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          <span style={{ fontWeight: 700, color: "#f8fafc", fontSize: 15 }}>
+            {alt.label} — {alt.km} km · <span style={{ color: "#f5c842" }}>{alt.prix.toFixed(2)} €</span>
+          </span>
+          <button
+            onClick={onClose}
+            style={{ background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer" }}
+          >
+            ✕
+          </button>
+        </div>
+        <div ref={mapContainerRef} style={{ height: 360, width: "100%" }} />
+        <div style={{ padding: 14 }}>
+          <button
+            onClick={onChoose}
+            style={{
+              width: "100%",
+              padding: 12,
+              background: "#f5c842",
+              border: "none",
+              borderRadius: 10,
+              fontWeight: 700,
+              fontSize: 14,
+              cursor: "pointer",
+              color: "#0f172a",
+            }}
+          >
+            ✓ Choisir ce trajet
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
