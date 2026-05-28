@@ -40,6 +40,12 @@ interface OrsResult {
   dureeS: number;
 }
 
+type AddressChoice = {
+  label: string;
+  coord: [number, number];
+  distanceKm: number;
+};
+
 function shortLabel(label: string): string {
   const parts = label
     .split(",")
@@ -91,6 +97,188 @@ async function geocodeFullAddress(address: string): Promise<{ coord: [number, nu
     if (results.length) {
       const r = results[0];
       return { coord: [r.coord[0], r.coord[1]], label: shortLabel(r.label) };
+    }
+  }
+  return null;
+}
+
+function distanceKmBetween(a: [number, number], b: [number, number]): number {
+  const R = 6371;
+  const dLat = ((b[0] - a[0]) * Math.PI) / 180;
+  const dLng = ((b[1] - a[1]) * Math.PI) / 180;
+  const x =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((a[0] * Math.PI) / 180) * Math.cos((b[0] * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+}
+
+function normalizeAddressText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function usefulSearchTokens(query: string): string[] {
+  const skip = new Set([
+    "rue",
+    "avenue",
+    "av",
+    "boulevard",
+    "bd",
+    "route",
+    "chemin",
+    "place",
+    "allee",
+    "impasse",
+    "cours",
+    "de",
+    "du",
+    "des",
+    "la",
+    "le",
+    "les",
+    "d",
+    "l",
+    "a",
+    "au",
+    "aux",
+    "france",
+    "gironde",
+  ]);
+  return normalizeAddressText(query)
+    .split(" ")
+    .filter((token) => token.length >= 3 && !skip.has(token))
+    .slice(0, 4);
+}
+
+function isPlausibleAddressMatch(query: string, label: string): boolean {
+  const tokens = usefulSearchTokens(query);
+  if (tokens.length === 0) return true;
+  const normalizedLabel = normalizeAddressText(label);
+  const hits = tokens.filter((token) => normalizedLabel.includes(token)).length;
+  return hits >= Math.min(2, tokens.length) || normalizedLabel.includes(tokens[0]);
+}
+
+function dedupeAddressChoices(choices: AddressChoice[]): AddressChoice[] {
+  const seen = new Set<string>();
+  return choices.filter((choice) => {
+    const key = `${choice.label.toLowerCase()}-${choice.coord[0].toFixed(4)}-${choice.coord[1].toFixed(4)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+async function searchPhotonAddress(query: string, origin: [number, number]): Promise<AddressChoice[]> {
+  try {
+    const url = new URL("https://photon.komoot.io/api/");
+    url.searchParams.set("q", query);
+    url.searchParams.set("limit", "8");
+    url.searchParams.set("lang", "fr");
+    url.searchParams.set("lat", String(origin[0]));
+    url.searchParams.set("lon", String(origin[1]));
+    const res = await fetch(url.toString());
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data?.features)) return [];
+    return data.features
+      .map((feature: any) => {
+        const coords = feature?.geometry?.coordinates;
+        if (!Array.isArray(coords) || coords.length < 2) return null;
+        const props = feature.properties ?? {};
+        const label = [props.name, props.street, props.postcode, props.city || props.county]
+          .filter(Boolean)
+          .join(", ");
+        const coord: [number, number] = [Number(coords[1]), Number(coords[0])];
+        if (!label || !Number.isFinite(coord[0]) || !Number.isFinite(coord[1])) return null;
+        return { label: shortLabel(label), coord, distanceKm: distanceKmBetween(origin, coord) };
+      })
+      .filter(Boolean) as AddressChoice[];
+  } catch {
+    return [];
+  }
+}
+
+async function searchOverpassPois(query: string, origin: [number, number], radiusKm: number): Promise<AddressChoice[]> {
+  const token = usefulSearchTokens(query)[0];
+  if (!token) return [];
+  const safeToken = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const radiusM = Math.round(radiusKm * 1000);
+  const body = `[out:json][timeout:8];(
+node(around:${radiusM},${origin[0]},${origin[1]})["name"~"${safeToken}",i];
+way(around:${radiusM},${origin[0]},${origin[1]})["name"~"${safeToken}",i];
+relation(around:${radiusM},${origin[0]},${origin[1]})["name"~"${safeToken}",i];
+);out center tags 20;`;
+  try {
+    const res = await fetch("https://overpass-api.de/api/interpreter", { method: "POST", body });
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data?.elements)) return [];
+    return data.elements
+      .map((item: any) => {
+        const lat = Number(item.lat ?? item.center?.lat);
+        const lng = Number(item.lon ?? item.center?.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+        const tags = item.tags ?? {};
+        const label = [tags.name, tags["addr:housenumber"] && tags["addr:street"] ? `${tags["addr:housenumber"]} ${tags["addr:street"]}` : tags["addr:street"], tags["addr:postcode"], tags["addr:city"]]
+          .filter(Boolean)
+          .join(", ");
+        if (!label) return null;
+        const coord: [number, number] = [lat, lng];
+        return { label: shortLabel(label), coord, distanceKm: distanceKmBetween(origin, coord) };
+      })
+      .filter(Boolean) as AddressChoice[];
+  } catch {
+    return [];
+  }
+}
+
+async function searchNearbyAddressChoices(query: string, origin: [number, number], radiusKm = 20): Promise<AddressChoice[]> {
+  const variants = [query, `${query}, Gironde`, `${query}, Bordeaux`, `${query}, France`];
+  const nominatimGroups = await Promise.all(variants.map((variant) => searchAddress(variant, 8).catch(() => [])));
+  const nominatimChoices = nominatimGroups.flat().map((item) => ({
+    label: shortLabel(item.label),
+    coord: item.coord,
+    distanceKm: distanceKmBetween(origin, item.coord),
+  }));
+  const [photonChoices, overpassChoices] = await Promise.all([
+    searchPhotonAddress(query, origin),
+    searchOverpassPois(query, origin, radiusKm),
+  ]);
+  const tokens = usefulSearchTokens(query);
+  return dedupeAddressChoices([...nominatimChoices, ...photonChoices, ...overpassChoices])
+    .filter((choice) => choice.distanceKm <= radiusKm && isPlausibleAddressMatch(query, choice.label))
+    .sort((a, b) => {
+      const aLabel = normalizeAddressText(a.label);
+      const bLabel = normalizeAddressText(b.label);
+      const aHits = tokens.filter((token) => aLabel.includes(token)).length;
+      const bHits = tokens.filter((token) => bLabel.includes(token)).length;
+      return bHits - aHits || a.distanceKm - b.distanceKm;
+    })
+    .slice(0, 4);
+}
+
+function getBrowserPosition(options: PositionOptions): Promise<GeolocationPosition> {
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, options);
+  });
+}
+
+async function getIpApproxPosition(): Promise<{ lat: number; lng: number } | null> {
+  const endpoints = ["https://ipapi.co/json/", "https://ipwho.is/"];
+  for (const endpoint of endpoints) {
+    try {
+      const res = await fetch(endpoint);
+      if (!res.ok) continue;
+      const data = await res.json();
+      const lat = Number(data.latitude ?? data.lat);
+      const lng = Number(data.longitude ?? data.lon ?? data.lng);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+    } catch {
+      // Essai du service gratuit suivant.
     }
   }
   return null;
