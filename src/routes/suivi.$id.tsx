@@ -625,7 +625,7 @@ function SuiviPage() {
             .eq("id", resaIdRef.current)
             .maybeSingle();
           if (rData?.depart && (rData?.destination || rData?.arrivee)) {
-            await drawTripRoute(rData.depart, rData.destination || rData.arrivee!, rData.route_coords);
+            await drawTripRoute(rData.depart, rData.destination || rData.arrivee!, rData.route_coords as [number, number][] | null);
           }
         }
         await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
@@ -870,7 +870,7 @@ function SuiviPage() {
             .eq("id", resaIdRef.current)
             .maybeSingle();
           if (rData?.depart && (rData?.destination || rData?.arrivee)) {
-            await drawTripRoute(rData.depart, rData.destination || rData.arrivee!, rData.route_coords);
+            await drawTripRoute(rData.depart, rData.destination || rData.arrivee!, rData.route_coords as [number, number][] | null);
           }
         }
         await applyDriverPosition(data.latitude, data.longitude);
@@ -1173,7 +1173,7 @@ function SuiviPage() {
                   .eq("id", resaIdRef.current)
                   .maybeSingle();
                 if (rData?.depart && (rData?.destination || rData?.arrivee)) {
-                  await drawTripRoute(rData.depart, rData.destination || rData.arrivee!, rData.route_coords);
+                  await drawTripRoute(rData.depart, rData.destination || rData.arrivee!, rData.route_coords as [number, number][] | null);
                 }
               }
               applyDriverPosition(data.latitude, data.longitude);
@@ -1263,7 +1263,7 @@ function SuiviPage() {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      let currentResa: Reservation | null = null;
+      let currentResa: any = null;
       if (resaIdRef.current) {
         const { data: r } = await supabase
           .from("reservations")
@@ -1274,7 +1274,7 @@ function SuiviPage() {
           .maybeSingle();
         if (r) {
           setResa((prev) => {
-            currentResa = prev ? { ...prev, ...r } : r;
+            currentResa = (prev ? { ...prev, ...r } : (r as unknown as Reservation));
             return currentResa;
           });
         }
