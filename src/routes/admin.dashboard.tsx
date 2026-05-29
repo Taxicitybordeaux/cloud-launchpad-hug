@@ -674,7 +674,9 @@ function Dashboard() {
   // REALTIME
   // =========================
   useEffect(() => {
-    if (fetchAllRef.current) fetchAllRef.current();
+    fetchAllRef.current?.().finally(() => {
+      initialLoad.current = false;
+    });
     const ch = supabase
       .channel("dash-courses")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "reservations" }, (payload) => {
@@ -747,7 +749,6 @@ function Dashboard() {
       .on("postgres_changes", { event: "*", schema: "public", table: "site_analytics" }, () => fetchStats())
       .on("postgres_changes", { event: "*", schema: "public", table: "avis" }, () => fetchAvis())
       .subscribe();
-    initialLoad.current = false;
     return () => {
       supabase.removeChannel(ch);
     };
@@ -2496,38 +2497,43 @@ function Dashboard() {
           {typeof window !== "undefined" && "Notification" in window && (
             <button
               onClick={async () => {
-                if (notifPermission === "denied" || notifPermission === "granted") return;
-                const perm = await Notification.requestPermission();
-                setNotifPermission(perm);
-                if (perm === "granted") {
-                  try {
-                    const fcm = await getFcmToken();
-                    if (fcm) {
-                      await Promise.all([
-                        subscribePush({
-                          data: {
-                            audience: "admin",
-                            fcm_token: fcm,
-                            reservation_id: null,
-                            user_agent: navigator.userAgent.slice(0, 500),
-                          },
-                        }),
-                        subscribePush({
-                          data: {
-                            audience: "chauffeur",
-                            fcm_token: fcm,
-                            reservation_id: null,
-                            user_agent: navigator.userAgent.slice(0, 500),
-                          },
-                        }),
-                      ]);
-                      localStorage.setItem("fcm_token", fcm);
-                      toast.success("🔔 Notifications activées (admin + chauffeur)");
-                    }
-                  } catch (e) {
-                    console.warn("[push] activation manuelle échouée", e);
-                    toast.error("Impossible d'activer les notifications");
+                if (notifPermission === "denied") return;
+                // Si déjà granted : on re-enregistre le token (peut avoir changé ou expiré)
+                const perm = notifPermission === "granted" ? "granted" : await Notification.requestPermission();
+                if (perm !== "granted") {
+                  setNotifPermission(perm);
+                  return;
+                }
+                setNotifPermission("granted");
+                try {
+                  const fcm = await getFcmToken();
+                  if (fcm) {
+                    await Promise.all([
+                      subscribePush({
+                        data: {
+                          audience: "admin",
+                          fcm_token: fcm,
+                          reservation_id: null,
+                          user_agent: navigator.userAgent.slice(0, 500),
+                        },
+                      }),
+                      subscribePush({
+                        data: {
+                          audience: "chauffeur",
+                          fcm_token: fcm,
+                          reservation_id: null,
+                          user_agent: navigator.userAgent.slice(0, 500),
+                        },
+                      }),
+                    ]);
+                    localStorage.setItem("fcm_token", fcm);
+                    toast.success("🔔 Token FCM enregistré — notifications actives");
+                  } else {
+                    toast.error("Impossible d'obtenir le token FCM");
                   }
+                } catch (e) {
+                  console.warn("[push] activation manuelle échouée", e);
+                  toast.error("Impossible d'activer les notifications");
                 }
               }}
               style={{
