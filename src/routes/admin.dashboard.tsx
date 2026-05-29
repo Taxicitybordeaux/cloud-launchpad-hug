@@ -2492,10 +2492,11 @@ function Dashboard() {
           className="admin-header-actions"
           style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}
         >
-          {/* Bouton activation notifications push (admin + chauffeur) — geste utilisateur requis */}
-          {typeof window !== "undefined" && "Notification" in window && notifPermission !== "granted" && (
+          {/* Bouton activation notifications push (admin + chauffeur) — toujours visible, 3 états */}
+          {typeof window !== "undefined" && "Notification" in window && (
             <button
               onClick={async () => {
+                if (notifPermission === "denied" || notifPermission === "granted") return;
                 const perm = await Notification.requestPermission();
                 setNotifPermission(perm);
                 if (perm === "granted") {
@@ -2531,11 +2532,22 @@ function Dashboard() {
               }}
               style={{
                 padding: "8px 14px",
-                background: notifPermission === "denied" ? "rgba(239,68,68,0.1)" : "rgba(245,200,66,0.15)",
-                border: `1px solid ${notifPermission === "denied" ? "rgba(239,68,68,0.3)" : "rgba(245,200,66,0.4)"}`,
-                color: notifPermission === "denied" ? "#f87171" : "#f5c842",
+                background:
+                  notifPermission === "denied"
+                    ? "rgba(239,68,68,0.1)"
+                    : notifPermission === "granted"
+                      ? "rgba(34,197,94,0.1)"
+                      : "rgba(245,200,66,0.15)",
+                border: `1px solid ${
+                  notifPermission === "denied"
+                    ? "rgba(239,68,68,0.3)"
+                    : notifPermission === "granted"
+                      ? "rgba(34,197,94,0.3)"
+                      : "rgba(245,200,66,0.4)"
+                }`,
+                color: notifPermission === "denied" ? "#f87171" : notifPermission === "granted" ? "#86efac" : "#f5c842",
                 borderRadius: 10,
-                cursor: notifPermission === "denied" ? "not-allowed" : "pointer",
+                cursor: notifPermission === "default" ? "pointer" : "default",
                 fontWeight: 600,
                 fontSize: 13,
                 display: "inline-flex",
@@ -2546,10 +2558,16 @@ function Dashboard() {
               title={
                 notifPermission === "denied"
                   ? "Notifications bloquées — autorisez-les dans les réglages du navigateur"
-                  : "Activer les notifications push"
+                  : notifPermission === "granted"
+                    ? "Notifications activées ✓"
+                    : "Activer les notifications push"
               }
             >
-              {notifPermission === "denied" ? "🔕 Bloqué" : "🔔 Activer notifs"}
+              {notifPermission === "denied"
+                ? "🔕 Bloqué"
+                : notifPermission === "granted"
+                  ? "🔔 Notifs actives"
+                  : "🔔 Activer notifs"}
             </button>
           )}
           <a
