@@ -498,7 +498,7 @@ function Dashboard() {
   const [gpsError, setGpsError] = useState<string | null>(null);
   const gpsHeartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const gpsRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastKnownPosRef = useRef<{ lat: number; lng: number } | null>(null);
+  const lastKnownPosRef = useRef<{ lat: number; lng: number; accuracy: number } | null>(null);
 
   // Distance en mètres entre deux coords (Haversine simplifié)
   const distMetersGps = (a: { lat: number; lng: number }, b: { lat: number; lng: number }): number => {
@@ -1328,7 +1328,7 @@ function Dashboard() {
         }
       }
       lastPosRef.current = { lat: latitude, lng: longitude };
-      lastKnownPosRef.current = { lat: latitude, lng: longitude };
+      lastKnownPosRef.current = { lat: latitude, lng: longitude, accuracy: acc };
       setGpsPosition({ lat: latitude, lng: longitude });
       setGpsAccuracy(Math.round(acc));
       setGpsUpdateCount((n) => n + 1);
@@ -1483,7 +1483,7 @@ function Dashboard() {
       if (!pos) return;
       await (supabase as any)
         .from("driver_gps")
-        .update({ is_active: true, latitude: pos.lat, longitude: pos.lng, accuracy: gpsAccuracy, updated_at: new Date().toISOString() })
+        .update({ is_active: true, latitude: pos.lat, longitude: pos.lng, accuracy: pos.accuracy, updated_at: new Date().toISOString() })
         .eq("id", "driver");
     }, 5000);
   };
