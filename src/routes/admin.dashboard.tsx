@@ -549,42 +549,61 @@ function Dashboard() {
       !("PushManager" in window)
     )
       return;
-
-    // Chrome/Safari bloquent Notification.requestPermission() sans geste utilisateur.
-    // On n'essaie le FCM automatiquement que si la permission est déjà accordée.
     if (Notification.permission !== "granted") return;
 
     let cancelled = false;
-    const timer = setTimeout(async () => {
+
+    const doSubscribe = async (fcm: string) => {
+      await Promise.all([
+        subscribePush({
+          data: {
+            audience: "admin",
+            fcm_token: fcm,
+            reservation_id: null,
+            user_agent: navigator.userAgent.slice(0, 500),
+          },
+        }),
+        subscribePush({
+          data: {
+            audience: "chauffeur",
+            fcm_token: fcm,
+            reservation_id: null,
+            user_agent: navigator.userAgent.slice(0, 500),
+          },
+        }),
+      ]);
+      localStorage.setItem("fcm_token", fcm);
+      console.info("[push] dashboard registered — admin + chauffeur");
+    };
+
+    // Retry avec backoff exponentiel jusqu'à ce que getFcmToken réussisse
+    const tryRegister = async (attempt = 0): Promise<void> => {
+      if (cancelled) return;
       try {
         const fcm = await getFcmToken();
-        if (!fcm || cancelled) return;
-        await Promise.all([
-          subscribePush({
-            data: {
-              audience: "admin",
-              fcm_token: fcm,
-              reservation_id: null,
-              user_agent: navigator.userAgent.slice(0, 500),
-            },
-          }),
-          subscribePush({
-            data: {
-              audience: "chauffeur",
-              fcm_token: fcm,
-              reservation_id: null,
-              user_agent: navigator.userAgent.slice(0, 500),
-            },
-          }),
-        ]);
-        if (!cancelled) {
-          localStorage.setItem("fcm_token", fcm);
-          console.info("[push] auto-subscribe dashboard OK — admin + chauffeur");
+        if (!fcm) throw new Error("no_token");
+        if (cancelled) return;
+
+        const previous = localStorage.getItem("fcm_token");
+        if (fcm !== previous) {
+          // Token nouveau ou changé → toujours re-subscribe
+          await doSubscribe(fcm);
+        } else {
+          // Même token : re-subscribe quand même pour rafraîchir last_seen_at
+          // (évite que le token soit supprimé par une purge des tokens inactifs)
+          await doSubscribe(fcm);
         }
       } catch (e) {
-        console.warn("[push] auto-subscribe dashboard failed", e);
+        console.warn("[push] auto-subscribe attempt", attempt + 1, "failed", e);
+        if (attempt < 5 && !cancelled) {
+          const delay = 2000 * Math.pow(2, attempt); // 2s, 4s, 8s, 16s, 32s
+          setTimeout(() => tryRegister(attempt + 1), delay);
+        }
       }
-    }, 3000);
+    };
+
+    // Premier essai après 1.5s (SW Firebase a besoin d'un peu de temps au 1er load)
+    const timer = setTimeout(() => tryRegister(0), 1500);
     return () => {
       cancelled = true;
       clearTimeout(timer);
@@ -2505,32 +2524,40 @@ function Dashboard() {
                   return;
                 }
                 setNotifPermission("granted");
+                // Retry jusqu'à 3 fois si getFcmToken échoue (SW peut ne pas être prêt)
+                let fcm: string | null = null;
+                for (let i = 0; i < 3; i++) {
+                  try {
+                    fcm = await getFcmToken();
+                    if (fcm) break;
+                  } catch {}
+                  if (i < 2) await new Promise((r) => setTimeout(r, 2000));
+                }
+                if (!fcm) {
+                  toast.error("Impossible d'obtenir le token FCM — réessayez dans quelques secondes");
+                  return;
+                }
                 try {
-                  const fcm = await getFcmToken();
-                  if (fcm) {
-                    await Promise.all([
-                      subscribePush({
-                        data: {
-                          audience: "admin",
-                          fcm_token: fcm,
-                          reservation_id: null,
-                          user_agent: navigator.userAgent.slice(0, 500),
-                        },
-                      }),
-                      subscribePush({
-                        data: {
-                          audience: "chauffeur",
-                          fcm_token: fcm,
-                          reservation_id: null,
-                          user_agent: navigator.userAgent.slice(0, 500),
-                        },
-                      }),
-                    ]);
-                    localStorage.setItem("fcm_token", fcm);
-                    toast.success("🔔 Token FCM enregistré — notifications actives");
-                  } else {
-                    toast.error("Impossible d'obtenir le token FCM");
-                  }
+                  await Promise.all([
+                    subscribePush({
+                      data: {
+                        audience: "admin",
+                        fcm_token: fcm,
+                        reservation_id: null,
+                        user_agent: navigator.userAgent.slice(0, 500),
+                      },
+                    }),
+                    subscribePush({
+                      data: {
+                        audience: "chauffeur",
+                        fcm_token: fcm,
+                        reservation_id: null,
+                        user_agent: navigator.userAgent.slice(0, 500),
+                      },
+                    }),
+                  ]);
+                  localStorage.setItem("fcm_token", fcm);
+                  toast.success("🔔 Token FCM enregistré — notifications actives");
                 } catch (e) {
                   console.warn("[push] activation manuelle échouée", e);
                   toast.error("Impossible d'activer les notifications");
