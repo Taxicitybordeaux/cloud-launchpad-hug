@@ -500,6 +500,11 @@ function Dashboard() {
   const gpsRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastKnownPosRef = useRef<{ lat: number; lng: number; accuracy: number } | null>(null);
 
+  // ── Notifications push ──
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
+    typeof window !== "undefined" && "Notification" in window ? Notification.permission : "default",
+  );
+
   // Distance en mètres entre deux coords (Haversine simplifié)
   const distMetersGps = (a: { lat: number; lng: number }, b: { lat: number; lng: number }): number => {
     const R = 6371000;
@@ -520,7 +525,9 @@ function Dashboard() {
     if (acc > MAX_DRIVER_GPS_ACCURACY_M) {
       return `Signal GPS trop imprécis (±${Math.round(acc)} m). Position non envoyée.`;
     }
-    if (distMetersGps({ lat: latitude, lng: longitude }, BORDEAUX_CENTER_GPS) > MAX_DRIVER_GPS_DISTANCE_FROM_BORDEAUX_M) {
+    if (
+      distMetersGps({ lat: latitude, lng: longitude }, BORDEAUX_CENTER_GPS) > MAX_DRIVER_GPS_DISTANCE_FROM_BORDEAUX_M
+    ) {
       return "Position GPS incohérente avec Bordeaux ignorée.";
     }
     if (lastPos && distMetersGps(lastPos, { lat: latitude, lng: longitude }) > MAX_DRIVER_GPS_JUMP_M) {
@@ -531,7 +538,8 @@ function Dashboard() {
 
   // =========================
   // AUTO-SUBSCRIBE FCM (admin + chauffeur)
-  // S'abonne automatiquement au chargement, délai 3s pour ne pas bloquer.
+  // Ne tente l'abonnement automatique QUE si la permission est déjà accordée.
+  // La première demande se fait via le bouton 🔔 dans le header (geste utilisateur requis).
   // =========================
   useEffect(() => {
     if (
@@ -541,6 +549,11 @@ function Dashboard() {
       !("PushManager" in window)
     )
       return;
+
+    // Chrome/Safari bloquent Notification.requestPermission() sans geste utilisateur.
+    // On n'essaie le FCM automatiquement que si la permission est déjà accordée.
+    if (Notification.permission !== "granted") return;
+
     let cancelled = false;
     const timer = setTimeout(async () => {
       try {
@@ -744,9 +757,6 @@ function Dashboard() {
   // GPS INIT
   // =========================
   useEffect(() => {
-    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission().catch(() => {});
-    }
     const initGPS = async () => {
       const { data, error } = await (supabase as any).from("driver_gps").select("*").eq("id", "driver").single();
       if (error || !data) {
@@ -1483,7 +1493,13 @@ function Dashboard() {
       if (!pos) return;
       await (supabase as any)
         .from("driver_gps")
-        .update({ is_active: true, latitude: pos.lat, longitude: pos.lng, accuracy: pos.accuracy, updated_at: new Date().toISOString() })
+        .update({
+          is_active: true,
+          latitude: pos.lat,
+          longitude: pos.lng,
+          accuracy: pos.accuracy,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", "driver");
     }, 5000);
   };
@@ -2476,7 +2492,66 @@ function Dashboard() {
           className="admin-header-actions"
           style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}
         >
-          {/* Notifications natives auto-activées au chargement (admin + chauffeur) */}
+          {/* Bouton activation notifications push (admin + chauffeur) — geste utilisateur requis */}
+          {typeof window !== "undefined" && "Notification" in window && notifPermission !== "granted" && (
+            <button
+              onClick={async () => {
+                const perm = await Notification.requestPermission();
+                setNotifPermission(perm);
+                if (perm === "granted") {
+                  try {
+                    const fcm = await getFcmToken();
+                    if (fcm) {
+                      await Promise.all([
+                        subscribePush({
+                          data: {
+                            audience: "admin",
+                            fcm_token: fcm,
+                            reservation_id: null,
+                            user_agent: navigator.userAgent.slice(0, 500),
+                          },
+                        }),
+                        subscribePush({
+                          data: {
+                            audience: "chauffeur",
+                            fcm_token: fcm,
+                            reservation_id: null,
+                            user_agent: navigator.userAgent.slice(0, 500),
+                          },
+                        }),
+                      ]);
+                      localStorage.setItem("fcm_token", fcm);
+                      toast.success("🔔 Notifications activées (admin + chauffeur)");
+                    }
+                  } catch (e) {
+                    console.warn("[push] activation manuelle échouée", e);
+                    toast.error("Impossible d'activer les notifications");
+                  }
+                }
+              }}
+              style={{
+                padding: "8px 14px",
+                background: notifPermission === "denied" ? "rgba(239,68,68,0.1)" : "rgba(245,200,66,0.15)",
+                border: `1px solid ${notifPermission === "denied" ? "rgba(239,68,68,0.3)" : "rgba(245,200,66,0.4)"}`,
+                color: notifPermission === "denied" ? "#f87171" : "#f5c842",
+                borderRadius: 10,
+                cursor: notifPermission === "denied" ? "not-allowed" : "pointer",
+                fontWeight: 600,
+                fontSize: 13,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+              disabled={notifPermission === "denied"}
+              title={
+                notifPermission === "denied"
+                  ? "Notifications bloquées — autorisez-les dans les réglages du navigateur"
+                  : "Activer les notifications push"
+              }
+            >
+              {notifPermission === "denied" ? "🔕 Bloqué" : "🔔 Activer notifs"}
+            </button>
+          )}
           <a
             href="/"
             style={{
