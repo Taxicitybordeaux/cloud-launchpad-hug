@@ -13,8 +13,7 @@ export const firebaseConfig = {
 };
 
 // Clé VAPID *Web Push* de Firebase (Console → Cloud Messaging → Web configuration)
-export const FCM_VAPID_KEY =
-  "BPCVh_FRLBkhOWLLxdaKnD29L6HRNS44w4wHX_AE2DV0a0-Uc6OoofT8SldZ-V4_yMWInXt4xqbvkhGiFW-_N20";
+export const FCM_VAPID_KEY = "BPCVh_FRLBkhOWLLxdaKnD29L6HRNS44w4wHX_AE2DV0a0-Uc6OoofT8SldZ-V4_yMWInXt4xqbvkhGiFW-_N20";
 
 let app: FirebaseApp | null = null;
 let messaging: Messaging | null = null;
@@ -45,17 +44,32 @@ export async function getFcmToken(): Promise<string | null> {
 
   try {
     const perm = await Notification.requestPermission();
-    if (perm !== "granted") return null;
+    if (perm !== "granted") {
+      console.warn("[FCM] Permission refusée :", perm);
+      return null;
+    }
 
-    const swReg =
-      (await navigator.serviceWorker.getRegistration("/firebase-messaging-sw.js")) ||
-      (await navigator.serviceWorker.register("/firebase-messaging-sw.js", { scope: "/" }));
+    // CORRECTIF : getRegistration() attend un scope (ex: "/"), pas un chemin de fichier.
+    // On cherche d'abord un SW existant sur le scope "/", sinon on en enregistre un.
+    let swReg = await navigator.serviceWorker.getRegistration("/");
+    if (!swReg) {
+      swReg = await navigator.serviceWorker.register("/firebase-messaging-sw.js", { scope: "/" });
+    }
+
+    // Attendre que le SW soit prêt (actif) avant de demander le token
     await navigator.serviceWorker.ready;
 
     const token = await getToken(msg, {
       vapidKey: FCM_VAPID_KEY,
       serviceWorkerRegistration: swReg,
     });
+
+    if (token) {
+      console.log("[FCM] Token obtenu :", token);
+    } else {
+      console.warn("[FCM] Token vide — vérifier VAPID key et SW");
+    }
+
     return token || null;
   } catch (err) {
     console.error("[FCM] getFcmToken failed", err);
@@ -68,6 +82,7 @@ export function onForegroundMessage(callback: (payload: any) => void): () => voi
   initFirebase().then((msg) => {
     if (!msg) return;
     unsub = onMessage(msg, (payload) => {
+      console.log("[FCM] Message foreground reçu :", payload);
       try {
         callback(payload);
       } catch (err) {
@@ -78,4 +93,32 @@ export function onForegroundMessage(callback: (payload: any) => void): () => voi
   return () => {
     if (unsub) unsub();
   };
+}
+
+/**
+ * Affiche une notification native quand l'app est en foreground.
+ * À appeler dans ton composant racine (App.tsx ou _app.tsx) :
+ *
+ *   useEffect(() => {
+ *     return setupForegroundNotifications();
+ *   }, []);
+ */
+export function setupForegroundNotifications(): () => void {
+  return onForegroundMessage((payload) => {
+    const title = payload.notification?.title ?? "Taxi City Bordeaux";
+    const options: NotificationOptions = {
+      body: payload.notification?.body ?? "",
+      icon: payload.notification?.icon ?? "/favicon.ico",
+      badge: "/favicon.ico",
+      tag: payload.data?.tag ?? "taxi-fcm",
+      data: payload.data ?? {},
+      vibrate: [200, 100, 200],
+      requireInteraction: true,
+    };
+
+    // Afficher via le Service Worker pour garantir l'affichage même en foreground
+    navigator.serviceWorker.ready.then((reg) => {
+      reg.showNotification(title, options);
+    });
+  });
 }
