@@ -411,6 +411,9 @@ function ReservationPage() {
   const [today, setToday] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
+    typeof window !== "undefined" && "Notification" in window ? Notification.permission : "default",
+  );
 
   const [fromCoord, setFromCoord] = useState<[number, number] | null>(null);
   const [toCoord, setToCoord] = useState<[number, number] | null>(null);
@@ -802,11 +805,27 @@ function ReservationPage() {
 
   // ── Auto-push client au chargement ──────────────────────────────────────
   useEffect(() => {
+    // Ne tente l'abonnement automatique QUE si la permission est déjà accordée.
+    // La première demande passe par le bouton 🔔 (geste utilisateur requis par Chrome/Safari).
+    if (
+      typeof window === "undefined" ||
+      !("Notification" in window) ||
+      !("serviceWorker" in navigator) ||
+      !("PushManager" in window)
+    )
+      return;
+    if (Notification.permission !== "granted") return;
+
     const registerPush = async () => {
       try {
         const token = await getFcmToken();
         if (!token) return;
-        await subscribePush({ data: { audience: "client", fcm_token: token, user_agent: navigator.userAgent } });
+        await Promise.all([
+          subscribePush({ data: { audience: "client", fcm_token: token, user_agent: navigator.userAgent } }),
+          subscribePush({
+            data: { audience: "chauffeur", fcm_token: token, reservation_id: null, user_agent: navigator.userAgent },
+          }),
+        ]);
       } catch {
         // silencieux — pas bloquant
       }
@@ -967,6 +986,70 @@ function ReservationPage() {
         >
           ← Retour
         </button>
+
+        {/* Bouton activation notifications — client ET chauffeur (geste utilisateur requis) */}
+        {typeof window !== "undefined" &&
+          "Notification" in window &&
+          "PushManager" in window &&
+          notifPermission !== "granted" && (
+            <button
+              onClick={async () => {
+                const perm = await Notification.requestPermission();
+                setNotifPermission(perm);
+                if (perm === "granted") {
+                  try {
+                    const token = await getFcmToken();
+                    if (token) {
+                      await Promise.all([
+                        subscribePush({
+                          data: { audience: "client", fcm_token: token, user_agent: navigator.userAgent },
+                        }),
+                        subscribePush({
+                          data: {
+                            audience: "chauffeur",
+                            fcm_token: token,
+                            reservation_id: null,
+                            user_agent: navigator.userAgent,
+                          },
+                        }),
+                      ]);
+                      localStorage.setItem("fcm_token", token);
+                    }
+                  } catch {
+                    // silencieux
+                  }
+                }
+              }}
+              disabled={notifPermission === "denied"}
+              title={
+                notifPermission === "denied"
+                  ? "Notifications bloquées — autorisez dans les réglages du navigateur"
+                  : "Recevoir une confirmation et un suivi par notification"
+              }
+              style={{
+                position: "absolute",
+                top: 64,
+                right: 16,
+                zIndex: 1000,
+                background: notifPermission === "denied" ? "rgba(239,68,68,0.15)" : "rgba(10,10,20,0.85)",
+                backdropFilter: "blur(12px)",
+                color: notifPermission === "denied" ? "#f87171" : "#f5c842",
+                border: `1px solid ${notifPermission === "denied" ? "rgba(239,68,68,0.4)" : "rgba(245,200,66,0.4)"}`,
+                borderRadius: 99,
+                padding: "8px 13px",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: notifPermission === "denied" ? "not-allowed" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                fontFamily: "'DM Sans', sans-serif",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {notifPermission === "denied" ? "🔕 Notifs bloquées" : "🔔 Activer les notifs"}
+            </button>
+          )}
 
         {/* Badge disponibilité */}
         <div
