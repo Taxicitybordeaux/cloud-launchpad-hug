@@ -509,6 +509,26 @@ function Dashboard() {
     return Math.sqrt(x * x + y * y) * R;
   };
 
+  const getDriverGpsRejection = (
+    pos: GeolocationPosition,
+    lastPos: { lat: number; lng: number } | null,
+  ): string | null => {
+    const { latitude, longitude, accuracy: acc } = pos.coords;
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || !Number.isFinite(acc)) {
+      return "Position GPS invalide ignorée.";
+    }
+    if (acc > MAX_DRIVER_GPS_ACCURACY_M) {
+      return `Signal GPS trop imprécis (±${Math.round(acc)} m). Position non envoyée.`;
+    }
+    if (distMetersGps({ lat: latitude, lng: longitude }, BORDEAUX_CENTER_GPS) > MAX_DRIVER_GPS_DISTANCE_FROM_BORDEAUX_M) {
+      return "Position GPS incohérente avec Bordeaux ignorée.";
+    }
+    if (lastPos && distMetersGps(lastPos, { lat: latitude, lng: longitude }) > MAX_DRIVER_GPS_JUMP_M) {
+      return "Saut GPS anormal ignoré, attente du prochain signal fiable.";
+    }
+    return null;
+  };
+
   // =========================
   // AUTO-SUBSCRIBE FCM (admin + chauffeur)
   // S'abonne automatiquement au chargement, délai 3s pour ne pas bloquer.
