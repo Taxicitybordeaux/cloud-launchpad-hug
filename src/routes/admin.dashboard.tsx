@@ -14,6 +14,10 @@ import { getFcmToken } from "@/lib/firebase";
 
 const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_TILE_OPTIONS = { attribution: "© OpenStreetMap contributors", maxZoom: 19 };
+const BORDEAUX_CENTER_GPS = { lat: 44.8378, lng: -0.5792 };
+const MAX_DRIVER_GPS_ACCURACY_M = 1500;
+const MAX_DRIVER_GPS_DISTANCE_FROM_BORDEAUX_M = 130000;
+const MAX_DRIVER_GPS_JUMP_M = 5000;
 
 // ─── Swipe-to-delete ─────────────────────────────────────────
 function SwipeDeleteRow({
