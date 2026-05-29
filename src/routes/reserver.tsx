@@ -1101,6 +1101,34 @@ function ReservationPage() {
 
       if (error) throw error;
 
+      // ── Abonnement push client avec le vrai reservation_id ─────────────────
+      // Sans ça, notifyReservationStatus ne trouve aucun abonné "client" pour cette résa.
+      try {
+        if (
+          typeof window !== "undefined" &&
+          "Notification" in window &&
+          "serviceWorker" in navigator &&
+          "PushManager" in window
+        ) {
+          const perm = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
+          if (perm === "granted") {
+            const token = await getFcmToken();
+            if (token) {
+              await subscribePush({
+                data: {
+                  audience: "client",
+                  fcm_token: token,
+                  reservation_id: inserted.id,
+                  user_agent: navigator.userAgent.slice(0, 500),
+                },
+              });
+            }
+          }
+        }
+      } catch (pushErr) {
+        console.warn("[push] client subscribe failed", pushErr);
+      }
+
       // ── Notif push + email chauffeur/admin ────────────────────────────────
       try {
         await fetch("/api/public/notify-reservation", {
