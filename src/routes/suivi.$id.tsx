@@ -295,7 +295,9 @@ function distMeters(a: { lat: number; lng: number }, b: { lat: number; lng: numb
   return Math.sqrt(x * x + y * y) * R;
 }
 
-function isReliableDriverGps(data: { latitude?: number | null; longitude?: number | null; is_active?: boolean | null; accuracy?: number | null }) {
+function isReliableDriverGps(
+  data: { latitude?: number | null; longitude?: number | null; is_active?: boolean | null; accuracy?: number | null } | null | undefined,
+): data is { latitude: number; longitude: number; is_active: true; accuracy?: number | null } {
   if (!data?.is_active || data.latitude == null || data.longitude == null) return false;
   if (!Number.isFinite(data.latitude) || !Number.isFinite(data.longitude)) return false;
   if (data.latitude === 0 && data.longitude === 0) return false;
