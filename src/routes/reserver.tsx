@@ -660,15 +660,13 @@ function ReservationPage() {
 
   // ── Géolocalisation départ (navigateur client) ───────────────────────────
   const handleGeolocate = useCallback(() => {
-    // ⚠️ PAS async ici — iOS Safari bloque le GPS si la fonction est async
-    // car elle sort immédiatement de la pile synchrone du tap utilisateur.
     if (!navigator.geolocation) {
       toast.error("Géolocalisation non disponible");
       return;
     }
     setGeolocLoading(true);
 
-    const applyPosition = async (lat: number, lng: number, approximate = false) => {
+    const applyPosition = async (lat: number, lng: number) => {
       let adresse = await reverseGeocode(lat, lng).catch(() => null);
       if (!adresse) {
         const fallback = await searchAddress(`${lat}, ${lng}`, 1).catch(() => []);
@@ -681,62 +679,47 @@ function ReservationPage() {
         delete next.depart;
         return next;
       });
-      toast.success(
-        approximate ? "Zone détectée automatiquement — ajustez l'adresse si besoin" : t("res.geo.btn") + " ✓",
-      );
+      toast.success(t("res.geo.btn") + " ✓");
       setGeolocLoading(false);
     };
 
-    const applyFallback = async (err?: GeolocationPositionError) => {
-      const fallback = await getIpApproxPosition();
-      if (fallback) {
-        await applyPosition(fallback.lat, fallback.lng, true);
-        return;
+    const rejectAutoPosition = (message: string) => {
+      setGeolocLoading(false);
+      setFromCoord(null);
+      setErrors((prev) => ({ ...prev, depart: message }));
+      toast.error(message);
+    };
+
+    const geoErrorMessage = (err?: GeolocationPositionError) =>
+      err?.code === 1
+        ? "Autorisation GPS refusée par le téléphone ou le navigateur. Activez la localisation pour ce site, ou saisissez l’adresse exacte."
+        : err?.code === 2
+          ? "Signal GPS indisponible. Saisissez l’adresse exacte de départ."
+          : "GPS trop long à répondre. Saisissez l’adresse exacte de départ.";
+
+    (async () => {
+      try {
+        const precise = await requestBrowserPosition({ enableHighAccuracy: true, maximumAge: 0, timeout: 18000 });
+        const reason = getAutoGeoRejectionReason(precise);
+        if (reason) {
+          rejectAutoPosition(reason);
+          return;
+        }
+        await applyPosition(precise.coords.latitude, precise.coords.longitude);
+      } catch (firstErr) {
+        try {
+          const cached = await requestBrowserPosition({ enableHighAccuracy: false, maximumAge: 120000, timeout: 8000 });
+          const reason = getAutoGeoRejectionReason(cached);
+          if (reason) {
+            rejectAutoPosition(reason);
+            return;
+          }
+          await applyPosition(cached.coords.latitude, cached.coords.longitude);
+        } catch (secondErr) {
+          rejectAutoPosition(geoErrorMessage((secondErr as GeolocationPositionError) ?? (firstErr as GeolocationPositionError)));
+        }
       }
-      setGeolocLoading(false);
-      const msg =
-        err?.code === 1
-          ? t("res.geo.err.denied")
-          : err?.code === 2
-            ? t("res.geo.err.unavailable")
-            : t("res.geo.err.timeout");
-      toast.error(msg);
-    };
-
-    // watchPosition lancé directement dans la pile sync du tap (requis iOS Safari)
-    let watchId: number | null = null;
-    let bestPos: GeolocationPosition | null = null;
-    let settled = false;
-
-    const hardTimeout = setTimeout(() => {
-      if (!settled && bestPos) finish(bestPos);
-      else if (!settled) applyFallback({ code: 3, message: "timeout" } as GeolocationPositionError);
-    }, 60000);
-
-    const finish = (pos: GeolocationPosition) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(hardTimeout);
-      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
-      applyPosition(pos.coords.latitude, pos.coords.longitude);
-    };
-
-    watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        if (!bestPos || pos.coords.accuracy < bestPos.coords.accuracy) bestPos = pos;
-        if (pos.coords.accuracy <= 20) finish(pos);
-      },
-      (err) => {
-        clearTimeout(hardTimeout);
-        if (watchId !== null) navigator.geolocation.clearWatch(watchId);
-        settled = true;
-        if (err.code === 1)
-          applyFallback(err); // permission refusée → fallback IP
-        else if (bestPos) applyPosition(bestPos.coords.latitude, bestPos.coords.longitude);
-        else applyFallback(err);
-      },
-      { enableHighAccuracy: true, maximumAge: 30000, timeout: 60000 },
-    );
+    })();
   }, []);
 
   // ── Résoudre adresse départ (saisie manuelle) ────────────────────────────
