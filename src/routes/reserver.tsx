@@ -21,6 +21,9 @@ export const Route = createFileRoute("/reserver")({
 });
 
 const BORDEAUX_CENTER: [number, number] = [44.8378, -0.5792];
+const DESTINATION_SEARCH_RADIUS_KM = 20;
+const MAX_AUTO_GEO_ACCURACY_M = 1500;
+const MAX_AUTO_GEO_DISTANCE_FROM_BORDEAUX_KM = 130;
 
 interface FormState {
   depart: string;
@@ -271,25 +274,25 @@ async function searchNearbyAddressChoices(
     .slice(0, 4);
 }
 
-function getBrowserPosition(options: PositionOptions): Promise<GeolocationPosition> {
+function requestBrowserPosition(options: PositionOptions): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(resolve, reject, options);
   });
 }
 
-async function getIpApproxPosition(): Promise<{ lat: number; lng: number } | null> {
-  const endpoints = ["https://ipapi.co/json/", "https://ipwho.is/"];
-  for (const endpoint of endpoints) {
-    try {
-      const res = await fetch(endpoint);
-      if (!res.ok) continue;
-      const data = await res.json();
-      const lat = Number(data.latitude ?? data.lat);
-      const lng = Number(data.longitude ?? data.lon ?? data.lng);
-      if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
-    } catch {
-      // Essai du service gratuit suivant.
-    }
+function getAutoGeoRejectionReason(pos: GeolocationPosition): string | null {
+  const lat = pos.coords.latitude;
+  const lng = pos.coords.longitude;
+  const accuracy = pos.coords.accuracy;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(accuracy)) {
+    return "Position invalide. Saisissez l’adresse de départ manuellement.";
+  }
+  if (accuracy > MAX_AUTO_GEO_ACCURACY_M) {
+    return `Signal GPS trop imprécis (${Math.round(accuracy)} m). Saisissez l’adresse exacte pour éviter une mauvaise prise en charge.`;
+  }
+  const distanceFromBordeaux = distanceKmBetween(BORDEAUX_CENTER, [lat, lng]);
+  if (distanceFromBordeaux > MAX_AUTO_GEO_DISTANCE_FROM_BORDEAUX_KM) {
+    return "Position incohérente avec la zone de Bordeaux. Saisissez l’adresse exacte de départ.";
   }
   return null;
 }
