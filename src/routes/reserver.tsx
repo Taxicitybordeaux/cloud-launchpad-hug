@@ -79,21 +79,57 @@ function shortLabel(label: string): string {
 
 async function geocodeFullAddress(address: string): Promise<{ coord: [number, number]; label: string } | null> {
   const trimmed = address.trim();
+  const normalized = normalizeAddressText(trimmed);
   const parts = trimmed
     .split(",")
     .map((p) => p.trim())
     .filter(Boolean);
   const short = parts.slice(0, 2).join(", ");
 
+  // Variantes spécifiques pour les lieux nommés courants
+  const namedPlaceVariants: string[] = [];
+  if (/aeroport|airport/.test(normalized)) {
+    if (/bordeaux|merignac|bod/.test(normalized)) {
+      namedPlaceVariants.push(
+        "Aéroport de Bordeaux-Mérignac",
+        "Bordeaux-Mérignac Airport",
+        "aéroport Bordeaux Mérignac",
+      );
+    } else {
+      // aéroport d'une autre ville : extraire la ville probable
+      const cityToken = normalized
+        .replace(/aeroport|airport|de|du|d/g, " ")
+        .trim()
+        .split(/\s+/)[0];
+      if (cityToken && cityToken.length > 2) {
+        namedPlaceVariants.push(`aéroport ${cityToken}, France`, `${cityToken} airport, France`);
+      }
+    }
+  }
+  if (/gare/.test(normalized)) {
+    if (/bordeaux|saint.jean/.test(normalized)) {
+      namedPlaceVariants.push("Gare de Bordeaux-Saint-Jean");
+    } else {
+      const cityToken = normalized
+        .replace(/gare|de|du|d/g, " ")
+        .trim()
+        .split(/\s+/)[0];
+      if (cityToken && cityToken.length > 2) {
+        namedPlaceVariants.push(`gare ${cityToken}, France`);
+      }
+    }
+  }
+
   // Plusieurs variantes pour maximiser les chances de trouver lieux nommés et adresses
   const attempts = [
+    ...namedPlaceVariants, // lieux nommés en priorité
     trimmed,
     trimmed + ", France",
     short,
     short + ", France",
+    parts[0] + ", France",
     parts[0] + ", Bordeaux, France",
     parts[0] + ", Gironde, France",
-    parts[0] + ", France",
   ].filter((v, i, arr) => v.length > 2 && arr.indexOf(v) === i);
 
   for (const query of attempts) {
@@ -281,7 +317,7 @@ async function searchNearbyAddressChoices(
   ]);
   const tokens = usefulSearchTokens(query);
   return dedupeAddressChoices([...nominatimChoices, ...photonChoices, ...overpassChoices])
-    .filter((choice) => choice.distanceKm <= radiusKm && isPlausibleAddressMatch(query, choice.label))
+    .filter((choice) => isPlausibleAddressMatch(query, choice.label))
     .sort((a, b) => {
       const aLabel = normalizeAddressText(a.label);
       const bLabel = normalizeAddressText(b.label);
@@ -776,8 +812,9 @@ function ReservationPage() {
       searchNearbyAddressChoices(value, origin, DESTINATION_SEARCH_RADIUS_KM),
     ]);
     setCalcLoading(false);
-    const exactEnough = Boolean(result && isPlausibleAddressMatch(value, result.label));
-    if (exactEnough && result) {
+
+    // Si geocodeFullAddress a trouvé quelque chose → on l'utilise directement, sans filtre
+    if (result) {
       setDestinationChoices([]);
       setToCoord(result.coord);
       set("destination", result.label);
@@ -791,14 +828,14 @@ function ReservationPage() {
       setToCoord(null);
       setErrors((prev) => ({
         ...prev,
-        destination: "Sélectionnez une adresse proposée dans un rayon de 20 km",
+        destination: "Sélectionnez une adresse dans la liste",
       }));
     } else {
       setDestinationChoices([]);
       setToCoord(null);
       setErrors((prev) => ({
         ...prev,
-        destination: "Adresse introuvable — précisez la ville ou choisissez un lieu proche",
+        destination: "Adresse introuvable — précisez la ville ou le lieu",
       }));
     }
   }, [f.destination, fromCoord]);
