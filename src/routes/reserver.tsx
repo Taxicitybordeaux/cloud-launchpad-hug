@@ -1119,10 +1119,11 @@ function ReservationPage() {
               </button>
 
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {/* Bouton notifications push — visible si pas encore accordée */}
-                {typeof window !== "undefined" && "Notification" in window && notifPermission !== "granted" && (
+                {/* Bouton notifications push — toujours visible, 3 états */}
+                {typeof window !== "undefined" && "Notification" in window && (
                   <button
                     onClick={async () => {
+                      if (notifPermission === "denied" || notifPermission === "granted") return;
                       const perm = await Notification.requestPermission();
                       setNotifPermission(perm);
                       if (perm === "granted") {
@@ -1153,17 +1154,35 @@ function ReservationPage() {
                     title={
                       notifPermission === "denied"
                         ? "Notifications bloquées — autorisez dans les réglages du navigateur"
-                        : "Recevoir une confirmation et un suivi par notification"
+                        : notifPermission === "granted"
+                          ? "Notifications activées ✓"
+                          : "Recevoir une confirmation et un suivi par notification"
                     }
                     style={{
-                      background: notifPermission === "denied" ? "rgba(239,68,68,0.15)" : "rgba(245,200,66,0.15)",
-                      border: `1px solid ${notifPermission === "denied" ? "rgba(239,68,68,0.4)" : "rgba(245,200,66,0.4)"}`,
-                      color: notifPermission === "denied" ? "#f87171" : "#f5c842",
+                      background:
+                        notifPermission === "denied"
+                          ? "rgba(239,68,68,0.15)"
+                          : notifPermission === "granted"
+                            ? "rgba(34,197,94,0.15)"
+                            : "rgba(245,200,66,0.15)",
+                      border: `1px solid ${
+                        notifPermission === "denied"
+                          ? "rgba(239,68,68,0.4)"
+                          : notifPermission === "granted"
+                            ? "rgba(34,197,94,0.4)"
+                            : "rgba(245,200,66,0.4)"
+                      }`,
+                      color:
+                        notifPermission === "denied"
+                          ? "#f87171"
+                          : notifPermission === "granted"
+                            ? "#86efac"
+                            : "#f5c842",
                       borderRadius: 99,
                       padding: "7px 13px",
                       fontSize: 12,
                       fontWeight: 700,
-                      cursor: notifPermission === "denied" ? "not-allowed" : "pointer",
+                      cursor: notifPermission === "default" ? "pointer" : "default",
                       display: "flex",
                       alignItems: "center",
                       gap: 5,
@@ -1171,7 +1190,11 @@ function ReservationPage() {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {notifPermission === "denied" ? "🔕 Bloquées" : "🔔 Notifs"}
+                    {notifPermission === "denied"
+                      ? "🔕 Bloquées"
+                      : notifPermission === "granted"
+                        ? "🔔 Activées"
+                        : "🔔 Notifs"}
                   </button>
                 )}
 
