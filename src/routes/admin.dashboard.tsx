@@ -1311,6 +1311,12 @@ function Dashboard() {
 
     const handlePosition = async (pos: GeolocationPosition) => {
       const { latitude, longitude, accuracy: acc, heading: rawHeading } = pos.coords;
+      const rejection = getDriverGpsRejection(pos, lastKnownPosRef.current);
+      if (rejection) {
+        setGpsError(rejection);
+        setGpsAccuracy(Number.isFinite(acc) ? Math.round(acc) : null);
+        return;
+      }
       setGpsError(null);
       let computedHeading = rawHeading ?? null;
       if ((computedHeading === null || computedHeading === 0) && lastPosRef.current) {
@@ -1477,7 +1483,7 @@ function Dashboard() {
       if (!pos) return;
       await (supabase as any)
         .from("driver_gps")
-        .update({ is_active: true, latitude: pos.lat, longitude: pos.lng, updated_at: new Date().toISOString() })
+        .update({ is_active: true, latitude: pos.lat, longitude: pos.lng, accuracy: gpsAccuracy, updated_at: new Date().toISOString() })
         .eq("id", "driver");
     }, 5000);
   };
