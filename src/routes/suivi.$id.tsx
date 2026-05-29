@@ -860,17 +860,10 @@ function SuiviPage() {
     pollingTimerRef.current = setInterval(async () => {
       const { data } = await supabase
         .from("driver_gps")
-        .select("latitude,longitude,is_active")
+        .select("latitude,longitude,accuracy,is_active")
         .eq("id", "driver")
         .maybeSingle();
-      if (
-        data?.is_active &&
-        data.latitude != null &&
-        data.longitude != null &&
-        Number.isFinite(data.latitude) &&
-        Number.isFinite(data.longitude) &&
-        (data.latitude !== 0 || data.longitude !== 0)
-      ) {
+      if (isReliableDriverGps(data)) {
         setLastUpdate(new Date());
         // Si le trajet n'est pas encore tracé, le faire avant d'appliquer la position
         if (!destCoordsRef.current && resaIdRef.current) {
@@ -912,13 +905,7 @@ function SuiviPage() {
         .on("postgres_changes", { event: "UPDATE", schema: "public", table: "driver_gps" }, async (payload) => {
           const d = payload.new as any;
           if (!d.is_active) return;
-          if (
-            d.latitude != null &&
-            d.longitude != null &&
-            Number.isFinite(d.latitude) &&
-            Number.isFinite(d.longitude) &&
-            (d.latitude !== 0 || d.longitude !== 0)
-          ) {
+          if (isReliableDriverGps(d)) {
             setLastUpdate(new Date());
             await applyDriverPosition(d.latitude, d.longitude);
           }
@@ -1113,21 +1100,15 @@ function SuiviPage() {
       // Lecture depuis driver_gps (table réelle du chauffeur)
       const { data: locData } = await supabase
         .from("driver_gps")
-        .select("latitude,longitude,is_active")
+        .select("latitude,longitude,accuracy,is_active")
         .eq("id", "driver")
         .maybeSingle();
       const gpsLat: number | null =
         locData?.latitude != null && Number.isFinite(locData.latitude) ? locData.latitude : null;
       const gpsLng: number | null =
         locData?.longitude != null && Number.isFinite(locData.longitude) ? locData.longitude : null;
-      const driverOnline =
-        !!locData?.is_active &&
-        locData?.latitude != null &&
-        Number.isFinite(locData.latitude) &&
-        locData?.longitude != null &&
-        Number.isFinite(locData.longitude) &&
-        (locData.latitude !== 0 || locData.longitude !== 0);
-      if (gpsLat !== null && gpsLng !== null && (gpsLat !== 0 || gpsLng !== 0) && driverOnline) {
+      const driverOnline = isReliableDriverGps(locData ?? {});
+      if (gpsLat !== null && gpsLng !== null && driverOnline) {
         await initMap(gpsLat, gpsLng);
         setTaxiPos({ lat: gpsLat, lng: gpsLng });
         setLastUpdate(new Date());
@@ -1162,18 +1143,11 @@ function SuiviPage() {
       if (document.visibilityState === "visible" && resaIdRef.current) {
         supabase
           .from("driver_gps")
-          .select("latitude,longitude,is_active")
+          .select("latitude,longitude,accuracy,is_active")
           .eq("id", "driver")
           .maybeSingle()
           .then(async ({ data }) => {
-            if (
-              data?.is_active &&
-              data.latitude != null &&
-              data.longitude != null &&
-              Number.isFinite(data.latitude) &&
-              Number.isFinite(data.longitude) &&
-              (data.latitude !== 0 || data.longitude !== 0)
-            ) {
+            if (isReliableDriverGps(data)) {
               setLastUpdate(new Date());
               // Si le trajet n'est pas tracé (ex: retour de veille longue), le redessiner
               if (!destCoordsRef.current) {
@@ -1291,17 +1265,10 @@ function SuiviPage() {
       }
       const { data } = await supabase
         .from("driver_gps")
-        .select("latitude,longitude,is_active")
+        .select("latitude,longitude,accuracy,is_active")
         .eq("id", "driver")
         .maybeSingle();
-      if (
-        data?.is_active &&
-        data?.latitude != null &&
-        data?.longitude != null &&
-        Number.isFinite(data.latitude) &&
-        Number.isFinite(data.longitude) &&
-        (data.latitude !== 0 || data.longitude !== 0)
-      ) {
+      if (isReliableDriverGps(data)) {
         setLastUpdate(new Date());
         // Si le tracé n'est pas encore affiché, tenter de le redessiner d'abord
         if (!destCoordsRef.current && currentResa?.depart && (currentResa?.destination || currentResa?.arrivee)) {
