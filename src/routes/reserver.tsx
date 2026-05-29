@@ -21,6 +21,9 @@ export const Route = createFileRoute("/reserver")({
 });
 
 const BORDEAUX_CENTER: [number, number] = [44.8378, -0.5792];
+const DESTINATION_SEARCH_RADIUS_KM = 20;
+const MAX_AUTO_GEO_ACCURACY_M = 1500;
+const MAX_AUTO_GEO_DISTANCE_FROM_BORDEAUX_KM = 130;
 
 interface FormState {
   depart: string;
@@ -271,25 +274,25 @@ async function searchNearbyAddressChoices(
     .slice(0, 4);
 }
 
-function getBrowserPosition(options: PositionOptions): Promise<GeolocationPosition> {
+function requestBrowserPosition(options: PositionOptions): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(resolve, reject, options);
   });
 }
 
-async function getIpApproxPosition(): Promise<{ lat: number; lng: number } | null> {
-  const endpoints = ["https://ipapi.co/json/", "https://ipwho.is/"];
-  for (const endpoint of endpoints) {
-    try {
-      const res = await fetch(endpoint);
-      if (!res.ok) continue;
-      const data = await res.json();
-      const lat = Number(data.latitude ?? data.lat);
-      const lng = Number(data.longitude ?? data.lon ?? data.lng);
-      if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
-    } catch {
-      // Essai du service gratuit suivant.
-    }
+function getAutoGeoRejectionReason(pos: GeolocationPosition): string | null {
+  const lat = pos.coords.latitude;
+  const lng = pos.coords.longitude;
+  const accuracy = pos.coords.accuracy;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(accuracy)) {
+    return "Position invalide. Saisissez l’adresse de départ manuellement.";
+  }
+  if (accuracy > MAX_AUTO_GEO_ACCURACY_M) {
+    return `Signal GPS trop imprécis (${Math.round(accuracy)} m). Saisissez l’adresse exacte pour éviter une mauvaise prise en charge.`;
+  }
+  const distanceFromBordeaux = distanceKmBetween(BORDEAUX_CENTER, [lat, lng]);
+  if (distanceFromBordeaux > MAX_AUTO_GEO_DISTANCE_FROM_BORDEAUX_KM) {
+    return "Position incohérente avec la zone de Bordeaux. Saisissez l’adresse exacte de départ.";
   }
   return null;
 }
@@ -657,15 +660,13 @@ function ReservationPage() {
 
   // ── Géolocalisation départ (navigateur client) ───────────────────────────
   const handleGeolocate = useCallback(() => {
-    // ⚠️ PAS async ici — iOS Safari bloque le GPS si la fonction est async
-    // car elle sort immédiatement de la pile synchrone du tap utilisateur.
     if (!navigator.geolocation) {
       toast.error("Géolocalisation non disponible");
       return;
     }
     setGeolocLoading(true);
 
-    const applyPosition = async (lat: number, lng: number, approximate = false) => {
+    const applyPosition = async (lat: number, lng: number) => {
       let adresse = await reverseGeocode(lat, lng).catch(() => null);
       if (!adresse) {
         const fallback = await searchAddress(`${lat}, ${lng}`, 1).catch(() => []);
@@ -678,62 +679,48 @@ function ReservationPage() {
         delete next.depart;
         return next;
       });
-      toast.success(
-        approximate ? "Zone détectée automatiquement — ajustez l'adresse si besoin" : t("res.geo.btn") + " ✓",
-      );
+      toast.success(t("res.geo.btn") + " ✓");
       setGeolocLoading(false);
     };
 
-    const applyFallback = async (err?: GeolocationPositionError) => {
-      const fallback = await getIpApproxPosition();
-      if (fallback) {
-        await applyPosition(fallback.lat, fallback.lng, true);
-        return;
+    const rejectAutoPosition = (message: string) => {
+      setGeolocLoading(false);
+      setFromCoord(null);
+      setErrors((prev) => ({ ...prev, depart: message }));
+      toast.error(message);
+    };
+
+    const geoErrorMessage = (err?: GeolocationPositionError) =>
+      err?.code === 1
+        ? "Autorisation GPS refusée par le téléphone ou le navigateur. Activez la localisation pour ce site, ou saisissez l’adresse exacte."
+        : err?.code === 2
+          ? "Signal GPS indisponible. Saisissez l’adresse exacte de départ."
+          : "GPS trop long à répondre. Saisissez l’adresse exacte de départ.";
+
+    (async () => {
+      try {
+        const precise = await requestBrowserPosition({ enableHighAccuracy: true, maximumAge: 0, timeout: 18000 });
+        const reason = getAutoGeoRejectionReason(precise);
+        if (reason) {
+          rejectAutoPosition(reason);
+          return;
+        }
+        await applyPosition(precise.coords.latitude, precise.coords.longitude);
+      } catch (firstErr) {
+        try {
+          const cached = await requestBrowserPosition({ enableHighAccuracy: false, maximumAge: 120000, timeout: 8000 });
+          const reason = getAutoGeoRejectionReason(cached);
+          if (reason) {
+            rejectAutoPosition(reason);
+            return;
+          }
+          await applyPosition(cached.coords.latitude, cached.coords.longitude);
+        } catch (secondErr) {
+          const err = (secondErr || firstErr) as GeolocationPositionError;
+          rejectAutoPosition(geoErrorMessage(err));
+        }
       }
-      setGeolocLoading(false);
-      const msg =
-        err?.code === 1
-          ? t("res.geo.err.denied")
-          : err?.code === 2
-            ? t("res.geo.err.unavailable")
-            : t("res.geo.err.timeout");
-      toast.error(msg);
-    };
-
-    // watchPosition lancé directement dans la pile sync du tap (requis iOS Safari)
-    let watchId: number | null = null;
-    let bestPos: GeolocationPosition | null = null;
-    let settled = false;
-
-    const hardTimeout = setTimeout(() => {
-      if (!settled && bestPos) finish(bestPos);
-      else if (!settled) applyFallback({ code: 3, message: "timeout" } as GeolocationPositionError);
-    }, 60000);
-
-    const finish = (pos: GeolocationPosition) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(hardTimeout);
-      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
-      applyPosition(pos.coords.latitude, pos.coords.longitude);
-    };
-
-    watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        if (!bestPos || pos.coords.accuracy < bestPos.coords.accuracy) bestPos = pos;
-        if (pos.coords.accuracy <= 20) finish(pos);
-      },
-      (err) => {
-        clearTimeout(hardTimeout);
-        if (watchId !== null) navigator.geolocation.clearWatch(watchId);
-        settled = true;
-        if (err.code === 1)
-          applyFallback(err); // permission refusée → fallback IP
-        else if (bestPos) applyPosition(bestPos.coords.latitude, bestPos.coords.longitude);
-        else applyFallback(err);
-      },
-      { enableHighAccuracy: true, maximumAge: 30000, timeout: 60000 },
-    );
+    })();
   }, []);
 
   // ── Résoudre adresse départ (saisie manuelle) ────────────────────────────
@@ -765,7 +752,7 @@ function ReservationPage() {
     const origin = fromCoord ?? BORDEAUX_CENTER;
     const [result, nearbyChoices] = await Promise.all([
       geocodeFullAddress(value),
-      searchNearbyAddressChoices(value, origin, 20),
+      searchNearbyAddressChoices(value, origin, DESTINATION_SEARCH_RADIUS_KM),
     ]);
     setCalcLoading(false);
     const exactEnough = Boolean(result && isPlausibleAddressMatch(value, result.label));

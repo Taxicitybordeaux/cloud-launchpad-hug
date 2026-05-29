@@ -14,6 +14,10 @@ import { getFcmToken } from "@/lib/firebase";
 
 const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_TILE_OPTIONS = { attribution: "© OpenStreetMap contributors", maxZoom: 19 };
+const BORDEAUX_CENTER_GPS = { lat: 44.8378, lng: -0.5792 };
+const MAX_DRIVER_GPS_ACCURACY_M = 1500;
+const MAX_DRIVER_GPS_DISTANCE_FROM_BORDEAUX_M = 130000;
+const MAX_DRIVER_GPS_JUMP_M = 5000;
 
 // ─── Swipe-to-delete ─────────────────────────────────────────
 function SwipeDeleteRow({
@@ -494,7 +498,7 @@ function Dashboard() {
   const [gpsError, setGpsError] = useState<string | null>(null);
   const gpsHeartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const gpsRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastKnownPosRef = useRef<{ lat: number; lng: number } | null>(null);
+  const lastKnownPosRef = useRef<{ lat: number; lng: number; accuracy: number } | null>(null);
 
   // Distance en mètres entre deux coords (Haversine simplifié)
   const distMetersGps = (a: { lat: number; lng: number }, b: { lat: number; lng: number }): number => {
@@ -503,6 +507,26 @@ function Dashboard() {
     const x = (toRad(b.lng) - toRad(a.lng)) * Math.cos(toRad((a.lat + b.lat) / 2));
     const y = toRad(b.lat) - toRad(a.lat);
     return Math.sqrt(x * x + y * y) * R;
+  };
+
+  const getDriverGpsRejection = (
+    pos: GeolocationPosition,
+    lastPos: { lat: number; lng: number } | null,
+  ): string | null => {
+    const { latitude, longitude, accuracy: acc } = pos.coords;
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || !Number.isFinite(acc)) {
+      return "Position GPS invalide ignorée.";
+    }
+    if (acc > MAX_DRIVER_GPS_ACCURACY_M) {
+      return `Signal GPS trop imprécis (±${Math.round(acc)} m). Position non envoyée.`;
+    }
+    if (distMetersGps({ lat: latitude, lng: longitude }, BORDEAUX_CENTER_GPS) > MAX_DRIVER_GPS_DISTANCE_FROM_BORDEAUX_M) {
+      return "Position GPS incohérente avec Bordeaux ignorée.";
+    }
+    if (lastPos && distMetersGps(lastPos, { lat: latitude, lng: longitude }) > MAX_DRIVER_GPS_JUMP_M) {
+      return "Saut GPS anormal ignoré, attente du prochain signal fiable.";
+    }
+    return null;
   };
 
   // =========================
@@ -1287,6 +1311,12 @@ function Dashboard() {
 
     const handlePosition = async (pos: GeolocationPosition) => {
       const { latitude, longitude, accuracy: acc, heading: rawHeading } = pos.coords;
+      const rejection = getDriverGpsRejection(pos, lastKnownPosRef.current);
+      if (rejection) {
+        setGpsError(rejection);
+        setGpsAccuracy(Number.isFinite(acc) ? Math.round(acc) : null);
+        return;
+      }
       setGpsError(null);
       let computedHeading = rawHeading ?? null;
       if ((computedHeading === null || computedHeading === 0) && lastPosRef.current) {
@@ -1298,7 +1328,7 @@ function Dashboard() {
         }
       }
       lastPosRef.current = { lat: latitude, lng: longitude };
-      lastKnownPosRef.current = { lat: latitude, lng: longitude };
+      lastKnownPosRef.current = { lat: latitude, lng: longitude, accuracy: acc };
       setGpsPosition({ lat: latitude, lng: longitude });
       setGpsAccuracy(Math.round(acc));
       setGpsUpdateCount((n) => n + 1);
@@ -1453,7 +1483,7 @@ function Dashboard() {
       if (!pos) return;
       await (supabase as any)
         .from("driver_gps")
-        .update({ is_active: true, latitude: pos.lat, longitude: pos.lng, updated_at: new Date().toISOString() })
+        .update({ is_active: true, latitude: pos.lat, longitude: pos.lng, accuracy: pos.accuracy, updated_at: new Date().toISOString() })
         .eq("id", "driver");
     }, 5000);
   };
