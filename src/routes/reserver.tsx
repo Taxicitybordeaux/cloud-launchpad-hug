@@ -716,7 +716,8 @@ function ReservationPage() {
           }
           await applyPosition(cached.coords.latitude, cached.coords.longitude);
         } catch (secondErr) {
-          rejectAutoPosition(geoErrorMessage((secondErr as GeolocationPositionError) ?? (firstErr as GeolocationPositionError)));
+          const err = (secondErr || firstErr) as GeolocationPositionError;
+          rejectAutoPosition(geoErrorMessage(err));
         }
       }
     })();
