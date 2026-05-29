@@ -806,7 +806,26 @@ function ReservationPage() {
     const value = f.destination.trim();
     if (!value) return;
     setCalcLoading(true);
-    const origin = fromCoord ?? BORDEAUX_CENTER;
+
+    // Si le départ est saisi mais fromCoord pas encore résolu (l'utilisateur
+    // a sauté directement au champ destination avant que resolveDepartAddress finisse),
+    // on le résout maintenant nous-mêmes pour avoir un fromCoord à jour.
+    let resolvedFromCoord = fromCoord;
+    if (f.depart.trim() && !fromCoord) {
+      const departResult = await geocodeFullAddress(f.depart.trim());
+      if (departResult) {
+        resolvedFromCoord = departResult.coord;
+        setFromCoord(departResult.coord);
+        set("depart", departResult.label);
+        setErrors((prev) => {
+          const next = { ...prev };
+          delete next.depart;
+          return next;
+        });
+      }
+    }
+
+    const origin = resolvedFromCoord ?? BORDEAUX_CENTER;
     const [result, nearbyChoices] = await Promise.all([
       geocodeFullAddress(value),
       searchNearbyAddressChoices(value, origin, DESTINATION_SEARCH_RADIUS_KM),
@@ -838,7 +857,7 @@ function ReservationPage() {
         destination: "Adresse introuvable — précisez la ville ou le lieu",
       }));
     }
-  }, [f.destination, fromCoord]);
+  }, [f.destination, f.depart, fromCoord]);
 
   // ── Disponibilité taxi ────────────────────────────────────────────────────
   useEffect(() => {
