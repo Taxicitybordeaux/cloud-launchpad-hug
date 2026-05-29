@@ -21,7 +21,7 @@ export const Route = createFileRoute("/reserver")({
 });
 
 const BORDEAUX_CENTER: [number, number] = [44.8378, -0.5792];
-const DESTINATION_SEARCH_RADIUS_KM = 20;
+const DESTINATION_SEARCH_RADIUS_KM = 80;
 const MAX_AUTO_GEO_ACCURACY_M = 1500;
 const MAX_AUTO_GEO_DISTANCE_FROM_BORDEAUX_KM = 130;
 
@@ -162,7 +162,14 @@ function isPlausibleAddressMatch(query: string, label: string): boolean {
   const tokens = usefulSearchTokens(query);
   if (tokens.length === 0) return true;
   const normalizedLabel = normalizeAddressText(label);
+  const normalizedQuery = normalizeAddressText(query);
+  // Lieux nommés : accepter dès qu'un seul token matche
+  const isNamedPlaceQuery =
+    /aeroport|airport|gare|station|hopital|clinique|universite|centre|stade|mairie|eglise|chateau|lycee|ecole/.test(
+      normalizedQuery,
+    );
   const hits = tokens.filter((token) => normalizedLabel.includes(token)).length;
+  if (isNamedPlaceQuery) return hits >= 1;
   return hits >= Math.min(2, tokens.length) || normalizedLabel.includes(tokens[0]);
 }
 
@@ -250,7 +257,18 @@ async function searchNearbyAddressChoices(
   origin: [number, number],
   radiusKm = 20,
 ): Promise<AddressChoice[]> {
-  const variants = [query, `${query}, Gironde`, `${query}, Bordeaux`, `${query}, France`];
+  // Variantes spécifiques pour lieux connus mal reconnus
+  const normalizedQ = normalizeAddressText(query);
+  const extraVariants: string[] = [];
+  if (/aeroport|airport/.test(normalizedQ) && /bordeaux|merignac|bod/.test(normalizedQ)) {
+    extraVariants.push("Aéroport de Bordeaux-Mérignac", "Bordeaux-Mérignac Airport", "BOD Bordeaux");
+  }
+  if (/gare|saint.jean/.test(normalizedQ) && /bordeaux/.test(normalizedQ)) {
+    extraVariants.push("Gare de Bordeaux-Saint-Jean");
+  }
+  const variants = [
+    ...new Set([query, `${query}, Gironde`, `${query}, Bordeaux`, `${query}, France`, ...extraVariants]),
+  ];
   const nominatimGroups = await Promise.all(variants.map((variant) => searchAddress(variant, 8).catch(() => [])));
   const nominatimChoices = nominatimGroups.flat().map((item) => ({
     label: shortLabel(item.label),
