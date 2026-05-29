@@ -265,6 +265,8 @@ interface Reservation {
 // ── Constantes ────────────────────────────────────────────────────────────────
 const BORDEAUX_CENTER: [number, number] = [44.8378, -0.5792];
 const ARRIVAL_THRESHOLD_M = 120;
+const MAX_TRACKING_DRIVER_GPS_ACCURACY_M = 1500;
+const MAX_TRACKING_DRIVER_DISTANCE_FROM_BORDEAUX_M = 130000;
 const shownIncompleteToast = new Set<string>();
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -291,6 +293,14 @@ function distMeters(a: { lat: number; lng: number }, b: { lat: number; lng: numb
   const x = (toRad(b.lng) - toRad(a.lng)) * Math.cos(toRad((a.lat + b.lat) / 2));
   const y = toRad(b.lat) - toRad(a.lat);
   return Math.sqrt(x * x + y * y) * R;
+}
+
+function isReliableDriverGps(data: { latitude?: number | null; longitude?: number | null; is_active?: boolean | null; accuracy?: number | null }) {
+  if (!data?.is_active || data.latitude == null || data.longitude == null) return false;
+  if (!Number.isFinite(data.latitude) || !Number.isFinite(data.longitude)) return false;
+  if (data.latitude === 0 && data.longitude === 0) return false;
+  if (typeof data.accuracy === "number" && Number.isFinite(data.accuracy) && data.accuracy > MAX_TRACKING_DRIVER_GPS_ACCURACY_M) return false;
+  return distMeters({ lat: data.latitude, lng: data.longitude }, { lat: BORDEAUX_CENTER[0], lng: BORDEAUX_CENTER[1] }) <= MAX_TRACKING_DRIVER_DISTANCE_FROM_BORDEAUX_M;
 }
 
 function closestIndexOnRoute(lat: number, lng: number, coords: [number, number][]) {
