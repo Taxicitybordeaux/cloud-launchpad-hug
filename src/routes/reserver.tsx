@@ -752,7 +752,7 @@ function ReservationPage() {
     const origin = fromCoord ?? BORDEAUX_CENTER;
     const [result, nearbyChoices] = await Promise.all([
       geocodeFullAddress(value),
-      searchNearbyAddressChoices(value, origin, 20),
+      searchNearbyAddressChoices(value, origin, DESTINATION_SEARCH_RADIUS_KM),
     ]);
     setCalcLoading(false);
     const exactEnough = Boolean(result && isPlausibleAddressMatch(value, result.label));
