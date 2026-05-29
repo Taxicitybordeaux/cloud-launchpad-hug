@@ -960,97 +960,6 @@ function ReservationPage() {
       <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
         <div ref={mapRef} style={{ position: "absolute", inset: 0 }} />
 
-        {/* Bouton retour au site */}
-        <button
-          onClick={() => navigate({ to: "/" })}
-          aria-label="Retour au site"
-          style={{
-            position: "absolute",
-            top: 16,
-            right: 16,
-            zIndex: 1000,
-            background: "rgba(10,10,20,0.85)",
-            backdropFilter: "blur(12px)",
-            color: "#f8fafc",
-            border: "1px solid rgba(255,255,255,0.15)",
-            borderRadius: 99,
-            padding: "10px 14px",
-            fontSize: 13,
-            fontWeight: 700,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            fontFamily: "'DM Sans', sans-serif",
-          }}
-        >
-          ← Retour
-        </button>
-
-        {/* Bouton activation notifications — client ET chauffeur (geste utilisateur requis) */}
-        {typeof window !== "undefined" &&
-          "Notification" in window &&
-          "PushManager" in window &&
-          notifPermission !== "granted" && (
-            <button
-              onClick={async () => {
-                const perm = await Notification.requestPermission();
-                setNotifPermission(perm);
-                if (perm === "granted") {
-                  try {
-                    const token = await getFcmToken();
-                    if (token) {
-                      await Promise.all([
-                        subscribePush({
-                          data: { audience: "client", fcm_token: token, user_agent: navigator.userAgent },
-                        }),
-                        subscribePush({
-                          data: {
-                            audience: "chauffeur",
-                            fcm_token: token,
-                            reservation_id: null,
-                            user_agent: navigator.userAgent,
-                          },
-                        }),
-                      ]);
-                      localStorage.setItem("fcm_token", token);
-                    }
-                  } catch {
-                    // silencieux
-                  }
-                }
-              }}
-              disabled={notifPermission === "denied"}
-              title={
-                notifPermission === "denied"
-                  ? "Notifications bloquées — autorisez dans les réglages du navigateur"
-                  : "Recevoir une confirmation et un suivi par notification"
-              }
-              style={{
-                position: "absolute",
-                top: 64,
-                right: 16,
-                zIndex: 1000,
-                background: notifPermission === "denied" ? "rgba(239,68,68,0.15)" : "rgba(10,10,20,0.85)",
-                backdropFilter: "blur(12px)",
-                color: notifPermission === "denied" ? "#f87171" : "#f5c842",
-                border: `1px solid ${notifPermission === "denied" ? "rgba(239,68,68,0.4)" : "rgba(245,200,66,0.4)"}`,
-                borderRadius: 99,
-                padding: "8px 13px",
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: notifPermission === "denied" ? "not-allowed" : "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
-                fontFamily: "'DM Sans', sans-serif",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {notifPermission === "denied" ? "🔕 Notifs bloquées" : "🔔 Activer les notifs"}
-            </button>
-          )}
-
         {/* Badge disponibilité */}
         <div
           style={{
@@ -1184,32 +1093,121 @@ function ReservationPage() {
             gap: 20,
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          {/* ── En-tête : retour + titre + langue + notifs ── */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {/* Ligne 1 : bouton retour ← et bouton notifs */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <button
+                onClick={() => navigate({ to: "/" })}
+                aria-label="Retour au site"
+                style={{
+                  background: "rgba(255,255,255,0.1)",
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  color: "#f8fafc",
+                  borderRadius: 99,
+                  padding: "7px 14px",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontFamily: "'DM Sans', sans-serif",
+                }}
+              >
+                ← Retour
+              </button>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {/* Bouton notifications push — visible si pas encore accordée */}
+                {typeof window !== "undefined" &&
+                  "Notification" in window &&
+                  "PushManager" in window &&
+                  notifPermission !== "granted" && (
+                    <button
+                      onClick={async () => {
+                        const perm = await Notification.requestPermission();
+                        setNotifPermission(perm);
+                        if (perm === "granted") {
+                          try {
+                            const token = await getFcmToken();
+                            if (token) {
+                              await Promise.all([
+                                subscribePush({
+                                  data: { audience: "client", fcm_token: token, user_agent: navigator.userAgent },
+                                }),
+                                subscribePush({
+                                  data: {
+                                    audience: "chauffeur",
+                                    fcm_token: token,
+                                    reservation_id: null,
+                                    user_agent: navigator.userAgent,
+                                  },
+                                }),
+                              ]);
+                              localStorage.setItem("fcm_token", token);
+                            }
+                          } catch {
+                            // silencieux
+                          }
+                        }
+                      }}
+                      disabled={notifPermission === "denied"}
+                      title={
+                        notifPermission === "denied"
+                          ? "Notifications bloquées — autorisez dans les réglages du navigateur"
+                          : "Recevoir une confirmation et un suivi par notification"
+                      }
+                      style={{
+                        background: notifPermission === "denied" ? "rgba(239,68,68,0.15)" : "rgba(245,200,66,0.15)",
+                        border: `1px solid ${notifPermission === "denied" ? "rgba(239,68,68,0.4)" : "rgba(245,200,66,0.4)"}`,
+                        color: notifPermission === "denied" ? "#f87171" : "#f5c842",
+                        borderRadius: 99,
+                        padding: "7px 13px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: notifPermission === "denied" ? "not-allowed" : "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 5,
+                        fontFamily: "'DM Sans', sans-serif",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {notifPermission === "denied" ? "🔕 Bloquées" : "🔔 Notifs"}
+                    </button>
+                  )}
+
+                {/* Sélecteur de langue */}
+                <select
+                  value={lang}
+                  onChange={(e) => setLang(e.target.value as Lang)}
+                  style={{
+                    background: "rgba(255,255,255,0.12)",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    color: "#f5f5f5",
+                    borderRadius: 8,
+                    padding: "6px 8px",
+                    fontSize: 13,
+                    cursor: "pointer",
+                  }}
+                >
+                  {LANGUAGES.map((l) => (
+                    <option key={l.code} value={l.code} style={{ background: "#1e3a8a", color: "#f5f5f5" }}>
+                      {l.flag} {l.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Ligne 2 : titre + sous-titre */}
             <div>
               <div style={{ fontSize: 24, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Clash Display'" }}>
                 {t("res.title")}
               </div>
               <div style={{ fontSize: 13, color: "#cbd5e1", marginTop: 4 }}>{t("res.intro")}</div>
             </div>
-            <select
-              value={lang}
-              onChange={(e) => setLang(e.target.value as Lang)}
-              style={{
-                background: "rgba(255,255,255,0.12)",
-                border: "1px solid rgba(255,255,255,0.2)",
-                color: "#f5f5f5",
-                borderRadius: 8,
-                padding: "6px 8px",
-                fontSize: 13,
-                cursor: "pointer",
-              }}
-            >
-              {LANGUAGES.map((l) => (
-                <option key={l.code} value={l.code} style={{ background: "#1e3a8a", color: "#f5f5f5" }}>
-                  {l.flag} {l.label}
-                </option>
-              ))}
-            </select>
           </div>
 
           {/* ── Bannière disponibilité taxi ── */}
