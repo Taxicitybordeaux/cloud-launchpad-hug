@@ -1120,63 +1120,60 @@ function ReservationPage() {
 
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {/* Bouton notifications push — visible si pas encore accordée */}
-                {typeof window !== "undefined" &&
-                  "Notification" in window &&
-                  "PushManager" in window &&
-                  notifPermission !== "granted" && (
-                    <button
-                      onClick={async () => {
-                        const perm = await Notification.requestPermission();
-                        setNotifPermission(perm);
-                        if (perm === "granted") {
-                          try {
-                            const token = await getFcmToken();
-                            if (token) {
-                              await Promise.all([
-                                subscribePush({
-                                  data: { audience: "client", fcm_token: token, user_agent: navigator.userAgent },
-                                }),
-                                subscribePush({
-                                  data: {
-                                    audience: "chauffeur",
-                                    fcm_token: token,
-                                    reservation_id: null,
-                                    user_agent: navigator.userAgent,
-                                  },
-                                }),
-                              ]);
-                              localStorage.setItem("fcm_token", token);
-                            }
-                          } catch {
-                            // silencieux
+                {typeof window !== "undefined" && "Notification" in window && notifPermission !== "granted" && (
+                  <button
+                    onClick={async () => {
+                      const perm = await Notification.requestPermission();
+                      setNotifPermission(perm);
+                      if (perm === "granted") {
+                        try {
+                          const token = await getFcmToken();
+                          if (token) {
+                            await Promise.all([
+                              subscribePush({
+                                data: { audience: "client", fcm_token: token, user_agent: navigator.userAgent },
+                              }),
+                              subscribePush({
+                                data: {
+                                  audience: "chauffeur",
+                                  fcm_token: token,
+                                  reservation_id: null,
+                                  user_agent: navigator.userAgent,
+                                },
+                              }),
+                            ]);
+                            localStorage.setItem("fcm_token", token);
                           }
+                        } catch {
+                          // silencieux
                         }
-                      }}
-                      disabled={notifPermission === "denied"}
-                      title={
-                        notifPermission === "denied"
-                          ? "Notifications bloquées — autorisez dans les réglages du navigateur"
-                          : "Recevoir une confirmation et un suivi par notification"
                       }
-                      style={{
-                        background: notifPermission === "denied" ? "rgba(239,68,68,0.15)" : "rgba(245,200,66,0.15)",
-                        border: `1px solid ${notifPermission === "denied" ? "rgba(239,68,68,0.4)" : "rgba(245,200,66,0.4)"}`,
-                        color: notifPermission === "denied" ? "#f87171" : "#f5c842",
-                        borderRadius: 99,
-                        padding: "7px 13px",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        cursor: notifPermission === "denied" ? "not-allowed" : "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 5,
-                        fontFamily: "'DM Sans', sans-serif",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {notifPermission === "denied" ? "🔕 Bloquées" : "🔔 Notifs"}
-                    </button>
-                  )}
+                    }}
+                    disabled={notifPermission === "denied"}
+                    title={
+                      notifPermission === "denied"
+                        ? "Notifications bloquées — autorisez dans les réglages du navigateur"
+                        : "Recevoir une confirmation et un suivi par notification"
+                    }
+                    style={{
+                      background: notifPermission === "denied" ? "rgba(239,68,68,0.15)" : "rgba(245,200,66,0.15)",
+                      border: `1px solid ${notifPermission === "denied" ? "rgba(239,68,68,0.4)" : "rgba(245,200,66,0.4)"}`,
+                      color: notifPermission === "denied" ? "#f87171" : "#f5c842",
+                      borderRadius: 99,
+                      padding: "7px 13px",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: notifPermission === "denied" ? "not-allowed" : "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
+                      fontFamily: "'DM Sans', sans-serif",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {notifPermission === "denied" ? "🔕 Bloquées" : "🔔 Notifs"}
+                  </button>
+                )}
 
                 {/* Sélecteur de langue */}
                 <select
