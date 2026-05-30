@@ -15,7 +15,10 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseUrl =
+          process.env.SUPABASE_URL ||
+          (typeof import.meta !== "undefined" ? (import.meta as any).env?.SUPABASE_URL : undefined) ||
+          (typeof import.meta !== "undefined" ? (import.meta as any).env?.VITE_SUPABASE_URL : undefined);
         const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
         if (!supabaseUrl || !serviceKey) {
           return Response.json({ error: "Server config error" }, { status: 500 });
@@ -67,12 +70,7 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
         // (qui peut être l'URL de preview Lovable si le client est sur preview).
         // On ajoute Authorization: Bearer <serviceKey> exactement comme send-course-email.ts.
         const EMAIL_BRIDGE_URL = "https://taxicitybordeaux.fr/lovable/email/transactional/send";
-        console.log(
-          "[notify-reservation] → bridge:",
-          EMAIL_BRIDGE_URL,
-          "reservation:",
-          reservationId,
-        );
+        console.log("[notify-reservation] → bridge:", EMAIL_BRIDGE_URL, "reservation:", reservationId);
 
         const sendResp = await fetch(EMAIL_BRIDGE_URL, {
           method: "POST",
