@@ -1129,20 +1129,6 @@ function ReservationPage() {
         console.warn("[push] client subscribe failed", pushErr);
       }
 
-      // ── Notif push + email chauffeur/admin ────────────────────────────────
-      try {
-        await fetch("/api/public/notify-reservation", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Internal-Notify-Secret": "taxi-city-reservation-trigger-v1",
-          },
-          body: JSON.stringify({ reservation_id: inserted.id }),
-        });
-      } catch (fetchErr) {
-        console.error("[notify] push failed", fetchErr);
-      }
-
       toast.success(`${t("conf.ok.title")} ${f.prenom}`);
       setSending(false);
       navigate({ to: "/suivi/$id", params: { id: suiviId } });
