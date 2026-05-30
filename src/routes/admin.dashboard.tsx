@@ -9,7 +9,7 @@ import { assertSuiviId, newSuiviId } from "@/lib/suivi-id";
 import { CourseCardSkeleton, GpsCardSkeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
 import logo from "@/assets/logo.jpeg";
 
-import { notifyReservationStatus, subscribePush } from "@/lib/push.functions";
+import { notifyReservationStatus } from "@/lib/push.functions";
 import { getFcmToken } from "@/lib/firebase";
 
 const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
@@ -554,23 +554,35 @@ function Dashboard() {
     let cancelled = false;
 
     const doSubscribe = async (fcm: string) => {
+      const ua = navigator.userAgent.slice(0, 500);
+      const now = new Date().toISOString();
       await Promise.all([
-        subscribePush({
-          data: {
-            audience: "admin",
-            fcm_token: fcm,
-            reservation_id: null,
-            user_agent: navigator.userAgent.slice(0, 500),
-          },
-        }),
-        subscribePush({
-          data: {
-            audience: "chauffeur",
-            fcm_token: fcm,
-            reservation_id: null,
-            user_agent: navigator.userAgent.slice(0, 500),
-          },
-        }),
+        supabase
+          .from("push_subscriptions")
+          .upsert(
+            {
+              audience: "admin",
+              endpoint: `fcm://${fcm}`,
+              fcm_token: fcm,
+              reservation_id: null,
+              user_agent: ua,
+              last_seen_at: now,
+            },
+            { onConflict: "endpoint" },
+          ),
+        supabase
+          .from("push_subscriptions")
+          .upsert(
+            {
+              audience: "chauffeur",
+              endpoint: `fcm://${fcm}-chauffeur`,
+              fcm_token: fcm,
+              reservation_id: null,
+              user_agent: ua,
+              last_seen_at: now,
+            },
+            { onConflict: "endpoint" },
+          ),
       ]);
       localStorage.setItem("fcm_token", fcm);
       console.info("[push] dashboard registered — admin + chauffeur");
@@ -2537,23 +2549,35 @@ function Dashboard() {
                   return;
                 }
                 try {
+                  const ua = navigator.userAgent.slice(0, 500);
+                  const now = new Date().toISOString();
                   await Promise.all([
-                    subscribePush({
-                      data: {
-                        audience: "admin",
-                        fcm_token: fcm,
-                        reservation_id: null,
-                        user_agent: navigator.userAgent.slice(0, 500),
-                      },
-                    }),
-                    subscribePush({
-                      data: {
-                        audience: "chauffeur",
-                        fcm_token: fcm,
-                        reservation_id: null,
-                        user_agent: navigator.userAgent.slice(0, 500),
-                      },
-                    }),
+                    supabase
+                      .from("push_subscriptions")
+                      .upsert(
+                        {
+                          audience: "admin",
+                          endpoint: `fcm://${fcm}`,
+                          fcm_token: fcm,
+                          reservation_id: null,
+                          user_agent: ua,
+                          last_seen_at: now,
+                        },
+                        { onConflict: "endpoint" },
+                      ),
+                    supabase
+                      .from("push_subscriptions")
+                      .upsert(
+                        {
+                          audience: "chauffeur",
+                          endpoint: `fcm://${fcm}-chauffeur`,
+                          fcm_token: fcm,
+                          reservation_id: null,
+                          user_agent: ua,
+                          last_seen_at: now,
+                        },
+                        { onConflict: "endpoint" },
+                      ),
                   ]);
                   localStorage.setItem("fcm_token", fcm);
                   toast.success("🔔 Token FCM enregistré — notifications actives");
