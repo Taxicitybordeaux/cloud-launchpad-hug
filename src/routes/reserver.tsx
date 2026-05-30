@@ -72,12 +72,15 @@ function shortLabel(label: string): string {
   }
 
   // Adresse classique : rue + ville (ignore code postal, département, région, France)
-  const skipWords = /gironde|nouvelle-aquitaine|aquitaine|france|métropolitaine|metropolitaine|^\d{5}$/i;
+  const skipWords =
+    /gironde|nouvelle-aquitaine|aquitaine|france|métropolitaine|metropolitaine|^\d{5}$/i;
   const kept = parts.filter((p) => !skipWords.test(p));
   return kept.slice(0, 2).join(", ");
 }
 
-async function geocodeFullAddress(address: string): Promise<{ coord: [number, number]; label: string } | null> {
+async function geocodeFullAddress(
+  address: string,
+): Promise<{ coord: [number, number]; label: string } | null> {
   const trimmed = address.trim();
   const normalized = normalizeAddressText(trimmed);
   const parts = trimmed
@@ -219,7 +222,10 @@ function dedupeAddressChoices(choices: AddressChoice[]): AddressChoice[] {
   });
 }
 
-async function searchPhotonAddress(query: string, origin: [number, number]): Promise<AddressChoice[]> {
+async function searchPhotonAddress(
+  query: string,
+  origin: [number, number],
+): Promise<AddressChoice[]> {
   try {
     const url = new URL("https://photon.komoot.io/api/");
     url.searchParams.set("q", query);
@@ -236,7 +242,9 @@ async function searchPhotonAddress(query: string, origin: [number, number]): Pro
         const coords = feature?.geometry?.coordinates;
         if (!Array.isArray(coords) || coords.length < 2) return null;
         const props = feature.properties ?? {};
-        const label = [props.name, props.street, props.postcode, props.city || props.county].filter(Boolean).join(", ");
+        const label = [props.name, props.street, props.postcode, props.city || props.county]
+          .filter(Boolean)
+          .join(", ");
         const coord: [number, number] = [Number(coords[1]), Number(coords[0])];
         if (!label || !Number.isFinite(coord[0]) || !Number.isFinite(coord[1])) return null;
         return { label: shortLabel(label), coord, distanceKm: distanceKmBetween(origin, coord) };
@@ -247,7 +255,11 @@ async function searchPhotonAddress(query: string, origin: [number, number]): Pro
   }
 }
 
-async function searchOverpassPois(query: string, origin: [number, number], radiusKm: number): Promise<AddressChoice[]> {
+async function searchOverpassPois(
+  query: string,
+  origin: [number, number],
+  radiusKm: number,
+): Promise<AddressChoice[]> {
   const token = usefulSearchTokens(query)[0];
   if (!token) return [];
   const safeToken = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -297,15 +309,27 @@ async function searchNearbyAddressChoices(
   const normalizedQ = normalizeAddressText(query);
   const extraVariants: string[] = [];
   if (/aeroport|airport/.test(normalizedQ) && /bordeaux|merignac|bod/.test(normalizedQ)) {
-    extraVariants.push("Aéroport de Bordeaux-Mérignac", "Bordeaux-Mérignac Airport", "BOD Bordeaux");
+    extraVariants.push(
+      "Aéroport de Bordeaux-Mérignac",
+      "Bordeaux-Mérignac Airport",
+      "BOD Bordeaux",
+    );
   }
   if (/gare|saint.jean/.test(normalizedQ) && /bordeaux/.test(normalizedQ)) {
     extraVariants.push("Gare de Bordeaux-Saint-Jean");
   }
   const variants = [
-    ...new Set([query, `${query}, Gironde`, `${query}, Bordeaux`, `${query}, France`, ...extraVariants]),
+    ...new Set([
+      query,
+      `${query}, Gironde`,
+      `${query}, Bordeaux`,
+      `${query}, France`,
+      ...extraVariants,
+    ]),
   ];
-  const nominatimGroups = await Promise.all(variants.map((variant) => searchAddress(variant, 8).catch(() => [])));
+  const nominatimGroups = await Promise.all(
+    variants.map((variant) => searchAddress(variant, 8).catch(() => [])),
+  );
   const nominatimChoices = nominatimGroups.flat().map((item) => ({
     label: shortLabel(item.label),
     coord: item.coord,
@@ -357,7 +381,10 @@ const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1aWFna3BkcG5mcXhmbmdpc2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0MzU2NzUsImV4cCI6MjA5NDAxMTY3NX0.MkW2KzCYHvQ0GEjjP3_puf3PkCHWaYcvW2bI1ctTuJU";
 
 // ─── ORS polyline : via Edge Function Supabase ──────────────────────────────
-async function getOsrmPolylineLongest(from: [number, number], to: [number, number]): Promise<[number, number][]> {
+async function getOsrmPolylineLongest(
+  from: [number, number],
+  to: [number, number],
+): Promise<[number, number][]> {
   try {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/osrm-route`, {
       method: "POST",
@@ -568,7 +595,8 @@ function ReservationPage() {
   function isMomentNuit(ms: number): boolean {
     const date = new Date(ms);
     const h = heureParis(ms);
-    const dimanche = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", weekday: "short" }) === "dim.";
+    const dimanche =
+      date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", weekday: "short" }) === "dim.";
     return h >= 19 || h < 7 || dimanche || isJourFerieRes(date);
   }
 
@@ -598,7 +626,11 @@ function ReservationPage() {
   const prixAller: number = (() => {
     if (!orsResult) return PRISE_EN_CHARGE;
     const raw = pickupIso
-      ? calculerPrixMixteLocal(orsResult.distanceKm, new Date(pickupIso).getTime(), orsResult.dureeS)
+      ? calculerPrixMixteLocal(
+          orsResult.distanceKm,
+          new Date(pickupIso).getTime(),
+          orsResult.dureeS,
+        )
       : calculerPrix(orsResult.distanceKm, true);
     // Garde-fou : prix > 2000 EUR = bug de données, on n affiche pas
     const MAX_PRIX = 2000;
@@ -867,7 +899,11 @@ function ReservationPage() {
 
     (async () => {
       try {
-        const precise = await requestBrowserPosition({ enableHighAccuracy: true, maximumAge: 0, timeout: 18000 });
+        const precise = await requestBrowserPosition({
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 18000,
+        });
         const reason = getAutoGeoRejectionReason(precise);
         if (reason) {
           rejectAutoPosition(reason);
@@ -876,7 +912,11 @@ function ReservationPage() {
         await applyPosition(precise.coords.latitude, precise.coords.longitude);
       } catch (firstErr) {
         try {
-          const cached = await requestBrowserPosition({ enableHighAccuracy: false, maximumAge: 120000, timeout: 8000 });
+          const cached = await requestBrowserPosition({
+            enableHighAccuracy: false,
+            maximumAge: 120000,
+            timeout: 8000,
+          });
           const reason = getAutoGeoRejectionReason(cached);
           if (reason) {
             rejectAutoPosition(reason);
@@ -954,7 +994,11 @@ function ReservationPage() {
     }
 
     // 2) Fallback : recherche élargie (Photon + Overpass + variantes Nominatim)
-    const nearbyChoices = await searchNearbyAddressChoices(value, origin, DESTINATION_SEARCH_RADIUS_KM);
+    const nearbyChoices = await searchNearbyAddressChoices(
+      value,
+      origin,
+      DESTINATION_SEARCH_RADIUS_KM,
+    );
     setCalcLoading(false);
 
     if (nearbyChoices.length) {
@@ -1010,9 +1054,16 @@ function ReservationPage() {
         const token = await getFcmToken();
         if (!token) return;
         await Promise.all([
-          subscribePush({ data: { audience: "client", fcm_token: token, user_agent: navigator.userAgent } }),
           subscribePush({
-            data: { audience: "chauffeur", fcm_token: token, reservation_id: null, user_agent: navigator.userAgent },
+            data: { audience: "client", fcm_token: token, user_agent: navigator.userAgent },
+          }),
+          subscribePush({
+            data: {
+              audience: "chauffeur",
+              fcm_token: token,
+              reservation_id: null,
+              user_agent: navigator.userAgent,
+            },
           }),
         ]);
       } catch {
@@ -1052,10 +1103,16 @@ function ReservationPage() {
       const dLng = ((toCoord[1] - fromCoord[1]) * Math.PI) / 180;
       const a =
         Math.sin(dLat / 2) ** 2 +
-        Math.cos((fromCoord[0] * Math.PI) / 180) * Math.cos((toCoord[0] * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-      distanceKm = parseFloat((R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.3).toFixed(2));
+        Math.cos((fromCoord[0] * Math.PI) / 180) *
+          Math.cos((toCoord[0] * Math.PI) / 180) *
+          Math.sin(dLng / 2) ** 2;
+      distanceKm = parseFloat(
+        (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.3).toFixed(2),
+      );
       dureeS = Math.round((distanceKm / 30) * 3600); // ~30 km/h en ville
-      toast.warning("Distance estimée (GPS indisponible) — le prix peut être ajusté par le chauffeur.");
+      toast.warning(
+        "Distance estimée (GPS indisponible) — le prix peut être ajusté par le chauffeur.",
+      );
     }
 
     setSending(true);
@@ -1064,7 +1121,8 @@ function ReservationPage() {
       const suiviId = newSuiviId();
 
       const fullName = `${f.prenom} ${f.nom}`.trim();
-      const pickupIsoFinal = f.date && f.heure ? toParisIso(f.date, f.heure) : new Date().toISOString();
+      const pickupIsoFinal =
+        f.date && f.heure ? toParisIso(f.date, f.heure) : new Date().toISOString();
 
       const { data: inserted, error } = await supabase
         .from("reservations")
@@ -1110,7 +1168,10 @@ function ReservationPage() {
           "serviceWorker" in navigator &&
           "PushManager" in window
         ) {
-          const perm = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
+          const perm =
+            Notification.permission === "granted"
+              ? "granted"
+              : await Notification.requestPermission();
           if (perm === "granted") {
             const token = await getFcmToken();
             if (token) {
@@ -1206,7 +1267,12 @@ function ReservationPage() {
                 position: "absolute",
                 inset: 0,
                 borderRadius: "50%",
-                background: taxiAvailable === false ? "#ef4444" : taxiAvailable === true ? "#22c55e" : "#94a3b8",
+                background:
+                  taxiAvailable === false
+                    ? "#ef4444"
+                    : taxiAvailable === true
+                      ? "#22c55e"
+                      : "#94a3b8",
                 animation: taxiAvailable !== null ? "pulse 1.8s ease-in-out infinite" : "none",
               }}
             />
@@ -1216,7 +1282,8 @@ function ReservationPage() {
                   position: "absolute",
                   inset: -3,
                   borderRadius: "50%",
-                  background: taxiAvailable === false ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)",
+                  background:
+                    taxiAvailable === false ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)",
                   animation: "pulse 1.8s ease-in-out infinite",
                 }}
               />
@@ -1226,7 +1293,12 @@ function ReservationPage() {
             style={{
               fontSize: 12,
               fontWeight: 700,
-              color: taxiAvailable === false ? "#fca5a5" : taxiAvailable === true ? "#86efac" : "#94a3b8",
+              color:
+                taxiAvailable === false
+                  ? "#fca5a5"
+                  : taxiAvailable === true
+                    ? "#86efac"
+                    : "#94a3b8",
               letterSpacing: 0.2,
             }}
           >
@@ -1266,7 +1338,9 @@ function ReservationPage() {
                 animation: "spin 0.8s linear infinite",
               }}
             />
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#f5c842" }}>{t("rsim.loading")}</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#f5c842" }}>
+              {t("rsim.loading")}
+            </span>
           </div>
         )}
       </div>
@@ -1285,8 +1359,12 @@ function ReservationPage() {
           overflowX: "hidden",
         }}
       >
-        <div style={{ padding: "12px 0 0", display: "flex", justifyContent: "center", flexShrink: 0 }}>
-          <div style={{ width: 36, height: 4, background: "rgba(245,200,66,0.25)", borderRadius: 9 }} />
+        <div
+          style={{ padding: "12px 0 0", display: "flex", justifyContent: "center", flexShrink: 0 }}
+        >
+          <div
+            style={{ width: 36, height: 4, background: "rgba(245,200,66,0.25)", borderRadius: 9 }}
+          />
         </div>
 
         <div
@@ -1302,7 +1380,14 @@ function ReservationPage() {
           {/* ── En-tête : retour + titre + langue + notifs ── */}
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {/* Ligne 1 : bouton retour ← et bouton notifs */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 8,
+              }}
+            >
               <button
                 onClick={() => navigate({ to: "/" })}
                 aria-label="Retour au site"
@@ -1338,7 +1423,11 @@ function ReservationPage() {
                           if (token) {
                             await Promise.all([
                               subscribePush({
-                                data: { audience: "client", fcm_token: token, user_agent: navigator.userAgent },
+                                data: {
+                                  audience: "client",
+                                  fcm_token: token,
+                                  user_agent: navigator.userAgent,
+                                },
                               }),
                               subscribePush({
                                 data: {
@@ -1419,7 +1508,11 @@ function ReservationPage() {
                   }}
                 >
                   {LANGUAGES.map((l) => (
-                    <option key={l.code} value={l.code} style={{ background: "#1e3a8a", color: "#f5f5f5" }}>
+                    <option
+                      key={l.code}
+                      value={l.code}
+                      style={{ background: "#1e3a8a", color: "#f5f5f5" }}
+                    >
                       {l.flag} {l.label}
                     </option>
                   ))}
@@ -1429,7 +1522,14 @@ function ReservationPage() {
 
             {/* Ligne 2 : titre + sous-titre */}
             <div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: "#f5f5f5", fontFamily: "'Clash Display'" }}>
+              <div
+                style={{
+                  fontSize: 24,
+                  fontWeight: 700,
+                  color: "#f5f5f5",
+                  fontFamily: "'Clash Display'",
+                }}
+              >
                 {t("res.title")}
               </div>
               <div style={{ fontSize: 13, color: "#cbd5e1", marginTop: 4 }}>{t("res.intro")}</div>
@@ -1454,7 +1554,9 @@ function ReservationPage() {
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#fca5a5", marginBottom: 2 }}>
                   {t("taxi.banner.busy.title")}
                 </div>
-                <div style={{ fontSize: 12, color: "#fecaca", lineHeight: 1.4 }}>{t("taxi.banner.busy.desc")}</div>
+                <div style={{ fontSize: 12, color: "#fecaca", lineHeight: 1.4 }}>
+                  {t("taxi.banner.busy.desc")}
+                </div>
               </div>
             </div>
           )}
@@ -1471,7 +1573,9 @@ function ReservationPage() {
               }}
             >
               <span style={{ fontSize: 18, flexShrink: 0 }}>✅</span>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#86efac" }}>{t("taxi.banner.available.msg")}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#86efac" }}>
+                {t("taxi.banner.available.msg")}
+              </div>
             </div>
           )}
 
@@ -1492,7 +1596,13 @@ function ReservationPage() {
                 ].map(({ k, label, ph }) => (
                   <div key={k}>
                     <label
-                      style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}
+                      style={{
+                        fontSize: 11,
+                        color: "#cbd5e1",
+                        fontWeight: 600,
+                        display: "block",
+                        marginBottom: 6,
+                      }}
                     >
                       {label}
                     </label>
@@ -1508,18 +1618,38 @@ function ReservationPage() {
                       name={`tcb-${k}-x`}
                       style={inputStyle(!!errors[k])}
                     />
-                    {errors[k] && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors[k]}</div>}
+                    {errors[k] && (
+                      <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>
+                        {errors[k]}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10 }}>
                 {[
-                  { k: "phone" as const, label: t("res.loc.phone"), ph: "06 12 34 56 78", type: "tel" },
-                  { k: "email" as const, label: t("res.loc.email"), ph: "jean@exemple.fr", type: "email" },
+                  {
+                    k: "phone" as const,
+                    label: t("res.loc.phone"),
+                    ph: "06 12 34 56 78",
+                    type: "tel",
+                  },
+                  {
+                    k: "email" as const,
+                    label: t("res.loc.email"),
+                    ph: "jean@exemple.fr",
+                    type: "email",
+                  },
                 ].map(({ k, label, ph, type }) => (
                   <div key={k}>
                     <label
-                      style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}
+                      style={{
+                        fontSize: 11,
+                        color: "#cbd5e1",
+                        fontWeight: 600,
+                        display: "block",
+                        marginBottom: 6,
+                      }}
                     >
                       {label}
                     </label>
@@ -1535,7 +1665,11 @@ function ReservationPage() {
                       name={`tcb-${k}-x`}
                       style={inputStyle(!!errors[k])}
                     />
-                    {errors[k] && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors[k]}</div>}
+                    {errors[k] && (
+                      <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>
+                        {errors[k]}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1549,7 +1683,15 @@ function ReservationPage() {
 
               {/* Départ : saisie libre + bouton géoloc */}
               <div style={{ marginBottom: 10 }}>
-                <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
+                <label
+                  style={{
+                    fontSize: 11,
+                    color: "#cbd5e1",
+                    fontWeight: 600,
+                    display: "block",
+                    marginBottom: 6,
+                  }}
+                >
                   {t("res.loc.from")}
                 </label>
                 <div style={{ position: "relative" }}>
@@ -1592,15 +1734,29 @@ function ReservationPage() {
                     {geolocLoading ? "⏳" : "📍"}
                   </button>
                 </div>
-                {errors.depart && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.depart}</div>}
+                {errors.depart && (
+                  <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>
+                    {errors.depart}
+                  </div>
+                )}
                 {fromCoord && !errors.depart && (
-                  <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>✓ {t("res.geo.btn")}</div>
+                  <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>
+                    ✓ {t("res.geo.btn")}
+                  </div>
                 )}
               </div>
 
               {/* Destination */}
               <div>
-                <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
+                <label
+                  style={{
+                    fontSize: 11,
+                    color: "#cbd5e1",
+                    fontWeight: 600,
+                    display: "block",
+                    marginBottom: 6,
+                  }}
+                >
                   {t("res.loc.to")}
                 </label>
                 <input
@@ -1621,7 +1777,9 @@ function ReservationPage() {
                   style={inputStyle(!!errors.destination)}
                 />
                 {errors.destination && (
-                  <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.destination}</div>
+                  <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>
+                    {errors.destination}
+                  </div>
                 )}
                 {destinationChoices.length > 0 && (
                   <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
@@ -1651,8 +1809,12 @@ function ReservationPage() {
                           cursor: "pointer",
                         }}
                       >
-                        <span style={{ display: "block", fontSize: 13, fontWeight: 700 }}>{choice.label}</span>
-                        <span style={{ display: "block", fontSize: 11, color: "#fde68a", marginTop: 2 }}>
+                        <span style={{ display: "block", fontSize: 13, fontWeight: 700 }}>
+                          {choice.label}
+                        </span>
+                        <span
+                          style={{ display: "block", fontSize: 11, color: "#fde68a", marginTop: 2 }}
+                        >
                           à {choice.distanceKm.toFixed(1)} km du départ
                         </span>
                       </button>
@@ -1660,7 +1822,9 @@ function ReservationPage() {
                   </div>
                 )}
                 {toCoord && !errors.destination && (
-                  <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>✓ {t("res.loc.to")}</div>
+                  <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>
+                    ✓ {t("res.loc.to")}
+                  </div>
                 )}
               </div>
 
@@ -1683,14 +1847,30 @@ function ReservationPage() {
                       {orsResult.distanceKm} km · {Math.round(orsResult.dureeS / 60)} min
                     </div>
                     <div
-                      style={{ fontSize: 11, color: tarifJour ? "#fbbf24" : "#818cf8", marginTop: 2, fontWeight: 600 }}
+                      style={{
+                        fontSize: 11,
+                        color: tarifJour ? "#fbbf24" : "#818cf8",
+                        marginTop: 2,
+                        fontWeight: 600,
+                      }}
                     >
-                      {tarifJour ? "☀️ Tarif jour (7h-19h)" : "🌙 Tarif nuit (19h-7h / dim. / férié)"}
+                      {tarifJour
+                        ? "☀️ Tarif jour (7h-19h)"
+                        : "🌙 Tarif nuit (19h-7h / dim. / férié)"}
                     </div>
                   </div>
                   <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 11, color: "#cbd5e1", marginBottom: 2 }}>{t("rsim.estimate")}</div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: "#f5c842", fontFamily: "'Clash Display'" }}>
+                    <div style={{ fontSize: 11, color: "#cbd5e1", marginBottom: 2 }}>
+                      {t("rsim.estimate")}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 22,
+                        fontWeight: 800,
+                        color: "#f5c842",
+                        fontFamily: "'Clash Display'",
+                      }}
+                    >
                       {prixAller.toFixed(2)} €
                     </div>
                   </div>
@@ -1710,7 +1890,15 @@ function ReservationPage() {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div>
-                  <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
+                  <label
+                    style={{
+                      fontSize: 11,
+                      color: "#cbd5e1",
+                      fontWeight: 600,
+                      display: "block",
+                      marginBottom: 6,
+                    }}
+                  >
                     {t("res.loc.date_label")}
                   </label>
                   <input
@@ -1720,10 +1908,22 @@ function ReservationPage() {
                     min={today}
                     style={inputStyle(!!errors.date)}
                   />
-                  {errors.date && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.date}</div>}
+                  {errors.date && (
+                    <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>
+                      {errors.date}
+                    </div>
+                  )}
                 </div>
                 <div>
-                  <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
+                  <label
+                    style={{
+                      fontSize: 11,
+                      color: "#cbd5e1",
+                      fontWeight: 600,
+                      display: "block",
+                      marginBottom: 6,
+                    }}
+                  >
                     {t("res.loc.time_label")}
                   </label>
                   <input
@@ -1732,7 +1932,11 @@ function ReservationPage() {
                     onChange={(e) => set("heure", e.target.value)}
                     style={inputStyle(!!errors.heure)}
                   />
-                  {errors.heure && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.heure}</div>}
+                  {errors.heure && (
+                    <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>
+                      {errors.heure}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1744,7 +1948,15 @@ function ReservationPage() {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div>
-                  <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
+                  <label
+                    style={{
+                      fontSize: 11,
+                      color: "#cbd5e1",
+                      fontWeight: 600,
+                      display: "block",
+                      marginBottom: 6,
+                    }}
+                  >
                     {t("res.f.passengers")}
                   </label>
                   <select
@@ -1760,7 +1972,15 @@ function ReservationPage() {
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
+                  <label
+                    style={{
+                      fontSize: 11,
+                      color: "#cbd5e1",
+                      fontWeight: 600,
+                      display: "block",
+                      marginBottom: 6,
+                    }}
+                  >
                     {t("res.f.luggage")}
                   </label>
                   <select
@@ -1780,10 +2000,22 @@ function ReservationPage() {
 
             {/* ── Paiement ── */}
             <div>
-              <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600, display: "block", marginBottom: 6 }}>
+              <label
+                style={{
+                  fontSize: 11,
+                  color: "#cbd5e1",
+                  fontWeight: 600,
+                  display: "block",
+                  marginBottom: 6,
+                }}
+              >
                 {t("res.loc.payment_section")}
               </label>
-              <select value={f.paiement} onChange={(e) => set("paiement", e.target.value)} style={inputStyle()}>
+              <select
+                value={f.paiement}
+                onChange={(e) => set("paiement", e.target.value)}
+                style={inputStyle()}
+              >
                 <option value="especes">{t("res.loc.cash")}</option>
                 <option value="cb">{t("res.loc.card")}</option>
               </select>

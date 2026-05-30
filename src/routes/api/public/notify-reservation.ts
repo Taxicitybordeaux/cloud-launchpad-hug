@@ -85,7 +85,8 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
         const element = React.createElement(template.component, data);
         const html = await render(element);
         const text = await render(element, { plainText: true });
-        const subject = typeof template.subject === "function" ? template.subject(data as any) : template.subject;
+        const subject =
+          typeof template.subject === "function" ? template.subject(data as any) : template.subject;
 
         // Unsubscribe token
         const normalized = recipient.toLowerCase();
@@ -105,7 +106,10 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
             .join("");
           await supabase
             .from("email_unsubscribe_tokens")
-            .upsert({ token: unsubscribeToken, email: normalized }, { onConflict: "email", ignoreDuplicates: true });
+            .upsert(
+              { token: unsubscribeToken, email: normalized },
+              { onConflict: "email", ignoreDuplicates: true },
+            );
           const { data: stored } = await supabase
             .from("email_unsubscribe_tokens")
             .select("token")
@@ -152,7 +156,10 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
           return Response.json({ error: "send_failed" }, { status: 500 });
         }
 
-        await supabase.from("email_send_log").update({ status: "sent" }).eq("message_id", messageId);
+        await supabase
+          .from("email_send_log")
+          .update({ status: "sent" })
+          .eq("message_id", messageId);
 
         console.log("[notify-reservation] sent ok, messageId:", messageId);
 
