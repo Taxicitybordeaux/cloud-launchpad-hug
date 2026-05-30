@@ -28,7 +28,7 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
     handlers: {
       POST: async ({ request }) => {
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const supabaseServiceKey = process.env.TAXI_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
         const lovableApiKey = process.env.LOVABLE_API_KEY ?? "";
 
         if (!supabaseUrl || !supabaseServiceKey) {
@@ -223,7 +223,7 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
             message_id: messageId,
             to: effectiveRecipient,
             from: `${SITE_NAME} <noreply@${SENDER_DOMAIN}>`,
-            reply_to: 'taxi.city033@gmail.com',
+            reply_to: "taxi.city033@gmail.com",
             sender_domain: SENDER_DOMAIN,
             subject: resolvedSubject,
             html,
