@@ -1148,14 +1148,22 @@ function ReservationPage() {
       setSending(false);
 
       // ── Notifier l'admin (push + email) ────────────────────────────────────
-      fetch("/api/public/notify-reservation", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Internal-Notify-Secret": "taxi-city-reservation-trigger-v1",
-        },
-        body: JSON.stringify({ reservation_id: inserted.id }),
-      }).catch((e) => console.warn("[notify] admin notify failed", e));
+      // sendBeacon garantit l'envoi même si la page navigue immédiatement après.
+      // fetch avec keepalive: true en fallback si sendBeacon ne supporte pas JSON.
+      try {
+        const notifyBody = JSON.stringify({ reservation_id: inserted.id });
+        const notifyUrl = "/api/public/notify-reservation";
+        const notifyHeaders = { "X-Internal-Notify-Secret": "taxi-city-reservation-trigger-v1" };
+        // sendBeacon n'accepte pas de headers custom → on utilise fetch keepalive
+        await fetch(notifyUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...notifyHeaders },
+          body: notifyBody,
+          keepalive: true, // survit à la navigation de page sur mobile
+        });
+      } catch (e) {
+        console.warn("[notify] admin notify failed", e);
+      }
 
       navigate({ to: "/suivi/$id", params: { id: suiviId } });
     } catch (err: any) {
