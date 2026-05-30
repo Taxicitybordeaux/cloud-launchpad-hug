@@ -705,9 +705,8 @@ function Dashboard() {
           try {
             new Audio("/notification.mp3").play().catch(() => {});
           } catch {}
-          if (n.id) {
-            notifyNewReservation({ data: { reservation_id: n.id } }).catch(() => {});
-          }
+          // Notification gérée par le trigger Supabase + Edge Function notify-new-reservation
+
           if (typeof window !== "undefined" && "Notification" in window) {
             const fire = () => {
               try {
