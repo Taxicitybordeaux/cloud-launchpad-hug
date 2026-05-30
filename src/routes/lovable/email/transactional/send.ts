@@ -237,7 +237,7 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
         });
 
         if (enqueueError) {
-          console.error("Failed to enqueue email", { error: enqueueError, templateName });
+          console.error("Failed to enqueue email", JSON.stringify({ error: enqueueError, templateName }));
           await supabase.from("email_send_log").insert({
             message_id: messageId,
             template_name: templateName,
