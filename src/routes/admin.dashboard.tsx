@@ -7,6 +7,7 @@ import { getDistanceAndDurationKm, fetchRouteCoordinates, OSRM_DISTANCE_FACTOR }
 import { geocodeAddress } from "@/lib/geocode";
 import { assertSuiviId, newSuiviId } from "@/lib/suivi-id";
 import { CourseCardSkeleton, GpsCardSkeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
+import { PushDebug } from "@/components/PushDebug";
 import logo from "@/assets/logo.jpeg";
 
 import { notifyReservationStatus } from "@/lib/push.functions";
@@ -467,6 +468,7 @@ function Dashboard() {
   const [itinSaving, setItinSaving] = useState<Record<string, boolean>>({});
   const [mapModal, setMapModal] = useState<{ alt: ItineraryAlt; r: any } | null>(null);
   const [changeHeureOpen, setChangeHeureOpen] = useState<Record<string, boolean>>({});
+  const [showPushDebug, setShowPushDebug] = useState(false);
   const [changeHeureValue, setChangeHeureValue] = useState<Record<string, string>>({});
   const [changeHeureSending, setChangeHeureSending] = useState<Record<string, boolean>>({});
 
@@ -557,32 +559,28 @@ function Dashboard() {
       const ua = navigator.userAgent.slice(0, 500);
       const now = new Date().toISOString();
       await Promise.all([
-        supabase
-          .from("push_subscriptions")
-          .upsert(
-            {
-              audience: "admin",
-              endpoint: `fcm://${fcm}`,
-              fcm_token: fcm,
-              reservation_id: null,
-              user_agent: ua,
-              last_seen_at: now,
-            },
-            { onConflict: "endpoint" },
-          ),
-        supabase
-          .from("push_subscriptions")
-          .upsert(
-            {
-              audience: "chauffeur",
-              endpoint: `fcm://${fcm}-chauffeur`,
-              fcm_token: fcm,
-              reservation_id: null,
-              user_agent: ua,
-              last_seen_at: now,
-            },
-            { onConflict: "endpoint" },
-          ),
+        supabase.from("push_subscriptions").upsert(
+          {
+            audience: "admin",
+            endpoint: `fcm://${fcm}`,
+            fcm_token: fcm,
+            reservation_id: null,
+            user_agent: ua,
+            last_seen_at: now,
+          },
+          { onConflict: "endpoint" },
+        ),
+        supabase.from("push_subscriptions").upsert(
+          {
+            audience: "chauffeur",
+            endpoint: `fcm://${fcm}-chauffeur`,
+            fcm_token: fcm,
+            reservation_id: null,
+            user_agent: ua,
+            last_seen_at: now,
+          },
+          { onConflict: "endpoint" },
+        ),
       ]);
       localStorage.setItem("fcm_token", fcm);
       console.info("[push] dashboard registered — admin + chauffeur");
@@ -2552,32 +2550,28 @@ function Dashboard() {
                   const ua = navigator.userAgent.slice(0, 500);
                   const now = new Date().toISOString();
                   await Promise.all([
-                    supabase
-                      .from("push_subscriptions")
-                      .upsert(
-                        {
-                          audience: "admin",
-                          endpoint: `fcm://${fcm}`,
-                          fcm_token: fcm,
-                          reservation_id: null,
-                          user_agent: ua,
-                          last_seen_at: now,
-                        },
-                        { onConflict: "endpoint" },
-                      ),
-                    supabase
-                      .from("push_subscriptions")
-                      .upsert(
-                        {
-                          audience: "chauffeur",
-                          endpoint: `fcm://${fcm}-chauffeur`,
-                          fcm_token: fcm,
-                          reservation_id: null,
-                          user_agent: ua,
-                          last_seen_at: now,
-                        },
-                        { onConflict: "endpoint" },
-                      ),
+                    supabase.from("push_subscriptions").upsert(
+                      {
+                        audience: "admin",
+                        endpoint: `fcm://${fcm}`,
+                        fcm_token: fcm,
+                        reservation_id: null,
+                        user_agent: ua,
+                        last_seen_at: now,
+                      },
+                      { onConflict: "endpoint" },
+                    ),
+                    supabase.from("push_subscriptions").upsert(
+                      {
+                        audience: "chauffeur",
+                        endpoint: `fcm://${fcm}-chauffeur`,
+                        fcm_token: fcm,
+                        reservation_id: null,
+                        user_agent: ua,
+                        last_seen_at: now,
+                      },
+                      { onConflict: "endpoint" },
+                    ),
                   ]);
                   localStorage.setItem("fcm_token", fcm);
                   toast.success("🔔 Token FCM enregistré — notifications actives");
@@ -2626,6 +2620,23 @@ function Dashboard() {
                   : "🔔 Activer notifs"}
             </button>
           )}
+          <button
+            onClick={() => setShowPushDebug((v) => !v)}
+            title="Diagnostic push notifications"
+            style={{
+              padding: "8px 10px",
+              background: showPushDebug ? "rgba(99,102,241,0.2)" : "rgba(255,255,255,0.06)",
+              border: `1px solid ${showPushDebug ? "rgba(99,102,241,0.5)" : "rgba(255,255,255,0.12)"}`,
+              color: showPushDebug ? "#818cf8" : "#94a3b8",
+              borderRadius: 10,
+              cursor: "pointer",
+              fontWeight: 600,
+              fontSize: 13,
+            }}
+          >
+            🔍
+          </button>
+          {showPushDebug && <PushDebug />}
           <a
             href="/"
             style={{
