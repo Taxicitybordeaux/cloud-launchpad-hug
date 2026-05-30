@@ -1,549 +1,1009 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { calculerPrix, calculerPrixMixte } from "@/lib/tarif";
-import { getDistanceAndDurationKm, fetchRouteCoordinates, OSRM_DISTANCE_FACTOR } from "@/lib/osrm";
-import { geocodeAddress } from "@/lib/geocode";
-import { assertSuiviId, newSuiviId } from "@/lib/suivi-id";
-import { CourseCardSkeleton, GpsCardSkeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
-import { PushDebug } from "@/components/PushDebug";
-import logo from "@/assets/logo.jpeg";
-
-import { notifyReservationStatus } from "@/lib/push.functions";
+import { calculerPrix, calculerPrixMixte, PRISE_EN_CHARGE } from "@/lib/tarif";
+import { reverseGeocode, searchAddress } from "@/lib/geocode";
+import { getDistanceAndDurationKm } from "@/lib/osrm";
+import { newSuiviId } from "@/lib/suivi-id";
+import { subscribePush } from "@/lib/push.functions";
 import { getFcmToken } from "@/lib/firebase";
+import { DICTS, LANGUAGES, type Lang } from "@/i18n/dict";
 
-const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-const OSM_TILE_OPTIONS = { attribution: "© OpenStreetMap contributors", maxZoom: 19 };
-const BORDEAUX_CENTER_GPS = { lat: 44.8378, lng: -0.5792 };
-const MAX_DRIVER_GPS_ACCURACY_M = 1500;
-const MAX_DRIVER_GPS_DISTANCE_FROM_BORDEAUX_M = 130000;
-const MAX_DRIVER_GPS_JUMP_M = 5000;
+export const Route = createFileRoute("/reserver")({
+  head: () => ({
+    meta: [
+      { title: "Réserver — Taxi City Bordeaux" },
+      { name: "description", content: "Réservez votre taxi en ligne." },
+    ],
+  }),
+  component: ReservationPage,
+});
 
-// ─── Swipe-to-delete ─────────────────────────────────────────
-function SwipeDeleteRow({
-  onDelete,
-  disabled,
-  children,
-  style,
-}: {
-  onDelete: () => void;
-  disabled?: boolean;
-  children: React.ReactNode;
-  style?: React.CSSProperties;
-}) {
-  const startX = useRef(0);
-  const startY = useRef(0);
-  const [offset, setOffset] = useState(0);
-  const [deleting, setDeleting] = useState(false);
-  const THRESHOLD = 200;
+const BORDEAUX_CENTER: [number, number] = [44.8378, -0.5792];
+const DESTINATION_SEARCH_RADIUS_KM = 80;
+const MAX_AUTO_GEO_ACCURACY_M = 1500;
+const MAX_AUTO_GEO_DISTANCE_FROM_BORDEAUX_KM = 130;
 
-  const onTouchStart = (e: React.TouchEvent) => {
-    if (disabled) return;
-    startX.current = e.touches[0].clientX;
-    startY.current = e.touches[0].clientY;
-  };
-  const onTouchMove = (e: React.TouchEvent) => {
-    if (disabled || deleting) return;
-    const dx = e.touches[0].clientX - startX.current;
-    const dy = Math.abs(e.touches[0].clientY - startY.current);
-    if (dy > 10 && Math.abs(dx) < dy) return;
-    if (dx >= 0) {
-      setOffset(0);
-      return;
-    }
-    e.preventDefault();
-    setOffset(Math.max(dx, -window.innerWidth));
-  };
-  const onTouchEnd = () => {
-    if (offset < -THRESHOLD) {
-      setDeleting(true);
-      setOffset(-window.innerWidth);
-      setTimeout(() => onDelete(), 280);
-    } else {
-      setOffset(0);
-    }
-  };
-
-  return (
-    <div style={{ position: "relative", overflow: "hidden", borderRadius: 20, ...style }}>
-      <div style={{ position: "absolute", inset: 0, background: "#0f172a", borderRadius: 20 }}>
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            right: 0,
-            bottom: 0,
-            width: "100%",
-            background: "linear-gradient(90deg, transparent 0%, #7f1d1d 60%, #991b1b 100%)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "flex-end",
-            paddingRight: 32,
-            opacity: Math.min(Math.abs(offset) / 150, 1),
-          }}
-        >
-          <span style={{ fontSize: 28 }}>🗑️</span>
-        </div>
-      </div>
-      <div
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        style={{
-          transform: `translateX(${offset}px)`,
-          transition: deleting
-            ? "transform 0.28s ease-in"
-            : offset === 0
-              ? "transform 0.3s cubic-bezier(0.25,1,0.5,1)"
-              : "none",
-          willChange: "transform",
-          position: "relative",
-          zIndex: 1,
-        }}
-      >
-        {children}
-      </div>
-    </div>
-  );
+interface FormState {
+  depart: string;
+  destination: string;
+  date: string;
+  heure: string;
+  passagers: number;
+  bagages: number;
+  paiement: string;
+  prenom: string;
+  nom: string;
+  phone: string;
+  email: string;
 }
 
-export const Route = createFileRoute("/admin/dashboard")({
-  head: () => ({ meta: [{ title: "Dashboard — Admin" }, { name: "robots", content: "noindex" }] }),
-  component: Dashboard,
-});
+interface OrsResult {
+  distanceKm: number;
+  dureeS: number;
+}
 
-const card: React.CSSProperties = {
-  background: "rgba(255,255,255,0.04)",
-  border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: 20,
-  padding: 20,
-};
-const labelCss: React.CSSProperties = {
-  fontFamily: "'DM Sans',sans-serif",
-  fontSize: 11,
-  color: "#64748b",
-  letterSpacing: "0.08em",
-  marginTop: 6,
-};
-const valCss: React.CSSProperties = {
-  fontFamily: "'DM Sans',sans-serif",
-  fontWeight: 800,
-  fontSize: 26,
-  color: "#f8fafc",
-  marginTop: 4,
-  fontVariantNumeric: "tabular-nums",
+type AddressChoice = {
+  label: string;
+  coord: [number, number];
+  distanceKm: number;
 };
 
-const TARIF_JOUR_LABEL = "2,16 €/km";
-const TARIF_NUIT_LABEL = "3,24 €/km";
+function shortLabel(label: string): string {
+  const parts = label
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (parts.length === 0) return label;
 
-const contactBtn = (color: string): React.CSSProperties => ({
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 4,
-  padding: "8px 12px",
-  background: `${color}1a`,
-  border: `1px solid ${color}55`,
-  color,
-  borderRadius: 10,
-  textDecoration: "none",
-  fontWeight: 700,
-  fontSize: 13,
-  whiteSpace: "nowrap",
-});
+  // Mots-clés indiquant un nom de lieu (aéroport, gare, hôpital, centre...)
+  const isNamedPlace =
+    /aéroport|airport|gare|station|hôpital|hopital|clinique|université|universite|centre|stade|mairie|église|eglise|château|chateau|lycée|lycee|école|ecole/i.test(
+      parts[0],
+    );
 
-// Inject global mobile responsive styles into the admin dashboard
-const adminMobileCss = `
-  * { -webkit-tap-highlight-color: transparent; }
-  @media (max-width: 640px) {
-    .admin-root { padding: 12px 10px !important; }
-    .admin-header { flex-direction: column !important; align-items: stretch !important; gap: 12px !important; }
-    .admin-header-title { font-size: 20px !important; }
-    .admin-header-actions { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; width: 100% !important; }
-    .admin-header-actions > * { display: flex !important; align-items: center !important; justify-content: center !important; min-height: 44px !important; font-size: 13px !important; padding: 8px 10px !important; }
-    .admin-kpi-grid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
-    .admin-stat-val { font-size: 22px !important; }
-    .admin-card { padding: 12px 14px !important; border-radius: 16px !important; }
-    .course-card-head { flex-direction: column !important; gap: 4px !important; align-items: flex-start !important; }
-    .course-card-head-right { font-size: 12px !important; }
-    .accept-refuse-btns { flex-direction: column !important; gap: 10px !important; }
-    .accept-refuse-btns button { width: 100% !important; padding: 16px !important; font-size: 16px !important; justify-content: center !important; border-radius: 14px !important; }
-    .status-action-btns { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
-    .status-action-btns button { width: 100% !important; min-height: 44px !important; justify-content: center !important; }
-    .gps-row { flex-direction: column !important; align-items: stretch !important; gap: 10px !important; }
-    .gps-btn-row { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; width: 100% !important; margin-left: 0 !important; }
-    .gps-btn-row button { width: 100% !important; min-height: 44px !important; justify-content: center !important; }
-    .send-prix-row { flex-direction: column !important; gap: 8px !important; }
-    .send-prix-row input { width: 100% !important; font-size: 16px !important; }
-    .send-prix-row button { width: 100% !important; min-height: 44px !important; justify-content: center !important; }
-    .contact-btns { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
-    .contact-btns a { justify-content: center !important; min-height: 44px !important; padding: 10px 8px !important; font-size: 12px !important; }
-    .avis-actions { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
-    .avis-actions button { width: 100% !important; min-height: 44px !important; justify-content: center !important; }
-    .admin-hide-mobile { display: none !important; }
-    .admin-h-title { font-size: 18px !important; }
+  if (isNamedPlace) {
+    // Cherche la ville : première partie qui ne contient pas de chiffre et n'est pas un code postal ni une région connue
+    const skipWords =
+      /gironde|nouvelle-aquitaine|aquitaine|france|métropolitaine|metropolitaine|département|region|^\d{5}$/i;
+    const ville = parts.slice(1).find((p) => !skipWords.test(p) && !/^\d/.test(p));
+    return ville ? `${parts[0]}, ${ville}` : parts[0];
   }
-`;
 
-const STATUS: Record<string, { bg: string; c: string; label: string }> = {
-  pending: { bg: "rgba(245,158,11,0.15)", c: "#f59e0b", label: "En attente" },
-  accepted: { bg: "rgba(34,197,94,0.15)", c: "#22c55e", label: "Acceptée" },
-  refused: { bg: "rgba(239,68,68,0.15)", c: "#ef4444", label: "Refusée" },
-  en_route: { bg: "rgba(245,200,66,0.15)", c: "#f5c842", label: "En route" },
-  arrived: { bg: "rgba(34,197,94,0.15)", c: "#22c55e", label: "Arrivé" },
-  completed: { bg: "rgba(34,197,94,0.15)", c: "#22c55e", label: "Terminé" },
-  cancelled: { bg: "rgba(239,68,68,0.15)", c: "#ef4444", label: "Annulée" },
-};
-
-function paiementLabel(p: string | null | undefined): string {
-  if (!p) return "";
-  const map: Record<string, string> = {
-    especes: "💵 Espèces",
-    cb: "💳 Carte bancaire",
-    virement: "🏦 Virement",
-    cheque: "📝 Chèque",
-  };
-  return map[p.toLowerCase()] ?? p;
+  // Adresse classique : rue + ville (ignore code postal, département, région, France)
+  const skipWords = /gironde|nouvelle-aquitaine|aquitaine|france|métropolitaine|metropolitaine|^\d{5}$/i;
+  const kept = parts.filter((p) => !skipWords.test(p));
+  return kept.slice(0, 2).join(", ");
 }
 
-function StatusBadge({ s }: { s: string }) {
-  const v = STATUS[s] ?? { bg: "rgba(148,163,184,0.15)", c: "#94a3b8", label: s };
-  return (
-    <span
-      style={{ background: v.bg, color: v.c, padding: "3px 10px", borderRadius: 99, fontSize: 11, fontWeight: 700 }}
-    >
-      {v.label}
-    </span>
-  );
-}
-
-function formatParis(iso: string, opts?: Intl.DateTimeFormatOptions) {
-  return new Date(iso).toLocaleString("fr-FR", { timeZone: "Europe/Paris", ...opts });
-}
-
-// ─── Jours fériés français ───
-const JOURS_FERIES = new Set([
-  // 2025
-  "2025-01-01",
-  "2025-04-21",
-  "2025-05-01",
-  "2025-05-08",
-  "2025-05-29",
-  "2025-06-09",
-  "2025-07-14",
-  "2025-08-15",
-  "2025-11-01",
-  "2025-11-11",
-  "2025-12-25",
-  // 2026
-  "2026-01-01",
-  "2026-04-06",
-  "2026-05-01",
-  "2026-05-08",
-  "2026-05-14",
-  "2026-05-25",
-  "2026-06-04",
-  "2026-07-14",
-  "2026-08-15",
-  "2026-11-01",
-  "2026-11-11",
-  "2026-12-25",
-  // 2027
-  "2027-01-01",
-  "2027-03-29",
-  "2027-05-01",
-  "2027-05-08",
-  "2027-05-13",
-  "2027-05-24",
-  "2027-07-14",
-  "2027-08-15",
-  "2027-11-01",
-  "2027-11-11",
-  "2027-12-25",
-]);
-
-function isJourFerie(date: Date): boolean {
-  const yyyy = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", year: "numeric" });
-  const mm = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", month: "2-digit" });
-  const dd = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", day: "2-digit" });
-  return JOURS_FERIES.has(`${yyyy}-${mm}-${dd}`);
-}
-
-function isNuit(iso: string): boolean {
-  const date = new Date(iso);
-  const h = parseInt(date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", hour12: false }), 10);
-  const dimanche = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", weekday: "short" }) === "dim.";
-  const ferie = isJourFerie(date);
-  // Tarif nuit : 19h–7h Paris, OU dimanche, OU jour férié
-  return h >= 19 || h < 7 || dimanche || ferie;
-}
-
-const normalizeStatus = (s: unknown): "pending" | "accepted" | "refused" => {
-  if (s === "accepted") return "accepted";
-  if (s === "refused") return "refused";
-  return "pending";
-};
-
-type ItineraryAlt = { label: string; km: number; prix: number; coords: [number, number][] };
-
-const toRad = (deg: number) => (deg * Math.PI) / 180;
-
-function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const lat1 = toRad(a.lat);
-  const lat2 = toRad(b.lat);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
-}
-
-async function geocodeForRoute(address: string) {
+async function geocodeFullAddress(address: string): Promise<{ coord: [number, number]; label: string } | null> {
   const trimmed = address.trim();
+  const normalized = normalizeAddressText(trimmed);
   const parts = trimmed
     .split(",")
     .map((p) => p.trim())
     .filter(Boolean);
   const short = parts.slice(0, 2).join(", ");
-  const attempts = [trimmed, short, `${short}, France`, `${parts[0]}, Bordeaux, France`, `${parts[0]}, France`].filter(
-    (v, i, arr) => v.length > 3 && arr.indexOf(v) === i,
-  );
+
+  // Variantes spécifiques pour les lieux nommés courants
+  const namedPlaceVariants: string[] = [];
+  if (/aeroport|airport/.test(normalized)) {
+    if (/bordeaux|merignac|bod/.test(normalized)) {
+      namedPlaceVariants.push(
+        "Aéroport de Bordeaux-Mérignac",
+        "Bordeaux-Mérignac Airport",
+        "aéroport Bordeaux Mérignac",
+      );
+    } else {
+      // aéroport d'une autre ville : extraire la ville probable
+      const cityToken = normalized
+        .replace(/aeroport|airport|de|du|d/g, " ")
+        .trim()
+        .split(/\s+/)[0];
+      if (cityToken && cityToken.length > 2) {
+        namedPlaceVariants.push(`aéroport ${cityToken}, France`, `${cityToken} airport, France`);
+      }
+    }
+  }
+  if (/gare/.test(normalized)) {
+    if (/bordeaux|saint.jean/.test(normalized)) {
+      namedPlaceVariants.push("Gare de Bordeaux-Saint-Jean");
+    } else {
+      const cityToken = normalized
+        .replace(/gare|de|du|d/g, " ")
+        .trim()
+        .split(/\s+/)[0];
+      if (cityToken && cityToken.length > 2) {
+        namedPlaceVariants.push(`gare ${cityToken}, France`);
+      }
+    }
+  }
+
+  // Plusieurs variantes pour maximiser les chances de trouver lieux nommés et adresses
+  const attempts = [
+    ...namedPlaceVariants, // lieux nommés en priorité
+    trimmed,
+    trimmed + ", France",
+    short,
+    short + ", France",
+    parts[0] + ", France",
+    parts[0] + ", Bordeaux, France",
+    parts[0] + ", Gironde, France",
+  ].filter((v, i, arr) => v.length > 2 && arr.indexOf(v) === i);
+
   for (const query of attempts) {
-    const coord = await geocodeAddress(query);
-    if (coord) return coord;
+    const results = await searchAddress(query, 1);
+    if (results.length) {
+      const r = results[0];
+      return { coord: [r.coord[0], r.coord[1]], label: shortLabel(r.label) };
+    }
   }
   return null;
 }
 
-function detourPoint(a: { lat: number; lng: number }, b: { lat: number; lng: number }, strengthKm: number) {
-  const midLat = (a.lat + b.lat) / 2;
-  const midLng = (a.lng + b.lng) / 2;
-  const dx = (b.lng - a.lng) * Math.cos(toRad(midLat));
-  const dy = b.lat - a.lat;
-  const len = Math.sqrt(dx * dx + dy * dy) || 1;
-  const side = a.lng <= b.lng ? 1 : -1;
-  const normalX = (-dy / len) * side;
-  const normalY = (dx / len) * side;
-  return {
-    lat: midLat + (normalY * strengthKm) / 111,
-    lng: midLng + (normalX * strengthKm) / (111 * Math.cos(toRad(midLat)) || 1),
-  };
+function distanceKmBetween(a: [number, number], b: [number, number]): number {
+  const R = 6371;
+  const dLat = ((b[0] - a[0]) * Math.PI) / 180;
+  const dLng = ((b[1] - a[1]) * Math.PI) / 180;
+  const x =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((a[0] * Math.PI) / 180) * Math.cos((b[0] * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
-function routeToAlt(route: any, label: string, pickupIso: string): ItineraryAlt | null {
-  const points = route?.geometry?.coordinates;
-  if (!Array.isArray(points) || points.length < 2 || !route?.distance) return null;
-  // Distance brute OSRM en km — le facteur correctif est appliqué après tri (court/long)
-  const km = parseFloat((route.distance / 1000).toFixed(2));
-  const prix = calculerPrixMixte(km, pickupIso);
-  return {
-    label,
-    km,
-    prix: parseFloat(prix.toFixed(2)),
-    coords: points.map(([lng, lat]: [number, number]) => [lat, lng] as [number, number]),
-  };
+function normalizeAddressText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }
 
-function fallbackItineraries(
-  a: { lat: number; lng: number },
-  b: { lat: number; lng: number },
-  pickupIso: string,
-  baseCoords: [number, number][] = [],
-  baseKm?: number,
-): ItineraryAlt[] {
-  const courtKm = baseKm ?? Math.round(haversineKm(a, b) * 1.3);
-  const longKm = Math.round((courtKm * 16) / 14); // ratio 14/16 entre court et long
+function usefulSearchTokens(query: string): string[] {
+  const skip = new Set([
+    "rue",
+    "avenue",
+    "av",
+    "boulevard",
+    "bd",
+    "route",
+    "chemin",
+    "place",
+    "allee",
+    "impasse",
+    "cours",
+    "de",
+    "du",
+    "des",
+    "la",
+    "le",
+    "les",
+    "d",
+    "l",
+    "a",
+    "au",
+    "aux",
+    "france",
+    "gironde",
+  ]);
+  return normalizeAddressText(query)
+    .split(" ")
+    .filter((token) => token.length >= 3 && !skip.has(token))
+    .slice(0, 4);
+}
 
-  // Pour le tracé long : on décale légèrement les points intermédiaires
-  // pour simuler visuellement un itinéraire différent (+0.001° lat sur les points du milieu)
-  const longCoords: [number, number][] = baseCoords.map((pt, i) => {
-    if (i === 0 || i === baseCoords.length - 1) return pt;
-    const ratio = i / (baseCoords.length - 1);
-    const bump = Math.sin(ratio * Math.PI) * 0.003; // arc léger
-    return [pt[0] + bump, pt[1]] as [number, number];
+function isPlausibleAddressMatch(query: string, label: string): boolean {
+  const tokens = usefulSearchTokens(query);
+  if (tokens.length === 0) return true;
+  const normalizedLabel = normalizeAddressText(label);
+  const normalizedQuery = normalizeAddressText(query);
+  // Lieux nommés : accepter dès qu'un seul token matche
+  const isNamedPlaceQuery =
+    /aeroport|airport|gare|station|hopital|clinique|universite|centre|stade|mairie|eglise|chateau|lycee|ecole/.test(
+      normalizedQuery,
+    );
+  const hits = tokens.filter((token) => normalizedLabel.includes(token)).length;
+  if (isNamedPlaceQuery) return hits >= 1;
+  return hits >= Math.min(2, tokens.length) || normalizedLabel.includes(tokens[0]);
+}
+
+function dedupeAddressChoices(choices: AddressChoice[]): AddressChoice[] {
+  const seen = new Set<string>();
+  return choices.filter((choice) => {
+    const key = `${choice.label.toLowerCase()}-${choice.coord[0].toFixed(4)}-${choice.coord[1].toFixed(4)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
+}
 
-  return [
-    {
-      label: "🟢 Court",
-      km: courtKm,
-      prix: parseFloat(calculerPrixMixte(courtKm, pickupIso).toFixed(2)),
-      coords: baseCoords,
-    },
-    {
-      label: "🔴 Long",
-      km: longKm,
-      prix: parseFloat(calculerPrixMixte(longKm, pickupIso).toFixed(2)),
-      coords: longCoords.length ? longCoords : baseCoords,
-    },
+async function searchPhotonAddress(query: string, origin: [number, number]): Promise<AddressChoice[]> {
+  try {
+    const url = new URL("https://photon.komoot.io/api/");
+    url.searchParams.set("q", query);
+    url.searchParams.set("limit", "8");
+    url.searchParams.set("lang", "fr");
+    url.searchParams.set("lat", String(origin[0]));
+    url.searchParams.set("lon", String(origin[1]));
+    const res = await fetch(url.toString());
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data?.features)) return [];
+    return data.features
+      .map((feature: any) => {
+        const coords = feature?.geometry?.coordinates;
+        if (!Array.isArray(coords) || coords.length < 2) return null;
+        const props = feature.properties ?? {};
+        const label = [props.name, props.street, props.postcode, props.city || props.county].filter(Boolean).join(", ");
+        const coord: [number, number] = [Number(coords[1]), Number(coords[0])];
+        if (!label || !Number.isFinite(coord[0]) || !Number.isFinite(coord[1])) return null;
+        return { label: shortLabel(label), coord, distanceKm: distanceKmBetween(origin, coord) };
+      })
+      .filter(Boolean) as AddressChoice[];
+  } catch {
+    return [];
+  }
+}
+
+async function searchOverpassPois(query: string, origin: [number, number], radiusKm: number): Promise<AddressChoice[]> {
+  const token = usefulSearchTokens(query)[0];
+  if (!token) return [];
+  const safeToken = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const radiusM = Math.round(radiusKm * 1000);
+  const body = `[out:json][timeout:8];(
+node(around:${radiusM},${origin[0]},${origin[1]})["name"~"${safeToken}",i];
+way(around:${radiusM},${origin[0]},${origin[1]})["name"~"${safeToken}",i];
+relation(around:${radiusM},${origin[0]},${origin[1]})["name"~"${safeToken}",i];
+);out center tags 20;`;
+  try {
+    const res = await fetch("https://overpass-api.de/api/interpreter", { method: "POST", body });
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data?.elements)) return [];
+    return data.elements
+      .map((item: any) => {
+        const lat = Number(item.lat ?? item.center?.lat);
+        const lng = Number(item.lon ?? item.center?.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+        const tags = item.tags ?? {};
+        const label = [
+          tags.name,
+          tags["addr:housenumber"] && tags["addr:street"]
+            ? `${tags["addr:housenumber"]} ${tags["addr:street"]}`
+            : tags["addr:street"],
+          tags["addr:postcode"],
+          tags["addr:city"],
+        ]
+          .filter(Boolean)
+          .join(", ");
+        if (!label) return null;
+        const coord: [number, number] = [lat, lng];
+        return { label: shortLabel(label), coord, distanceKm: distanceKmBetween(origin, coord) };
+      })
+      .filter(Boolean) as AddressChoice[];
+  } catch {
+    return [];
+  }
+}
+
+async function searchNearbyAddressChoices(
+  query: string,
+  origin: [number, number],
+  radiusKm = 20,
+): Promise<AddressChoice[]> {
+  // Variantes spécifiques pour lieux connus mal reconnus
+  const normalizedQ = normalizeAddressText(query);
+  const extraVariants: string[] = [];
+  if (/aeroport|airport/.test(normalizedQ) && /bordeaux|merignac|bod/.test(normalizedQ)) {
+    extraVariants.push("Aéroport de Bordeaux-Mérignac", "Bordeaux-Mérignac Airport", "BOD Bordeaux");
+  }
+  if (/gare|saint.jean/.test(normalizedQ) && /bordeaux/.test(normalizedQ)) {
+    extraVariants.push("Gare de Bordeaux-Saint-Jean");
+  }
+  const variants = [
+    ...new Set([query, `${query}, Gironde`, `${query}, Bordeaux`, `${query}, France`, ...extraVariants]),
   ];
+  const nominatimGroups = await Promise.all(variants.map((variant) => searchAddress(variant, 8).catch(() => [])));
+  const nominatimChoices = nominatimGroups.flat().map((item) => ({
+    label: shortLabel(item.label),
+    coord: item.coord,
+    distanceKm: distanceKmBetween(origin, item.coord),
+  }));
+  const [photonChoices, overpassChoices] = await Promise.all([
+    searchPhotonAddress(query, origin),
+    searchOverpassPois(query, origin, radiusKm),
+  ]);
+  const tokens = usefulSearchTokens(query);
+  return dedupeAddressChoices([...nominatimChoices, ...photonChoices, ...overpassChoices])
+    .filter((choice) => isPlausibleAddressMatch(query, choice.label))
+    .sort((a, b) => {
+      const aLabel = normalizeAddressText(a.label);
+      const bLabel = normalizeAddressText(b.label);
+      const aHits = tokens.filter((token) => aLabel.includes(token)).length;
+      const bHits = tokens.filter((token) => bLabel.includes(token)).length;
+      return bHits - aHits || a.distanceKm - b.distanceKm;
+    })
+    .slice(0, 4);
 }
 
-// ─── Section header ───
-function SectionHeader({
-  color,
-  label,
-  count,
-  borderColor,
-}: {
-  color: string;
-  label: string;
-  count: number;
-  borderColor: string;
-}) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        marginBottom: 16,
-        paddingBottom: 10,
-        borderBottom: `1px solid ${borderColor}`,
-      }}
-    >
-      <span
-        style={{
-          width: 8,
-          height: 8,
-          borderRadius: "50%",
-          background: color,
-          flexShrink: 0,
-          boxShadow: `0 0 8px ${color}99`,
-        }}
-      />
-      <h3
-        style={{
-          fontFamily: "'Syne',sans-serif",
-          fontSize: 15,
-          fontWeight: 800,
-          color,
-          margin: 0,
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-        }}
-      >
-        {label}
-      </h3>
-      <span
-        style={{
-          background: `${color}26`,
-          color,
-          padding: "2px 10px",
-          borderRadius: 99,
-          fontSize: 12,
-          fontWeight: 700,
-        }}
-      >
-        {count}
-      </span>
-    </div>
-  );
+function requestBrowserPosition(options: PositionOptions): Promise<GeolocationPosition> {
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, options);
+  });
 }
 
-function Dashboard() {
-  // ── KPI stats ──
-  const [caJ, setCaJ] = useState(0);
-  const [caM, setCaM] = useState(0);
-  const [coursesJ, setCoursesJ] = useState(0);
-  const [clientsTotal, setClientsTotal] = useState(0);
-  const [visitors, setVisitors] = useState(0);
-  const [statsLoading, setStatsLoading] = useState(true);
+function getAutoGeoRejectionReason(pos: GeolocationPosition): string | null {
+  const lat = pos.coords.latitude;
+  const lng = pos.coords.longitude;
+  const accuracy = pos.coords.accuracy;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(accuracy)) {
+    return "Position invalide. Saisissez l’adresse de départ manuellement.";
+  }
+  if (accuracy > MAX_AUTO_GEO_ACCURACY_M) {
+    return `Signal GPS trop imprécis (${Math.round(accuracy)} m). Saisissez l’adresse exacte pour éviter une mauvaise prise en charge.`;
+  }
+  const distanceFromBordeaux = distanceKmBetween(BORDEAUX_CENTER, [lat, lng]);
+  if (distanceFromBordeaux > MAX_AUTO_GEO_DISTANCE_FROM_BORDEAUX_KM) {
+    return "Position incohérente avec la zone de Bordeaux. Saisissez l’adresse exacte de départ.";
+  }
+  return null;
+}
 
-  // ── Courses ──
-  const [items, setItems] = useState<any[]>([]);
-  const [coursesLoading, setCoursesLoading] = useState(true);
-  const [counts, setCounts] = useState({ pending: 0, accepted: 0, refused: 0 });
+// ─── OSRM : passe par l'Edge Function Supabase (évite les blocages CORS) ─────
+const SUPABASE_URL = "https://auiagkpdpnfqxfngisfc.supabase.co";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1aWFna3BkcG5mcXhmbmdpc2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0MzU2NzUsImV4cCI6MjA5NDAxMTY3NX0.MkW2KzCYHvQ0GEjjP3_puf3PkCHWaYcvW2bI1ctTuJU";
 
-  // ── Actions ──
-  const [cardKm, setCardKm] = useState<Record<string, number>>({});
-  const [cardKmLoading, setCardKmLoading] = useState<Record<string, boolean>>({});
-  const [deleteBusy, setDeleteBusy] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [customPrix, setCustomPrix] = useState<Record<string, string>>({});
-  const [customPrixSending, setCustomPrixSending] = useState<Record<string, boolean>>({});
-  const [itinOpen, setItinOpen] = useState<Record<string, boolean>>({});
-  const [itinLoading, setItinLoading] = useState<Record<string, boolean>>({});
-  const [itinAlts, setItinAlts] = useState<Record<string, ItineraryAlt[]>>({});
-  const [itinSaving, setItinSaving] = useState<Record<string, boolean>>({});
-  const [mapModal, setMapModal] = useState<{ alt: ItineraryAlt; r: any } | null>(null);
-  const [changeHeureOpen, setChangeHeureOpen] = useState<Record<string, boolean>>({});
-  const [showPushDebug, setShowPushDebug] = useState(false);
-  const [changeHeureValue, setChangeHeureValue] = useState<Record<string, string>>({});
-  const [changeHeureSending, setChangeHeureSending] = useState<Record<string, boolean>>({});
+// ─── ORS polyline : via Edge Function Supabase ──────────────────────────────
+async function getOsrmPolylineLongest(from: [number, number], to: [number, number]): Promise<[number, number][]> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/osrm-route`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        from_lng: from[1], // from = [lat, lng] → ORS attend lng en premier
+        from_lat: from[0],
+        to_lng: to[1],
+        to_lat: to[0],
+        overview: "full",
+        geometries: "geojson",
+      }),
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    if (json?.error) return [];
+    // ORS retourne geometry en GeoJSON : { type: "LineString", coordinates: [[lng,lat],...] }
+    const coords: [number, number][] = json?.geometry?.coordinates ?? [];
+    if (!coords.length) return [];
+    // Inverser [lng, lat] → [lat, lng] pour Leaflet
+    return coords.map(([lng, lat]) => [lat, lng] as [number, number]);
+  } catch {
+    return [];
+  }
+}
 
-  // ── Avis ──
-  const [avis, setAvis] = useState<any[]>([]);
-  const [avisLoading, setAvisLoading] = useState(true);
-  const initialLoad = useRef(true);
-  const fetchAllRef = useRef<() => Promise<void>>(null!);
-  const fetchStatsRef = useRef<() => Promise<void>>(null!);
+function loadLeaflet(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if ((window as any).L) {
+      resolve();
+      return;
+    }
+    if (!document.getElementById("leaflet-css")) {
+      const l = document.createElement("link");
+      l.id = "leaflet-css";
+      l.rel = "stylesheet";
+      l.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      document.head.appendChild(l);
+    }
+    const s = document.createElement("script");
+    s.id = "leaflet-js";
+    s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+    s.onload = () => resolve();
+    s.onerror = () => reject();
+    document.head.appendChild(s);
+  });
+}
 
-  // ── GPS ──
-  const [gpsActive, setGpsActive] = useState(false);
-  const [gpsLoading, setGpsLoading] = useState(true);
-  const [gpsPosition, setGpsPosition] = useState<{ lat: number; lng: number } | null>(null);
-  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
-  const [gpsUpdateCount, setGpsUpdateCount] = useState(0);
-  const [activeResaId, setActiveResaId] = useState<string | null>(null);
-  const [autoTransition, setAutoTransition] = useState(false);
-  const watchIdRef = useRef<number | null>(null);
-  const lastPosRef = useRef<{ lat: number; lng: number } | null>(null);
-  const activeResaIdRef = useRef<string | null>(null);
-  const gpsMapRef = useRef<HTMLDivElement>(null);
-  const gpsMapInst = useRef<any>(null);
-  const gpsMarkerRef = useRef<any>(null);
-  // ── Auto-status refs ──
-  const pickupGeoRef = useRef<{ lat: number; lng: number } | null>(null); // coordonnées de la prise en charge active
-  const destinationGeoRef = useRef<{ lat: number; lng: number } | null>(null); // coordonnées de la destination active
-  const autoStatusFiredRef = useRef<Record<string, boolean>>({}); // évite les doubles déclenchements
-  const [gpsError, setGpsError] = useState<string | null>(null);
-  const gpsHeartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const gpsRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastKnownPosRef = useRef<{ lat: number; lng: number; accuracy: number } | null>(null);
+const inputStyle = (hasError?: boolean): React.CSSProperties => ({
+  width: "100%",
+  padding: "14px 14px",
+  borderRadius: 12,
+  border: `2px solid ${hasError ? "#ef4444" : "rgba(203,213,225,0.4)"}`,
+  fontSize: 16,
+  background: "#ffffff",
+  color: "#0f172a",
+  fontFamily: "'DM Sans',sans-serif",
+  outline: "none",
+  boxSizing: "border-box",
+  minHeight: 48,
+});
 
-  // ── Notifications push ──
+/**
+ * Construit un ISO string avec l'offset réel Europe/Paris
+ * à partir d'une date "YYYY-MM-DD" et d'une heure "HH:MM".
+ * Évite la confusion UTC / local qui fausse les calculs nuit et mixte.
+ */
+function toParisIso(date: string, heure: string): string {
+  // On forge directement un ISO en heure locale Paris en cherchant le bon offset UTC.
+  // Principe : on cherche l'offset réel de Europe/Paris pour ce moment précis,
+  // sans passer par le fuseau du navigateur qui peut être différent.
+  const [h, m] = heure.split(":").map(Number);
+  const [y, mo, d] = date.split("-").map(Number);
+  // Estimation initiale : UTC = heure Paris - 2h (été) ou -1h (hiver)
+  // On itère pour trouver l'offset exact
+  for (const guessOffset of [120, 60, 0]) {
+    const utcMs = Date.UTC(y, mo - 1, d, h - Math.floor(guessOffset / 60), m - (guessOffset % 60));
+    const check = new Intl.DateTimeFormat("fr-FR", {
+      timeZone: "Europe/Paris",
+      hour: "numeric",
+      minute: "numeric",
+      hourCycle: "h23",
+    }).formatToParts(new Date(utcMs));
+    const hPart = check.find((p) => p.type === "hour");
+    const mPart = check.find((p) => p.type === "minute");
+    const hVal = hPart ? parseInt(hPart.value, 10) : -1;
+    const mVal = mPart ? parseInt(mPart.value, 10) : -1;
+    if (hVal === h && mVal === m) {
+      const sign = guessOffset >= 0 ? "+" : "-";
+      const absMin = Math.abs(guessOffset);
+      const hh = String(Math.floor(absMin / 60)).padStart(2, "0");
+      const mm = String(absMin % 60).padStart(2, "0");
+      return `${date}T${heure}:00${sign}${hh}:${mm}`;
+    }
+  }
+  // Fallback ultime : ISO sans offset (heure locale navigateur)
+  return `${date}T${heure}:00`;
+}
+
+function ReservationPage() {
+  const navigate = useNavigate();
+  const [today, setToday] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [sending, setSending] = useState(false);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
     typeof window !== "undefined" && "Notification" in window ? Notification.permission : "default",
   );
 
-  // Distance en mètres entre deux coords (Haversine simplifié)
-  const distMetersGps = (a: { lat: number; lng: number }, b: { lat: number; lng: number }): number => {
-    const R = 6371000;
-    const toRad = (d: number) => (d * Math.PI) / 180;
-    const x = (toRad(b.lng) - toRad(a.lng)) * Math.cos(toRad((a.lat + b.lat) / 2));
-    const y = toRad(b.lat) - toRad(a.lat);
-    return Math.sqrt(x * x + y * y) * R;
-  };
+  const [fromCoord, setFromCoord] = useState<[number, number] | null>(null);
+  const [toCoord, setToCoord] = useState<[number, number] | null>(null);
+  const [orsResult, setOrsResult] = useState<OrsResult | null>(null);
+  const [calcLoading, setCalcLoading] = useState(false);
+  const [geolocLoading, setGeolocLoading] = useState(false);
+  const [taxiAvailable, setTaxiAvailable] = useState<boolean | null>(null);
+  const [destinationChoices, setDestinationChoices] = useState<AddressChoice[]>([]);
 
-  const getDriverGpsRejection = (
-    pos: GeolocationPosition,
-    lastPos: { lat: number; lng: number } | null,
-  ): string | null => {
-    const { latitude, longitude, accuracy: acc } = pos.coords;
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || !Number.isFinite(acc)) {
-      return "Position GPS invalide ignorée.";
-    }
-    if (acc > MAX_DRIVER_GPS_ACCURACY_M) {
-      return `Signal GPS trop imprécis (±${Math.round(acc)} m). Position non envoyée.`;
-    }
-    if (
-      distMetersGps({ lat: latitude, lng: longitude }, BORDEAUX_CENTER_GPS) > MAX_DRIVER_GPS_DISTANCE_FROM_BORDEAUX_M
-    ) {
-      return "Position GPS incohérente avec Bordeaux ignorée.";
-    }
-    if (lastPos && distMetersGps(lastPos, { lat: latitude, lng: longitude }) > MAX_DRIVER_GPS_JUMP_M) {
-      return "Saut GPS anormal ignoré, attente du prochain signal fiable.";
-    }
-    return null;
-  };
+  const [f, setF] = useState<FormState>({
+    depart: "",
+    destination: "",
+    date: "",
+    heure: "",
+    passagers: 1,
+    bagages: 0,
+    paiement: "especes",
+    prenom: "",
+    nom: "",
+    phone: "",
+    email: "",
+  });
 
-  // =========================
-  // AUTO-SUBSCRIBE FCM (admin + chauffeur)
-  // Ne tente l'abonnement automatique QUE si la permission est déjà accordée.
-  // La première demande se fait via le bouton 🔔 dans le header (geste utilisateur requis).
-  // =========================
+  const set = (k: keyof FormState, v: any) => setF((p) => ({ ...p, [k]: v }));
+
+  const [lang, setLang] = useState<Lang>("fr");
+  const d = DICTS[lang];
+  const t = (k: string) => d[k] ?? DICTS["fr"][k] ?? k;
+  const dir = lang === "ar" ? "rtl" : "ltr";
+
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInst = useRef<any>(null);
+  const routeLayer = useRef<any>(null);
+  const fromMarker = useRef<any>(null);
+  const toMarker = useRef<any>(null);
+
+  const pickupIso = f.date && f.heure ? toParisIso(f.date, f.heure) : null;
+
+  // ── Tarification Paris : 7h-19h = Jour, 19h-7h = Nuit
+  //    Dimanche et jours fériés → Nuit toute la journée
+  //    Si le trajet chevauche la frontière 7h ou 19h → calcul mixte proportionnel ──
+  const JOURS_FERIES_RES = new Set([
+    "2025-01-01",
+    "2025-04-21",
+    "2025-05-01",
+    "2025-05-08",
+    "2025-05-29",
+    "2025-06-09",
+    "2025-07-14",
+    "2025-08-15",
+    "2025-11-01",
+    "2025-11-11",
+    "2025-12-25",
+    "2026-01-01",
+    "2026-04-06",
+    "2026-05-01",
+    "2026-05-08",
+    "2026-05-14",
+    "2026-05-25",
+    "2026-06-04",
+    "2026-07-14",
+    "2026-08-15",
+    "2026-11-01",
+    "2026-11-11",
+    "2026-12-25",
+    "2027-01-01",
+    "2027-03-29",
+    "2027-05-01",
+    "2027-05-08",
+    "2027-05-13",
+    "2027-05-24",
+    "2027-07-14",
+    "2027-08-15",
+    "2027-11-01",
+    "2027-11-11",
+    "2027-12-25",
+  ]);
+
+  function isJourFerieRes(date: Date): boolean {
+    const yyyy = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", year: "numeric" });
+    const mm = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", month: "2-digit" });
+    const dd = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", day: "2-digit" });
+    return JOURS_FERIES_RES.has(`${yyyy}-${mm}-${dd}`);
+  }
+
+  // Retourne l'heure Paris (0-23) d'un timestamp ms — fiable sur tous navigateurs
+  function heureParis(ms: number): number {
+    const parts = new Intl.DateTimeFormat("fr-FR", {
+      timeZone: "Europe/Paris",
+      hour: "numeric",
+      hourCycle: "h23",
+    }).formatToParts(new Date(ms));
+    const h = parts.find((p) => p.type === "hour");
+    return h ? parseInt(h.value, 10) : 0;
+  }
+
+  // Vrai si ce moment est tarifé "nuit" (dimanche, férié, ou 19h-7h Paris)
+  function isMomentNuit(ms: number): boolean {
+    const date = new Date(ms);
+    const h = heureParis(ms);
+    const dimanche = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", weekday: "short" }) === "dim.";
+    return h >= 19 || h < 7 || dimanche || isJourFerieRes(date);
+  }
+
+  // Calcule le prix mixte proportionnel pour un trajet de distKm démarrant à pickupMs
+  // en découpant le trajet en tranches de 1 minute et pondérant jour/nuit
+  function calculerPrixMixteLocal(distKm: number, pickupMs: number, dureeS: number): number {
+    const TARIF_JOUR_KM = 2.16;
+    const TARIF_NUIT_KM = 3.24;
+    const PRISE = 2.83;
+    if (distKm <= 0) return PRISE;
+    const steps = Math.max(Math.round(dureeS / 60), 1);
+    const stepMs = (dureeS * 1000) / steps;
+    let jourKm = 0;
+    let nuitKm = 0;
+    for (let i = 0; i < steps; i++) {
+      const tMs = pickupMs + i * stepMs;
+      const frac = distKm / steps;
+      if (isMomentNuit(tMs)) nuitKm += frac;
+      else jourKm += frac;
+    }
+    return parseFloat((PRISE + jourKm * TARIF_JOUR_KM + nuitKm * TARIF_NUIT_KM).toFixed(2));
+  }
+
+  // tarifJour : utilisé uniquement pour le badge affiché, basé sur l'heure de départ
+  const tarifJour = pickupIso ? !isMomentNuit(new Date(pickupIso).getTime()) : true;
+
+  const prixAller: number = (() => {
+    if (!orsResult) return PRISE_EN_CHARGE;
+    const raw = pickupIso
+      ? calculerPrixMixteLocal(orsResult.distanceKm, new Date(pickupIso).getTime(), orsResult.dureeS)
+      : calculerPrix(orsResult.distanceKm, true);
+    // Garde-fou : prix > 2000 EUR = bug de données, on n affiche pas
+    const MAX_PRIX = 2000;
+    return raw > MAX_PRIX ? PRISE_EN_CHARGE : raw;
+  })();
+
   useEffect(() => {
+    const d = new Date().toISOString().split("T")[0];
+    setToday(d);
+    setF((p) => ({ ...p, date: p.date || d }));
+  }, []);
+
+  // ── Init carte ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    let mounted = true;
+    const initMap = async () => {
+      try {
+        await loadLeaflet();
+      } catch {
+        return;
+      }
+      if (!mounted || !mapRef.current) return;
+      const L = (window as any).L;
+      if (mapInst.current) {
+        mapInst.current.remove();
+        mapInst.current = null;
+      }
+      const map = L.map(mapRef.current, { center: BORDEAUX_CENTER, zoom: 12, zoomControl: false });
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors",
+        maxZoom: 19,
+      }).addTo(map);
+      L.control.zoom({ position: "bottomright" }).addTo(map);
+      mapInst.current = map;
+      setTimeout(() => map.invalidateSize(), 100);
+      setTimeout(() => map.invalidateSize(), 400);
+    };
+    initMap();
+    return () => {
+      mounted = false;
+      if (mapInst.current) {
+        mapInst.current.remove();
+        mapInst.current = null;
+      }
+    };
+  }, []);
+
+  // ── Marqueurs + tracé (chemin le plus long) ───────────────────────────────
+  useEffect(() => {
+    const map = mapInst.current;
+    const L = (window as any).L;
+    if (!map || !L) return;
+
+    if (fromCoord) {
+      const icon = L.divIcon({
+        className: "",
+        html: `<div style="width:16px;height:16px;background:#22c55e;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 4px rgba(34,197,94,0.3)"></div>`,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
+      });
+      if (fromMarker.current) fromMarker.current.remove();
+      fromMarker.current = L.marker([fromCoord[0], fromCoord[1]], { icon }).addTo(map);
+    }
+
+    if (toCoord) {
+      const icon = L.divIcon({
+        className: "",
+        html: `<div style="width:16px;height:16px;background:#f5c842;border-radius:50%;border:3px solid #1a1a2e;box-shadow:0 0 0 4px rgba(245,200,66,0.3)"></div>`,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
+      });
+      if (toMarker.current) toMarker.current.remove();
+      toMarker.current = L.marker([toCoord[0], toCoord[1]], { icon }).addTo(map);
+    }
+
+    if (fromCoord && toCoord) {
+      // Toujours le chemin le plus long
+      getOsrmPolylineLongest(fromCoord, toCoord).then((coords) => {
+        if (!mapInst.current || !L) return;
+        if (routeLayer.current) {
+          routeLayer.current.remove();
+          routeLayer.current = null;
+        }
+        if (coords.length > 1) {
+          routeLayer.current = L.polyline(
+            coords.map((c) => [c[1], c[0]]),
+            { color: "#f5c842", weight: 5, opacity: 0.95 },
+          ).addTo(mapInst.current);
+          mapInst.current.fitBounds(
+            L.latLngBounds([
+              [fromCoord[0], fromCoord[1]],
+              [toCoord[0], toCoord[1]],
+              ...coords.map((c) => [c[1], c[0]]),
+            ]).pad(0.25),
+          );
+        }
+      });
+    } else if (fromCoord) {
+      map.setView([fromCoord[0], fromCoord[1]], 14);
+    }
+  }, [fromCoord, toCoord]);
+
+  // ── OSRM : recalcul distance/prix ────────────────────────────────────────
+  useEffect(() => {
+    if (!fromCoord || !toCoord) {
+      setOrsResult(null);
+      return;
+    }
+    setCalcLoading(true);
+
+    const fetchOsrm = async () => {
+      try {
+        // Appel direct OSRM public avec timeout de 6 s
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 6000);
+        const url =
+          `https://router.project-osrm.org/route/v1/driving/` +
+          `${fromCoord[1]},${fromCoord[0]};${toCoord[1]},${toCoord[0]}` +
+          `?overview=false`;
+        const res = await fetch(url, { signal: controller.signal });
+        clearTimeout(timer);
+        if (res.ok) {
+          const json = await res.json();
+          const route = json?.routes?.[0];
+          if (route) {
+            setOrsResult({
+              distanceKm: parseFloat((route.distance / 1000).toFixed(2)),
+              dureeS: Math.round(route.duration),
+            });
+            setCalcLoading(false);
+            return;
+          }
+        }
+      } catch {
+        // timeout ou erreur réseau → fallback
+      }
+
+      // Fallback : essai via Edge Function Supabase
+      try {
+        const controller2 = new AbortController();
+        const timer2 = setTimeout(() => controller2.abort(), 8000);
+        const res2 = await fetch(`${SUPABASE_URL}/functions/v1/osrm-route`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            from_lng: fromCoord[1],
+            from_lat: fromCoord[0],
+            to_lng: toCoord[1],
+            to_lat: toCoord[0],
+            overview: "false",
+          }),
+          signal: controller2.signal,
+        });
+        clearTimeout(timer2);
+        if (res2.ok) {
+          const json2 = await res2.json();
+          if (json2?.distance && json2?.duration) {
+            setOrsResult({
+              distanceKm: parseFloat((json2.distance / 1000).toFixed(2)),
+              dureeS: Math.round(json2.duration),
+            });
+            setCalcLoading(false);
+            return;
+          }
+        }
+      } catch {
+        // fallback vol d'oiseau
+      }
+
+      // Fallback final : OSRM demo server (autre instance publique)
+      try {
+        const controller3 = new AbortController();
+        const timer3 = setTimeout(() => controller3.abort(), 8000);
+        const url3 =
+          `https://routing.openstreetmap.de/routed-car/route/v1/driving/` +
+          `${fromCoord[1]},${fromCoord[0]};${toCoord[1]},${toCoord[0]}` +
+          `?overview=false`;
+        const res3 = await fetch(url3, { signal: controller3.signal });
+        clearTimeout(timer3);
+        if (res3.ok) {
+          const json3 = await res3.json();
+          const route3 = json3?.routes?.[0];
+          if (route3) {
+            setOrsResult({
+              distanceKm: parseFloat((route3.distance / 1000).toFixed(2)),
+              dureeS: Math.round(route3.duration),
+            });
+            setCalcLoading(false);
+            return;
+          }
+        }
+      } catch {
+        // dernier fallback
+      }
+
+      // Dernier recours : GraphHopper public (clé gratuite non requise pour petits volumes)
+      try {
+        const controller4 = new AbortController();
+        const timer4 = setTimeout(() => controller4.abort(), 8000);
+        const url4 = `https://graphhopper.com/api/1/route?point=${fromCoord[0]},${fromCoord[1]}&point=${toCoord[0]},${toCoord[1]}&vehicle=car&locale=fr&calc_points=false&key=LijBPDQGfu7Iiq80ebFCtWMuznIlArMPjQALgdAb83w`;
+        const res4 = await fetch(url4, { signal: controller4.signal });
+        clearTimeout(timer4);
+        if (res4.ok) {
+          const json4 = await res4.json();
+          const path = json4?.paths?.[0];
+          if (path) {
+            setOrsResult({
+              distanceKm: parseFloat((path.distance / 1000).toFixed(2)),
+              dureeS: Math.round(path.time / 1000),
+            });
+            setCalcLoading(false);
+            return;
+          }
+        }
+      } catch {
+        // abandon
+      }
+
+      setCalcLoading(false);
+    };
+
+    fetchOsrm();
+  }, [fromCoord, toCoord]);
+
+  // ── Géolocalisation départ (navigateur client) ───────────────────────────
+  const handleGeolocate = useCallback(() => {
+    if (!navigator.geolocation) {
+      toast.error("Géolocalisation non disponible");
+      return;
+    }
+    setGeolocLoading(true);
+
+    const applyPosition = async (lat: number, lng: number) => {
+      let adresse = await reverseGeocode(lat, lng).catch(() => null);
+      if (!adresse) {
+        const fallback = await searchAddress(`${lat}, ${lng}`, 1).catch(() => []);
+        adresse = fallback[0]?.label ?? null;
+      }
+      set("depart", adresse ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+      setFromCoord([lat, lng]);
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.depart;
+        return next;
+      });
+      toast.success(t("res.geo.btn") + " ✓");
+      setGeolocLoading(false);
+    };
+
+    const rejectAutoPosition = (message: string) => {
+      setGeolocLoading(false);
+      setFromCoord(null);
+      setErrors((prev) => ({ ...prev, depart: message }));
+      toast.error(message);
+    };
+
+    const geoErrorMessage = (err?: GeolocationPositionError) =>
+      err?.code === 1
+        ? "Autorisation GPS refusée par le téléphone ou le navigateur. Activez la localisation pour ce site, ou saisissez l’adresse exacte."
+        : err?.code === 2
+          ? "Signal GPS indisponible. Saisissez l’adresse exacte de départ."
+          : "GPS trop long à répondre. Saisissez l’adresse exacte de départ.";
+
+    (async () => {
+      try {
+        const precise = await requestBrowserPosition({
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 18000,
+        });
+        const reason = getAutoGeoRejectionReason(precise);
+        if (reason) {
+          rejectAutoPosition(reason);
+          return;
+        }
+        await applyPosition(precise.coords.latitude, precise.coords.longitude);
+      } catch (firstErr) {
+        try {
+          const cached = await requestBrowserPosition({
+            enableHighAccuracy: false,
+            maximumAge: 120000,
+            timeout: 8000,
+          });
+          const reason = getAutoGeoRejectionReason(cached);
+          if (reason) {
+            rejectAutoPosition(reason);
+            return;
+          }
+          await applyPosition(cached.coords.latitude, cached.coords.longitude);
+        } catch (secondErr) {
+          const err = (secondErr || firstErr) as GeolocationPositionError;
+          rejectAutoPosition(geoErrorMessage(err));
+        }
+      }
+    })();
+  }, []);
+
+  // ── Résoudre adresse départ (saisie manuelle) ────────────────────────────
+  const resolveDepartAddress = useCallback(async () => {
+    const value = f.depart.trim();
+    if (!value) return;
+    setCalcLoading(true);
+    const result = await geocodeFullAddress(value);
+    setCalcLoading(false);
+    if (result) {
+      setFromCoord(result.coord);
+      set("depart", result.label);
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.depart;
+        return next;
+      });
+    } else {
+      setFromCoord(null);
+      setErrors((prev) => ({ ...prev, depart: "Adresse introuvable" }));
+    }
+  }, [f.depart]);
+
+  // ── Résoudre adresse destination ─────────────────────────────────────────
+  const resolveDestinationAddress = useCallback(async () => {
+    const value = f.destination.trim();
+    if (!value) return;
+    setCalcLoading(true);
+
+    // Si le départ est saisi mais fromCoord pas encore résolu (l'utilisateur
+    // a sauté directement au champ destination avant que resolveDepartAddress finisse),
+    // on le résout maintenant nous-mêmes pour avoir un fromCoord à jour.
+    let resolvedFromCoord = fromCoord;
+    if (f.depart.trim() && !fromCoord) {
+      const departResult = await geocodeFullAddress(f.depart.trim());
+      if (departResult) {
+        resolvedFromCoord = departResult.coord;
+        setFromCoord(departResult.coord);
+        set("depart", departResult.label);
+        setErrors((prev) => {
+          const next = { ...prev };
+          delete next.depart;
+          return next;
+        });
+      }
+    }
+
+    const origin = resolvedFromCoord ?? BORDEAUX_CENTER;
+
+    // 1) On tente geocodeFullAddress en priorité (rapide, Nominatim)
+    const result = await geocodeFullAddress(value);
+    if (result) {
+      setCalcLoading(false);
+      setDestinationChoices([]);
+      setToCoord(result.coord);
+      set("destination", result.label);
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.destination;
+        return next;
+      });
+      return; // trouvé → pas besoin de chercher plus loin
+    }
+
+    // 2) Fallback : recherche élargie (Photon + Overpass + variantes Nominatim)
+    const nearbyChoices = await searchNearbyAddressChoices(value, origin, DESTINATION_SEARCH_RADIUS_KM);
+    setCalcLoading(false);
+
+    if (nearbyChoices.length) {
+      setDestinationChoices(nearbyChoices);
+      setToCoord(null);
+      setErrors((prev) => ({
+        ...prev,
+        destination: "Sélectionnez une adresse dans la liste",
+      }));
+    } else {
+      setDestinationChoices([]);
+      setToCoord(null);
+      setErrors((prev) => ({
+        ...prev,
+        destination: "Adresse introuvable — précisez la ville ou le lieu",
+      }));
+    }
+  }, [f.destination, f.depart, fromCoord]);
+
+  // ── Disponibilité taxi ────────────────────────────────────────────────────
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("reservations")
+          .select("id", { count: "exact", head: false })
+          .not("status", "in", '("cancelled","refused","completed")')
+          .limit(1);
+        if (error) throw error;
+        setTaxiAvailable(!data || data.length === 0);
+      } catch {
+        setTaxiAvailable(null);
+      }
+    };
+    check();
+  }, []);
+
+  // ── Auto-push client au chargement ──────────────────────────────────────
+  useEffect(() => {
+    // Ne tente l'abonnement automatique QUE si la permission est déjà accordée.
+    // La première demande passe par le bouton 🔔 (geste utilisateur requis par Chrome/Safari).
     if (
       typeof window === "undefined" ||
       !("Notification" in window) ||
@@ -553,3107 +1013,942 @@ function Dashboard() {
       return;
     if (Notification.permission !== "granted") return;
 
-    let cancelled = false;
-
-    const doSubscribe = async (fcm: string) => {
-      const ua = navigator.userAgent.slice(0, 500);
-      const now = new Date().toISOString();
-      await Promise.all([
-        supabase.from("push_subscriptions").upsert(
-          {
-            audience: "admin",
-            endpoint: `fcm://${fcm}`,
-            fcm_token: fcm,
-            reservation_id: null,
-            user_agent: ua,
-            last_seen_at: now,
-          },
-          { onConflict: "endpoint" },
-        ),
-        supabase.from("push_subscriptions").upsert(
-          {
-            audience: "chauffeur",
-            endpoint: `fcm://${fcm}-chauffeur`,
-            fcm_token: fcm,
-            reservation_id: null,
-            user_agent: ua,
-            last_seen_at: now,
-          },
-          { onConflict: "endpoint" },
-        ),
-      ]);
-      localStorage.setItem("fcm_token", fcm);
-      console.info("[push] dashboard registered — admin + chauffeur");
-    };
-
-    // Retry avec backoff exponentiel jusqu'à ce que getFcmToken réussisse
-    const tryRegister = async (attempt = 0): Promise<void> => {
-      if (cancelled) return;
+    const registerPush = async () => {
       try {
-        const fcm = await getFcmToken();
-        if (!fcm) throw new Error("no_token");
-        if (cancelled) return;
-
-        const previous = localStorage.getItem("fcm_token");
-        if (fcm !== previous) {
-          // Token nouveau ou changé → toujours re-subscribe
-          await doSubscribe(fcm);
-        } else {
-          // Même token : re-subscribe quand même pour rafraîchir last_seen_at
-          // (évite que le token soit supprimé par une purge des tokens inactifs)
-          await doSubscribe(fcm);
-        }
-      } catch (e) {
-        console.warn("[push] auto-subscribe attempt", attempt + 1, "failed", e);
-        if (attempt < 5 && !cancelled) {
-          const delay = 2000 * Math.pow(2, attempt); // 2s, 4s, 8s, 16s, 32s
-          setTimeout(() => tryRegister(attempt + 1), delay);
-        }
+        const token = await getFcmToken();
+        if (!token) return;
+        await Promise.all([
+          subscribePush({
+            data: { audience: "client", fcm_token: token, user_agent: navigator.userAgent },
+          }),
+          subscribePush({
+            data: {
+              audience: "chauffeur",
+              fcm_token: token,
+              reservation_id: null,
+              user_agent: navigator.userAgent,
+            },
+          }),
+        ]);
+      } catch {
+        // silencieux — pas bloquant
       }
     };
-
-    // Premier essai après 1.5s (SW Firebase a besoin d'un peu de temps au 1er load)
-    const timer = setTimeout(() => tryRegister(0), 1500);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
+    registerPush();
   }, []);
 
-  // =========================
-  // FETCH STATS
-  // =========================
-  const fetchStats = useCallback(async () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayIso = today.toISOString();
-    const monthIso = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
-    const nowIso = new Date().toISOString();
-    const tomorrowIso = new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString();
-    const [caJR, caMR, cJR, cliR, visR] = await Promise.all([
-      supabase.from("courses").select("prix_final").gte("created_at", todayIso),
-      supabase.from("courses").select("prix_final").gte("created_at", monthIso),
-      supabase
-        .from("reservations")
-        .select("id", { count: "exact", head: true })
-        .gte("pickup_datetime", todayIso)
-        .lt("pickup_datetime", tomorrowIso)
-        .neq("status", "refused"),
-      supabase.from("clients").select("id", { count: "exact", head: true }),
-      supabase.from("site_analytics").select("session_id").eq("event", "visit").gte("created_at", todayIso),
-    ]);
-    setCaJ((caJR.data ?? []).reduce((s: number, c: any) => s + (Number(c.prix_final) || 0), 0));
-    setCaM((caMR.data ?? []).reduce((s: number, c: any) => s + (Number(c.prix_final) || 0), 0));
-    setCoursesJ(cJR.count ?? 0);
-    setClientsTotal(cliR.count ?? 0);
-    setVisitors(new Set((visR.data ?? []).map((v: any) => v.session_id)).size);
-    setStatsLoading(false);
-  }, []);
+  // ── Soumission ────────────────────────────────────────────────────────────
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  // =========================
-  // FETCH COURSES
-  // =========================
-  const fetchCourses = useCallback(async () => {
-    const { data, error } = await supabase.from("reservations").select("*").order("created_at", { ascending: false });
-    if (error) {
-      setCoursesLoading(false);
+    const newErrors: Record<string, string> = {};
+    if (!f.prenom.trim()) newErrors.prenom = t("res.err.required");
+    if (!f.nom.trim()) newErrors.nom = t("res.err.required");
+    if (!f.phone.trim()) newErrors.phone = t("res.err.required");
+    if (!f.email.trim()) newErrors.email = t("res.err.required");
+    if (!f.depart.trim()) newErrors.depart = t("res.err.required");
+    if (!f.destination.trim()) newErrors.destination = t("res.err.required");
+    if (!fromCoord) newErrors.depart = t("res.geo.err.unavailable");
+    if (!toCoord) newErrors.destination = t("res.geo.err.unavailable");
+    if (!f.date.trim()) newErrors.date = t("res.err.required");
+    if (!f.heure.trim()) newErrors.heure = t("res.err.required");
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      toast.error(t("res.err.required"));
       return;
     }
-    const rows = data ?? [];
-    setItems(rows);
-    const nextCounts = { pending: 0, accepted: 0, refused: 0 };
-    rows.forEach((r: any) => {
-      nextCounts[normalizeStatus(r.status)]++;
-    });
-    setCounts(nextCounts);
-    setCoursesLoading(false);
-    repairMissingPrices(rows);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // =========================
-  // FETCH AVIS
-  // =========================
-  const fetchAvis = useCallback(async () => {
-    const { data, error } = await (supabase as any).from("avis").select("*").order("created_at", { ascending: false });
-    if (!error) setAvis(data ?? []);
-    setAvisLoading(false);
-  }, []);
-
-  const fetchAll = useCallback(async () => {
-    setRefreshing(true);
-    setStatsLoading(true);
-    setCoursesLoading(true);
-    setAvisLoading(true);
-    await Promise.all([fetchStats(), fetchCourses(), fetchAvis()]);
-    setRefreshing(false);
-  }, [fetchStats, fetchCourses, fetchAvis]);
-  fetchAllRef.current = fetchAll;
-  fetchStatsRef.current = fetchStats;
-
-  // ── Counts dérivés des items (source unique de vérité) ──
-  useEffect(() => {
-    const nextCounts = { pending: 0, accepted: 0, refused: 0 };
-    items.forEach((r: any) => {
-      nextCounts[normalizeStatus(r.status)]++;
-    });
-    setCounts(nextCounts);
-  }, [items]);
-
-  // =========================
-  // REALTIME
-  // =========================
-  useEffect(() => {
-    fetchAllRef.current?.().finally(() => {
-      initialLoad.current = false;
-    });
-    const ch = supabase
-      .channel("dash-courses")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "reservations" }, (payload) => {
-        const n = payload.new as any;
-        if (!initialLoad.current) {
-          const clientName = n.client_name || n.nom || "Client";
-          try {
-            new Audio("/notification.mp3").play().catch(() => {});
-          } catch {}
-          // Notification gérée par le trigger Supabase + Edge Function notify-new-reservation
-
-          if (typeof window !== "undefined" && "Notification" in window) {
-            const fire = () => {
-              try {
-                new Notification("🔔 Nouvelle réservation", {
-                  body: `${clientName} — ${n.depart || ""} → ${n.arrivee || n.destination || ""}`,
-                  icon: "/favicon.ico",
-                  tag: `reservation-${n.id}`,
-                  requireInteraction: true,
-                });
-              } catch {}
-            };
-            if (Notification.permission === "granted") fire();
-            else if (Notification.permission === "default")
-              Notification.requestPermission().then((p) => {
-                if (p === "granted") fire();
-              });
-          }
-          if (typeof window !== "undefined") {
-            const t = document.createElement("div");
-            t.textContent = `🔔 Nouvelle réservation de ${clientName}`;
-            t.style.cssText = `position:fixed;top:20px;right:20px;background:#0ea5e9;color:white;padding:14px 20px;border-radius:12px;font-family:DM Sans,sans-serif;font-weight:700;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,0.3);`;
-            document.body.appendChild(t);
-            setTimeout(() => t.remove(), 5000);
-          }
-        }
-        // Fix: insert local uniquement, sans re-fetch global qui ecrase les statuts
-        if (n?.id) {
-          setItems((prev) => (prev.some((item) => item.id === n.id) ? prev : [n, ...prev]));
-        }
-        fetchStats();
-      })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "reservations" }, (payload) => {
-        const updated = payload.new as any;
-        console.log("[RT UPDATE]", updated?.id?.slice(0, 8), "db:", updated?.status);
-        if (updated?.id) {
-          setItems((prev) =>
-            prev.map((item) => {
-              if (item.id !== updated.id) return item;
-              console.log("[RT UPDATE] local:", item.status, "-> db:", updated.status);
-              // Ne pas écraser un statut local plus avancé avec un statut DB plus ancien
-              const rank: Record<string, number> = {
-                pending: 0,
-                accepted: 1,
-                refused: 1,
-                en_route: 2,
-                arrived: 3,
-                completed: 4,
-                cancelled: 4,
-              };
-              if ((rank[item.status] ?? 0) > (rank[updated.status] ?? 0)) {
-                return { ...item, ...updated, status: item.status };
-              }
-              return { ...item, ...updated };
-            }),
-          );
-        }
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "site_analytics" }, () => fetchStats())
-      .on("postgres_changes", { event: "*", schema: "public", table: "avis" }, () => fetchAvis())
-      .subscribe();
-    return () => {
-      supabase.removeChannel(ch);
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // =========================
-  // GPS INIT
-  // =========================
-  useEffect(() => {
-    const initGPS = async () => {
-      const { data, error } = await (supabase as any).from("driver_gps").select("*").eq("id", "driver").single();
-      if (error || !data) {
-        await (supabase as any)
-          .from("driver_gps")
-          .insert({ id: "driver", is_active: false, latitude: 0, longitude: 0 });
-      }
-      setGpsLoading(false);
-    };
-    initGPS();
-    return () => {
-      // Nettoyage complet à la destruction du composant
-      if (watchIdRef.current !== null && typeof navigator !== "undefined")
-        navigator.geolocation.clearWatch(watchIdRef.current);
-      if (gpsHeartbeatRef.current) clearInterval(gpsHeartbeatRef.current);
-      if (gpsRetryTimerRef.current) clearTimeout(gpsRetryTimerRef.current);
-    };
-  }, []);
-
-  // GPS mini-map
-  useEffect(() => {
-    if (!gpsActive || !gpsMapRef.current) return;
-    // Flag pour détecter si le cleanup a tourné avant la fin de l'init async
-    let cancelled = false;
-    const initMap = async () => {
-      const L = (window as any).L;
-      if (!L) {
-        await new Promise<void>((resolve) => {
-          if (!document.getElementById("leaflet-css-admin")) {
-            const link = document.createElement("link");
-            link.id = "leaflet-css-admin";
-            link.rel = "stylesheet";
-            link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-            document.head.appendChild(link);
-          }
-          if (!document.getElementById("leaflet-js-admin")) {
-            const s = document.createElement("script");
-            s.id = "leaflet-js-admin";
-            s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-            s.onload = () => resolve();
-            document.head.appendChild(s);
-          } else {
-            // Script déjà présent mais window.L peut ne pas être encore dispo :
-            // on poll jusqu'à ce qu'il soit prêt (fix Bug 4 : resolve() jamais appelé)
-            if ((window as any).L) {
-              resolve();
-            } else {
-              const poll = setInterval(() => {
-                if ((window as any).L) {
-                  clearInterval(poll);
-                  resolve();
-                }
-              }, 50);
-            }
-          }
-        });
-      }
-      // Bug 3 : si le cleanup a déjà tourné (gpsActive → false pendant l'await),
-      // on n'initialise pas la map pour éviter une fuite mémoire / crash.
-      if (cancelled || !gpsMapRef.current || gpsMapInst.current) return;
-      const Lx = (window as any).L;
-      const center: [number, number] = gpsPosition ? [gpsPosition.lat, gpsPosition.lng] : [44.8378, -0.5792];
-      const map = Lx.map(gpsMapRef.current, { center, zoom: 15, zoomControl: true, attributionControl: false });
-      Lx.tileLayer(OSM_TILE_URL, OSM_TILE_OPTIONS).addTo(map);
-      const icon = Lx.divIcon({
-        className: "",
-        html: `<div style="width:20px;height:20px;background:#22c55e;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 6px rgba(34,197,94,0.3),0 2px 12px rgba(34,197,94,0.6)"></div>`,
-        iconSize: [20, 20],
-        iconAnchor: [10, 10],
-      });
-      gpsMarkerRef.current = Lx.marker(center, { icon }).addTo(map);
-      gpsMapInst.current = map;
-      setTimeout(() => map.invalidateSize(), 150);
-    };
-    initMap();
-    return () => {
-      cancelled = true;
-      if (gpsMapInst.current) {
-        gpsMapInst.current.remove();
-        gpsMapInst.current = null;
-        gpsMarkerRef.current = null;
-      }
-    };
-  }, [gpsActive]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!gpsMapInst.current || !gpsPosition) return;
-    const Lx = (window as any).L;
-    if (!Lx) return;
-    const latlng: [number, number] = [gpsPosition.lat, gpsPosition.lng];
-    if (gpsMarkerRef.current) gpsMarkerRef.current.setLatLng(latlng);
-    gpsMapInst.current.setView(latlng, gpsMapInst.current.getZoom());
-  }, [gpsPosition]);
-
-  // GPS auto-start
-  const gpsStartedRef = useRef(false);
-  useEffect(() => {
-    if (coursesLoading || gpsLoading || gpsStartedRef.current) return;
-    gpsStartedRef.current = true;
-    const now = new Date().toISOString();
-    const inProgress = items.find((r) => r.status === "en_route" || r.status === "arrived") ?? null;
-    const nextAccepted =
-      items
-        .filter((r) => r.status === "accepted" && (!r.pickup_datetime || r.pickup_datetime >= now))
-        .sort((a, b) => {
-          if (!a.pickup_datetime) return 1;
-          if (!b.pickup_datetime) return -1;
-          return new Date(a.pickup_datetime).getTime() - new Date(b.pickup_datetime).getTime();
-        })[0] ?? null;
-    startGPS((inProgress ?? nextAccepted)?.id ?? undefined);
-  }, [coursesLoading, gpsLoading]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // GPS auto-transition
-  useEffect(() => {
-    if (!gpsActive || !activeResaId) return;
-    const activeCourse = items.find((r) => r.id === activeResaId);
-    if (!activeCourse) return;
-    if (activeCourse.status !== "completed" && activeCourse.status !== "cancelled") return;
-    const now = new Date().toISOString();
-    const inProgress =
-      items.find((r) => r.id !== activeResaId && (r.status === "en_route" || r.status === "arrived")) ?? null;
-    const nextAccepted =
-      items
-        .filter(
-          (r) => r.id !== activeResaId && r.status === "accepted" && (!r.pickup_datetime || r.pickup_datetime >= now),
-        )
-        .sort((a, b) => {
-          if (!a.pickup_datetime) return 1;
-          if (!b.pickup_datetime) return -1;
-          return new Date(a.pickup_datetime).getTime() - new Date(b.pickup_datetime).getTime();
-        })[0] ?? null;
-    const next = inProgress ?? nextAccepted;
-    if (next) {
-      setAutoTransition(true);
-      setActiveResaId(next.id);
-      activeResaIdRef.current = next.id;
-      // Reset des déclenchements auto pour la nouvelle course
-      delete autoStatusFiredRef.current[next.id + "_en_route"];
-      delete autoStatusFiredRef.current[next.id + "_arrived"];
-      delete autoStatusFiredRef.current[next.id + "_completed"];
-      // Re-géocoder le départ de la nouvelle course avec multi-tentatives
-      pickupGeoRef.current = null;
-      destinationGeoRef.current = null;
-      if (next.depart) {
-        geocodeForRoute(next.depart)
-          .then((c) => {
-            if (c) pickupGeoRef.current = { lat: c.lat, lng: c.lng };
-          })
-          .catch(() => {});
-      }
-      if (next.arrivee || next.destination) {
-        geocodeForRoute(next.arrivee || next.destination)
-          .then((c) => {
-            if (c) destinationGeoRef.current = { lat: c.lat, lng: c.lng };
-          })
-          .catch(() => {});
-      }
-      toast.success("🔄 Nouvelle course détectée", {
-        description:
-          (next.client_name || next.nom || "prochain client") +
-          (next.arrivee || next.destination ? " → " + (next.arrivee || next.destination) : ""),
-        duration: 6000,
-      });
-      setTimeout(() => setAutoTransition(false), 3000);
-    } else {
-      setActiveResaId(null);
-      activeResaIdRef.current = null;
-      toast("🏁 Course terminée", { description: "GPS toujours actif — aucune prochaine course.", duration: 5000 });
-    }
-  }, [items, gpsActive, activeResaId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // =========================
-  // CALCUL DISTANCE
-  // =========================
-  const fetchDistanceKm = async (depart: string, arrivee: string): Promise<number> => {
-    // On utilise geocodeForRoute qui tente plusieurs variantes d'adresse (plus robuste)
-    const [a, b] = await Promise.all([geocodeForRoute(depart), geocodeForRoute(arrivee)]);
-    if (a && b) {
-      try {
-        const dd = await getDistanceAndDurationKm([a.lng, a.lat], [b.lng, b.lat]);
-        if (dd && dd.distanceKm && dd.distanceKm > 0) return Math.round(dd.distanceKm * 10) / 10;
-      } catch {}
-      // Fallback haversine × 1.3 si OSRM échoue
-      const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-      const dLng = ((b.lng - a.lng) * Math.PI) / 180;
-      const sin2 =
+    // Fallback distance si OSRM indisponible : haversine × 1.3 (évite de bloquer la résa)
+    let distanceKm = orsResult?.distanceKm ?? 0;
+    let dureeS = orsResult?.dureeS ?? 0;
+    if (!orsResult && fromCoord && toCoord) {
+      const R = 6371;
+      const dLat = ((toCoord[0] - fromCoord[0]) * Math.PI) / 180;
+      const dLng = ((toCoord[1] - fromCoord[1]) * Math.PI) / 180;
+      const a =
         Math.sin(dLat / 2) ** 2 +
-        Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-      return Math.round((6371 * 2 * Math.atan2(Math.sqrt(sin2), Math.sqrt(1 - sin2)) * 1.3) / 0.5) * 0.5;
-    }
-    return 5;
-  };
-
-  const repairMissingPrices = useCallback(async (rows: any[]) => {
-    const toRepair = rows.filter(
-      (r) =>
-        normalizeStatus(r.status) === "accepted" && r.prix_estime == null && r.depart && (r.arrivee || r.destination),
-    );
-    for (const r of toRepair) {
-      setCardKmLoading((prev) => ({ ...prev, [r.id]: true }));
-      try {
-        const km = await fetchDistanceKm(r.depart, r.arrivee || r.destination);
-        const prix = r.pickup_datetime ? calculerPrixMixte(km, r.pickup_datetime) : calculerPrix(km, true);
-        await supabase.from("reservations").update({ distance_km: km, prix_estime: prix }).eq("id", r.id);
-        setCardKm((prev) => ({ ...prev, [r.id]: km }));
-      } catch {}
-      setCardKmLoading((prev) => ({ ...prev, [r.id]: false }));
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // =========================
-  // ACCEPT — seule action manuelle
-  // =========================
-  const handleAccept = async (r: any) => {
-    let suiviId: string;
-    try {
-      suiviId = r.suivi_id ? assertSuiviId(r.suivi_id) : newSuiviId();
-      assertSuiviId(suiviId);
-    } catch (e) {
-      toast.error("Impossible d'accepter la course", {
-        description: e instanceof Error ? e.message : "suivi_id invalide",
-      });
-      return;
-    }
-    const tarifNuitCourse = r.pickup_datetime ? isNuit(r.pickup_datetime) : r.tarif_jour === false;
-    const km = r.distance_km ? Number(r.distance_km) : 5;
-    const prixCalcule = r.pickup_datetime
-      ? calculerPrixMixte(km, r.pickup_datetime)
-      : calculerPrix(km, !tarifNuitCourse);
-
-    const { error } = await supabase
-      .from("reservations")
-      .update({
-        status: "accepted",
-        suivi_id: suiviId,
-        tarif_jour: !tarifNuitCourse,
-        distance_km: km,
-        prix_estime: prixCalcule,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", r.id);
-    if (error) {
-      toast.error("Échec de l'acceptation", { description: error.message });
-      return;
+        Math.cos((fromCoord[0] * Math.PI) / 180) * Math.cos((toCoord[0] * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+      distanceKm = parseFloat((R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.3).toFixed(2));
+      dureeS = Math.round((distanceKm / 30) * 3600); // ~30 km/h en ville
+      toast.warning("Distance estimée (GPS indisponible) — le prix peut être ajusté par le chauffeur.");
     }
 
-    const phone = r.client_phone || r.telephone;
-    const name = r.client_name || r.nom;
-    const email = r.client_email || r.email;
-
-    // Enregistrer dans clients
-    if (phone) {
-      try {
-        const { data: existing } = await supabase
-          .from("clients")
-          .select("id,total_courses")
-          .eq("phone", phone)
-          .maybeSingle();
-        if (existing) {
-          await supabase
-            .from("clients")
-            .update({ total_courses: (existing.total_courses ?? 0) + 1 })
-            .eq("id", existing.id);
-        } else {
-          await supabase.from("clients").insert({ name, phone, email, total_courses: 1 });
-        }
-      } catch (clientErr) {
-        console.error("[handleAccept] clients insert/update failed", clientErr);
-      }
-    }
+    setSending(true);
 
     try {
-      new Audio("/notification.mp3").play().catch(() => {});
-    } catch {}
+      const suiviId = newSuiviId();
 
-    const url = typeof window !== "undefined" ? `${window.location.origin}/suivi/${suiviId}` : "";
-    if (url) {
-      try {
-        await navigator.clipboard.writeText(url);
-      } catch {}
-    }
+      const fullName = `${f.prenom} ${f.nom}`.trim();
+      const pickupIsoFinal = f.date && f.heure ? toParisIso(f.date, f.heure) : new Date().toISOString();
 
-    const notifParts: string[] = [];
-
-    // 🔔 Push automatique (toujours) — timeout 5s pour ne pas bloquer
-    let pushSent = 0;
-    try {
-      const timeout = new Promise<any>((_, reject) => setTimeout(() => reject(new Error("timeout")), 5000));
-      const pushResult = await Promise.race([
-        notifyReservationStatus({ data: { reservation_id: r.id, status: "accepted" } }),
-        timeout,
-      ]);
-      pushSent = (pushResult as any)?.client?.sent ?? 0;
-    } catch {}
-    notifParts.push(pushSent > 0 ? `🔔 Push envoyée` : `🔕 Pas d'abonné push`);
-
-    // ✉️ Email désactivé — à envoyer manuellement via "Modifier le prix"
-
-    toast.success(`✅ Course acceptée — ${name || "client"}`, { description: notifParts.join(" · "), duration: 8000 });
-    // Mise à jour optimiste immédiate
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === r.id
-          ? { ...item, status: "accepted", suivi_id: suiviId, distance_km: km, prix_estime: prixCalcule }
-          : item,
-      ),
-    );
-    setCounts((prev) => ({
-      ...prev,
-      pending: Math.max(0, prev.pending - 1),
-      accepted: prev.accepted + 1,
-    }));
-    // Refresh stats en arrière-plan (CA, clients…)
-    fetchStats();
-  };
-
-  // =========================
-  // REFUSE — direct, sans motif
-  // =========================
-  const handleRefuse = async (r: any): Promise<boolean> => {
-    // Mise à jour optimiste IMMÉDIATE — avant tout appel réseau
-    setItems((prev) => prev.map((item) => (item.id === r.id ? { ...item, status: "refused" } : item)));
-    setCounts((prev) => ({
-      ...prev,
-      pending: Math.max(0, prev.pending - 1),
-      refused: prev.refused + 1,
-    }));
-
-    const { error } = await supabase
-      .from("reservations")
-      .update({ status: "refused", updated_at: new Date().toISOString() })
-      .eq("id", r.id);
-    if (error) {
-      // Rollback en cas d'erreur
-      setItems((prev) => prev.map((item) => (item.id === r.id ? { ...item, status: r.status } : item)));
-      setCounts((prev) => ({
-        ...prev,
-        pending: prev.pending + 1,
-        refused: Math.max(0, prev.refused - 1),
-      }));
-      toast.error("Échec du refus", { description: error.message });
-      return false;
-    }
-    let pushSent = 0;
-    try {
-      const res = await notifyReservationStatus({ data: { reservation_id: r.id, status: "refused" } });
-      pushSent = (res as any)?.client?.sent ?? 0;
-    } catch {}
-    toast.success(`❌ Course refusée — ${r.client_name || r.nom || "client"}`, {
-      description: pushSent > 0 ? "🔔 Push envoyée au client" : undefined,
-      duration: 5000,
-    });
-    // Pas de fetchAll() ici — la mise à jour optimiste suffit
-    // Le realtime UPDATE va refetch mais items est déjà correct
-    return true;
-  };
-
-  // =========================
-  // UPDATE STATUS (automatique)
-  // =========================
-  const handleUpdateReservationStatus = async (r: any, status: string) => {
-    const valid = ["accepted", "en_route", "arrived", "completed", "cancelled"];
-    if (!valid.includes(status)) return;
-    const { error } = await supabase
-      .from("reservations")
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq("id", r.id);
-    if (error) {
-      toast.error("Impossible de mettre à jour le statut", { description: error.message });
-      return;
-    }
-    const statusLabels: Record<string, string> = {
-      en_route: "🚗 En route",
-      arrived: "📍 Arrivé",
-      completed: "🏁 Terminé",
-      cancelled: "✖ Annulée",
-    };
-    try {
-      const result = await notifyReservationStatus({ data: { reservation_id: r.id, status: status as any } });
-      if (typeof window !== "undefined" && (result as any)?.smsPhone && (result as any)?.smsBody) {
-        window.open(`sms:${(result as any).smsPhone}?body=${(result as any).smsBody}`, "_blank");
-      }
-      if (typeof window !== "undefined" && (result as any)?.chauffeurSmsPhone && (result as any)?.chauffeurSmsBody) {
-        setTimeout(() => {
-          window.open(`sms:${(result as any).chauffeurSmsPhone}?body=${(result as any).chauffeurSmsBody}`, "_blank");
-        }, 500);
-      }
-      const notifLabel =
-        status === "en_route"
-          ? " · 🔔 Push + SMS envoyés"
-          : status === "arrived"
-            ? " · 🔔 Push + SMS 'à proximité' envoyés"
-            : " · 🔔 Push client envoyée";
-      toast.success(`${statusLabels[status] ?? status}`, {
-        description: `Course mise à jour${notifLabel}`,
-        duration: 6000,
-      });
-    } catch {
-      toast.success(`Statut mis à jour : ${statusLabels[status] ?? status}`);
-    }
-    setItems((prev) => prev.map((item) => (item.id === r.id ? { ...item, status } : item)));
-  };
-
-  // =========================
-  // DELETE
-  // =========================
-  const handleDeleteReservation = async (id: string) => {
-    setDeleteBusy(true);
-    // Supprimer en BDD
-    const { error, count } = await (supabase as any).from("reservations").delete({ count: "exact" }).eq("id", id);
-
-    if (error) {
-      console.error("[DELETE] Supabase error:", error);
-      toast.error("Suppression impossible", { description: error.message });
-      setDeleteBusy(false);
-      return;
-    }
-
-    // Si count === 0 : RLS a bloqué silencieusement ou l'id n'existe pas
-    if (count === 0) {
-      console.warn("[DELETE] count=0 — RLS ou ligne absente, on filtre quand même localement");
-    }
-
-    // Mettre à jour l'état local dans tous les cas
-    setItems((prev) => prev.filter((r) => r.id !== id));
-    setCounts((prev) => {
-      const item = items.find((r) => r.id === id);
-      if (!item) return prev;
-      const k = normalizeStatus(item.status);
-      return { ...prev, [k]: Math.max(0, prev[k] - 1) };
-    });
-    toast.success("Réservation supprimée");
-    setDeleteBusy(false);
-  };
-
-  // =========================
-  // AVIS
-  // =========================
-  const handleAvisAction = async (id: string, action: "approved" | "refused") => {
-    const { error } = await (supabase as any)
-      .from("avis")
-      .update({ status: action, updated_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) {
-      toast.error("Erreur", { description: error.message });
-      return;
-    }
-    toast.success(action === "approved" ? "Avis publié ✓" : "Avis refusé");
-    setAvis((prev) => prev.map((a) => (a.id === id ? { ...a, status: action } : a)));
-  };
-  const handleDeleteAvis = async (id: string) => {
-    const { error } = await (supabase as any).from("avis").delete().eq("id", id);
-    if (error) {
-      toast.error("Suppression impossible", { description: error.message });
-      return;
-    }
-    toast.success("Avis supprimé");
-    setAvis((prev) => prev.filter((a) => a.id !== id));
-  };
-
-  // =========================
-  // GPS CONTROLS
-  // =========================
-  // ── Push position to Supabase ──────────────────────────────────────────────
-  const pushPosition = async (
-    latitude: number,
-    longitude: number,
-    acc: number,
-    computedHeading: number | null,
-    speed: number,
-  ) => {
-    // Try/catch global : une erreur réseau ne doit jamais bloquer le GPS
-    try {
-      await (supabase as any)
-        .from("driver_gps")
-        .update({
-          latitude,
-          longitude,
-          accuracy: acc,
-          heading: computedHeading,
-          is_active: true,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", "driver");
-    } catch (e) {
-      console.warn("[GPS] pushPosition driver_gps failed", e);
-    }
-    try {
-      await (supabase as any).from("taxi_positions").upsert({
-        id: "00000000-0000-0000-0000-000000000001",
-        lat: latitude,
-        lng: longitude,
-        heading: computedHeading ?? 0,
-        speed: speed ?? 0,
-        updated_at: new Date().toISOString(),
-      });
-    } catch (e) {
-      console.warn("[GPS] pushPosition taxi_positions failed", e);
-    }
-  };
-
-  const startGPS = (resaId?: string) => {
-    if (!navigator.geolocation) {
-      setGpsError("GPS non disponible sur cet appareil.");
-      return;
-    }
-    // Guard : si un watchPosition est déjà actif, on le stoppe proprement avant de redémarrer
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
-    if (gpsHeartbeatRef.current) {
-      clearInterval(gpsHeartbeatRef.current);
-      gpsHeartbeatRef.current = null;
-    }
-    if (gpsRetryTimerRef.current) {
-      clearTimeout(gpsRetryTimerRef.current);
-      gpsRetryTimerRef.current = null;
-    }
-    setGpsError(null);
-    lastPosRef.current = null;
-    lastKnownPosRef.current = null;
-
-    const linkedId = resaId ?? null;
-    setActiveResaId(linkedId);
-    activeResaIdRef.current = linkedId;
-    setGpsActive(true);
-
-    // ── Les awaits (Supabase + géocodage) sont faits APRÈS le lancement du GPS
-    // pour rester dans la pile synchrone du tap — iOS Safari exige ça
-    // pour autoriser la géolocalisation. On les décale via Promise.resolve().
-    Promise.resolve().then(async () => {
-      await (supabase as any)
-        .from("driver_gps")
-        .update({ is_active: true, updated_at: new Date().toISOString() })
-        .eq("id", "driver");
-
-      pickupGeoRef.current = null;
-      destinationGeoRef.current = null;
-      if (linkedId) {
-        const course = items.find((r) => r.id === linkedId);
-        if (course?.depart) {
-          try {
-            const c = await geocodeForRoute(course.depart);
-            if (c) pickupGeoRef.current = { lat: c.lat, lng: c.lng };
-          } catch {}
-        }
-        if (course?.arrivee || course?.destination) {
-          try {
-            const c = await geocodeForRoute(course.arrivee || course.destination);
-            if (c) destinationGeoRef.current = { lat: c.lat, lng: c.lng };
-          } catch {}
-        }
-      }
-    });
-
-    // ── Handlers définis avant watchPosition pour éviter les refs circulaires ──
-    // handleErrorRef permet à handlePosition d'être déclaré avant handleError
-    // tout en permettant à handleError de rappeler watchPosition avec handlePosition
-    // (évite le ReferenceError sur les const non hoistées).
-    const handleErrorRef: { current: ((err: GeolocationPositionError) => void) | null } = { current: null };
-
-    const handlePosition = async (pos: GeolocationPosition) => {
-      const { latitude, longitude, accuracy: acc, heading: rawHeading } = pos.coords;
-      const rejection = getDriverGpsRejection(pos, lastKnownPosRef.current);
-      if (rejection) {
-        setGpsError(rejection);
-        setGpsAccuracy(Number.isFinite(acc) ? Math.round(acc) : null);
-        return;
-      }
-      setGpsError(null);
-      let computedHeading = rawHeading ?? null;
-      if ((computedHeading === null || computedHeading === 0) && lastPosRef.current) {
-        const dLat = latitude - lastPosRef.current.lat;
-        const dLng = longitude - lastPosRef.current.lng;
-        if (Math.abs(dLat) > 0.00001 || Math.abs(dLng) > 0.00001) {
-          computedHeading = (Math.atan2(dLng, dLat) * 180) / Math.PI;
-          if (computedHeading < 0) computedHeading += 360;
-        }
-      }
-      lastPosRef.current = { lat: latitude, lng: longitude };
-      lastKnownPosRef.current = { lat: latitude, lng: longitude, accuracy: acc };
-      setGpsPosition({ lat: latitude, lng: longitude });
-      setGpsAccuracy(Math.round(acc));
-      setGpsUpdateCount((n) => n + 1);
-      await pushPosition(latitude, longitude, acc, computedHeading, pos.coords.speed ?? 0);
-
-      // ── AUTO-STATUS ─────────────────────────────────────────────────────
-      const resaId = activeResaIdRef.current;
-      if (!resaId) return;
-      const fired = autoStatusFiredRef.current;
-
-      const enRouteKey = resaId + "_en_route";
-      if (!fired[enRouteKey]) {
-        // Lire items via ref pour éviter la closure stale dans setItems
-        const course = await new Promise<any>((res) => {
-          setItems((prev) => {
-            res(prev.find((r) => r.id === resaId) ?? null);
-            return prev; // pas de mutation
-          });
-        });
-        if (course && course.status === "accepted") {
-          const pickupMs = course.pickup_datetime ? new Date(course.pickup_datetime).getTime() : null;
-          const nowMs = Date.now();
-          const shouldGo = !pickupMs || pickupMs - nowMs <= 30 * 60 * 1000;
-          if (shouldGo && !fired[enRouteKey]) {
-            fired[enRouteKey] = true;
-            const clientLabel2 = course.client_name || course.nom || "Client";
-            handleUpdateReservationStatus(course, "en_route").then(() => {
-              toast.success("🚗 En route automatique", {
-                description: clientLabel2 + " — départ dans ≤ 30 min",
-                duration: 5000,
-              });
-            });
-          }
-        }
-      }
-
-      const arrivedKey = resaId + "_arrived";
-      if (!fired[arrivedKey] && pickupGeoRef.current) {
-        const dist = distMetersGps({ lat: latitude, lng: longitude }, pickupGeoRef.current);
-        if (dist < 150) {
-          const course = await new Promise<any>((res) => {
-            setItems((prev) => {
-              res(prev.find((r) => r.id === resaId) ?? null);
-              return prev;
-            });
-          });
-          if (course && (course.status === "en_route" || course.status === "accepted") && !fired[arrivedKey]) {
-            fired[arrivedKey] = true;
-            handleUpdateReservationStatus(course, "arrived").then(() => {
-              toast.success("📍 Arrivée détectée automatiquement", {
-                description: "À " + Math.round(dist) + " m de la prise en charge",
-                duration: 5000,
-              });
-            });
-          }
-        }
-      }
-
-      const completedKey = resaId + "_completed";
-      if (!fired[completedKey] && destinationGeoRef.current) {
-        const distDest = distMetersGps({ lat: latitude, lng: longitude }, destinationGeoRef.current);
-        if (distDest < 100) {
-          const course = await new Promise<any>((res) => {
-            setItems((prev) => {
-              res(prev.find((r) => r.id === resaId) ?? null);
-              return prev;
-            });
-          });
-          if (course && course.status === "arrived" && !fired[completedKey]) {
-            fired[completedKey] = true;
-            const clientLabel = course.client_name || course.nom || "Client";
-            handleUpdateReservationStatus(course, "completed").then(() => {
-              toast.success("🏁 Course terminée automatiquement", {
-                description: "À " + Math.round(distDest) + " m de la destination — " + clientLabel,
-                duration: 6000,
-              });
-            });
-          }
-        }
-      }
-    };
-
-    // handleError est déclaré APRÈS handlePosition pour éviter le ReferenceError
-    const handleError = (err: GeolocationPositionError) => {
-      console.error("GPS error", err.code, err.message);
-
-      if (err.code === 1) {
-        // Vraie permission refusée
-        setGpsError("Permission GPS refusée. Autorisez la localisation dans les réglages.");
-        return;
-      }
-
-      const msgs: Record<number, string> = {
-        2: "Position GPS indisponible (intérieur ?). Retry dans 8s…",
-        3: "GPS timeout. Retry dans 8s…",
-      };
-      setGpsError(msgs[err.code] ?? "Erreur GPS inconnue.");
-      if (gpsRetryTimerRef.current) clearTimeout(gpsRetryTimerRef.current);
-      gpsRetryTimerRef.current = setTimeout(() => {
-        if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = navigator.geolocation.watchPosition(handlePosition, handleError, {
-          enableHighAccuracy: true,
-          maximumAge: 30000,
-          timeout: 60000,
-        });
-      }, 8000);
-    };
-    handleErrorRef.current = handleError;
-
-    // ── Démarrage précision maximale compatible Android + iOS ───────────────
-    // watchPosition haute précision dès le départ — iOS et Android acceptent
-    // ce pattern tant qu'on reste dans la pile synchrone du geste utilisateur.
-    // En cas de PERMISSION_DENIED (faux positif Android), on chaîne un
-    // getCurrentPosition direct sans setTimeout (respecte la pile iOS Safari).
-    const startWatch = () => {
-      if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = navigator.geolocation.watchPosition(handlePosition, handleError, {
-        enableHighAccuracy: true,
-        maximumAge: 30000,
-        timeout: 60000,
-      });
-    };
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        handlePosition(pos);
-        startWatch();
-      },
-      (err) => {
-        if (err.code === 1) {
-          navigator.geolocation.getCurrentPosition(
-            (pos) => {
-              handlePosition(pos);
-              startWatch();
-            },
-            () => {
-              startWatch();
-            },
-            { enableHighAccuracy: false, timeout: 30000, maximumAge: 300000 },
-          );
-        } else {
-          startWatch();
-        }
-      },
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 },
-    );
-
-    // ── Heartbeat toutes les 5s pour garder is_active vivant ────────────
-    if (gpsHeartbeatRef.current) clearInterval(gpsHeartbeatRef.current);
-    gpsHeartbeatRef.current = setInterval(async () => {
-      const pos = lastKnownPosRef.current;
-      if (!pos) return;
-      await (supabase as any)
-        .from("driver_gps")
-        .update({
-          is_active: true,
-          latitude: pos.lat,
-          longitude: pos.lng,
-          accuracy: pos.accuracy,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", "driver");
-    }, 5000);
-  };
-
-  const stopGPS = async () => {
-    if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
-    watchIdRef.current = null;
-    if (gpsHeartbeatRef.current) clearInterval(gpsHeartbeatRef.current);
-    gpsHeartbeatRef.current = null;
-    if (gpsRetryTimerRef.current) clearTimeout(gpsRetryTimerRef.current);
-    gpsRetryTimerRef.current = null;
-    lastKnownPosRef.current = null;
-    lastPosRef.current = null;
-    try {
-      await (supabase as any)
-        .from("driver_gps")
-        .update({ is_active: false, updated_at: new Date().toISOString() })
-        .eq("id", "driver");
-    } catch (e) {
-      console.warn("[GPS] stopGPS DB update failed", e);
-    }
-    setGpsActive(false);
-    setGpsPosition(null);
-    setGpsAccuracy(null);
-    setGpsUpdateCount(0);
-    setGpsError(null);
-    setActiveResaId(null);
-    activeResaIdRef.current = null;
-    setAutoTransition(false);
-  };
-
-  const getPrix = (r: any): number | null => {
-    if (r.prix_final) return Number(r.prix_final);
-    if (r.prix_estime) return Number(r.prix_estime);
-    if (r.distance_km) {
-      const nuit = r.pickup_datetime ? isNuit(r.pickup_datetime) : r.tarif_jour === false;
-      return r.pickup_datetime
-        ? calculerPrixMixte(Number(r.distance_km), r.pickup_datetime)
-        : calculerPrix(Number(r.distance_km), !nuit);
-    }
-    return null;
-  };
-
-  const pending = items.filter((r) => normalizeStatus(r.status) === "pending");
-  const accepted = items.filter((r) => normalizeStatus(r.status) === "accepted");
-  const refused = items.filter((r) => normalizeStatus(r.status) === "refused");
-  // Courses "en cours" = accepted + en_route + arrived (pour la section séparée)
-  const inProgress = items.filter((r) => r.status === "en_route" || r.status === "arrived");
-  const completed = items.filter((r) => r.status === "completed");
-
-  // =========================
-  // ENVOYER NOUVEAU PRIX
-  // =========================
-  const handleSendCustomPrix = async (r: any, canal: "sms" | "whatsapp" | "email", prixOverride?: number) => {
-    const rawStr = prixOverride != null ? String(prixOverride) : (customPrix[r.id] ?? "");
-    const valStr = rawStr.trim().replace(",", ".");
-    const val = parseFloat(valStr);
-    if (!valStr || isNaN(val) || val <= 0) {
-      toast.error("Prix invalide", { description: "Entrez un montant valide (ex: 18.50)" });
-      return;
-    }
-    const name = r.client_name || r.nom || "Client";
-    const phone = (r.client_phone || r.telephone || "").replace(/\s/g, "");
-    const email = r.client_email || r.email || "";
-    const trajet = `${r.depart} → ${r.destination || r.arrivee || "—"}`;
-    const trackUrl = r.suivi_id && typeof window !== "undefined" ? `${window.location.origin}/suivi/${r.suivi_id}` : "";
-    const trackingLine = trackUrl ? `\nRetrouvez votre course ici : ${trackUrl}` : "";
-    const msg = `Bonjour ${name}, le prix de votre course Taxi City Bordeaux (${trajet}) est de ${val.toFixed(2)} €. Merci.${trackingLine}`;
-
-    if (canal === "sms") {
-      if (!phone) {
-        toast.error("Pas de téléphone");
-        return;
-      }
-      window.open(`sms:${phone}?body=${encodeURIComponent(msg)}`, "_blank");
-    } else if (canal === "whatsapp") {
-      if (!phone) {
-        toast.error("Pas de téléphone");
-        return;
-      }
-      const wa = phone.replace(/^0/, "33");
-      window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, "_blank");
-    } else if (canal === "email") {
-      if (!email) {
-        toast.error("Pas d'email");
-        return;
-      }
-      setCustomPrixSending((p) => ({ ...p, [r.id]: true }));
-      try {
-        const km = r.distance_km ? Number(r.distance_km) : null;
-        const res = await fetch("/api/admin/send-course-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Admin-Secret": "admin-pin-call" },
-          body: JSON.stringify({
-            templateName: "custom-price",
-            recipientEmail: email,
-            idempotencyKey: `custom-price-${r.id}-${Date.now()}`,
-            templateData: {
-              nom: name,
-              depart: r.depart,
-              arrivee: r.destination || r.arrivee || "—",
-              prix: `${val.toFixed(2)} €`,
-              distance_km: km ? `${km} km` : undefined,
-              pickup_datetime: r.pickup_datetime
-                ? formatParis(r.pickup_datetime, { dateStyle: "full", timeStyle: "short" })
-                : undefined,
-            },
-          }),
-        });
-        if (!res.ok) {
-          let errMsg = "Échec envoi email";
-          try {
-            const errBody = await res.json();
-            errMsg = errBody?.error || errBody?.message || `Erreur ${res.status}`;
-          } catch {}
-          toast.error(errMsg);
-        } else {
-          toast.success(`✉️ Email envoyé à ${email}`);
-        }
-      } catch (err: any) {
-        toast.error("Erreur réseau", { description: err?.message ?? "" });
-      } finally {
-        setCustomPrixSending((p) => ({ ...p, [r.id]: false }));
-      }
-    }
-
-    // Mettre à jour prix_estime en base
-    await supabase.from("reservations").update({ prix_estime: val }).eq("id", r.id);
-    setItems((prev) => prev.map((item) => (item.id === r.id ? { ...item, prix_estime: val } : item)));
-  };
-
-  // =========================
-  // ITINÉRAIRES ALTERNATIFS (court / inter / long)
-  // =========================
-  const loadItineraires = async (r: any) => {
-    const dep = r.depart;
-    const dest = r.destination || r.arrivee;
-    if (!dep || !dest) {
-      toast.error("Adresses manquantes");
-      return;
-    }
-    setItinLoading((p) => ({ ...p, [r.id]: true }));
-    setItinOpen((p) => ({ ...p, [r.id]: true }));
-    try {
-      const [a, b] = await Promise.all([geocodeForRoute(dep), geocodeForRoute(dest)]);
-      if (!a || !b) {
-        toast.error("Géocodage impossible");
-        const pickupIso = r.pickup_datetime || new Date().toISOString();
-        const km = Number(r.distance_km) || 5;
-        setItinAlts((p) => ({
-          ...p,
-          [r.id]: [1, 1.18].map((factor, i) => {
-            const labels = ["🟢 Court", "🔴 Long"];
-            const finalKm = parseFloat((km * factor).toFixed(2));
-            return {
-              label: labels[i],
-              km: finalKm,
-              prix: parseFloat(calculerPrixMixte(finalKm, pickupIso).toFixed(2)),
-              coords: [],
-            };
-          }),
-        }));
-        setItinLoading((p) => ({ ...p, [r.id]: false }));
-        return;
-      }
-      const pickupIso = r.pickup_datetime || new Date().toISOString();
-      const labels = ["🟢 Court", "🔴 Long"];
-
-      // Appel OSRM avec alternatives=2 → on prend le plus court et le plus long.
-      const osrmData = await fetchRouteCoordinates(
-        [
-          [a.lng, a.lat],
-          [b.lng, b.lat],
-        ],
-        {
-          overview: "full",
-          alternatives: 2,
-          geometries: "geojson",
-        },
-      ).catch(() => null);
-
-      const routes = osrmData?.routes ?? [];
-      const allAlts = routes
-        .map((route: any) => routeToAlt(route, "", pickupIso))
-        .filter(Boolean)
-        .sort((x: ItineraryAlt, y: ItineraryAlt) => x.km - y.km);
-
-      // Distance réelle ORS — pas de facteur correctif
-      let alts: ItineraryAlt[] = [];
-      if (allAlts.length >= 2) {
-        alts = [
-          { ...allAlts[0], label: labels[0] },
-          { ...allAlts[allAlts.length - 1], label: labels[1] },
-        ];
-      } else if (allAlts.length === 1) {
-        alts = [{ ...allAlts[0], label: labels[0] }];
-      }
-
-      // Fallback si OSRM renvoie moins de 2 routes
-      if (alts.length < 2) {
-        const baseCoords = alts[0]?.coords ?? [];
-        const baseKm = alts[0]?.km; // km déjà corrigé par TARGET_FACTORS[0] = 14
-        const fallback = fallbackItineraries(a, b, pickupIso, baseCoords, baseKm);
-        for (const alt of fallback) {
-          if (alts.length >= 2) break;
-          if (!alts.some((existing) => Math.abs(existing.km - alt.km) < 0.5)) alts.push(alt);
-        }
-        alts = alts
-          .sort((x, y) => x.km - y.km)
-          .slice(0, 2)
-          .map((alt, i) => ({ ...alt, label: labels[i] }));
-      }
-
-      setItinAlts((p) => ({ ...p, [r.id]: alts }));
-    } catch (e: any) {
-      const pickupIso = r.pickup_datetime || new Date().toISOString();
-      const km = Number(r.distance_km) || 5;
-      const labels = ["🟢 Court", "🔴 Long"];
-      setItinAlts((p) => ({
-        ...p,
-        [r.id]: [1, 1.18].map((factor, i) => {
-          const finalKm = parseFloat((km * factor).toFixed(2));
-          return {
-            label: labels[i],
-            km: finalKm,
-            prix: parseFloat(calculerPrixMixte(finalKm, pickupIso).toFixed(2)),
-            coords: [],
-          };
-        }),
-      }));
-      toast.warning("Itinéraires calculés avec la distance existante", { description: e?.message ?? "" });
-    } finally {
-      setItinLoading((p) => ({ ...p, [r.id]: false }));
-    }
-  };
-
-  const handleSelectItineraire = async (r: any, alt: ItineraryAlt) => {
-    setItinSaving((p) => ({ ...p, [r.id]: true }));
-    try {
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from("reservations")
-        .update({
-          prix_estime: alt.prix,
-          distance_km: alt.km,
-          route_coords: alt.coords as any,
-          route_label: alt.label,
-          updated_at: new Date().toISOString(),
-        } as any)
-        .eq("id", r.id);
-      if (error) throw error;
-      setItems((prev) =>
-        prev.map((item) =>
-          item.id === r.id
-            ? { ...item, prix_estime: alt.prix, distance_km: alt.km, route_coords: alt.coords, route_label: alt.label }
-            : item,
-        ),
-      );
-      // Pré-remplir le champ prix pour les boutons SMS / WhatsApp / Email
-      // Note: on passe aussi prixOverride directement aux handlers pour éviter le problème de closure async
-      setCustomPrix((p) => ({ ...p, [r.id]: alt.prix.toFixed(2), [r.id + "_open"]: "1" }));
-      toast.success(`${alt.label} sélectionné`, {
-        description: `${alt.km} km · ${alt.prix.toFixed(2)} € — utilisez SMS / WhatsApp / Email pour envoyer le prix au client`,
-      });
-    } catch (e: any) {
-      toast.error("Échec enregistrement", { description: e?.message ?? "" });
-    } finally {
-      setItinSaving((p) => ({ ...p, [r.id]: false }));
-    }
-  };
+        .insert({
+          // NOT NULL columns
+          nom: fullName,
+          telephone: f.phone,
+          email: f.email,
+          depart: f.depart,
+          arrivee: f.destination,
+          pickup_datetime: pickupIsoFinal,
+          passagers: f.passagers,
+          service_type: "standard",
+          status: "pending",
+          // Optional / mirror columns
+          suivi_id: suiviId,
+          client_name: fullName,
+          client_phone: f.phone,
+          client_email: f.email,
+          destination: f.destination,
+          distance_km: distanceKm,
+          nb_passagers: f.passagers,
+          bagages: f.bagages,
+          paiement: f.paiement,
+          tarif_jour: tarifJour,
+          prix_estime: pickupIso
+            ? calculerPrixMixteLocal(distanceKm, new Date(pickupIso).getTime(), dureeS)
+            : prixAller,
+          source: "form",
+          lang: lang as any,
+        })
+        .select("id")
+        .single();
 
-  // =========================
-  // CHANGER L'HEURE D'UNE RÉSA
-  // =========================
-  const handleChangeHeure = async (r: any, newDatetime: string) => {
-    if (!newDatetime) return;
-    setChangeHeureSending((p) => ({ ...p, [r.id]: true }));
-    try {
-      const { error } = await supabase
-        .from("reservations")
-        .update({ pickup_datetime: newDatetime, updated_at: new Date().toISOString() })
-        .eq("id", r.id);
       if (error) throw error;
 
-      // Mise à jour optimiste locale
-      setItems((prev) => prev.map((item) => (item.id === r.id ? { ...item, pickup_datetime: newDatetime } : item)));
-
-      // ── Email automatique au client ──
-      const email = r.client_email || r.email;
-      const name = r.client_name || r.nom || "Client";
-      const newFormatted = formatParis(newDatetime, { dateStyle: "full", timeStyle: "short" });
-      const oldFormatted = r.pickup_datetime
-        ? formatParis(r.pickup_datetime, { dateStyle: "full", timeStyle: "short" })
-        : "—";
-
-      if (email) {
-        try {
-          await fetch("/api/admin/send-course-email", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Admin-Secret": "admin-pin-call" },
-            body: JSON.stringify({
-              templateName: "reschedule",
-              recipientEmail: email,
-              idempotencyKey: `reschedule-${r.id}-${Date.now()}`,
-              templateData: {
-                nom: name,
-                depart: r.depart,
-                arrivee: r.destination || r.arrivee || "—",
-                old_datetime: oldFormatted,
-                new_datetime: newFormatted,
+      // ── Abonnement push client avec le vrai reservation_id ─────────────────
+      // On n'appelle JAMAIS requestPermission() ici : le geste utilisateur est
+      // consommé par le submit et les navigateurs mobiles bloquent la popup.
+      // La permission doit être accordée via le bouton 🔔 avant la soumission.
+      try {
+        if (
+          typeof window !== "undefined" &&
+          "Notification" in window &&
+          Notification.permission === "granted" &&
+          "serviceWorker" in navigator &&
+          "PushManager" in window
+        ) {
+          const token = await getFcmToken();
+          if (token) {
+            await subscribePush({
+              data: {
+                audience: "client",
+                fcm_token: token,
+                reservation_id: inserted.id,
+                user_agent: navigator.userAgent.slice(0, 500),
               },
-            }),
-          });
-          toast.success("🕐 Heure modifiée", {
-            description: `${name} · Nouveau créneau : ${newFormatted} · ✉️ Email envoyé`,
-            duration: 7000,
-          });
-        } catch {
-          toast.success("🕐 Heure modifiée", {
-            description: `${name} · Nouveau créneau : ${newFormatted} · ⚠️ Email non envoyé`,
-            duration: 7000,
-          });
+            });
+          }
         }
-      } else {
-        toast.success("🕐 Heure modifiée", {
-          description: `${name} · Nouveau créneau : ${newFormatted}`,
-          duration: 6000,
-        });
+      } catch (pushErr) {
+        console.warn("[push] client subscribe failed", pushErr);
       }
 
-      // Fermer le panneau
-      setChangeHeureOpen((p) => ({ ...p, [r.id]: false }));
-      setChangeHeureValue((p) => ({ ...p, [r.id]: "" }));
+      toast.success(`${t("conf.ok.title")} ${f.prenom}`);
+      setSending(false);
+
+      // ── Notifier l'admin (push + email) ────────────────────────────────────
+      fetch("/api/public/notify-reservation", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Internal-Notify-Secret": "taxi-city-reservation-trigger-v1",
+        },
+        body: JSON.stringify({ reservation_id: inserted.id }),
+      }).catch((e) => console.warn("[notify] admin notify failed", e));
+
+      navigate({ to: "/suivi/$id", params: { id: suiviId } });
     } catch (err: any) {
-      toast.error("Impossible de modifier l'heure", { description: err?.message });
-    } finally {
-      setChangeHeureSending((p) => ({ ...p, [r.id]: false }));
+      setSending(false);
+      toast.error(t("res.err.global"), { description: err?.message });
     }
   };
 
-  // ─── Course card ───
-  function CourseCard({ r, showAcceptRefuse }: { r: any; showAcceptRefuse?: boolean }) {
-    const name = r.client_name || r.nom;
-    const dest = r.destination || r.arrivee;
-    const tarif_nuit_card = r.pickup_datetime ? isNuit(r.pickup_datetime) : r.tarif_jour === false;
-    const km_card = r.distance_km ? Number(r.distance_km) : (cardKm[r.id] ?? null);
-    const prix =
-      r.prix_estime != null
-        ? Number(r.prix_estime)
-        : km_card != null
-          ? r.pickup_datetime
-            ? calculerPrixMixte(km_card, r.pickup_datetime)
-            : calculerPrix(km_card, !tarif_nuit_card)
-          : null;
-    const isPrixLoading = cardKmLoading[r.id] ?? false;
-    const pickupFormatted = r.pickup_datetime
-      ? formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })
-      : null;
-
-    // Détection conflit horaire (±1h avec une résa acceptée/en_route/arrivée)
-    const hasConflict = (() => {
-      if (!r.pickup_datetime || normalizeStatus(r.status) !== "pending") return false;
-      const pickupMs = new Date(r.pickup_datetime).getTime();
-      return items.some(
-        (item) =>
-          item.id !== r.id &&
-          item.pickup_datetime &&
-          (item.status === "accepted" || item.status === "en_route" || item.status === "arrived") &&
-          Math.abs(new Date(item.pickup_datetime).getTime() - pickupMs) < 60 * 60 * 1000,
-      );
-    })();
-
-    return (
-      <SwipeDeleteRow onDelete={() => handleDeleteReservation(r.id)} disabled={deleteBusy} style={{ marginBottom: 14 }}>
-        <div style={{ ...card }}>
-          {/* En-tête */}
-          <div
-            className="course-card-head"
-            style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}
-          >
-            <div>
-              <div style={{ color: "#fff", fontWeight: 700, fontSize: 18 }}>{name}</div>
-              <div style={{ color: "#64748b", fontSize: 12, marginTop: 2 }}>
-                {pickupFormatted ? (
-                  <span>
-                    🕐 <b style={{ color: "#94a3b8" }}>{pickupFormatted}</b>
-                  </span>
-                ) : (
-                  new Date(r.created_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })
-                )}
-              </div>
-              <div style={{ color: "#cbd5e1", marginTop: 6 }}>
-                <div>🟢 {r.depart}</div>
-                <div style={{ marginTop: 2 }}>📍 {dest}</div>
-              </div>
-            </div>
-            <div className="course-card-head-right" style={{ color: "#64748b", fontSize: 13 }}></div>
-          </div>
-
-          {/* Infos */}
-          <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap", color: "#94a3b8", fontSize: 13 }}>
-            {r.distance_km && <span>🚕 {r.distance_km} km</span>}
-            {isPrixLoading ? (
-              <span style={{ color: "#64748b", fontStyle: "italic" }}>📡 calcul…</span>
-            ) : prix !== null ? (
-              <span style={{ color: "#ef4444", fontWeight: 700 }}>💰 {Number(prix).toFixed(2)} €</span>
-            ) : null}
-            <span>👥 {r.nb_passagers || r.passagers || 1} passager(s)</span>
-            {r.bagages > 0 && <span>🧳 {r.bagages}</span>}
-            <span
-              style={{
-                background: tarif_nuit_card ? "rgba(99,102,241,0.15)" : "rgba(250,204,21,0.12)",
-                color: tarif_nuit_card ? "#818cf8" : "#fbbf24",
-                padding: "2px 8px",
-                borderRadius: 99,
-                fontWeight: 700,
-              }}
-            >
-              {tarif_nuit_card ? `🌙 Nuit` : `☀️ Jour`}
-            </span>
-            <StatusBadge s={r.status} />
-          </div>
-
-          {r.message && (
-            <div
-              style={{
-                marginTop: 12,
-                padding: "8px 12px",
-                background: "rgba(14,165,233,0.06)",
-                border: "1px solid rgba(14,165,233,0.15)",
-                borderRadius: 10,
-                color: "#94a3b8",
-                fontSize: 13,
-                whiteSpace: "pre-line",
-              }}
-            >
-              💬 {r.message}
-            </div>
-          )}
-
-          {normalizeStatus(r.status) === "refused" && r.refus_motif && (
-            <div
-              style={{
-                marginTop: 14,
-                padding: "10px 12px",
-                background: "rgba(239,68,68,0.08)",
-                border: "1px solid rgba(239,68,68,0.25)",
-                borderRadius: 10,
-                color: "#fecaca",
-                fontSize: 13,
-              }}
-            >
-              <span style={{ fontWeight: 700, color: "#fca5a5" }}>Motif du refus :</span> {r.refus_motif}
-            </div>
-          )}
-
-          {/* ── Alerte conflit + bouton Changer l'heure ── */}
-          {hasConflict && (
-            <div
-              style={{
-                marginTop: 14,
-                padding: "10px 14px",
-                background: "rgba(245,158,11,0.08)",
-                border: "1px solid rgba(245,158,11,0.35)",
-                borderRadius: 12,
-              }}
-            >
-              <div
-                style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: changeHeureOpen[r.id] ? 12 : 0 }}
-              >
-                <span style={{ fontSize: 14 }}>⚠️</span>
-                <span style={{ fontSize: 13, color: "#fbbf24", fontWeight: 700, flex: 1 }}>
-                  Conflit de créneau — une course est déjà planifiée à cette heure
-                </span>
-                <button
-                  onClick={() => setChangeHeureOpen((p) => ({ ...p, [r.id]: !p[r.id] }))}
-                  style={{
-                    background: "rgba(245,158,11,0.15)",
-                    border: "1px solid rgba(245,158,11,0.4)",
-                    color: "#f59e0b",
-                    padding: "6px 12px",
-                    borderRadius: 9,
-                    cursor: "pointer",
-                    fontWeight: 700,
-                    fontSize: 12,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  🕐 Changer l'heure
-                </button>
-              </div>
-              {changeHeureOpen[r.id] && (
-                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <input
-                    type="datetime-local"
-                    value={
-                      changeHeureValue[r.id] ??
-                      (r.pickup_datetime ? new Date(r.pickup_datetime).toISOString().slice(0, 16) : "")
-                    }
-                    onChange={(e) => setChangeHeureValue((p) => ({ ...p, [r.id]: e.target.value }))}
-                    style={{
-                      flex: 1,
-                      minWidth: 180,
-                      padding: "9px 12px",
-                      borderRadius: 10,
-                      border: "1px solid rgba(245,158,11,0.4)",
-                      background: "rgba(255,255,255,0.05)",
-                      color: "#f8fafc",
-                      fontSize: 14,
-                      outline: "none",
-                      boxSizing: "border-box",
-                      colorScheme: "dark",
-                    }}
-                  />
-                  <button
-                    onClick={() =>
-                      handleChangeHeure(
-                        r,
-                        changeHeureValue[r.id] ? new Date(changeHeureValue[r.id]).toISOString() : r.pickup_datetime,
-                      )
-                    }
-                    disabled={changeHeureSending[r.id]}
-                    style={{
-                      background: changeHeureSending[r.id] ? "rgba(245,158,11,0.1)" : "rgba(245,158,11,0.2)",
-                      border: "1px solid rgba(245,158,11,0.5)",
-                      color: "#f59e0b",
-                      padding: "9px 16px",
-                      borderRadius: 10,
-                      cursor: changeHeureSending[r.id] ? "wait" : "pointer",
-                      fontWeight: 700,
-                      fontSize: 13,
-                      opacity: changeHeureSending[r.id] ? 0.6 : 1,
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {changeHeureSending[r.id] ? "⏳ Envoi…" : "✓ Confirmer"}
-                  </button>
-                  <button
-                    onClick={() => setChangeHeureOpen((p) => ({ ...p, [r.id]: false }))}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      color: "#64748b",
-                      cursor: "pointer",
-                      fontSize: 18,
-                      lineHeight: 1,
-                      padding: "4px",
-                    }}
-                  >
-                    ✕
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── Boutons PENDING : Accepter / Refuser uniquement ── */}
-          {showAcceptRefuse && normalizeStatus(r.status) === "pending" && (
-            <div className="accept-refuse-btns" style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button
-                onClick={async () => {
-                  handleAccept(r);
-                  if (!r.distance_km && r.depart && (r.arrivee || r.destination)) {
-                    setCardKmLoading((prev) => ({ ...prev, [r.id]: true }));
-                    try {
-                      const km = await fetchDistanceKm(r.depart, r.arrivee || r.destination);
-                      setCardKm((prev) => ({ ...prev, [r.id]: km }));
-                    } finally {
-                      setCardKmLoading((prev) => ({ ...prev, [r.id]: false }));
-                    }
-                  }
-                }}
-                style={{
-                  background: "#22c55e",
-                  color: "#fff",
-                  border: 0,
-                  padding: "14px 24px",
-                  borderRadius: 12,
-                  cursor: "pointer",
-                  fontWeight: 800,
-                  fontSize: 15,
-                }}
-              >
-                ✓ Accepter
-              </button>
-              <button
-                onClick={() => handleRefuse(r)}
-                style={{
-                  background: "#ef4444",
-                  color: "#fff",
-                  border: 0,
-                  padding: "14px 24px",
-                  borderRadius: 12,
-                  cursor: "pointer",
-                  fontWeight: 800,
-                  fontSize: 15,
-                }}
-              >
-                ✗ Refuser
-              </button>
-            </div>
-          )}
-
-          {/* ── Modifier le prix ── */}
-          {(normalizeStatus(r.status) === "accepted" || r.status === "en_route" || r.status === "arrived") && (
-            <div style={{ marginTop: 14 }}>
-              {!customPrix[r.id + "_open"] ? (
-                <button
-                  onClick={() => setCustomPrix((p) => ({ ...p, [r.id + "_open"]: "1" }))}
-                  style={{
-                    background: "transparent",
-                    border: "1px solid rgba(245,200,66,0.3)",
-                    color: "#f5c842",
-                    padding: "8px 14px",
-                    borderRadius: 10,
-                    cursor: "pointer",
-                    fontWeight: 600,
-                    fontSize: 13,
-                  }}
-                >
-                  💶 Modifier le prix
-                </button>
-              ) : (
-                <div
-                  style={{
-                    padding: "12px 14px",
-                    background: "rgba(245,200,66,0.07)",
-                    border: "1px solid rgba(245,200,66,0.25)",
-                    borderRadius: 12,
-                  }}
-                >
-                  <div
-                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}
-                  >
-                    <span style={{ fontSize: 12, color: "#f5c842", fontWeight: 700 }}>💶 Nouveau prix à envoyer</span>
-                    <button
-                      onClick={() =>
-                        setCustomPrix((p) => {
-                          const n = { ...p };
-                          delete n[r.id + "_open"];
-                          delete n[r.id];
-                          return n;
-                        })
-                      }
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: "#64748b",
-                        cursor: "pointer",
-                        fontSize: 18,
-                        lineHeight: 1,
-                      }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <div
-                    className="send-prix-row"
-                    style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}
-                  >
-                    <input
-                      type="number"
-                      min="1"
-                      step="0.5"
-                      placeholder="Ex : 18.50"
-                      value={customPrix[r.id] ?? ""}
-                      onChange={(e) => setCustomPrix((p) => ({ ...p, [r.id]: e.target.value }))}
-                      autoFocus
-                      style={{
-                        width: 110,
-                        padding: "9px 12px",
-                        borderRadius: 10,
-                        border: "1px solid rgba(245,200,66,0.35)",
-                        background: "rgba(255,255,255,0.05)",
-                        color: "#f8fafc",
-                        fontSize: 15,
-                        fontWeight: 700,
-                        outline: "none",
-                        boxSizing: "border-box",
-                      }}
-                    />
-                    <span style={{ color: "#f5c842", fontWeight: 700, fontSize: 15 }}>€</span>
-                    {(r.client_phone || r.telephone) && (
-                      <>
-                        <button
-                          onClick={() => {
-                            const v = parseFloat((customPrix[r.id] ?? "").replace(",", "."));
-                            handleSendCustomPrix(r, "sms", isNaN(v) ? undefined : v);
-                          }}
-                          style={{
-                            background: "rgba(168,85,247,0.15)",
-                            border: "1px solid rgba(168,85,247,0.4)",
-                            color: "#c084fc",
-                            padding: "9px 12px",
-                            borderRadius: 10,
-                            cursor: "pointer",
-                            fontWeight: 700,
-                            fontSize: 13,
-                          }}
-                        >
-                          💬 SMS
-                        </button>
-                        <button
-                          onClick={() => {
-                            const v = parseFloat((customPrix[r.id] ?? "").replace(",", "."));
-                            handleSendCustomPrix(r, "whatsapp", isNaN(v) ? undefined : v);
-                          }}
-                          style={{
-                            background: "rgba(34,197,94,0.12)",
-                            border: "1px solid rgba(34,197,94,0.35)",
-                            color: "#22c55e",
-                            padding: "9px 12px",
-                            borderRadius: 10,
-                            cursor: "pointer",
-                            fontWeight: 700,
-                            fontSize: 13,
-                          }}
-                        >
-                          🟢 WhatsApp
-                        </button>
-                      </>
-                    )}
-                    {(r.client_email || r.email) && (
-                      <button
-                        onClick={() => {
-                          const v = parseFloat((customPrix[r.id] ?? "").replace(",", "."));
-                          handleSendCustomPrix(r, "email", isNaN(v) ? undefined : v);
-                        }}
-                        disabled={customPrixSending[r.id]}
-                        style={{
-                          background: "rgba(245,200,66,0.12)",
-                          border: "1px solid rgba(245,200,66,0.35)",
-                          color: "#f5c842",
-                          padding: "9px 12px",
-                          borderRadius: 10,
-                          cursor: customPrixSending[r.id] ? "wait" : "pointer",
-                          fontWeight: 700,
-                          fontSize: 13,
-                          opacity: customPrixSending[r.id] ? 0.6 : 1,
-                        }}
-                      >
-                        {customPrixSending[r.id] ? "⏳…" : "✉️ Email"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── Itinéraires alternatifs (court / inter / long) ── */}
-          {(normalizeStatus(r.status) === "accepted" || r.status === "en_route" || r.status === "arrived") && (
-            <div style={{ marginTop: 10 }}>
-              {!itinOpen[r.id] ? (
-                <button
-                  onClick={() => loadItineraires(r)}
-                  style={{
-                    background: "transparent",
-                    border: "1px solid rgba(96,165,250,0.35)",
-                    color: "#60a5fa",
-                    padding: "8px 14px",
-                    borderRadius: 10,
-                    cursor: "pointer",
-                    fontWeight: 600,
-                    fontSize: 13,
-                  }}
-                >
-                  🗺️ Itinéraires
-                </button>
-              ) : (
-                <div
-                  style={{
-                    padding: "12px 14px",
-                    background: "rgba(96,165,250,0.07)",
-                    border: "1px solid rgba(96,165,250,0.25)",
-                    borderRadius: 12,
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      marginBottom: 10,
-                    }}
-                  >
-                    <span style={{ fontSize: 12, color: "#60a5fa", fontWeight: 700 }}>
-                      🗺️ Choisir un itinéraire {r.route_label ? `(actuel : ${r.route_label})` : ""}
-                    </span>
-                    <button
-                      onClick={() => setItinOpen((p) => ({ ...p, [r.id]: false }))}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: "#64748b",
-                        cursor: "pointer",
-                        fontSize: 18,
-                        lineHeight: 1,
-                      }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  {itinLoading[r.id] ? (
-                    <div style={{ color: "#94a3b8", fontSize: 13 }}>⏳ Calcul en cours…</div>
-                  ) : itinAlts[r.id]?.length ? (
-                    <div style={{ display: "grid", gap: 8 }}>
-                      {itinAlts[r.id].map((alt, i) => (
-                        <div key={i} style={{ display: "flex", gap: 8, width: "100%" }}>
-                          <button
-                            onClick={() => setMapModal({ alt, r })}
-                            style={{
-                              padding: "10px 14px",
-                              background: "rgba(96,165,250,0.12)",
-                              border: "1px solid rgba(96,165,250,0.3)",
-                              borderRadius: 10,
-                              cursor: "pointer",
-                              color: "#60a5fa",
-                              fontSize: 18,
-                              flexShrink: 0,
-                            }}
-                            title="Voir la carte"
-                          >
-                            🗺️
-                          </button>
-                          <button
-                            onClick={() => handleSelectItineraire(r, alt)}
-                            disabled={itinSaving[r.id]}
-                            style={{
-                              display: "flex",
-                              flexWrap: "wrap",
-                              justifyContent: "center",
-                              alignItems: "center",
-                              gap: 8,
-                              padding: "10px 12px",
-                              background: "rgba(255,255,255,0.04)",
-                              border: "1px solid rgba(255,255,255,0.08)",
-                              borderRadius: 10,
-                              cursor: itinSaving[r.id] ? "wait" : "pointer",
-                              color: "#f8fafc",
-                              fontSize: 13,
-                              textAlign: "center",
-                              fontFamily: "inherit",
-                              opacity: itinSaving[r.id] ? 0.6 : 1,
-                              flex: 1,
-                            }}
-                          >
-                            <span style={{ fontWeight: 700, flexBasis: "100%", textAlign: "center" }}>{alt.label}</span>
-                            <span style={{ color: "#cbd5e1" }}>{alt.km} km</span>
-                            <span style={{ color: "#64748b" }}>·</span>
-                            <span style={{ color: "#f5c842", fontWeight: 700 }}>{alt.prix.toFixed(2)} €</span>
-                            <span style={{ color: "#60a5fa", fontWeight: 700, flexBasis: "100%", textAlign: "center" }}>
-                              Choisir →
-                            </span>
-                          </button>
-                        </div>
-                      ))}
-                      <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
-                        ↳ Le prix et le tracé sur la carte du client seront mis à jour automatiquement. Utilisez ensuite
-                        « Modifier le prix » pour envoyer SMS / WhatsApp / Email.
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ color: "#94a3b8", fontSize: 13 }}>Aucun itinéraire disponible.</div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── Bouton annuler uniquement ── */}
-          {(normalizeStatus(r.status) === "accepted" || r.status === "en_route" || r.status === "arrived") && (
-            <div
-              className="status-action-btns"
-              style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}
-            >
-              <button
-                onClick={() => handleUpdateReservationStatus(r, "cancelled")}
-                style={{
-                  background: "rgba(239,68,68,0.15)",
-                  border: "1px solid rgba(239,68,68,0.3)",
-                  color: "#f87171",
-                  padding: "10px 14px",
-                  borderRadius: 12,
-                  cursor: "pointer",
-                  fontWeight: 700,
-                  fontSize: 13,
-                }}
-              >
-                ✖ Annuler
-              </button>
-            </div>
-          )}
-
-          {/* ── Boutons contact : SMS / WhatsApp / Email — uniquement courses acceptées/en cours ── */}
-          {(normalizeStatus(r.status) === "accepted" || r.status === "en_route" || r.status === "arrived") &&
-            (() => {
-              const phone = r.client_phone || r.telephone;
-              const mail = r.client_email || r.email;
-              const trackUrl =
-                r.suivi_id && typeof window !== "undefined" ? `${window.location.origin}/suivi/${r.suivi_id}` : "";
-              const greet = `Bonjour ${r.client_name || r.nom || ""}, votre taxi Taxi City Bordeaux.`;
-              const body = trackUrl ? `${greet}\nRetrouvez votre course ici : ${trackUrl}` : greet;
-              const mailBody = trackUrl
-                ? `Bonjour ${r.client_name || r.nom || ""},\n\nVoici le lien pour retrouver et suivre votre course en temps réel :\n${trackUrl}\n\nTaxi City Bordeaux`
-                : `Bonjour ${r.client_name || r.nom || ""},\n\nTaxi City Bordeaux`;
-              if (!phone && !mail) return null;
-              return (
-                <div className="contact-btns" style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {phone && (
-                    <>
-                      <a href={`tel:${phone}`} style={contactBtn("#0ea5e9")}>
-                        📞 Appeler
-                      </a>
-                      <a href={`sms:${phone}?body=${encodeURIComponent(body)}`} style={contactBtn("#a855f7")}>
-                        💬 SMS
-                      </a>
-                      <a
-                        href={`https://wa.me/${phone.replace(/[^0-9]/g, "").replace(/^0/, "33")}?text=${encodeURIComponent(body)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={contactBtn("#22c55e")}
-                      >
-                        🟢 WhatsApp
-                      </a>
-                    </>
-                  )}
-                  {mail && (
-                    <a
-                      href={`mailto:${mail}?subject=${encodeURIComponent("Votre course Taxi City Bordeaux")}&body=${encodeURIComponent(mailBody)}`}
-                      style={contactBtn("#f5c842")}
-                    >
-                      ✉️ Email
-                    </a>
-                  )}
-                </div>
-              );
-            })()}
-        </div>
-      </SwipeDeleteRow>
-    );
-  }
-
-  // =========================
-  // RENDER
-  // =========================
-  if (typeof sessionStorage !== "undefined" && sessionStorage.getItem("admin_pin_ok") !== "1") {
-    window.location.href = "/login";
-    return <div style={{ minHeight: "100vh", background: "#020817" }} />;
-  }
-
   return (
     <div
-      className="admin-root"
-      style={{
-        padding: "20px clamp(10px, 4vw, 24px)",
-        fontFamily: "'DM Sans',sans-serif",
-        maxWidth: "100%",
-        boxSizing: "border-box",
-      }}
-    >
-      <SkeletonStyles />
-      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}@keyframes pulseDot{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}50%{box-shadow:0 0 0 14px rgba(34,197,94,0.2)}}`}</style>
-
-      {/* ── Header ── */}
-      <div
-        className="admin-header"
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 20,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <img
-            src={logo}
-            alt="Taxi City Bordeaux"
-            style={{ width: 48, height: 48, borderRadius: 12, objectFit: "contain", background: "#fff", padding: 3 }}
-          />
-          <h1
-            className="admin-header-title"
-            style={{ fontFamily: "'Syne',sans-serif", fontSize: 26, fontWeight: 800, color: "#f8fafc", margin: 0 }}
-          >
-            Dashboard
-          </h1>
-        </div>
-        <div
-          className="admin-header-actions"
-          style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}
-        >
-          {/* Bouton activation notifications push (admin + chauffeur) — toujours visible, 3 états */}
-          {typeof window !== "undefined" && "Notification" in window && (
-            <button
-              onClick={async () => {
-                if (notifPermission === "denied") return;
-                // Si déjà granted : on re-enregistre le token (peut avoir changé ou expiré)
-                const perm = notifPermission === "granted" ? "granted" : await Notification.requestPermission();
-                if (perm !== "granted") {
-                  setNotifPermission(perm);
-                  return;
-                }
-                setNotifPermission("granted");
-                // Retry jusqu'à 3 fois si getFcmToken échoue (SW peut ne pas être prêt)
-                let fcm: string | null = null;
-                for (let i = 0; i < 3; i++) {
-                  try {
-                    fcm = await getFcmToken();
-                    if (fcm) break;
-                  } catch {}
-                  if (i < 2) await new Promise((r) => setTimeout(r, 2000));
-                }
-                if (!fcm) {
-                  toast.error("Impossible d'obtenir le token FCM — réessayez dans quelques secondes");
-                  return;
-                }
-                try {
-                  const ua = navigator.userAgent.slice(0, 500);
-                  const now = new Date().toISOString();
-                  await Promise.all([
-                    supabase.from("push_subscriptions").upsert(
-                      {
-                        audience: "admin",
-                        endpoint: `fcm://${fcm}`,
-                        fcm_token: fcm,
-                        reservation_id: null,
-                        user_agent: ua,
-                        last_seen_at: now,
-                      },
-                      { onConflict: "endpoint" },
-                    ),
-                    supabase.from("push_subscriptions").upsert(
-                      {
-                        audience: "chauffeur",
-                        endpoint: `fcm://${fcm}-chauffeur`,
-                        fcm_token: fcm,
-                        reservation_id: null,
-                        user_agent: ua,
-                        last_seen_at: now,
-                      },
-                      { onConflict: "endpoint" },
-                    ),
-                  ]);
-                  localStorage.setItem("fcm_token", fcm);
-                  toast.success("🔔 Token FCM enregistré — notifications actives");
-                } catch (e) {
-                  console.warn("[push] activation manuelle échouée", e);
-                  toast.error("Impossible d'activer les notifications");
-                }
-              }}
-              style={{
-                padding: "8px 14px",
-                background:
-                  notifPermission === "denied"
-                    ? "rgba(239,68,68,0.1)"
-                    : notifPermission === "granted"
-                      ? "rgba(34,197,94,0.1)"
-                      : "rgba(245,200,66,0.15)",
-                border: `1px solid ${
-                  notifPermission === "denied"
-                    ? "rgba(239,68,68,0.3)"
-                    : notifPermission === "granted"
-                      ? "rgba(34,197,94,0.3)"
-                      : "rgba(245,200,66,0.4)"
-                }`,
-                color: notifPermission === "denied" ? "#f87171" : notifPermission === "granted" ? "#86efac" : "#f5c842",
-                borderRadius: 10,
-                cursor: notifPermission === "default" ? "pointer" : "default",
-                fontWeight: 600,
-                fontSize: 13,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-              disabled={notifPermission === "denied"}
-              title={
-                notifPermission === "denied"
-                  ? "Notifications bloquées — autorisez-les dans les réglages du navigateur"
-                  : notifPermission === "granted"
-                    ? "Notifications activées ✓"
-                    : "Activer les notifications push"
-              }
-            >
-              {notifPermission === "denied"
-                ? "🔕 Bloqué"
-                : notifPermission === "granted"
-                  ? "🔔 Notifs actives"
-                  : "🔔 Activer notifs"}
-            </button>
-          )}
-          <button
-            onClick={() => setShowPushDebug((v) => !v)}
-            title="Diagnostic push notifications"
-            style={{
-              padding: "8px 10px",
-              background: showPushDebug ? "rgba(99,102,241,0.2)" : "rgba(255,255,255,0.06)",
-              border: `1px solid ${showPushDebug ? "rgba(99,102,241,0.5)" : "rgba(255,255,255,0.12)"}`,
-              color: showPushDebug ? "#818cf8" : "#94a3b8",
-              borderRadius: 10,
-              cursor: "pointer",
-              fontWeight: 600,
-              fontSize: 13,
-            }}
-          >
-            🔍
-          </button>
-          {showPushDebug && <PushDebug />}
-          <a
-            href="/"
-            style={{
-              padding: "8px 14px",
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.12)",
-              color: "#94a3b8",
-              borderRadius: 10,
-              fontWeight: 600,
-              fontSize: 13,
-              textDecoration: "none",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            ← Site
-          </a>
-          <button
-            onClick={async () => {
-              if (refreshing) return;
-              await fetchAll();
-            }}
-            disabled={refreshing}
-            style={{
-              padding: "8px 14px",
-              background: "rgba(14,165,233,0.15)",
-              border: "1px solid rgba(14,165,233,0.3)",
-              color: refreshing ? "#64748b" : "#0ea5e9",
-              borderRadius: 10,
-              cursor: refreshing ? "not-allowed" : "pointer",
-              fontWeight: 600,
-              fontSize: 13,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              opacity: refreshing ? 0.7 : 1,
-            }}
-          >
-            <span style={{ display: "inline-block", animation: refreshing ? "spin 1s linear infinite" : "none" }}>
-              ↻
-            </span>
-            {refreshing ? "…" : "Actualiser"}
-          </button>
-          <button
-            onClick={async () => {
-              await supabase.auth.signOut();
-              window.location.href = "/login";
-            }}
-            style={{
-              padding: "8px 14px",
-              background: "rgba(239,68,68,0.12)",
-              border: "1px solid rgba(239,68,68,0.3)",
-              color: "#ef4444",
-              borderRadius: 10,
-              cursor: "pointer",
-              fontWeight: 600,
-              fontSize: 13,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            🔓 Déco
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile responsive styles */}
-      <style>{adminMobileCss}</style>
-
-      {/* ── GPS — EN HAUT pour accès rapide ── */}
-      <div style={{ marginBottom: 24 }}>
-        <style>{`.gps-pulse{animation:pulseDot 2s infinite}`}</style>
-        {gpsLoading ? (
-          <GpsCardSkeleton />
-        ) : (
-          <div
-            style={{
-              ...card,
-              border: gpsActive ? "1px solid rgba(34,197,94,0.4)" : "1px solid rgba(255,255,255,0.08)",
-              background: gpsActive ? "rgba(34,197,94,0.05)" : "rgba(255,255,255,0.04)",
-              borderRadius: 20,
-              padding: "16px 20px",
-            }}
-          >
-            <div className="gps-row" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-              {/* Indicateur GPS */}
-              <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
-                {gpsActive ? (
-                  <>
-                    <div
-                      className="gps-pulse"
-                      style={{
-                        width: 14,
-                        height: 14,
-                        background: gpsError ? "#f59e0b" : "#22c55e",
-                        borderRadius: "50%",
-                        flexShrink: 0,
-                      }}
-                    />
-                    <div>
-                      <div
-                        style={{
-                          fontFamily: "'Syne',sans-serif",
-                          fontWeight: 800,
-                          fontSize: 15,
-                          color: gpsError ? "#f59e0b" : "#22c55e",
-                        }}
-                      >
-                        {gpsError ? "⚠️ GPS — signal faible" : "📡 GPS actif"}
-                      </div>
-                      {gpsError ? (
-                        <div style={{ fontSize: 12, color: "#f59e0b", marginTop: 2 }}>{gpsError}</div>
-                      ) : gpsPosition ? (
-                        <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                          {gpsPosition.lat.toFixed(4)}, {gpsPosition.lng.toFixed(4)}{" "}
-                          {gpsAccuracy !== null && `· ±${gpsAccuracy}m`} · {gpsUpdateCount} màj
-                        </div>
-                      ) : (
-                        <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>Acquisition du signal…</div>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div style={{ width: 14, height: 14, background: "#475569", borderRadius: "50%", flexShrink: 0 }} />
-                    <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#64748b" }}>
-                      📡 GPS inactif
-                    </div>
-                  </>
-                )}
-              </div>
-              {/* Course liée */}
-              {gpsActive &&
-                activeResaId &&
-                (() => {
-                  const linked = items.find((x) => x.id === activeResaId);
-                  if (!linked) return null;
-                  return (
-                    <div
-                      style={{
-                        background: "rgba(34,197,94,0.1)",
-                        border: "1px solid rgba(34,197,94,0.2)",
-                        borderRadius: 10,
-                        padding: "6px 12px",
-                        fontSize: 13,
-                        color: "#22c55e",
-                        fontWeight: 700,
-                      }}
-                    >
-                      → {linked.client_name || linked.nom || "Client"}
-                    </div>
-                  );
-                })()}
-              {/* Boutons GPS groupés pour mobile */}
-              <div
-                className="gps-btn-row"
-                style={{ display: "flex", gap: 8, alignItems: "center", marginLeft: "auto" }}
-              >
-                {/* Bouton toggle GPS unique */}
-                <button
-                  onClick={() => (gpsActive ? stopGPS() : startGPS())}
-                  style={{
-                    background: gpsActive ? "transparent" : "linear-gradient(135deg, #22c55e, #16a34a)",
-                    color: gpsActive ? "#475569" : "#fff",
-                    border: gpsActive ? "1px solid rgba(255,255,255,0.08)" : "none",
-                    padding: "10px 16px",
-                    borderRadius: 12,
-                    cursor: "pointer",
-                    fontWeight: 700,
-                    fontSize: 13,
-                    boxShadow: gpsActive ? "none" : "0 4px 12px rgba(34,197,94,0.3)",
-                    transition: "all 0.2s",
-                  }}
-                >
-                  {gpsActive ? "⏹ Couper" : "▶ Activer"}
-                </button>
-              </div>
-            </div>
-            {/* Mini-map */}
-            {gpsActive && (
-              <div
-                ref={gpsMapRef}
-                style={{
-                  width: "100%",
-                  height: 200,
-                  borderRadius: 14,
-                  overflow: "hidden",
-                  marginTop: 14,
-                  border: "1px solid rgba(34,197,94,0.2)",
-                  position: "relative",
-                }}
-              />
-            )}
-            {autoTransition && (
-              <div
-                style={{
-                  background: "rgba(245,200,66,0.12)",
-                  border: "1px solid rgba(245,200,66,0.3)",
-                  borderRadius: 10,
-                  padding: "8px 12px",
-                  marginTop: 10,
-                  fontSize: 13,
-                  color: "#f5c842",
-                  fontWeight: 700,
-                }}
-              >
-                🔄 Transition vers la prochaine course…
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* ── KPI Cards ── */}
-      <div
-        className="admin-kpi-grid"
-        style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, marginBottom: 14 }}
-      >
-        {statsLoading
-          ? Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
-          : [
-              { i: "💶", v: `${caJ.toFixed(2)} €`, l: "CA aujourd'hui" },
-              { i: "📈", v: `${caM.toFixed(2)} €`, l: "CA ce mois" },
-              { i: "🚗", v: String(coursesJ), l: "Courses auj." },
-              { i: "👥", v: String(clientsTotal), l: "Clients total" },
-            ].map((c, i) => (
-              <div key={i} style={card}>
-                <div style={{ fontSize: 22 }}>{c.i}</div>
-                <div className="admin-stat-val" style={valCss}>
-                  {c.v}
-                </div>
-                <div style={labelCss}>{c.l}</div>
-              </div>
-            ))}
-      </div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))",
-          gap: 12,
-          marginBottom: 28,
-        }}
-      >
-        {statsLoading ? (
-          <StatCardSkeleton />
-        ) : (
-          <div style={card}>
-            <div style={{ fontSize: 22 }}>👁️</div>
-            <div style={valCss}>{visitors}</div>
-            <div style={labelCss}>Visiteurs auj.</div>
-          </div>
-        )}
-      </div>
-
-      {/* ══════════════════════════════
-          SECTION COURSES
-      ══════════════════════════════ */}
-      <div>
-        <h2
-          style={{
-            fontFamily: "'Syne',sans-serif",
-            fontSize: 20,
-            fontWeight: 800,
-            color: "#f8fafc",
-            margin: "0 0 24px",
-          }}
-        >
-          Courses
-        </h2>
-
-        {coursesLoading && (
-          <>
-            <CourseCardSkeleton />
-            <CourseCardSkeleton />
-          </>
-        )}
-
-        {/* ── En attente ── */}
-        {!coursesLoading && (
-          <div style={{ marginBottom: 36 }}>
-            <SectionHeader
-              color="#f59e0b"
-              label="En attente"
-              count={counts.pending}
-              borderColor="rgba(245,158,11,0.25)"
-            />
-            <div style={{ color: "#64748b", fontSize: 12, marginBottom: 12 }}>
-              ← Swipez pour supprimer · Acceptez ou refusez chaque course
-            </div>
-            {pending.length === 0 && (
-              <div style={{ textAlign: "center", color: "#475569", padding: "20px 0" }}>
-                Aucune réservation en attente ✓
-              </div>
-            )}
-            {pending.map((r) => (
-              <CourseCard key={r.id} r={r} showAcceptRefuse />
-            ))}
-          </div>
-        )}
-
-        {/* ── En cours (en_route + arrived) ── */}
-        {!coursesLoading && inProgress.length > 0 && (
-          <div style={{ marginBottom: 36 }}>
-            <SectionHeader
-              color="#f5c842"
-              label="En cours"
-              count={inProgress.length}
-              borderColor="rgba(245,200,66,0.25)"
-            />
-            {inProgress.map((r) => (
-              <CourseCard key={r.id} r={r} />
-            ))}
-          </div>
-        )}
-
-        {/* ── Acceptées (planifiées) ── */}
-        {!coursesLoading && (
-          <div style={{ marginBottom: 36 }}>
-            <SectionHeader
-              color="#22c55e"
-              label="Acceptées"
-              count={counts.accepted}
-              borderColor="rgba(34,197,94,0.25)"
-            />
-            {accepted.length === 0 && (
-              <div style={{ textAlign: "center", color: "#475569", padding: "20px 0" }}>Aucune course acceptée</div>
-            )}
-            {accepted.map((r) => (
-              <CourseCard key={r.id} r={r} />
-            ))}
-          </div>
-        )}
-
-        {/* ── Terminées ── */}
-        {!coursesLoading && completed.length > 0 && (
-          <div style={{ marginBottom: 36 }}>
-            <SectionHeader
-              color="#22c55e"
-              label="Terminées"
-              count={completed.length}
-              borderColor="rgba(34,197,94,0.25)"
-            />
-            {completed.map((r) => (
-              <SwipeDeleteRow
-                key={r.id}
-                onDelete={() => handleDeleteReservation(r.id)}
-                disabled={deleteBusy}
-                style={{ marginBottom: 14 }}
-              >
-                <div style={{ ...card, opacity: 0.7 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                    <div>
-                      <div style={{ color: "#fff", fontWeight: 700, fontSize: 16 }}>{r.client_name || r.nom}</div>
-                      <div style={{ color: "#64748b", fontSize: 12, marginTop: 2 }}>
-                        {r.pickup_datetime
-                          ? formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })
-                          : new Date(r.created_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
-                      </div>
-                      <div style={{ color: "#94a3b8", marginTop: 6, fontSize: 13 }}>
-                        <div>🟢 {r.depart}</div>
-                        <div style={{ marginTop: 2 }}>📍 {r.destination || r.arrivee}</div>
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-                      <StatusBadge s={r.status} />
-                    </div>
-                  </div>
-                  {(() => {
-                    const p = getPrix(r);
-                    return p ? (
-                      <div style={{ marginTop: 8, color: "#0ea5e9", fontWeight: 700, fontSize: 15 }}>
-                        💰 {p.toFixed(2)} €
-                      </div>
-                    ) : null;
-                  })()}
-                </div>
-              </SwipeDeleteRow>
-            ))}
-          </div>
-        )}
-
-        {/* ── Refusées ── */}
-        {!coursesLoading && (
-          <div style={{ marginBottom: 36 }}>
-            <SectionHeader color="#ef4444" label="Refusées" count={counts.refused} borderColor="rgba(239,68,68,0.25)" />
-            {refused.length === 0 && (
-              <div style={{ textAlign: "center", color: "#475569", padding: "20px 0" }}>Aucune course refusée</div>
-            )}
-            {refused.map((r) => (
-              <SwipeDeleteRow
-                key={r.id}
-                onDelete={() => handleDeleteReservation(r.id)}
-                disabled={deleteBusy}
-                style={{ marginBottom: 14 }}
-              >
-                <div style={{ ...card }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                    <div>
-                      <div style={{ color: "#fff", fontWeight: 700, fontSize: 16 }}>{r.client_name || r.nom}</div>
-                      <div style={{ color: "#64748b", fontSize: 12, marginTop: 2 }}>
-                        {r.pickup_datetime
-                          ? formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })
-                          : new Date(r.created_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
-                      </div>
-                      <div style={{ color: "#cbd5e1", marginTop: 6, fontSize: 13 }}>
-                        <div>🟢 {r.depart}</div>
-                        <div style={{ marginTop: 2 }}>📍 {r.destination || r.arrivee}</div>
-                      </div>
-                    </div>
-                    <div style={{ color: "#64748b", fontSize: 13 }}></div>
-                  </div>
-                  <div
-                    style={{
-                      marginTop: 10,
-                      display: "flex",
-                      gap: 10,
-                      flexWrap: "wrap",
-                      fontSize: 13,
-                      color: "#94a3b8",
-                    }}
-                  >
-                    <span>👥 {r.nb_passagers || r.passagers || 1} pax</span>
-                    <StatusBadge s={r.status} />
-                  </div>
-                  {r.refus_motif && (
-                    <div
-                      style={{
-                        marginTop: 12,
-                        padding: "8px 12px",
-                        background: "rgba(239,68,68,0.08)",
-                        border: "1px solid rgba(239,68,68,0.25)",
-                        borderRadius: 10,
-                        color: "#fecaca",
-                        fontSize: 13,
-                      }}
-                    >
-                      <span style={{ fontWeight: 700, color: "#fca5a5" }}>Motif :</span> {r.refus_motif}
-                    </div>
-                  )}
-                  <div className="contact-btns" style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {(() => {
-                      const trackUrl =
-                        r.suivi_id && typeof window !== "undefined"
-                          ? `${window.location.origin}/suivi/${r.suivi_id}`
-                          : "";
-                      const greet = `Bonjour ${r.client_name || r.nom || ""}, votre taxi Taxi City Bordeaux.`;
-                      const body = trackUrl ? `${greet}\nSuivre votre chauffeur : ${trackUrl}` : greet;
-                      const phone = r.client_phone || r.telephone;
-                      const mail = r.client_email || r.email;
-                      const mailBody = trackUrl
-                        ? `Bonjour ${r.client_name || r.nom || ""},\n\nVoici le lien pour suivre votre chauffeur en temps réel :\n${trackUrl}\n\nTaxi City Bordeaux`
-                        : `Bonjour ${r.client_name || r.nom || ""},\n\nTaxi City Bordeaux`;
-                      return (
-                        <>
-                          {phone && (
-                            <>
-                              <a href={`tel:${phone}`} style={contactBtn("#0ea5e9")}>
-                                📞 Appeler
-                              </a>
-                              <a href={`sms:${phone}?body=${encodeURIComponent(body)}`} style={contactBtn("#a855f7")}>
-                                💬 SMS
-                              </a>
-                              <a
-                                href={`https://wa.me/${phone.replace(/[^0-9]/g, "").replace(/^0/, "33")}?text=${encodeURIComponent(body)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={contactBtn("#22c55e")}
-                              >
-                                🟢 WhatsApp
-                              </a>
-                            </>
-                          )}
-                          {mail && (
-                            <a
-                              href={`mailto:${mail}?subject=${encodeURIComponent("Votre course Taxi City Bordeaux")}&body=${encodeURIComponent(mailBody)}`}
-                              style={contactBtn("#f5c842")}
-                            >
-                              ✉️ Email
-                            </a>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-              </SwipeDeleteRow>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ══════════════════════════════
-          SECTION AVIS
-      ══════════════════════════════ */}
-      <div style={{ marginTop: 48 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-          <h2 style={{ fontFamily: "'Syne',sans-serif", fontSize: 20, fontWeight: 800, color: "#f8fafc", margin: 0 }}>
-            ⭐ Avis clients
-          </h2>
-          {avis.filter((a) => a.status === "pending" || !a.status).length > 0 && (
-            <span
-              style={{
-                background: "rgba(251,191,36,0.15)",
-                color: "#fbbf24",
-                padding: "2px 10px",
-                borderRadius: 99,
-                fontSize: 12,
-                fontWeight: 700,
-              }}
-            >
-              {avis.filter((a) => a.status === "pending" || !a.status).length} en attente
-            </span>
-          )}
-        </div>
-
-        {avisLoading && <div style={{ textAlign: "center", color: "#475569", padding: 40 }}>Chargement des avis…</div>}
-
-        {/* En attente de modération */}
-        {!avisLoading && (
-          <div style={{ marginBottom: 28 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                marginBottom: 12,
-                paddingBottom: 8,
-                borderBottom: "1px solid rgba(251,191,36,0.2)",
-              }}
-            >
-              <span
-                style={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: "50%",
-                  background: "#fbbf24",
-                  boxShadow: "0 0 6px rgba(251,191,36,0.6)",
-                }}
-              />
-              <span
-                style={{
-                  fontFamily: "'Syne',sans-serif",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "#fbbf24",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                }}
-              >
-                En attente
-              </span>
-            </div>
-            {avis.filter((a) => !a.status || a.status === "pending").length === 0 && (
-              <div style={{ textAlign: "center", color: "#475569", padding: "16px 0", fontSize: 14 }}>
-                Aucun avis en attente
-              </div>
-            )}
-            {avis
-              .filter((a) => !a.status || a.status === "pending")
-              .map((a) => (
-                <SwipeDeleteRow key={a.id} onDelete={() => handleDeleteAvis(a.id)} style={{ marginBottom: 12 }}>
-                  <div style={{ ...card, border: "1px solid rgba(251,191,36,0.2)" }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 10,
-                        flexWrap: "wrap",
-                        marginBottom: 8,
-                      }}
-                    >
-                      <div>
-                        <span style={{ color: "#f8fafc", fontWeight: 700, fontSize: 15 }}>
-                          {a.author_name || a.nom || "Anonyme"}
-                        </span>
-                        {a.note && (
-                          <span style={{ marginLeft: 10, color: "#fbbf24", fontSize: 14 }}>
-                            {"★".repeat(Math.min(5, Math.max(1, Number(a.note))))}
-                          </span>
-                        )}
-                      </div>
-                      <span style={{ color: "#64748b", fontSize: 12 }}>
-                        {new Date(a.created_at).toLocaleDateString("fr-FR")}
-                      </span>
-                    </div>
-                    <p
-                      style={{
-                        color: "#cbd5e1",
-                        fontSize: 14,
-                        margin: "0 0 14px",
-                        lineHeight: 1.6,
-                        whiteSpace: "pre-line",
-                      }}
-                    >
-                      {a.message || a.content || a.texte}
-                    </p>
-                    <div className="avis-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <button
-                        onClick={() => handleAvisAction(a.id, "approved")}
-                        style={{
-                          background: "#22c55e",
-                          color: "#fff",
-                          border: 0,
-                          padding: "9px 16px",
-                          borderRadius: 10,
-                          cursor: "pointer",
-                          fontWeight: 700,
-                          fontSize: 13,
-                        }}
-                      >
-                        ✓ Publier
-                      </button>
-                      <button
-                        onClick={() => handleAvisAction(a.id, "refused")}
-                        style={{
-                          background: "rgba(239,68,68,0.15)",
-                          border: "1px solid rgba(239,68,68,0.3)",
-                          color: "#f87171",
-                          padding: "9px 16px",
-                          borderRadius: 10,
-                          cursor: "pointer",
-                          fontWeight: 700,
-                          fontSize: 13,
-                        }}
-                      >
-                        ✗ Refuser
-                      </button>
-                      <button
-                        onClick={() => handleDeleteAvis(a.id)}
-                        style={{
-                          marginLeft: "auto",
-                          background: "rgba(239,68,68,0.06)",
-                          border: "1px solid rgba(239,68,68,0.15)",
-                          color: "#f87171",
-                          padding: "9px 14px",
-                          borderRadius: 10,
-                          cursor: "pointer",
-                          fontWeight: 700,
-                          fontSize: 12,
-                        }}
-                      >
-                        🗑
-                      </button>
-                    </div>
-                  </div>
-                </SwipeDeleteRow>
-              ))}
-          </div>
-        )}
-
-        {/* Publiés */}
-        {!avisLoading && avis.filter((a) => a.status === "approved").length > 0 && (
-          <div style={{ marginBottom: 28 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                marginBottom: 12,
-                paddingBottom: 8,
-                borderBottom: "1px solid rgba(34,197,94,0.2)",
-              }}
-            >
-              <span
-                style={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: "50%",
-                  background: "#22c55e",
-                  boxShadow: "0 0 6px rgba(34,197,94,0.6)",
-                }}
-              />
-              <span
-                style={{
-                  fontFamily: "'Syne',sans-serif",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "#22c55e",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                }}
-              >
-                Publiés
-              </span>
-              <span
-                style={{
-                  background: "rgba(34,197,94,0.15)",
-                  color: "#22c55e",
-                  padding: "1px 8px",
-                  borderRadius: 99,
-                  fontSize: 11,
-                  fontWeight: 700,
-                }}
-              >
-                {avis.filter((a) => a.status === "approved").length}
-              </span>
-            </div>
-            {avis
-              .filter((a) => a.status === "approved")
-              .map((a) => (
-                <SwipeDeleteRow key={a.id} onDelete={() => handleDeleteAvis(a.id)} style={{ marginBottom: 10 }}>
-                  <div style={{ ...card, border: "1px solid rgba(34,197,94,0.15)" }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 10,
-                        flexWrap: "wrap",
-                        marginBottom: 6,
-                      }}
-                    >
-                      <div>
-                        <span style={{ color: "#f8fafc", fontWeight: 700 }}>{a.author_name || a.nom || "Anonyme"}</span>
-                        {a.note && (
-                          <span style={{ marginLeft: 10, color: "#fbbf24", fontSize: 13 }}>
-                            {"★".repeat(Math.min(5, Math.max(1, Number(a.note))))}
-                          </span>
-                        )}
-                        <span
-                          style={{
-                            marginLeft: 8,
-                            background: "rgba(34,197,94,0.15)",
-                            color: "#22c55e",
-                            padding: "1px 7px",
-                            borderRadius: 99,
-                            fontSize: 11,
-                            fontWeight: 700,
-                          }}
-                        >
-                          Publié
-                        </span>
-                      </div>
-                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                        <span style={{ color: "#64748b", fontSize: 12 }}>
-                          {new Date(a.created_at).toLocaleDateString("fr-FR")}
-                        </span>
-                        <button
-                          onClick={() => handleDeleteAvis(a.id)}
-                          style={{
-                            background: "rgba(239,68,68,0.06)",
-                            border: "1px solid rgba(239,68,68,0.15)",
-                            color: "#f87171",
-                            padding: "5px 10px",
-                            borderRadius: 8,
-                            cursor: "pointer",
-                            fontWeight: 700,
-                            fontSize: 12,
-                          }}
-                        >
-                          🗑
-                        </button>
-                      </div>
-                    </div>
-                    <p style={{ color: "#94a3b8", fontSize: 13, margin: 0, lineHeight: 1.5, whiteSpace: "pre-line" }}>
-                      {a.message || a.content || a.texte}
-                    </p>
-                  </div>
-                </SwipeDeleteRow>
-              ))}
-          </div>
-        )}
-
-        {/* Refusés */}
-        {!avisLoading && avis.filter((a) => a.status === "refused").length > 0 && (
-          <div style={{ marginBottom: 28 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                marginBottom: 12,
-                paddingBottom: 8,
-                borderBottom: "1px solid rgba(239,68,68,0.2)",
-              }}
-            >
-              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#ef4444" }} />
-              <span
-                style={{
-                  fontFamily: "'Syne',sans-serif",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "#ef4444",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                }}
-              >
-                Refusés
-              </span>
-              <span
-                style={{
-                  background: "rgba(239,68,68,0.15)",
-                  color: "#ef4444",
-                  padding: "1px 8px",
-                  borderRadius: 99,
-                  fontSize: 11,
-                  fontWeight: 700,
-                }}
-              >
-                {avis.filter((a) => a.status === "refused").length}
-              </span>
-            </div>
-            {avis
-              .filter((a) => a.status === "refused")
-              .map((a) => (
-                <SwipeDeleteRow key={a.id} onDelete={() => handleDeleteAvis(a.id)} style={{ marginBottom: 10 }}>
-                  <div style={{ ...card, border: "1px solid rgba(239,68,68,0.12)", opacity: 0.7 }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        flexWrap: "wrap",
-                        gap: 8,
-                        marginBottom: 6,
-                      }}
-                    >
-                      <div>
-                        <span style={{ color: "#f8fafc", fontWeight: 700 }}>{a.author_name || a.nom || "Anonyme"}</span>
-                        {a.note && (
-                          <span style={{ marginLeft: 10, color: "#fbbf24", fontSize: 13 }}>
-                            {"★".repeat(Math.min(5, Math.max(1, Number(a.note))))}
-                          </span>
-                        )}
-                        <span
-                          style={{
-                            marginLeft: 8,
-                            background: "rgba(239,68,68,0.15)",
-                            color: "#ef4444",
-                            padding: "1px 7px",
-                            borderRadius: 99,
-                            fontSize: 11,
-                            fontWeight: 700,
-                          }}
-                        >
-                          Refusé
-                        </span>
-                      </div>
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <button
-                          onClick={() => handleAvisAction(a.id, "approved")}
-                          style={{
-                            background: "rgba(34,197,94,0.12)",
-                            border: "1px solid rgba(34,197,94,0.3)",
-                            color: "#4ade80",
-                            padding: "5px 10px",
-                            borderRadius: 8,
-                            cursor: "pointer",
-                            fontWeight: 700,
-                            fontSize: 11,
-                          }}
-                        >
-                          Republier
-                        </button>
-                        <button
-                          onClick={() => handleDeleteAvis(a.id)}
-                          style={{
-                            background: "rgba(239,68,68,0.06)",
-                            border: "1px solid rgba(239,68,68,0.15)",
-                            color: "#f87171",
-                            padding: "5px 10px",
-                            borderRadius: 8,
-                            cursor: "pointer",
-                            fontWeight: 700,
-                            fontSize: 12,
-                          }}
-                        >
-                          🗑
-                        </button>
-                      </div>
-                    </div>
-                    <p style={{ color: "#94a3b8", fontSize: 13, margin: 0, lineHeight: 1.5, whiteSpace: "pre-line" }}>
-                      {a.message || a.content || a.texte}
-                    </p>
-                  </div>
-                </SwipeDeleteRow>
-              ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── Modale Accepter ── */}
-
-      {/* ── Modale carte tracé ── */}
-      {mapModal && (
-        <MapTraceModal
-          alt={mapModal.alt}
-          r={mapModal.r}
-          onClose={() => setMapModal(null)}
-          onChoose={() => {
-            handleSelectItineraire(mapModal.r, mapModal.alt);
-            setMapModal(null);
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-function MapTraceModal({
-  alt,
-  r,
-  onClose,
-  onChoose,
-}: {
-  alt: ItineraryAlt;
-  r: any;
-  onClose: () => void;
-  onChoose: () => void;
-}) {
-  const mapRef = useRef<any>(null);
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!mapContainerRef.current || !alt.coords.length) return;
-    const L = (window as any).L;
-    if (!L) return;
-
-    // Initialiser la carte
-    const map = L.map(mapContainerRef.current, { zoomControl: true });
-    mapRef.current = map;
-
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "© OpenStreetMap",
-    }).addTo(map);
-
-    // Tracé de la route
-    const color = alt.label.includes("Court") ? "#22c55e" : "#ef4444";
-    const poly = L.polyline(alt.coords, { color, weight: 5, opacity: 0.85 }).addTo(map);
-
-    // Marqueurs départ / arrivée
-    const iconDepart = L.divIcon({
-      className: "",
-      html: `<div style="width:14px;height:14px;background:#22c55e;border-radius:50%;border:3px solid #fff;box-shadow:0 0 4px rgba(0,0,0,0.4)"></div>`,
-      iconAnchor: [7, 7],
-    });
-    const iconArrivee = L.divIcon({
-      className: "",
-      html: `<div style="width:14px;height:14px;background:#ef4444;border-radius:50%;border:3px solid #fff;box-shadow:0 0 4px rgba(0,0,0,0.4)"></div>`,
-      iconAnchor: [7, 7],
-    });
-    L.marker(alt.coords[0], { icon: iconDepart })
-      .addTo(map)
-      .bindPopup(r.depart || "Départ");
-    L.marker(alt.coords[alt.coords.length - 1], { icon: iconArrivee })
-      .addTo(map)
-      .bindPopup(r.destination || r.arrivee || "Arrivée");
-
-    map.fitBounds(poly.getBounds().pad(0.15));
-
-    return () => {
-      map.remove();
-    };
-  }, [alt, r]);
-
-  return (
-    <div
-      onClick={onClose}
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 9999,
-        background: "rgba(0,0,0,0.75)",
+        background: "#0f4bbf",
+        fontFamily: "'DM Sans',sans-serif",
         display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 16,
+        flexDirection: "column",
+        overflowX: "hidden",
       }}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "#1e293b",
-          borderRadius: 16,
-          width: "100%",
-          maxWidth: 540,
-          overflow: "hidden",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
-        }}
-      >
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Clash+Display:wght@700&family=DM+Sans:wght@400;500;600;700&display=swap');
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body { overflow-x: hidden; max-width: 100vw; }
+        input, select, button { font-family: 'DM Sans', sans-serif; }
+        input[type=date], input[type=time] { color-scheme: light; }
+        input[type=text], input[type=tel], input[type=email] { font-size: 16px !important; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+        .leaflet-container { width: 100% !important; height: 100% !important; }
+      `}</style>
+
+      {/* ── Map ── */}
+      <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
+        <div ref={mapRef} style={{ position: "absolute", inset: 0 }} />
+
+        {/* Badge disponibilité */}
         <div
           style={{
+            position: "absolute",
+            top: 16,
+            left: 16,
+            background:
+              taxiAvailable === false
+                ? "rgba(239,68,68,0.15)"
+                : taxiAvailable === true
+                  ? "rgba(34,197,94,0.15)"
+                  : "rgba(10,10,20,0.85)",
+            backdropFilter: "blur(12px)",
+            borderRadius: 99,
+            padding: "7px 14px",
             display: "flex",
-            justifyContent: "space-between",
             alignItems: "center",
-            padding: "14px 16px",
-            borderBottom: "1px solid rgba(255,255,255,0.08)",
+            gap: 7,
+            border:
+              taxiAvailable === false
+                ? "1px solid rgba(239,68,68,0.5)"
+                : taxiAvailable === true
+                  ? "1px solid rgba(34,197,94,0.5)"
+                  : "1px solid rgba(245,200,66,0.2)",
+            zIndex: 100,
+            boxShadow:
+              taxiAvailable === false
+                ? "0 0 12px rgba(239,68,68,0.25)"
+                : taxiAvailable === true
+                  ? "0 0 12px rgba(34,197,94,0.2)"
+                  : "none",
           }}
         >
-          <span style={{ fontWeight: 700, color: "#f8fafc", fontSize: 15 }}>
-            {alt.label} — {alt.km} km · <span style={{ color: "#f5c842" }}>{alt.prix.toFixed(2)} €</span>
-          </span>
-          <button
-            onClick={onClose}
-            style={{ background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer" }}
-          >
-            ✕
-          </button>
-        </div>
-        <div ref={mapContainerRef} style={{ height: 360, width: "100%" }} />
-        <div style={{ padding: 14 }}>
-          <button
-            onClick={onChoose}
+          {/* Point clignotant */}
+          <div style={{ position: "relative", width: 9, height: 9, flexShrink: 0 }}>
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                borderRadius: "50%",
+                background: taxiAvailable === false ? "#ef4444" : taxiAvailable === true ? "#22c55e" : "#94a3b8",
+                animation: taxiAvailable !== null ? "pulse 1.8s ease-in-out infinite" : "none",
+              }}
+            />
+            {taxiAvailable !== null && (
+              <div
+                style={{
+                  position: "absolute",
+                  inset: -3,
+                  borderRadius: "50%",
+                  background: taxiAvailable === false ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)",
+                  animation: "pulse 1.8s ease-in-out infinite",
+                }}
+              />
+            )}
+          </div>
+          <span
             style={{
-              width: "100%",
-              padding: 12,
-              background: "#f5c842",
-              border: "none",
-              borderRadius: 10,
+              fontSize: 12,
               fontWeight: 700,
-              fontSize: 14,
-              cursor: "pointer",
-              color: "#0f172a",
+              color: taxiAvailable === false ? "#fca5a5" : taxiAvailable === true ? "#86efac" : "#94a3b8",
+              letterSpacing: 0.2,
             }}
           >
-            ✓ Choisir ce trajet
-          </button>
+            {taxiAvailable === null
+              ? t("res.geo.loading")
+              : taxiAvailable
+                ? t("taxi.badge.available")
+                : t("taxi.badge.busy")}
+          </span>
+        </div>
+
+        {/* Badge calcul */}
+        {calcLoading && (
+          <div
+            style={{
+              position: "absolute",
+              top: 16,
+              right: 16,
+              background: "rgba(10,10,20,0.85)",
+              backdropFilter: "blur(12px)",
+              borderRadius: 99,
+              padding: "6px 14px",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              border: "1px solid rgba(245,200,66,0.15)",
+              zIndex: 100,
+            }}
+          >
+            <div
+              style={{
+                width: 14,
+                height: 14,
+                border: "2px solid #f5c842",
+                borderTopColor: "transparent",
+                borderRadius: "50%",
+                animation: "spin 0.8s linear infinite",
+              }}
+            />
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#f5c842" }}>{t("rsim.loading")}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ── Bottom sheet ── */}
+      <div
+        dir={dir}
+        style={{
+          flexShrink: 0,
+          background: "linear-gradient(180deg, #0f4bbf 0%, #0a3aa1 100%)",
+          borderRadius: "24px 24px 0 0",
+          boxShadow: "0 -8px 40px rgba(0,0,0,0.3)",
+          maxHeight: "70vh",
+          display: "flex",
+          flexDirection: "column",
+          overflowX: "hidden",
+        }}
+      >
+        <div style={{ padding: "12px 0 0", display: "flex", justifyContent: "center", flexShrink: 0 }}>
+          <div style={{ width: 36, height: 4, background: "rgba(245,200,66,0.25)", borderRadius: 9 }} />
+        </div>
+
+        <div
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            padding: "16px 20px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 20,
+          }}
+        >
+          {/* ── En-tête : retour + titre + langue + notifs ── */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {/* Ligne 1 : bouton retour ← et bouton notifs */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 8,
+              }}
+            >
+              <button
+                onClick={() => navigate({ to: "/" })}
+                aria-label="Retour au site"
+                style={{
+                  background: "rgba(255,255,255,0.1)",
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  color: "#f8fafc",
+                  borderRadius: 99,
+                  padding: "7px 14px",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontFamily: "'DM Sans', sans-serif",
+                }}
+              >
+                ← Retour
+              </button>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {/* Bouton notifications push — toujours visible, 3 états */}
+                {typeof window !== "undefined" && "Notification" in window && (
+                  <button
+                    onClick={async () => {
+                      if (notifPermission === "denied" || notifPermission === "granted") return;
+                      const perm = await Notification.requestPermission();
+                      setNotifPermission(perm);
+                      if (perm === "granted") {
+                        try {
+                          const token = await getFcmToken();
+                          if (token) {
+                            await Promise.all([
+                              subscribePush({
+                                data: {
+                                  audience: "client",
+                                  fcm_token: token,
+                                  user_agent: navigator.userAgent,
+                                },
+                              }),
+                              subscribePush({
+                                data: {
+                                  audience: "chauffeur",
+                                  fcm_token: token,
+                                  reservation_id: null,
+                                  user_agent: navigator.userAgent,
+                                },
+                              }),
+                            ]);
+                            localStorage.setItem("fcm_token", token);
+                          }
+                        } catch {
+                          // silencieux
+                        }
+                      }
+                    }}
+                    disabled={notifPermission === "denied"}
+                    title={
+                      notifPermission === "denied"
+                        ? "Notifications bloquées — autorisez dans les réglages du navigateur"
+                        : notifPermission === "granted"
+                          ? "Notifications activées ✓"
+                          : "Recevoir une confirmation et un suivi par notification"
+                    }
+                    style={{
+                      background:
+                        notifPermission === "denied"
+                          ? "rgba(239,68,68,0.15)"
+                          : notifPermission === "granted"
+                            ? "rgba(34,197,94,0.15)"
+                            : "rgba(245,200,66,0.15)",
+                      border: `1px solid ${
+                        notifPermission === "denied"
+                          ? "rgba(239,68,68,0.4)"
+                          : notifPermission === "granted"
+                            ? "rgba(34,197,94,0.4)"
+                            : "rgba(245,200,66,0.4)"
+                      }`,
+                      color:
+                        notifPermission === "denied"
+                          ? "#f87171"
+                          : notifPermission === "granted"
+                            ? "#86efac"
+                            : "#f5c842",
+                      borderRadius: 99,
+                      padding: "7px 13px",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: notifPermission === "default" ? "pointer" : "default",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
+                      fontFamily: "'DM Sans', sans-serif",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {notifPermission === "denied"
+                      ? "🔕 Bloquées"
+                      : notifPermission === "granted"
+                        ? "🔔 Activées"
+                        : "🔔 Notifs"}
+                  </button>
+                )}
+
+                {/* Sélecteur de langue */}
+                <select
+                  value={lang}
+                  onChange={(e) => setLang(e.target.value as Lang)}
+                  style={{
+                    background: "rgba(255,255,255,0.12)",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    color: "#f5f5f5",
+                    borderRadius: 8,
+                    padding: "6px 8px",
+                    fontSize: 13,
+                    cursor: "pointer",
+                  }}
+                >
+                  {LANGUAGES.map((l) => (
+                    <option key={l.code} value={l.code} style={{ background: "#1e3a8a", color: "#f5f5f5" }}>
+                      {l.flag} {l.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Ligne 2 : titre + sous-titre */}
+            <div>
+              <div
+                style={{
+                  fontSize: 24,
+                  fontWeight: 700,
+                  color: "#f5f5f5",
+                  fontFamily: "'Clash Display'",
+                }}
+              >
+                {t("res.title")}
+              </div>
+              <div style={{ fontSize: 13, color: "#cbd5e1", marginTop: 4 }}>{t("res.intro")}</div>
+            </div>
+          </div>
+
+          {/* ── Bannière disponibilité taxi ── */}
+          {taxiAvailable === false && (
+            <div
+              style={{
+                background: "rgba(239,68,68,0.12)",
+                border: "1px solid rgba(239,68,68,0.35)",
+                borderRadius: 12,
+                padding: "10px 14px",
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 10,
+              }}
+            >
+              <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>🚕</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#fca5a5", marginBottom: 2 }}>
+                  {t("taxi.banner.busy.title")}
+                </div>
+                <div style={{ fontSize: 12, color: "#fecaca", lineHeight: 1.4 }}>{t("taxi.banner.busy.desc")}</div>
+              </div>
+            </div>
+          )}
+          {taxiAvailable === true && (
+            <div
+              style={{
+                background: "rgba(34,197,94,0.1)",
+                border: "1px solid rgba(34,197,94,0.3)",
+                borderRadius: 12,
+                padding: "10px 14px",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+              }}
+            >
+              <span style={{ fontSize: 18, flexShrink: 0 }}>✅</span>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#86efac" }}>{t("taxi.banner.available.msg")}</div>
+            </div>
+          )}
+
+          <form
+            onSubmit={handleSubmit}
+            autoComplete="off"
+            style={{ display: "flex", flexDirection: "column", gap: 18 }}
+          >
+            {/* ── Coordonnées ── */}
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>
+                {t("res.loc.contact_section")}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {[
+                  { k: "prenom" as const, label: t("res.loc.firstname"), ph: "Jean" },
+                  { k: "nom" as const, label: t("res.loc.lastname"), ph: "Dupont" },
+                ].map(({ k, label, ph }) => (
+                  <div key={k}>
+                    <label
+                      style={{
+                        fontSize: 11,
+                        color: "#cbd5e1",
+                        fontWeight: 600,
+                        display: "block",
+                        marginBottom: 6,
+                      }}
+                    >
+                      {label}
+                    </label>
+                    <input
+                      type="text"
+                      value={f[k]}
+                      onChange={(e) => set(k, e.target.value)}
+                      placeholder={ph}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="words"
+                      spellCheck={false}
+                      name={`tcb-${k}-x`}
+                      style={inputStyle(!!errors[k])}
+                    />
+                    {errors[k] && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors[k]}</div>}
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10 }}>
+                {[
+                  {
+                    k: "phone" as const,
+                    label: t("res.loc.phone"),
+                    ph: "06 12 34 56 78",
+                    type: "tel",
+                  },
+                  {
+                    k: "email" as const,
+                    label: t("res.loc.email"),
+                    ph: "jean@exemple.fr",
+                    type: "email",
+                  },
+                ].map(({ k, label, ph, type }) => (
+                  <div key={k}>
+                    <label
+                      style={{
+                        fontSize: 11,
+                        color: "#cbd5e1",
+                        fontWeight: 600,
+                        display: "block",
+                        marginBottom: 6,
+                      }}
+                    >
+                      {label}
+                    </label>
+                    <input
+                      type={type}
+                      value={f[k]}
+                      onChange={(e) => set(k, e.target.value)}
+                      placeholder={ph}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      spellCheck={false}
+                      name={`tcb-${k}-x`}
+                      style={inputStyle(!!errors[k])}
+                    />
+                    {errors[k] && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors[k]}</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ── Adresses ── */}
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>
+                {t("res.loc.ride_section")}
+              </div>
+
+              {/* Départ : saisie libre + bouton géoloc */}
+              <div style={{ marginBottom: 10 }}>
+                <label
+                  style={{
+                    fontSize: 11,
+                    color: "#cbd5e1",
+                    fontWeight: 600,
+                    display: "block",
+                    marginBottom: 6,
+                  }}
+                >
+                  {t("res.loc.from")}
+                </label>
+                <div style={{ position: "relative" }}>
+                  <input
+                    type="text"
+                    value={f.depart}
+                    onChange={(e) => {
+                      set("depart", e.target.value);
+                      setFromCoord(null);
+                    }}
+                    onBlur={resolveDepartAddress}
+                    placeholder="Adresse ou cliquez 📍"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    name="tcb-depart-x"
+                    style={{ ...inputStyle(!!errors.depart), paddingRight: 52 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleGeolocate}
+                    disabled={geolocLoading}
+                    style={{
+                      position: "absolute",
+                      right: 6,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      background: "#f5c842",
+                      border: "none",
+                      borderRadius: 8,
+                      cursor: geolocLoading ? "wait" : "pointer",
+                      color: "#0f172a",
+                      padding: "8px 10px",
+                      fontSize: 16,
+                      fontWeight: 700,
+                    }}
+                    aria-label="Me géolocaliser"
+                  >
+                    {geolocLoading ? "⏳" : "📍"}
+                  </button>
+                </div>
+                {errors.depart && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.depart}</div>}
+                {fromCoord && !errors.depart && (
+                  <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>✓ {t("res.geo.btn")}</div>
+                )}
+              </div>
+
+              {/* Destination */}
+              <div>
+                <label
+                  style={{
+                    fontSize: 11,
+                    color: "#cbd5e1",
+                    fontWeight: 600,
+                    display: "block",
+                    marginBottom: 6,
+                  }}
+                >
+                  {t("res.loc.to")}
+                </label>
+                <input
+                  type="text"
+                  value={f.destination}
+                  onChange={(e) => {
+                    set("destination", e.target.value);
+                    setToCoord(null);
+                    setDestinationChoices([]);
+                  }}
+                  onBlur={resolveDestinationAddress}
+                  placeholder={t("res.f.to.ph")}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  name="tcb-dest-x"
+                  style={inputStyle(!!errors.destination)}
+                />
+                {errors.destination && (
+                  <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.destination}</div>
+                )}
+                {destinationChoices.length > 0 && (
+                  <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
+                    {destinationChoices.map((choice) => (
+                      <button
+                        key={`${choice.label}-${choice.coord[0]}-${choice.coord[1]}`}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          set("destination", choice.label);
+                          setToCoord(choice.coord);
+                          setDestinationChoices([]);
+                          setErrors((prev) => {
+                            const next = { ...prev };
+                            delete next.destination;
+                            return next;
+                          });
+                        }}
+                        style={{
+                          width: "100%",
+                          textAlign: "left",
+                          padding: "10px 12px",
+                          borderRadius: 10,
+                          border: "1px solid rgba(245,200,66,0.35)",
+                          background: "rgba(245,200,66,0.1)",
+                          color: "#f8fafc",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <span style={{ display: "block", fontSize: 13, fontWeight: 700 }}>{choice.label}</span>
+                        <span style={{ display: "block", fontSize: 11, color: "#fde68a", marginTop: 2 }}>
+                          à {choice.distanceKm.toFixed(1)} km du départ
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {toCoord && !errors.destination && (
+                  <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>✓ {t("res.loc.to")}</div>
+                )}
+              </div>
+
+              {/* Récap distance + prix */}
+              {orsResult && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    padding: "12px 16px",
+                    background: "rgba(245,200,66,0.12)",
+                    borderRadius: 12,
+                    border: "1px solid rgba(245,200,66,0.3)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 14, color: "#f5c842", fontWeight: 700 }}>
+                      {orsResult.distanceKm} km · {Math.round(orsResult.dureeS / 60)} min
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: tarifJour ? "#fbbf24" : "#818cf8",
+                        marginTop: 2,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {tarifJour ? "☀️ Tarif jour (7h-19h)" : "🌙 Tarif nuit (19h-7h / dim. / férié)"}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 11, color: "#cbd5e1", marginBottom: 2 }}>{t("rsim.estimate")}</div>
+                    <div
+                      style={{
+                        fontSize: 22,
+                        fontWeight: 800,
+                        color: "#f5c842",
+                        fontFamily: "'Clash Display'",
+                      }}
+                    >
+                      {prixAller.toFixed(2)} €
+                    </div>
+                  </div>
+                </div>
+              )}
+              {calcLoading && !orsResult && (
+                <div style={{ color: "#cbd5e1", fontSize: 12, marginTop: 8, textAlign: "center" }}>
+                  ⏳ Calcul de l'itinéraire…
+                </div>
+              )}
+            </div>
+
+            {/* ── Date/heure ── */}
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>
+                🕐 {t("res.loc.date_label")}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div>
+                  <label
+                    style={{
+                      fontSize: 11,
+                      color: "#cbd5e1",
+                      fontWeight: 600,
+                      display: "block",
+                      marginBottom: 6,
+                    }}
+                  >
+                    {t("res.loc.date_label")}
+                  </label>
+                  <input
+                    type="date"
+                    value={f.date}
+                    onChange={(e) => set("date", e.target.value)}
+                    min={today}
+                    style={inputStyle(!!errors.date)}
+                  />
+                  {errors.date && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.date}</div>}
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontSize: 11,
+                      color: "#cbd5e1",
+                      fontWeight: 600,
+                      display: "block",
+                      marginBottom: 6,
+                    }}
+                  >
+                    {t("res.loc.time_label")}
+                  </label>
+                  <input
+                    type="time"
+                    value={f.heure}
+                    onChange={(e) => set("heure", e.target.value)}
+                    style={inputStyle(!!errors.heure)}
+                  />
+                  {errors.heure && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.heure}</div>}
+                </div>
+              </div>
+            </div>
+
+            {/* ── Passagers / Bagages ── */}
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>
+                👥 {t("res.f.passengers")}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div>
+                  <label
+                    style={{
+                      fontSize: 11,
+                      color: "#cbd5e1",
+                      fontWeight: 600,
+                      display: "block",
+                      marginBottom: 6,
+                    }}
+                  >
+                    {t("res.f.passengers")}
+                  </label>
+                  <select
+                    value={f.passagers}
+                    onChange={(e) => set("passagers", parseInt(e.target.value))}
+                    style={inputStyle()}
+                  >
+                    {[1, 2, 3, 4, 5, 6].map((n) => (
+                      <option key={n} value={n}>
+                        {n} {n > 1 ? t("res.loc.passengers_pl") : t("res.loc.passenger_sg")}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontSize: 11,
+                      color: "#cbd5e1",
+                      fontWeight: 600,
+                      display: "block",
+                      marginBottom: 6,
+                    }}
+                  >
+                    {t("res.f.luggage")}
+                  </label>
+                  <select
+                    value={f.bagages}
+                    onChange={(e) => set("bagages", parseInt(e.target.value))}
+                    style={inputStyle()}
+                  >
+                    {[0, 1, 2, 3, 4, 5].map((n) => (
+                      <option key={n} value={n}>
+                        {n} {n > 1 ? t("res.loc.luggage_pl") : t("res.loc.luggage_sg")}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Paiement ── */}
+            <div>
+              <label
+                style={{
+                  fontSize: 11,
+                  color: "#cbd5e1",
+                  fontWeight: 600,
+                  display: "block",
+                  marginBottom: 6,
+                }}
+              >
+                {t("res.loc.payment_section")}
+              </label>
+              <select value={f.paiement} onChange={(e) => set("paiement", e.target.value)} style={inputStyle()}>
+                <option value="especes">{t("res.loc.cash")}</option>
+                <option value="cb">{t("res.loc.card")}</option>
+              </select>
+            </div>
+
+            {/* ── Bouton réserver ── */}
+            <button
+              type="submit"
+              disabled={sending}
+              style={{
+                padding: "14px 20px",
+                background: sending ? "#64748b" : "#f5c842",
+                color: sending ? "#cbd5e1" : "#0f172a",
+                border: "none",
+                borderRadius: 12,
+                fontWeight: 700,
+                fontSize: 16,
+                cursor: sending ? "wait" : "pointer",
+              }}
+            >
+              {sending ? t("res.sending") : t("res.send")}
+            </button>
+
+            {!orsResult && !calcLoading && fromCoord && toCoord && (
+              <div style={{ color: "#fecaca", fontSize: 12, textAlign: "center", marginTop: -8 }}>
+                {t("res.geo.err.unavailable")}
+              </div>
+            )}
+          </form>
+
+          <div style={{ height: 20 }} />
         </div>
       </div>
     </div>
