@@ -3,7 +3,6 @@ import * as React from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { SiteHeader } from "@/components/SiteHeader";
-import { PushDebug } from "@/components/PushDebug";
 import appCss from "@/styles.css?url";
 
 export const Route = createRootRoute({
@@ -59,7 +58,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           {showHeader && <SiteHeader />}
           {children}
           <Toaster />
-          <PushDebug />
         </I18nProvider>
         <Scripts />
       </body>
