@@ -23,7 +23,6 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
 
         console.log("[notify-reservation] supabaseUrl:", supabaseUrl);
         console.log("[notify-reservation] serviceKey prefix:", serviceKey?.slice(0, 40));
-        console.log("[notify-reservation] reservationId:", reservationId);
         if (!supabaseUrl || !serviceKey) {
           return Response.json({ error: "Server config error" }, { status: 500 });
         }
@@ -45,6 +44,7 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
           return Response.json({ error: "Invalid payload" }, { status: 400 });
         }
         const reservationId = parsed.data.reservation_id;
+        console.log("[notify-reservation] reservationId:", reservationId);
 
         const supabase = createClient(supabaseUrl, serviceKey);
 
