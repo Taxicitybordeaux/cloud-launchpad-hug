@@ -46,7 +46,10 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
         const reservationId = parsed.data.reservation_id;
         console.log("[notify-reservation] reservationId:", reservationId);
 
-        const supabase = createClient(supabaseUrl, serviceKey);
+        const supabase = createClient(supabaseUrl, serviceKey, {
+          auth: { persistSession: false, autoRefreshToken: false },
+          global: { headers: { Authorization: `Bearer ${serviceKey}` } },
+        });
 
         const { data: reservation, error: lookupError } = await supabase
           .from("reservations")
