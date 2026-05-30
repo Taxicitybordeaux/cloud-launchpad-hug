@@ -25,7 +25,13 @@ let cachedToken: { token: string; exp: number } | null = null;
 
 function getServiceAccount(): ServiceAccount {
   if (cachedAccount) return cachedAccount;
-  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  // Lovable/Vite expose les variables serveur via import.meta.env (sans préfixe VITE_)
+  // Node.js les expose via process.env — on tente les deux
+  const raw =
+    process.env.FIREBASE_SERVICE_ACCOUNT_JSON ||
+    process.env.FIREBASE_SERVICE_ACCOUNT ||
+    (typeof import.meta !== "undefined" ? (import.meta as any).env?.FIREBASE_SERVICE_ACCOUNT_JSON : undefined) ||
+    (typeof import.meta !== "undefined" ? (import.meta as any).env?.FIREBASE_SERVICE_ACCOUNT : undefined);
   if (!raw) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON missing");
   cachedAccount = JSON.parse(raw) as ServiceAccount;
   return cachedAccount;
