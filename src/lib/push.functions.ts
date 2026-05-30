@@ -18,24 +18,42 @@ const subSchema = z.object({
 export const subscribePush = createServerFn({ method: "POST" })
   .inputValidator((input) => subSchema.parse(input))
   .handler(async ({ data }) => {
-    const endpoint = `fcm://${data.fcm_token}`;
-    const { error } = await supabaseAdmin.from("push_subscriptions").upsert(
+    const rows = [
       {
         audience: data.audience,
-        endpoint,
+        endpoint: `fcm://${data.fcm_token}`,
         fcm_token: data.fcm_token,
         reservation_id: data.reservation_id ?? null,
         user_agent: data.user_agent ?? null,
         last_seen_at: new Date().toISOString(),
       },
-      { onConflict: "endpoint" },
-    );
-    if (error) {
-      console.error("[push] subscribe failed", error);
-      throw new Error("subscribe_failed");
+    ];
+
+    // Si l'utilisateur s'abonne en tant qu'admin, on enregistre aussi
+    // la même device comme "chauffeur" (même token FCM, endpoint distinct)
+    if (data.audience === "admin") {
+      rows.push({
+        audience: "chauffeur",
+        endpoint: `fcm://${data.fcm_token}-chauffeur`,
+        fcm_token: data.fcm_token,
+        reservation_id: null,
+        user_agent: data.user_agent ?? null,
+        last_seen_at: new Date().toISOString(),
+      });
+    }
+
+    for (const row of rows) {
+      const { error } = await supabaseAdmin
+        .from("push_subscriptions")
+        .upsert(row, { onConflict: "endpoint" });
+      if (error) {
+        console.error("[push] subscribe failed", error);
+        throw new Error("subscribe_failed");
+      }
     }
     return { ok: true };
   });
+
 
 export const unsubscribePush = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ fcm_token: z.string().min(10).max(500) }).parse(input))
