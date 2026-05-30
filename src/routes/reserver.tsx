@@ -1133,7 +1133,10 @@ function ReservationPage() {
       try {
         await fetch("/api/public/notify-reservation", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Internal-Notify-Secret": "taxi-city-reservation-trigger-v1",
+          },
           body: JSON.stringify({ reservation_id: inserted.id }),
         });
       } catch (fetchErr) {
