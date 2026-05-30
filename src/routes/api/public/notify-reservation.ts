@@ -20,6 +20,10 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
           (typeof import.meta !== "undefined" ? (import.meta as any).env?.SUPABASE_URL : undefined) ||
           (typeof import.meta !== "undefined" ? (import.meta as any).env?.VITE_SUPABASE_URL : undefined);
         const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+        console.log("[notify-reservation] supabaseUrl:", supabaseUrl);
+        console.log("[notify-reservation] serviceKey prefix:", serviceKey?.slice(0, 40));
+        console.log("[notify-reservation] reservationId:", reservationId);
         if (!supabaseUrl || !serviceKey) {
           return Response.json({ error: "Server config error" }, { status: 500 });
         }
