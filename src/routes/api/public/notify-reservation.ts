@@ -56,7 +56,10 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
           )
           .eq("id", reservationId)
           .maybeSingle();
-        if (lookupError) return Response.json({ error: "lookup" }, { status: 500 });
+        if (lookupError) {
+          console.error("[notify-reservation] lookupError:", JSON.stringify(lookupError));
+          return Response.json({ error: "lookup" }, { status: 500 });
+        }
         if (!reservation) return Response.json({ error: "not_found" }, { status: 404 });
 
         const data = {
