@@ -49,15 +49,33 @@ export async function getFcmToken(): Promise<string | null> {
       return null;
     }
 
-    // CORRECTIF : getRegistration() attend un scope (ex: "/"), pas un chemin de fichier.
-    // On cherche d'abord un SW existant sur le scope "/", sinon on en enregistre un.
-    let swReg = await navigator.serviceWorker.getRegistration("/");
+    // On cherche le SW Firebase par son scriptURL exact parmi tous les SW enregistrés.
+    // getRegistration("/") retourne n'importe quel SW sur le scope "/" (ex: Vite HMR)
+    // ce qui fait que FCM reçoit le mauvais SW → token OK sur desktop mais notifs silencieuses sur mobile.
+    const SW_URL = "/firebase-messaging-sw.js";
+    const allRegs = await navigator.serviceWorker.getRegistrations();
+    let swReg = allRegs.find(
+      (r) =>
+        r.active?.scriptURL.includes(SW_URL) ||
+        r.installing?.scriptURL.includes(SW_URL) ||
+        r.waiting?.scriptURL.includes(SW_URL),
+    );
     if (!swReg) {
-      swReg = await navigator.serviceWorker.register("/firebase-messaging-sw.js", { scope: "/" });
+      swReg = await navigator.serviceWorker.register(SW_URL, { scope: "/" });
     }
 
-    // Attendre que le SW soit prêt (actif) avant de demander le token
-    await navigator.serviceWorker.ready;
+    // Attendre que le SW Firebase soit actif avant de demander le token
+    if (swReg.installing || swReg.waiting) {
+      await new Promise<void>((resolve) => {
+        const sw = swReg!.installing ?? swReg!.waiting!;
+        sw.addEventListener("statechange", function handler() {
+          if (sw.state === "activated") {
+            sw.removeEventListener("statechange", handler);
+            resolve();
+          }
+        });
+      });
+    }
 
     const token = await getToken(msg, {
       vapidKey: FCM_VAPID_KEY,
