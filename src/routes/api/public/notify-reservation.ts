@@ -1,13 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
-import * as React from "react";
-import { render } from "@react-email/components";
 import { z } from "zod";
 import { TEMPLATES } from "@/lib/email-templates/registry";
 import { sendPushToAudience } from "@/lib/push.server";
 
-const SITE_NAME = "Taxi City Bordeaux";
-const SENDER_DOMAIN = "notify.taxicitybordeaux.fr";
 const TEMPLATE_NAME = "new-reservation-admin";
 const INTERNAL_NOTIFY_SECRET = "taxi-city-reservation-trigger-v1";
 
@@ -65,64 +61,13 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
           return Response.json({ error: "Template not configured" }, { status: 500 });
         }
         const recipient = template.to;
-        const messageId = crypto.randomUUID();
         const idempotencyKey = `reservation-${reservationId}`;
-
-        const { error: logError } = await supabase.from("email_send_log").insert({
-          message_id: messageId,
-          template_name: TEMPLATE_NAME,
-          recipient_email: recipient,
-          status: "pending",
-          idempotency_key: idempotencyKey,
-        });
-        if (logError) {
-          if ((logError as any).code === "23505") {
-            return Response.json({ success: true, deduped: true });
-          }
-          return Response.json({ error: "log" }, { status: 500 });
-        }
-
-        const element = React.createElement(template.component, data);
-        const html = await render(element);
-        const text = await render(element, { plainText: true });
-        const subject =
-          typeof template.subject === "function" ? template.subject(data as any) : template.subject;
-
-        // Unsubscribe token
-        const normalized = recipient.toLowerCase();
-        let unsubscribeToken: string;
-        const { data: existing } = await supabase
-          .from("email_unsubscribe_tokens")
-          .select("token, used_at")
-          .eq("email", normalized)
-          .maybeSingle();
-        if (existing && !existing.used_at) {
-          unsubscribeToken = existing.token;
-        } else {
-          const bytes = new Uint8Array(32);
-          crypto.getRandomValues(bytes);
-          unsubscribeToken = Array.from(bytes)
-            .map((b) => b.toString(16).padStart(2, "0"))
-            .join("");
-          await supabase
-            .from("email_unsubscribe_tokens")
-            .upsert(
-              { token: unsubscribeToken, email: normalized },
-              { onConflict: "email", ignoreDuplicates: true },
-            );
-          const { data: stored } = await supabase
-            .from("email_unsubscribe_tokens")
-            .select("token")
-            .eq("email", normalized)
-            .maybeSingle();
-          if (stored?.token) unsubscribeToken = stored.token;
-        }
 
         // Toujours pointer vers la prod, jamais vers l'origine de la requête entrante
         // (qui peut être l'URL de preview Lovable si le client est sur preview).
         // On ajoute Authorization: Bearer <serviceKey> exactement comme send-course-email.ts.
         const EMAIL_BRIDGE_URL = "https://taxicitybordeaux.fr/lovable/email/transactional/send";
-        console.log("[notify-reservation] → bridge:", EMAIL_BRIDGE_URL, "messageId:", messageId);
+        console.log("[notify-reservation] → bridge:", EMAIL_BRIDGE_URL, "reservation:", reservationId);
 
         const sendResp = await fetch(EMAIL_BRIDGE_URL, {
           method: "POST",
@@ -131,37 +76,20 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
             Authorization: `Bearer ${serviceKey}`,
           },
           body: JSON.stringify({
-            message_id: messageId,
-            to: recipient,
-            from: `${SITE_NAME} <noreply@${SENDER_DOMAIN}>`,
-            reply_to: "taxi.city033@gmail.com",
-            sender_domain: SENDER_DOMAIN,
-            subject,
-            html,
-            text,
-            purpose: "transactional",
-            label: TEMPLATE_NAME,
-            idempotency_key: idempotencyKey,
-            unsubscribe_token: unsubscribeToken,
+            templateName: TEMPLATE_NAME,
+            recipientEmail: recipient,
+            idempotencyKey,
+            templateData: data,
           }),
         });
 
         if (!sendResp.ok) {
           const errBody = await sendResp.text().catch(() => "");
           console.error("[notify-reservation] bridge error", sendResp.status, errBody);
-          await supabase
-            .from("email_send_log")
-            .update({ status: "failed", error_message: `send ${sendResp.status}: ${errBody}` })
-            .eq("message_id", messageId);
           return Response.json({ error: "send_failed" }, { status: 500 });
         }
 
-        await supabase
-          .from("email_send_log")
-          .update({ status: "sent" })
-          .eq("message_id", messageId);
-
-        console.log("[notify-reservation] sent ok, messageId:", messageId);
+        console.log("[notify-reservation] email queued ok, reservation:", reservationId);
 
         try {
           await Promise.all([
