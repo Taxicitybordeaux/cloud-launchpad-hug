@@ -9,7 +9,7 @@ import { assertSuiviId, newSuiviId } from "@/lib/suivi-id";
 import { CourseCardSkeleton, GpsCardSkeleton, SkeletonStyles, StatCardSkeleton } from "@/components/admin/Skeleton";
 import logo from "@/assets/logo.jpeg";
 
-import { notifyReservationStatus, notifyNewReservation, subscribePush } from "@/lib/push.functions";
+import { notifyReservationStatus, subscribePush } from "@/lib/push.functions";
 import { getFcmToken } from "@/lib/firebase";
 
 const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
@@ -705,9 +705,8 @@ function Dashboard() {
           try {
             new Audio("/notification.mp3").play().catch(() => {});
           } catch {}
-          if (n.id) {
-            notifyNewReservation({ data: { reservation_id: n.id } }).catch(() => {});
-          }
+          // Notification gérée par le trigger Supabase + Edge Function notify-new-reservation
+
           if (typeof window !== "undefined" && "Notification" in window) {
             const fire = () => {
               try {
