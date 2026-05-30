@@ -51,9 +51,7 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
 
         const { data: reservation, error: lookupError } = await supabase
           .from("reservations")
-          .select(
-            "id, nom, telephone, email, pickup_datetime, depart, arrivee, passagers, bagages, service_type, message",
-          )
+          .select("id, nom, telephone, email, pickup_datetime, depart, arrivee, passagers, bagages, service_type")
           .eq("id", reservationId)
           .maybeSingle();
         if (lookupError) {
