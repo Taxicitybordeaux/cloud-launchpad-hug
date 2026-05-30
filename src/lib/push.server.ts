@@ -121,7 +121,9 @@ async function sendFcmToToken(
   const body = {
     message: {
       token,
-      notification: { title: payload.title, body: payload.body },
+      // NE PAS mettre "notification" ici : si présent, FCM tente d'afficher la notif
+      // lui-même sans passer par le Service Worker → silencieux sur Android background.
+      // On délègue 100% au SW via webpush.notification.
       webpush: {
         headers: payload.requireInteraction ? { Urgency: "high", TTL: "86400" } : { TTL: "3600" },
         notification: {
