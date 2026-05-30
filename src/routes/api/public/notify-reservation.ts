@@ -15,15 +15,13 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const supabaseUrl =
-          process.env.SUPABASE_URL ||
-          (typeof import.meta !== "undefined" ? (import.meta as any).env?.SUPABASE_URL : undefined) ||
-          (typeof import.meta !== "undefined" ? (import.meta as any).env?.VITE_SUPABASE_URL : undefined);
+        const supabaseUrl = "https://auiagkpdpnfqxfngisfc.supabase.co";
         const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
         console.log("[notify-reservation] supabaseUrl:", supabaseUrl);
         console.log("[notify-reservation] serviceKey prefix:", serviceKey?.slice(0, 40));
-        if (!supabaseUrl || !serviceKey) {
+
+        if (!serviceKey) {
           return Response.json({ error: "Server config error" }, { status: 500 });
         }
 
@@ -73,9 +71,6 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
         const recipient = template.to;
         const idempotencyKey = `reservation-${reservationId}`;
 
-        // Toujours pointer vers la prod, jamais vers l'origine de la requête entrante
-        // (qui peut être l'URL de preview Lovable si le client est sur preview).
-        // On ajoute Authorization: Bearer <serviceKey> exactement comme send-course-email.ts.
         const EMAIL_BRIDGE_URL = "https://taxicitybordeaux.fr/lovable/email/transactional/send";
         console.log("[notify-reservation] → bridge:", EMAIL_BRIDGE_URL, "reservation:", reservationId);
 
