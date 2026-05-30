@@ -9,6 +9,7 @@ import { sendPushToAudience } from "@/lib/push.server";
 const SITE_NAME = "Taxi City Bordeaux";
 const SENDER_DOMAIN = "notify.taxicitybordeaux.fr";
 const TEMPLATE_NAME = "new-reservation-admin";
+const INTERNAL_NOTIFY_SECRET = "taxi-city-reservation-trigger-v1";
 
 const schema = z.object({
   reservation_id: z.string().uuid(),
@@ -22,6 +23,12 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
         const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
         if (!supabaseUrl || !serviceKey) {
           return Response.json({ error: "Server config error" }, { status: 500 });
+        }
+
+        const internalSecret = request.headers.get("X-Internal-Notify-Secret");
+        const hasServiceBearer = request.headers.get("Authorization") === `Bearer ${serviceKey}`;
+        if (internalSecret !== INTERNAL_NOTIFY_SECRET && !hasServiceBearer) {
+          return Response.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         let raw: unknown;
@@ -66,6 +73,7 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
           template_name: TEMPLATE_NAME,
           recipient_email: recipient,
           status: "pending",
+          idempotency_key: idempotencyKey,
         });
         if (logError) {
           if ((logError as any).code === "23505") {
