@@ -106,7 +106,7 @@ export function onForegroundMessage(callback: (payload: any) => void): () => voi
 export function setupForegroundNotifications(): () => void {
   return onForegroundMessage((payload) => {
     const title = payload.notification?.title ?? "Taxi City Bordeaux";
-    const options: NotificationOptions = {
+    const options = {
       body: payload.notification?.body ?? "",
       icon: payload.notification?.icon ?? "/favicon.ico",
       badge: "/favicon.ico",
@@ -114,7 +114,7 @@ export function setupForegroundNotifications(): () => void {
       data: payload.data ?? {},
       vibrate: [200, 100, 200],
       requireInteraction: true,
-    };
+    } as NotificationOptions;
 
     // Afficher via le Service Worker pour garantir l'affichage même en foreground
     navigator.serviceWorker.ready.then((reg) => {
