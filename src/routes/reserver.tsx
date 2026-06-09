@@ -22,8 +22,19 @@ export const Route = createFileRoute("/reserver")({
 
 const BORDEAUX_CENTER: [number, number] = [44.8378, -0.5792];
 const DESTINATION_SEARCH_RADIUS_KM = 80;
+const POI_SEARCH_RADIUS_KM = 50;
+const MAX_CHOICES_DEFAULT = 4;
 const MAX_AUTO_GEO_ACCURACY_M = 1500;
 const MAX_AUTO_GEO_DISTANCE_FROM_BORDEAUX_KM = 130;
+
+// Mots-clés déclenchant la détection automatique d'un lieu (POI)
+const POI_KEYWORDS_REGEX =
+  /\b(gare|aeroport|aéroport|airport|hopital|hôpital|clinique|stade|matmut|stadium|mairie|hotel|hôtel|université|universite|fac|lycée|lycee|école|ecole|musée|musee|chateau|château|église|eglise|theatre|théâtre|cinema|cinéma|piscine|parc|jardin|zoo|plage|port|marina|monument|tour|cathedrale|cathédrale|supermarche|supermarché|hypermarche|hypermarché|carrefour|leclerc|auchan|intermarche|intermarché|lidl|aldi|monoprix|casino|biocoop|centre commercial|cc\b|galerie|mall)\b/i;
+
+function detectPoi(value: string): boolean {
+  return POI_KEYWORDS_REGEX.test(value);
+}
+
 
 interface FormState {
   depart: string;
@@ -325,7 +336,7 @@ async function searchNearbyAddressChoices(
       const bHits = tokens.filter((token) => bLabel.includes(token)).length;
       return bHits - aHits || a.distanceKm - b.distanceKm;
     })
-    .slice(0, 4);
+    .slice(0, MAX_CHOICES_DEFAULT);
 }
 
 function requestBrowserPosition(options: PositionOptions): Promise<GeolocationPosition> {
@@ -447,6 +458,11 @@ function ReservationPage() {
   const [geolocLoading, setGeolocLoading] = useState(false);
   const [taxiAvailable, setTaxiAvailable] = useState<boolean | null>(null);
   const [destinationChoices, setDestinationChoices] = useState<AddressChoice[]>([]);
+  const [departChoices, setDepartChoices] = useState<AddressChoice[]>([]);
+  const [departMode, setDepartMode] = useState<"address" | "poi">("address");
+  const [destMode, setDestMode] = useState<"address" | "poi">("address");
+  const [departSearching, setDepartSearching] = useState(false);
+  const [destSearching, setDestSearching] = useState(false);
 
   const [f, setF] = useState<FormState>({
     depart: "",
@@ -783,10 +799,42 @@ function ReservationPage() {
   const resolveDepartAddress = useCallback(async () => {
     const value = f.depart.trim();
     if (!value) return;
-    setCalcLoading(true);
+
+    // Mode POI ou détection auto → recherche élargie 50 km, plusieurs choix
+    if (departMode === "poi" || detectPoi(value)) {
+      setDepartSearching(true);
+      const origin = BORDEAUX_CENTER;
+      const choices = await searchNearbyAddressChoices(value, origin, POI_SEARCH_RADIUS_KM);
+      setDepartSearching(false);
+      if (choices.length === 1) {
+        setDepartChoices([]);
+        setFromCoord(choices[0].coord);
+        set("depart", choices[0].label);
+        setErrors((prev) => {
+          const next = { ...prev };
+          delete next.depart;
+          return next;
+        });
+        return;
+      }
+      if (choices.length > 1) {
+        setDepartChoices(choices);
+        setFromCoord(null);
+        setErrors((prev) => ({ ...prev, depart: "Sélectionnez un lieu dans la liste" }));
+        return;
+      }
+      setDepartChoices([]);
+      setFromCoord(null);
+      setErrors((prev) => ({ ...prev, depart: "Lieu introuvable" }));
+      return;
+    }
+
+    // Mode adresse classique
+    setDepartSearching(true);
     const result = await geocodeFullAddress(value);
-    setCalcLoading(false);
+    setDepartSearching(false);
     if (result) {
+      setDepartChoices([]);
       setFromCoord(result.coord);
       set("depart", result.label);
       setErrors((prev) => {
@@ -798,17 +846,15 @@ function ReservationPage() {
       setFromCoord(null);
       setErrors((prev) => ({ ...prev, depart: "Adresse introuvable" }));
     }
-  }, [f.depart]);
+  }, [f.depart, departMode]);
 
   // ── Résoudre adresse destination ─────────────────────────────────────────
   const resolveDestinationAddress = useCallback(async () => {
     const value = f.destination.trim();
     if (!value) return;
-    setCalcLoading(true);
+    setDestSearching(true);
 
-    // Si le départ est saisi mais fromCoord pas encore résolu (l'utilisateur
-    // a sauté directement au champ destination avant que resolveDepartAddress finisse),
-    // on le résout maintenant nous-mêmes pour avoir un fromCoord à jour.
+    // Si le départ est saisi mais fromCoord pas encore résolu, on le résout.
     let resolvedFromCoord = fromCoord;
     if (f.depart.trim() && !fromCoord) {
       const departResult = await geocodeFullAddress(f.depart.trim());
@@ -825,11 +871,39 @@ function ReservationPage() {
     }
 
     const origin = resolvedFromCoord ?? BORDEAUX_CENTER;
+    const isPoi = destMode === "poi" || detectPoi(value);
 
-    // 1) On tente geocodeFullAddress en priorité (rapide, Nominatim)
+    // Mode POI → directement recherche élargie 50 km
+    if (isPoi) {
+      const choices = await searchNearbyAddressChoices(value, origin, POI_SEARCH_RADIUS_KM);
+      setDestSearching(false);
+      if (choices.length === 1) {
+        setDestinationChoices([]);
+        setToCoord(choices[0].coord);
+        set("destination", choices[0].label);
+        setErrors((prev) => {
+          const next = { ...prev };
+          delete next.destination;
+          return next;
+        });
+        return;
+      }
+      if (choices.length > 1) {
+        setDestinationChoices(choices);
+        setToCoord(null);
+        setErrors((prev) => ({ ...prev, destination: "Sélectionnez un lieu dans la liste" }));
+        return;
+      }
+      setDestinationChoices([]);
+      setToCoord(null);
+      setErrors((prev) => ({ ...prev, destination: "Lieu introuvable — précisez la ville" }));
+      return;
+    }
+
+    // Mode adresse : Nominatim d'abord
     const result = await geocodeFullAddress(value);
     if (result) {
-      setCalcLoading(false);
+      setDestSearching(false);
       setDestinationChoices([]);
       setToCoord(result.coord);
       set("destination", result.label);
@@ -838,12 +912,12 @@ function ReservationPage() {
         delete next.destination;
         return next;
       });
-      return; // trouvé → pas besoin de chercher plus loin
+      return;
     }
 
-    // 2) Fallback : recherche élargie (Photon + Overpass + variantes Nominatim)
+    // Fallback : recherche élargie
     const nearbyChoices = await searchNearbyAddressChoices(value, origin, DESTINATION_SEARCH_RADIUS_KM);
-    setCalcLoading(false);
+    setDestSearching(false);
 
     if (nearbyChoices.length) {
       setDestinationChoices(nearbyChoices);
@@ -860,7 +934,15 @@ function ReservationPage() {
         destination: "Adresse introuvable — précisez la ville ou le lieu",
       }));
     }
-  }, [f.destination, f.depart, fromCoord]);
+  }, [f.destination, f.depart, fromCoord, destMode]);
+
+  // Auto-détection POI : passe automatiquement en mode POI dès qu'un mot-clé est tapé
+  useEffect(() => {
+    if (f.depart && detectPoi(f.depart)) setDepartMode("poi");
+  }, [f.depart]);
+  useEffect(() => {
+    if (f.destination && detectPoi(f.destination)) setDestMode("poi");
+  }, [f.destination]);
 
   // ── Disponibilité taxi ────────────────────────────────────────────────────
   useEffect(() => {
@@ -1501,19 +1583,84 @@ function ReservationPage() {
                 {t("res.loc.ride_section")}
               </div>
 
-              {/* Départ : saisie libre + bouton géoloc */}
+              {/* Départ : saisie libre + toggle Adresse/POI + bouton géoloc */}
               <div style={{ marginBottom: 10 }}>
-                <label
+                <div
                   style={{
-                    fontSize: 11,
-                    color: "#cbd5e1",
-                    fontWeight: 600,
-                    display: "block",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
                     marginBottom: 6,
+                    gap: 8,
+                    flexWrap: "wrap",
                   }}
                 >
-                  {t("res.loc.from")}
-                </label>
+                  <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600 }}>
+                    {t("res.loc.from")}
+                  </label>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    {detectPoi(f.depart) && (
+                      <span
+                        title="Mot-clé de lieu détecté — recherche élargie 50 km activée"
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "3px 8px",
+                          borderRadius: 999,
+                          background: "rgba(245,200,66,0.18)",
+                          color: "#fde68a",
+                          border: "1px solid rgba(245,200,66,0.5)",
+                        }}
+                      >
+                        ✨ Lieu détecté
+                      </span>
+                    )}
+                    <div
+                      role="tablist"
+                      title="Choisir le type de recherche : adresse postale (rapide) ou lieu nommé (POI : gare, aéroport, enseigne…)"
+                      style={{
+                        display: "inline-flex",
+                        background: "rgba(15,23,42,0.5)",
+                        border: "1px solid rgba(203,213,225,0.25)",
+                        borderRadius: 999,
+                        padding: 2,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setDepartMode("address")}
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "4px 10px",
+                          borderRadius: 999,
+                          border: "none",
+                          cursor: "pointer",
+                          background: departMode === "address" ? "#f5c842" : "transparent",
+                          color: departMode === "address" ? "#0f172a" : "#cbd5e1",
+                        }}
+                      >
+                        Adresse
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDepartMode("poi")}
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "4px 10px",
+                          borderRadius: 999,
+                          border: "none",
+                          cursor: "pointer",
+                          background: departMode === "poi" ? "#f5c842" : "transparent",
+                          color: departMode === "poi" ? "#0f172a" : "#cbd5e1",
+                        }}
+                      >
+                        Lieu (POI)
+                      </button>
+                    </div>
+                  </div>
+                </div>
                 <div style={{ position: "relative" }}>
                   <input
                     type="text"
@@ -1521,9 +1668,10 @@ function ReservationPage() {
                     onChange={(e) => {
                       set("depart", e.target.value);
                       setFromCoord(null);
+                      setDepartChoices([]);
                     }}
                     onBlur={resolveDepartAddress}
-                    placeholder="Adresse ou cliquez 📍"
+                    placeholder={departMode === "poi" ? "Gare, aéroport, enseigne…" : "Adresse ou cliquez 📍"}
                     autoComplete="off"
                     autoCorrect="off"
                     autoCapitalize="off"
@@ -1554,25 +1702,129 @@ function ReservationPage() {
                     {geolocLoading ? "⏳" : "📍"}
                   </button>
                 </div>
+                {departSearching && (
+                  <div style={{ color: "#fde68a", fontSize: 11, marginTop: 4 }}>🔄 Recherche en cours…</div>
+                )}
                 {errors.depart && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.depart}</div>}
-                {fromCoord && !errors.depart && (
+                {fromCoord && !errors.depart && !departSearching && (
                   <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>✓ {t("res.geo.btn")}</div>
+                )}
+                {departChoices.length > 0 && (
+                  <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
+                    {departChoices.map((choice) => (
+                      <button
+                        key={`dep-${choice.label}-${choice.coord[0]}-${choice.coord[1]}`}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          set("depart", choice.label);
+                          setFromCoord(choice.coord);
+                          setDepartChoices([]);
+                          setErrors((prev) => {
+                            const next = { ...prev };
+                            delete next.depart;
+                            return next;
+                          });
+                        }}
+                        style={{
+                          width: "100%",
+                          textAlign: "left",
+                          padding: "10px 12px",
+                          borderRadius: 10,
+                          border: "1px solid rgba(245,200,66,0.35)",
+                          background: "rgba(245,200,66,0.1)",
+                          color: "#f8fafc",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <span style={{ display: "block", fontSize: 13, fontWeight: 700 }}>{choice.label}</span>
+                        <span style={{ display: "block", fontSize: 11, color: "#fde68a", marginTop: 2 }}>
+                          à {choice.distanceKm.toFixed(1)} km
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
 
-              {/* Destination */}
+              {/* Destination : saisie libre + toggle Adresse/POI */}
               <div>
-                <label
+                <div
                   style={{
-                    fontSize: 11,
-                    color: "#cbd5e1",
-                    fontWeight: 600,
-                    display: "block",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
                     marginBottom: 6,
+                    gap: 8,
+                    flexWrap: "wrap",
                   }}
                 >
-                  {t("res.loc.to")}
-                </label>
+                  <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600 }}>
+                    {t("res.loc.to")}
+                  </label>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    {detectPoi(f.destination) && (
+                      <span
+                        title="Mot-clé de lieu détecté — recherche élargie 50 km activée"
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "3px 8px",
+                          borderRadius: 999,
+                          background: "rgba(245,200,66,0.18)",
+                          color: "#fde68a",
+                          border: "1px solid rgba(245,200,66,0.5)",
+                        }}
+                      >
+                        ✨ Lieu détecté
+                      </span>
+                    )}
+                    <div
+                      role="tablist"
+                      title="Choisir le type de recherche : adresse postale (rapide) ou lieu nommé (POI : gare, aéroport, enseigne…)"
+                      style={{
+                        display: "inline-flex",
+                        background: "rgba(15,23,42,0.5)",
+                        border: "1px solid rgba(203,213,225,0.25)",
+                        borderRadius: 999,
+                        padding: 2,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setDestMode("address")}
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "4px 10px",
+                          borderRadius: 999,
+                          border: "none",
+                          cursor: "pointer",
+                          background: destMode === "address" ? "#f5c842" : "transparent",
+                          color: destMode === "address" ? "#0f172a" : "#cbd5e1",
+                        }}
+                      >
+                        Adresse
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDestMode("poi")}
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "4px 10px",
+                          borderRadius: 999,
+                          border: "none",
+                          cursor: "pointer",
+                          background: destMode === "poi" ? "#f5c842" : "transparent",
+                          color: destMode === "poi" ? "#0f172a" : "#cbd5e1",
+                        }}
+                      >
+                        Lieu (POI)
+                      </button>
+                    </div>
+                  </div>
+                </div>
                 <input
                   type="text"
                   value={f.destination}
@@ -1582,7 +1834,7 @@ function ReservationPage() {
                     setDestinationChoices([]);
                   }}
                   onBlur={resolveDestinationAddress}
-                  placeholder={t("res.f.to.ph")}
+                  placeholder={destMode === "poi" ? "Gare, aéroport, enseigne…" : t("res.f.to.ph")}
                   autoComplete="off"
                   autoCorrect="off"
                   autoCapitalize="off"
@@ -1590,6 +1842,9 @@ function ReservationPage() {
                   name="tcb-dest-x"
                   style={inputStyle(!!errors.destination)}
                 />
+                {destSearching && (
+                  <div style={{ color: "#fde68a", fontSize: 11, marginTop: 4 }}>🔄 Recherche en cours…</div>
+                )}
                 {errors.destination && (
                   <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.destination}</div>
                 )}
@@ -1629,10 +1884,11 @@ function ReservationPage() {
                     ))}
                   </div>
                 )}
-                {toCoord && !errors.destination && (
+                {toCoord && !errors.destination && !destSearching && (
                   <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>✓ {t("res.loc.to")}</div>
                 )}
               </div>
+
 
               {/* Récap distance + prix */}
               {orsResult && (
