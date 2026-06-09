@@ -518,7 +518,8 @@ function RideModal({
   onModify: (r: Reservation) => void;
 }) {
   const navigate = useNavigate();
-  const s = statusLabel(r.status);
+  const { t } = useI18n();
+  const s = statusLabel(r.status, t);
   const isPending = r.status === "pending";
   const isActive = ["accepted", "en_route", "arrived"].includes(r.status);
   const canRebook = ["completed", "cancelled"].includes(r.status);
