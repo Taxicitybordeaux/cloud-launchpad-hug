@@ -1098,6 +1098,22 @@ function ReservationPage() {
     if (f.destination && detectPoi(f.destination)) setDestMode("poi");
   }, [f.destination]);
 
+  // Debounce 500ms : si POI détecté/forcé et pas encore résolu, lance la recherche progressive.
+  useEffect(() => {
+    if (!f.depart || f.depart.length < 3) return;
+    if (fromCoord) return;
+    if (!(departMode === "poi" || detectPoi(f.depart))) return;
+    const id = setTimeout(() => { resolveDepartAddress(); }, POI_SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(id);
+  }, [f.depart, departMode, fromCoord, resolveDepartAddress]);
+  useEffect(() => {
+    if (!f.destination || f.destination.length < 3) return;
+    if (toCoord) return;
+    if (!(destMode === "poi" || detectPoi(f.destination))) return;
+    const id = setTimeout(() => { resolveDestinationAddress(); }, POI_SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(id);
+  }, [f.destination, destMode, toCoord, resolveDestinationAddress]);
+
   // ── Dictée vocale : départ + destination en un coup ──────────────────────
   // Sépare avec « à / vers / jusqu'à / direction / puis / -> »
   const parseDictation = useCallback((raw: string): { depart: string; destination: string } | null => {
