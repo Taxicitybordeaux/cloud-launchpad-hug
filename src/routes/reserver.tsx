@@ -458,6 +458,11 @@ function ReservationPage() {
   const [geolocLoading, setGeolocLoading] = useState(false);
   const [taxiAvailable, setTaxiAvailable] = useState<boolean | null>(null);
   const [destinationChoices, setDestinationChoices] = useState<AddressChoice[]>([]);
+  const [departChoices, setDepartChoices] = useState<AddressChoice[]>([]);
+  const [departMode, setDepartMode] = useState<"address" | "poi">("address");
+  const [destMode, setDestMode] = useState<"address" | "poi">("address");
+  const [departSearching, setDepartSearching] = useState(false);
+  const [destSearching, setDestSearching] = useState(false);
 
   const [f, setF] = useState<FormState>({
     depart: "",
