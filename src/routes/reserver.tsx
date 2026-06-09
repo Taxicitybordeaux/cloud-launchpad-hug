@@ -681,129 +681,29 @@ function ReservationPage() {
     }
   }, [fromCoord, toCoord]);
 
-  // ── OSRM : recalcul distance/prix ────────────────────────────────────────
+  // ── OSRM : distance/durée/prix — MÊME source que la polyline (getLongestRoute, cache partagé)
   useEffect(() => {
     if (!fromCoord || !toCoord) {
       setOrsResult(null);
       return;
     }
+    let cancelled = false;
     setCalcLoading(true);
-
-    const fetchOsrm = async () => {
-      try {
-        // Appel direct OSRM public avec timeout de 6 s
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 6000);
-        const url =
-          `https://router.project-osrm.org/route/v1/driving/` +
-          `${fromCoord[1]},${fromCoord[0]};${toCoord[1]},${toCoord[0]}` +
-          `?overview=false`;
-        const res = await fetch(url, { signal: controller.signal });
-        clearTimeout(timer);
-        if (res.ok) {
-          const json = await res.json();
-          const route = json?.routes?.[0];
-          if (route) {
-            setOrsResult({
-              distanceKm: parseFloat((route.distance / 1000).toFixed(2)),
-              dureeS: Math.round(route.duration),
-            });
-            setCalcLoading(false);
-            return;
-          }
+    getDistanceAndDurationKm([fromCoord[1], fromCoord[0]], [toCoord[1], toCoord[0]])
+      .then((r) => {
+        if (cancelled) return;
+        if (r && r.distanceKm > 0) {
+          setOrsResult({ distanceKm: r.distanceKm, dureeS: r.dureeS });
+        } else {
+          setOrsResult(null);
         }
-      } catch {
-        // timeout ou erreur réseau → fallback
-      }
-
-      // Fallback : essai via Edge Function Supabase
-      try {
-        const controller2 = new AbortController();
-        const timer2 = setTimeout(() => controller2.abort(), 8000);
-        const res2 = await fetch(`${SUPABASE_URL}/functions/v1/osrm-route`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({
-            from_lng: fromCoord[1],
-            from_lat: fromCoord[0],
-            to_lng: toCoord[1],
-            to_lat: toCoord[0],
-            overview: "false",
-          }),
-          signal: controller2.signal,
-        });
-        clearTimeout(timer2);
-        if (res2.ok) {
-          const json2 = await res2.json();
-          if (json2?.distance && json2?.duration) {
-            setOrsResult({
-              distanceKm: parseFloat((json2.distance / 1000).toFixed(2)),
-              dureeS: Math.round(json2.duration),
-            });
-            setCalcLoading(false);
-            return;
-          }
-        }
-      } catch {
-        // fallback vol d'oiseau
-      }
-
-      // Fallback final : OSRM demo server (autre instance publique)
-      try {
-        const controller3 = new AbortController();
-        const timer3 = setTimeout(() => controller3.abort(), 8000);
-        const url3 =
-          `https://routing.openstreetmap.de/routed-car/route/v1/driving/` +
-          `${fromCoord[1]},${fromCoord[0]};${toCoord[1]},${toCoord[0]}` +
-          `?overview=false`;
-        const res3 = await fetch(url3, { signal: controller3.signal });
-        clearTimeout(timer3);
-        if (res3.ok) {
-          const json3 = await res3.json();
-          const route3 = json3?.routes?.[0];
-          if (route3) {
-            setOrsResult({
-              distanceKm: parseFloat((route3.distance / 1000).toFixed(2)),
-              dureeS: Math.round(route3.duration),
-            });
-            setCalcLoading(false);
-            return;
-          }
-        }
-      } catch {
-        // dernier fallback
-      }
-
-      // Dernier recours : GraphHopper public (clé gratuite non requise pour petits volumes)
-      try {
-        const controller4 = new AbortController();
-        const timer4 = setTimeout(() => controller4.abort(), 8000);
-        const url4 = `https://graphhopper.com/api/1/route?point=${fromCoord[0]},${fromCoord[1]}&point=${toCoord[0]},${toCoord[1]}&vehicle=car&locale=fr&calc_points=false&key=LijBPDQGfu7Iiq80ebFCtWMuznIlArMPjQALgdAb83w`;
-        const res4 = await fetch(url4, { signal: controller4.signal });
-        clearTimeout(timer4);
-        if (res4.ok) {
-          const json4 = await res4.json();
-          const path = json4?.paths?.[0];
-          if (path) {
-            setOrsResult({
-              distanceKm: parseFloat((path.distance / 1000).toFixed(2)),
-              dureeS: Math.round(path.time / 1000),
-            });
-            setCalcLoading(false);
-            return;
-          }
-        }
-      } catch {
-        // abandon
-      }
-
-      setCalcLoading(false);
+      })
+      .finally(() => {
+        if (!cancelled) setCalcLoading(false);
+      });
+    return () => {
+      cancelled = true;
     };
-
-    fetchOsrm();
   }, [fromCoord, toCoord]);
 
   // ── Géolocalisation départ (navigateur client) ───────────────────────────
