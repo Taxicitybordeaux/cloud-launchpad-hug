@@ -2203,39 +2203,85 @@ function ReservationPage() {
                     background: "rgba(245,200,66,0.12)",
                     borderRadius: 12,
                     border: "1px solid rgba(245,200,66,0.3)",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
                   }}
                 >
-                  <div>
-                    <div style={{ fontSize: 14, color: "#f5c842", fontWeight: 700 }}>
-                      {orsResult.distanceKm} km · {Math.round(orsResult.dureeS / 60)} min
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 14, color: "#f5c842", fontWeight: 700 }}>
+                        {orsResult.distanceKm} km · {Math.round(orsResult.dureeS / 60)} min
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: tarifJour ? "#fbbf24" : "#818cf8",
+                          marginTop: 2,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {tarifJour ? "☀️ Tarif jour (7h-19h)" : "🌙 Tarif nuit (19h-7h / dim. / férié)"}
+                      </div>
+                      {isMixed && detailMixte && (
+                        <div style={{ fontSize: 11, color: "#fde68a", marginTop: 4, fontWeight: 600 }}>
+                          ☀️ {detailMixte.pctJour}% jour / 🌙 {detailMixte.pctNuit}% nuit
+                        </div>
+                      )}
                     </div>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: tarifJour ? "#fbbf24" : "#818cf8",
-                        marginTop: 2,
-                        fontWeight: 600,
-                      }}
-                    >
-                      {tarifJour ? "☀️ Tarif jour (7h-19h)" : "🌙 Tarif nuit (19h-7h / dim. / férié)"}
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: 11, color: "#cbd5e1", marginBottom: 2 }}>{t("rsim.estimate")}</div>
+                      <div
+                        style={{
+                          fontSize: 22,
+                          fontWeight: 800,
+                          color: "#f5c842",
+                          fontFamily: "'Clash Display'",
+                        }}
+                      >
+                        {prixAller.toFixed(2)} €
+                      </div>
                     </div>
                   </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 11, color: "#cbd5e1", marginBottom: 2 }}>{t("rsim.estimate")}</div>
-                    <div
-                      style={{
-                        fontSize: 22,
-                        fontWeight: 800,
-                        color: "#f5c842",
-                        fontFamily: "'Clash Display'",
-                      }}
-                    >
-                      {prixAller.toFixed(2)} €
-                    </div>
-                  </div>
+
+                  {detailMixte && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setDetailOpen((o) => !o)}
+                        style={{
+                          marginTop: 10,
+                          background: "transparent",
+                          border: "1px dashed rgba(245,200,66,0.4)",
+                          color: "#fde68a",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: "6px 10px",
+                          borderRadius: 8,
+                          cursor: "pointer",
+                          width: "100%",
+                          textAlign: "left",
+                        }}
+                      >
+                        {detailOpen ? "▼ Masquer le détail du calcul" : "▶ Détail du calcul"}
+                      </button>
+                      {detailOpen && (
+                        <div style={{ marginTop: 8, fontSize: 11, color: "#e2e8f0", lineHeight: 1.6 }}>
+                          <div style={{ color: "#cbd5e1" }}>Prise en charge : {detailMixte.prise.toFixed(2)} €</div>
+                          {detailMixte.jourKm > 0 && (
+                            <div>
+                              ☀️ Jour : {detailMixte.jourKm.toFixed(2)} km ({Math.round(detailMixte.jourMin)} min) × {detailMixte.tarifJourKm.toFixed(2)} €/km = {(detailMixte.jourKm * detailMixte.tarifJourKm).toFixed(2)} € — {detailMixte.pctJour}%
+                            </div>
+                          )}
+                          {detailMixte.nuitKm > 0 && (
+                            <div>
+                              🌙 Nuit : {detailMixte.nuitKm.toFixed(2)} km ({Math.round(detailMixte.nuitMin)} min) × {detailMixte.tarifNuitKm.toFixed(2)} €/km = {(detailMixte.nuitKm * detailMixte.tarifNuitKm).toFixed(2)} € — {detailMixte.pctNuit}%
+                            </div>
+                          )}
+                          <div style={{ marginTop: 6, fontWeight: 700, color: "#f5c842" }}>
+                            Total : {detailMixte.prix.toFixed(2)} €
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
               {calcLoading && !orsResult && (
