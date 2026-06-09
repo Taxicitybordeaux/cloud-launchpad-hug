@@ -1,27 +1,104 @@
 /**
- * @/lib/osrm.ts
+ * @/lib/osrm.ts — version centralisée
  *
- * - getDistanceAndDurationKm  → passe par l'Edge Function Supabase osrm-route
- *   (évite les blocages CORS depuis le navigateur, sélectionne le trajet le plus long côté serveur)
+ * Une seule source de vérité : `getLongestRoute()` (alternatives=3 + plus long km).
+ * Tous les wrappers historiques (`getDistanceAndDurationKm`,
+ * `fetchRouteCoordinates`, `getRouteGeoCoords`, `getOsrmPolylineLongest`)
+ * délèguent à `getLongestRoute()` → prix, km affichés et polyline proviennent
+ * strictement de la même réponse OSRM.
  *
- * - fetchRouteCoordinates      → appel OSRM direct (affichage carte uniquement, pas de calcul de prix)
- *
- * - OSRM_DISTANCE_FACTOR       → conservé pour les calculs locaux (fallback haversine, routeToAlt…)
+ * Cache : mémoire process + sessionStorage (TTL 7 j, clé arrondie à ~11 m).
+ * Densification : interpolation auto si gap > 25 m (rendu lissé type Uber).
  */
 
-// Facteur correctif appliqué localement pour les calculs de fallback.
-// NB : l'Edge Function applique déjà ce facteur côté serveur —
-// ne PAS le réappliquer sur le résultat de getDistanceAndDurationKm.
-export const OSRM_DISTANCE_FACTOR = 1.0; // ORS retourne des distances précises, pas de facteur correctif
+export const OSRM_DISTANCE_FACTOR = 1.0;
 
-// ─── getDistanceAndDurationKm ────────────────────────────────────────────────
-// Utilisé pour le calcul de prix (reserver.tsx via getOsrmRouteLongest,
-// admin_dashboard.tsx directement).
-// Passe désormais par l'Edge Function Supabase au lieu d'appeler OSRM en direct.
-export async function getDistanceAndDurationKm(
+// ─── Cache ──────────────────────────────────────────────────────────────────
+const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 jours
+const CACHE_PREFIX = "osrm.longest.v1:";
+const memoryCache = new Map<string, { at: number; value: LongestRoute }>();
+
+function keyFor(from: [number, number], to: [number, number]): string {
+  // Arrondi à ~11 m (4 décimales)
+  const r = (n: number) => n.toFixed(4);
+  return `${CACHE_PREFIX}${r(from[0])},${r(from[1])}→${r(to[0])},${r(to[1])}`;
+}
+
+function readCache(k: string): LongestRoute | null {
+  const mem = memoryCache.get(k);
+  if (mem && Date.now() - mem.at < CACHE_TTL_MS) return mem.value;
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage?.getItem(k);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { at: number; value: LongestRoute };
+    if (Date.now() - parsed.at > CACHE_TTL_MS) return null;
+    memoryCache.set(k, parsed);
+    return parsed.value;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(k: string, value: LongestRoute) {
+  const entry = { at: Date.now(), value };
+  memoryCache.set(k, entry);
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage?.setItem(k, JSON.stringify(entry));
+  } catch {
+    /* quota */
+  }
+}
+
+// ─── Densification ──────────────────────────────────────────────────────────
+function haversineMeters(a: [number, number], b: [number, number]): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b[0] - a[0]);
+  const dLng = toRad(b[1] - a[1]);
+  const lat1 = toRad(a[0]);
+  const lat2 = toRad(b[0]);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+/** Interpole les segments > 25 m pour un rendu lissé type Uber. */
+export function densifyCoords(coords: [number, number][], maxGapMeters = 25): [number, number][] {
+  if (coords.length < 2) return coords;
+  const out: [number, number][] = [coords[0]];
+  for (let i = 1; i < coords.length; i++) {
+    const a = coords[i - 1];
+    const b = coords[i];
+    const d = haversineMeters(a, b);
+    if (d > maxGapMeters) {
+      const steps = Math.ceil(d / maxGapMeters);
+      for (let s = 1; s < steps; s++) {
+        const t = s / steps;
+        out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+      }
+    }
+    out.push(b);
+  }
+  return out;
+}
+
+// ─── Type de sortie centralisé ──────────────────────────────────────────────
+export type LongestRoute = {
+  coords: [number, number][]; // [lat, lng]
+  distanceKm: number;
+  durationSec: number;
+};
+
+// ─── getLongestRoute : la SEULE source ──────────────────────────────────────
+export async function getLongestRoute(
   from: [number, number], // [lng, lat]
   to: [number, number], // [lng, lat]
-): Promise<{ distanceKm: number; dureeS: number } | null> {
+): Promise<LongestRoute | null> {
+  const k = keyFor(from, to);
+  const cached = readCache(k);
+  if (cached) return cached;
+
   try {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
     const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -37,93 +114,82 @@ export async function getDistanceAndDurationKm(
         from_lat: from[1],
         to_lng: to[0],
         to_lat: to[1],
+        overview: "full",
+        geometries: "geojson",
+        alternatives: 3, // l'edge function retient le plus long
       }),
     });
-
     if (!res.ok) return null;
     const json = await res.json();
     if (json?.error) return null;
 
-    // L'Edge Function renvoie distance_km (avec OSRM_DISTANCE_FACTOR déjà appliqué)
-    // et duration_sec.
-    return {
-      distanceKm: json.distance_km,
-      dureeS: json.duration_sec,
+    const raw: [number, number][] =
+      (json?.geometry?.coordinates as [number, number][] | undefined)?.map(
+        ([lng, lat]) => [lat, lng] as [number, number],
+      ) ?? [];
+    const coords = densifyCoords(raw, 25);
+
+    const value: LongestRoute = {
+      coords,
+      distanceKm: Number(json.distance_km) || 0,
+      durationSec: Number(json.duration_sec) || 0,
     };
+    writeCache(k, value);
+    return value;
   } catch {
     return null;
   }
 }
 
-// ─── fetchRouteCoordinates ───────────────────────────────────────────────────
-// Utilisé pour afficher la polyline sur la carte (admin_dashboard.tsx).
-// Passe par l'Edge Function ORS pour éviter les blocages CORS et avoir des distances précises.
+// ─── Wrappers de compatibilité ─────────────────────────────────────────────
+export async function getDistanceAndDurationKm(
+  from: [number, number],
+  to: [number, number],
+): Promise<{ distanceKm: number; dureeS: number } | null> {
+  const r = await getLongestRoute(from, to);
+  if (!r) return null;
+  return { distanceKm: r.distanceKm, dureeS: r.durationSec };
+}
+
 export async function fetchRouteCoordinates(
-  points: [number, number][], // tableau de [lng, lat]
-  options: {
-    overview?: "full" | "simplified" | false;
-    alternatives?: boolean | number;
-    geometries?: "geojson" | "polyline" | "polyline6";
-  } = {},
+  points: [number, number][],
+  _options: { overview?: "full" | "simplified" | false; alternatives?: boolean | number; geometries?: "geojson" | "polyline" | "polyline6" } = {},
 ): Promise<any | null> {
   if (points.length < 2) return null;
-  try {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-
-    const [from, to] = [points[0], points[points.length - 1]];
-    const res = await fetch(`${supabaseUrl}/functions/v1/osrm-route`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${supabaseAnonKey}`,
-      },
-      body: JSON.stringify({
-        from_lng: from[0],
-        from_lat: from[1],
-        to_lng: to[0],
-        to_lat: to[1],
-        overview: options.overview ?? "full",
-        geometries: options.geometries ?? "geojson",
-        alternatives: options.alternatives ?? false,
-      }),
-    });
-    if (!res.ok) return null;
-    const json = await res.json();
-    if (json?.error) return null;
-    // On retourne un format compatible avec l'ancien format OSRM attendu par admin_dashboard
-    return {
-      routes: [
-        {
-          distance: (json.distance_km ?? 0) * 1000,
-          duration: json.duration_sec ?? 0,
-          geometry: json.geometry ?? null,
+  const [from, to] = [points[0], points[points.length - 1]];
+  const r = await getLongestRoute(from, to);
+  if (!r) return null;
+  // Format compatible avec l'ancien consommateur (admin.dashboard)
+  return {
+    routes: [
+      {
+        distance: r.distanceKm * 1000,
+        duration: r.durationSec,
+        geometry: {
+          type: "LineString",
+          coordinates: r.coords.map(([lat, lng]) => [lng, lat]),
         },
-      ],
-      distance_km: json.distance_km,
-      duration_sec: json.duration_sec,
-    };
-  } catch {
-    return null;
-  }
+      },
+    ],
+    distance_km: r.distanceKm,
+    duration_sec: r.durationSec,
+  };
 }
 
-// ─── getRouteGeoCoords ───────────────────────────────────────────────────────
-// Utilisé dans suivi/$id.tsx pour récupérer la polyline [lat, lng][] + distanceKm.
 export async function getRouteGeoCoords(
-  from: [number, number], // [lng, lat]
-  to: [number, number], // [lng, lat]
+  from: [number, number],
+  to: [number, number],
 ): Promise<{ coords: [number, number][]; distanceKm: number; durationSec: number }> {
-  const data = await fetchRouteCoordinates([from, to], {
-    overview: "full",
-    geometries: "geojson",
-  });
-  if (!data?.routes?.[0]?.geometry) return { coords: [], distanceKm: 0, durationSec: 0 };
-  const route = data.routes[0];
-  // ORS renvoie GeoJSON geometry — coordinates en [lng, lat] → inverser pour Leaflet
-  const coordinates = route.geometry?.coordinates ?? [];
-  const coords = (coordinates as [number, number][]).map(([lng, lat]) => [lat, lng] as [number, number]);
-  const distanceKm = data.distance_km ?? (route.distance ? route.distance / 1000 : 0);
-  const durationSec = data.duration_sec ?? route.duration ?? 0;
-  return { coords, distanceKm, durationSec };
+  const r = await getLongestRoute(from, to);
+  if (!r) return { coords: [], distanceKm: 0, durationSec: 0 };
+  return r;
+}
+
+/** Helper utilisé par reserver.tsx — renvoie [lat, lng][] prêt pour Leaflet. */
+export async function getOsrmPolylineLongest(
+  fromLatLng: [number, number], // [lat, lng]
+  toLatLng: [number, number], // [lat, lng]
+): Promise<[number, number][]> {
+  const r = await getLongestRoute([fromLatLng[1], fromLatLng[0]], [toLatLng[1], toLatLng[0]]);
+  return r?.coords ?? [];
 }
