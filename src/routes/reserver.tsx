@@ -445,7 +445,7 @@ async function enrichChoiceLabels(choices: AddressChoice[]): Promise<AddressChoi
 async function searchNearbyAddressChoices(
   query: string,
   origin: [number, number],
-  radiusKm = 20,
+  radiusKm: number = 20,
 ): Promise<AddressChoice[]> {
   // Branche supermarché : filtre OSM strict shop=supermarket
   if (isSupermarketQuery(query)) {
