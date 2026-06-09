@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import logo from "@/assets/logo.jpeg";
 import { supabase } from "@/integrations/supabase/client";
-import { notifyReservationStatus } from "@/server/push.functions";
+import { notifyReservationStatus } from "@/server/push_functions";
 
 export const Route = createFileRoute("/client")({
   head: () => ({
