@@ -22,8 +22,19 @@ export const Route = createFileRoute("/reserver")({
 
 const BORDEAUX_CENTER: [number, number] = [44.8378, -0.5792];
 const DESTINATION_SEARCH_RADIUS_KM = 80;
+const POI_SEARCH_RADIUS_KM = 50;
+const MAX_CHOICES_DEFAULT = 4;
 const MAX_AUTO_GEO_ACCURACY_M = 1500;
 const MAX_AUTO_GEO_DISTANCE_FROM_BORDEAUX_KM = 130;
+
+// Mots-clés déclenchant la détection automatique d'un lieu (POI)
+const POI_KEYWORDS_REGEX =
+  /\b(gare|aeroport|aéroport|airport|hopital|hôpital|clinique|stade|matmut|stadium|mairie|hotel|hôtel|université|universite|fac|lycée|lycee|école|ecole|musée|musee|chateau|château|église|eglise|theatre|théâtre|cinema|cinéma|piscine|parc|jardin|zoo|plage|port|marina|monument|tour|cathedrale|cathédrale|supermarche|supermarché|hypermarche|hypermarché|carrefour|leclerc|auchan|intermarche|intermarché|lidl|aldi|monoprix|casino|biocoop|centre commercial|cc\b|galerie|mall)\b/i;
+
+function detectPoi(value: string): boolean {
+  return POI_KEYWORDS_REGEX.test(value);
+}
+
 
 interface FormState {
   depart: string;
