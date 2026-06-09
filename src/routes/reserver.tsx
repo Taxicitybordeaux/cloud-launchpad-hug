@@ -615,6 +615,7 @@ function ReservationPage() {
   const [departSearching, setDepartSearching] = useState(false);
   const [destSearching, setDestSearching] = useState(false);
   const [dictating, setDictating] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [dictateError, setDictateError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
 
@@ -715,22 +716,32 @@ function ReservationPage() {
 
   // Calcule le prix mixte proportionnel pour un trajet de distKm démarrant à pickupMs
   // en découpant le trajet en tranches de 1 minute et pondérant jour/nuit
-  function calculerPrixMixteLocal(distKm: number, pickupMs: number, dureeS: number): number {
+  function calculerDetailMixte(distKm: number, pickupMs: number, dureeS: number) {
     const TARIF_JOUR_KM = 2.16;
     const TARIF_NUIT_KM = 3.24;
     const PRISE = 2.83;
-    if (distKm <= 0) return PRISE;
+    if (distKm <= 0) {
+      return { prix: PRISE, jourKm: 0, nuitKm: 0, jourMin: 0, nuitMin: 0, pctJour: 100, pctNuit: 0, tarifJourKm: TARIF_JOUR_KM, tarifNuitKm: TARIF_NUIT_KM, prise: PRISE };
+    }
     const steps = Math.max(Math.round(dureeS / 60), 1);
     const stepMs = (dureeS * 1000) / steps;
-    let jourKm = 0;
-    let nuitKm = 0;
+    const stepMin = stepMs / 60000;
+    let jourKm = 0, nuitKm = 0, jourMin = 0, nuitMin = 0;
     for (let i = 0; i < steps; i++) {
       const tMs = pickupMs + i * stepMs;
       const frac = distKm / steps;
-      if (isMomentNuit(tMs)) nuitKm += frac;
-      else jourKm += frac;
+      if (isMomentNuit(tMs)) { nuitKm += frac; nuitMin += stepMin; }
+      else { jourKm += frac; jourMin += stepMin; }
     }
-    return parseFloat((PRISE + jourKm * TARIF_JOUR_KM + nuitKm * TARIF_NUIT_KM).toFixed(2));
+    const prix = parseFloat((PRISE + jourKm * TARIF_JOUR_KM + nuitKm * TARIF_NUIT_KM).toFixed(2));
+    const total = jourKm + nuitKm;
+    const pctJour = total > 0 ? Math.round((jourKm / total) * 100) : 100;
+    const pctNuit = 100 - pctJour;
+    return { prix, jourKm, nuitKm, jourMin, nuitMin, pctJour, pctNuit, tarifJourKm: TARIF_JOUR_KM, tarifNuitKm: TARIF_NUIT_KM, prise: PRISE };
+  }
+
+  function calculerPrixMixteLocal(distKm: number, pickupMs: number, dureeS: number): number {
+    return calculerDetailMixte(distKm, pickupMs, dureeS).prix;
   }
 
   // tarifJour : utilisé uniquement pour le badge affiché, basé sur l'heure de départ
@@ -745,6 +756,13 @@ function ReservationPage() {
     const MAX_PRIX = 2000;
     return raw > MAX_PRIX ? PRISE_EN_CHARGE : raw;
   })();
+
+  // Détail jour/nuit recalculé à chaque changement de trajet ou d'heure de prise en charge
+  const detailMixte = (() => {
+    if (!orsResult || !pickupIso) return null;
+    return calculerDetailMixte(orsResult.distanceKm, new Date(pickupIso).getTime(), orsResult.dureeS);
+  })();
+  const isMixed = !!detailMixte && detailMixte.pctJour > 0 && detailMixte.pctNuit > 0;
 
   useEffect(() => {
     const d = new Date().toISOString().split("T")[0];
@@ -2185,39 +2203,85 @@ function ReservationPage() {
                     background: "rgba(245,200,66,0.12)",
                     borderRadius: 12,
                     border: "1px solid rgba(245,200,66,0.3)",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
                   }}
                 >
-                  <div>
-                    <div style={{ fontSize: 14, color: "#f5c842", fontWeight: 700 }}>
-                      {orsResult.distanceKm} km · {Math.round(orsResult.dureeS / 60)} min
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 14, color: "#f5c842", fontWeight: 700 }}>
+                        {orsResult.distanceKm} km · {Math.round(orsResult.dureeS / 60)} min
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: tarifJour ? "#fbbf24" : "#818cf8",
+                          marginTop: 2,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {tarifJour ? "☀️ Tarif jour (7h-19h)" : "🌙 Tarif nuit (19h-7h / dim. / férié)"}
+                      </div>
+                      {isMixed && detailMixte && (
+                        <div style={{ fontSize: 11, color: "#fde68a", marginTop: 4, fontWeight: 600 }}>
+                          ☀️ {detailMixte.pctJour}% jour / 🌙 {detailMixte.pctNuit}% nuit
+                        </div>
+                      )}
                     </div>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: tarifJour ? "#fbbf24" : "#818cf8",
-                        marginTop: 2,
-                        fontWeight: 600,
-                      }}
-                    >
-                      {tarifJour ? "☀️ Tarif jour (7h-19h)" : "🌙 Tarif nuit (19h-7h / dim. / férié)"}
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: 11, color: "#cbd5e1", marginBottom: 2 }}>{t("rsim.estimate")}</div>
+                      <div
+                        style={{
+                          fontSize: 22,
+                          fontWeight: 800,
+                          color: "#f5c842",
+                          fontFamily: "'Clash Display'",
+                        }}
+                      >
+                        {prixAller.toFixed(2)} €
+                      </div>
                     </div>
                   </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 11, color: "#cbd5e1", marginBottom: 2 }}>{t("rsim.estimate")}</div>
-                    <div
-                      style={{
-                        fontSize: 22,
-                        fontWeight: 800,
-                        color: "#f5c842",
-                        fontFamily: "'Clash Display'",
-                      }}
-                    >
-                      {prixAller.toFixed(2)} €
-                    </div>
-                  </div>
+
+                  {detailMixte && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setDetailOpen((o) => !o)}
+                        style={{
+                          marginTop: 10,
+                          background: "transparent",
+                          border: "1px dashed rgba(245,200,66,0.4)",
+                          color: "#fde68a",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: "6px 10px",
+                          borderRadius: 8,
+                          cursor: "pointer",
+                          width: "100%",
+                          textAlign: "left",
+                        }}
+                      >
+                        {detailOpen ? "▼ Masquer le détail du calcul" : "▶ Détail du calcul"}
+                      </button>
+                      {detailOpen && (
+                        <div style={{ marginTop: 8, fontSize: 11, color: "#e2e8f0", lineHeight: 1.6 }}>
+                          <div style={{ color: "#cbd5e1" }}>Prise en charge : {detailMixte.prise.toFixed(2)} €</div>
+                          {detailMixte.jourKm > 0 && (
+                            <div>
+                              ☀️ Jour : {detailMixte.jourKm.toFixed(2)} km ({Math.round(detailMixte.jourMin)} min) × {detailMixte.tarifJourKm.toFixed(2)} €/km = {(detailMixte.jourKm * detailMixte.tarifJourKm).toFixed(2)} € — {detailMixte.pctJour}%
+                            </div>
+                          )}
+                          {detailMixte.nuitKm > 0 && (
+                            <div>
+                              🌙 Nuit : {detailMixte.nuitKm.toFixed(2)} km ({Math.round(detailMixte.nuitMin)} min) × {detailMixte.tarifNuitKm.toFixed(2)} €/km = {(detailMixte.nuitKm * detailMixte.tarifNuitKm).toFixed(2)} € — {detailMixte.pctNuit}%
+                            </div>
+                          )}
+                          <div style={{ marginTop: 6, fontWeight: 700, color: "#f5c842" }}>
+                            Total : {detailMixte.prix.toFixed(2)} €
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
               {calcLoading && !orsResult && (
