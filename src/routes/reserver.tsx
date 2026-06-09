@@ -1664,9 +1664,43 @@ function ReservationPage() {
 
             {/* ── Adresses ── */}
             <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>
-                {t("res.loc.ride_section")}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 10,
+                  gap: 8,
+                  flexWrap: "wrap",
+                }}
+              >
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5" }}>
+                  {t("res.loc.ride_section")}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDictate}
+                  title="Dicter le départ puis la destination, séparés par « à », « vers », « jusqu'à », « direction », « puis » ou « -> »"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    padding: "6px 12px",
+                    borderRadius: 999,
+                    border: "1px solid rgba(245,200,66,0.5)",
+                    background: dictating ? "#f5c842" : "rgba(245,200,66,0.12)",
+                    color: dictating ? "#0f172a" : "#fde68a",
+                    cursor: "pointer",
+                  }}
+                >
+                  {dictating ? "⏺ Écoute… (clic pour arrêter)" : "🎤 Dicter départ + destination"}
+                </button>
               </div>
+              {dictateError && (
+                <div style={{ color: "#fecaca", fontSize: 11, marginBottom: 8 }}>{dictateError}</div>
+              )}
 
               {/* Départ : saisie libre + toggle Adresse/POI + bouton géoloc */}
               <div style={{ marginBottom: 10 }}>
