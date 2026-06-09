@@ -756,6 +756,13 @@ function ReservationPage() {
     return raw > MAX_PRIX ? PRISE_EN_CHARGE : raw;
   })();
 
+  // Détail jour/nuit recalculé à chaque changement de trajet ou d'heure de prise en charge
+  const detailMixte = (() => {
+    if (!orsResult || !pickupIso) return null;
+    return calculerDetailMixte(orsResult.distanceKm, new Date(pickupIso).getTime(), orsResult.dureeS);
+  })();
+  const isMixed = !!detailMixte && detailMixte.pctJour > 0 && detailMixte.pctNuit > 0;
+
   useEffect(() => {
     const d = new Date().toISOString().split("T")[0];
     setToday(d);
