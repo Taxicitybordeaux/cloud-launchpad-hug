@@ -24,6 +24,9 @@ const BORDEAUX_CENTER: [number, number] = [44.8378, -0.5792];
 const DESTINATION_SEARCH_RADIUS_KM = 80;
 const POI_SEARCH_RADIUS_KM = 50;
 const MAX_CHOICES_DEFAULT = 4;
+const MAX_CHOICES_SUPERMARKET = 4;
+const SUPERMARKET_RADIUS_KM = 50;
+const POI_SEARCH_DEBOUNCE_MS = 500;
 const MAX_AUTO_GEO_ACCURACY_M = 1500;
 const MAX_AUTO_GEO_DISTANCE_FROM_BORDEAUX_KM = 130;
 
@@ -31,8 +34,29 @@ const MAX_AUTO_GEO_DISTANCE_FROM_BORDEAUX_KM = 130;
 const POI_KEYWORDS_REGEX =
   /\b(gare|aeroport|aéroport|airport|hopital|hôpital|clinique|stade|matmut|stadium|mairie|hotel|hôtel|université|universite|fac|lycée|lycee|école|ecole|musée|musee|chateau|château|église|eglise|theatre|théâtre|cinema|cinéma|piscine|parc|jardin|zoo|plage|port|marina|monument|tour|cathedrale|cathédrale|supermarche|supermarché|hypermarche|hypermarché|carrefour|leclerc|auchan|intermarche|intermarché|lidl|aldi|monoprix|casino|biocoop|centre commercial|cc\b|galerie|mall)\b/i;
 
+// Marques de supermarchés reconnues (utilisées pour le filtre strict Overpass)
+const SUPERMARKET_BRANDS = [
+  "carrefour", "leclerc", "auchan", "intermarché", "intermarche", "lidl", "aldi",
+  "monoprix", "casino", "biocoop", "super u", "hyper u", "u express", "franprix",
+  "g20", "spar", "cora", "naturalia", "grand frais", "picard",
+] as const;
+const SUPERMARKET_QUERY_REGEX =
+  /\b(supermarch[ée]|hypermarch[ée]|supermarket|hypermarket|epicerie|épicerie|grande\s+surface|carrefour|leclerc|auchan|intermarch[ée]|lidl|aldi|monoprix|casino|biocoop|super\s*u|hyper\s*u|franprix|cora|naturalia|grand\s+frais|picard)\b/i;
+
 function detectPoi(value: string): boolean {
   return POI_KEYWORDS_REGEX.test(value);
+}
+
+function isSupermarketQuery(value: string): boolean {
+  return SUPERMARKET_QUERY_REGEX.test(value);
+}
+
+function extractSupermarketBrand(value: string): string | null {
+  const v = value.toLowerCase();
+  for (const b of SUPERMARKET_BRANDS) {
+    if (v.includes(b)) return b;
+  }
+  return null;
 }
 
 
