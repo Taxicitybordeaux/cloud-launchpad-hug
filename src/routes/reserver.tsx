@@ -1583,19 +1583,84 @@ function ReservationPage() {
                 {t("res.loc.ride_section")}
               </div>
 
-              {/* Départ : saisie libre + bouton géoloc */}
+              {/* Départ : saisie libre + toggle Adresse/POI + bouton géoloc */}
               <div style={{ marginBottom: 10 }}>
-                <label
+                <div
                   style={{
-                    fontSize: 11,
-                    color: "#cbd5e1",
-                    fontWeight: 600,
-                    display: "block",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
                     marginBottom: 6,
+                    gap: 8,
+                    flexWrap: "wrap",
                   }}
                 >
-                  {t("res.loc.from")}
-                </label>
+                  <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600 }}>
+                    {t("res.loc.from")}
+                  </label>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    {detectPoi(f.depart) && (
+                      <span
+                        title="Mot-clé de lieu détecté — recherche élargie 50 km activée"
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "3px 8px",
+                          borderRadius: 999,
+                          background: "rgba(245,200,66,0.18)",
+                          color: "#fde68a",
+                          border: "1px solid rgba(245,200,66,0.5)",
+                        }}
+                      >
+                        ✨ Lieu détecté
+                      </span>
+                    )}
+                    <div
+                      role="tablist"
+                      title="Choisir le type de recherche : adresse postale (rapide) ou lieu nommé (POI : gare, aéroport, enseigne…)"
+                      style={{
+                        display: "inline-flex",
+                        background: "rgba(15,23,42,0.5)",
+                        border: "1px solid rgba(203,213,225,0.25)",
+                        borderRadius: 999,
+                        padding: 2,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setDepartMode("address")}
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "4px 10px",
+                          borderRadius: 999,
+                          border: "none",
+                          cursor: "pointer",
+                          background: departMode === "address" ? "#f5c842" : "transparent",
+                          color: departMode === "address" ? "#0f172a" : "#cbd5e1",
+                        }}
+                      >
+                        Adresse
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDepartMode("poi")}
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "4px 10px",
+                          borderRadius: 999,
+                          border: "none",
+                          cursor: "pointer",
+                          background: departMode === "poi" ? "#f5c842" : "transparent",
+                          color: departMode === "poi" ? "#0f172a" : "#cbd5e1",
+                        }}
+                      >
+                        Lieu (POI)
+                      </button>
+                    </div>
+                  </div>
+                </div>
                 <div style={{ position: "relative" }}>
                   <input
                     type="text"
@@ -1603,9 +1668,10 @@ function ReservationPage() {
                     onChange={(e) => {
                       set("depart", e.target.value);
                       setFromCoord(null);
+                      setDepartChoices([]);
                     }}
                     onBlur={resolveDepartAddress}
-                    placeholder="Adresse ou cliquez 📍"
+                    placeholder={departMode === "poi" ? "Gare, aéroport, enseigne…" : "Adresse ou cliquez 📍"}
                     autoComplete="off"
                     autoCorrect="off"
                     autoCapitalize="off"
@@ -1636,25 +1702,129 @@ function ReservationPage() {
                     {geolocLoading ? "⏳" : "📍"}
                   </button>
                 </div>
+                {departSearching && (
+                  <div style={{ color: "#fde68a", fontSize: 11, marginTop: 4 }}>🔄 Recherche en cours…</div>
+                )}
                 {errors.depart && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.depart}</div>}
-                {fromCoord && !errors.depart && (
+                {fromCoord && !errors.depart && !departSearching && (
                   <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>✓ {t("res.geo.btn")}</div>
+                )}
+                {departChoices.length > 0 && (
+                  <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
+                    {departChoices.map((choice) => (
+                      <button
+                        key={`dep-${choice.label}-${choice.coord[0]}-${choice.coord[1]}`}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          set("depart", choice.label);
+                          setFromCoord(choice.coord);
+                          setDepartChoices([]);
+                          setErrors((prev) => {
+                            const next = { ...prev };
+                            delete next.depart;
+                            return next;
+                          });
+                        }}
+                        style={{
+                          width: "100%",
+                          textAlign: "left",
+                          padding: "10px 12px",
+                          borderRadius: 10,
+                          border: "1px solid rgba(245,200,66,0.35)",
+                          background: "rgba(245,200,66,0.1)",
+                          color: "#f8fafc",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <span style={{ display: "block", fontSize: 13, fontWeight: 700 }}>{choice.label}</span>
+                        <span style={{ display: "block", fontSize: 11, color: "#fde68a", marginTop: 2 }}>
+                          à {choice.distanceKm.toFixed(1)} km
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
 
-              {/* Destination */}
+              {/* Destination : saisie libre + toggle Adresse/POI */}
               <div>
-                <label
+                <div
                   style={{
-                    fontSize: 11,
-                    color: "#cbd5e1",
-                    fontWeight: 600,
-                    display: "block",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
                     marginBottom: 6,
+                    gap: 8,
+                    flexWrap: "wrap",
                   }}
                 >
-                  {t("res.loc.to")}
-                </label>
+                  <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600 }}>
+                    {t("res.loc.to")}
+                  </label>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    {detectPoi(f.destination) && (
+                      <span
+                        title="Mot-clé de lieu détecté — recherche élargie 50 km activée"
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "3px 8px",
+                          borderRadius: 999,
+                          background: "rgba(245,200,66,0.18)",
+                          color: "#fde68a",
+                          border: "1px solid rgba(245,200,66,0.5)",
+                        }}
+                      >
+                        ✨ Lieu détecté
+                      </span>
+                    )}
+                    <div
+                      role="tablist"
+                      title="Choisir le type de recherche : adresse postale (rapide) ou lieu nommé (POI : gare, aéroport, enseigne…)"
+                      style={{
+                        display: "inline-flex",
+                        background: "rgba(15,23,42,0.5)",
+                        border: "1px solid rgba(203,213,225,0.25)",
+                        borderRadius: 999,
+                        padding: 2,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setDestMode("address")}
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "4px 10px",
+                          borderRadius: 999,
+                          border: "none",
+                          cursor: "pointer",
+                          background: destMode === "address" ? "#f5c842" : "transparent",
+                          color: destMode === "address" ? "#0f172a" : "#cbd5e1",
+                        }}
+                      >
+                        Adresse
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDestMode("poi")}
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "4px 10px",
+                          borderRadius: 999,
+                          border: "none",
+                          cursor: "pointer",
+                          background: destMode === "poi" ? "#f5c842" : "transparent",
+                          color: destMode === "poi" ? "#0f172a" : "#cbd5e1",
+                        }}
+                      >
+                        Lieu (POI)
+                      </button>
+                    </div>
+                  </div>
+                </div>
                 <input
                   type="text"
                   value={f.destination}
@@ -1664,7 +1834,7 @@ function ReservationPage() {
                     setDestinationChoices([]);
                   }}
                   onBlur={resolveDestinationAddress}
-                  placeholder={t("res.f.to.ph")}
+                  placeholder={destMode === "poi" ? "Gare, aéroport, enseigne…" : t("res.f.to.ph")}
                   autoComplete="off"
                   autoCorrect="off"
                   autoCapitalize="off"
@@ -1672,6 +1842,9 @@ function ReservationPage() {
                   name="tcb-dest-x"
                   style={inputStyle(!!errors.destination)}
                 />
+                {destSearching && (
+                  <div style={{ color: "#fde68a", fontSize: 11, marginTop: 4 }}>🔄 Recherche en cours…</div>
+                )}
                 {errors.destination && (
                   <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.destination}</div>
                 )}
@@ -1711,10 +1884,11 @@ function ReservationPage() {
                     ))}
                   </div>
                 )}
-                {toCoord && !errors.destination && (
+                {toCoord && !errors.destination && !destSearching && (
                   <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>✓ {t("res.loc.to")}</div>
                 )}
               </div>
+
 
               {/* Récap distance + prix */}
               {orsResult && (
