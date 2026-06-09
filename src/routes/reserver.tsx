@@ -1397,7 +1397,7 @@ function ReservationPage() {
         console.warn("[notify] admin notify failed", e);
       }
 
-      navigate({ to: "/suivi/$id", params: { id: suiviId }, search: {} });
+      navigate({ to: "/suivi/$id", params: { id: suiviId }, search: { gps: undefined, rid: undefined } });
     } catch (err: any) {
       setSending(false);
       toast.error(t("res.err.global"), { description: err?.message });
