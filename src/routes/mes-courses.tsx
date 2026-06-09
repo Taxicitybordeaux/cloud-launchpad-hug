@@ -176,9 +176,12 @@ function MapReplay({ depart, destination }: { depart: string; destination: strin
 
         const poly = await getPolyline(fromCoords, toCoords);
         if (poly.length > 0) {
-          L.polyline(poly, { color: "#f5c842", weight: 3, opacity: 0.85 }).addTo(map);
+          L.polyline(poly, { color: "#000000", weight: 8, opacity: 1, lineCap: "round", lineJoin: "round" }).addTo(map);
+          L.polyline(poly, { color: "#111111", weight: 5, opacity: 1, lineCap: "round", lineJoin: "round" }).addTo(map);
+          map.fitBounds(L.latLngBounds(poly as any), { padding: [60, 60], maxZoom: 16, animate: true });
+        } else {
+          map.fitBounds([fromCoords, toCoords], { padding: [60, 60], maxZoom: 16, animate: true });
         }
-        map.fitBounds([fromCoords, toCoords], { padding: [30, 30] });
         setTimeout(() => map.invalidateSize(), 100);
       } catch {
         setError(true);

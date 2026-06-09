@@ -154,6 +154,7 @@ export type Database = {
           accuracy: number | null
           destination: string | null
           heading: number | null
+          heartbeat_at: string | null
           id: string
           is_active: boolean
           latitude: number | null
@@ -166,6 +167,7 @@ export type Database = {
           accuracy?: number | null
           destination?: string | null
           heading?: number | null
+          heartbeat_at?: string | null
           id: string
           is_active?: boolean
           latitude?: number | null
@@ -178,6 +180,7 @@ export type Database = {
           accuracy?: number | null
           destination?: string | null
           heading?: number | null
+          heartbeat_at?: string | null
           id?: string
           is_active?: boolean
           latitude?: number | null
@@ -377,6 +380,7 @@ export type Database = {
           destination: string | null
           distance_km: number | null
           email: string | null
+          gps_validated_at: string | null
           heure_course: string | null
           id: string
           lang: string
@@ -411,6 +415,7 @@ export type Database = {
           destination?: string | null
           distance_km?: number | null
           email?: string | null
+          gps_validated_at?: string | null
           heure_course?: string | null
           id?: string
           lang?: string
@@ -445,6 +450,7 @@ export type Database = {
           destination?: string | null
           distance_km?: number | null
           email?: string | null
+          gps_validated_at?: string | null
           heure_course?: string | null
           id?: string
           lang?: string
@@ -609,11 +615,59 @@ export type Database = {
           tracking_id: string
         }[]
       }
+      get_reservation_for_suivi: {
+        Args: { p_key: string }
+        Returns: {
+          arrivee: string
+          bagages: number | null
+          client_email: string | null
+          client_name: string | null
+          client_phone: string | null
+          created_at: string
+          date_course: string | null
+          depart: string
+          destination: string | null
+          distance_km: number | null
+          email: string | null
+          gps_validated_at: string | null
+          heure_course: string | null
+          id: string
+          lang: string
+          message: string | null
+          nb_passagers: number | null
+          nom: string
+          paiement: string | null
+          passagers: number
+          pickup_datetime: string
+          prix_estime: number | null
+          refus_motif: string | null
+          route_coords: Json | null
+          route_label: string | null
+          service_type: string
+          source: string | null
+          status: string
+          suivi_id: string | null
+          tarif_jour: boolean | null
+          telephone: string
+          tracking_id: string | null
+          updated_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "reservations"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      mark_gps_validated: {
+        Args: { p_reservation_id: string }
         Returns: boolean
       }
       move_to_dlq: {

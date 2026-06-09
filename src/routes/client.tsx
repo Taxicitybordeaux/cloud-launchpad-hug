@@ -20,6 +20,7 @@ import {
 import logo from "@/assets/logo.jpeg";
 import { supabase } from "@/integrations/supabase/client";
 import { notifyReservationStatus } from "@/lib/push.functions";
+import { useI18n } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/client")({
   head: () => ({
@@ -50,15 +51,15 @@ type Reservation = {
 };
 
 /* ─── Helpers ────────────────────────────────────────────────── */
-function statusLabel(s: Reservation["status"]) {
+function statusLabel(s: Reservation["status"], t: (k: string) => string) {
   return (
     {
-      pending: { label: "En attente", cls: "bg-amber-100 text-amber-800" },
-      accepted: { label: "Acceptée", cls: "bg-blue-100 text-blue-800" },
-      en_route: { label: "En route", cls: "bg-indigo-100 text-indigo-800" },
-      arrived: { label: "Taxi arrivé", cls: "bg-purple-100 text-purple-800" },
-      completed: { label: "Terminée", cls: "bg-green-100 text-green-800" },
-      cancelled: { label: "Annulée", cls: "bg-red-100 text-red-800" },
+      pending: { label: t("client.status.pending"), cls: "bg-amber-100 text-amber-800" },
+      accepted: { label: t("client.status.accepted"), cls: "bg-blue-100 text-blue-800" },
+      en_route: { label: t("client.status.en_route"), cls: "bg-indigo-100 text-indigo-800" },
+      arrived: { label: t("client.status.arrived"), cls: "bg-purple-100 text-purple-800" },
+      completed: { label: t("client.status.completed"), cls: "bg-green-100 text-green-800" },
+      cancelled: { label: t("client.status.cancelled"), cls: "bg-red-100 text-red-800" },
     }[s] ?? { label: s, cls: "bg-gray-100 text-gray-800" }
   );
 }
@@ -113,6 +114,7 @@ function PageLoader() {
 
 /* ─── Auth Gate ──────────────────────────────────────────────── */
 function AuthGate({ onAuth }: { onAuth: (u: { id: string; email: string }) => void }) {
+  const { t } = useI18n();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -165,27 +167,27 @@ function AuthGate({ onAuth }: { onAuth: (u: { id: string; email: string }) => vo
                 mode === m ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {m === "login" ? "Connexion" : "Créer un compte"}
+              {m === "login" ? t("client.signin.submit") : t("client.signin.create")}
             </button>
           ))}
         </div>
 
         <div className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-sm font-medium">Adresse e-mail</label>
+            <label className="mb-1.5 block text-sm font-medium">{t("client.signin.email")}</label>
             <input
               type="email"
               inputMode="email"
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="votre@email.fr"
+              placeholder={t("client.signin.email_placeholder")}
               className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none ring-primary/40 transition focus:border-primary focus:ring-2"
             />
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium">Mot de passe</label>
+            <label className="mb-1.5 block text-sm font-medium">{t("client.signin.password")}</label>
             <div className="relative">
               <input
                 type={showPwd ? "text" : "password"}
@@ -222,18 +224,18 @@ function AuthGate({ onAuth }: { onAuth: (u: { id: string; email: string }) => vo
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
             ) : mode === "login" ? (
               <>
-                Se connecter <ArrowRight className="h-4 w-4" />
+                {t("client.signin.submit")} <ArrowRight className="h-4 w-4" />
               </>
             ) : (
               <>
-                Créer mon compte <ArrowRight className="h-4 w-4" />
+                {t("client.signin.create")} <ArrowRight className="h-4 w-4" />
               </>
             )}
           </button>
         </div>
 
         <p className="mt-5 text-center text-xs text-muted-foreground">
-          Besoin d'aide ?{" "}
+          {t("client.help.title")}{" "}
           <a href={`tel:${PHONE}`} className="text-primary underline underline-offset-2">
             {PHONE_DISPLAY}
           </a>
@@ -251,6 +253,7 @@ function AuthGate({ onAuth }: { onAuth: (u: { id: string; email: string }) => vo
 
 /* ─── Dashboard ──────────────────────────────────────────────── */
 function Dashboard({ user, onLogout }: { user: { id: string; email: string }; onLogout: () => void }) {
+  const { t } = useI18n();
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Reservation | null>(null);
@@ -357,7 +360,7 @@ function Dashboard({ user, onLogout }: { user: { id: string; email: string }; on
         <div className="flex items-center gap-3">
           <img src={logo} alt="Taxi City Bordeaux" className="h-10 w-auto sm:h-12" />
           <div>
-            <p className="text-xs text-muted-foreground">Mon espace</p>
+            <p className="text-xs text-muted-foreground">{t("client.header.subtitle")}</p>
             <p className="max-w-[180px] truncate text-sm font-semibold sm:max-w-none">{user.email}</p>
           </div>
         </div>
@@ -365,7 +368,7 @@ function Dashboard({ user, onLogout }: { user: { id: string; email: string }; on
           onClick={handleLogout}
           className="flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition hover:border-destructive/50 hover:text-destructive active:scale-95"
         >
-          <LogOut className="h-3.5 w-3.5" /> Déconnexion
+          <LogOut className="h-3.5 w-3.5" /> {t("client.logout")}
         </button>
       </div>
 
@@ -375,8 +378,8 @@ function Dashboard({ user, onLogout }: { user: { id: string; email: string }; on
         className="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-primary/30 bg-primary/5 px-5 py-4 transition hover:bg-primary/10 active:scale-[0.99]"
       >
         <div>
-          <p className="font-semibold">Nouvelle réservation</p>
-          <p className="text-sm text-muted-foreground">Réserver votre prochain taxi</p>
+          <p className="font-semibold">{t("client.cta.new_booking.title")}</p>
+          <p className="text-sm text-muted-foreground">{t("client.cta.new_booking.desc")}</p>
         </div>
         <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
           <ArrowRight className="h-4 w-4" />
@@ -416,7 +419,7 @@ function Dashboard({ user, onLogout }: { user: { id: string; email: string }; on
 
       {/* Aide bas de page */}
       <div className="mt-10 rounded-2xl border border-border bg-card/50 p-5">
-        <p className="text-sm font-semibold">Besoin d'aide ?</p>
+        <p className="text-sm font-semibold">{t("client.help.title")}</p>
         <p className="mt-1 text-sm text-muted-foreground">
           Pour toute modification urgente ou question, appelez-nous directement.
         </p>
@@ -467,7 +470,8 @@ function SectionTitle({ icon: Icon, label }: { icon: React.ElementType; label: s
 }
 
 function RideCard({ r, onClick }: { r: Reservation; onClick: () => void }) {
-  const s = statusLabel(r.status);
+  const { t } = useI18n();
+  const s = statusLabel(r.status, t);
   return (
     <button
       onClick={onClick}
@@ -514,7 +518,8 @@ function RideModal({
   onModify: (r: Reservation) => void;
 }) {
   const navigate = useNavigate();
-  const s = statusLabel(r.status);
+  const { t } = useI18n();
+  const s = statusLabel(r.status, t);
   const isPending = r.status === "pending";
   const isActive = ["accepted", "en_route", "arrived"].includes(r.status);
   const canRebook = ["completed", "cancelled"].includes(r.status);
@@ -717,22 +722,20 @@ function ModifyModal({
 
 /* ─── Empty state ────────────────────────────────────────────── */
 function EmptyState() {
+  const { t } = useI18n();
   return (
     <div className="flex flex-col items-center gap-4 py-16 text-center">
       <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
         <CalendarCheck className="h-7 w-7" />
       </span>
       <div>
-        <p className="font-semibold">Aucune course pour l'instant</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Vos réservations apparaîtront ici après votre première course.
-        </p>
+        <p className="font-semibold">{t("client.list.empty")}</p>
       </div>
       <Link
         to="/reservation"
         className="mt-2 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-gold)] active:scale-95"
       >
-        Réserver maintenant <ArrowRight className="h-4 w-4" />
+        {t("client.list.empty.cta")} <ArrowRight className="h-4 w-4" />
       </Link>
     </div>
   );

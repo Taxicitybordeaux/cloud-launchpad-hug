@@ -281,16 +281,24 @@ function CoursePage() {
           routeLayer.current.remove();
           routeLayer.current = null;
         }
+        L.polyline(route.coords, {
+          color: "#000000",
+          weight: 8,
+          opacity: 1,
+          lineCap: "round",
+          lineJoin: "round",
+        }).addTo(map);
         routeLayer.current = L.polyline(route.coords, {
-          color: "#f5c842",
-          weight: 4,
-          opacity: 0.7,
-          dashArray: "10, 6",
+          color: "#111111",
+          weight: 5,
+          opacity: 1,
+          lineCap: "round",
+          lineJoin: "round",
         }).addTo(map);
 
-        // Centrer carte sur les deux points
-        const bounds = L.latLngBounds([[taxiPos.lat, taxiPos.lng], destCoord]);
-        map.fitBounds(bounds, { padding: [80, 80], animate: true });
+        // Cadrage Uber : tout le trajet visible
+        const allPts = [...route.coords, [taxiPos.lat, taxiPos.lng] as [number, number], destCoord];
+        map.fitBounds(L.latLngBounds(allPts), { padding: [60, 60], maxZoom: 16, animate: true });
       });
     } else {
       map.setView([taxiPos.lat, taxiPos.lng], 15, { animate: true });
