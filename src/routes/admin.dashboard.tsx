@@ -3563,9 +3563,9 @@ function MapTraceModal({
       attribution: "© OpenStreetMap",
     }).addTo(map);
 
-    // Tracé de la route
-    const color = alt.label.includes("Court") ? "#22c55e" : "#ef4444";
-    const poly = L.polyline(alt.coords, { color, weight: 5, opacity: 0.85 }).addTo(map);
+    // Tracé de la route — style Uber noir
+    L.polyline(alt.coords, { color: "#000000", weight: 8, opacity: 1, lineCap: "round", lineJoin: "round" }).addTo(map);
+    const poly = L.polyline(alt.coords, { color: "#111111", weight: 5, opacity: 1, lineCap: "round", lineJoin: "round" }).addTo(map);
 
     // Marqueurs départ / arrivée
     const iconDepart = L.divIcon({
@@ -3585,7 +3585,7 @@ function MapTraceModal({
       .addTo(map)
       .bindPopup(r.destination || r.arrivee || "Arrivée");
 
-    map.fitBounds(poly.getBounds().pad(0.15));
+    map.fitBounds(poly.getBounds(), { padding: [60, 60], maxZoom: 16, animate: true });
 
     return () => {
       map.remove();

@@ -351,41 +351,8 @@ function getAutoGeoRejectionReason(pos: GeolocationPosition): string | null {
   return null;
 }
 
-// ─── OSRM : passe par l'Edge Function Supabase (évite les blocages CORS) ─────
-const SUPABASE_URL = "https://auiagkpdpnfqxfngisfc.supabase.co";
-const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1aWFna3BkcG5mcXhmbmdpc2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0MzU2NzUsImV4cCI6MjA5NDAxMTY3NX0.MkW2KzCYHvQ0GEjjP3_puf3PkCHWaYcvW2bI1ctTuJU";
-
-// ─── ORS polyline : via Edge Function Supabase ──────────────────────────────
-async function getOsrmPolylineLongest(from: [number, number], to: [number, number]): Promise<[number, number][]> {
-  try {
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/osrm-route`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({
-        from_lng: from[1], // from = [lat, lng] → ORS attend lng en premier
-        from_lat: from[0],
-        to_lng: to[1],
-        to_lat: to[0],
-        overview: "full",
-        geometries: "geojson",
-      }),
-    });
-    if (!res.ok) return [];
-    const json = await res.json();
-    if (json?.error) return [];
-    // ORS retourne geometry en GeoJSON : { type: "LineString", coordinates: [[lng,lat],...] }
-    const coords: [number, number][] = json?.geometry?.coordinates ?? [];
-    if (!coords.length) return [];
-    // Inverser [lng, lat] → [lat, lng] pour Leaflet
-    return coords.map(([lng, lat]) => [lat, lng] as [number, number]);
-  } catch {
-    return [];
-  }
-}
+// ─── OSRM : helper centralisé (cache + plus long trajet + densification) ────
+import { getOsrmPolylineLongest } from "@/lib/osrm";
 
 function loadLeaflet(): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -675,7 +642,7 @@ function ReservationPage() {
     }
 
     if (fromCoord && toCoord) {
-      // Toujours le chemin le plus long
+      // Toujours le chemin le plus long (cache + densification appliqués dans osrm.ts)
       getOsrmPolylineLongest(fromCoord, toCoord).then((coords) => {
         if (!mapInst.current || !L) return;
         if (routeLayer.current) {
@@ -683,17 +650,26 @@ function ReservationPage() {
           routeLayer.current = null;
         }
         if (coords.length > 1) {
-          routeLayer.current = L.polyline(
-            coords.map((c) => [c[1], c[0]]),
-            { color: "#f5c842", weight: 5, opacity: 0.95 },
-          ).addTo(mapInst.current);
-          mapInst.current.fitBounds(
-            L.latLngBounds([
-              [fromCoord[0], fromCoord[1]],
-              [toCoord[0], toCoord[1]],
-              ...coords.map((c) => [c[1], c[0]]),
-            ]).pad(0.25),
-          );
+          // Style Uber : casing noir épais + ligne fine au-dessus
+          L.polyline(coords, {
+            color: "#000000",
+            weight: 8,
+            opacity: 1,
+            lineCap: "round",
+            lineJoin: "round",
+          }).addTo(mapInst.current);
+          routeLayer.current = L.polyline(coords, {
+            color: "#111111",
+            weight: 5,
+            opacity: 1,
+            lineCap: "round",
+            lineJoin: "round",
+          }).addTo(mapInst.current);
+          mapInst.current.fitBounds(L.latLngBounds(coords), {
+            padding: [60, 60],
+            maxZoom: 16,
+            animate: true,
+          });
         }
       });
     } else if (fromCoord) {
