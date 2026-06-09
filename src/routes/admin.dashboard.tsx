@@ -2605,56 +2605,7 @@ function Dashboard() {
               );
             })()}
 
-          {/* ── Bouton WhatsApp chauffeur — lien GPS ── */}
-          {(normalizeStatus(r.status) === "accepted" || r.status === "en_route" || r.status === "arrived") &&
-            r.suivi_id &&
-            (() => {
-              const DRIVER_TOKEN = import.meta.env.VITE_DRIVER_TOKEN ?? "";
-              const DRIVER_PHONE = "33673072322";
-              const driverLink = `${typeof window !== "undefined" ? window.location.origin : "https://taxicitybordeaux.fr"}/suivi/${r.suivi_id}?driver=${DRIVER_TOKEN}`;
-              const depart = r.depart || "—";
-              const arrivee = r.arrivee || r.destination || "—";
-              const heure = r.pickup_datetime
-                ? new Date(r.pickup_datetime).toLocaleString("fr-FR", {
-                    timeZone: "Europe/Paris",
-                    weekday: "short",
-                    day: "numeric",
-                    month: "short",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
-                : r.heure_course || "—";
-              const client = r.client_name || r.nom || "Client";
-              const msg = `🚖 Nouvelle course acceptée\n\n📍 Départ : ${depart}\n🏁 Destination : ${arrivee}\n🕐 Heure : ${heure}\n👤 Client : ${client}\n\n👉 Ouvre ce lien pour activer ton GPS :\n${driverLink}`;
-              return (
-                <div style={{ marginTop: 10 }}>
-                  <a
-                    href={`https://wa.me/${DRIVER_PHONE}?text=${encodeURIComponent(msg)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 8,
-                      padding: "11px 16px",
-                      borderRadius: 14,
-                      background: "rgba(37,211,102,0.12)",
-                      border: "1px solid rgba(37,211,102,0.35)",
-                      color: "#25D366",
-                      fontFamily: "'Syne',sans-serif",
-                      fontWeight: 700,
-                      fontSize: 13,
-                      textDecoration: "none",
-                      width: "100%",
-                      boxSizing: "border-box" as const,
-                    }}
-                  >
-                    📲 Envoyer GPS au chauffeur
-                  </a>
-                </div>
-              );
-            })()}
+          {/* Bouton « Envoyer GPS au chauffeur » supprimé : le chauffeur reçoit la course via son flux dédié. */}
         </div>
       </SwipeDeleteRow>
     );
