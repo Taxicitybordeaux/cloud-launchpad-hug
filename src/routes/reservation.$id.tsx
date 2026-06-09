@@ -57,7 +57,7 @@ function ConfirmationPage() {
   useEffect(() => {
     if (reservation && !["annulee", "cancelled", "canceled"].includes(reservation.status)) {
       const timeout = setTimeout(() => {
-        navigate({ to: "/suivi/$id", params: { id: reservation.id }, search: {} });
+        navigate({ to: "/suivi/$id", params: { id: reservation.id }, search: { gps: undefined, rid: undefined } });
       }, 5000);
       return () => clearTimeout(timeout);
     }
