@@ -463,6 +463,9 @@ function ReservationPage() {
   const [destMode, setDestMode] = useState<"address" | "poi">("address");
   const [departSearching, setDepartSearching] = useState(false);
   const [destSearching, setDestSearching] = useState(false);
+  const [dictating, setDictating] = useState(false);
+  const [dictateError, setDictateError] = useState<string | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   const [f, setF] = useState<FormState>({
     depart: "",
