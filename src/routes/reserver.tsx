@@ -799,10 +799,42 @@ function ReservationPage() {
   const resolveDepartAddress = useCallback(async () => {
     const value = f.depart.trim();
     if (!value) return;
-    setCalcLoading(true);
+
+    // Mode POI ou détection auto → recherche élargie 50 km, plusieurs choix
+    if (departMode === "poi" || detectPoi(value)) {
+      setDepartSearching(true);
+      const origin = BORDEAUX_CENTER;
+      const choices = await searchNearbyAddressChoices(value, origin, POI_SEARCH_RADIUS_KM);
+      setDepartSearching(false);
+      if (choices.length === 1) {
+        setDepartChoices([]);
+        setFromCoord(choices[0].coord);
+        set("depart", choices[0].label);
+        setErrors((prev) => {
+          const next = { ...prev };
+          delete next.depart;
+          return next;
+        });
+        return;
+      }
+      if (choices.length > 1) {
+        setDepartChoices(choices);
+        setFromCoord(null);
+        setErrors((prev) => ({ ...prev, depart: "Sélectionnez un lieu dans la liste" }));
+        return;
+      }
+      setDepartChoices([]);
+      setFromCoord(null);
+      setErrors((prev) => ({ ...prev, depart: "Lieu introuvable" }));
+      return;
+    }
+
+    // Mode adresse classique
+    setDepartSearching(true);
     const result = await geocodeFullAddress(value);
-    setCalcLoading(false);
+    setDepartSearching(false);
     if (result) {
+      setDepartChoices([]);
       setFromCoord(result.coord);
       set("depart", result.label);
       setErrors((prev) => {
@@ -814,17 +846,15 @@ function ReservationPage() {
       setFromCoord(null);
       setErrors((prev) => ({ ...prev, depart: "Adresse introuvable" }));
     }
-  }, [f.depart]);
+  }, [f.depart, departMode]);
 
   // ── Résoudre adresse destination ─────────────────────────────────────────
   const resolveDestinationAddress = useCallback(async () => {
     const value = f.destination.trim();
     if (!value) return;
-    setCalcLoading(true);
+    setDestSearching(true);
 
-    // Si le départ est saisi mais fromCoord pas encore résolu (l'utilisateur
-    // a sauté directement au champ destination avant que resolveDepartAddress finisse),
-    // on le résout maintenant nous-mêmes pour avoir un fromCoord à jour.
+    // Si le départ est saisi mais fromCoord pas encore résolu, on le résout.
     let resolvedFromCoord = fromCoord;
     if (f.depart.trim() && !fromCoord) {
       const departResult = await geocodeFullAddress(f.depart.trim());
@@ -841,11 +871,39 @@ function ReservationPage() {
     }
 
     const origin = resolvedFromCoord ?? BORDEAUX_CENTER;
+    const isPoi = destMode === "poi" || detectPoi(value);
 
-    // 1) On tente geocodeFullAddress en priorité (rapide, Nominatim)
+    // Mode POI → directement recherche élargie 50 km
+    if (isPoi) {
+      const choices = await searchNearbyAddressChoices(value, origin, POI_SEARCH_RADIUS_KM);
+      setDestSearching(false);
+      if (choices.length === 1) {
+        setDestinationChoices([]);
+        setToCoord(choices[0].coord);
+        set("destination", choices[0].label);
+        setErrors((prev) => {
+          const next = { ...prev };
+          delete next.destination;
+          return next;
+        });
+        return;
+      }
+      if (choices.length > 1) {
+        setDestinationChoices(choices);
+        setToCoord(null);
+        setErrors((prev) => ({ ...prev, destination: "Sélectionnez un lieu dans la liste" }));
+        return;
+      }
+      setDestinationChoices([]);
+      setToCoord(null);
+      setErrors((prev) => ({ ...prev, destination: "Lieu introuvable — précisez la ville" }));
+      return;
+    }
+
+    // Mode adresse : Nominatim d'abord
     const result = await geocodeFullAddress(value);
     if (result) {
-      setCalcLoading(false);
+      setDestSearching(false);
       setDestinationChoices([]);
       setToCoord(result.coord);
       set("destination", result.label);
@@ -854,12 +912,12 @@ function ReservationPage() {
         delete next.destination;
         return next;
       });
-      return; // trouvé → pas besoin de chercher plus loin
+      return;
     }
 
-    // 2) Fallback : recherche élargie (Photon + Overpass + variantes Nominatim)
+    // Fallback : recherche élargie
     const nearbyChoices = await searchNearbyAddressChoices(value, origin, DESTINATION_SEARCH_RADIUS_KM);
-    setCalcLoading(false);
+    setDestSearching(false);
 
     if (nearbyChoices.length) {
       setDestinationChoices(nearbyChoices);
@@ -876,7 +934,15 @@ function ReservationPage() {
         destination: "Adresse introuvable — précisez la ville ou le lieu",
       }));
     }
-  }, [f.destination, f.depart, fromCoord]);
+  }, [f.destination, f.depart, fromCoord, destMode]);
+
+  // Auto-détection POI : passe automatiquement en mode POI dès qu'un mot-clé est tapé
+  useEffect(() => {
+    if (f.depart && detectPoi(f.depart)) setDepartMode("poi");
+  }, [f.depart]);
+  useEffect(() => {
+    if (f.destination && detectPoi(f.destination)) setDestMode("poi");
+  }, [f.destination]);
 
   // ── Disponibilité taxi ────────────────────────────────────────────────────
   useEffect(() => {
