@@ -441,10 +441,20 @@ async function enrichChoiceLabels(choices: AddressChoice[]): Promise<AddressChoi
   return enriched.map(({ _needsReverse, _baseName, ...rest }: any) => rest);
 }
 
+
+async function searchNearbyAddressChoices(
   query: string,
   origin: [number, number],
   radiusKm = 20,
 ): Promise<AddressChoice[]> {
+  // Branche supermarché : filtre OSM strict shop=supermarket
+  if (isSupermarketQuery(query)) {
+    const raw = await searchOverpassSupermarkets(query, origin, SUPERMARKET_RADIUS_KM);
+    const enriched = await enrichChoiceLabels(raw);
+    return dedupeAddressChoices(enriched)
+      .sort((a, b) => a.distanceKm - b.distanceKm)
+      .slice(0, MAX_CHOICES_SUPERMARKET);
+  }
   // Variantes spécifiques pour lieux connus mal reconnus
   const normalizedQ = normalizeAddressText(query);
   const extraVariants: string[] = [];
