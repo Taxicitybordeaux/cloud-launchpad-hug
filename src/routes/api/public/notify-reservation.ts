@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { TEMPLATES } from "@/lib/email-templates/registry";
-import { sendPushToAudience } from "@/lib/push.server";
+// sendPushToAudience supprimé : les pushs admin+chauffeur sont envoyés
+// par notifyNewReservation() dans push.functions.ts — évite les doublons.
 
 const TEMPLATE_NAME = "new-reservation-admin";
 const INTERNAL_NOTIFY_SECRET = "taxi-city-reservation-trigger-v1";
@@ -96,27 +97,8 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
         }
 
         console.log("[notify-reservation] email queued ok, reservation:", reservationId);
-
-        try {
-          await Promise.all([
-            sendPushToAudience("admin", {
-              title: "🆕 Nouvelle réservation",
-              body: `${reservation.nom} · ${reservation.depart} → ${reservation.arrivee}`,
-              url: "/admin/dashboard",
-              tag: `new-res-${reservationId}`,
-              requireInteraction: true,
-            }),
-            sendPushToAudience("chauffeur", {
-              title: "🚕 Nouvelle course en attente",
-              body: `${reservation.nom} · ${reservation.depart} → ${reservation.arrivee}`,
-              url: "/admin/dashboard",
-              tag: `new-res-chauffeur-${reservationId}`,
-              requireInteraction: true,
-            }),
-          ]);
-        } catch (e) {
-          console.error("[push] notify failed", e);
-        }
+        // Les pushs admin+chauffeur sont envoyés par notifyNewReservation()
+        // dans push.functions.ts — ne pas les renvoyer ici pour éviter les doublons.
 
         return Response.json({ success: true });
       },

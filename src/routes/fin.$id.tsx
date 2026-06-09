@@ -501,10 +501,10 @@ function FinPage() {
       if (coords.length > 0) {
         L.polyline(coords, { color: "#000000", weight: 8, opacity: 1, lineCap: "round", lineJoin: "round" }).addTo(map);
         L.polyline(coords, { color: "#111111", weight: 5, opacity: 1, lineCap: "round", lineJoin: "round" }).addTo(map);
-        map.fitBounds(L.latLngBounds(coords), { padding: [60, 60], maxZoom: 16, animate: true });
-      } else {
-        map.fitBounds(L.latLngBounds([fromCoord, toCoord]), { padding: [60, 60], maxZoom: 16, animate: true });
       }
+
+      const bounds = L.latLngBounds([fromCoord, toCoord]);
+      map.fitBounds(bounds, { padding: [60, 60], maxZoom: 16, animate: true });
       setTimeout(() => map.invalidateSize(), 150);
       routeDrawn.current = true;
     };

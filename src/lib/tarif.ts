@@ -1,7 +1,7 @@
 // Tarifs officiels taxi Bordeaux (homologués préfecture)
 export const PRISE_EN_CHARGE = 2.83;
 export const TARIF_JOUR = 2.16; // €/km — tarif A (7h–19h)
-export const TARIF_NUIT = 3.24; // €/km — tarif B (19h–7h, dimanches, jours fériés)
+export const TARIF_NUIT = 3.24; // €/km — tarif B (19h–7h)
 export const VITESSE_MOYENNE_KMH = 40; // vitesse moyenne estimée en ville
 
 export const TARIFS = {
@@ -15,14 +15,44 @@ const DEBUT_JOUR = 7;
 const FIN_JOUR = 19;
 
 /**
- * Calcule les jours fériés français pour une année donnée.
- * Retourne un Set de chaînes "YYYY-MM-DD".
+ * Extrait les composantes Paris d'une date de manière fiable (tous navigateurs,
+ * tous runtimes serveur).
  */
-function joursFerriesFrance(annee: number): Set<string> {
-  // Calcul de Pâques (algorithme de Meeus/Jones/Butcher)
-  const a = annee % 19;
-  const b = Math.floor(annee / 100);
-  const c = annee % 100;
+export function partsParis(iso: string): {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  weekday: string;
+} {
+  const date = new Date(iso);
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Paris",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    weekday: "short",
+  }).formatToParts(date);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "0";
+  return {
+    year: parseInt(get("year"), 10),
+    month: parseInt(get("month"), 10),
+    day: parseInt(get("day"), 10),
+    hour: parseInt(get("hour"), 10) % 24,
+    minute: parseInt(get("minute"), 10),
+    weekday: get("weekday"),
+  };
+}
+
+// Dimanche de Pâques (Meeus/Jones/Butcher, grégorien).
+function easterSunday(year: number): { month: number; day: number } {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
   const d = Math.floor(b / 4);
   const e = b % 4;
   const f = Math.floor((b + 8) / 25);
@@ -32,66 +62,45 @@ function joursFerriesFrance(annee: number): Set<string> {
   const k = c % 4;
   const l = (32 + 2 * e + 2 * i - h - k) % 7;
   const m = Math.floor((a + 11 * h + 22 * l) / 451);
-  const moisPaques = Math.floor((h + l - 7 * m + 114) / 31);
-  const jourPaques = ((h + l - 7 * m + 114) % 31) + 1;
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return { month, day };
+}
 
-  const paques = new Date(annee, moisPaques - 1, jourPaques);
-  const lundiPaques = new Date(paques);
-  lundiPaques.setDate(paques.getDate() + 1);
-  const ascension = new Date(paques);
-  ascension.setDate(paques.getDate() + 39);
-  const lundiPentecote = new Date(paques);
-  lundiPentecote.setDate(paques.getDate() + 50);
+function addDays(year: number, month: number, day: number, add: number) {
+  const d = new Date(Date.UTC(year, month - 1, day));
+  d.setUTCDate(d.getUTCDate() + add);
+  return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() };
+}
 
-  const fmt = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
-  return new Set([
-    `${annee}-01-01`, // Jour de l'An
-    fmt(lundiPaques), // Lundi de Pâques
-    `${annee}-05-01`, // Fête du Travail
-    `${annee}-05-08`, // Victoire 1945
-    fmt(ascension), // Ascension
-    fmt(lundiPentecote), // Lundi de Pentecôte
-    `${annee}-07-14`, // Fête Nationale
-    `${annee}-08-15`, // Assomption
-    `${annee}-11-01`, // Toussaint
-    `${annee}-11-11`, // Armistice
-    `${annee}-12-25`, // Noël
-  ]);
+// Jours fériés légaux français (métropole).
+export function estJourFerieFR(year: number, month: number, day: number): boolean {
+  const fixed: Array<[number, number]> = [
+    [1, 1], [5, 1], [5, 8], [7, 14], [8, 15], [11, 1], [11, 11], [12, 25],
+  ];
+  if (fixed.some(([m, d]) => m === month && d === day)) return true;
+  const e = easterSunday(year);
+  const movable = [
+    addDays(year, e.month, e.day, 1),   // Lundi de Pâques
+    addDays(year, e.month, e.day, 39),  // Ascension
+    addDays(year, e.month, e.day, 50),  // Lundi de Pentecôte
+  ];
+  return movable.some((f) => f.month === month && f.day === day);
 }
 
 /**
- * Retourne true si la date (ISO) tombe un dimanche ou un jour férié français.
+ * Tarif nuit : 19h–7h heure de Paris, OU dimanche, OU jour férié (toute la journée).
  */
 export function estTarifNuitJournee(iso: string): boolean {
-  const date = new Date(iso);
-  // Convertir en date Paris
-  const dateParis = new Date(date.toLocaleString("en-US", { timeZone: "Europe/Paris" }));
-  const jourSemaine = dateParis.getDay(); // 0 = dimanche
-  if (jourSemaine === 0) return true;
-
-  const annee = dateParis.getFullYear();
-  const mois = String(dateParis.getMonth() + 1).padStart(2, "0");
-  const jour = String(dateParis.getDate()).padStart(2, "0");
-  const cle = `${annee}-${mois}-${jour}`;
-
-  return joursFerriesFrance(annee).has(cle);
+  return !estTarifJourParis(iso);
 }
 
-/**
- * Retourne l'heure décimale Paris à partir d'un ISO string.
- * Ex : "2026-05-17T17:45:00" → 17.75
- */
-function heureParis(iso: string): number {
-  const str = new Date(iso).toLocaleString("fr-FR", {
-    timeZone: "Europe/Paris",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-  const [h = 0, m = 0] = str.split(":").map(Number);
-  return h + m / 60;
+export function estTarifJourParis(iso: string): boolean {
+  const p = partsParis(iso);
+  if (p.weekday === "Sun") return false;
+  if (estJourFerieFR(p.year, p.month, p.day)) return false;
+  const h = p.hour + p.minute / 60;
+  return h >= DEBUT_JOUR && h < FIN_JOUR;
 }
 
 function arrondir(val: number): number {
@@ -108,9 +117,8 @@ export function calculerPrix(distanceKm: number, tarifJour: boolean): number {
 }
 
 /**
- * Calcul mixte : tient compte de l'heure, des dimanches et jours fériés.
- * - Dimanche ou jour férié → tarif nuit sur toute la course
- * - Sinon, prorata jour/nuit selon l'heure de départ et la durée estimée
+ * Calcul mixte : prorata jour/nuit selon l'heure de Paris.
+ * Règle unique : 7h–19h = jour, 19h–7h = nuit.
  *
  * @param distanceKm  Distance totale de la course
  * @param pickupIso   ISO datetime de prise en charge
@@ -120,37 +128,19 @@ export function calculerPrixMixte(distanceKm: number, pickupIso: string): number
     return calculerPrix(distanceKm, true);
   }
 
-  // Dimanche ou jour férié → 100% tarif nuit
-  if (estTarifNuitJournee(pickupIso)) {
-    return arrondir(PRISE_EN_CHARGE + distanceKm * TARIF_NUIT);
-  }
-
-  const debutH = heureParis(pickupIso);
   const dureeH = distanceKm / VITESSE_MOYENNE_KMH;
-  const finH = debutH + dureeH;
+  const dureeMs = Math.max(dureeH * 3_600_000, 60_000);
+  const departMs = new Date(pickupIso).getTime();
+  const steps = Math.max(Math.ceil(dureeMs / 60_000), 1);
 
   let kmJour = 0;
   let kmNuit = 0;
 
-  if (debutH >= DEBUT_JOUR && finH <= FIN_JOUR) {
-    // Course entièrement de jour (7h–19h)
-    kmJour = distanceKm;
-  } else if (finH <= DEBUT_JOUR || debutH >= FIN_JOUR) {
-    // Course entièrement de nuit
-    kmNuit = distanceKm;
-  } else if (debutH >= DEBUT_JOUR && debutH < FIN_JOUR && finH > FIN_JOUR) {
-    // Commence de jour, passe en nuit après 19h
-    const ratio = (FIN_JOUR - debutH) / dureeH;
-    kmJour = distanceKm * ratio;
-    kmNuit = distanceKm * (1 - ratio);
-  } else if (debutH < DEBUT_JOUR && finH > DEBUT_JOUR) {
-    // Commence de nuit (avant 7h), passe en jour après 7h
-    const ratio = (DEBUT_JOUR - debutH) / dureeH;
-    kmNuit = distanceKm * ratio;
-    kmJour = distanceKm * (1 - ratio);
-  } else {
-    // Fallback
-    kmNuit = distanceKm;
+  for (let i = 0; i < steps; i++) {
+    const t = new Date(departMs + i * (dureeMs / steps)).toISOString();
+    const kmSlice = distanceKm / steps;
+    if (estTarifJourParis(t)) kmJour += kmSlice;
+    else kmNuit += kmSlice;
   }
 
   return arrondir(PRISE_EN_CHARGE + kmJour * TARIF_JOUR + kmNuit * TARIF_NUIT);

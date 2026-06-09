@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { calculerPrix, calculerPrixMixte } from "@/lib/tarif";
+import { calculerPrix, calculerPrixMixte, estJourFerieFR } from "@/lib/tarif";
 import { getDistanceAndDurationKm, fetchRouteCoordinates, OSRM_DISTANCE_FACTOR } from "@/lib/osrm";
 import { geocodeAddress } from "@/lib/geocode";
 import { assertSuiviId, newSuiviId } from "@/lib/suivi-id";
@@ -211,7 +211,14 @@ function StatusBadge({ s }: { s: string }) {
   const v = STATUS[s] ?? { bg: "rgba(148,163,184,0.15)", c: "#94a3b8", label: s };
   return (
     <span
-      style={{ background: v.bg, color: v.c, padding: "3px 10px", borderRadius: 99, fontSize: 11, fontWeight: 700 }}
+      style={{
+        background: v.bg,
+        color: v.c,
+        padding: "3px 10px",
+        borderRadius: 99,
+        fontSize: 11,
+        fontWeight: 700,
+      }}
     >
       {v.label}
     </span>
@@ -222,61 +229,28 @@ function formatParis(iso: string, opts?: Intl.DateTimeFormatOptions) {
   return new Date(iso).toLocaleString("fr-FR", { timeZone: "Europe/Paris", ...opts });
 }
 
-// ─── Jours fériés français ───
-const JOURS_FERIES = new Set([
-  // 2025
-  "2025-01-01",
-  "2025-04-21",
-  "2025-05-01",
-  "2025-05-08",
-  "2025-05-29",
-  "2025-06-09",
-  "2025-07-14",
-  "2025-08-15",
-  "2025-11-01",
-  "2025-11-11",
-  "2025-12-25",
-  // 2026
-  "2026-01-01",
-  "2026-04-06",
-  "2026-05-01",
-  "2026-05-08",
-  "2026-05-14",
-  "2026-05-25",
-  "2026-06-04",
-  "2026-07-14",
-  "2026-08-15",
-  "2026-11-01",
-  "2026-11-11",
-  "2026-12-25",
-  // 2027
-  "2027-01-01",
-  "2027-03-29",
-  "2027-05-01",
-  "2027-05-08",
-  "2027-05-13",
-  "2027-05-24",
-  "2027-07-14",
-  "2027-08-15",
-  "2027-11-01",
-  "2027-11-11",
-  "2027-12-25",
-]);
-
-function isJourFerie(date: Date): boolean {
-  const yyyy = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", year: "numeric" });
-  const mm = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", month: "2-digit" });
-  const dd = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", day: "2-digit" });
-  return JOURS_FERIES.has(`${yyyy}-${mm}-${dd}`);
-}
-
 function isNuit(iso: string): boolean {
   const date = new Date(iso);
-  const h = parseInt(date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", hour12: false }), 10);
-  const dimanche = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", weekday: "short" }) === "dim.";
-  const ferie = isJourFerie(date);
-  // Tarif nuit : 19h–7h Paris, OU dimanche, OU jour férié
-  return h >= 19 || h < 7 || dimanche || ferie;
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Paris",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+    weekday: "short",
+  }).formatToParts(date);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "0";
+  const y = parseInt(get("year"), 10);
+  const m = parseInt(get("month"), 10);
+  const d = parseInt(get("day"), 10);
+  const h = parseInt(get("hour"), 10) % 24;
+  const wd = get("weekday");
+  // Dimanche ou jour férié = nuit toute la journée
+  if (wd === "Sun") return true;
+  if (estJourFerieFR(y, m, d)) return true;
+  // Sinon : 19h–7h = nuit
+  return h >= 19 || h < 7;
 }
 
 const normalizeStatus = (s: unknown): "pending" | "accepted" | "refused" => {
@@ -452,6 +426,15 @@ function Dashboard() {
 
   // ── Courses ──
   const [items, setItems] = useState<any[]>([]);
+  // itemsRef — toujours synchronisé avec items via l'effet ci-dessous.
+  // Permet une lecture synchrone dans les callbacks GPS sans passer par
+  // le pattern dangereux `new Promise(res => setItems(prev => { res(...); return prev }))`.
+  const itemsRef = useRef<any[]>([]);
+  // Synchronise itemsRef à chaque mise à jour de items — remplace le pattern
+  // dangereux `new Promise(res => setItems(prev => { res(...); return prev }))`.
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [counts, setCounts] = useState({ pending: 0, accepted: 0, refused: 0 });
 
@@ -501,6 +484,14 @@ function Dashboard() {
   const gpsHeartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const gpsRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastKnownPosRef = useRef<{ lat: number; lng: number; accuracy: number } | null>(null);
+  const gpsLastSignalAtRef = useRef<number>(0);
+  // FIX 🟠 : verrou pour éviter la race condition watchdog 45s / retry 8s
+  const gpsRestartingRef = useRef<boolean>(false);
+  const wakeLockRef = useRef<any>(null);
+  // Fix #2 (admin) : jeton d'annulation pour les fire-and-forget de startGPS.
+  // Quand on toggle stop/start ou que le composant démonte, l'ancien jeton est invalidé
+  // pour ne pas écrire dans des refs mortes après un await (geocodeForRoute).
+  const startGpsTokenRef = useRef<{ cancelled: boolean }>({ cancelled: false });
 
   // ── Notifications push ──
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
@@ -537,6 +528,37 @@ function Dashboard() {
     }
     return null;
   };
+
+  const requestGpsWakeLock = useCallback(async () => {
+    if (typeof navigator === "undefined" || !("wakeLock" in navigator) || document.visibilityState !== "visible")
+      return;
+    try {
+      wakeLockRef.current = await (navigator as any).wakeLock.request("screen");
+      // FIX 🔴 : Le système peut libérer le WakeLock (appel entrant, alarme…).
+      // On réacquiert automatiquement dès que la page redevient visible, tant que le GPS est actif.
+      wakeLockRef.current?.addEventListener?.("release", () => {
+        wakeLockRef.current = null;
+        const reacquire = () => {
+          if (document.visibilityState === "visible" && gpsActiveRef.current) {
+            requestGpsWakeLock();
+          }
+          document.removeEventListener("visibilitychange", reacquire);
+        };
+        if (document.visibilityState === "visible" && gpsActiveRef.current) {
+          requestGpsWakeLock();
+        } else {
+          document.addEventListener("visibilitychange", reacquire);
+        }
+      });
+    } catch {
+      wakeLockRef.current = null;
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const releaseGpsWakeLock = useCallback(() => {
+    wakeLockRef.current?.release?.()?.catch?.(() => {});
+    wakeLockRef.current = null;
+  }, []);
 
   // =========================
   // AUTO-SUBSCRIBE FCM (admin + chauffeur)
@@ -712,37 +734,17 @@ function Dashboard() {
         const n = payload.new as any;
         if (!initialLoad.current) {
           const clientName = n.client_name || n.nom || "Client";
+
+          // 1. Son
           try {
             new Audio("/notification.mp3").play().catch(() => {});
           } catch {}
-          // Notification gérée par le trigger Supabase + Edge Function notify-new-reservation
 
-          if (typeof window !== "undefined" && "Notification" in window) {
-            const fire = () => {
-              try {
-                new Notification("🔔 Nouvelle réservation", {
-                  body: `${clientName} — ${n.depart || ""} → ${n.arrivee || n.destination || ""}`,
-                  icon: "/favicon.ico",
-                  tag: `reservation-${n.id}`,
-                  requireInteraction: true,
-                });
-              } catch {}
-            };
-            if (Notification.permission === "granted") fire();
-            else if (Notification.permission === "default")
-              Notification.requestPermission().then((p) => {
-                if (p === "granted") fire();
-              });
-          }
-          if (typeof window !== "undefined") {
-            const t = document.createElement("div");
-            t.textContent = `🔔 Nouvelle réservation de ${clientName}`;
-            t.style.cssText = `position:fixed;top:20px;right:20px;background:#0ea5e9;color:white;padding:14px 20px;border-radius:12px;font-family:DM Sans,sans-serif;font-weight:700;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,0.3);`;
-            document.body.appendChild(t);
-            setTimeout(() => t.remove(), 5000);
-          }
+          // Le push FCM serveur prévient déjà le chauffeur/admin.
+          // Ne pas créer ici de notification native locale : avec plusieurs onglets
+          // ou la PWA ouverte, elle s'empile avec le push et crée des doublons.
         }
-        // Fix: insert local uniquement, sans re-fetch global qui ecrase les statuts
+        // Insert local uniquement — pas de re-fetch global qui écrase les statuts
         if (n?.id) {
           setItems((prev) => (prev.some((item) => item.id === n.id) ? prev : [n, ...prev]));
         }
@@ -750,13 +752,13 @@ function Dashboard() {
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "reservations" }, (payload) => {
         const updated = payload.new as any;
-        const previous = payload.old as any;
         console.log("[RT UPDATE]", updated?.id?.slice(0, 8), "db:", updated?.status);
         if (updated?.id) {
           setItems((prev) =>
             prev.map((item) => {
               if (item.id !== updated.id) return item;
               console.log("[RT UPDATE] local:", item.status, "-> db:", updated.status);
+              // Ne pas écraser un statut local plus avancé avec un statut DB plus ancien
               const rank: Record<string, number> = {
                 pending: 0,
                 accepted: 1,
@@ -773,15 +775,6 @@ function Dashboard() {
             }),
           );
         }
-        // CA jour/mois : rafraîchir dès qu'une course passe en "completed"
-        if (updated?.status === "completed" && previous?.status !== "completed") {
-          fetchStats();
-        }
-      })
-      // Insertion / modification d'une course (trigger trg_reservation_completed_to_course)
-      // → recalcul immédiat du CA jour / CA mois sans recharger la page.
-      .on("postgres_changes", { event: "*", schema: "public", table: "courses" }, () => {
-        fetchStats();
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "site_analytics" }, () => fetchStats())
       .on("postgres_changes", { event: "*", schema: "public", table: "avis" }, () => fetchAvis())
@@ -798,19 +791,24 @@ function Dashboard() {
     const initGPS = async () => {
       const { data, error } = await (supabase as any).from("driver_gps").select("*").eq("id", "driver").single();
       if (error || !data) {
+        // Fix #3 : ne PAS insérer 0,0 — ces coordonnées passent les checks `!= null`
+        // côté suivi et font apparaître le taxi au large de l'Afrique ou au centre de Bordeaux.
+        // On laisse latitude/longitude NULL jusqu'au 1er vrai signal GPS.
         await (supabase as any)
           .from("driver_gps")
-          .insert({ id: "driver", is_active: false, latitude: 0, longitude: 0 });
+          .insert({ id: "driver", is_active: false, latitude: null, longitude: null });
       }
       setGpsLoading(false);
     };
     initGPS();
     return () => {
       // Nettoyage complet à la destruction du composant
+      startGpsTokenRef.current.cancelled = true;
       if (watchIdRef.current !== null && typeof navigator !== "undefined")
         navigator.geolocation.clearWatch(watchIdRef.current);
       if (gpsHeartbeatRef.current) clearInterval(gpsHeartbeatRef.current);
       if (gpsRetryTimerRef.current) clearTimeout(gpsRetryTimerRef.current);
+      releaseGpsWakeLock();
     };
   }, []);
 
@@ -820,6 +818,9 @@ function Dashboard() {
     // Flag pour détecter si le cleanup a tourné avant la fin de l'init async
     let cancelled = false;
     const initMap = async () => {
+      // Fix #1 (admin) : guard AVANT tout await — sinon deux toggles rapides
+      // de gpsActive peuvent créer deux maps sur le même div.
+      if (cancelled || !gpsMapRef.current || gpsMapInst.current) return;
       const L = (window as any).L;
       if (!L) {
         await new Promise<void>((resolve) => {
@@ -827,37 +828,59 @@ function Dashboard() {
             const link = document.createElement("link");
             link.id = "leaflet-css-admin";
             link.rel = "stylesheet";
-            link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+            link.href = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css";
             document.head.appendChild(link);
           }
           if (!document.getElementById("leaflet-js-admin")) {
             const s = document.createElement("script");
             s.id = "leaflet-js-admin";
-            s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+            s.src = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";
             s.onload = () => resolve();
             document.head.appendChild(s);
           } else {
-            // Script déjà présent mais window.L peut ne pas être encore dispo :
-            // on poll jusqu'à ce qu'il soit prêt (fix Bug 4 : resolve() jamais appelé)
+            // Script déjà présent mais window.L peut ne pas être encore dispo.
+            // Fix : poll + timeout doivent se nettoyer mutuellement (sinon double resolve / fuite).
             if ((window as any).L) {
               resolve();
             } else {
-              const poll = setInterval(() => {
+              let settled = false;
+              let pollId: ReturnType<typeof setInterval> | null = null;
+              let timeoutId: ReturnType<typeof setTimeout> | null = null;
+              const cleanup = () => {
+                if (pollId) clearInterval(pollId);
+                if (timeoutId) clearTimeout(timeoutId);
+                pollId = null;
+                timeoutId = null;
+              };
+              pollId = setInterval(() => {
+                if (settled) return;
                 if ((window as any).L) {
-                  clearInterval(poll);
+                  settled = true;
+                  cleanup();
                   resolve();
                 }
               }, 50);
+              timeoutId = setTimeout(() => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                resolve();
+              }, 8000);
             }
           }
         });
       }
-      // Bug 3 : si le cleanup a déjà tourné (gpsActive → false pendant l'await),
-      // on n'initialise pas la map pour éviter une fuite mémoire / crash.
+      // Re-check après l'await : cancelled, div démonté ou map déjà créée.
       if (cancelled || !gpsMapRef.current || gpsMapInst.current) return;
       const Lx = (window as any).L;
+      if (!Lx) return;
       const center: [number, number] = gpsPosition ? [gpsPosition.lat, gpsPosition.lng] : [44.8378, -0.5792];
-      const map = Lx.map(gpsMapRef.current, { center, zoom: 15, zoomControl: true, attributionControl: false });
+      const map = Lx.map(gpsMapRef.current, {
+        center,
+        zoom: 15,
+        zoomControl: true,
+        attributionControl: false,
+      });
       Lx.tileLayer(OSM_TILE_URL, OSM_TILE_OPTIONS).addTo(map);
       const icon = Lx.divIcon({
         className: "",
@@ -905,8 +928,79 @@ function Dashboard() {
           return new Date(a.pickup_datetime).getTime() - new Date(b.pickup_datetime).getTime();
         })[0] ?? null;
     startGPS((inProgress ?? nextAccepted)?.id ?? undefined);
+    // FIX 🟠 : reset au démontage pour que le GPS se relance correctement
+    // si TanStack Router remonte le composant depuis son cache (mode keepalive).
+    return () => {
+      gpsStartedRef.current = false;
+    };
   }, [coursesLoading, gpsLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // =========================
+  // GPS REPRISE ARRIÈRE-PLAN
+  // Quand le chauffeur revient sur l'app (visibilitychange)
+  // ou retrouve le réseau (online), on vérifie si le GPS
+  // est toujours actif ; sinon on le relance automatiquement.
+  // =========================
+  const startGPSRef = useRef<((resaId?: string) => void) | null>(null);
+  const gpsActiveRef = useRef(false);
+  // FIX 🔴 : activeResaIdRef2 supprimée — on utilise uniquement activeResaIdRef (ligne 492)
+  // pour éviter la désynchronisation entre les deux refs lors de la reprise arrière-plan.
+  useEffect(() => {
+    // FIX: dépendance sur items en plus de gpsActive pour que startGPS capture
+    // toujours la liste de courses la plus récente (géocodage auto-status).
+    // L'ancienne dépendance [gpsActive] seule laissait une closure périmée sur items.
+    startGPSRef.current = startGPS;
+  }); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    gpsActiveRef.current = gpsActive;
+  }, [gpsActive]);
+  useEffect(() => {
+    activeResaIdRef.current = activeResaId;
+  }, [activeResaId]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      if (!gpsActiveRef.current) return;
+      requestGpsWakeLock();
+      // GPS was active → check if watchPosition is still alive
+      if (watchIdRef.current === null) {
+        // watchPosition mort (suspendu en arrière-plan) → relancer
+        console.info("[GPS] Reprise au premier plan — redémarrage watchPosition");
+        startGPSRef.current?.(activeResaIdRef.current ?? undefined);
+        return;
+      }
+      // watchPosition encore là → envoyer juste un getCurrentPosition
+      // pour récupérer la position immédiatement sans attendre le prochain signal
+      if (typeof navigator !== "undefined" && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const { latitude, longitude, accuracy } = pos.coords;
+            lastKnownPosRef.current = { lat: latitude, lng: longitude, accuracy };
+            gpsLastSignalAtRef.current = Date.now();
+            pushPosition(latitude, longitude, accuracy, pos.coords.heading ?? null, pos.coords.speed ?? 0).catch(
+              () => {},
+            );
+          },
+          () => {},
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+        );
+      }
+    };
+    const handleOnline = () => {
+      if (!gpsActiveRef.current) return;
+      if (watchIdRef.current === null) {
+        console.info("[GPS] Réseau rétabli — redémarrage watchPosition");
+        startGPSRef.current?.(activeResaIdRef.current ?? undefined);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("online", handleOnline);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("online", handleOnline);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // GPS auto-transition
   useEffect(() => {
     if (!gpsActive || !activeResaId) return;
@@ -962,7 +1056,10 @@ function Dashboard() {
     } else {
       setActiveResaId(null);
       activeResaIdRef.current = null;
-      toast("🏁 Course terminée", { description: "GPS toujours actif — aucune prochaine course.", duration: 5000 });
+      toast("🏁 Course terminée", {
+        description: "GPS toujours actif — aucune prochaine course.",
+        duration: 5000,
+      });
     }
   }, [items, gpsActive, activeResaId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1019,6 +1116,11 @@ function Dashboard() {
       });
       return;
     }
+
+    // ⚡ URL construite ICI — avant tout await — pour iOS Safari qui invalide
+    // le contexte de geste utilisateur dès le premier await asynchrone.
+    const driverUrl =
+      typeof window !== "undefined" ? `${window.location.origin}/suivi/${suiviId}?gps=1&rid=${r.id}` : null;
     const tarifNuitCourse = r.pickup_datetime ? isNuit(r.pickup_datetime) : r.tarif_jour === false;
     const km = r.distance_km ? Number(r.distance_km) : 5;
     const prixCalcule = r.pickup_datetime
@@ -1048,18 +1150,18 @@ function Dashboard() {
     // Enregistrer dans clients
     if (phone) {
       try {
-        const { data: existing } = await supabase
+        const { data: existing } = await (supabase as any)
           .from("clients")
           .select("id,total_courses")
           .eq("phone", phone)
           .maybeSingle();
         if (existing) {
-          await supabase
+          await (supabase as any)
             .from("clients")
             .update({ total_courses: (existing.total_courses ?? 0) + 1 })
             .eq("id", existing.id);
         } else {
-          await supabase.from("clients").insert({ name, phone, email, total_courses: 1 });
+          await (supabase as any).from("clients").insert({ name, phone, email, total_courses: 1 });
         }
       } catch (clientErr) {
         console.error("[handleAccept] clients insert/update failed", clientErr);
@@ -1093,12 +1195,27 @@ function Dashboard() {
 
     // ✉️ Email désactivé — à envoyer manuellement via "Modifier le prix"
 
-    toast.success(`✅ Course acceptée — ${name || "client"}`, { description: notifParts.join(" · "), duration: 8000 });
+    toast.success(`✅ Course acceptée — ${name || "client"}`, {
+      description: notifParts.join(" · "),
+      duration: 8000,
+    });
+
+    // 📡 Redirige vers la page chauffeur GPS — URL construite avant les awaits (iOS Safari)
+    if (driverUrl) {
+      window.location.href = driverUrl;
+    }
+
     // Mise à jour optimiste immédiate
     setItems((prev) =>
       prev.map((item) =>
         item.id === r.id
-          ? { ...item, status: "accepted", suivi_id: suiviId, distance_km: km, prix_estime: prixCalcule }
+          ? {
+              ...item,
+              status: "accepted",
+              suivi_id: suiviId,
+              distance_km: km,
+              prix_estime: prixCalcule,
+            }
           : item,
       ),
     );
@@ -1140,7 +1257,9 @@ function Dashboard() {
     }
     let pushSent = 0;
     try {
-      const res = await notifyReservationStatus({ data: { reservation_id: r.id, status: "refused" } });
+      const res = await notifyReservationStatus({
+        data: { reservation_id: r.id, status: "refused" },
+      });
       pushSent = (res as any)?.client?.sent ?? 0;
     } catch {}
     toast.success(`❌ Course refusée — ${r.client_name || r.nom || "client"}`, {
@@ -1173,7 +1292,9 @@ function Dashboard() {
       cancelled: "✖ Annulée",
     };
     try {
-      const result = await notifyReservationStatus({ data: { reservation_id: r.id, status: status as any } });
+      const result = await notifyReservationStatus({
+        data: { reservation_id: r.id, status: status as any },
+      });
       if (typeof window !== "undefined" && (result as any)?.smsPhone && (result as any)?.smsBody) {
         window.open(`sms:${(result as any).smsPhone}?body=${(result as any).smsBody}`, "_blank");
       }
@@ -1219,12 +1340,17 @@ function Dashboard() {
     }
 
     // Mettre à jour l'état local dans tous les cas
-    setItems((prev) => prev.filter((r) => r.id !== id));
-    setCounts((prev) => {
-      const item = items.find((r) => r.id === id);
-      if (!item) return prev;
-      const k = normalizeStatus(item.status);
-      return { ...prev, [k]: Math.max(0, prev[k] - 1) };
+    // Fix stale closure : on lit l'item depuis le prev de setItems (état frais)
+    // avant de le retirer, puis on ajuste setCounts en conséquence.
+    setItems((prev) => {
+      const item = prev.find((r) => r.id === id);
+      if (item) {
+        setCounts((c) => {
+          const k = normalizeStatus(item.status);
+          return { ...c, [k]: Math.max(0, c[k] - 1) };
+        });
+      }
+      return prev.filter((r) => r.id !== id);
     });
     toast.success("Réservation supprimée");
     setDeleteBusy(false);
@@ -1259,6 +1385,9 @@ function Dashboard() {
   // GPS CONTROLS
   // =========================
   // ── Push position to Supabase ──────────────────────────────────────────────
+  // ── Source GPS unique : driver_gps ──────────────────────────────────────────
+  // L'admin écrit ICI. Le suivi client lit DEPUIS ICI via Realtime + polling.
+  // taxi_positions n'est plus utilisée (supprimée de la boucle GPS).
   const pushPosition = async (
     latitude: number,
     longitude: number,
@@ -1266,33 +1395,32 @@ function Dashboard() {
     computedHeading: number | null,
     speed: number,
   ) => {
-    // Try/catch global : une erreur réseau ne doit jamais bloquer le GPS
+    const now = new Date().toISOString();
     try {
-      await (supabase as any)
-        .from("driver_gps")
-        .update({
+      await (supabase as any).from("driver_gps").upsert(
+        {
+          id: "driver",
           latitude,
           longitude,
           accuracy: acc,
           heading: computedHeading,
+          speed,
           is_active: true,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", "driver");
+          heartbeat_at: now,
+          updated_at: now,
+        },
+        { onConflict: "id" },
+      );
+      // ── Validation GPS : marque la réservation comme "GPS activé" au 1er signal réussi ──
+      const resaId = activeResaIdRef.current;
+      if (resaId) {
+        (supabase as any).rpc("mark_gps_validated", { p_reservation_id: resaId }).then(
+          () => {},
+          () => {},
+        );
+      }
     } catch (e) {
-      console.warn("[GPS] pushPosition driver_gps failed", e);
-    }
-    try {
-      await (supabase as any).from("taxi_positions").upsert({
-        id: "00000000-0000-0000-0000-000000000001",
-        lat: latitude,
-        lng: longitude,
-        heading: computedHeading ?? 0,
-        speed: speed ?? 0,
-        updated_at: new Date().toISOString(),
-      });
-    } catch (e) {
-      console.warn("[GPS] pushPosition taxi_positions failed", e);
+      console.warn("[GPS] pushPosition failed", e);
     }
   };
 
@@ -1317,37 +1445,61 @@ function Dashboard() {
     setGpsError(null);
     lastPosRef.current = null;
     lastKnownPosRef.current = null;
+    gpsLastSignalAtRef.current = 0;
+    requestGpsWakeLock();
+    // IMPORTANT : vider les flags auto-status pour que arrived/completed
+    // puissent se déclencher à nouveau après un redémarrage GPS (retour arrière-plan).
+    if (resaId) {
+      delete autoStatusFiredRef.current[resaId + "_en_route"];
+      delete autoStatusFiredRef.current[resaId + "_arrived"];
+      delete autoStatusFiredRef.current[resaId + "_completed"];
+    }
 
     const linkedId = resaId ?? null;
     setActiveResaId(linkedId);
     activeResaIdRef.current = linkedId;
+    // Reset géocodage immédiat pour éviter de tester pickupGeoRef null
+    // pendant que le géocodage async tourne
+    pickupGeoRef.current = null;
+    destinationGeoRef.current = null;
     setGpsActive(true);
 
-    // ── Les awaits (Supabase + géocodage) sont faits APRÈS le lancement du GPS
-    // pour rester dans la pile synchrone du tap — iOS Safari exige ça
-    // pour autoriser la géolocalisation. On les décale via Promise.resolve().
-    Promise.resolve().then(async () => {
-      await (supabase as any)
-        .from("driver_gps")
-        .update({ is_active: true, updated_at: new Date().toISOString() })
-        .eq("id", "driver");
+    // Fix #2 (admin) : invalider l'ancien jeton et créer un nouveau
+    // pour cette session startGPS. Les awaits ci-dessous vérifient ce flag.
+    startGpsTokenRef.current.cancelled = true;
+    const token = { cancelled: false };
+    startGpsTokenRef.current = token;
 
-      pickupGeoRef.current = null;
-      destinationGeoRef.current = null;
+    // ── Géocodage départ + destination EN PARALLÈLE, puis démarrage du watch
+    // Stratégie : on lance watchPosition tout de suite (exigence iOS Safari pour
+    // le tap synchrone), mais on PRÉ-CHARGE les coords avant d'arriver sur place.
+    // Si le géocodage n'est pas terminé quand le 1er signal arrive, handlePosition
+    // va re-tester à chaque update suivant (les refs sont remplies en live).
+    Promise.resolve().then(async () => {
+      if (token.cancelled) return;
+      // Marquer actif en DB
+      (supabase as any)
+        .from("driver_gps")
+        .upsert({ id: "driver", is_active: true, updated_at: new Date().toISOString() }, { onConflict: "id" })
+        .catch(() => {});
+
       if (linkedId) {
         const course = items.find((r) => r.id === linkedId);
-        if (course?.depart) {
-          try {
-            const c = await geocodeForRoute(course.depart);
-            if (c) pickupGeoRef.current = { lat: c.lat, lng: c.lng };
-          } catch {}
-        }
-        if (course?.arrivee || course?.destination) {
-          try {
-            const c = await geocodeForRoute(course.arrivee || course.destination);
-            if (c) destinationGeoRef.current = { lat: c.lat, lng: c.lng };
-          } catch {}
-        }
+        // Géocodage parallèle départ + destination
+        await Promise.allSettled([
+          course?.depart
+            ? geocodeForRoute(course.depart).then((c) => {
+                if (token.cancelled) return;
+                if (c) pickupGeoRef.current = { lat: c.lat, lng: c.lng };
+              })
+            : Promise.resolve(),
+          course?.arrivee || course?.destination
+            ? geocodeForRoute(course.arrivee || course.destination).then((c) => {
+                if (token.cancelled) return;
+                if (c) destinationGeoRef.current = { lat: c.lat, lng: c.lng };
+              })
+            : Promise.resolve(),
+        ]);
       }
     });
 
@@ -1355,9 +1507,14 @@ function Dashboard() {
     // handleErrorRef permet à handlePosition d'être déclaré avant handleError
     // tout en permettant à handleError de rappeler watchPosition avec handlePosition
     // (évite le ReferenceError sur les const non hoistées).
-    const handleErrorRef: { current: ((err: GeolocationPositionError) => void) | null } = { current: null };
+    const handleErrorRef: { current: ((err: GeolocationPositionError) => void) | null } = {
+      current: null,
+    };
 
-    const handlePosition = async (pos: GeolocationPosition) => {
+    // FIX 🔴 : handlePosition doit être une fonction SYNCHRONE.
+    // iOS Safari tue watchPosition si le callback GPS est async/await (trop lent).
+    // Toute la logique async (auto-status) est déportée dans un IIFE fire-and-forget.
+    const handlePosition = (pos: GeolocationPosition) => {
       const { latitude, longitude, accuracy: acc, heading: rawHeading } = pos.coords;
       const rejection = getDriverGpsRejection(pos, lastKnownPosRef.current);
       if (rejection) {
@@ -1377,86 +1534,110 @@ function Dashboard() {
       }
       lastPosRef.current = { lat: latitude, lng: longitude };
       lastKnownPosRef.current = { lat: latitude, lng: longitude, accuracy: acc };
+      gpsLastSignalAtRef.current = Date.now();
       setGpsPosition({ lat: latitude, lng: longitude });
       setGpsAccuracy(Math.round(acc));
       setGpsUpdateCount((n) => n + 1);
-      await pushPosition(latitude, longitude, acc, computedHeading, pos.coords.speed ?? 0);
 
-      // ── AUTO-STATUS ─────────────────────────────────────────────────────
-      const resaId = activeResaIdRef.current;
-      if (!resaId) return;
-      const fired = autoStatusFiredRef.current;
+      // Fire-and-forget : ne jamais bloquer le callback GPS sur un appel réseau
+      // iOS/Android peuvent tuer watchPosition si le callback est trop lent
+      pushPosition(latitude, longitude, acc, computedHeading, pos.coords.speed ?? 0).catch(() => {});
 
-      const enRouteKey = resaId + "_en_route";
-      if (!fired[enRouteKey]) {
-        // Lire items via ref pour éviter la closure stale dans setItems
-        const course = await new Promise<any>((res) => {
-          setItems((prev) => {
-            res(prev.find((r) => r.id === resaId) ?? null);
-            return prev; // pas de mutation
-          });
-        });
-        if (course && course.status === "accepted") {
-          const pickupMs = course.pickup_datetime ? new Date(course.pickup_datetime).getTime() : null;
-          const nowMs = Date.now();
-          const shouldGo = !pickupMs || pickupMs - nowMs <= 30 * 60 * 1000;
-          if (shouldGo && !fired[enRouteKey]) {
-            fired[enRouteKey] = true;
-            const clientLabel2 = course.client_name || course.nom || "Client";
-            handleUpdateReservationStatus(course, "en_route").then(() => {
-              toast.success("🚗 En route automatique", {
-                description: clientLabel2 + " — départ dans ≤ 30 min",
-                duration: 5000,
+      // ── AUTO-STATUS (fire-and-forget async) ─────────────────────────────
+      // Déporté dans un IIFE async pour ne pas bloquer le callback synchrone GPS.
+      const _lat = latitude;
+      const _lng = longitude;
+      (async () => {
+        const resaId = activeResaIdRef.current;
+        if (!resaId) return;
+        const fired = autoStatusFiredRef.current;
+
+        const enRouteKey = resaId + "_en_route";
+        if (!fired[enRouteKey]) {
+          // Lecture synchrone via itemsRef — pas de Promise sur setItems.
+          const course = itemsRef.current.find((r) => r.id === resaId) ?? null;
+          if (course && course.status === "accepted") {
+            const pickupMs = course.pickup_datetime ? new Date(course.pickup_datetime).getTime() : null;
+            const nowMs = Date.now();
+            // FIX 🔴 : on n'auto-déclenche que si l'heure est connue ET dans ≤ 30 min.
+            // L'ancien `!pickupMs` déclenchait en_route immédiatement pour toute
+            // course sans pickup_datetime, même réservée bien à l'avance.
+            const shouldGo = pickupMs != null && pickupMs - nowMs <= 30 * 60 * 1000;
+            if (shouldGo && !fired[enRouteKey]) {
+              fired[enRouteKey] = true;
+              const clientLabel2 = course.client_name || course.nom || "Client";
+              handleUpdateReservationStatus(course, "en_route").then(() => {
+                toast.success("🚗 En route automatique", {
+                  description: clientLabel2 + " — départ dans ≤ 30 min",
+                  duration: 5000,
+                });
               });
-            });
+            }
           }
         }
-      }
 
-      const arrivedKey = resaId + "_arrived";
-      if (!fired[arrivedKey] && pickupGeoRef.current) {
-        const dist = distMetersGps({ lat: latitude, lng: longitude }, pickupGeoRef.current);
-        if (dist < 150) {
-          const course = await new Promise<any>((res) => {
-            setItems((prev) => {
-              res(prev.find((r) => r.id === resaId) ?? null);
-              return prev;
-            });
-          });
-          if (course && (course.status === "en_route" || course.status === "accepted") && !fired[arrivedKey]) {
-            fired[arrivedKey] = true;
-            handleUpdateReservationStatus(course, "arrived").then(() => {
-              toast.success("📍 Arrivée détectée automatiquement", {
-                description: "À " + Math.round(dist) + " m de la prise en charge",
-                duration: 5000,
-              });
-            });
+        const arrivedKey = resaId + "_arrived";
+        if (!fired[arrivedKey]) {
+          // Lecture synchrone via itemsRef — plus de Promise sur setItems.
+          if (!pickupGeoRef.current) {
+            const course = itemsRef.current.find((r) => r.id === resaId);
+            if (course?.depart) {
+              geocodeForRoute(course.depart)
+                .then((c) => {
+                  if (c) pickupGeoRef.current = { lat: c.lat, lng: c.lng };
+                })
+                .catch(() => {});
+            }
+          }
+          if (pickupGeoRef.current) {
+            const dist = distMetersGps({ lat: _lat, lng: _lng }, pickupGeoRef.current);
+            if (dist < 250) {
+              const course = itemsRef.current.find((r) => r.id === resaId) ?? null;
+              if (course && (course.status === "en_route" || course.status === "accepted") && !fired[arrivedKey]) {
+                fired[arrivedKey] = true;
+                handleUpdateReservationStatus(course, "arrived").then(() => {
+                  toast.success("📍 Arrivée détectée automatiquement", {
+                    description: "À " + Math.round(dist) + " m de la prise en charge",
+                    duration: 5000,
+                  });
+                });
+              }
+            }
           }
         }
-      }
 
-      const completedKey = resaId + "_completed";
-      if (!fired[completedKey] && destinationGeoRef.current) {
-        const distDest = distMetersGps({ lat: latitude, lng: longitude }, destinationGeoRef.current);
-        if (distDest < 100) {
-          const course = await new Promise<any>((res) => {
-            setItems((prev) => {
-              res(prev.find((r) => r.id === resaId) ?? null);
-              return prev;
-            });
-          });
-          if (course && course.status === "arrived" && !fired[completedKey]) {
-            fired[completedKey] = true;
-            const clientLabel = course.client_name || course.nom || "Client";
-            handleUpdateReservationStatus(course, "completed").then(() => {
-              toast.success("🏁 Course terminée automatiquement", {
-                description: "À " + Math.round(distDest) + " m de la destination — " + clientLabel,
-                duration: 6000,
-              });
-            });
+        const completedKey = resaId + "_completed";
+        if (!fired[completedKey]) {
+          // Lecture synchrone via itemsRef — plus de Promise sur setItems.
+          if (!destinationGeoRef.current) {
+            const course = itemsRef.current.find((r) => r.id === resaId);
+            const dest = course?.arrivee || course?.destination;
+            if (dest) {
+              geocodeForRoute(dest)
+                .then((c) => {
+                  if (c) destinationGeoRef.current = { lat: c.lat, lng: c.lng };
+                })
+                .catch(() => {});
+            }
+          }
+          if (destinationGeoRef.current) {
+            const distDest = distMetersGps({ lat: _lat, lng: _lng }, destinationGeoRef.current);
+            if (distDest < 250) {
+              const course = itemsRef.current.find((r) => r.id === resaId) ?? null;
+              if (course && course.status === "arrived" && !fired[completedKey]) {
+                fired[completedKey] = true;
+                const clientLabel = course.client_name || course.nom || "Client";
+                handleUpdateReservationStatus(course, "completed").then(() => {
+                  toast.success("🏁 Course terminée automatiquement", {
+                    description: "À " + Math.round(distDest) + " m de la destination — " + clientLabel,
+                    duration: 6000,
+                  });
+                });
+              }
+            }
           }
         }
-      }
+      })().catch(() => {});
     };
 
     // handleError est déclaré APRÈS handlePosition pour éviter le ReferenceError
@@ -1476,12 +1657,21 @@ function Dashboard() {
       setGpsError(msgs[err.code] ?? "Erreur GPS inconnue.");
       if (gpsRetryTimerRef.current) clearTimeout(gpsRetryTimerRef.current);
       gpsRetryTimerRef.current = setTimeout(() => {
+        // FIX 🟠 : verrou anti race-condition — si le watchdog 45s a déjà relancé
+        // watchPosition entre le moment où handleError s'est déclenché et la fin
+        // du délai 8s, on ne lance pas un second watch.
+        if (gpsRestartingRef.current) return;
+        gpsRestartingRef.current = true;
         if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+        gpsLastSignalAtRef.current = Date.now();
         watchIdRef.current = navigator.geolocation.watchPosition(handlePosition, handleError, {
           enableHighAccuracy: true,
-          maximumAge: 30000,
+          // FIX 🟡 : maximumAge 5s (au lieu de 30s) — pour un taxi, une position
+          // vieille de 30s est inutile et masque les vrais silences GPS.
+          maximumAge: 5000,
           timeout: 60000,
         });
+        gpsRestartingRef.current = false;
       }, 8000);
     };
     handleErrorRef.current = handleError;
@@ -1495,7 +1685,7 @@ function Dashboard() {
       if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = navigator.geolocation.watchPosition(handlePosition, handleError, {
         enableHighAccuracy: true,
-        maximumAge: 30000,
+        maximumAge: 5000, // FIX 🟡 : 5s pour taxi (30s masquait les silences GPS)
         timeout: 60000,
       });
     };
@@ -1524,31 +1714,54 @@ function Dashboard() {
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 },
     );
 
-    // ── Heartbeat toutes les 5s pour garder is_active vivant ────────────
+    // ── Heartbeat toutes les 5s : maintenir is_active = true dans driver_gps ──
+    // Seule table GPS. Le suivi client la lit en Realtime et en polling.
     if (gpsHeartbeatRef.current) clearInterval(gpsHeartbeatRef.current);
     gpsHeartbeatRef.current = setInterval(async () => {
-      const pos = lastKnownPosRef.current;
-      if (!pos) return;
-      await (supabase as any)
-        .from("driver_gps")
-        .update({
-          is_active: true,
-          latitude: pos.lat,
-          longitude: pos.lng,
-          accuracy: pos.accuracy,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", "driver");
+      try {
+        // Heartbeat indépendant du mouvement GPS : écrit heartbeat_at même en statique.
+        // NE met PAS à jour updated_at (réservé aux vrais signaux GPS via pushPosition).
+        const { error } = await (supabase as any)
+          .from("driver_gps")
+          .update({ is_active: true, heartbeat_at: new Date().toISOString() })
+          .eq("id", "driver");
+        if (error) console.warn("[GPS] heartbeat update failed", error);
+      } catch (e) {
+        console.warn("[GPS] heartbeat exception", e);
+      }
+
+      const silentMs = gpsLastSignalAtRef.current ? Date.now() - gpsLastSignalAtRef.current : 0;
+      if (silentMs > 45_000 && document.visibilityState === "visible") {
+        // FIX 🟠 : verrou anti race-condition watchdog 45s / retry 8s.
+        // Sans ce verrou, handleError (8s) et le heartbeat (45s) peuvent tous les
+        // deux appeler watchPosition simultanément et créer deux watches actifs.
+        if (gpsRestartingRef.current) return;
+        gpsRestartingRef.current = true;
+        gpsLastSignalAtRef.current = Date.now();
+        if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = navigator.geolocation.watchPosition(handlePosition, handleError, {
+          enableHighAccuracy: true,
+          // FIX 🟡 : maximumAge 5s — cohérent avec le reste, évite les positions
+          // périmées qui masqueraient un silence GPS réel.
+          maximumAge: 5000,
+          timeout: 45000,
+        });
+        gpsRestartingRef.current = false;
+      }
     }, 5000);
   };
 
   const stopGPS = async () => {
+    // Fix #2 (admin) : annuler tout fire-and-forget en cours de startGPS
+    startGpsTokenRef.current.cancelled = true;
     if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
     watchIdRef.current = null;
     if (gpsHeartbeatRef.current) clearInterval(gpsHeartbeatRef.current);
     gpsHeartbeatRef.current = null;
     if (gpsRetryTimerRef.current) clearTimeout(gpsRetryTimerRef.current);
     gpsRetryTimerRef.current = null;
+    releaseGpsWakeLock();
+    gpsRestartingRef.current = false; // reset verrou race-condition
     lastKnownPosRef.current = null;
     lastPosRef.current = null;
     try {
@@ -1768,7 +1981,9 @@ function Dashboard() {
           };
         }),
       }));
-      toast.warning("Itinéraires calculés avec la distance existante", { description: e?.message ?? "" });
+      toast.warning("Itinéraires calculés avec la distance existante", {
+        description: e?.message ?? "",
+      });
     } finally {
       setItinLoading((p) => ({ ...p, [r.id]: false }));
     }
@@ -1791,7 +2006,13 @@ function Dashboard() {
       setItems((prev) =>
         prev.map((item) =>
           item.id === r.id
-            ? { ...item, prix_estime: alt.prix, distance_km: alt.km, route_coords: alt.coords, route_label: alt.label }
+            ? {
+                ...item,
+                prix_estime: alt.prix,
+                distance_km: alt.km,
+                route_coords: alt.coords,
+                route_label: alt.label,
+              }
             : item,
         ),
       );
@@ -1937,7 +2158,16 @@ function Dashboard() {
           </div>
 
           {/* Infos */}
-          <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap", color: "#94a3b8", fontSize: 13 }}>
+          <div
+            style={{
+              marginTop: 14,
+              display: "flex",
+              gap: 10,
+              flexWrap: "wrap",
+              color: "#94a3b8",
+              fontSize: 13,
+            }}
+          >
             {r.distance_km && <span>🚕 {r.distance_km} km</span>}
             {isPrixLoading ? (
               <span style={{ color: "#64748b", fontStyle: "italic" }}>📡 calcul…</span>
@@ -2005,7 +2235,12 @@ function Dashboard() {
               }}
             >
               <div
-                style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: changeHeureOpen[r.id] ? 12 : 0 }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: changeHeureOpen[r.id] ? 12 : 0,
+                }}
               >
                 <span style={{ fontSize: 14 }}>⚠️</span>
                 <span style={{ fontSize: 13, color: "#fbbf24", fontWeight: 700, flex: 1 }}>
@@ -2169,7 +2404,12 @@ function Dashboard() {
                   }}
                 >
                   <div
-                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: 10,
+                    }}
                   >
                     <span style={{ fontSize: 12, color: "#f5c842", fontWeight: 700 }}>💶 Nouveau prix à envoyer</span>
                     <button
@@ -2287,131 +2527,20 @@ function Dashboard() {
             </div>
           )}
 
-          {/* ── Itinéraires alternatifs (court / inter / long) ── */}
-          {(normalizeStatus(r.status) === "accepted" || r.status === "en_route" || r.status === "arrived") && (
-            <div style={{ marginTop: 10 }}>
-              {!itinOpen[r.id] ? (
-                <button
-                  onClick={() => loadItineraires(r)}
-                  style={{
-                    background: "transparent",
-                    border: "1px solid rgba(96,165,250,0.35)",
-                    color: "#60a5fa",
-                    padding: "8px 14px",
-                    borderRadius: 10,
-                    cursor: "pointer",
-                    fontWeight: 600,
-                    fontSize: 13,
-                  }}
-                >
-                  🗺️ Itinéraires
-                </button>
-              ) : (
-                <div
-                  style={{
-                    padding: "12px 14px",
-                    background: "rgba(96,165,250,0.07)",
-                    border: "1px solid rgba(96,165,250,0.25)",
-                    borderRadius: 12,
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      marginBottom: 10,
-                    }}
-                  >
-                    <span style={{ fontSize: 12, color: "#60a5fa", fontWeight: 700 }}>
-                      🗺️ Choisir un itinéraire {r.route_label ? `(actuel : ${r.route_label})` : ""}
-                    </span>
-                    <button
-                      onClick={() => setItinOpen((p) => ({ ...p, [r.id]: false }))}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: "#64748b",
-                        cursor: "pointer",
-                        fontSize: 18,
-                        lineHeight: 1,
-                      }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  {itinLoading[r.id] ? (
-                    <div style={{ color: "#94a3b8", fontSize: 13 }}>⏳ Calcul en cours…</div>
-                  ) : itinAlts[r.id]?.length ? (
-                    <div style={{ display: "grid", gap: 8 }}>
-                      {itinAlts[r.id].map((alt, i) => (
-                        <div key={i} style={{ display: "flex", gap: 8, width: "100%" }}>
-                          <button
-                            onClick={() => setMapModal({ alt, r })}
-                            style={{
-                              padding: "10px 14px",
-                              background: "rgba(96,165,250,0.12)",
-                              border: "1px solid rgba(96,165,250,0.3)",
-                              borderRadius: 10,
-                              cursor: "pointer",
-                              color: "#60a5fa",
-                              fontSize: 18,
-                              flexShrink: 0,
-                            }}
-                            title="Voir la carte"
-                          >
-                            🗺️
-                          </button>
-                          <button
-                            onClick={() => handleSelectItineraire(r, alt)}
-                            disabled={itinSaving[r.id]}
-                            style={{
-                              display: "flex",
-                              flexWrap: "wrap",
-                              justifyContent: "center",
-                              alignItems: "center",
-                              gap: 8,
-                              padding: "10px 12px",
-                              background: "rgba(255,255,255,0.04)",
-                              border: "1px solid rgba(255,255,255,0.08)",
-                              borderRadius: 10,
-                              cursor: itinSaving[r.id] ? "wait" : "pointer",
-                              color: "#f8fafc",
-                              fontSize: 13,
-                              textAlign: "center",
-                              fontFamily: "inherit",
-                              opacity: itinSaving[r.id] ? 0.6 : 1,
-                              flex: 1,
-                            }}
-                          >
-                            <span style={{ fontWeight: 700, flexBasis: "100%", textAlign: "center" }}>{alt.label}</span>
-                            <span style={{ color: "#cbd5e1" }}>{alt.km} km</span>
-                            <span style={{ color: "#64748b" }}>·</span>
-                            <span style={{ color: "#f5c842", fontWeight: 700 }}>{alt.prix.toFixed(2)} €</span>
-                            <span style={{ color: "#60a5fa", fontWeight: 700, flexBasis: "100%", textAlign: "center" }}>
-                              Choisir →
-                            </span>
-                          </button>
-                        </div>
-                      ))}
-                      <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
-                        ↳ Le prix et le tracé sur la carte du client seront mis à jour automatiquement. Utilisez ensuite
-                        « Modifier le prix » pour envoyer SMS / WhatsApp / Email.
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ color: "#94a3b8", fontSize: 13 }}>Aucun itinéraire disponible.</div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+          {/* Itinéraires alternatifs supprimés : la logique « trajet le plus long (rocade) » est appliquée automatiquement côté OSRM. */}
+
 
           {/* ── Bouton annuler uniquement ── */}
           {(normalizeStatus(r.status) === "accepted" || r.status === "en_route" || r.status === "arrived") && (
             <div
               className="status-action-btns"
-              style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}
+              style={{
+                marginTop: 18,
+                display: "flex",
+                gap: 8,
+                flexWrap: "wrap",
+                alignItems: "center",
+              }}
             >
               <button
                 onClick={() => handleUpdateReservationStatus(r, "cancelled")}
@@ -2475,6 +2604,57 @@ function Dashboard() {
                 </div>
               );
             })()}
+
+          {/* ── Bouton WhatsApp chauffeur — lien GPS ── */}
+          {(normalizeStatus(r.status) === "accepted" || r.status === "en_route" || r.status === "arrived") &&
+            r.suivi_id &&
+            (() => {
+              const DRIVER_TOKEN = import.meta.env.VITE_DRIVER_TOKEN ?? "";
+              const DRIVER_PHONE = "33673072322";
+              const driverLink = `${typeof window !== "undefined" ? window.location.origin : "https://taxicitybordeaux.fr"}/suivi/${r.suivi_id}?driver=${DRIVER_TOKEN}`;
+              const depart = r.depart || "—";
+              const arrivee = r.arrivee || r.destination || "—";
+              const heure = r.pickup_datetime
+                ? new Date(r.pickup_datetime).toLocaleString("fr-FR", {
+                    timeZone: "Europe/Paris",
+                    weekday: "short",
+                    day: "numeric",
+                    month: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : r.heure_course || "—";
+              const client = r.client_name || r.nom || "Client";
+              const msg = `🚖 Nouvelle course acceptée\n\n📍 Départ : ${depart}\n🏁 Destination : ${arrivee}\n🕐 Heure : ${heure}\n👤 Client : ${client}\n\n👉 Ouvre ce lien pour activer ton GPS :\n${driverLink}`;
+              return (
+                <div style={{ marginTop: 10 }}>
+                  <a
+                    href={`https://wa.me/${DRIVER_PHONE}?text=${encodeURIComponent(msg)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                      padding: "11px 16px",
+                      borderRadius: 14,
+                      background: "rgba(37,211,102,0.12)",
+                      border: "1px solid rgba(37,211,102,0.35)",
+                      color: "#25D366",
+                      fontFamily: "'Syne',sans-serif",
+                      fontWeight: 700,
+                      fontSize: 13,
+                      textDecoration: "none",
+                      width: "100%",
+                      boxSizing: "border-box" as const,
+                    }}
+                  >
+                    📲 Envoyer GPS au chauffeur
+                  </a>
+                </div>
+              );
+            })()}
         </div>
       </SwipeDeleteRow>
     );
@@ -2517,11 +2697,24 @@ function Dashboard() {
           <img
             src={logo}
             alt="Taxi City Bordeaux"
-            style={{ width: 48, height: 48, borderRadius: 12, objectFit: "contain", background: "#fff", padding: 3 }}
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 12,
+              objectFit: "contain",
+              background: "#fff",
+              padding: 3,
+            }}
           />
           <h1
             className="admin-header-title"
-            style={{ fontFamily: "'Syne',sans-serif", fontSize: 26, fontWeight: 800, color: "#f8fafc", margin: 0 }}
+            style={{
+              fontFamily: "'Syne',sans-serif",
+              fontSize: 26,
+              fontWeight: 800,
+              color: "#f8fafc",
+              margin: 0,
+            }}
           >
             Dashboard
           </h1>
@@ -2685,7 +2878,12 @@ function Dashboard() {
               opacity: refreshing ? 0.7 : 1,
             }}
           >
-            <span style={{ display: "inline-block", animation: refreshing ? "spin 1s linear infinite" : "none" }}>
+            <span
+              style={{
+                display: "inline-block",
+                animation: refreshing ? "spin 1s linear infinite" : "none",
+              }}
+            >
               ↻
             </span>
             {refreshing ? "…" : "Actualiser"}
@@ -2772,8 +2970,23 @@ function Dashboard() {
                   </>
                 ) : (
                   <>
-                    <div style={{ width: 14, height: 14, background: "#475569", borderRadius: "50%", flexShrink: 0 }} />
-                    <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#64748b" }}>
+                    <div
+                      style={{
+                        width: 14,
+                        height: 14,
+                        background: "#475569",
+                        borderRadius: "50%",
+                        flexShrink: 0,
+                      }}
+                    />
+                    <div
+                      style={{
+                        fontFamily: "'Syne',sans-serif",
+                        fontWeight: 700,
+                        fontSize: 15,
+                        color: "#64748b",
+                      }}
+                    >
                       📡 GPS inactif
                     </div>
                   </>
@@ -2998,20 +3211,39 @@ function Dashboard() {
                 style={{ marginBottom: 14 }}
               >
                 <div style={{ ...card, opacity: 0.7 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 12,
+                      flexWrap: "wrap",
+                    }}
+                  >
                     <div>
                       <div style={{ color: "#fff", fontWeight: 700, fontSize: 16 }}>{r.client_name || r.nom}</div>
                       <div style={{ color: "#64748b", fontSize: 12, marginTop: 2 }}>
                         {r.pickup_datetime
-                          ? formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })
-                          : new Date(r.created_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
+                          ? formatParis(r.pickup_datetime, {
+                              dateStyle: "short",
+                              timeStyle: "short",
+                            })
+                          : new Date(r.created_at).toLocaleString("fr-FR", {
+                              timeZone: "Europe/Paris",
+                            })}
                       </div>
                       <div style={{ color: "#94a3b8", marginTop: 6, fontSize: 13 }}>
                         <div>🟢 {r.depart}</div>
                         <div style={{ marginTop: 2 }}>📍 {r.destination || r.arrivee}</div>
                       </div>
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "flex-end",
+                        gap: 6,
+                      }}
+                    >
                       <StatusBadge s={r.status} />
                     </div>
                   </div>
@@ -3044,13 +3276,25 @@ function Dashboard() {
                 style={{ marginBottom: 14 }}
               >
                 <div style={{ ...card }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 12,
+                      flexWrap: "wrap",
+                    }}
+                  >
                     <div>
                       <div style={{ color: "#fff", fontWeight: 700, fontSize: 16 }}>{r.client_name || r.nom}</div>
                       <div style={{ color: "#64748b", fontSize: 12, marginTop: 2 }}>
                         {r.pickup_datetime
-                          ? formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })
-                          : new Date(r.created_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
+                          ? formatParis(r.pickup_datetime, {
+                              dateStyle: "short",
+                              timeStyle: "short",
+                            })
+                          : new Date(r.created_at).toLocaleString("fr-FR", {
+                              timeZone: "Europe/Paris",
+                            })}
                       </div>
                       <div style={{ color: "#cbd5e1", marginTop: 6, fontSize: 13 }}>
                         <div>🟢 {r.depart}</div>
@@ -3144,7 +3388,15 @@ function Dashboard() {
       ══════════════════════════════ */}
       <div style={{ marginTop: 48 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-          <h2 style={{ fontFamily: "'Syne',sans-serif", fontSize: 20, fontWeight: 800, color: "#f8fafc", margin: 0 }}>
+          <h2
+            style={{
+              fontFamily: "'Syne',sans-serif",
+              fontSize: 20,
+              fontWeight: 800,
+              color: "#f8fafc",
+              margin: 0,
+            }}
+          >
             ⭐ Avis clients
           </h2>
           {avis.filter((a) => a.status === "pending" || !a.status).length > 0 && (
@@ -3401,7 +3653,15 @@ function Dashboard() {
                         </button>
                       </div>
                     </div>
-                    <p style={{ color: "#94a3b8", fontSize: 13, margin: 0, lineHeight: 1.5, whiteSpace: "pre-line" }}>
+                    <p
+                      style={{
+                        color: "#94a3b8",
+                        fontSize: 13,
+                        margin: 0,
+                        lineHeight: 1.5,
+                        whiteSpace: "pre-line",
+                      }}
+                    >
                       {a.message || a.content || a.texte}
                     </p>
                   </div>
@@ -3517,7 +3777,15 @@ function Dashboard() {
                         </button>
                       </div>
                     </div>
-                    <p style={{ color: "#94a3b8", fontSize: 13, margin: 0, lineHeight: 1.5, whiteSpace: "pre-line" }}>
+                    <p
+                      style={{
+                        color: "#94a3b8",
+                        fontSize: 13,
+                        margin: 0,
+                        lineHeight: 1.5,
+                        whiteSpace: "pre-line",
+                      }}
+                    >
                       {a.message || a.content || a.texte}
                     </p>
                   </div>
@@ -3561,43 +3829,91 @@ function MapTraceModal({
 
   useEffect(() => {
     if (!mapContainerRef.current || !alt.coords.length) return;
-    const L = (window as any).L;
-    if (!L) return;
 
-    // Initialiser la carte
-    const map = L.map(mapContainerRef.current, { zoomControl: true });
-    mapRef.current = map;
+    // Fix 1 — ensure Leaflet CSS/JS are loaded with the same IDs used by the GPS mini-map
+    // so the script is never injected twice across the two components.
+    const ensureLeaflet = (): Promise<void> =>
+      new Promise((resolve) => {
+        if ((window as any).L) {
+          resolve();
+          return;
+        }
+        if (!document.getElementById("leaflet-css-admin")) {
+          const link = document.createElement("link");
+          link.id = "leaflet-css-admin";
+          link.rel = "stylesheet";
+          link.href = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css";
+          document.head.appendChild(link);
+        }
+        if (!document.getElementById("leaflet-js-admin")) {
+          const s = document.createElement("script");
+          s.id = "leaflet-js-admin";
+          s.src = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";
+          s.onload = () => resolve();
+          document.head.appendChild(s);
+        } else {
+          // Script tag already present — poll until window.L is populated
+          const poll = setInterval(() => {
+            if ((window as any).L) {
+              clearInterval(poll);
+              resolve();
+            }
+          }, 50);
+        }
+      });
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "© OpenStreetMap",
-    }).addTo(map);
+    let cancelled = false;
+    (async () => {
+      await ensureLeaflet();
+      if (cancelled || !mapContainerRef.current) return;
 
-    // Tracé de la route — style Uber noir
-    L.polyline(alt.coords, { color: "#000000", weight: 8, opacity: 1, lineCap: "round", lineJoin: "round" }).addTo(map);
-    const poly = L.polyline(alt.coords, { color: "#111111", weight: 5, opacity: 1, lineCap: "round", lineJoin: "round" }).addTo(map);
+      const L = (window as any).L;
 
-    // Marqueurs départ / arrivée
-    const iconDepart = L.divIcon({
-      className: "",
-      html: `<div style="width:14px;height:14px;background:#22c55e;border-radius:50%;border:3px solid #fff;box-shadow:0 0 4px rgba(0,0,0,0.4)"></div>`,
-      iconAnchor: [7, 7],
-    });
-    const iconArrivee = L.divIcon({
-      className: "",
-      html: `<div style="width:14px;height:14px;background:#ef4444;border-radius:50%;border:3px solid #fff;box-shadow:0 0 4px rgba(0,0,0,0.4)"></div>`,
-      iconAnchor: [7, 7],
-    });
-    L.marker(alt.coords[0], { icon: iconDepart })
-      .addTo(map)
-      .bindPopup(r.depart || "Départ");
-    L.marker(alt.coords[alt.coords.length - 1], { icon: iconArrivee })
-      .addTo(map)
-      .bindPopup(r.destination || r.arrivee || "Arrivée");
+      // Fix 2 — destroy any stale map instance before creating a new one so that
+      // reopening the modal never triggers "Map container is already initialized".
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
 
-    map.fitBounds(poly.getBounds(), { padding: [60, 60], maxZoom: 16, animate: true });
+      // Initialiser la carte
+      const map = L.map(mapContainerRef.current, { zoomControl: true });
+      mapRef.current = map;
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap",
+      }).addTo(map);
+
+      // Tracé de la route (style Uber noir, fin)
+      const poly = L.polyline(alt.coords, { color: "#000000", weight: 6, opacity: 1, lineCap: "round", lineJoin: "round" }).addTo(map);
+
+      // Marqueurs départ / arrivée
+      const iconDepart = L.divIcon({
+        className: "",
+        html: `<div style="width:14px;height:14px;background:#22c55e;border-radius:50%;border:3px solid #fff;box-shadow:0 0 4px rgba(0,0,0,0.4)"></div>`,
+        iconAnchor: [7, 7],
+      });
+      const iconArrivee = L.divIcon({
+        className: "",
+        html: `<div style="width:14px;height:14px;background:#ef4444;border-radius:50%;border:3px solid #fff;box-shadow:0 0 4px rgba(0,0,0,0.4)"></div>`,
+        iconAnchor: [7, 7],
+      });
+      L.marker(alt.coords[0], { icon: iconDepart })
+        .addTo(map)
+        .bindPopup(r.depart || "Départ");
+      L.marker(alt.coords[alt.coords.length - 1], { icon: iconArrivee })
+        .addTo(map)
+        .bindPopup(r.destination || r.arrivee || "Arrivée");
+
+      map.fitBounds(poly.getBounds(), { padding: [60, 60], maxZoom: 16, animate: true });
+    })(); // end async IIFE
 
     return () => {
-      map.remove();
+      cancelled = true;
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
     };
   }, [alt, r]);
 
@@ -3640,7 +3956,13 @@ function MapTraceModal({
           </span>
           <button
             onClick={onClose}
-            style={{ background: "none", border: "none", color: "#94a3b8", fontSize: 20, cursor: "pointer" }}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#94a3b8",
+              fontSize: 20,
+              cursor: "pointer",
+            }}
           >
             ✕
           </button>

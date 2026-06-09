@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { type Lang } from "@/i18n/dict";
+import { DICTS, type Lang } from "@/i18n/dict";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sendPushToAudience } from "@/lib/push.server";
@@ -22,17 +22,19 @@ export const subscribePush = createServerFn({ method: "POST" })
     const endpoint = `fcm://${data.fcm_token}`;
 
     // 1) Upsert la souscription courante
-    const { error: upErr } = await supabaseAdmin.from("push_subscriptions").upsert(
-      {
-        audience: data.audience,
-        endpoint,
-        fcm_token: data.fcm_token,
-        reservation_id: data.reservation_id ?? null,
-        user_agent: ua,
-        last_seen_at: new Date().toISOString(),
-      },
-      { onConflict: "endpoint" },
-    );
+    const { error: upErr } = await supabaseAdmin
+      .from("push_subscriptions")
+      .upsert(
+        {
+          audience: data.audience,
+          endpoint,
+          fcm_token: data.fcm_token,
+          reservation_id: data.reservation_id ?? null,
+          user_agent: ua,
+          last_seen_at: new Date().toISOString(),
+        },
+        { onConflict: "endpoint" },
+      );
     if (upErr) {
       console.error("[push] subscribe failed", upErr);
       throw new Error("subscribe_failed");
@@ -246,41 +248,16 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
       { reservationId: r.id },
     );
 
-    const SMS_LABELS: Record<Lang, { en_route: string; arrived: string }> = {
-      fr: {
-        en_route: `Bonjour ${clientName},\nVotre chauffeur est en route vers vous !\n${r.depart}\n📲 Suivez en direct : ${APP_URL}${url}\nTel: 06 73 07 23 22`,
-        arrived: `Bonjour ${clientName},\nVotre taxi est arrive ! Il vous attend au point de prise en charge.\nTel: 06 73 07 23 22`,
-      },
-      en: {
-        en_route: `Hello ${clientName},\nYour driver is on the way!\n${r.depart}\n📲 Track live: ${APP_URL}${url}\nTel: 06 73 07 23 22`,
-        arrived: `Hello ${clientName},\nYour taxi has arrived! It is waiting at the pickup point.\nTel: 06 73 07 23 22`,
-      },
-      es: {
-        en_route: `Hola ${clientName},\n¡Su conductor está en camino!\n${r.depart}\n📲 Siga en directo: ${APP_URL}${url}\nTel: 06 73 07 23 22`,
-        arrived: `Hola ${clientName},\n¡Su taxi ha llegado! Le espera en el punto de recogida.\nTel: 06 73 07 23 22`,
-      },
-      pt: {
-        en_route: `Olá ${clientName},\nO seu motorista está a caminho!\n${r.depart}\n📲 Acompanhe em direto: ${APP_URL}${url}\nTel: 06 73 07 23 22`,
-        arrived: `Olá ${clientName},\nO seu táxi chegou! Está à sua espera no ponto de recolha.\nTel: 06 73 07 23 22`,
-      },
-      it: {
-        en_route: `Salve ${clientName},\nIl suo autista è in arrivo!\n${r.depart}\n📲 Segua in diretta: ${APP_URL}${url}\nTel: 06 73 07 23 22`,
-        arrived: `Salve ${clientName},\nIl suo taxi è arrivato! La sta aspettando al punto di partenza.\nTel: 06 73 07 23 22`,
-      },
-      ar: {
-        en_route: `مرحباً ${clientName},\nسائقك في طريقه إليك!\n${r.depart}\n📲 تابع مباشرة: ${APP_URL}${url}\nTel: 06 73 07 23 22`,
-        arrived: `مرحباً ${clientName},\nوصل سيارتك! تنتظرك في نقطة الالتقاء.\nTel: 06 73 07 23 22`,
-      },
-    };
-
-    const smsLabels = SMS_LABELS[resLang] ?? SMS_LABELS["fr"];
-
     let smsBody: string | null = null;
     if (smsPhone && data.status === "en_route") {
-      smsBody = encodeURIComponent(smsLabels.en_route);
+      smsBody = encodeURIComponent(
+        `Bonjour ${clientName},\nVotre chauffeur est en route vers vous !\n${r.depart}\n📲 Suivez en direct : ${APP_URL}${url}\nTel: 06 73 07 23 22`,
+      );
     }
     if (smsPhone && data.status === "arrived") {
-      smsBody = encodeURIComponent(smsLabels.arrived);
+      smsBody = encodeURIComponent(
+        `Bonjour ${clientName},\nVotre taxi est arrive ! Il vous attend au point de prise en charge.\nTel: 06 73 07 23 22`,
+      );
     }
 
     let chauffeurResult = { sent: 0, removed: 0 };

@@ -26,7 +26,7 @@ function corsFor(request: Request) {
     "Access-Control-Allow-Origin": allow,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, x-driver-key",
-    "Vary": "Origin",
+    Vary: "Origin",
   };
 }
 
@@ -52,19 +52,24 @@ export const Route = createFileRoute("/api/public/driver-location")({
           });
         }
         let body;
-        try { body = await request.json(); } catch {
+        try {
+          body = await request.json();
+        } catch {
           return new Response(JSON.stringify({ error: "invalid json" }), {
-            status: 400, headers: { "Content-Type": "application/json", ...corsHeaders },
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
           });
         }
         const parsed = Schema.safeParse(body);
         if (!parsed.success) {
           return new Response(JSON.stringify({ error: parsed.error.flatten() }), {
-            status: 400, headers: { "Content-Type": "application/json", ...corsHeaders },
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
           });
         }
 
         // Écriture dans driver_gps (table utilisée par le dashboard et la page suivi)
+        const now = new Date().toISOString();
         const payload = {
           latitude: parsed.data.latitude,
           longitude: parsed.data.longitude,
@@ -72,16 +77,15 @@ export const Route = createFileRoute("/api/public/driver-location")({
           speed: parsed.data.speed ?? null,
           heading: parsed.data.heading ?? null,
           is_active: parsed.data.is_online,
-          updated_at: new Date().toISOString(),
+          updated_at: now,
+          heartbeat_at: now, // mis à jour à chaque appel GPS → fraîcheur côté suivi client
         };
 
-        await supabaseAdmin
-          .from("driver_gps")
-          .update(payload)
-          .eq("id", "driver");
+        await supabaseAdmin.from("driver_gps").update(payload).eq("id", "driver");
 
         return new Response(JSON.stringify({ ok: true }), {
-          status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
         });
       },
     },

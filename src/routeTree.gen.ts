@@ -17,7 +17,6 @@ import { Route as MentionsLegalesRouteImport } from './routes/mentions-legales'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as ConfidentialiteRouteImport } from './routes/confidentialite'
-import { Route as ClientRouteImport } from './routes/client'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AProposRouteImport } from './routes/a-propos'
 import { Route as IndexRouteImport } from './routes/index'
@@ -32,6 +31,7 @@ import { Route as AdminCoursesRouteImport } from './routes/admin.courses'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as ApiPublicNotifyReservationClientRouteImport } from './routes/api/public/notify-reservation-client'
 import { Route as ApiPublicNotifyReservationRouteImport } from './routes/api/public/notify-reservation'
+import { Route as ApiPublicDriverLocationRouteImport } from './routes/api/public/driver-location'
 import { Route as ApiPublicContactRouteImport } from './routes/api/public/contact'
 import { Route as ApiAdminSendCourseEmailRouteImport } from './routes/api/admin/send-course-email'
 import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
@@ -78,11 +78,6 @@ const ContactRoute = ContactRouteImport.update({
 const ConfidentialiteRoute = ConfidentialiteRouteImport.update({
   id: '/confidentialite',
   path: '/confidentialite',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ClientRoute = ClientRouteImport.update({
-  id: '/client',
-  path: '/client',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -157,6 +152,11 @@ const ApiPublicNotifyReservationRoute =
     path: '/api/public/notify-reservation',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicDriverLocationRoute = ApiPublicDriverLocationRouteImport.update({
+  id: '/api/public/driver-location',
+  path: '/api/public/driver-location',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicContactRoute = ApiPublicContactRouteImport.update({
   id: '/api/public/contact',
   path: '/api/public/contact',
@@ -200,7 +200,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/a-propos': typeof AProposRoute
   '/admin': typeof AdminRouteWithChildren
-  '/client': typeof ClientRoute
   '/confidentialite': typeof ConfidentialiteRoute
   '/contact': typeof ContactRoute
   '/login': typeof LoginRoute
@@ -219,6 +218,7 @@ export interface FileRoutesByFullPath {
   '/suivi/$id': typeof SuiviIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
   '/api/public/contact': typeof ApiPublicContactRoute
+  '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
@@ -232,7 +232,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/a-propos': typeof AProposRoute
   '/admin': typeof AdminRouteWithChildren
-  '/client': typeof ClientRoute
   '/confidentialite': typeof ConfidentialiteRoute
   '/contact': typeof ContactRoute
   '/login': typeof LoginRoute
@@ -251,6 +250,7 @@ export interface FileRoutesByTo {
   '/suivi/$id': typeof SuiviIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
   '/api/public/contact': typeof ApiPublicContactRoute
+  '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
@@ -265,7 +265,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/a-propos': typeof AProposRoute
   '/admin': typeof AdminRouteWithChildren
-  '/client': typeof ClientRoute
   '/confidentialite': typeof ConfidentialiteRoute
   '/contact': typeof ContactRoute
   '/login': typeof LoginRoute
@@ -284,6 +283,7 @@ export interface FileRoutesById {
   '/suivi/$id': typeof SuiviIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
   '/api/public/contact': typeof ApiPublicContactRoute
+  '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
@@ -299,7 +299,6 @@ export interface FileRouteTypes {
     | '/'
     | '/a-propos'
     | '/admin'
-    | '/client'
     | '/confidentialite'
     | '/contact'
     | '/login'
@@ -318,6 +317,7 @@ export interface FileRouteTypes {
     | '/suivi/$id'
     | '/api/admin/send-course-email'
     | '/api/public/contact'
+    | '/api/public/driver-location'
     | '/api/public/notify-reservation'
     | '/api/public/notify-reservation-client'
     | '/lovable/email/suppression'
@@ -331,7 +331,6 @@ export interface FileRouteTypes {
     | '/'
     | '/a-propos'
     | '/admin'
-    | '/client'
     | '/confidentialite'
     | '/contact'
     | '/login'
@@ -350,6 +349,7 @@ export interface FileRouteTypes {
     | '/suivi/$id'
     | '/api/admin/send-course-email'
     | '/api/public/contact'
+    | '/api/public/driver-location'
     | '/api/public/notify-reservation'
     | '/api/public/notify-reservation-client'
     | '/lovable/email/suppression'
@@ -363,7 +363,6 @@ export interface FileRouteTypes {
     | '/'
     | '/a-propos'
     | '/admin'
-    | '/client'
     | '/confidentialite'
     | '/contact'
     | '/login'
@@ -382,6 +381,7 @@ export interface FileRouteTypes {
     | '/suivi/$id'
     | '/api/admin/send-course-email'
     | '/api/public/contact'
+    | '/api/public/driver-location'
     | '/api/public/notify-reservation'
     | '/api/public/notify-reservation-client'
     | '/lovable/email/suppression'
@@ -396,7 +396,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AProposRoute: typeof AProposRoute
   AdminRoute: typeof AdminRouteWithChildren
-  ClientRoute: typeof ClientRoute
   ConfidentialiteRoute: typeof ConfidentialiteRoute
   ContactRoute: typeof ContactRoute
   LoginRoute: typeof LoginRoute
@@ -411,6 +410,7 @@ export interface RootRouteChildren {
   SuiviIdRoute: typeof SuiviIdRoute
   ApiAdminSendCourseEmailRoute: typeof ApiAdminSendCourseEmailRoute
   ApiPublicContactRoute: typeof ApiPublicContactRoute
+  ApiPublicDriverLocationRoute: typeof ApiPublicDriverLocationRoute
   ApiPublicNotifyReservationRoute: typeof ApiPublicNotifyReservationRoute
   ApiPublicNotifyReservationClientRoute: typeof ApiPublicNotifyReservationClientRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
@@ -477,13 +477,6 @@ declare module '@tanstack/react-router' {
       path: '/confidentialite'
       fullPath: '/confidentialite'
       preLoaderRoute: typeof ConfidentialiteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/client': {
-      id: '/client'
-      path: '/client'
-      fullPath: '/client'
-      preLoaderRoute: typeof ClientRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -584,6 +577,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicNotifyReservationRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/driver-location': {
+      id: '/api/public/driver-location'
+      path: '/api/public/driver-location'
+      fullPath: '/api/public/driver-location'
+      preLoaderRoute: typeof ApiPublicDriverLocationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/contact': {
       id: '/api/public/contact'
       path: '/api/public/contact'
@@ -666,7 +666,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AProposRoute: AProposRoute,
   AdminRoute: AdminRouteWithChildren,
-  ClientRoute: ClientRoute,
   ConfidentialiteRoute: ConfidentialiteRoute,
   ContactRoute: ContactRoute,
   LoginRoute: LoginRoute,
@@ -681,6 +680,7 @@ const rootRouteChildren: RootRouteChildren = {
   SuiviIdRoute: SuiviIdRoute,
   ApiAdminSendCourseEmailRoute: ApiAdminSendCourseEmailRoute,
   ApiPublicContactRoute: ApiPublicContactRoute,
+  ApiPublicDriverLocationRoute: ApiPublicDriverLocationRoute,
   ApiPublicNotifyReservationRoute: ApiPublicNotifyReservationRoute,
   ApiPublicNotifyReservationClientRoute: ApiPublicNotifyReservationClientRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,

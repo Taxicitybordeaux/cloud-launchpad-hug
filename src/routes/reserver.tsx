@@ -2,11 +2,18 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { calculerPrix, calculerPrixMixte, PRISE_EN_CHARGE } from "@/lib/tarif";
+import {
+  calculerPrix,
+  calculerPrixMixte,
+  PRISE_EN_CHARGE,
+  estTarifJourParis,
+  estJourFerieFR,
+  partsParis,
+} from "@/lib/tarif";
 import { reverseGeocode, searchAddress } from "@/lib/geocode";
-import { getDistanceAndDurationKm } from "@/lib/osrm";
+import { getDistanceAndDurationKm, getLongestRoute } from "@/lib/osrm";
 import { newSuiviId } from "@/lib/suivi-id";
-import { subscribePush } from "@/lib/push.functions";
+import { subscribePush, notifyNewReservation } from "@/lib/push.functions";
 import { getFcmToken } from "@/lib/firebase";
 import { DICTS, LANGUAGES, type Lang } from "@/i18n/dict";
 
@@ -21,44 +28,14 @@ export const Route = createFileRoute("/reserver")({
 });
 
 const BORDEAUX_CENTER: [number, number] = [44.8378, -0.5792];
-const DESTINATION_SEARCH_RADIUS_KM = 80;
-const POI_SEARCH_RADIUS_KM = 50;
-const MAX_CHOICES_DEFAULT = 4;
-const MAX_CHOICES_SUPERMARKET = 4;
-const SUPERMARKET_RADIUS_KM = 50;
-const POI_SEARCH_DEBOUNCE_MS = 500;
+const DESTINATION_SEARCH_RADIUS_KM = 50;
+const NAMED_PLACE_REGEX =
+  /aeroport|airport|gare|station|hopital|clinique|universite|fac|campus|centre commercial|centre|stade|mairie|hotel de ville|prefecture|sous prefecture|eglise|cathedrale|basilique|chateau|lycee|college|ecole|musee|theatre|opera|cinema|parc|jardin|plage|port|marina|zoo|monument|lieu dit|lieu-dit|supermarche|hypermarche|supermarket|magasin|commerce|marche|carrefour|leclerc|lidl|aldi|auchan|intermarche|super u|hyper u|casino|monoprix|franprix|biocoop|grand frais|picard|decathlon|ikea|fnac|darty|leroy merlin|castorama|brico|mcdo|mcdonald|kfc|burger king|quick|subway|starbucks|pizza/i;
+function isNamedPlaceQuery(value: string): boolean {
+  return NAMED_PLACE_REGEX.test(normalizeAddressText(value));
+}
 const MAX_AUTO_GEO_ACCURACY_M = 1500;
 const MAX_AUTO_GEO_DISTANCE_FROM_BORDEAUX_KM = 130;
-
-// Mots-clés déclenchant la détection automatique d'un lieu (POI)
-const POI_KEYWORDS_REGEX =
-  /\b(gare|aeroport|aéroport|airport|hopital|hôpital|clinique|stade|matmut|stadium|mairie|hotel|hôtel|université|universite|fac|lycée|lycee|école|ecole|musée|musee|chateau|château|église|eglise|theatre|théâtre|cinema|cinéma|piscine|parc|jardin|zoo|plage|port|marina|monument|tour|cathedrale|cathédrale|supermarche|supermarché|hypermarche|hypermarché|carrefour|leclerc|auchan|intermarche|intermarché|lidl|aldi|monoprix|casino|biocoop|centre commercial|cc\b|galerie|mall)\b/i;
-
-// Marques de supermarchés reconnues (utilisées pour le filtre strict Overpass)
-const SUPERMARKET_BRANDS = [
-  "carrefour", "leclerc", "auchan", "intermarché", "intermarche", "lidl", "aldi",
-  "monoprix", "casino", "biocoop", "super u", "hyper u", "u express", "franprix",
-  "g20", "spar", "cora", "naturalia", "grand frais", "picard",
-] as const;
-const SUPERMARKET_QUERY_REGEX =
-  /\b(supermarch[ée]|hypermarch[ée]|supermarket|hypermarket|epicerie|épicerie|grande\s+surface|carrefour|leclerc|auchan|intermarch[ée]|lidl|aldi|monoprix|casino|biocoop|super\s*u|hyper\s*u|franprix|cora|naturalia|grand\s+frais|picard)\b/i;
-
-function detectPoi(value: string): boolean {
-  return POI_KEYWORDS_REGEX.test(value);
-}
-
-function isSupermarketQuery(value: string): boolean {
-  return SUPERMARKET_QUERY_REGEX.test(value);
-}
-
-function extractSupermarketBrand(value: string): string | null {
-  const v = value.toLowerCase();
-  for (const b of SUPERMARKET_BRANDS) {
-    if (v.includes(b)) return b;
-  }
-  return null;
-}
-
 
 interface FormState {
   depart: string;
@@ -112,57 +89,24 @@ function shortLabel(label: string): string {
   return kept.slice(0, 2).join(", ");
 }
 
-// Lieux canoniques de l'agglomération bordelaise : coordonnées + label fixés en dur
-// pour éviter qu'un géocodage approximatif ne renvoie un mauvais point.
-type CanonicalPlace = {
-  label: string;
-  coord: [number, number];
-  match: RegExp;
-};
-const CANONICAL_PLACES: CanonicalPlace[] = [
-  {
-    label: "Aéroport de Bordeaux-Mérignac",
-    coord: [44.8286, -0.7156],
-    match: /\b(aeroport|aéroport|airport)\b.*\b(bordeaux|merignac|mérignac|bod)\b|\b(bordeaux|merignac|mérignac|bod)\b.*\b(aeroport|aéroport|airport)\b/i,
-  },
-  {
-    label: "Gare de Bordeaux Saint-Jean",
-    coord: [44.8259, -0.5566],
-    match: /\bgare\b.*\b(bordeaux|saint.?jean|st.?jean)\b|\b(bordeaux|saint.?jean|st.?jean)\b.*\bgare\b/i,
-  },
-  {
-    label: "Place des Quinconces, Bordeaux",
-    coord: [44.8456, -0.5739],
-    match: /\b(place\s+des\s+)?quinconces\b/i,
-  },
-  {
-    label: "Matmut Atlantique, Bordeaux",
-    coord: [44.8951, -0.5614],
-    match: /\b(matmut\s*atlantique|stade\s+(de\s+)?bordeaux|nouveau\s+stade)\b/i,
-  },
-  {
-    label: "Cité du Vin, Bordeaux",
-    coord: [44.8628, -0.5505],
-    match: /\bcit[ée]\s+du\s+vin\b/i,
-  },
-];
-
-function matchCanonicalPlace(text: string): CanonicalPlace | null {
-  const t = text.trim();
-  if (!t) return null;
-  for (const p of CANONICAL_PLACES) {
-    if (p.match.test(t)) return p;
-  }
-  return null;
+function expandAbbreviations(value: string): string {
+  return value
+    .replace(/\bst\b/gi, "Saint")
+    .replace(/\bste\b/gi, "Sainte")
+    .replace(/\bav\b/gi, "Avenue")
+    .replace(/\bbd\b/gi, "Boulevard")
+    .replace(/\bpl\b/gi, "Place");
 }
 
 async function geocodeFullAddress(address: string): Promise<{ coord: [number, number]; label: string } | null> {
-  // 1) Lieux canoniques en priorité absolue
-  const canon = matchCanonicalPlace(address);
-  if (canon) return { coord: canon.coord, label: canon.label };
-
-  const trimmed = address.trim();
+  const trimmed = expandAbbreviations(address.trim());
   const normalized = normalizeAddressText(trimmed);
+  // Court-circuit : si la requête correspond à un lieu canonique connu, on
+  // renvoie directement ses coordonnées vérifiées (évite les mauvaises adresses Nominatim).
+  const canonical = CANONICAL_PLACES.find((p) => p.match.test(normalized));
+  if (canonical) {
+    return { coord: canonical.coord, label: canonical.label };
+  }
   const parts = trimmed
     .split(",")
     .map((p) => p.trim())
@@ -271,7 +215,7 @@ function usefulSearchTokens(query: string): string[] {
     "france",
     "gironde",
   ]);
-  return normalizeAddressText(query)
+  return normalizeAddressText(expandAbbreviations(query))
     .split(" ")
     .filter((token) => token.length >= 3 && !skip.has(token))
     .slice(0, 4);
@@ -330,132 +274,251 @@ async function searchPhotonAddress(query: string, origin: [number, number]): Pro
   }
 }
 
+// ─── Configuration des résultats ────────────────────────────────────────────
+// Nombre max de suggestions affichées (top N). Configurable selon contexte.
+const MAX_CHOICES_DEFAULT = 4;
+const MAX_CHOICES_SUPERMARKET = 5; // un peu plus pour comparer plusieurs magasins
+const SUPERMARKET_RADIUS_KM = 15;  // on resserre pour éviter les magasins trop loin
+const SUPERMARKET_MAX_DISTANCE_KM = 25;
+
+// Marques de supermarchés courantes — utilisées pour filtrer Overpass par catégorie
+// (shop=supermarket) et éliminer les POIs sans rapport (école qui contient « lidl » dans un texte, etc.)
+const SUPERMARKET_BRANDS = [
+  "aldi", "lidl", "carrefour", "leclerc", "auchan", "intermarche", "intermarché",
+  "super u", "hyper u", "u express", "casino", "monoprix", "franprix", "biocoop",
+  "grand frais", "picard", "spar", "g20", "netto", "cora", "match", "colruyt",
+];
+
+function detectSupermarketBrand(query: string): string | null {
+  const n = normalizeAddressText(query);
+  for (const brand of SUPERMARKET_BRANDS) {
+    const nb = normalizeAddressText(brand);
+    if (n.includes(nb)) return nb;
+  }
+  return null;
+}
+
 async function searchOverpassPois(query: string, origin: [number, number], radiusKm: number): Promise<AddressChoice[]> {
   const token = usefulSearchTokens(query)[0];
   if (!token) return [];
   const safeToken = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const radiusM = Math.round(radiusKm * 1000);
-  const body = `[out:json][timeout:8];(
+  const brand = detectSupermarketBrand(query);
+  // Pour les supermarchés, on resserre le rayon pour éviter les magasins trop éloignés
+  const effectiveRadiusKm = brand ? Math.min(radiusKm, SUPERMARKET_RADIUS_KM) : radiusKm;
+  const radiusM = Math.round(effectiveRadiusKm * 1000);
+  // Pour les supermarchés, on filtre strictement par catégorie shop=supermarket
+  // ET par brand/name correspondant au mot-clé → résultats vraiment pertinents.
+  const safeBrand = brand ? brand.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") : null;
+  const body = brand
+    ? `[out:json][timeout:6];(
+node(around:${radiusM},${origin[0]},${origin[1]})["shop"="supermarket"]["brand"~"${safeBrand}",i];
+node(around:${radiusM},${origin[0]},${origin[1]})["shop"="supermarket"]["name"~"${safeBrand}",i];
+way(around:${radiusM},${origin[0]},${origin[1]})["shop"="supermarket"]["brand"~"${safeBrand}",i];
+way(around:${radiusM},${origin[0]},${origin[1]})["shop"="supermarket"]["name"~"${safeBrand}",i];
+);out center tags 15;`
+    : `[out:json][timeout:6];(
 node(around:${radiusM},${origin[0]},${origin[1]})["name"~"${safeToken}",i];
 way(around:${radiusM},${origin[0]},${origin[1]})["name"~"${safeToken}",i];
-relation(around:${radiusM},${origin[0]},${origin[1]})["name"~"${safeToken}",i];
-);out center tags 20;`;
+);out center tags 15;`;
   try {
-    const res = await fetch("https://overpass-api.de/api/interpreter", { method: "POST", body });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 6000);
+    const res = await fetch("https://overpass-api.de/api/interpreter", { method: "POST", body, signal: controller.signal });
+    clearTimeout(timer);
     if (!res.ok) return [];
     const data = await res.json();
     if (!Array.isArray(data?.elements)) return [];
-    return data.elements
-      .map((item: any) => {
+    type Raw = { name: string; brand: string; shop: string; street: string; lat: number; lng: number; distanceKm: number };
+    const raws: Raw[] = data.elements
+      .map((item: any): Raw | null => {
         const lat = Number(item.lat ?? item.center?.lat);
         const lng = Number(item.lon ?? item.center?.lon);
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
         const tags = item.tags ?? {};
-        const label = [
-          tags.name,
+        const rawBrand = String(tags.brand ?? "").trim();
+        const rawName = String(tags.name ?? rawBrand).trim();
+        const shop = String(tags.shop ?? "").trim();
+        if (!rawName) return null;
+        const streetParts = [
           tags["addr:housenumber"] && tags["addr:street"]
             ? `${tags["addr:housenumber"]} ${tags["addr:street"]}`
             : tags["addr:street"],
           tags["addr:postcode"],
           tags["addr:city"],
-        ]
-          .filter(Boolean)
-          .join(", ");
-        if (!label) return null;
+        ].filter(Boolean);
+        const street = streetParts.join(", ");
         const coord: [number, number] = [lat, lng];
-        return { label: shortLabel(label), coord, distanceKm: distanceKmBetween(origin, coord) };
+        return { name: rawName, brand: rawBrand, shop, street, lat, lng, distanceKm: distanceKmBetween(origin, coord) };
       })
-      .filter(Boolean) as AddressChoice[];
+      .filter(Boolean) as Raw[];
+
+    // Filtrage strict supermarchés : exige shop=supermarket ET (brand OU name) matchant la marque,
+    // limite stricte de distance pour éviter les résultats hors zone pertinente.
+    let filtered = raws;
+    if (brand) {
+      const nb = brand;
+      filtered = raws.filter((r) => {
+        if (r.shop !== "supermarket") return false;
+        if (r.distanceKm > SUPERMARKET_MAX_DISTANCE_KM) return false;
+        const matchBrand = normalizeAddressText(r.brand).includes(nb);
+        const matchName = normalizeAddressText(r.name).includes(nb);
+        return matchBrand || matchName;
+      });
+    }
+
+    // Tri par distance, top N strict (5 pour supermarchés, 6 sinon pour permettre dedupe ensuite)
+    filtered.sort((a, b) => a.distanceKm - b.distanceKm);
+    const topN = brand ? MAX_CHOICES_SUPERMARKET : 6;
+    const top = filtered.slice(0, topN);
+
+    // Enrichissement parallèle : pour les POIs sans rue, on récupère l'adresse via reverse geocoding
+    const enriched = await Promise.all(
+      top.map(async (r) => {
+        let address = r.street;
+        if (!address) {
+          const rev = await reverseGeocode(r.lat, r.lng).catch(() => null);
+          if (rev) address = rev;
+        }
+        // Nom propre : on préfère brand (« Aldi ») au name technique (« Aldi 9 »),
+        // sinon on retire un suffixe purement numérique trompeur.
+        const cleanName = (r.brand || r.name.replace(/\s+\d+\s*$/, "")).trim() || r.name;
+        const label = address ? `${cleanName} — ${address}` : cleanName;
+        return {
+          label: shortLabel(label),
+          coord: [r.lat, r.lng] as [number, number],
+          distanceKm: r.distanceKm,
+        } as AddressChoice;
+      })
+    );
+    // On filtre les POIs sans aucune adresse identifiable (trop ambigus)
+    return enriched.filter((c) => c.label.includes("—") || c.label.includes(","));
   } catch {
     return [];
   }
 }
 
-// Filtre strict supermarchés : Overpass shop=supermarket (+ brand si précisée)
-async function searchOverpassSupermarkets(
+// Lieux canoniques (coordonnées vérifiées) — utilisés en priorité absolue
+// quand la requête correspond, pour éviter les mauvaises adresses Nominatim/Overpass.
+const CANONICAL_PLACES: Array<{
+  match: RegExp;
+  label: string;
+  coord: [number, number]; // [lat, lng]
+}> = [
+  {
+    match: /(aeroport|airport).*(bordeaux|merignac|bod)|^bod$|merignac.*(aeroport|airport)/,
+    label: "Aéroport de Bordeaux-Mérignac (Terminal), 33700 Mérignac",
+    coord: [44.8283, -0.7156],
+  },
+  {
+    match: /gare.*(saint.jean|st.jean|bordeaux)|bordeaux.*(saint.jean|st.jean).*gare|gare.*bordeaux/,
+    label: "Gare de Bordeaux-Saint-Jean, Rue Charles Domercq, 33800 Bordeaux",
+    coord: [44.8259, -0.5564],
+  },
+  {
+    match: /place.*(quinconces|kinconce)/,
+    label: "Place des Quinconces, 33000 Bordeaux",
+    coord: [44.8444, -0.5739],
+  },
+  {
+    match: /(matmut|stade.*atlantique|stade.*bordeaux)/,
+    label: "Matmut Atlantique, Cours Jules Ladoumègue, 33300 Bordeaux",
+    coord: [44.8959, -0.5614],
+  },
+  {
+    match: /cite.*du.*vin|cité.*du.*vin/,
+    label: "La Cité du Vin, Esplanade de Pontac, 33300 Bordeaux",
+    coord: [44.8627, -0.5505],
+  },
+];
+
+function findCanonicalPlace(query: string, origin: [number, number]): AddressChoice | null {
+  const n = normalizeAddressText(query);
+  for (const p of CANONICAL_PLACES) {
+    if (p.match.test(n)) {
+      return { label: p.label, coord: p.coord, distanceKm: distanceKmBetween(origin, p.coord) };
+    }
+  }
+  return null;
+}
+
+// ─── Cache des recherches récentes (5 min, par requête + origine arrondie) ───
+type CachedChoices = { ts: number; choices: AddressChoice[] };
+const CHOICES_CACHE = new Map<string, CachedChoices>();
+const CHOICES_CACHE_TTL_MS = 5 * 60 * 1000;
+const CHOICES_CACHE_MAX = 80;
+
+function buildCacheKey(query: string, origin: [number, number], radiusKm: number): string {
+  return `${normalizeAddressText(query)}|${origin[0].toFixed(2)},${origin[1].toFixed(2)}|${radiusKm}`;
+}
+function readCache(key: string): AddressChoice[] | null {
+  const hit = CHOICES_CACHE.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.ts > CHOICES_CACHE_TTL_MS) {
+    CHOICES_CACHE.delete(key);
+    return null;
+  }
+  return hit.choices;
+}
+function writeCache(key: string, choices: AddressChoice[]) {
+  if (CHOICES_CACHE.size >= CHOICES_CACHE_MAX) {
+    const oldest = CHOICES_CACHE.keys().next().value;
+    if (oldest) CHOICES_CACHE.delete(oldest);
+  }
+  CHOICES_CACHE.set(key, { ts: Date.now(), choices });
+}
+
+function rankAndTrim(
   query: string,
   origin: [number, number],
-  radiusKm: number,
-): Promise<AddressChoice[]> {
-  const brand = extractSupermarketBrand(query);
-  const radiusM = Math.round(radiusKm * 1000);
-  const safeBrand = brand ? brand.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") : null;
-  // Filtre OSM officiel : shop=supermarket. Si une marque est citée, on filtre aussi sur brand/name.
-  const brandFilter = safeBrand ? `["brand"~"${safeBrand}",i]` : "";
-  const nameFilter = safeBrand ? `["name"~"${safeBrand}",i]` : "";
-  const body = `[out:json][timeout:10];(
-node(around:${radiusM},${origin[0]},${origin[1]})["shop"="supermarket"]${brandFilter};
-way(around:${radiusM},${origin[0]},${origin[1]})["shop"="supermarket"]${brandFilter};
-${safeBrand ? `node(around:${radiusM},${origin[0]},${origin[1]})["shop"="supermarket"]${nameFilter};
-way(around:${radiusM},${origin[0]},${origin[1]})["shop"="supermarket"]${nameFilter};` : ""}
-);out center tags 25;`;
-  try {
-    const res = await fetch("https://overpass-api.de/api/interpreter", { method: "POST", body });
-    if (!res.ok) return [];
-    const data = await res.json();
-    if (!Array.isArray(data?.elements)) return [];
-    return data.elements
-      .map((item: any) => {
-        const lat = Number(item.lat ?? item.center?.lat);
-        const lng = Number(item.lon ?? item.center?.lon);
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-        const tags = item.tags ?? {};
-        const brandTag = tags.brand || tags["brand:wikidata"] ? tags.brand : null;
-        const namePart = brandTag || tags.name || "Supermarché";
-        const addrPart = [
-          tags["addr:housenumber"] && tags["addr:street"]
-            ? `${tags["addr:housenumber"]} ${tags["addr:street"]}`
-            : tags["addr:street"],
-          tags["addr:postcode"],
-          tags["addr:city"],
-        ].filter(Boolean).join(", ");
-        const coord: [number, number] = [lat, lng];
-        return {
-          label: addrPart ? `${namePart} — ${addrPart}` : namePart,
-          coord,
-          distanceKm: distanceKmBetween(origin, coord),
-          _needsReverse: !addrPart,
-          _baseName: namePart,
-        } as AddressChoice & { _needsReverse?: boolean; _baseName?: string };
-      })
-      .filter(Boolean) as AddressChoice[];
-  } catch {
-    return [];
+  buckets: AddressChoice[],
+  canonical: AddressChoice | null,
+  maxChoices: number = MAX_CHOICES_DEFAULT,
+): AddressChoice[] {
+  const tokens = usefulSearchTokens(query);
+  const brand = detectSupermarketBrand(query);
+  let pool = dedupeAddressChoices([...(canonical ? [canonical] : []), ...buckets])
+    .filter((choice) => isPlausibleAddressMatch(query, choice.label));
+
+  if (brand) {
+    // Filtrage strict supermarchés : on ne garde que les libellés dont le NOM (avant " — ")
+    // commence par la marque. Cela écarte les rues/lieux contenant le mot par hasard
+    // (« Rue Aldi », école « Lidl Center », etc.) renvoyés par Nominatim/Photon.
+    const nb = brand;
+    pool = pool.filter((choice) => {
+      const head = normalizeAddressText(choice.label.split("—")[0] ?? choice.label);
+      return head.startsWith(nb) || head.split(" ").slice(0, 3).join(" ").includes(nb);
+    });
+    // Limite stricte de distance pour supermarchés
+    pool = pool.filter((c) => c.distanceKm <= SUPERMARKET_MAX_DISTANCE_KM);
   }
-}
 
-// Enrichit les labels qui n'ont pas d'adresse (Overpass sans addr:*) via reverse-geocode
-async function enrichChoiceLabels(choices: AddressChoice[]): Promise<AddressChoice[]> {
-  const enriched = await Promise.all(
-    choices.map(async (c: any) => {
-      if (!c._needsReverse) return c;
-      try {
-        const rev = await reverseGeocode(c.coord[0], c.coord[1]);
-        if (rev) {
-          return { ...c, label: `${c._baseName || c.label} — ${shortLabel(rev)}` };
-        }
-      } catch {}
-      return c;
-    }),
-  );
-  return enriched.map(({ _needsReverse, _baseName, ...rest }: any) => rest);
-}
+  const all = pool.sort((a, b) => {
+    const aLabel = normalizeAddressText(a.label);
+    const bLabel = normalizeAddressText(b.label);
+    const aHits = tokens.filter((token) => aLabel.includes(token)).length;
+    const bHits = tokens.filter((token) => bLabel.includes(token)).length;
+    const aBucket = Math.round(a.distanceKm / 2);
+    const bBucket = Math.round(b.distanceKm / 2);
+    return aBucket - bBucket || bHits - aHits || a.distanceKm - b.distanceKm;
+  });
 
+  const limit = brand ? Math.min(maxChoices, MAX_CHOICES_SUPERMARKET) : maxChoices;
+  if (canonical) {
+    const others = all.filter((c) => c.label !== canonical.label);
+    return [canonical, ...others].slice(0, limit);
+  }
+  return all.slice(0, limit);
+}
 
 async function searchNearbyAddressChoices(
   query: string,
   origin: [number, number],
-  radiusKm: number = 20,
+  radiusKm = 20,
 ): Promise<AddressChoice[]> {
-  // Branche supermarché : filtre OSM strict shop=supermarket
-  if (isSupermarketQuery(query)) {
-    const raw = await searchOverpassSupermarkets(query, origin, SUPERMARKET_RADIUS_KM);
-    const enriched = await enrichChoiceLabels(raw);
-    return dedupeAddressChoices(enriched)
-      .sort((a, b) => a.distanceKm - b.distanceKm)
-      .slice(0, MAX_CHOICES_SUPERMARKET);
-  }
-  // Variantes spécifiques pour lieux connus mal reconnus
+  const key = buildCacheKey(query, origin, radiusKm);
+  const cached = readCache(key);
+  if (cached) return cached;
+
   const normalizedQ = normalizeAddressText(query);
   const extraVariants: string[] = [];
   if (/aeroport|airport/.test(normalizedQ) && /bordeaux|merignac|bod/.test(normalizedQ)) {
@@ -464,30 +527,82 @@ async function searchNearbyAddressChoices(
   if (/gare|saint.jean/.test(normalizedQ) && /bordeaux/.test(normalizedQ)) {
     extraVariants.push("Gare de Bordeaux-Saint-Jean");
   }
-  const variants = [
-    ...new Set([query, `${query}, Gironde`, `${query}, Bordeaux`, `${query}, France`, ...extraVariants]),
-  ];
-  const nominatimGroups = await Promise.all(variants.map((variant) => searchAddress(variant, 8).catch(() => [])));
+  const variants = [...new Set([query, `${query}, Gironde`, ...extraVariants])];
+  const [nominatimGroups, photonChoices, overpassChoices] = await Promise.all([
+    Promise.all(variants.map((v) => searchAddress(v, 6).catch(() => []))),
+    searchPhotonAddress(query, origin),
+    searchOverpassPois(query, origin, radiusKm),
+  ]);
   const nominatimChoices = nominatimGroups.flat().map((item) => ({
     label: shortLabel(item.label),
     coord: item.coord,
     distanceKm: distanceKmBetween(origin, item.coord),
   }));
-  const [photonChoices, overpassChoices] = await Promise.all([
-    searchPhotonAddress(query, origin),
-    searchOverpassPois(query, origin, radiusKm),
-  ]);
-  const tokens = usefulSearchTokens(query);
-  return dedupeAddressChoices([...nominatimChoices, ...photonChoices, ...overpassChoices])
-    .filter((choice) => isPlausibleAddressMatch(query, choice.label))
-    .sort((a, b) => {
-      const aLabel = normalizeAddressText(a.label);
-      const bLabel = normalizeAddressText(b.label);
-      const aHits = tokens.filter((token) => aLabel.includes(token)).length;
-      const bHits = tokens.filter((token) => bLabel.includes(token)).length;
-      return bHits - aHits || a.distanceKm - b.distanceKm;
-    })
-    .slice(0, MAX_CHOICES_DEFAULT);
+  const canonical = findCanonicalPlace(query, origin);
+  const result = rankAndTrim(query, origin, [...nominatimChoices, ...photonChoices, ...overpassChoices], canonical);
+  writeCache(key, result);
+  return result;
+}
+
+// Version streaming : appelle onPartial dès qu'une source répond (canonical → photon → overpass → nominatim),
+// pour afficher les premiers matches sans attendre que tout soit terminé.
+async function searchNearbyAddressChoicesStreaming(
+  query: string,
+  origin: [number, number],
+  radiusKm: number,
+  onPartial: (choices: AddressChoice[], done: boolean) => void,
+): Promise<AddressChoice[]> {
+  const key = buildCacheKey(query, origin, radiusKm);
+  const cached = readCache(key);
+  if (cached) {
+    onPartial(cached, true);
+    return cached;
+  }
+
+  const canonical = findCanonicalPlace(query, origin);
+  let nominatim: AddressChoice[] = [];
+  let photon: AddressChoice[] = [];
+  let overpass: AddressChoice[] = [];
+
+  const emit = (done: boolean) => {
+    onPartial(rankAndTrim(query, origin, [...nominatim, ...photon, ...overpass], canonical), done);
+  };
+
+  // 0) Canonical immédiat
+  if (canonical) emit(false);
+
+  const normalizedQ = normalizeAddressText(query);
+  const extraVariants: string[] = [];
+  if (/aeroport|airport/.test(normalizedQ) && /bordeaux|merignac|bod/.test(normalizedQ)) {
+    extraVariants.push("Aéroport de Bordeaux-Mérignac", "Bordeaux-Mérignac Airport", "BOD Bordeaux");
+  }
+  if (/gare|saint.jean/.test(normalizedQ) && /bordeaux/.test(normalizedQ)) {
+    extraVariants.push("Gare de Bordeaux-Saint-Jean");
+  }
+  const variants = [...new Set([query, `${query}, Gironde`, ...extraVariants])];
+
+  const pPhoton = searchPhotonAddress(query, origin).then((r) => {
+    photon = r;
+    emit(false);
+  });
+  const pOverpass = searchOverpassPois(query, origin, radiusKm).then((r) => {
+    overpass = r;
+    emit(false);
+  });
+  const pNominatim = Promise.all(variants.map((v) => searchAddress(v, 6).catch(() => []))).then((groups) => {
+    nominatim = groups.flat().map((item) => ({
+      label: shortLabel(item.label),
+      coord: item.coord,
+      distanceKm: distanceKmBetween(origin, item.coord),
+    }));
+    emit(false);
+  });
+
+  await Promise.allSettled([pPhoton, pOverpass, pNominatim]);
+  const result = rankAndTrim(query, origin, [...nominatim, ...photon, ...overpass], canonical);
+  writeCache(key, result);
+  onPartial(result, true);
+  return result;
 }
 
 function requestBrowserPosition(options: PositionOptions): Promise<GeolocationPosition> {
@@ -513,12 +628,16 @@ function getAutoGeoRejectionReason(pos: GeolocationPosition): string | null {
   return null;
 }
 
-// ─── OSRM : helper centralisé (cache + plus long trajet + densification) ────
-import { getOsrmPolylineLongest } from "@/lib/osrm";
-
+// ─── OSRM : passe par l'Edge Function Supabase (évite les blocages CORS) ─────
 const SUPABASE_URL = "https://auiagkpdpnfqxfngisfc.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1aWFna3BkcG5mcXhmbmdpc2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0MzU2NzUsImV4cCI6MjA5NDAxMTY3NX0.MkW2KzCYHvQ0GEjjP3_puf3PkCHWaYcvW2bI1ctTuJU";
+
+// ─── OSRM polyline : utilise getLongestRoute (cache + alternatives=3 partagé)
+async function getOsrmPolylineLongest(from: [number, number], to: [number, number]): Promise<[number, number][]> {
+  const r = await getLongestRoute(from, to);
+  return r.coords;
+}
 
 function loadLeaflet(): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -610,14 +729,131 @@ function ReservationPage() {
   const [taxiAvailable, setTaxiAvailable] = useState<boolean | null>(null);
   const [destinationChoices, setDestinationChoices] = useState<AddressChoice[]>([]);
   const [departChoices, setDepartChoices] = useState<AddressChoice[]>([]);
-  const [departMode, setDepartMode] = useState<"address" | "poi">("address");
-  const [destMode, setDestMode] = useState<"address" | "poi">("address");
-  const [departSearching, setDepartSearching] = useState(false);
-  const [destSearching, setDestSearching] = useState(false);
-  const [dictating, setDictating] = useState(false);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [dictateError, setDictateError] = useState<string | null>(null);
-  const recognitionRef = useRef<any>(null);
+  const [searchingDepart, setSearchingDepart] = useState(false);
+  const [searchingDestination, setSearchingDestination] = useState(false);
+  const departDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const destinationDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [searchMode, setSearchMode] = useState<"address" | "poi">("address");
+  const [departSearchMode, setDepartSearchMode] = useState<"address" | "poi">("address");
+  const [voiceListening, setVoiceListening] = useState(false);
+  const [voiceBothListening, setVoiceBothListening] = useState(false);
+  const voiceRecogRef = useRef<any>(null);
+  const voiceBothRecogRef = useRef<any>(null);
+  const resolveDestinationAddressRef = useRef<(() => void) | null>(null);
+  const resolveDepartAddressRef = useRef<(() => void) | null>(null);
+
+  const startVoiceRecognition = useCallback(() => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      alert("La reconnaissance vocale n'est pas supportée par ce navigateur.");
+      return;
+    }
+    if (voiceRecogRef.current) {
+      voiceRecogRef.current.stop();
+      voiceRecogRef.current = null;
+      setVoiceListening(false);
+      return;
+    }
+    const recog = new SR();
+    recog.lang = "fr-FR";
+    recog.continuous = false;
+    recog.interimResults = false;
+    recog.maxAlternatives = 1;
+    recog.onstart = () => setVoiceListening(true);
+    recog.onend = () => {
+      setVoiceListening(false);
+      voiceRecogRef.current = null;
+    };
+    recog.onerror = () => {
+      setVoiceListening(false);
+      voiceRecogRef.current = null;
+    };
+    recog.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      set("destination", transcript);
+      setToCoord(null);
+      setDestinationChoices([]);
+      // Déclencher la résolution d'adresse après un court délai
+      setTimeout(() => resolveDestinationAddressRef.current?.(), 300);
+    };
+    voiceRecogRef.current = recog;
+    recog.start();
+  }, []);
+
+  // Reconnaissance vocale "départ + destination" en une seule phrase.
+  // Détecte des séparateurs courants : "à", "vers", "jusqu'à", "destination",
+  // "direction", "puis", "et", "->".
+  const startVoiceRecognitionBoth = useCallback(() => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      alert("La reconnaissance vocale n'est pas supportée par ce navigateur.");
+      return;
+    }
+    if (voiceBothRecogRef.current) {
+      voiceBothRecogRef.current.stop();
+      voiceBothRecogRef.current = null;
+      setVoiceBothListening(false);
+      return;
+    }
+    const recog = new SR();
+    recog.lang = "fr-FR";
+    recog.continuous = false;
+    recog.interimResults = false;
+    recog.maxAlternatives = 1;
+    recog.onstart = () => setVoiceBothListening(true);
+    recog.onend = () => {
+      setVoiceBothListening(false);
+      voiceBothRecogRef.current = null;
+    };
+    recog.onerror = () => {
+      setVoiceBothListening(false);
+      voiceBothRecogRef.current = null;
+    };
+    recog.onresult = (event: any) => {
+      const transcript: string = event.results[0][0].transcript;
+      // Sépare via mots-clés. On enlève "de"/"depuis" initial éventuel.
+      const cleaned = transcript
+        .trim()
+        .replace(/^\s*(de|depuis|du|d'|partir de|départ)\s+/i, "");
+      const splitRegex =
+        /\s+(?:jusqu'?[àa]|jusque?|destination|direction|vers|puis|->|=>|à destination de|à\s+(?=[A-ZÀ-Ÿ]))\s+/i;
+      const parts = cleaned.split(splitRegex);
+      let depart = "";
+      let destination = "";
+      if (parts.length >= 2) {
+        depart = parts[0].trim();
+        destination = parts.slice(1).join(" ").trim();
+      } else {
+        // fallback : tente " à " simple
+        const idx = cleaned.toLowerCase().lastIndexOf(" à ");
+        if (idx > 0) {
+          depart = cleaned.slice(0, idx).trim();
+          destination = cleaned.slice(idx + 3).trim();
+        } else {
+          // pas de séparateur trouvé → on met tout en destination
+          destination = cleaned;
+        }
+      }
+      if (depart) {
+        set("depart", depart);
+        setFromCoord(null);
+        setDepartChoices([]);
+      }
+      if (destination) {
+        set("destination", destination);
+        setToCoord(null);
+        setDestinationChoices([]);
+      }
+      // Résolution séquentielle : départ d'abord (sert d'origine), puis destination.
+      setTimeout(() => {
+        if (depart) resolveDepartAddressRef.current?.();
+        setTimeout(() => resolveDestinationAddressRef.current?.(), 600);
+      }, 200);
+    };
+    voiceBothRecogRef.current = recog;
+    recog.start();
+  }, []);
+
 
   const [f, setF] = useState<FormState>({
     depart: "",
@@ -648,121 +884,68 @@ function ReservationPage() {
 
   const pickupIso = f.date && f.heure ? toParisIso(f.date, f.heure) : null;
 
-  // ── Tarification Paris : 7h-19h = Jour, 19h-7h = Nuit
-  //    Dimanche et jours fériés → Nuit toute la journée
-  //    Si le trajet chevauche la frontière 7h ou 19h → calcul mixte proportionnel ──
-  const JOURS_FERIES_RES = new Set([
-    "2025-01-01",
-    "2025-04-21",
-    "2025-05-01",
-    "2025-05-08",
-    "2025-05-29",
-    "2025-06-09",
-    "2025-07-14",
-    "2025-08-15",
-    "2025-11-01",
-    "2025-11-11",
-    "2025-12-25",
-    "2026-01-01",
-    "2026-04-06",
-    "2026-05-01",
-    "2026-05-08",
-    "2026-05-14",
-    "2026-05-25",
-    "2026-06-04",
-    "2026-07-14",
-    "2026-08-15",
-    "2026-11-01",
-    "2026-11-11",
-    "2026-12-25",
-    "2027-01-01",
-    "2027-03-29",
-    "2027-05-01",
-    "2027-05-08",
-    "2027-05-13",
-    "2027-05-24",
-    "2027-07-14",
-    "2027-08-15",
-    "2027-11-01",
-    "2027-11-11",
-    "2027-12-25",
-  ]);
-
-  function isJourFerieRes(date: Date): boolean {
-    const yyyy = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", year: "numeric" });
-    const mm = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", month: "2-digit" });
-    const dd = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", day: "2-digit" });
-    return JOURS_FERIES_RES.has(`${yyyy}-${mm}-${dd}`);
+  // ── Tarification Paris : règle unique demandée
+  //    7h-19h = Jour, 19h-7h = Nuit, dimanche/jour férié = Nuit, toujours en heure Europe/Paris. ──
+  function getTarifMotif(iso: string | null): { isJour: boolean; label: string; motif: string } {
+    if (!iso) return { isJour: true, label: "Tarif jour", motif: "Heure de Paris" };
+    const p = partsParis(iso);
+    if (p.weekday === "Sun") return { isJour: false, label: "Tarif nuit", motif: "Dimanche" };
+    if (estJourFerieFR(p.year, p.month, p.day)) return { isJour: false, label: "Tarif nuit", motif: "Jour férié" };
+    const hStr = `${p.hour}h${String(p.minute).padStart(2, "0")}`;
+    const h = p.hour + p.minute / 60;
+    if (h >= 19 || h < 7) return { isJour: false, label: "Tarif nuit", motif: `Heure de Paris (${hStr})` };
+    return { isJour: true, label: "Tarif jour", motif: `Heure de Paris (${hStr})` };
   }
 
-  // Retourne l'heure Paris (0-23) d'un timestamp ms — fiable sur tous navigateurs
-  function heureParis(ms: number): number {
-    const parts = new Intl.DateTimeFormat("fr-FR", {
-      timeZone: "Europe/Paris",
-      hour: "numeric",
-      hourCycle: "h23",
-    }).formatToParts(new Date(ms));
-    const h = parts.find((p) => p.type === "hour");
-    return h ? parseInt(h.value, 10) : 0;
-  }
+  const TARIF_JOUR_KM = 2.16;
+  const TARIF_NUIT_KM = 3.24;
+  const PRISE = 2.83;
 
-  // Vrai si ce moment est tarifé "nuit" (dimanche, férié, ou 19h-7h Paris)
-  function isMomentNuit(ms: number): boolean {
-    const date = new Date(ms);
-    const h = heureParis(ms);
-    const dimanche = date.toLocaleString("fr-FR", { timeZone: "Europe/Paris", weekday: "short" }) === "dim.";
-    return h >= 19 || h < 7 || dimanche || isJourFerieRes(date);
-  }
-
-  // Calcule le prix mixte proportionnel pour un trajet de distKm démarrant à pickupMs
-  // en découpant le trajet en tranches de 1 minute et pondérant jour/nuit
-  function calculerDetailMixte(distKm: number, pickupMs: number, dureeS: number) {
-    const TARIF_JOUR_KM = 2.16;
-    const TARIF_NUIT_KM = 3.24;
-    const PRISE = 2.83;
+  // Détail du calcul mixte : prorata jour/nuit minute par minute.
+  function detailMixte(distKm: number, pickupMs: number, dureeS: number) {
     if (distKm <= 0) {
-      return { prix: PRISE, jourKm: 0, nuitKm: 0, jourMin: 0, nuitMin: 0, pctJour: 100, pctNuit: 0, tarifJourKm: TARIF_JOUR_KM, tarifNuitKm: TARIF_NUIT_KM, prise: PRISE };
+      return { jourKm: 0, nuitKm: 0, jourMin: 0, nuitMin: 0, pctJour: 0, pctNuit: 0, total: PRISE };
     }
     const steps = Math.max(Math.round(dureeS / 60), 1);
     const stepMs = (dureeS * 1000) / steps;
     const stepMin = stepMs / 60000;
-    let jourKm = 0, nuitKm = 0, jourMin = 0, nuitMin = 0;
+    const frac = distKm / steps;
+    let jourKm = 0,
+      nuitKm = 0,
+      jourMin = 0,
+      nuitMin = 0;
     for (let i = 0; i < steps; i++) {
-      const tMs = pickupMs + i * stepMs;
-      const frac = distKm / steps;
-      if (isMomentNuit(tMs)) { nuitKm += frac; nuitMin += stepMin; }
-      else { jourKm += frac; jourMin += stepMin; }
+      const iso = new Date(pickupMs + i * stepMs).toISOString();
+      if (estTarifJourParis(iso)) {
+        jourKm += frac;
+        jourMin += stepMin;
+      } else {
+        nuitKm += frac;
+        nuitMin += stepMin;
+      }
     }
-    const prix = parseFloat((PRISE + jourKm * TARIF_JOUR_KM + nuitKm * TARIF_NUIT_KM).toFixed(2));
-    const total = jourKm + nuitKm;
-    const pctJour = total > 0 ? Math.round((jourKm / total) * 100) : 100;
+    const total = parseFloat((PRISE + jourKm * TARIF_JOUR_KM + nuitKm * TARIF_NUIT_KM).toFixed(2));
+    const pctJour = Math.round((jourKm / distKm) * 100);
     const pctNuit = 100 - pctJour;
-    return { prix, jourKm, nuitKm, jourMin, nuitMin, pctJour, pctNuit, tarifJourKm: TARIF_JOUR_KM, tarifNuitKm: TARIF_NUIT_KM, prise: PRISE };
+    return { jourKm, nuitKm, jourMin, nuitMin, pctJour, pctNuit, total };
   }
 
   function calculerPrixMixteLocal(distKm: number, pickupMs: number, dureeS: number): number {
-    return calculerDetailMixte(distKm, pickupMs, dureeS).prix;
+    return detailMixte(distKm, pickupMs, dureeS).total;
   }
 
-  // tarifJour : utilisé uniquement pour le badge affiché, basé sur l'heure de départ
-  const tarifJour = pickupIso ? !isMomentNuit(new Date(pickupIso).getTime()) : true;
+  const tarifInfo = getTarifMotif(pickupIso);
+  const tarifJour = tarifInfo.isJour;
+
+  const detailCalc =
+    orsResult && pickupIso ? detailMixte(orsResult.distanceKm, new Date(pickupIso).getTime(), orsResult.dureeS) : null;
 
   const prixAller: number = (() => {
     if (!orsResult) return PRISE_EN_CHARGE;
-    const raw = pickupIso
-      ? calculerPrixMixteLocal(orsResult.distanceKm, new Date(pickupIso).getTime(), orsResult.dureeS)
-      : calculerPrix(orsResult.distanceKm, true);
-    // Garde-fou : prix > 2000 EUR = bug de données, on n affiche pas
+    const raw = detailCalc ? detailCalc.total : calculerPrix(orsResult.distanceKm, true);
     const MAX_PRIX = 2000;
     return raw > MAX_PRIX ? PRISE_EN_CHARGE : raw;
   })();
-
-  // Détail jour/nuit recalculé à chaque changement de trajet ou d'heure de prise en charge
-  const detailMixte = (() => {
-    if (!orsResult || !pickupIso) return null;
-    return calculerDetailMixte(orsResult.distanceKm, new Date(pickupIso).getTime(), orsResult.dureeS);
-  })();
-  const isMixed = !!detailMixte && detailMixte.pctJour > 0 && detailMixte.pctNuit > 0;
 
   useEffect(() => {
     const d = new Date().toISOString().split("T")[0];
@@ -834,7 +1017,7 @@ function ReservationPage() {
     }
 
     if (fromCoord && toCoord) {
-      // Toujours le chemin le plus long (cache + densification appliqués dans osrm.ts)
+      // Toujours le chemin le plus long
       getOsrmPolylineLongest(fromCoord, toCoord).then((coords) => {
         if (!mapInst.current || !L) return;
         if (routeLayer.current) {
@@ -842,26 +1025,19 @@ function ReservationPage() {
           routeLayer.current = null;
         }
         if (coords.length > 1) {
-          // Style Uber : casing noir épais + ligne fine au-dessus
-          L.polyline(coords, {
-            color: "#000000",
-            weight: 8,
-            opacity: 1,
-            lineCap: "round",
-            lineJoin: "round",
-          }).addTo(mapInst.current);
-          routeLayer.current = L.polyline(coords, {
-            color: "#111111",
-            weight: 5,
-            opacity: 1,
-            lineCap: "round",
-            lineJoin: "round",
-          }).addTo(mapInst.current);
-          mapInst.current.fitBounds(L.latLngBounds(coords), {
-            padding: [60, 60],
-            maxZoom: 16,
-            animate: true,
-          });
+          // Casing noir façon Uber + tracé fin par-dessus pour un rendu net
+          routeLayer.current = L.layerGroup([
+            L.polyline(coords, { color: "#000000", weight: 8, opacity: 1, lineCap: "round", lineJoin: "round" }),
+            L.polyline(coords, { color: "#111111", weight: 5, opacity: 1, lineCap: "round", lineJoin: "round" }),
+          ]).addTo(mapInst.current);
+          mapInst.current.fitBounds(
+            L.latLngBounds([
+              [fromCoord[0], fromCoord[1]],
+              [toCoord[0], toCoord[1]],
+              ...coords,
+            ]),
+            { padding: [60, 60], maxZoom: 16, animate: true },
+          );
         }
       });
     } else if (fromCoord) {
@@ -869,29 +1045,109 @@ function ReservationPage() {
     }
   }, [fromCoord, toCoord]);
 
-  // ── OSRM : distance/durée/prix — MÊME source que la polyline (getLongestRoute, cache partagé)
+  // ── OSRM : recalcul distance/prix ────────────────────────────────────────
   useEffect(() => {
     if (!fromCoord || !toCoord) {
       setOrsResult(null);
       return;
     }
-    let cancelled = false;
     setCalcLoading(true);
-    getDistanceAndDurationKm([fromCoord[1], fromCoord[0]], [toCoord[1], toCoord[0]])
-      .then((r) => {
-        if (cancelled) return;
-        if (r && r.distanceKm > 0) {
-          setOrsResult({ distanceKm: r.distanceKm, dureeS: r.dureeS });
-        } else {
-          setOrsResult(null);
+
+    const fetchOsrm = async () => {
+      try {
+        // Appel direct OSRM public avec timeout de 6 s
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 6000);
+        const url =
+          `https://router.project-osrm.org/route/v1/driving/` +
+          `${fromCoord[1]},${fromCoord[0]};${toCoord[1]},${toCoord[0]}` +
+          `?overview=false`;
+        const res = await fetch(url, { signal: controller.signal });
+        clearTimeout(timer);
+        if (res.ok) {
+          const json = await res.json();
+          const route = json?.routes?.[0];
+          if (route) {
+            setOrsResult({
+              distanceKm: parseFloat((route.distance / 1000).toFixed(2)),
+              dureeS: Math.round(route.duration),
+            });
+            setCalcLoading(false);
+            return;
+          }
         }
-      })
-      .finally(() => {
-        if (!cancelled) setCalcLoading(false);
-      });
-    return () => {
-      cancelled = true;
+      } catch {
+        // timeout ou erreur réseau → fallback
+      }
+
+      // Fallback : essai via Edge Function Supabase
+      try {
+        const controller2 = new AbortController();
+        const timer2 = setTimeout(() => controller2.abort(), 8000);
+        const res2 = await fetch(`${SUPABASE_URL}/functions/v1/osrm-route`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            from_lng: fromCoord[1],
+            from_lat: fromCoord[0],
+            to_lng: toCoord[1],
+            to_lat: toCoord[0],
+            overview: "false",
+          }),
+          signal: controller2.signal,
+        });
+        clearTimeout(timer2);
+        if (res2.ok) {
+          const json2 = await res2.json();
+          if (json2?.distance && json2?.duration) {
+            setOrsResult({
+              distanceKm: parseFloat((json2.distance / 1000).toFixed(2)),
+              dureeS: Math.round(json2.duration),
+            });
+            setCalcLoading(false);
+            return;
+          }
+        }
+      } catch {
+        // fallback vol d'oiseau
+      }
+
+      // Fallback final : OSRM demo server (autre instance publique)
+      try {
+        const controller3 = new AbortController();
+        const timer3 = setTimeout(() => controller3.abort(), 8000);
+        const url3 =
+          `https://routing.openstreetmap.de/routed-car/route/v1/driving/` +
+          `${fromCoord[1]},${fromCoord[0]};${toCoord[1]},${toCoord[0]}` +
+          `?overview=false`;
+        const res3 = await fetch(url3, { signal: controller3.signal });
+        clearTimeout(timer3);
+        if (res3.ok) {
+          const json3 = await res3.json();
+          const route3 = json3?.routes?.[0];
+          if (route3) {
+            setOrsResult({
+              distanceKm: parseFloat((route3.distance / 1000).toFixed(2)),
+              dureeS: Math.round(route3.duration),
+            });
+            setCalcLoading(false);
+            return;
+          }
+        }
+      } catch {
+        // dernier fallback
+      }
+
+      // Fallback GraphHopper retiré : la clé API ne peut pas être embarquée
+      // côté client sans être abusée. OSRM (étapes précédentes) reste primaire.
+
+      setCalcLoading(false);
     };
+
+    fetchOsrm();
   }, [fromCoord, toCoord]);
 
   // ── Géolocalisation départ (navigateur client) ───────────────────────────
@@ -971,17 +1227,28 @@ function ReservationPage() {
   const resolveDepartAddress = useCallback(async () => {
     const value = f.depart.trim();
     if (!value) return;
+    setCalcLoading(true);
+    setSearchingDepart(true);
+    const origin = fromCoord ?? BORDEAUX_CENTER;
+    const namedPlace = departSearchMode === "poi" || isNamedPlaceQuery(value);
 
-    // Mode POI ou détection auto → recherche élargie 50 km, plusieurs choix
-    if (departMode === "poi" || detectPoi(value)) {
-      setDepartSearching(true);
-      const origin = BORDEAUX_CENTER;
-      const choices = await searchNearbyAddressChoices(value, origin, POI_SEARCH_RADIUS_KM);
-      setDepartSearching(false);
-      if (choices.length === 1) {
+    if (namedPlace) {
+      const nearby = await searchNearbyAddressChoicesStreaming(
+        value,
+        origin,
+        DESTINATION_SEARCH_RADIUS_KM,
+        (partial) => {
+          const close = partial.filter((c) => c.distanceKm <= DESTINATION_SEARCH_RADIUS_KM).slice(0, 4);
+          if (close.length) setDepartChoices(close);
+        },
+      );
+      const close = nearby.filter((c) => c.distanceKm <= DESTINATION_SEARCH_RADIUS_KM);
+      if (close.length === 1 || (close.length > 1 && close[0].distanceKm + 5 < close[1].distanceKm)) {
+        setCalcLoading(false);
+        setSearchingDepart(false);
         setDepartChoices([]);
-        setFromCoord(choices[0].coord);
-        set("depart", choices[0].label);
+        setFromCoord(close[0].coord);
+        set("depart", close[0].label);
         setErrors((prev) => {
           const next = { ...prev };
           delete next.depart;
@@ -989,44 +1256,68 @@ function ReservationPage() {
         });
         return;
       }
-      if (choices.length > 1) {
-        setDepartChoices(choices);
+      if (close.length > 1) {
+        setCalcLoading(false);
+        setSearchingDepart(false);
+        setDepartChoices(close.slice(0, 4));
         setFromCoord(null);
-        setErrors((prev) => ({ ...prev, depart: "Sélectionnez un lieu dans la liste" }));
+        setErrors((prev) => ({ ...prev, depart: "Plusieurs lieux trouvés — choisissez le bon" }));
         return;
       }
-      setDepartChoices([]);
-      setFromCoord(null);
-      setErrors((prev) => ({ ...prev, depart: "Lieu introuvable" }));
-      return;
     }
 
-    // Mode adresse classique
-    setDepartSearching(true);
     const result = await geocodeFullAddress(value);
-    setDepartSearching(false);
     if (result) {
-      setDepartChoices([]);
-      setFromCoord(result.coord);
-      set("depart", result.label);
-      setErrors((prev) => {
-        const next = { ...prev };
-        delete next.depart;
-        return next;
-      });
-    } else {
-      setFromCoord(null);
-      setErrors((prev) => ({ ...prev, depart: "Adresse introuvable" }));
+      const distOk = distanceKmBetween(origin, result.coord) <= DESTINATION_SEARCH_RADIUS_KM;
+      if (distOk || !fromCoord) {
+        setCalcLoading(false);
+        setSearchingDepart(false);
+        setDepartChoices([]);
+        setFromCoord(result.coord);
+        set("depart", result.label);
+        setErrors((prev) => {
+          const next = { ...prev };
+          delete next.depart;
+          return next;
+        });
+        return;
+      }
     }
-  }, [f.depart, departMode]);
+
+    const nearbyChoices = await searchNearbyAddressChoicesStreaming(
+      value,
+      origin,
+      DESTINATION_SEARCH_RADIUS_KM,
+      (partial) => {
+        const close = partial.filter((c) => c.distanceKm <= DESTINATION_SEARCH_RADIUS_KM).slice(0, 4);
+        if (close.length) setDepartChoices(close);
+      },
+    );
+    const closeChoices = nearbyChoices.filter((c) => c.distanceKm <= DESTINATION_SEARCH_RADIUS_KM).slice(0, 4);
+    setCalcLoading(false);
+    setSearchingDepart(false);
+
+    if (closeChoices.length) {
+      setDepartChoices(closeChoices);
+      setFromCoord(null);
+      setErrors((prev) => ({ ...prev, depart: "Sélectionnez une adresse dans la liste (≤ 50 km)" }));
+    } else {
+      setDepartChoices([]);
+      setFromCoord(null);
+      setErrors((prev) => ({ ...prev, depart: "Adresse introuvable — précisez la ville ou le lieu" }));
+    }
+  }, [f.depart, fromCoord, departSearchMode]);
 
   // ── Résoudre adresse destination ─────────────────────────────────────────
   const resolveDestinationAddress = useCallback(async () => {
     const value = f.destination.trim();
     if (!value) return;
-    setDestSearching(true);
+    setCalcLoading(true);
+    setSearchingDestination(true);
 
-    // Si le départ est saisi mais fromCoord pas encore résolu, on le résout.
+    // Si le départ est saisi mais fromCoord pas encore résolu (l'utilisateur
+    // a sauté directement au champ destination avant que resolveDepartAddress finisse),
+    // on le résout maintenant nous-mêmes pour avoir un fromCoord à jour.
     let resolvedFromCoord = fromCoord;
     if (f.depart.trim() && !fromCoord) {
       const departResult = await geocodeFullAddress(f.depart.trim());
@@ -1043,16 +1334,29 @@ function ReservationPage() {
     }
 
     const origin = resolvedFromCoord ?? BORDEAUX_CENTER;
-    const isPoi = destMode === "poi" || detectPoi(value);
+    const namedPlace = searchMode === "poi" || isNamedPlaceQuery(value);
 
-    // Mode POI → directement recherche élargie 50 km
-    if (isPoi) {
-      const choices = await searchNearbyAddressChoices(value, origin, POI_SEARCH_RADIUS_KM);
-      setDestSearching(false);
-      if (choices.length === 1) {
+    // Pour les lieux nommés (aéroport, gare, supermarché, monument…) ou
+    // si le mode « lieu » est actif, on cherche d'abord parmi les POI
+    // proches du départ pour éviter les mauvaises correspondances Nominatim.
+    if (namedPlace) {
+      const nearby = await searchNearbyAddressChoicesStreaming(
+        value,
+        origin,
+        DESTINATION_SEARCH_RADIUS_KM,
+        (partial) => {
+          const close = partial.filter((c) => c.distanceKm <= DESTINATION_SEARCH_RADIUS_KM).slice(0, 4);
+          if (close.length) setDestinationChoices(close);
+        },
+      );
+      const close = nearby.filter((c) => c.distanceKm <= DESTINATION_SEARCH_RADIUS_KM);
+      // Auto-pick si le 1er est nettement plus proche que le 2e (≤5 km, ou seul résultat)
+      if (close.length === 1 || (close.length > 1 && close[0].distanceKm + 5 < close[1].distanceKm)) {
+        setCalcLoading(false);
+        setSearchingDestination(false);
         setDestinationChoices([]);
-        setToCoord(choices[0].coord);
-        set("destination", choices[0].label);
+        setToCoord(close[0].coord);
+        set("destination", close[0].label);
         setErrors((prev) => {
           const next = { ...prev };
           delete next.destination;
@@ -1060,43 +1364,57 @@ function ReservationPage() {
         });
         return;
       }
-      if (choices.length > 1) {
-        setDestinationChoices(choices);
+      if (close.length > 1) {
+        setCalcLoading(false);
+        setSearchingDestination(false);
+        setDestinationChoices(close.slice(0, 4));
         setToCoord(null);
-        setErrors((prev) => ({ ...prev, destination: "Sélectionnez un lieu dans la liste" }));
+        setErrors((prev) => ({ ...prev, destination: "Plusieurs lieux trouvés — choisissez le bon" }));
         return;
       }
-      setDestinationChoices([]);
-      setToCoord(null);
-      setErrors((prev) => ({ ...prev, destination: "Lieu introuvable — précisez la ville" }));
-      return;
+      // sinon on bascule sur Nominatim plein texte ci-dessous
     }
 
-    // Mode adresse : Nominatim d'abord
+    // 1) Recherche Nominatim classique
     const result = await geocodeFullAddress(value);
     if (result) {
-      setDestSearching(false);
-      setDestinationChoices([]);
-      setToCoord(result.coord);
-      set("destination", result.label);
-      setErrors((prev) => {
-        const next = { ...prev };
-        delete next.destination;
-        return next;
-      });
-      return;
+      const distOk = distanceKmBetween(origin, result.coord) <= DESTINATION_SEARCH_RADIUS_KM;
+      if (distOk) {
+        setCalcLoading(false);
+        setSearchingDestination(false);
+        setDestinationChoices([]);
+        setToCoord(result.coord);
+        set("destination", result.label);
+        setErrors((prev) => {
+          const next = { ...prev };
+          delete next.destination;
+          return next;
+        });
+        return;
+      }
+      // Résultat trouvé mais trop loin → on propose des alternatives proches
     }
 
-    // Fallback : recherche élargie
-    const nearbyChoices = await searchNearbyAddressChoices(value, origin, DESTINATION_SEARCH_RADIUS_KM);
-    setDestSearching(false);
+    // 2) Fallback : recherche élargie (Photon + Overpass + variantes Nominatim) dans 50 km
+    const nearbyChoices = await searchNearbyAddressChoicesStreaming(
+      value,
+      origin,
+      DESTINATION_SEARCH_RADIUS_KM,
+      (partial) => {
+        const close = partial.filter((c) => c.distanceKm <= DESTINATION_SEARCH_RADIUS_KM).slice(0, 4);
+        if (close.length) setDestinationChoices(close);
+      },
+    );
+    const closeChoices = nearbyChoices.filter((c) => c.distanceKm <= DESTINATION_SEARCH_RADIUS_KM).slice(0, 4);
+    setCalcLoading(false);
+    setSearchingDestination(false);
 
-    if (nearbyChoices.length) {
-      setDestinationChoices(nearbyChoices);
+    if (closeChoices.length) {
+      setDestinationChoices(closeChoices);
       setToCoord(null);
       setErrors((prev) => ({
         ...prev,
-        destination: "Sélectionnez une adresse dans la liste",
+        destination: "Sélectionnez une adresse dans la liste (≤ 50 km)",
       }));
     } else {
       setDestinationChoices([]);
@@ -1106,113 +1424,16 @@ function ReservationPage() {
         destination: "Adresse introuvable — précisez la ville ou le lieu",
       }));
     }
-  }, [f.destination, f.depart, fromCoord, destMode]);
+  }, [f.destination, f.depart, fromCoord, searchMode]);
 
-  // Auto-détection POI : passe automatiquement en mode POI dès qu'un mot-clé est tapé
   useEffect(() => {
-    if (f.depart && detectPoi(f.depart)) setDepartMode("poi");
-  }, [f.depart]);
-  useEffect(() => {
-    if (f.destination && detectPoi(f.destination)) setDestMode("poi");
-  }, [f.destination]);
+    resolveDestinationAddressRef.current = resolveDestinationAddress;
+  }, [resolveDestinationAddress]);
 
-  // Debounce 500ms : si POI détecté/forcé et pas encore résolu, lance la recherche progressive.
   useEffect(() => {
-    if (!f.depart || f.depart.length < 3) return;
-    if (fromCoord) return;
-    if (!(departMode === "poi" || detectPoi(f.depart))) return;
-    const id = setTimeout(() => { resolveDepartAddress(); }, POI_SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(id);
-  }, [f.depart, departMode, fromCoord, resolveDepartAddress]);
-  useEffect(() => {
-    if (!f.destination || f.destination.length < 3) return;
-    if (toCoord) return;
-    if (!(destMode === "poi" || detectPoi(f.destination))) return;
-    const id = setTimeout(() => { resolveDestinationAddress(); }, POI_SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(id);
-  }, [f.destination, destMode, toCoord, resolveDestinationAddress]);
+    resolveDepartAddressRef.current = resolveDepartAddress;
+  }, [resolveDepartAddress]);
 
-  // ── Dictée vocale : départ + destination en un coup ──────────────────────
-  // Sépare avec « à / vers / jusqu'à / direction / puis / -> »
-  const parseDictation = useCallback((raw: string): { depart: string; destination: string } | null => {
-    const txt = raw.trim().replace(/\s+/g, " ");
-    if (!txt) return null;
-    // Normalise quelques variantes
-    const normalized = txt
-      .replace(/\s*->\s*/gi, " -> ")
-      .replace(/\s*=>\s*/gi, " -> ")
-      .replace(/\bjusqu['’ ]?à\b/gi, "->")
-      .replace(/\bdirection\b/gi, "->")
-      .replace(/\bpuis\b/gi, "->")
-      .replace(/\bvers\b/gi, "->")
-      .replace(/(^|\s)à\s+/gi, " -> ");
-    const parts = normalized.split(/\s*->\s*/).map((s) => s.trim()).filter(Boolean);
-    if (parts.length < 2) return null;
-    // Premier segment = départ, le reste rejoint en destination
-    const depart = parts[0].replace(/^(de\s+|depuis\s+|du\s+)/i, "").trim();
-    const destination = parts.slice(1).join(" ").trim();
-    if (!depart || !destination) return null;
-    return { depart, destination };
-  }, []);
-
-  const handleDictate = useCallback(() => {
-    setDictateError(null);
-    const SR: any =
-      (typeof window !== "undefined" && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)) ||
-      null;
-    if (!SR) {
-      setDictateError("Dictée non supportée par ce navigateur. Essayez Chrome ou Safari.");
-      return;
-    }
-    if (recognitionRef.current) {
-      try { recognitionRef.current.stop(); } catch {}
-      recognitionRef.current = null;
-      setDictating(false);
-      return;
-    }
-    const rec = new SR();
-    const langMap: Record<string, string> = { fr: "fr-FR", en: "en-US", es: "es-ES", it: "it-IT", pt: "pt-PT", ar: "ar-SA" };
-    rec.lang = langMap[lang] ?? "fr-FR";
-    rec.interimResults = false;
-    rec.maxAlternatives = 1;
-    rec.continuous = false;
-    rec.onstart = () => setDictating(true);
-    rec.onerror = (e: any) => {
-      setDictateError(`Erreur dictée : ${e?.error ?? "inconnue"}`);
-      setDictating(false);
-      recognitionRef.current = null;
-    };
-    rec.onend = () => {
-      setDictating(false);
-      recognitionRef.current = null;
-    };
-    rec.onresult = (event: any) => {
-      const transcript = String(event.results?.[0]?.[0]?.transcript ?? "");
-      const parsed = parseDictation(transcript);
-      if (!parsed) {
-        setDictateError(`Format non reconnu : « ${transcript} ». Dites par ex. « 12 rue de la Paix à gare Saint-Jean ».`);
-        return;
-      }
-      set("depart", parsed.depart);
-      set("destination", parsed.destination);
-      setFromCoord(null);
-      setToCoord(null);
-      setDepartChoices([]);
-      setDestinationChoices([]);
-      setErrors((prev) => {
-        const n = { ...prev };
-        delete n.depart;
-        delete n.destination;
-        return n;
-      });
-    };
-    try {
-      rec.start();
-      recognitionRef.current = rec;
-    } catch (e: any) {
-      setDictateError(`Impossible de démarrer la dictée : ${e?.message ?? e}`);
-    }
-  }, [lang, parseDictation]);
 
   // ── Disponibilité taxi ────────────────────────────────────────────────────
   useEffect(() => {
@@ -1249,19 +1470,9 @@ function ReservationPage() {
       try {
         const token = await getFcmToken();
         if (!token) return;
-        await Promise.all([
-          subscribePush({
-            data: { audience: "client", fcm_token: token, user_agent: navigator.userAgent },
-          }),
-          subscribePush({
-            data: {
-              audience: "chauffeur",
-              fcm_token: token,
-              reservation_id: null,
-              user_agent: navigator.userAgent,
-            },
-          }),
-        ]);
+        await subscribePush({
+          data: { audience: "client", fcm_token: token, user_agent: navigator.userAgent },
+        });
       } catch {
         // silencieux — pas bloquant
       }
@@ -1272,6 +1483,7 @@ function ReservationPage() {
   // ── Soumission ────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (sending) return; // guard anti double-submit
 
     const newErrors: Record<string, string> = {};
     if (!f.prenom.trim()) newErrors.prenom = t("res.err.required");
@@ -1343,7 +1555,7 @@ function ReservationPage() {
           source: "form",
           lang: lang as any,
         })
-        .select("id")
+        .select("id,suivi_id")
         .single();
 
       if (error) throw error;
@@ -1379,25 +1591,13 @@ function ReservationPage() {
       toast.success(`${t("conf.ok.title")} ${f.prenom}`);
       setSending(false);
 
-      // ── Notifier l'admin (push + email) ────────────────────────────────────
-      // sendBeacon garantit l'envoi même si la page navigue immédiatement après.
-      // fetch avec keepalive: true en fallback si sendBeacon ne supporte pas JSON.
-      try {
-        const notifyBody = JSON.stringify({ reservation_id: inserted.id });
-        const notifyUrl = "/api/public/notify-reservation";
-        const notifyHeaders = { "X-Internal-Notify-Secret": "taxi-city-reservation-trigger-v1" };
-        // sendBeacon n'accepte pas de headers custom → on utilise fetch keepalive
-        await fetch(notifyUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...notifyHeaders },
-          body: notifyBody,
-          keepalive: true, // survit à la navigation de page sur mobile
-        });
-      } catch (e) {
+      // ── Notifier l'admin (push FCM + email) ───────────────────────────────
+      // Fire-and-forget : on n'attend pas la réponse pour ne pas bloquer la navigation.
+      notifyNewReservation({ data: { reservation_id: inserted.id } }).catch((e) => {
         console.warn("[notify] admin notify failed", e);
-      }
+      });
 
-      navigate({ to: "/suivi/$id", params: { id: suiviId }, search: { gps: undefined, rid: undefined } });
+      navigate({ to: "/suivi/$id", params: { id: inserted.suivi_id ?? inserted.id } });
     } catch (err: any) {
       setSending(false);
       toast.error(t("res.err.global"), { description: err?.message });
@@ -1425,6 +1625,7 @@ function ReservationPage() {
         input[type=text], input[type=tel], input[type=email] { font-size: 16px !important; }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
         .leaflet-container { width: 100% !important; height: 100% !important; }
       `}</style>
 
@@ -1609,23 +1810,13 @@ function ReservationPage() {
                         try {
                           const token = await getFcmToken();
                           if (token) {
-                            await Promise.all([
-                              subscribePush({
-                                data: {
-                                  audience: "client",
-                                  fcm_token: token,
-                                  user_agent: navigator.userAgent,
-                                },
-                              }),
-                              subscribePush({
-                                data: {
-                                  audience: "chauffeur",
-                                  fcm_token: token,
-                                  reservation_id: null,
-                                  user_agent: navigator.userAgent,
-                                },
-                              }),
-                            ]);
+                            await subscribePush({
+                              data: {
+                                audience: "client",
+                                fcm_token: token,
+                                user_agent: navigator.userAgent,
+                              },
+                            });
                             localStorage.setItem("fcm_token", token);
                           }
                         } catch {
@@ -1854,8 +2045,8 @@ function ReservationPage() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  marginBottom: 10,
                   gap: 8,
+                  marginBottom: 10,
                   flexWrap: "wrap",
                 }}
               >
@@ -1864,118 +2055,105 @@ function ReservationPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={handleDictate}
-                  title="Dicter le départ puis la destination, séparés par « à », « vers », « jusqu'à », « direction », « puis » ou « -> »"
+                  onClick={startVoiceRecognitionBoth}
+                  title='Dictez le trajet complet en une phrase, ex : "12 rue de la République à aéroport de Bordeaux"'
                   style={{
+                    background: voiceBothListening ? "rgba(239,68,68,0.15)" : "rgba(245,200,66,0.12)",
+                    border: `1px solid ${voiceBothListening ? "rgba(239,68,68,0.4)" : "rgba(245,200,66,0.4)"}`,
+                    borderRadius: 8,
+                    padding: "6px 10px",
+                    cursor: "pointer",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: voiceBothListening ? "#f87171" : "#f5c842",
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 6,
-                    fontSize: 12,
-                    fontWeight: 700,
-                    padding: "6px 12px",
-                    borderRadius: 999,
-                    border: "1px solid rgba(245,200,66,0.5)",
-                    background: dictating ? "#f5c842" : "rgba(245,200,66,0.12)",
-                    color: dictating ? "#0f172a" : "#fde68a",
-                    cursor: "pointer",
+                    animation: voiceBothListening ? "pulse 1s ease-in-out infinite" : "none",
                   }}
                 >
-                  {dictating ? "⏺ Écoute… (clic pour arrêter)" : "🎤 Dicter départ + destination"}
+                  {voiceBothListening ? "⏹ J'écoute…" : "🎤 Dicter départ + destination"}
                 </button>
               </div>
-              {dictateError && (
-                <div style={{ color: "#fecaca", fontSize: 11, marginBottom: 8 }}>{dictateError}</div>
-              )}
 
-              {/* Départ : saisie libre + toggle Adresse/POI + bouton géoloc */}
+
+              {/* Départ : saisie libre + bouton géoloc */}
               <div style={{ marginBottom: 10 }}>
+                <label
+                  style={{
+                    fontSize: 11,
+                    color: "#cbd5e1",
+                    fontWeight: 600,
+                    display: "block",
+                    marginBottom: 6,
+                  }}
+                >
+                  {t("res.loc.from")}
+                </label>
                 <div
                   style={{
                     display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
+                    gap: 6,
                     marginBottom: 6,
-                    gap: 8,
-                    flexWrap: "wrap",
+                    padding: 3,
+                    background: "rgba(15,23,42,0.5)",
+                    border: "1px solid rgba(245,200,66,0.25)",
+                    borderRadius: 10,
+                    width: "fit-content",
                   }}
+                  role="tablist"
+                  aria-label="Mode de recherche départ"
                 >
-                  <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600 }}>
-                    {t("res.loc.from")}
-                  </label>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    {detectPoi(f.depart) && (
-                      <span
-                        title="Mot-clé de lieu détecté — recherche élargie 50 km activée"
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 700,
-                          padding: "3px 8px",
-                          borderRadius: 999,
-                          background: "rgba(245,200,66,0.18)",
-                          color: "#fde68a",
-                          border: "1px solid rgba(245,200,66,0.5)",
-                        }}
-                      >
-                        ✨ Lieu détecté
-                      </span>
-                    )}
-                    <div
-                      role="tablist"
-                      title="Choisir le type de recherche : adresse postale (rapide) ou lieu nommé (POI : gare, aéroport, enseigne…)"
-                      style={{
-                        display: "inline-flex",
-                        background: "rgba(15,23,42,0.5)",
-                        border: "1px solid rgba(203,213,225,0.25)",
-                        borderRadius: 999,
-                        padding: 2,
-                      }}
-                    >
+                  {([
+                    { key: "address", label: "🏠 Adresse" },
+                    { key: "poi", label: "📍 Lieu / POI" },
+                  ] as const).map((opt) => {
+                    const active = departSearchMode === opt.key;
+                    return (
                       <button
+                        key={opt.key}
                         type="button"
-                        onClick={() => setDepartMode("address")}
+                        role="tab"
+                        aria-selected={active}
+                        onClick={() => {
+                          setDepartSearchMode(opt.key);
+                          setDepartChoices([]);
+                          setFromCoord(null);
+                        }}
                         style={{
-                          fontSize: 10,
-                          fontWeight: 700,
                           padding: "4px 10px",
-                          borderRadius: 999,
+                          borderRadius: 8,
                           border: "none",
+                          background: active ? "#f5c842" : "transparent",
+                          color: active ? "#0f172a" : "#cbd5e1",
+                          fontSize: 11,
+                          fontWeight: 700,
                           cursor: "pointer",
-                          background: departMode === "address" ? "#f5c842" : "transparent",
-                          color: departMode === "address" ? "#0f172a" : "#cbd5e1",
                         }}
                       >
-                        Adresse
+                        {opt.label}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setDepartMode("poi")}
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 700,
-                          padding: "4px 10px",
-                          borderRadius: 999,
-                          border: "none",
-                          cursor: "pointer",
-                          background: departMode === "poi" ? "#f5c842" : "transparent",
-                          color: departMode === "poi" ? "#0f172a" : "#cbd5e1",
-                        }}
-                      >
-                        Lieu (POI)
-                      </button>
-                    </div>
-                  </div>
+                    );
+                  })}
                 </div>
                 <div style={{ position: "relative" }}>
                   <input
                     type="text"
                     value={f.depart}
                     onChange={(e) => {
-                      set("depart", e.target.value);
+                      const v = e.target.value;
+                      set("depart", v);
                       setFromCoord(null);
                       setDepartChoices([]);
+                      if (departDebounceRef.current) clearTimeout(departDebounceRef.current);
+                      if (v.trim().length >= 3) {
+                        departDebounceRef.current = setTimeout(() => {
+                          resolveDepartAddressRef.current?.();
+                        }, 500);
+                      }
                     }}
                     onBlur={resolveDepartAddress}
-                    placeholder={departMode === "poi" ? "Gare, aéroport, enseigne…" : "Adresse ou cliquez 📍"}
+                    placeholder="Adresse ou cliquez 📍"
                     autoComplete="off"
                     autoCorrect="off"
                     autoCapitalize="off"
@@ -2006,18 +2184,28 @@ function ReservationPage() {
                     {geolocLoading ? "⏳" : "📍"}
                   </button>
                 </div>
-                {departSearching && (
-                  <div style={{ color: "#fde68a", fontSize: 11, marginTop: 4 }}>🔄 Recherche en cours…</div>
-                )}
                 {errors.depart && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.depart}</div>}
-                {fromCoord && !errors.depart && !departSearching && (
+                {fromCoord && !errors.depart && (
                   <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>✓ {t("res.geo.btn")}</div>
+                )}
+                {searchingDepart && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, color: "#fde68a", fontSize: 11 }}>
+                    <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", border: "2px solid #fde68a", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
+                    Recherche en cours…
+                  </div>
+                )}
+                {searchingDepart && departChoices.length === 0 && (
+                  <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
+                    {[0, 1, 2].map((i) => (
+                      <div key={i} style={{ height: 44, borderRadius: 10, background: "linear-gradient(90deg, rgba(245,200,66,0.05), rgba(245,200,66,0.15), rgba(245,200,66,0.05))", backgroundSize: "200% 100%", animation: "shimmer 1.4s ease-in-out infinite" }} />
+                    ))}
+                  </div>
                 )}
                 {departChoices.length > 0 && (
                   <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
                     {departChoices.map((choice) => (
                       <button
-                        key={`dep-${choice.label}-${choice.coord[0]}-${choice.coord[1]}`}
+                        key={`${choice.label}-${choice.coord[0]}-${choice.coord[1]}`}
                         type="button"
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => {
@@ -2051,94 +2239,107 @@ function ReservationPage() {
                 )}
               </div>
 
-              {/* Destination : saisie libre + toggle Adresse/POI */}
+              {/* Destination */}
               <div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    marginBottom: 6,
-                    gap: 8,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <label style={{ fontSize: 11, color: "#cbd5e1", fontWeight: 600 }}>
+                <div style={{ position: "relative", display: "flex", alignItems: "center", marginBottom: 6 }}>
+                  <label
+                    style={{
+                      fontSize: 11,
+                      color: "#cbd5e1",
+                      fontWeight: 600,
+                      flex: 1,
+                    }}
+                  >
                     {t("res.loc.to")}
                   </label>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    {detectPoi(f.destination) && (
-                      <span
-                        title="Mot-clé de lieu détecté — recherche élargie 50 km activée"
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 700,
-                          padding: "3px 8px",
-                          borderRadius: 999,
-                          background: "rgba(245,200,66,0.18)",
-                          color: "#fde68a",
-                          border: "1px solid rgba(245,200,66,0.5)",
-                        }}
-                      >
-                        ✨ Lieu détecté
-                      </span>
-                    )}
-                    <div
-                      role="tablist"
-                      title="Choisir le type de recherche : adresse postale (rapide) ou lieu nommé (POI : gare, aéroport, enseigne…)"
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 6,
+                      padding: 3,
+                      background: "rgba(15,23,42,0.5)",
+                      border: "1px solid rgba(245,200,66,0.25)",
+                      borderRadius: 10,
+                    }}
+                    role="tablist"
+                    aria-label="Mode de recherche destination"
+                  >
+                    {([
+                      { key: "address", label: "🏠 Adresse" },
+                      { key: "poi", label: "📍 Lieu / POI" },
+                    ] as const).map((opt) => {
+                      const autoPoi = opt.key === "poi" && searchMode === "address" && isNamedPlaceQuery(f.destination);
+                      const active = searchMode === opt.key || autoPoi;
+                      return (
+                        <button
+                          key={opt.key}
+                          type="button"
+                          role="tab"
+                          aria-selected={active}
+                          title={
+                            opt.key === "poi"
+                              ? "Mode Lieu/POI : cherche gares, aéroports, supermarchés, monuments… dans un rayon de 50 km autour du départ. Cliquez sur « Adresse » pour revenir à la saisie d'une adresse postale."
+                              : "Mode Adresse : géocode une adresse postale (rue, numéro, ville). Cliquez sur « Lieu / POI » pour rechercher un point d'intérêt."
+                          }
+                          onClick={() => {
+                            setSearchMode(opt.key);
+                            setDestinationChoices([]);
+                            setToCoord(null);
+                          }}
+                          style={{
+                            padding: "4px 10px",
+                            borderRadius: 8,
+                            border: "none",
+                            background: active ? "#f5c842" : "transparent",
+                            color: active ? "#0f172a" : "#cbd5e1",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            opacity: autoPoi ? 0.85 : 1,
+                          }}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {searchMode === "address" && isNamedPlaceQuery(f.destination) && (
+                    <span
+                      title="Le texte saisi ressemble à un lieu connu (gare, aéroport, supermarché, monument…). La recherche POI s'applique automatiquement. Pour rester en mode adresse postale, cliquez sur « 🏠 Adresse »."
                       style={{
-                        display: "inline-flex",
-                        background: "rgba(15,23,42,0.5)",
-                        border: "1px solid rgba(203,213,225,0.25)",
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: "#fde68a",
+                        background: "rgba(245,200,66,0.12)",
+                        border: "1px solid rgba(245,200,66,0.35)",
                         borderRadius: 999,
-                        padding: 2,
+                        padding: "3px 8px",
+                        cursor: "help",
                       }}
                     >
-                      <button
-                        type="button"
-                        onClick={() => setDestMode("address")}
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 700,
-                          padding: "4px 10px",
-                          borderRadius: 999,
-                          border: "none",
-                          cursor: "pointer",
-                          background: destMode === "address" ? "#f5c842" : "transparent",
-                          color: destMode === "address" ? "#0f172a" : "#cbd5e1",
-                        }}
-                      >
-                        Adresse
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDestMode("poi")}
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 700,
-                          padding: "4px 10px",
-                          borderRadius: 999,
-                          border: "none",
-                          cursor: "pointer",
-                          background: destMode === "poi" ? "#f5c842" : "transparent",
-                          color: destMode === "poi" ? "#0f172a" : "#cbd5e1",
-                        }}
-                      >
-                        Lieu (POI)
-                      </button>
-                    </div>
-                  </div>
+                      ✨ Lieu détecté — POI auto · cliquez 🏠 Adresse pour repasser
+                    </span>
+                  )}
                 </div>
                 <input
                   type="text"
                   value={f.destination}
                   onChange={(e) => {
-                    set("destination", e.target.value);
+                    const v = e.target.value;
+                    set("destination", v);
                     setToCoord(null);
                     setDestinationChoices([]);
+                    if (destinationDebounceRef.current) clearTimeout(destinationDebounceRef.current);
+                    if (v.trim().length >= 3) {
+                      destinationDebounceRef.current = setTimeout(() => {
+                        resolveDestinationAddressRef.current?.();
+                      }, 500);
+                    }
                   }}
                   onBlur={resolveDestinationAddress}
-                  placeholder={destMode === "poi" ? "Gare, aéroport, enseigne…" : t("res.f.to.ph")}
+                  placeholder={t("res.f.to.ph")}
                   autoComplete="off"
                   autoCorrect="off"
                   autoCapitalize="off"
@@ -2146,11 +2347,21 @@ function ReservationPage() {
                   name="tcb-dest-x"
                   style={inputStyle(!!errors.destination)}
                 />
-                {destSearching && (
-                  <div style={{ color: "#fde68a", fontSize: 11, marginTop: 4 }}>🔄 Recherche en cours…</div>
-                )}
                 {errors.destination && (
                   <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.destination}</div>
+                )}
+                {searchingDestination && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, color: "#fde68a", fontSize: 11 }}>
+                    <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", border: "2px solid #fde68a", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
+                    Recherche en cours…
+                  </div>
+                )}
+                {searchingDestination && destinationChoices.length === 0 && (
+                  <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
+                    {[0, 1, 2].map((i) => (
+                      <div key={i} style={{ height: 44, borderRadius: 10, background: "linear-gradient(90deg, rgba(245,200,66,0.05), rgba(245,200,66,0.15), rgba(245,200,66,0.05))", backgroundSize: "200% 100%", animation: "shimmer 1.4s ease-in-out infinite" }} />
+                    ))}
+                  </div>
                 )}
                 {destinationChoices.length > 0 && (
                   <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
@@ -2188,11 +2399,10 @@ function ReservationPage() {
                     ))}
                   </div>
                 )}
-                {toCoord && !errors.destination && !destSearching && (
+                {toCoord && !errors.destination && (
                   <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>✓ {t("res.loc.to")}</div>
                 )}
               </div>
-
 
               {/* Récap distance + prix */}
               {orsResult && (
@@ -2203,86 +2413,109 @@ function ReservationPage() {
                     background: "rgba(245,200,66,0.12)",
                     borderRadius: 12,
                     border: "1px solid rgba(245,200,66,0.3)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
                   }}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-                    <div>
-                      <div style={{ fontSize: 14, color: "#f5c842", fontWeight: 700 }}>
-                        {orsResult.distanceKm} km · {Math.round(orsResult.dureeS / 60)} min
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 11,
-                          color: tarifJour ? "#fbbf24" : "#818cf8",
-                          marginTop: 2,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {tarifJour ? "☀️ Tarif jour (7h-19h)" : "🌙 Tarif nuit (19h-7h / dim. / férié)"}
-                      </div>
-                      {isMixed && detailMixte && (
-                        <div style={{ fontSize: 11, color: "#fde68a", marginTop: 4, fontWeight: 600 }}>
-                          ☀️ {detailMixte.pctJour}% jour / 🌙 {detailMixte.pctNuit}% nuit
-                        </div>
-                      )}
+                  <div>
+                    <div style={{ fontSize: 14, color: "#f5c842", fontWeight: 700 }}>
+                      {orsResult.distanceKm} km · {Math.round(orsResult.dureeS / 60)} min
                     </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: 11, color: "#cbd5e1", marginBottom: 2 }}>{t("rsim.estimate")}</div>
-                      <div
-                        style={{
-                          fontSize: 22,
-                          fontWeight: 800,
-                          color: "#f5c842",
-                          fontFamily: "'Clash Display'",
-                        }}
-                      >
-                        {prixAller.toFixed(2)} €
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: tarifJour ? "#fbbf24" : "#818cf8",
+                        marginTop: 2,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {tarifJour ? "☀️ Tarif jour" : "🌙 Tarif nuit"}
+                      <span style={{ color: "#94a3b8", fontWeight: 500, marginLeft: 6 }}>— {tarifInfo.motif}</span>
+                    </div>
+                    {detailCalc && detailCalc.pctJour > 0 && detailCalc.pctNuit > 0 && (
+                      <div style={{ fontSize: 11, marginTop: 4, fontWeight: 600 }}>
+                        <span style={{ color: "#fbbf24" }}>☀️ {detailCalc.pctJour}% jour</span>
+                        <span style={{ color: "#94a3b8", margin: "0 6px" }}>/</span>
+                        <span style={{ color: "#818cf8" }}>🌙 {detailCalc.pctNuit}% nuit</span>
                       </div>
+                    )}
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 11, color: "#cbd5e1", marginBottom: 2 }}>{t("rsim.estimate")}</div>
+                    <div
+                      style={{
+                        fontSize: 22,
+                        fontWeight: 800,
+                        color: "#f5c842",
+                        fontFamily: "'Clash Display'",
+                      }}
+                    >
+                      {prixAller.toFixed(2)} €
                     </div>
                   </div>
-
-                  {detailMixte && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setDetailOpen((o) => !o)}
-                        style={{
-                          marginTop: 10,
-                          background: "transparent",
-                          border: "1px dashed rgba(245,200,66,0.4)",
-                          color: "#fde68a",
-                          fontSize: 11,
-                          fontWeight: 700,
-                          padding: "6px 10px",
-                          borderRadius: 8,
-                          cursor: "pointer",
-                          width: "100%",
-                          textAlign: "left",
-                        }}
-                      >
-                        {detailOpen ? "▼ Masquer le détail du calcul" : "▶ Détail du calcul"}
-                      </button>
-                      {detailOpen && (
-                        <div style={{ marginTop: 8, fontSize: 11, color: "#e2e8f0", lineHeight: 1.6 }}>
-                          <div style={{ color: "#cbd5e1" }}>Prise en charge : {detailMixte.prise.toFixed(2)} €</div>
-                          {detailMixte.jourKm > 0 && (
-                            <div>
-                              ☀️ Jour : {detailMixte.jourKm.toFixed(2)} km ({Math.round(detailMixte.jourMin)} min) × {detailMixte.tarifJourKm.toFixed(2)} €/km = {(detailMixte.jourKm * detailMixte.tarifJourKm).toFixed(2)} € — {detailMixte.pctJour}%
-                            </div>
-                          )}
-                          {detailMixte.nuitKm > 0 && (
-                            <div>
-                              🌙 Nuit : {detailMixte.nuitKm.toFixed(2)} km ({Math.round(detailMixte.nuitMin)} min) × {detailMixte.tarifNuitKm.toFixed(2)} €/km = {(detailMixte.nuitKm * detailMixte.tarifNuitKm).toFixed(2)} € — {detailMixte.pctNuit}%
-                            </div>
-                          )}
-                          <div style={{ marginTop: 6, fontWeight: 700, color: "#f5c842" }}>
-                            Total : {detailMixte.prix.toFixed(2)} €
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
                 </div>
+              )}
+
+              {/* Détail du calcul mixte */}
+              {orsResult && detailCalc && (
+                <details
+                  style={{
+                    marginTop: 8,
+                    padding: "10px 14px",
+                    background: "rgba(15,23,42,0.5)",
+                    borderRadius: 10,
+                    border: "1px solid rgba(148,163,184,0.2)",
+                    fontSize: 12,
+                    color: "#cbd5e1",
+                  }}
+                >
+                  <summary style={{ cursor: "pointer", color: "#f5c842", fontWeight: 600 }}>
+                    🧮 Détail du calcul
+                  </summary>
+                  <div style={{ marginTop: 10, display: "grid", gap: 6 }}>
+                    <div style={{ color: "#94a3b8" }}>
+                      Distance totale : <b style={{ color: "#f5f5f5" }}>{orsResult.distanceKm.toFixed(2)} km</b>
+                      {" · "}Durée : <b style={{ color: "#f5f5f5" }}>{Math.round(orsResult.dureeS / 60)} min</b>
+                    </div>
+                    <div style={{ height: 1, background: "rgba(148,163,184,0.15)", margin: "4px 0" }} />
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span>Prise en charge</span>
+                      <b style={{ color: "#f5f5f5" }}>{PRISE.toFixed(2)} €</b>
+                    </div>
+                    {detailCalc.jourKm > 0 && (
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "#fbbf24" }}>
+                          ☀️ Jour : {detailCalc.jourKm.toFixed(2)} km ({Math.round(detailCalc.jourMin)} min) ×{" "}
+                          {TARIF_JOUR_KM.toFixed(2)} €/km — <b>{detailCalc.pctJour}%</b>
+                        </span>
+                        <b style={{ color: "#f5f5f5" }}>{(detailCalc.jourKm * TARIF_JOUR_KM).toFixed(2)} €</b>
+                      </div>
+                    )}
+                    {detailCalc.nuitKm > 0 && (
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "#818cf8" }}>
+                          🌙 Nuit : {detailCalc.nuitKm.toFixed(2)} km ({Math.round(detailCalc.nuitMin)} min) ×{" "}
+                          {TARIF_NUIT_KM.toFixed(2)} €/km — <b>{detailCalc.pctNuit}%</b>
+                        </span>
+                        <b style={{ color: "#f5f5f5" }}>{(detailCalc.nuitKm * TARIF_NUIT_KM).toFixed(2)} €</b>
+                      </div>
+                    )}
+                    <div style={{ height: 1, background: "rgba(148,163,184,0.15)", margin: "4px 0" }} />
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                      <b style={{ color: "#f5c842" }}>Total estimé</b>
+                      <b style={{ color: "#f5c842" }}>{detailCalc.total.toFixed(2)} €</b>
+                    </div>
+                    {detailCalc.jourKm > 0 && detailCalc.nuitKm > 0 && (
+                      <div style={{ color: "#94a3b8", fontSize: 11, marginTop: 4, fontStyle: "italic" }}>
+                        Prorata calculé minute par minute selon le passage de 7h ou 19h (heure de Paris).
+                      </div>
+                    )}
+                    <div style={{ color: "#94a3b8", fontSize: 11 }}>
+                      Règle : 7h–19h = tarif jour · 19h–7h, dimanche et jours fériés = tarif nuit.
+                    </div>
+                  </div>
+                </details>
               )}
               {calcLoading && !orsResult && (
                 <div style={{ color: "#cbd5e1", fontSize: 12, marginTop: 8, textAlign: "center" }}>

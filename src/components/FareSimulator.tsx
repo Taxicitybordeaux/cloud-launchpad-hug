@@ -21,6 +21,15 @@ function formatEUR(value: number) {
   }).format(value);
 }
 
+function parisHour(date: Date): number {
+  const parts = new Intl.DateTimeFormat("fr-FR", {
+    timeZone: "Europe/Paris",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  return parseInt(parts.find((p) => p.type === "hour")?.value ?? "0", 10) % 24;
+}
+
 // ─── Tarif mixte ─────────────────────────────────────────────
 /**
  * Étant donné une heure de départ et une durée de trajet (secondes),
@@ -29,7 +38,7 @@ function formatEUR(value: number) {
  */
 function computeMixedRate(departure: Date, durationSec: number): number {
   if (durationSec <= 0) {
-    const h = departure.getHours();
+    const h = parisHour(departure);
     return h >= 7 && h < 19 ? RATE_DAY : RATE_NIGHT;
   }
 
@@ -42,7 +51,7 @@ function computeMixedRate(departure: Date, durationSec: number): number {
 
   while (cursor < end) {
     const slice = Math.min(STEP, end - cursor);
-    const h = new Date(cursor).getHours();
+    const h = parisHour(new Date(cursor));
     if (h >= 7 && h < 19) dayMs += slice;
     else nightMs += slice;
     cursor += slice;
@@ -218,7 +227,8 @@ export function FareSimulator() {
     return () => clearInterval(id);
   }, []);
 
-  const isDay = now.getHours() >= 7 && now.getHours() < 19;
+  const currentParisHour = parisHour(now);
+  const isDay = currentParisHour >= 7 && currentParisHour < 19;
   const periodLabel = isDay
     ? `${t("sim.period_day")} ${formatEUR(RATE_DAY)} / km`
     : `${t("sim.period_night")} ${formatEUR(RATE_NIGHT)} / km`;

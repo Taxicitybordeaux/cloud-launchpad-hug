@@ -15,6 +15,8 @@ const OSM_TILE_OPTIONS = { attribution: "© OpenStreetMap contributors", maxZoom
 export const Route = createFileRoute("/suivi/$id")({
   validateSearch: (search: Record<string, unknown>) => ({
     gps: search.gps === "1" ? "1" : undefined,
+    // rid = UUID natif de la réservation, passé par le dashboard lors de l'ouverture
+    // de la page chauffeur → permet le lookup direct si la propagation DB est tardive.
     rid: typeof search.rid === "string" && search.rid.length === 36 ? search.rid : undefined,
   }),
   head: () => ({
@@ -54,12 +56,18 @@ function HelpPanel({ reservationId, onClose }: { reservationId: string; onClose:
       q: "Le prix affiché est-il définitif ?",
       a: "Non, c'est une estimation. Le compteur homologué fait foi à l'arrivée.",
     },
-    { q: "Mon chauffeur ne répond pas ?", a: "Appelez directement le 06 73 07 23 22 disponible 7j/7 · 24h/24." },
+    {
+      q: "Mon chauffeur ne répond pas ?",
+      a: "Appelez directement le 06 73 07 23 22 disponible 7j/7 · 24h/24.",
+    },
     {
       q: "Je ne vois pas les infos départ/destination ?",
       a: "Elles sont finalisées par notre équipe et apparaîtront automatiquement dès validation.",
     },
-    { q: "Comment annuler ma course ?", a: "Contactez-nous au 06 73 07 23 22 ou via WhatsApp ci-dessous." },
+    {
+      q: "Comment annuler ma course ?",
+      a: "Contactez-nous au 06 73 07 23 22 ou via WhatsApp ci-dessous.",
+    },
   ];
 
   const sendContact = () => {
@@ -96,8 +104,22 @@ function HelpPanel({ reservationId, onClose }: { reservationId: string; onClose:
           overflow: "auto",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18, color: "#f8fafc" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 20,
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "'Syne',sans-serif",
+              fontWeight: 800,
+              fontSize: 18,
+              color: "#f8fafc",
+            }}
+          >
             🆘 Besoin d'aide ?
           </div>
           <button
@@ -192,7 +214,12 @@ function HelpPanel({ reservationId, onClose }: { reservationId: string; onClose:
             ) : (
               <>
                 <div
-                  style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "#475569", marginBottom: 10 }}
+                  style={{
+                    fontFamily: "'JetBrains Mono',monospace",
+                    fontSize: 11,
+                    color: "#475569",
+                    marginBottom: 10,
+                  }}
                 >
                   ID Réservation: {reservationId.slice(0, 12)}…
                 </div>
@@ -266,13 +293,13 @@ interface Reservation {
   created_at?: string | null;
   route_coords?: any;
   route_label?: string | null;
+  gps_validated_at?: string | null;
 }
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 const BORDEAUX_CENTER: [number, number] = [44.8378, -0.5792];
 const ARRIVAL_THRESHOLD_M = 120;
-const MAX_TRACKING_DRIVER_GPS_ACCURACY_M = 1500;
-const MAX_TRACKING_DRIVER_DISTANCE_FROM_BORDEAUX_M = 130000;
+const CASE_SUBTITLE_COLOR = "#f8fafc";
 const shownIncompleteToast = new Set<string>();
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -301,82 +328,6 @@ function distMeters(a: { lat: number; lng: number }, b: { lat: number; lng: numb
   return Math.sqrt(x * x + y * y) * R;
 }
 
-function isReliableDriverGps(
-  data:
-    | { latitude?: number | null; longitude?: number | null; is_active?: boolean | null; accuracy?: number | null }
-    | null
-    | undefined,
-): data is { latitude: number; longitude: number; is_active: true; accuracy?: number | null } {
-  if (!data?.is_active || data.latitude == null || data.longitude == null) return false;
-  if (!Number.isFinite(data.latitude) || !Number.isFinite(data.longitude)) return false;
-  if (data.latitude === 0 && data.longitude === 0) return false;
-  if (
-    typeof data.accuracy === "number" &&
-    Number.isFinite(data.accuracy) &&
-    data.accuracy > MAX_TRACKING_DRIVER_GPS_ACCURACY_M
-  )
-    return false;
-  return (
-    distMeters({ lat: data.latitude, lng: data.longitude }, { lat: BORDEAUX_CENTER[0], lng: BORDEAUX_CENTER[1] }) <=
-    MAX_TRACKING_DRIVER_DISTANCE_FROM_BORDEAUX_M
-  );
-}
-
-function closestIndexOnRoute(lat: number, lng: number, coords: [number, number][]) {
-  let best = 0,
-    bestD = Infinity;
-  for (let i = 0; i < coords.length; i++) {
-    const d = distMeters({ lat, lng }, { lat: coords[i][0], lng: coords[i][1] });
-    if (d < bestD) {
-      bestD = d;
-      best = i;
-    }
-  }
-  return best;
-}
-
-function ease(t: number) {
-  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-}
-
-// ── Leaflet loader ────────────────────────────────────────────────────────────
-function loadLeaflet(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if ((window as any).L) {
-      resolve();
-      return;
-    }
-    if (!document.getElementById("leaflet-css")) {
-      const l = document.createElement("link");
-      l.id = "leaflet-css";
-      l.rel = "stylesheet";
-      l.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-      document.head.appendChild(l);
-    }
-    const existing = document.getElementById("leaflet-js") as HTMLScriptElement | null;
-    if (existing) {
-      const poll = setInterval(() => {
-        if ((window as any).L) {
-          clearInterval(poll);
-          resolve();
-        }
-      }, 50);
-      setTimeout(() => {
-        clearInterval(poll);
-        (window as any).L ? resolve() : reject(new Error("Leaflet timeout"));
-      }, 8000);
-      return;
-    }
-    const s = document.createElement("script");
-    s.id = "leaflet-js";
-    s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("Leaflet load error"));
-    document.head.appendChild(s);
-  });
-}
-
-// ── Types GPS ─────────────────────────────────────────────────────────────────
 type DriverGpsRecord = {
   latitude?: number | null;
   longitude?: number | null;
@@ -395,45 +346,78 @@ function analyzeDriverGps(data: DriverGpsRecord | null | undefined): {
   positionAt: Date | null;
   heartbeatAt: Date | null;
 } {
+  // updated_at peut être absent des payloads Realtime partiels (replica identity default).
+  // On utilise heartbeat_at en priorité pour la fraîcheur, updated_at en fallback.
   const positionAt = data?.updated_at ? new Date(data.updated_at) : null;
   const heartbeatAt = data?.heartbeat_at ? new Date(data.heartbeat_at) : positionAt;
+  // Signal de fraîcheur : le plus récent entre heartbeat_at et updated_at
   const freshnessAt =
     heartbeatAt && positionAt
       ? heartbeatAt.getTime() > positionAt.getTime()
         ? heartbeatAt
         : positionAt
       : (heartbeatAt ?? positionAt);
+
   if (!data) return { ok: false, reason: "Aucune ligne GPS chauffeur trouvée.", positionAt, heartbeatAt };
   if (!data.is_active)
-    return { ok: false, reason: "GPS chauffeur désactivé dans le dashboard.", positionAt, heartbeatAt };
-  if (data.latitude == null || data.longitude == null)
-    return { ok: false, reason: "GPS actif, en attente du premier point latitude/longitude.", positionAt, heartbeatAt };
+    return {
+      ok: false,
+      reason: "GPS chauffeur désactivé dans le dashboard.",
+      positionAt,
+      heartbeatAt,
+    };
+  if (data.latitude == null || data.longitude == null) {
+    return {
+      ok: false,
+      reason: "GPS actif, en attente du premier point latitude/longitude.",
+      positionAt,
+      heartbeatAt,
+    };
+  }
   if (
     !Number.isFinite(data.latitude) ||
     !Number.isFinite(data.longitude) ||
     (data.latitude === 0 && data.longitude === 0)
-  )
-    return { ok: false, reason: "Dernière position GPS invalide ignorée.", positionAt, heartbeatAt };
+  ) {
+    return {
+      ok: false,
+      reason: "Dernière position GPS invalide ignorée.",
+      positionAt,
+      heartbeatAt,
+    };
+  }
+  // Vérifier la fraîcheur sur le signal le plus récent (heartbeat_at ou updated_at).
+  // Si les deux sont absents (payload Realtime partiel), on laisse passer — le polling
+  // refera la vérification avec les données complètes depuis la DB.
   if (freshnessAt) {
     const ageMs = Date.now() - freshnessAt.getTime();
-    if (Number.isFinite(ageMs) && ageMs > GPS_STALE_AFTER_MS)
+    if (Number.isFinite(ageMs) && ageMs > GPS_STALE_AFTER_MS) {
       return {
         ok: false,
         reason: "Signal chauffeur trop ancien : aucune activité GPS depuis plus de 20 min.",
         positionAt,
         heartbeatAt,
       };
-    if (Number.isFinite(ageMs) && ageMs > GPS_WARN_AFTER_MS)
+    }
+    // Position reçue mais sans mouvement récent → on garde le taxi affiché.
+    // Dans les bouchons / à un feu rouge, watchPosition peut ne rien émettre :
+    // le heartbeat maintient alors la course active sans couper le suivi.
+    if (Number.isFinite(ageMs) && ageMs > GPS_WARN_AFTER_MS) {
       return {
         ok: true,
         reason: "Dernière position connue conservée : chauffeur probablement immobile ou app en veille.",
         positionAt,
         heartbeatAt,
       };
+    }
   }
   return { ok: true, reason: "Aucun arrêt : GPS chauffeur valide.", positionAt, heartbeatAt };
 }
 
+// ── Helper : lecture driver_gps avec détection RLS ───────────────────────────
+// Supabase retourne { data: null, error: null } quand RLS bloque une ligne
+// (résultat vide sans erreur explicite). On distingue ce cas de l'absence réelle
+// de données en vérifiant si le body est vide et error vaut null.
 async function fetchDriverGps(): Promise<{ data: DriverGpsRecord | null; rlsBlocked: boolean }> {
   const { data, error } = await supabase
     .from("driver_gps")
@@ -441,14 +425,69 @@ async function fetchDriverGps(): Promise<{ data: DriverGpsRecord | null; rlsBloc
     .eq("id", "driver")
     .maybeSingle();
   if (error) {
+    // Erreur RLS explicite (ex: row-level security, permission denied)
     const isRls =
       error.code === "42501" ||
       (error.message ?? "").toLowerCase().includes("permission") ||
       (error.message ?? "").toLowerCase().includes("rls");
-    if (isRls) return { data: null, rlsBlocked: true };
+    if (isRls) {
+      console.warn("[driver_gps] Accès bloqué par RLS :", error.message);
+      return { data: null, rlsBlocked: true };
+    }
     return { data: null, rlsBlocked: false };
   }
   return { data: data ?? null, rlsBlocked: false };
+}
+
+function loadLeaflet(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if ((window as any).L) {
+      resolve();
+      return;
+    }
+    if (!document.getElementById("leaflet-css")) {
+      const l = document.createElement("link");
+      l.id = "leaflet-css";
+      l.rel = "stylesheet";
+      l.href = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css";
+      document.head.appendChild(l);
+    }
+    const existing = document.getElementById("leaflet-js") as HTMLScriptElement | null;
+    if (existing) {
+      // Fix #2 : poll + timeout doivent se nettoyer mutuellement pour éviter
+      // toute fuite et garantir un resolve/reject unique.
+      let settled = false;
+      let pollId: ReturnType<typeof setInterval> | null = null;
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      const cleanup = () => {
+        if (pollId) clearInterval(pollId);
+        if (timeoutId) clearTimeout(timeoutId);
+        pollId = null;
+        timeoutId = null;
+      };
+      pollId = setInterval(() => {
+        if (settled) return;
+        if ((window as any).L) {
+          settled = true;
+          cleanup();
+          resolve();
+        }
+      }, 50);
+      timeoutId = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        (window as any).L ? resolve() : reject(new Error("Leaflet timeout"));
+      }, 8000);
+      return;
+    }
+    const s = document.createElement("script");
+    s.id = "leaflet-js";
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error("Leaflet load error"));
+    document.head.appendChild(s);
+  });
 }
 
 // ── Composant principal ───────────────────────────────────────────────────────
@@ -458,12 +497,14 @@ function SuiviPage() {
   const notifyStatusFn = useServerFn(notifyReservationStatus);
   const [statusBusy, setStatusBusy] = useState<null | "arrived" | "completed">(null);
 
+
+
   // ── États ─────────────────────────────────────────────────────────────────
   const [resa, setResa] = useState<Reservation | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadStep, setLoadStep] = useState(0);
   const [elapsed, setElapsed] = useState(0);
-  const [taxiPos, setTaxiPos] = useState<{ lat: number; lng: number } | null>(null);
+  const [driverPos, setDriverPos] = useState<{ lat: number; lng: number } | null>(null);
   const [eta, setEta] = useState<number | null>(null);
   // [FUSION] totalKm depuis tracking — pour la barre de progression départ→destination
   const [totalKm, setTotalKm] = useState<number | null>(null);
@@ -472,15 +513,28 @@ function SuiviPage() {
   const [shareMsg, setShareMsg] = useState("");
   const [courseTerminee, setCourseTerminee] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [userPanned, setUserPanned] = useState(false);
+
   const [mapHeight, setMapHeight] = useState(260);
   const [retryNonce, setRetryNonce] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-
-  // ── Mode chauffeur ────────────────────────────────────────────────────────
+  // ── Mode chauffeur — auto si ?gps=1 (notif push) ou triple-tap ──────────────
   const { gps: gpsParam, rid: ridParam } = Route.useSearch();
-  const isDriver = !!ridParam;
+  const [isDriverMode, setIsDriverMode] = useState(gpsParam === "1");
+  const driverTapCountRef = useRef(0);
+  const driverTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleDriverTripleTap = () => {
+    driverTapCountRef.current += 1;
+    if (driverTapTimerRef.current) clearTimeout(driverTapTimerRef.current);
+    if (driverTapCountRef.current >= 3) {
+      driverTapCountRef.current = 0;
+      setIsDriverMode(true);
+    } else {
+      driverTapTimerRef.current = setTimeout(() => {
+        driverTapCountRef.current = 0;
+      }, 800);
+    }
+  };
   const [driverGpsActive, setDriverGpsActive] = useState(gpsParam === "1");
   const [driverGpsStatus, setDriverGpsStatus] = useState<
     "idle" | "starting" | "active" | "weak" | "denied" | "background" | "error"
@@ -505,6 +559,45 @@ function SuiviPage() {
   const bgKeepaliveRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pushGpsRef = useRef<((coords: GeolocationCoordinates) => void) | null>(null);
   const handleErrorRef = useRef<((err: GeolocationPositionError) => void) | null>(null);
+
+  // ── Audio silencieux iOS — maintient la page active en arrière-plan ────────
+  // iOS Safari suspend les timers et watchPosition après ~30s en arrière-plan.
+  // Jouer un son silencieux en boucle force le moteur audio à rester actif,
+  // ce qui empêche la suspension complète de la page.
+  const startSilentAudio = useCallback(() => {
+    if (silentAudioRef.current) return; // déjà actif
+    try {
+      const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      gain.gain.value = 0.001; // quasi-silence — inaudible mais non nul (iOS coupe le silence total)
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.start();
+      silentAudioRef.current = { ctx, oscillator, gain };
+    } catch {}
+  }, []);
+
+  const stopSilentAudio = useCallback(() => {
+    try {
+      silentAudioRef.current?.oscillator?.stop?.();
+      silentAudioRef.current?.ctx?.close?.();
+    } catch {}
+    silentAudioRef.current = null;
+  }, []);
+  const driverGpsActiveRef = useRef(false);
+  const driverSignalsSentRef = useRef(0);
+  const driverErrorsRef = useRef(0);
+  const driverLastHeartbeatRef = useRef<number | null>(null);
+
+  // ⚠️ addDriverLog est un alias de addLog — NE PAS dupliquer la logique ici.
+  // addLog (ligne ~2098) est la seule fonction qui met à jour driverDebugRef.current,
+  // indispensable pour le filtre anti-saut GPS dans pushGps. Toute écriture via
+  // addDriverLog sans passer par addLog laissait driverDebugRef périmé.
+  // addLog est déclaré plus bas ; on le définit ici comme ref-forward pour éviter
+  // la dépendance circulaire de useCallback.
   const addLogRef = useRef<(msg: string, type?: "ok" | "warn" | "err") => void>(() => {});
   const addDriverLog = useCallback((msg: string, type: "ok" | "warn" | "err" = "ok") => {
     addLogRef.current(msg, type);
@@ -523,20 +616,58 @@ function SuiviPage() {
     const time = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     setRealtimeEvents((prev) => [{ time, kind, msg }, ...prev].slice(0, 25));
   }, []);
-  const driverGpsActiveRef = useRef(false);
-  const driverSignalsSentRef = useRef(0);
-  const driverErrorsRef = useRef(0);
-  const driverLastHeartbeatRef = useRef<number | null>(null);
+
+  const [error, setError] = useState<null | {
+    code: "invalid" | "expired" | "notfound";
+    title: string;
+    message: string;
+  }>(null);
+
+  const { status: pushStatus, subscribe } = usePushNotifications();
+
+  // ── Refs carte ─────────────────────────────────────────────────────────────
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInst = useRef<any>(null);
+  const mapInitializing = useRef(false);
+  const markerRef = useRef<any>(null);
+  const routeLayer = useRef<any>(null);
+  const routeOutline = useRef<any>(null);
+  const tripLayer = useRef<any>(null);
+  const tripOutline = useRef<any>(null);
+  const fromMarker = useRef<any>(null);
+  const toMarker = useRef<any>(null);
+  const lastDriverPos = useRef<{ lat: number; lng: number } | null>(null);
+  const initialZoom = useRef<number | null>(null);
+
+  // Refs data
+  const depGeoRef = useRef<{ lat: number; lng: number } | null>(null);
+  // arrGeoRef supprimé (#2) : destCoordsRef ([lat,lng]) fait office de ref destination unique.
+  const destCoordsRef = useRef<[number, number] | null>(null);
+  const pickupCoordsRef = useRef<[number, number] | null>(null);
+  const resaIdRef = useRef<string>("");
+  const gpsIdRef = useRef<string>("driver");
+  const modeRef = useRef<"single" | "multi">("single");
+  const channelRef = useRef<any>(null);
+  const subscribingRef = useRef(false); // #7 : anti-concurrence subscribeRealtime
+  const pollingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const connectionStateRef = useRef<"connected" | "disconnected">("disconnected");
+  const notifScheduledRef = useRef(false);
+  const pickupNotifTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const lastUpdateRef = useRef<Date | null>(null);
   const gpsDataRef = useRef<DriverGpsRecord | null>(null);
   const lastEtaAtRef = useRef<number>(0);
   const enRouteSinceRef = useRef<number | null>(null);
   const [, setGpsTick] = useState(0);
 
+  // ── Tick pour rafraîchir la couleur de l'indicateur GPS ─────────────────
   useEffect(() => {
     const t = setInterval(() => setGpsTick((n) => (n + 1) % 1000000), 5000);
     return () => clearInterval(t);
   }, []);
+
+  // ── Sync lastUpdateRef ──────────────────────────────────────────────────
   useEffect(() => {
     lastUpdateRef.current = lastUpdate;
   }, [lastUpdate]);
@@ -554,77 +685,6 @@ function SuiviPage() {
     });
     return analysis;
   }, []);
-  const [error, setError] = useState<null | {
-    code: "invalid" | "expired" | "notfound";
-    title: string;
-    message: string;
-  }>(null);
-  // [FUSION] deadzone & autoResume persistés dans localStorage (depuis tracking)
-  const [deadZonePct, setDeadZonePct] = useState<number>(() => {
-    if (typeof window === "undefined") return 60;
-    const v = Number(window.localStorage.getItem("tcb_tracking_deadzone"));
-    return Number.isFinite(v) && v >= 30 && v <= 90 ? v : 60;
-  });
-  const [autoResume, setAutoResume] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    return window.localStorage.getItem("tcb_tracking_autoresume") !== "0";
-  });
-  useEffect(() => {
-    try {
-      window.localStorage.setItem("tcb_tracking_deadzone", String(deadZonePct));
-    } catch {}
-  }, [deadZonePct]);
-  useEffect(() => {
-    try {
-      window.localStorage.setItem("tcb_tracking_autoresume", autoResume ? "1" : "0");
-    } catch {}
-  }, [autoResume]);
-
-  const { status: pushStatus, subscribe } = usePushNotifications();
-
-  // ── Refs carte ─────────────────────────────────────────────────────────────
-  const mapRef = useRef<HTMLDivElement>(null);
-  const mapInst = useRef<any>(null);
-  const mapInitializing = useRef(false);
-  const markerRef = useRef<any>(null);
-  const routeLayer = useRef<any>(null);
-  const routeOutline = useRef<any>(null);
-  const tripLayer = useRef<any>(null);
-  const tripOutline = useRef<any>(null);
-  const approachLayer = useRef<any>(null);
-  const fromMarker = useRef<any>(null);
-  const toMarker = useRef<any>(null);
-  const approachCoords = useRef<[number, number][]>([]);
-  const lastAppliedPos = useRef<{ lat: number; lng: number; t: number } | null>(null);
-  const lastApproachAt = useRef<number>(0);
-  const animFrame = useRef<number | null>(null);
-  const lastDriverPos = useRef<{ lat: number; lng: number } | null>(null);
-  const initialZoom = useRef<number | null>(null);
-  const userPannedRef = useRef(false);
-  const autoResumeRef = useRef(true);
-
-  // Refs data
-  const depGeoRef = useRef<{ lat: number; lng: number } | null>(null);
-  const arrGeoRef = useRef<{ lat: number; lng: number } | null>(null);
-  const destCoordsRef = useRef<[number, number] | null>(null);
-  const pickupCoordsRef = useRef<[number, number] | null>(null);
-  const resaIdRef = useRef<string>("");
-  const gpsIdRef = useRef<string>("driver");
-  const modeRef = useRef<"single" | "multi">("single");
-  const channelRef = useRef<any>(null);
-  const subscribingRef = useRef(false);
-  const pollingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const connectionStateRef = useRef<"connected" | "disconnected">("disconnected");
-  const notifScheduledRef = useRef(false);
-  const pickupNotifTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    userPannedRef.current = userPanned;
-  }, [userPanned]);
-  useEffect(() => {
-    autoResumeRef.current = autoResume;
-  }, [autoResume]);
 
   // ── Hauteur carte dynamique (iOS Safari) ────────────────────────────────
   useEffect(() => {
@@ -637,39 +697,6 @@ function SuiviPage() {
       window.removeEventListener("orientationchange", update);
     };
   }, []);
-
-  // ── Animation fluide marqueur — durée adaptative (depuis tracking) ───────
-  const animateMarkerTo = (toLat: number, toLng: number) => {
-    const marker = markerRef.current;
-    if (!marker) return;
-    if (animFrame.current !== null) {
-      cancelAnimationFrame(animFrame.current);
-      animFrame.current = null;
-    }
-    const from = marker.getLatLng();
-    const fromLat = from.lat,
-      fromLng = from.lng;
-    // [FUSION] durée adaptative selon distance (700ms–2200ms) au lieu de 1200ms fixe
-    const dist = distMeters({ lat: fromLat, lng: fromLng }, { lat: toLat, lng: toLng });
-    const duration = Math.min(2200, Math.max(700, dist * 25));
-    const startT = performance.now();
-    const step = (now: number) => {
-      const t = Math.min(1, (now - startT) / duration);
-      const k = ease(t);
-      const lat = fromLat + (toLat - fromLat) * k;
-      const lng = fromLng + (toLng - fromLng) * k;
-      marker.setLatLng([lat, lng]);
-      const route = approachCoords.current;
-      if (route.length > 1 && approachLayer.current) {
-        const idx = closestIndexOnRoute(lat, lng, route);
-        const tail: [number, number][] = [[lat, lng], ...route.slice(idx + 1)];
-        if (tail.length >= 2) approachLayer.current.setLatLngs(tail);
-      }
-      if (t < 1) animFrame.current = requestAnimationFrame(step);
-      else animFrame.current = null;
-    };
-    animFrame.current = requestAnimationFrame(step);
-  };
 
   // ── Geocode helper avec retry (3 tentatives, délai exponentiel) ─────────
   const geocode = async (q: string): Promise<[number, number] | null> => {
@@ -693,40 +720,6 @@ function SuiviPage() {
       if (c) return [c.lat, c.lng];
     } catch {}
     return null;
-  };
-
-  // ── Tracé ligne bleue chauffeur → prise en charge ────────────────────────
-  const drawApproachLine = async (driverLat: number, driverLng: number, pickup: [number, number]) => {
-    const map = mapInst.current;
-    const L = (window as any).L;
-    if (!map || !L) return;
-    try {
-      const routeApproach = await getRouteGeoCoords([driverLng, driverLat], [pickup[1], pickup[0]]);
-      const route = routeApproach;
-      const coords: [number, number][] = route?.coords ?? [[driverLat, driverLng], pickup];
-      approachCoords.current = coords;
-      if (approachLayer.current) approachLayer.current.setLatLngs(coords);
-      else
-        approachLayer.current = L.polyline(coords, {
-          color: "#0ea5e9",
-          weight: 5,
-          opacity: 0.95,
-          lineCap: "round",
-          lineJoin: "round",
-        }).addTo(map);
-    } catch {
-      const fallback: [number, number][] = [[driverLat, driverLng], pickup];
-      approachCoords.current = fallback;
-      if (approachLayer.current) approachLayer.current.setLatLngs(fallback);
-      else
-        approachLayer.current = L.polyline(fallback, {
-          color: "#0ea5e9",
-          weight: 5,
-          opacity: 0.95,
-          lineCap: "round",
-          lineJoin: "round",
-        }).addTo(map);
-    }
   };
 
   // ── ETA — stocke aussi les km restants (depuis tracking) ────────────────
@@ -760,138 +753,75 @@ function SuiviPage() {
 
   // ── Init carte ───────────────────────────────────────────────────────────
   const initMap = async (lat: number, lng: number) => {
+    // Fix #1 : guard atomique sur les deux flags AVANT et APRÈS le await loadLeaflet().
+    // Sans la double vérification, deux appelants (polling + realtime) peuvent passer
+    // le 1er guard puis créer deux cartes sur le même div pendant que loadLeaflet résout.
+    if (mapInitializing.current || mapInst.current) return;
+    mapInitializing.current = true;
     try {
       await loadLeaflet();
     } catch {
+      mapInitializing.current = false;
+      return;
+    }
+    // Re-check après await : la map a pu être créée ou détruite entre-temps.
+    if (mapInst.current) {
+      mapInitializing.current = false;
       return;
     }
     const L = (window as any).L;
-    if (!L || !mapRef.current) return;
-    if (mapInst.current) {
-      try {
-        mapInst.current.remove();
-      } catch {}
-      mapInst.current = null;
-      markerRef.current = null;
+    if (!L || !mapRef.current) {
+      mapInitializing.current = false;
+      return;
     }
     const map = L.map(mapRef.current, { center: [lat, lng], zoom: 14, zoomControl: false });
     initialZoom.current = 14;
-    map.on("dragstart", () => setUserPanned(true));
-    map.on("zoomstart", (e: any) => {
-      if (e?.hard !== false) setUserPanned(true);
-    });
     L.tileLayer(OSM_TILE_URL, OSM_TILE_OPTIONS).addTo(map);
     L.control.zoom({ position: "bottomright" }).addTo(map);
     const icon = L.divIcon({
       className: "",
-      html: `<div style="width:48px;height:48px;border-radius:50%;border:3px solid #f5c842;overflow:hidden;box-shadow:0 0 0 0 rgba(245,200,66,0);animation:driverPulse 2s infinite"><img src="${TAXI_ICON_URI}" style="width:100%;height:100%;object-fit:cover" /></div>`,
+      html: `<div style="width:48px;height:48px;border-radius:50%;border:3px solid #f5c842;overflow:hidden;box-shadow:0 0 0 0 rgba(245,200,66,0);animation:driverPulse 2s infinite;background:#1a1a2e;display:flex;align-items:center;justify-content:center;font-size:26px">🚕</div>`,
       iconSize: [48, 48],
       iconAnchor: [24, 24],
     });
     markerRef.current = L.marker([lat, lng], { icon }).addTo(map);
     mapInst.current = map;
+    mapInitializing.current = false; // libéré après l'assignation de mapInst + markerRef
     setTimeout(() => map.invalidateSize({ animate: false }), 300);
     setTimeout(() => map.invalidateSize({ animate: false }), 500);
   };
 
-  // ── Appliquer position chauffeur ────────────────────────────────────────
-  const applyDriverPosition = useCallback(
-    async (lat: number, lng: number) => {
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-      const map = mapInst.current;
-      if (!map) {
-        await initMap(lat, lng);
-        lastAppliedPos.current = { lat, lng, t: Date.now() };
-        lastDriverPos.current = { lat, lng };
-        setTaxiPos({ lat, lng });
-        // Après initMap, redessiner le trajet si pas encore fait
-        if (!destCoordsRef.current && resaIdRef.current) {
-          const { data: rData } = await supabase
-            .from("reservations")
-            .select("depart,arrivee,destination,route_coords")
-            .eq("id", resaIdRef.current)
-            .maybeSingle();
-          if (rData?.depart && (rData?.destination || rData?.arrivee)) {
-            await drawTripRoute(
-              rData.depart,
-              rData.destination || rData.arrivee!,
-              rData.route_coords as [number, number][] | null,
-            );
-          }
-        }
-        await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
-        return;
-      }
-      const now = Date.now();
-      const last = lastAppliedPos.current;
-      if (last) {
-        const moved = distMeters(last, { lat, lng });
-        // Ignorer seulement si : mouvement < 8m ET mise à jour très récente (< 4s)
-        // → évite les doubles-updates rapides, mais laisse passer si le chauffeur
-        //   est vraiment immobile depuis plus de 4s (on veut quand même recalculer l'ETA)
-        if (moved < 8 && now - last.t < 4000) return;
-      }
-      lastAppliedPos.current = { lat, lng, t: now };
-      lastDriverPos.current = { lat, lng };
-      setTaxiPos({ lat, lng });
+  // Throttle ETA : 1 appel max toutes les 20s, fire-and-forget.
+  // Fix #6 : on accepte un dest explicite (snapshot au moment de l'appel) pour
+  // éviter qu'une mise à jour de destCoordsRef entre deux appels ne fasse calculer
+  // un ETA vers une ancienne destination.
+  const calculateETAThrottled = (lat: number, lng: number, dest?: [number, number] | null) => {
+    const now = Date.now();
+    if (now - lastEtaAtRef.current < 20000) return;
+    lastEtaAtRef.current = now;
+    const target = dest ?? destCoordsRef.current;
+    calculateETA(lat, lng, target ?? undefined).catch(() => {});
+  };
 
-      if (pickupCoordsRef.current && now - lastApproachAt.current > 15000) {
-        lastApproachAt.current = now;
-        drawApproachLine(lat, lng, pickupCoordsRef.current);
-      }
-      animateMarkerTo(lat, lng);
-
-      if (userPannedRef.current) {
-        if (autoResumeRef.current) {
-          try {
-            const bounds = map.getBounds();
-            const sw = bounds.getSouthWest(),
-              ne = bounds.getNorthEast();
-            const margin = (1 - deadZonePct / 100) / 2;
-            const inside =
-              lat >= sw.lat + (ne.lat - sw.lat) * margin &&
-              lat <= ne.lat - (ne.lat - sw.lat) * margin &&
-              lng >= sw.lng + (ne.lng - sw.lng) * margin &&
-              lng <= ne.lng - (ne.lng - sw.lng) * margin;
-            if (inside) {
-              setUserPanned(false);
-              userPannedRef.current = false;
-            }
-          } catch {}
-        }
-        // Toujours passer destCoordsRef.current (valeur fraîche, pas closure)
-        await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
-        return;
-      }
-      try {
-        const c = map.getCenter();
-        if (distMeters({ lat: c.lat, lng: c.lng }, { lat, lng }) < 15) {
-          await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
-          return;
-        }
-        const bounds = map.getBounds();
-        const sw = bounds.getSouthWest(),
-          ne = bounds.getNorthEast();
-        const margin = (1 - deadZonePct / 100) / 2;
-        const outside =
-          lat < sw.lat + (ne.lat - sw.lat) * margin ||
-          lat > ne.lat - (ne.lat - sw.lat) * margin ||
-          lng < sw.lng + (ne.lng - sw.lng) * margin ||
-          lng > ne.lng - (ne.lng - sw.lng) * margin;
-        if (outside) map.panTo([lat, lng], { animate: true, duration: 1.4, easeLinearity: 0.25, noMoveStart: true });
-      } catch {}
-      await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
-    },
-    [deadZonePct],
-  );
-
-  const recenterOnDriver = useCallback(() => {
-    const map = mapInst.current,
-      pos = lastDriverPos.current;
-    if (!map || !pos) return;
-    map.setView([pos.lat, pos.lng], initialZoom.current ?? map.getZoom(), { animate: true, duration: 0.8 });
-    setUserPanned(false);
-  }, []);
+  // ── Sync marker + recentrage carte sur chaque nouvelle position ─────────
+  // Même pattern que le dashboard admin : marker.setLatLng + map.setView direct.
+  useEffect(() => {
+    if (!driverPos || !mapInst.current) return;
+    // Fix #4 : la closure du retry doit relire la dernière position depuis le ref,
+    // pas depuis la closure capturée (qui pourrait être périmée si driverPos a changé).
+    const applyPos = () => {
+      if (!markerRef.current || !mapInst.current) return;
+      const pos = lastDriverPos.current ?? driverPos;
+      const latlng: [number, number] = [pos.lat, pos.lng];
+      markerRef.current.setLatLng(latlng);
+      mapInst.current.setView(latlng, mapInst.current.getZoom());
+    };
+    applyPos();
+    if (!markerRef.current) {
+      const t = setTimeout(applyPos, 400);
+      return () => clearTimeout(t);
+    }
+  }, [driverPos]);
 
   // ── Tracé départ → destination (stocke totalKm) ──────────────────────────
   const drawTripRoute = useCallback(
@@ -899,24 +829,26 @@ function SuiviPage() {
       // Attendre que la carte soit prête (elle peut ne pas l'être encore)
       let map = mapInst.current;
       if (!map) {
-        // Retry pendant 5s max
-        for (let i = 0; i < 10; i++) {
+        // Attendre jusqu'à 8s que la carte soit prête (redirection depuis admin)
+        for (let i = 0; i < 16; i++) {
           await new Promise((r) => setTimeout(r, 500));
           map = mapInst.current;
           if (map) break;
         }
+        if (!map) return;
       }
       const L = (window as any).L;
       if (!map || !L) return;
 
       const [a, b] = await Promise.all([geocode(depart), geocode(destination)]);
-      if (!a || !b) {
-        console.warn("[drawTripRoute] Geocode échoué pour:", !a ? depart : destination);
+      // Re-vérifier après les awaits : la carte peut avoir été détruite (démontage)
+      if (!mapInst.current || !a || !b) {
+        if (!a || !b) console.warn("[drawTripRoute] Geocode échoué pour:", !a ? depart : destination);
         return;
       }
 
       depGeoRef.current = { lat: a[0], lng: a[1] };
-      arrGeoRef.current = { lat: b[0], lng: b[1] };
+      // arrGeoRef supprimé (#2) : destCoordsRef couvre déjà la destination.
       destCoordsRef.current = b;
       pickupCoordsRef.current = a;
 
@@ -983,11 +915,10 @@ function SuiviPage() {
         fromMarker.current = L.marker(a, { icon: depIcon }).addTo(map).bindPopup("📍 Prise en charge");
         toMarker.current = L.marker(b, { icon: destIcon }).addTo(map).bindPopup("🏁 Destination");
 
-        const driverPos = markerRef.current?.getLatLng();
-        if (driverPos) drawApproachLine(driverPos.lat, driverPos.lng, a);
-
         map.invalidateSize();
-        map.fitBounds(L.latLngBounds([...coords, markerRef.current?.getLatLng()].filter(Boolean)).pad(0.2), {
+        map.fitBounds(L.latLngBounds([...coords, markerRef.current?.getLatLng()].filter(Boolean)), {
+          padding: [60, 60],
+          maxZoom: 16,
           animate: true,
           duration: 0.8,
         });
@@ -1004,18 +935,23 @@ function SuiviPage() {
     const pickupMs = new Date(pickupDatetime).getTime();
     const now = Date.now();
     const diff = pickupMs - now;
-    if (diff > 0 && diff <= 30 * 60_000) {
-      toast.warning(`⏰ Prise en charge dans ${Math.round(diff / 60_000)} min`, {
+    if (diff > 0 && diff <= 30 * 60000) {
+      toast.warning(`⏰ Prise en charge dans ${Math.round(diff / 60000)} min`, {
         description: "Préparez-vous ! Le chauffeur arrive bientôt.",
         duration: 8000,
       });
     }
-    const notifMs = pickupMs - 15 * 60_000;
+    const notifMs = pickupMs - 15 * 60000;
     if (notifMs > now) {
       if (typeof Notification !== "undefined" && Notification.permission === "default")
         Notification.requestPermission();
-      setTimeout(() => {
-        const formatted = new Date(pickupDatetime).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+      if (pickupNotifTimerRef.current) clearTimeout(pickupNotifTimerRef.current);
+      pickupNotifTimerRef.current = setTimeout(() => {
+        pickupNotifTimerRef.current = null;
+        const formatted = new Date(pickupDatetime).toLocaleTimeString("fr-FR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
         toast.warning(`🚕 Prise en charge dans 15 min`, {
           description: `Votre taxi est prévu à ${formatted}. Soyez prêt !`,
           duration: 10000,
@@ -1039,17 +975,29 @@ function SuiviPage() {
   }, []);
 
   const startPolling = useCallback(() => {
-    if (pollingTimerRef.current) return;
+    // Toujours stopper l'interval précédent avant d'en créer un nouveau.
+    // L'ancien guard "if return" empêchait le redémarrage propre après un retryNonce.
+    if (pollingTimerRef.current) {
+      clearInterval(pollingTimerRef.current);
+      pollingTimerRef.current = null;
+    }
+    // Source GPS unique : driver_gps — même table que celle écrite par l'admin.
+    // Pas de taxi_positions, pas d'ambiguïté, pas de conflit.
     pollingTimerRef.current = setInterval(async () => {
-      const { data } = await supabase
-        .from("driver_gps")
-        .select("latitude,longitude,accuracy,is_active")
-        .eq("id", "driver")
-        .maybeSingle();
-      if (isReliableDriverGps(data)) {
-        setLastUpdate(new Date());
-        // Si le trajet n'est pas encore tracé, le faire avant d'appliquer la position
-        if (!destCoordsRef.current && resaIdRef.current) {
+      const { data, rlsBlocked } = await fetchDriverGps();
+      if (rlsBlocked) {
+        pushRtEvent("err", "driver_gps: accès refusé (RLS) — polling suspendu");
+        stopPolling();
+        return;
+      }
+      const gpsAnalysis = recordGpsDiagnostic(data, "polling");
+      if (gpsAnalysis.ok && data?.latitude != null && data?.longitude != null) {
+        // Initialiser la carte si elle n'existe pas encore (le chauffeur GPS était actif
+        // avant que la page ait fini de charger, ou Bordeaux_center avait été utilisé)
+        if (!mapInst.current) {
+          await initMap(data.latitude, data.longitude);
+        }
+        if ((!destCoordsRef.current || !fromMarker.current) && resaIdRef.current) {
           const { data: rData } = await supabase
             .from("reservations")
             .select("depart,arrivee,destination,route_coords")
@@ -1063,7 +1011,9 @@ function SuiviPage() {
             );
           }
         }
-        await applyDriverPosition(data.latitude, data.longitude);
+        setDriverPos({ lat: data.latitude, lng: data.longitude });
+        lastDriverPos.current = { lat: data.latitude, lng: data.longitude };
+        calculateETAThrottled(data.latitude, data.longitude);
       }
       if (resaIdRef.current) {
         const { data: r } = await supabase
@@ -1075,104 +1025,215 @@ function SuiviPage() {
           .maybeSingle();
         if (r) setResa((prev) => (prev ? { ...prev, ...r } : prev));
       }
-    }, 5_000);
-  }, [applyDriverPosition, drawTripRoute]);
+    }, 5000);
+  }, [drawTripRoute, recordGpsDiagnostic]);
 
   // ── Realtime ─────────────────────────────────────────────────────────────
   const subscribeRealtime = useCallback(
     (_gpsId: string, resaId: string, _mode: "single" | "multi") => {
-      // Démarre le polling immédiatement comme filet de sécurité
-      startPolling();
+      // #7 : éviter les souscriptions concurrentes (retryNonce + visibilitychange peuvent
+      // se déclencher simultanément). Si une souscription est déjà en cours, on l'ignore.
+      if (subscribingRef.current) {
+        pushRtEvent("status", "subscribeRealtime ignoré (appel concurrent)");
+        return;
+      }
+      subscribingRef.current = true;
 
-      // Nom de channel unique par session pour éviter les collisions entre onglets
-      const sessionSuffix = Math.random().toString(36).slice(2, 8);
+      try {
+        // Nettoyer les channels précédents AVANT d'en créer de nouveaux
+        // (évite les channels dupliqués qui se battent pour la même position)
+        const prev = channelRef.current;
+        if (Array.isArray(prev)) {
+          prev.forEach((c) => c && supabase.removeChannel(c));
+          if (prev.length) pushRtEvent("unsub", `removeChannel ×${prev.length}`);
+        } else if (prev) {
+          supabase.removeChannel(prev);
+          pushRtEvent("unsub", "removeChannel");
+        }
+        channelRef.current = null;
 
-      const gpsChannel = supabase
-        .channel(`suivi-driver-location-${sessionSuffix}`)
-        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "driver_gps" }, async (payload) => {
-          const d = payload.new as any;
-          if (!d.is_active) return;
-          if (isReliableDriverGps(d)) {
-            setLastUpdate(new Date());
-            await applyDriverPosition(d.latitude, d.longitude);
-          }
-        })
-        .on("system", {}, (status: any) => {
-          const s = (status?.status || "").toLowerCase();
-          if (s === "subscribed") {
-            connectionStateRef.current = "connected";
-            stopPolling();
-            if (reconnectTimerRef.current) {
-              clearTimeout(reconnectTimerRef.current);
-              reconnectTimerRef.current = null;
-            }
-          } else if (["channel_error", "timed_out", "closed"].includes(s)) {
-            connectionStateRef.current = "disconnected";
-            startPolling();
-            if (!reconnectTimerRef.current) {
-              reconnectTimerRef.current = setTimeout(() => {
-                reconnectTimerRef.current = null;
-                stopPolling();
-                setRetryNonce((n) => n + 1);
-              }, 10_000);
-            }
-          }
-        })
-        .subscribe();
+        // Stopper puis redémarrer le polling proprement (évite l'ancien interval
+        // qui tournait encore avec une closure périmée après un retryNonce)
+        stopPolling();
+        startPolling();
 
-      const resaChannel = supabase
-        .channel(`suivi-resa-${resaId}-${sessionSuffix}`)
-        .on(
-          "postgres_changes",
-          { event: "UPDATE", schema: "public", table: "reservations", filter: `id=eq.${resaId}` },
-          (payload) => {
-            const r = payload.new as any;
-            const newStatus = (r.status || "").toLowerCase();
-            if (["refusee", "refused", "annulee", "cancelled", "canceled"].includes(newStatus)) {
-              toast.error("Course annulée", { description: "Cette réservation n'est plus active." });
-              setError({
-                code: "expired",
-                title: "Course annulée ou refusée",
-                message: "Cette course n'est plus active.",
-              });
-              return;
-            }
-            if (["terminee", "terminée", "completed", "done"].includes(newStatus)) {
-              toast.info("Course terminée", { description: "Merci d'avoir voyagé avec Taxi City Bordeaux." });
-              setCourseTerminee(true);
-              return;
-            }
-            setResa((prev) => {
-              if (!prev) return prev;
-              const next = { ...prev, ...r };
-              if (prev.prix_estime !== r.prix_estime && r.prix_estime)
-                toast.info("💶 Prix mis à jour", { description: `${r.prix_estime} €` });
-              if (prev.destination !== r.destination && r.destination)
-                toast.info("📍 Destination mise à jour", { description: r.destination });
-              if (
-                next.depart &&
-                (next.destination || next.arrivee) &&
-                (prev.depart !== next.depart ||
-                  prev.destination !== next.destination ||
-                  JSON.stringify(prev.route_coords) !== JSON.stringify(r.route_coords))
-              ) {
-                // Redessiner le tracé puis recalculer l'ETA avec la nouvelle destination
-                drawTripRoute(next.depart, next.destination || next.arrivee!, next.route_coords).then(() => {
-                  const driverPos = lastDriverPos.current;
-                  if (driverPos && destCoordsRef.current) {
-                    calculateETA(driverPos.lat, driverPos.lng, destCoordsRef.current);
-                  }
-                });
+        // Nom de channel unique par session pour éviter les collisions entre onglets
+        const sessionSuffix = Math.random().toString(36).slice(2, 8);
+        pushRtEvent("sub", `subscribe suivi-driver-location-${sessionSuffix}`);
+
+        // Source GPS unique : driver_gps.
+        // L'admin écrit dedans, le suivi l'écoute via Realtime + polling.
+        const gpsChannel = supabase
+          .channel(`suivi-driver-location-${sessionSuffix}`)
+          .on(
+            "postgres_changes",
+            // INSERT + UPDATE : upsert émet INSERT si la ligne n'existait pas encore.
+            // Sans ça, le 1er signal GPS du chauffeur (après une page fraîche) est ignoré.
+            { event: "INSERT", schema: "public", table: "driver_gps" },
+            async (payload) => {
+              const d = payload.new as any;
+              const gpsAnalysis = recordGpsDiagnostic(d, "realtime INSERT");
+              if (gpsAnalysis.ok) {
+                if (!mapInst.current && d.latitude != null && d.longitude != null) {
+                  await initMap(d.latitude, d.longitude);
+                }
+                setDriverPos({ lat: d.latitude, lng: d.longitude });
+                lastDriverPos.current = { lat: d.latitude, lng: d.longitude };
+                calculateETAThrottled(d.latitude, d.longitude);
+                pushRtEvent("pos", `${d.latitude.toFixed(5)}, ${d.longitude.toFixed(5)} (realtime INSERT)`);
+              } else {
+                pushRtEvent("err", `INSERT ignoré: ${gpsAnalysis.reason}`);
               }
-              return next;
-            });
-          },
-        )
-        .subscribe();
+            },
+          )
+          .on("postgres_changes", { event: "UPDATE", schema: "public", table: "driver_gps" }, async (payload) => {
+            const d = payload.new as any;
+            const gpsAnalysis = recordGpsDiagnostic(d, "realtime");
+            if (gpsAnalysis.ok) {
+              setDriverPos({ lat: d.latitude, lng: d.longitude });
+              lastDriverPos.current = { lat: d.latitude, lng: d.longitude };
+              calculateETAThrottled(d.latitude, d.longitude);
+              pushRtEvent("pos", `${d.latitude.toFixed(5)}, ${d.longitude.toFixed(5)} (realtime)`);
+            } else {
+              pushRtEvent("err", `position ignorée: ${gpsAnalysis.reason}`);
+            }
+          })
+          .subscribe((status: any) => {
+            const s = String(status || "").toLowerCase();
+            pushRtEvent("status", `system: ${s || "?"}`);
+            if (s === "subscribed") {
+              connectionStateRef.current = "connected";
+              setTrackingDiag((prev) => ({ ...prev, realtime: "connecté · realtime" }));
+              // Ne PAS couper le polling — il reste actif comme filet de sécurité permanent.
+              // Le realtime est un bonus de rapidité ; si la WS devient silencieuse sans
+              // déclencher d'erreur (réseau mobile, idle), le polling continue à couvrir.
+              if (reconnectTimerRef.current) {
+                clearTimeout(reconnectTimerRef.current);
+                reconnectTimerRef.current = null;
+              }
+            } else if (["channel_error", "timed_out", "closed"].includes(s)) {
+              connectionStateRef.current = "disconnected";
+              setTrackingDiag((prev) => ({ ...prev, realtime: `déconnecté · ${s}` }));
+              pushRtEvent("err", `realtime stoppé: ${s} → fallback polling + retry 10s`);
+              startPolling();
+              if (!reconnectTimerRef.current) {
+                reconnectTimerRef.current = setTimeout(() => {
+                  reconnectTimerRef.current = null;
+                  setRetryNonce((n) => n + 1);
+                }, 10000);
+              }
+            }
+          });
 
-      channelRef.current = [gpsChannel, resaChannel];
+        const resaChannel = supabase
+          .channel(`suivi-resa-${resaId}-${sessionSuffix}`)
+          .on(
+            "postgres_changes",
+            { event: "UPDATE", schema: "public", table: "reservations", filter: `id=eq.${resaId}` },
+            (payload) => {
+              const r = payload.new as any;
+              const newStatus = (r.status || "").toLowerCase();
+              if (["refusee", "refused", "annulee", "cancelled", "canceled"].includes(newStatus)) {
+                toast.error("Course annulée", {
+                  description: "Cette réservation n'est plus active.",
+                });
+                setError({
+                  code: "expired",
+                  title: "Course annulée ou refusée",
+                  message: "Cette course n'est plus active.",
+                });
+                return;
+              }
+              if (["terminee", "terminée", "completed", "done"].includes(newStatus)) {
+                toast.info("Course terminée", {
+                  description: "Merci d'avoir voyagé avec Taxi City Bordeaux.",
+                });
+                setCourseTerminee(true);
+                const targetId = resaIdRef.current || r.id;
+                if (targetId) {
+                  setTimeout(() => navigate({ to: "/fin/$id", params: { id: targetId } }), 600);
+                }
+                return;
+              }
+              setResa((prev) => {
+                if (!prev) return prev;
+                const next = { ...prev, ...r };
+                const prevStatus = (prev.status || "").toLowerCase();
+                if (prevStatus !== newStatus) {
+                  if (newStatus === "accepted") {
+                    toast.success("✅ Course acceptée", {
+                      description: "Votre chauffeur arrive bientôt.",
+                      duration: 6000,
+                    });
+                  } else if (newStatus === "en_route") {
+                    toast.success("🚕 Chauffeur en route", {
+                      description: "Suivez sa position en direct.",
+                      duration: 6000,
+                    });
+                  } else if (newStatus === "arrived") {
+                    toast.success("📍 Chauffeur arrivé", {
+                      description: "Votre taxi vous attend.",
+                      duration: 8000,
+                    });
+                  }
+                }
+                if (prev.prix_estime !== r.prix_estime && r.prix_estime)
+                  toast.info("💶 Prix mis à jour", { description: `${r.prix_estime} €` });
+                if (prev.destination !== r.destination && r.destination)
+                  toast.info("📍 Destination mise à jour", { description: r.destination });
+                if (
+                  next.depart &&
+                  (next.destination || next.arrivee) &&
+                  (prev.depart !== next.depart ||
+                    prev.destination !== next.destination ||
+                    JSON.stringify(prev.route_coords) !== JSON.stringify(r.route_coords))
+                ) {
+                  // Redessiner le tracé puis recalculer l'ETA avec la nouvelle destination
+                  drawTripRoute(next.depart, next.destination || next.arrivee!, next.route_coords).then(() => {
+                    const driverPos = lastDriverPos.current;
+                    if (driverPos && destCoordsRef.current) {
+                      calculateETA(driverPos.lat, driverPos.lng, destCoordsRef.current);
+                    }
+                  });
+                }
+                return next;
+              });
+            },
+          )
+          .subscribe((status: any) => {
+            const s = String(status || "").toLowerCase();
+            pushRtEvent("status", `resa system: ${s || "?"}`);
+            if (s === "subscribed") {
+              // Au moment où la souscription statut redevient active, on relit
+              // immédiatement la réservation pour combler tout UPDATE manqué
+              // pendant la coupure.
+              (async () => {
+                const { data: r } = await supabase
+                  .from("reservations")
+                  .select(
+                    "status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,bagages,distance_km,route_coords,route_label",
+                  )
+                  .eq("id", resaId)
+                  .maybeSingle();
+                if (r) setResa((prev) => (prev ? { ...prev, ...r } : prev));
+              })();
+            } else if (["channel_error", "timed_out", "closed"].includes(s)) {
+              pushRtEvent("err", `resa channel stoppé: ${s} → retry 10s`);
+              if (!reconnectTimerRef.current) {
+                reconnectTimerRef.current = setTimeout(() => {
+                  reconnectTimerRef.current = null;
+                  setRetryNonce((n) => n + 1);
+                }, 10000);
+              }
+            }
+          });
+
+        channelRef.current = [gpsChannel, resaChannel];
+      } finally {
+        subscribingRef.current = false; // #7 : libérer le flag (même en cas d'erreur)
+      }
     },
-    [applyDriverPosition, startPolling, stopPolling, drawTripRoute],
+    [startPolling, stopPolling, drawTripRoute, recordGpsDiagnostic, pushRtEvent],
   );
 
   // ── Chrono chargement ────────────────────────────────────────────────────
@@ -1201,51 +1262,116 @@ function SuiviPage() {
       // 1. Valider l'ID
       const parsed = suiviIdSchema.safeParse(id);
       let r: Reservation | null = null;
+      let lastErr: any = null;
 
       setLoadStep(1);
-      if (parsed.success) {
-        // Chercher d'abord par suivi_id
-        const { data: byTracking } = await (supabase as any)
-          .from("reservations")
-          .select(
-            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,bagages,suivi_id,distance_km,created_at,route_coords,route_label",
-          )
-          .eq("suivi_id", parsed.data)
-          .maybeSingle();
-        if (byTracking) r = byTracking;
+
+      // ── Lookup dual avec retry ────────────────────────────────────────────
+      // Stratégie :
+      //   1. RPC get_reservation_for_suivi(suivi_id) — path normal client
+      //   2. Si miss ET ?rid= présent → même RPC avec l'UUID natif de la réservation.
+      //      Le dashboard passe ?rid=<reservation.id> quand il ouvre la page chauffeur,
+      //      ce qui permet de retrouver la réservation même si la propagation DB
+      //      n'a pas encore rendu le suivi_id visible sur la connexion anon.
+      // Le nombre de tentatives est étendu à 5 pour la page chauffeur (?gps=1)
+      // car elle s'ouvre immédiatement après le UPDATE admin.
+      const rpcLookup = async (key: string): Promise<Reservation | null> => {
+        const { data, error: eRpc } = await (supabase as any).rpc("get_reservation_for_suivi", {
+          p_key: key,
+        });
+        if (eRpc) {
+          lastErr = eRpc;
+          console.warn("[suivi] RPC error pour key:", key.slice(0, 8), eRpc.message);
+          return null;
+        }
+        const row = Array.isArray(data) ? data[0] : data;
+        return (row as Reservation) ?? null;
+      };
+
+      const lookup = async (attempt: number): Promise<Reservation | null> => {
+        const key = parsed.success ? parsed.data : id;
+        console.info(`[suivi] lookup #${attempt + 1} — suivi_id: ${key.slice(0, 8)}`);
+
+        // Tentative 1 : par suivi_id
+        const bysuiviId = await rpcLookup(key);
+        if (bysuiviId) {
+          console.info(
+            "[suivi] ✅ Trouvé par suivi_id, resa.id:",
+            bysuiviId.id?.slice(0, 8),
+            "status:",
+            bysuiviId.status,
+          );
+          return bysuiviId;
+        }
+        console.warn("[suivi] ❌ Miss par suivi_id");
+
+        // Tentative 2 : par UUID natif (?rid=) — page chauffeur uniquement
+        if (ridParam && ridParam.length === 36) {
+          console.info("[suivi] Fallback lookup par rid:", ridParam.slice(0, 8));
+          const byRid = await rpcLookup(ridParam);
+          if (byRid) {
+            console.info("[suivi] ✅ Trouvé par rid, status:", byRid.status);
+            return byRid;
+          }
+          console.warn("[suivi] ❌ Miss par rid aussi");
+        }
+
+        return null;
+      };
+
+      // 5 tentatives si page chauffeur (s'ouvre juste après UPDATE admin),
+      // 3 sinon. Délai 600ms chauffeur, 400ms client.
+      const isDriverPage = gpsParam === "1";
+      const maxAttempts = isDriverPage ? 5 : 3;
+      const retryDelay = isDriverPage ? 600 : 400;
+
+      console.info(
+        "[suivi] Init — id:",
+        id.slice(0, 8),
+        "| gps:",
+        gpsParam,
+        "| rid:",
+        ridParam?.slice(0, 8),
+        "| maxAttempts:",
+        maxAttempts,
+      );
+
+      for (let attempt = 0; attempt < maxAttempts && !r; attempt++) {
+        if (attempt > 0) {
+          console.info(`[suivi] Retry dans ${retryDelay}ms… (${attempt}/${maxAttempts - 1})`);
+          await new Promise((res) => setTimeout(res, retryDelay));
+        }
+        r = await lookup(attempt);
       }
 
-      // Fallback par id direct
       if (!r) {
-        const { data: byId } = await (supabase as any)
-          .from("reservations")
-          .select(
-            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,bagages,suivi_id,distance_km,created_at,route_coords,route_label",
-          )
-          .eq("id", id)
-          .maybeSingle();
-        r = byId;
-      }
-
-      if (!r) {
+        console.error("[suivi] ❌ Échec final — aucune réservation trouvée", { id, ridParam, lastErr });
         toast.error("Aucune course trouvée", { id: toastId });
         setError({
           code: "notfound",
           title: "Réservation introuvable",
-          message: "Ce lien de suivi n'est pas valide ou a expiré.",
+          message: lastErr?.message
+            ? `Erreur d'accès : ${lastErr.message}`
+            : "Ce lien de suivi n'est pas valide ou a expiré.",
         });
         setLoading(false);
         return;
       }
 
-      // [FUSION] Vérification expiration 24h (depuis tracking)
+      // Vérification expiration :
+      // - Si pickup_datetime dispo → le lien expire 6h APRÈS la prise en charge
+      // - Sinon fallback → created_at + 48h (large marge pour les réservations à l'avance)
+      const pickupMs = r.pickup_datetime ? new Date(r.pickup_datetime).getTime() : 0;
       const createdAt = r.created_at ? new Date(r.created_at).getTime() : 0;
-      if (createdAt && Date.now() - createdAt > 24 * 60 * 60 * 1000) {
+      const expiresAt = pickupMs
+        ? pickupMs + 6 * 60 * 60 * 1000 // pickup + 6h
+        : createdAt + 48 * 60 * 60 * 1000; // created_at + 48h
+      if (expiresAt && Date.now() > expiresAt) {
         toast.error("Lien expiré", { id: toastId });
         setError({
           code: "expired",
           title: "Lien de suivi expiré",
-          message: "Ce lien de suivi a expiré (plus de 24h). Contactez-nous pour en obtenir un nouveau.",
+          message: "Ce lien de suivi a expiré. Contactez-nous pour en obtenir un nouveau.",
         });
         setLoading(false);
         return;
@@ -1285,20 +1411,18 @@ function SuiviPage() {
 
       setLoadStep(3);
       // Lecture depuis driver_gps (table réelle du chauffeur)
-      const { data: locData } = await supabase
-        .from("driver_gps")
-        .select("latitude,longitude,accuracy,is_active")
-        .eq("id", "driver")
-        .maybeSingle();
+      const { data: locData, rlsBlocked: locRlsBlocked } = await fetchDriverGps();
+      if (locRlsBlocked) {
+        pushRtEvent("err", "driver_gps: accès refusé par RLS au chargement");
+      }
       const gpsLat: number | null =
         locData?.latitude != null && Number.isFinite(locData.latitude) ? locData.latitude : null;
       const gpsLng: number | null =
         locData?.longitude != null && Number.isFinite(locData.longitude) ? locData.longitude : null;
-      const driverOnline = isReliableDriverGps(locData ?? {});
-      if (gpsLat !== null && gpsLng !== null && driverOnline) {
+      const gpsAnalysis = recordGpsDiagnostic(locData ?? {}, "chargement initial");
+      if (gpsLat !== null && gpsLng !== null && gpsAnalysis.ok) {
         await initMap(gpsLat, gpsLng);
-        setTaxiPos({ lat: gpsLat, lng: gpsLng });
-        setLastUpdate(new Date());
+        setDriverPos({ lat: gpsLat, lng: gpsLng });
         // drawTripRoute d'abord pour peupler destCoordsRef, PUIS ETA vers la vraie destination
         if (dep && dest) {
           await drawTripRoute(dep, dest, r.route_coords);
@@ -1328,61 +1452,97 @@ function SuiviPage() {
     // ── Reconnexion automatique : reprise de veille / retour réseau ────────
     const handleVisibility = () => {
       if (document.visibilityState === "visible" && resaIdRef.current) {
-        supabase
-          .from("driver_gps")
-          .select("latitude,longitude,accuracy,is_active")
-          .eq("id", "driver")
-          .maybeSingle()
-          .then(async ({ data }) => {
-            if (isReliableDriverGps(data)) {
-              setLastUpdate(new Date());
-              // Si le trajet n'est pas tracé (ex: retour de veille longue), le redessiner
-              if (!destCoordsRef.current) {
-                const { data: rData } = await supabase
-                  .from("reservations")
-                  .select("depart,arrivee,destination,route_coords")
-                  .eq("id", resaIdRef.current)
-                  .maybeSingle();
-                if (rData?.depart && (rData?.destination || rData?.arrivee)) {
-                  await drawTripRoute(
-                    rData.depart,
-                    rData.destination || rData.arrivee!,
-                    rData.route_coords as [number, number][] | null,
-                  );
-                }
+        fetchDriverGps().then(async ({ data, rlsBlocked }) => {
+          if (rlsBlocked) {
+            pushRtEvent("err", "driver_gps: accès refusé (RLS) au retour de visibilité");
+            return;
+          }
+          const gpsAnalysis = recordGpsDiagnostic(data, "retour onglet");
+          if (gpsAnalysis.ok && data?.latitude != null && data?.longitude != null) {
+            // Si le trajet n'est pas tracé (ex: retour de veille longue), le redessiner
+            if (!destCoordsRef.current) {
+              const { data: rData } = await supabase
+                .from("reservations")
+                .select("depart,arrivee,destination,route_coords")
+                .eq("id", resaIdRef.current)
+                .maybeSingle();
+              if (rData?.depart && (rData?.destination || rData?.arrivee)) {
+                await drawTripRoute(
+                  rData.depart,
+                  rData.destination || rData.arrivee!,
+                  rData.route_coords as [number, number][] | null,
+                );
               }
-              applyDriverPosition(data.latitude, data.longitude);
             }
-          });
-        if (connectionStateRef.current === "disconnected") {
+            setDriverPos({ lat: data.latitude, lng: data.longitude });
+            lastDriverPos.current = { lat: data.latitude, lng: data.longitude };
+            calculateETAThrottled(data.latitude, data.longitude);
+          }
+        });
+        // Resouscrire le Realtime si déconnecté OU si silence GPS > 30s
+        // (le flag connectionStateRef n'est pas toujours à jour quand la WS meurt silencieusement)
+        const last = lastUpdateRef.current;
+        const silentMs = last ? Date.now() - last.getTime() : Infinity;
+        if (connectionStateRef.current === "disconnected" || silentMs > 30000) {
           setRetryNonce((n) => n + 1);
         }
       }
     };
+    // Refresh immédiat du statut : sans attendre le prochain tick de polling
+    // (5 s) ni la resouscription Realtime, on relit la réservation tout de suite.
+    const refreshResaNow = async () => {
+      if (!resaIdRef.current) return;
+      const { data: r } = await supabase
+        .from("reservations")
+        .select(
+          "status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,bagages,distance_km,route_coords,route_label",
+        )
+        .eq("id", resaIdRef.current)
+        .maybeSingle();
+      if (r) setResa((prev) => (prev ? { ...prev, ...r } : prev));
+    };
     const handleOnline = () => {
-      if (resaIdRef.current) setRetryNonce((n) => n + 1);
+      if (!resaIdRef.current) return;
+      pushRtEvent("status", "network online → refresh + resubscribe");
+      refreshResaNow();
+      setRetryNonce((n) => n + 1);
+    };
+    const handleOffline = () => {
+      pushRtEvent("err", "network offline");
     };
     document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    // Fix retryNonce : si la map existe encore (ex. retry après erreur réseau),
+    // on la détruit ici pour que initMap() puisse s'exécuter à nouveau.
+    // Sans ce reset, le guard `if (mapInst.current) return` bloque la ré-init.
+    if (mapInst.current) {
+      mapInst.current.remove();
+      mapInst.current = null;
+      markerRef.current = null;
+    }
+    mapInitializing.current = false;
 
     init();
     return () => {
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
       const ch = channelRef.current;
       if (Array.isArray(ch)) ch.forEach((c) => c && supabase.removeChannel(c));
       else if (ch) supabase.removeChannel(ch);
       channelRef.current = null;
       stopPolling();
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
-      if (animFrame.current !== null) {
-        cancelAnimationFrame(animFrame.current);
-        animFrame.current = null;
+      if (pickupNotifTimerRef.current) {
+        clearTimeout(pickupNotifTimerRef.current);
+        pickupNotifTimerRef.current = null;
       }
-      if (approachLayer.current) {
-        approachLayer.current.remove();
-        approachLayer.current = null;
-      }
+      notifScheduledRef.current = false;
+      subscribingRef.current = false; // #7 : reset en cas de démontage pendant une souscription
+      enRouteSinceRef.current = null;
+      lastEtaAtRef.current = 0;
       if (tripLayer.current) {
         tripLayer.current.remove();
         tripLayer.current = null;
@@ -1407,14 +1567,10 @@ function SuiviPage() {
       // Remettre à zéro toutes les refs GPS pour éviter les états fantômes après reconnexion
       destCoordsRef.current = null;
       pickupCoordsRef.current = null;
-      arrGeoRef.current = null;
       depGeoRef.current = null;
-      lastAppliedPos.current = null;
       lastDriverPos.current = null;
-      lastApproachAt.current = 0;
-      approachCoords.current = [];
     };
-  }, [id, retryNonce, subscribeRealtime, stopPolling, schedulePickupNotification, drawTripRoute]);
+  }, [id, retryNonce, subscribeRealtime, stopPolling, schedulePickupNotification, drawTripRoute, recordGpsDiagnostic]);
 
   // ── Push notifications auto ──────────────────────────────────────────────
   useEffect(() => {
@@ -1454,22 +1610,25 @@ function SuiviPage() {
           });
         }
       }
-      const { data } = await supabase
-        .from("driver_gps")
-        .select("latitude,longitude,accuracy,is_active")
-        .eq("id", "driver")
-        .maybeSingle();
-      if (isReliableDriverGps(data)) {
-        setLastUpdate(new Date());
-        // Si le tracé n'est pas encore affiché, tenter de le redessiner d'abord
-        if (!destCoordsRef.current && currentResa?.depart && (currentResa?.destination || currentResa?.arrivee)) {
-          await drawTripRoute(
-            currentResa.depart,
-            currentResa.destination || currentResa.arrivee!,
-            currentResa.route_coords,
-          );
+      const { data, rlsBlocked } = await fetchDriverGps();
+      if (rlsBlocked) {
+        pushRtEvent("err", "driver_gps: accès refusé (RLS) au rafraîchissement");
+        toast.warning("⚠️ Position GPS indisponible (accès restreint)");
+      } else {
+        const gpsAnalysis = recordGpsDiagnostic(data, "rafraîchissement manuel");
+        if (gpsAnalysis.ok && data?.latitude != null && data?.longitude != null) {
+          // Si le tracé n'est pas encore affiché, tenter de le redessiner d'abord
+          if (!destCoordsRef.current && currentResa?.depart && (currentResa?.destination || currentResa?.arrivee)) {
+            await drawTripRoute(
+              currentResa.depart,
+              currentResa.destination || currentResa.arrivee!,
+              currentResa.route_coords,
+            );
+          }
+          setDriverPos({ lat: data.latitude, lng: data.longitude });
+          lastDriverPos.current = { lat: data.latitude, lng: data.longitude };
+          calculateETAThrottled(data.latitude, data.longitude);
         }
-        await applyDriverPosition(data.latitude, data.longitude);
       }
       if (mapInst.current) setTimeout(() => mapInst.current?.invalidateSize({ animate: false }), 100);
       toast.success("✅ Informations mises à jour");
@@ -1478,32 +1637,31 @@ function SuiviPage() {
     } finally {
       setRefreshing(false);
     }
-  }, [applyDriverPosition, drawTripRoute]);
+  }, [drawTripRoute]);
 
   // ── Détection fin de course (GPS) ────────────────────────────────────────
+  // ⚠️ DÉSACTIVÉ — la logique de complétion automatique est exclusivement
+  // gérée par l'admin_dashboard qui possède le contexte complet (flags
+  // autoStatusFiredRef, séquence arrived → completed).
+  // Laisser les deux écrire "completed" en même temps causait des doublons
+  // de notification et une désynchronisation de l'état GPS.
+  //
+  // Ce bloc est intentionnellement vide. Le useEffect est conservé pour
+  // réinitialiser enRouteSinceRef si jamais on réactive la logique côté client.
   useEffect(() => {
-    if (!taxiPos || !resa || courseTerminee) return;
-    if (!["en_route", "accepted", "arrived"].includes(resa.status)) return;
-
-    // Fallback : si arrGeoRef n'est pas peuplé mais destCoordsRef l'est, l'utiliser
-    const arrRef =
-      arrGeoRef.current ??
-      (destCoordsRef.current ? { lat: destCoordsRef.current[0], lng: destCoordsRef.current[1] } : null);
-    if (!arrRef) return;
-
-    const dist = distMeters({ lat: taxiPos.lat, lng: taxiPos.lng }, arrRef);
-    // Seuil élargi à 200m pour compenser la précision variable du GPS
-    if (dist < 200) {
-      setCourseTerminee(true);
-      (supabase as any).from("reservations").update({ status: "completed" }).eq("id", resa.id);
+    if (!driverPos || !resa || courseTerminee) return;
+    const status = (resa.status || "").toLowerCase();
+    if (status !== "en_route") {
+      enRouteSinceRef.current = null;
     }
-  }, [taxiPos, resa, courseTerminee]);
+    // Pas d'écriture DB ici — délégué à l'admin_dashboard.
+  }, [driverPos, resa, courseTerminee]);
 
   // ── Ajout au calendrier (depuis tracking) ────────────────────────────────
   const addToCalendar = (type: "google" | "apple") => {
     if (!resa?.pickup_datetime) return;
     const start = new Date(resa.pickup_datetime);
-    const end = new Date(start.getTime() + 60 * 60_000);
+    const end = new Date(start.getTime() + 60 * 60000);
     const title = encodeURIComponent("Course Taxi City Bordeaux");
     const details = encodeURIComponent(
       `Départ : ${resa.depart || "—"}\nDestination : ${resa.destination || resa.arrivee || "—"}\nChauffeur : 06 73 07 23 22`,
@@ -1542,392 +1700,6 @@ function SuiviPage() {
   };
 
   // ── UI helpers ────────────────────────────────────────────────────────────
-  // ── Mode chauffeur : GPS robuste + debug + messages ─────────────────────────
-  const addLog = useCallback((msg: string, type: "ok" | "warn" | "err" = "ok") => {
-    const time = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    setDriverDebug((prev) => {
-      const updated = { ...prev, log: [{ time, msg, type }, ...prev.log].slice(0, 10) };
-      driverDebugRef.current = updated;
-      return updated;
-    });
-  }, []);
-  useEffect(() => {
-    addLogRef.current = addLog;
-  }, [addLog]);
-
-  const startSilentAudio = useCallback(() => {
-    if (silentAudioRef.current) return;
-    try {
-      const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const oscillator = ctx.createOscillator();
-      const gain = ctx.createGain();
-      gain.gain.value = 0.001;
-      oscillator.connect(gain);
-      gain.connect(ctx.destination);
-      oscillator.start();
-      silentAudioRef.current = { ctx, oscillator, gain };
-    } catch {}
-  }, []);
-
-  const stopSilentAudio = useCallback(() => {
-    try {
-      silentAudioRef.current?.oscillator?.stop?.();
-      silentAudioRef.current?.ctx?.close?.();
-    } catch {}
-    silentAudioRef.current = null;
-  }, []);
-
-  const requestDriverWakeLock = useCallback(async () => {
-    if (!("wakeLock" in navigator) || document.visibilityState !== "visible") return;
-    try {
-      driverWakeLockRef.current = await (navigator as any).wakeLock.request("screen");
-      setDriverDebug((prev) => ({ ...prev, wakeLock: true }));
-      addLog("🔒 WakeLock activé — écran maintenu allumé", "ok");
-      driverWakeLockRef.current?.addEventListener?.("release", () => {
-        driverWakeLockRef.current = null;
-        setDriverDebug((prev) => ({ ...prev, wakeLock: false }));
-        addLog("⚠️ WakeLock relâché", "warn");
-      });
-    } catch {
-      addLog("⚠️ WakeLock non supporté sur cet appareil", "warn");
-    }
-  }, [addLog]);
-
-  const releaseDriverWakeLock = useCallback(() => {
-    driverWakeLockRef.current?.release?.()?.catch?.(() => {});
-    driverWakeLockRef.current = null;
-    setDriverDebug((prev) => ({ ...prev, wakeLock: false }));
-  }, []);
-
-  useEffect(() => {
-    driverGpsActiveRef.current = driverGpsActive;
-    if (!driverGpsActive) {
-      if (driverWatchRef.current != null) navigator.geolocation.clearWatch(driverWatchRef.current);
-      if (driverHeartbeatRef.current != null) clearInterval(driverHeartbeatRef.current);
-      if (bgKeepaliveRef.current != null) clearInterval(bgKeepaliveRef.current);
-      bgKeepaliveRef.current = null;
-      driverWatchRef.current = null;
-      driverHeartbeatRef.current = null;
-      driverLastSignalAtRef.current = null;
-      driverRestartingRef.current = false;
-      releaseDriverWakeLock();
-      setDriverGpsStatus("idle");
-      supabase.from("driver_gps").update({ is_active: false }).eq("id", "driver");
-      return;
-    }
-    setDriverGpsStatus("starting");
-    addLog("🚀 Démarrage GPS…", "ok");
-    const TRACKING_ENDPOINT = "/api/public/driver-location";
-    const DRIVER_KEY = import.meta.env.VITE_DRIVER_KEY || import.meta.env.VITE_DRIVER_TOKEN || "";
-    const MAX_ACCURACY_M = 1500;
-    const MAX_DIST_FROM_BORDEAUX_M = 130_000;
-    const MAX_JUMP_M = 5_000;
-    const BORDEAUX = { lat: 44.8378, lng: -0.5792 };
-
-    const sendHeartbeat = async () => {
-      const now = new Date().toISOString();
-      await supabase
-        .from("driver_gps")
-        .upsert({ id: "driver", heartbeat_at: now, is_active: true }, { onConflict: "id" });
-      driverLastHeartbeatRef.current = Date.now();
-    };
-
-    const postDriverLocation = async (body: {
-      latitude: number;
-      longitude: number;
-      accuracy: number | null;
-      speed: number | null;
-      heading: number | null;
-      is_online: boolean;
-      driver_key?: string;
-    }) => {
-      try {
-        const res = await fetch(TRACKING_ENDPOINT, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-driver-key": DRIVER_KEY },
-          body: JSON.stringify(body),
-          keepalive: true,
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      } catch {
-        const now = new Date().toISOString();
-        await supabase
-          .from("driver_gps")
-          .upsert(
-            {
-              id: "driver",
-              latitude: body.latitude,
-              longitude: body.longitude,
-              accuracy: body.accuracy,
-              is_active: body.is_online,
-              heartbeat_at: now,
-              updated_at: now,
-            },
-            { onConflict: "id" },
-          );
-      }
-    };
-
-    const pushGps = (coords: GeolocationCoordinates) => {
-      const { latitude, longitude, accuracy, speed, heading } = coords;
-      if (!driverGpsActiveRef.current) return;
-      const prev = driverDebugRef.current;
-      if (prev.lat !== null && prev.lng !== null) {
-        const d = distMeters({ lat: prev.lat, lng: prev.lng }, { lat: latitude, lng: longitude });
-        if (d > MAX_JUMP_M) {
-          addLog(`🚨 Saut GPS ignoré (${Math.round(d)}m)`, "warn");
-          return;
-        }
-      }
-      const distFromBx = distMeters({ lat: latitude, lng: longitude }, BORDEAUX);
-      if (distFromBx > MAX_DIST_FROM_BORDEAUX_M) {
-        addLog("⚠️ Position hors Bordeaux ignorée", "warn");
-        return;
-      }
-      if (accuracy !== null && accuracy > MAX_ACCURACY_M) {
-        addLog(`⚠️ Précision trop faible (±${Math.round(accuracy)}m)`, "warn");
-        return;
-      }
-      driverLastSignalAtRef.current = Date.now();
-      driverSignalsSentRef.current++;
-      setDriverGpsStatus("active");
-      setDriverDebug((prev) => {
-        const u = {
-          ...prev,
-          lat: latitude,
-          lng: longitude,
-          accuracy: accuracy ?? null,
-          signalsSent: driverSignalsSentRef.current,
-        };
-        driverDebugRef.current = u;
-        return u;
-      });
-      addLog(`📍 ${latitude.toFixed(5)}, ${longitude.toFixed(5)} ±${accuracy ? Math.round(accuracy) : "?"}m`, "ok");
-      postDriverLocation({
-        latitude,
-        longitude,
-        accuracy: accuracy ?? null,
-        speed: speed ?? null,
-        heading: heading ?? null,
-        is_online: true,
-      }).catch(() => {
-        setDriverDebug((prev) => ({ ...prev, errors: prev.errors + 1 }));
-        addLog("❌ Échec envoi position", "err");
-      });
-    };
-
-    const flushLastKnownPosition = () => {
-      const current = driverDebugRef.current;
-      if (current.lat == null || current.lng == null) return;
-      const payload = JSON.stringify({
-        latitude: current.lat,
-        longitude: current.lng,
-        accuracy: current.accuracy,
-        speed: null,
-        heading: null,
-        is_online: true,
-      });
-      try {
-        if (navigator.sendBeacon) {
-          navigator.sendBeacon(TRACKING_ENDPOINT, new Blob([payload], { type: "application/json" }));
-          return;
-        }
-      } catch {}
-      fetch(TRACKING_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: payload,
-        keepalive: true,
-      }).catch(() => {});
-    };
-
-    const handlePageHide = () => flushLastKnownPosition();
-    const handleVisibilityFlush = () => {
-      if (document.visibilityState === "hidden") {
-        setDriverGpsStatus("background");
-        flushLastKnownPosition();
-      }
-    };
-    const handlePageShow = (e: PageTransitionEvent) => {
-      if (e.persisted && driverGpsActiveRef.current) {
-        requestDriverWakeLock();
-        addLog("📄 Retour bfcache — WakeLock réacquis", "ok");
-        if (driverWatchRef.current === null) {
-          driverWatchRef.current = navigator.geolocation.watchPosition((pos) => pushGps(pos.coords), handleError, {
-            enableHighAccuracy: true,
-            maximumAge: 2000,
-            timeout: 15000,
-          });
-        }
-      }
-    };
-
-    const handleError = (err: GeolocationPositionError) => {
-      setDriverDebug((prev) => ({ ...prev, errors: prev.errors + 1 }));
-      if (err.code === 1) {
-        setDriverGpsStatus("denied");
-        addLog("🚫 Localisation refusée — autorise dans les réglages", "err");
-      } else if (err.code === 2) {
-        setDriverGpsStatus("error");
-        addLog("📵 Signal GPS indisponible — retry dans 8s", "warn");
-      } else {
-        setDriverGpsStatus("weak");
-        addLog("⏱ Timeout GPS — retry dans 8s", "warn");
-      }
-      setTimeout(() => {
-        if (!driverGpsActiveRef.current || driverRestartingRef.current) return;
-        driverRestartingRef.current = true;
-        if (driverWatchRef.current !== null) navigator.geolocation.clearWatch(driverWatchRef.current);
-        driverLastSignalAtRef.current = Date.now();
-        driverWatchRef.current = navigator.geolocation.watchPosition((pos) => pushGps(pos.coords), handleError, {
-          enableHighAccuracy: true,
-          maximumAge: 5000,
-          timeout: 60000,
-        });
-        driverRestartingRef.current = false;
-      }, 8000);
-    };
-
-    pushGpsRef.current = pushGps;
-    handleErrorRef.current = handleError;
-    window.addEventListener("pagehide", handlePageHide);
-    window.addEventListener("pageshow", handlePageShow);
-    document.addEventListener("visibilitychange", handleVisibilityFlush);
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        addLog("✅ Première position obtenue", "ok");
-        pushGps(pos.coords);
-      },
-      () => addLog("⚠️ Pas de position rapide — attente GPS haute précision…", "warn"),
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
-    );
-    if (driverWatchRef.current !== null) navigator.geolocation.clearWatch(driverWatchRef.current);
-    driverWatchRef.current = navigator.geolocation.watchPosition((pos) => pushGps(pos.coords), handleError, {
-      enableHighAccuracy: true,
-      maximumAge: 5000,
-      timeout: 60000,
-    });
-
-    requestDriverWakeLock();
-    startSilentAudio();
-
-    let _bgTick = 0;
-    if (bgKeepaliveRef.current != null) clearInterval(bgKeepaliveRef.current);
-    bgKeepaliveRef.current = setInterval(() => {
-      _bgTick++;
-    }, 1000);
-
-    if (driverHeartbeatRef.current) clearInterval(driverHeartbeatRef.current);
-    let _heartbeatTick = 0;
-    driverHeartbeatRef.current = setInterval(async () => {
-      _heartbeatTick++;
-      try {
-        await sendHeartbeat();
-        setDriverDebug((prev) => ({ ...prev, heartbeatAge: 0 }));
-      } catch {
-        addLog("⚠️ Heartbeat échoué", "warn");
-      }
-      setDriverDebug((prev) => ({ ...prev, heartbeatAge: prev.heartbeatAge !== null ? prev.heartbeatAge + 5 : 0 }));
-      if (_heartbeatTick % 4 === 0 && driverGpsActiveRef.current) {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            const silentMs = driverLastSignalAtRef.current ? Date.now() - driverLastSignalAtRef.current : 0;
-            if (silentMs > 10_000) {
-              addLog("📍 Position forcée (heartbeat 20s)", "ok");
-              pushGps(pos.coords);
-            }
-          },
-          () => {},
-          { enableHighAccuracy: true, timeout: 8000, maximumAge: 5000 },
-        );
-      }
-      const silentMs = driverLastSignalAtRef.current ? Date.now() - driverLastSignalAtRef.current : 0;
-      if (silentMs > 45_000 && !driverRestartingRef.current) {
-        driverRestartingRef.current = true;
-        addLog("🔄 Relance GPS automatique (silence 45s)", "warn");
-        if (driverWatchRef.current !== null) navigator.geolocation.clearWatch(driverWatchRef.current);
-        driverLastSignalAtRef.current = Date.now();
-        driverWatchRef.current = navigator.geolocation.watchPosition((pos) => pushGps(pos.coords), handleError, {
-          enableHighAccuracy: true,
-          maximumAge: 5000,
-          timeout: 45000,
-        });
-        driverRestartingRef.current = false;
-      }
-    }, 5_000);
-
-    return () => {
-      if (driverWatchRef.current != null) navigator.geolocation.clearWatch(driverWatchRef.current);
-      if (driverHeartbeatRef.current != null) clearInterval(driverHeartbeatRef.current);
-      window.removeEventListener("pagehide", handlePageHide);
-      window.removeEventListener("pageshow", handlePageShow);
-      document.removeEventListener("visibilitychange", handleVisibilityFlush);
-      releaseDriverWakeLock();
-      stopSilentAudio();
-    };
-  }, [
-    isDriver,
-    driverGpsActive,
-    addLog,
-    requestDriverWakeLock,
-    releaseDriverWakeLock,
-    startSilentAudio,
-    stopSilentAudio,
-  ]);
-
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState !== "visible" || !driverGpsActiveRef.current) return;
-      requestDriverWakeLock();
-      addLog("👁 Retour au premier plan — GPS vérifié", "ok");
-      if (driverWatchRef.current === null) {
-        if (!driverRestartingRef.current) {
-          driverRestartingRef.current = true;
-          driverLastSignalAtRef.current = Date.now();
-          driverWatchRef.current = navigator.geolocation.watchPosition(
-            (pos) => pushGpsRef.current?.(pos.coords),
-            (e) => handleErrorRef.current?.(e),
-            { enableHighAccuracy: true, maximumAge: 2000, timeout: 15000 },
-          );
-          driverRestartingRef.current = false;
-        }
-      } else {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            pushGpsRef.current?.(pos.coords);
-            addLog("📍 Position immédiate au retour", "ok");
-          },
-          () => {},
-          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
-        );
-      }
-      setDriverGpsStatus("active");
-    };
-    const handleOnline = () => {
-      if (!driverGpsActiveRef.current) return;
-      if (driverWatchRef.current === null) {
-        addLog("🌐 Réseau rétabli — relance GPS", "ok");
-        driverRestartingRef.current = true;
-        driverLastSignalAtRef.current = Date.now();
-        driverWatchRef.current = navigator.geolocation.watchPosition(
-          (pos) => pushGpsRef.current?.(pos.coords),
-          (e) => handleErrorRef.current?.(e),
-          { enableHighAccuracy: true, maximumAge: 2000, timeout: 15000 },
-        );
-        driverRestartingRef.current = false;
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
-    window.addEventListener("online", handleOnline);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibility);
-      window.removeEventListener("online", handleOnline);
-    };
-  }, [addLog, requestDriverWakeLock]);
-
   // ── invalidateSize dès que le loading se termine ─────────────────────────
   useEffect(() => {
     if (!loading && mapInst.current) {
@@ -1965,7 +1737,13 @@ function SuiviPage() {
       icon: "🚕",
       pulse: true,
     },
-    arrived: { label: "Taxi à votre porte", color: "#f5c842", bg: "rgba(245,200,66,0.12)", icon: "📍", pulse: true },
+    arrived: {
+      label: "Taxi à votre porte",
+      color: "#f5c842",
+      bg: "rgba(245,200,66,0.12)",
+      icon: "📍",
+      pulse: true,
+    },
     completed: {
       label: "Course terminée — Merci !",
       color: "#94a3b8",
@@ -1980,8 +1758,20 @@ function SuiviPage() {
       icon: "🏁",
       pulse: false,
     },
-    cancelled: { label: "Course annulée", color: "#ef4444", bg: "rgba(239,68,68,0.12)", icon: "❌", pulse: false },
-    refused: { label: "Course refusée", color: "#ef4444", bg: "rgba(239,68,68,0.12)", icon: "🚫", pulse: false },
+    cancelled: {
+      label: "Course annulée",
+      color: "#ef4444",
+      bg: "rgba(239,68,68,0.12)",
+      icon: "❌",
+      pulse: false,
+    },
+    refused: {
+      label: "Course refusée",
+      color: "#ef4444",
+      bg: "rgba(239,68,68,0.12)",
+      icon: "🚫",
+      pulse: false,
+    },
   };
 
   const effectiveStatus = courseTerminee ? "completed" : (resa?.status ?? "pending");
@@ -1992,12 +1782,13 @@ function SuiviPage() {
   const prix = resa?.prix_estime ? `${Number(resa.prix_estime).toFixed(2)} €` : null;
   const distanceKm = resa?.distance_km ?? null;
   const clientName = ((resa?.client_name || resa?.nom) ?? "").toString().trim();
-
   const formatDiagnosticAge = (date: Date | null) => {
     if (!date) return "jamais";
     const ageSec = Math.max(0, Math.round((Date.now() - date.getTime()) / 1000));
     if (ageSec < 60) return `${ageSec}s`;
-    return `${Math.floor(ageSec / 60)}m ${ageSec % 60}s`;
+    const ageMin = Math.floor(ageSec / 60);
+    const restSec = ageSec % 60;
+    return `${ageMin}m ${restSec}s`;
   };
   const diagnosticColor = (() => {
     const ageMs = trackingDiag.lastHeartbeatAt ? Date.now() - trackingDiag.lastHeartbeatAt.getTime() : Infinity;
@@ -2005,10 +1796,48 @@ function SuiviPage() {
     if (ageMs < 120000) return "#f59e0b";
     return "#ef4444";
   })();
-  // [FUSION] calcul barre de progression (depuis tracking)
-  const kmLeft = etaKm ? parseFloat(etaKm) : null;
-  const pctDone =
-    totalKm && kmLeft !== null ? Math.min(100, Math.max(0, Math.round(((totalKm - kmLeft) / totalKm) * 100))) : null;
+  // ── Barre de progression : projection géométrique du taxi sur le bon segment ──
+  // Selon le statut :
+  //   pending / accepted / en_route → taxi s'approche du CLIENT (origine→pickup)
+  //   arrived / completed           → taxi emmène le client à destination (pickup→dest)
+  // Calcul instantané, sans appel réseau, mis à jour à chaque position GPS.
+  const pctDone = (() => {
+    const taxi = driverPos;
+    if (!taxi) return null;
+
+    const status = effectiveStatus;
+    const isApproaching = ["pending", "accepted", "en_route"].includes(status);
+    const isDriving = ["arrived", "completed", "terminee"].includes(status);
+
+    const pickup = depGeoRef.current; // coordonnées du point de prise en charge
+    // #2 : destCoordsRef ([lat,lng]) remplace arrGeoRef — convertir en {lat,lng} pour la géométrie.
+    const dest = destCoordsRef.current ? { lat: destCoordsRef.current[0], lng: destCoordsRef.current[1] } : null;
+
+    // Segment A→B selon le statut
+    // Avant l'arrivée chez le client : on ne connaît pas l'origine du taxi,
+    // donc on projette le taxi sur le segment [pickup → dest] dans tous les cas.
+    // C'est visuellement cohérent : 0% = taxi loin, 100% = taxi à destination.
+    const segA = pickup;
+    const segB = dest;
+
+    if (segA && segB) {
+      const dx = segB.lng - segA.lng;
+      const dy = segB.lat - segA.lat;
+      const lenSq = dx * dx + dy * dy;
+      if (lenSq === 0) return isApproaching ? 0 : 100;
+      const t = ((taxi.lng - segA.lng) * dx + (taxi.lat - segA.lat) * dy) / lenSq;
+      // En approche : t peut être négatif (taxi de l'autre côté) → clamp à 0
+      // En course : t peut dépasser 1 (taxi a dépassé) → clamp à 100
+      return Math.min(100, Math.max(0, Math.round(t * 100)));
+    }
+
+    // Fallback OSRM si géocodage pas encore prêt
+    const kmLeft = etaKm ? parseFloat(etaKm) : null;
+    if (totalKm && kmLeft !== null) {
+      return Math.min(100, Math.max(0, Math.round(((totalKm - kmLeft) / totalKm) * 100)));
+    }
+    return null;
+  })();
 
   const _loadingSteps = [
     { label: "Connexion sécurisée…", icon: "🔐" },
@@ -2132,12 +1961,28 @@ function SuiviPage() {
       </div>
       {/* [FUSION] messages délai + bouton retry (depuis tracking) */}
       {elapsed > 12 && elapsed <= 30 && (
-        <p style={{ fontSize: 12, color: "#64748b", maxWidth: 300, textAlign: "center", marginTop: 4 }}>
+        <p
+          style={{
+            fontSize: 12,
+            color: "#64748b",
+            maxWidth: 300,
+            textAlign: "center",
+            marginTop: 4,
+          }}
+        >
           La connexion prend plus de temps que prévu…
         </p>
       )}
       {elapsed > 30 && (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, marginTop: 6 }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 10,
+            marginTop: 6,
+          }}
+        >
           <p style={{ fontSize: 13, color: "#fbbf24", textAlign: "center", margin: 0 }}>
             ⏱️ Récupération trop longue. Vérifiez votre connexion.
           </p>
@@ -2208,7 +2053,15 @@ function SuiviPage() {
           {icon}
         </div>
         <div style={{ maxWidth: 380 }}>
-          <h1 style={{ fontFamily: "'Syne',sans-serif", fontWeight: 900, fontSize: 22, color: "#f8fafc", margin: 0 }}>
+          <h1
+            style={{
+              fontFamily: "'Syne',sans-serif",
+              fontWeight: 900,
+              fontSize: 22,
+              color: "#f8fafc",
+              margin: 0,
+            }}
+          >
             {error.title}
           </h1>
           <p
@@ -2222,7 +2075,14 @@ function SuiviPage() {
           >
             {error.message}
           </p>
-          <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "#334155", marginTop: 12 }}>
+          <p
+            style={{
+              fontFamily: "'JetBrains Mono',monospace",
+              fontSize: 11,
+              color: "#334155",
+              marginTop: 12,
+            }}
+          >
             Code: {id?.slice(0, 12) || "—"}
           </p>
         </div>
@@ -2364,6 +2224,431 @@ function SuiviPage() {
     );
   };
 
+  // ── Mode chauffeur : GPS robuste + debug + messages ─────────────────────────
+  const addLog = useCallback((msg: string, type: "ok" | "warn" | "err" = "ok") => {
+    const time = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    setDriverDebug((prev) => {
+      const updated = { ...prev, log: [{ time, msg, type }, ...prev.log].slice(0, 10) };
+      driverDebugRef.current = updated;
+      return updated;
+    });
+  }, []);
+  // Câblage du forward-ref : addDriverLog délègue maintenant à addLog.
+  // Doit être fait APRÈS la définition de addLog pour éviter la dépendance circulaire.
+  useEffect(() => {
+    addLogRef.current = addLog;
+  }, [addLog]);
+
+  const requestDriverWakeLock = useCallback(async () => {
+    if (!("wakeLock" in navigator) || document.visibilityState !== "visible") return;
+    try {
+      driverWakeLockRef.current = await (navigator as any).wakeLock.request("screen");
+      setDriverDebug((prev) => ({ ...prev, wakeLock: true }));
+      addLog("🔒 WakeLock activé — écran maintenu allumé", "ok");
+      driverWakeLockRef.current?.addEventListener?.("release", () => {
+        driverWakeLockRef.current = null;
+        setDriverDebug((prev) => ({ ...prev, wakeLock: false }));
+        addLog("⚠️ WakeLock relâché", "warn");
+      });
+    } catch {
+      addLog("⚠️ WakeLock non supporté sur cet appareil", "warn");
+    }
+  }, [addLog]);
+
+  const releaseDriverWakeLock = useCallback(() => {
+    driverWakeLockRef.current?.release?.()?.catch?.(() => {});
+    driverWakeLockRef.current = null;
+    setDriverDebug((prev) => ({ ...prev, wakeLock: false }));
+  }, []);
+
+  useEffect(() => {
+    // Sync du ref immédiatement (utilisé par handleError et heartbeat pour décider de relancer)
+    driverGpsActiveRef.current = driverGpsActive;
+    if (!driverGpsActive) {
+      if (driverWatchRef.current != null) navigator.geolocation.clearWatch(driverWatchRef.current);
+      if (driverHeartbeatRef.current != null) clearInterval(driverHeartbeatRef.current);
+      if (bgKeepaliveRef.current != null) clearInterval(bgKeepaliveRef.current);
+      bgKeepaliveRef.current = null;
+      driverWatchRef.current = null;
+      driverHeartbeatRef.current = null;
+      driverLastSignalAtRef.current = null;
+      driverRestartingRef.current = false;
+      releaseDriverWakeLock();
+      setDriverGpsStatus("idle");
+      supabase.from("driver_gps").update({ is_active: false }).eq("id", "driver");
+      return;
+    }
+
+    setDriverGpsStatus("starting");
+    addLog("🚀 Démarrage GPS…", "ok");
+
+    // Validation géographique identique au dashboard admin
+    const BORDEAUX = { lat: 44.8378, lng: -0.5792 };
+    const TRACKING_ENDPOINT = "/api/public/driver-location";
+    const DRIVER_KEY = import.meta.env.VITE_DRIVER_KEY || import.meta.env.VITE_DRIVER_TOKEN || "";
+    const MAX_ACCURACY_M = 1500;
+    const MAX_DIST_FROM_BORDEAUX_M = 130_000;
+    const MAX_JUMP_M = 5_000;
+
+    const postDriverLocation = async (body: {
+      latitude: number;
+      longitude: number;
+      accuracy: number | null;
+      speed: number | null;
+      heading: number | null;
+      is_online: boolean;
+      driver_key?: string;
+    }) => {
+      try {
+        const res = await fetch(TRACKING_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-driver-key": DRIVER_KEY },
+          body: JSON.stringify(body),
+          keepalive: true,
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      } catch {
+        const now = new Date().toISOString();
+        const { error: writeErr } = await supabase.from("driver_gps").upsert(
+          {
+            id: "driver",
+            latitude: body.latitude,
+            longitude: body.longitude,
+            accuracy: body.accuracy,
+            is_active: body.is_online,
+            heartbeat_at: now,
+            updated_at: now,
+          },
+          { onConflict: "id" },
+        );
+        if (writeErr) throw writeErr;
+      }
+    };
+
+    const sendHeartbeat = async () => {
+      const current = driverDebugRef.current;
+      if (current.lat == null || current.lng == null) {
+        await supabase
+          .from("driver_gps")
+          .update({ is_active: true, heartbeat_at: new Date().toISOString() })
+          .eq("id", "driver");
+        return;
+      }
+      await postDriverLocation({
+        latitude: current.lat,
+        longitude: current.lng,
+        accuracy: current.accuracy,
+        speed: null,
+        heading: null,
+        is_online: true,
+        driver_key: DRIVER_KEY,
+      });
+    };
+
+    const gpsDistMeters = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+      const R = 6371000;
+      const toR = (d: number) => (d * Math.PI) / 180;
+      const x = (toR(b.lng) - toR(a.lng)) * Math.cos(toR((a.lat + b.lat) / 2));
+      const y = toR(b.lat) - toR(a.lat);
+      return Math.sqrt(x * x + y * y) * R;
+    };
+
+    const pushGps = (coords: GeolocationCoordinates) => {
+      const { latitude, longitude, accuracy, speed, heading } = coords;
+
+      // ── Validation géographique (alignée dashboard admin) ──────────────────
+      // Rejette : coords invalides, trop imprécises, hors zone Bordeaux, saut anormal.
+      // Couvre le cas "géolocalisation IP → Paris" sur PC/navigateur sans GPS matériel.
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || !Number.isFinite(accuracy)) {
+        addLog("❌ Position invalide ignorée (NaN)", "err");
+        return;
+      }
+      if (accuracy > MAX_ACCURACY_M) {
+        addLog(`❌ Précision trop faible (±${Math.round(accuracy)}m > ${MAX_ACCURACY_M}m) — position rejetée`, "err");
+        setDriverGpsStatus("weak");
+        return;
+      }
+      if (gpsDistMeters({ lat: latitude, lng: longitude }, BORDEAUX) > MAX_DIST_FROM_BORDEAUX_M) {
+        addLog(`❌ Position hors zone Bordeaux (${latitude.toFixed(4)}, ${longitude.toFixed(4)}) — rejetée`, "err");
+        setDriverGpsStatus("error");
+        return;
+      }
+      const lastPos =
+        driverDebugRef.current.lat != null && driverDebugRef.current.lng != null
+          ? { lat: driverDebugRef.current.lat, lng: driverDebugRef.current.lng }
+          : null;
+      if (lastPos && gpsDistMeters(lastPos, { lat: latitude, lng: longitude }) > MAX_JUMP_M) {
+        addLog(`❌ Saut GPS anormal (>${MAX_JUMP_M}m) ignoré`, "warn");
+        return;
+      }
+
+      driverLastSignalAtRef.current = Date.now();
+      driverRestartingRef.current = false;
+      const isWeak = accuracy > 500; // signal faible si > 500m (affiché uniquement, pas bloquant)
+      setDriverGpsStatus(isWeak ? "weak" : "active");
+      setDriverDebug((prev) => {
+        const updated = {
+          ...prev,
+          lat: latitude,
+          lng: longitude,
+          accuracy: accuracy ?? null,
+          signalsSent: prev.signalsSent + 1,
+        };
+        driverDebugRef.current = updated;
+        return updated;
+      });
+      if (isWeak) addLog(`📶 Signal faible — précision ${Math.round(accuracy!)}m`, "warn");
+      else addLog(`📡 Position envoyée — précision ${Math.round(accuracy ?? 0)}m`, "ok");
+      postDriverLocation({
+        latitude,
+        longitude,
+        accuracy: accuracy ?? null,
+        speed: speed ?? null,
+        heading: heading ?? null,
+        is_online: true,
+      }).catch(() => {
+        setDriverDebug((prev) => ({ ...prev, errors: prev.errors + 1 }));
+        addLog("❌ Échec envoi position", "err");
+      });
+    };
+
+    const flushLastKnownPosition = () => {
+      const current = driverDebugRef.current;
+      if (current.lat == null || current.lng == null) return;
+      const payload = JSON.stringify({
+        latitude: current.lat,
+        longitude: current.lng,
+        accuracy: current.accuracy,
+        speed: null,
+        heading: null,
+        is_online: true,
+      });
+      try {
+        if (navigator.sendBeacon) {
+          const blob = new Blob([payload], { type: "application/json" });
+          navigator.sendBeacon(TRACKING_ENDPOINT, blob);
+          addLog("📨 Dernière position conservée en arrière-plan", "ok");
+          return;
+        }
+      } catch {}
+      fetch(TRACKING_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+        keepalive: true,
+      }).catch(() => {});
+    };
+
+    const handlePageHide = () => flushLastKnownPosition();
+    const handleVisibilityFlush = () => {
+      if (document.visibilityState === "hidden") {
+        setDriverGpsStatus("background");
+        flushLastKnownPosition();
+      }
+    };
+    window.addEventListener("pagehide", handlePageHide);
+    // iOS bfcache : quand l'utilisateur revient via le bouton retour,
+    // la page est restaurée depuis le cache — le WakeLock est perdu.
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted && driverGpsActiveRef.current) {
+        requestDriverWakeLock();
+        addLog("📄 Retour bfcache — WakeLock réacquis", "ok");
+        // Si le watch est mort, relancer
+        if (driverWatchRef.current === null) {
+          driverWatchRef.current = navigator.geolocation.watchPosition((pos) => pushGps(pos.coords), handleError, {
+            enableHighAccuracy: true,
+            maximumAge: 2000,
+            timeout: 15000,
+          });
+        }
+      }
+    };
+    window.addEventListener("pageshow", handlePageShow);
+    document.addEventListener("visibilitychange", handleVisibilityFlush);
+
+    const handleError = (err: GeolocationPositionError) => {
+      setDriverDebug((prev) => ({ ...prev, errors: prev.errors + 1 }));
+      if (err.code === 1) {
+        setDriverGpsStatus("denied");
+        addLog("🚫 Localisation refusée — autorise dans les réglages", "err");
+      } else if (err.code === 2) {
+        setDriverGpsStatus("error");
+        addLog("📵 Signal GPS indisponible — retry dans 8s", "warn");
+      } else {
+        setDriverGpsStatus("weak");
+        addLog(`⏱ Timeout GPS — retry dans 8s`, "warn");
+      }
+      setTimeout(() => {
+        if (!driverGpsActiveRef.current || driverRestartingRef.current) return;
+        driverRestartingRef.current = true;
+        if (driverWatchRef.current !== null) navigator.geolocation.clearWatch(driverWatchRef.current);
+        driverLastSignalAtRef.current = Date.now();
+        driverWatchRef.current = navigator.geolocation.watchPosition((pos) => pushGps(pos.coords), handleError, {
+          enableHighAccuracy: true,
+          maximumAge: 5000,
+          timeout: 60000,
+        });
+        driverRestartingRef.current = false;
+      }, 8000);
+    };
+
+    pushGpsRef.current = pushGps;
+    handleErrorRef.current = handleError;
+
+
+    // Position immédiate + watch continu
+    // enableHighAccuracy: true + maximumAge: 0 → force le GPS matériel.
+    // L'ancien enableHighAccuracy:false + maximumAge:300000 utilisait le cache de
+    // géolocalisation IP qui retourne Paris sur PC/navigateur sans GPS matériel.
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        addLog("✅ Première position obtenue", "ok");
+        pushGps(pos.coords);
+      },
+      () => addLog("⚠️ Pas de position rapide — attente GPS haute précision…", "warn"),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+    );
+    if (driverWatchRef.current !== null) navigator.geolocation.clearWatch(driverWatchRef.current);
+    driverWatchRef.current = navigator.geolocation.watchPosition((pos) => pushGps(pos.coords), handleError, {
+      enableHighAccuracy: true,
+      maximumAge: 5000,
+      timeout: 60000,
+    });
+
+    requestDriverWakeLock();
+    startSilentAudio(); // iOS : maintien arrière-plan
+
+    // ── Intervalle 1s — maintient iOS actif en background ──────────────────
+    // iOS throttle les timers à 1/min après ~30s en background SAUF si un
+    // setInterval à ≤1s était actif avant le passage en background.
+    // Ce ticker ne fait rien de lourd — il sert juste à garder le moteur JS éveillé.
+    let _bgTick = 0;
+    if (bgKeepaliveRef.current != null) clearInterval(bgKeepaliveRef.current);
+    bgKeepaliveRef.current = setInterval(() => {
+      _bgTick++;
+    }, 1000);
+
+    // ── Heartbeat 5s + getCurrentPosition 20s + relance GPS 45s ─────────────
+    if (driverHeartbeatRef.current) clearInterval(driverHeartbeatRef.current);
+    let _heartbeatTick = 0;
+    driverHeartbeatRef.current = setInterval(async () => {
+      _heartbeatTick++;
+      try {
+        await sendHeartbeat();
+        const ageS = driverDebugRef.current.heartbeatAge;
+        setDriverDebug((prev) => ({ ...prev, heartbeatAge: 0 }));
+        if ((ageS ?? 0) > 15) addLog("💓 Heartbeat rétabli", "ok");
+      } catch {
+        addLog("⚠️ Heartbeat échoué", "warn");
+      }
+      setDriverDebug((prev) => ({ ...prev, heartbeatAge: prev.heartbeatAge !== null ? prev.heartbeatAge + 5 : 0 }));
+
+      // getCurrentPosition toutes les 20s — force iOS à interroger le GPS
+      // matériel même si watchPosition est throttlé en arrière-plan.
+      if (_heartbeatTick % 4 === 0 && driverGpsActiveRef.current) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const silentMs = driverLastSignalAtRef.current ? Date.now() - driverLastSignalAtRef.current : 0;
+            // N'envoyer que si watchPosition est silencieux depuis > 10s
+            if (silentMs > 10_000) {
+              addLog("📍 Position forcée (heartbeat 20s)", "ok");
+              pushGps(pos.coords);
+            }
+          },
+          () => {},
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 5000 },
+        );
+      }
+
+      // Relance GPS si aucun signal réel ne revient pendant 45s
+      const silentMs = driverLastSignalAtRef.current ? Date.now() - driverLastSignalAtRef.current : 0;
+      if (silentMs > 45_000 && !driverRestartingRef.current) {
+        driverRestartingRef.current = true;
+        addLog("🔄 Relance GPS automatique (silence 45s)", "warn");
+        if (driverWatchRef.current !== null) navigator.geolocation.clearWatch(driverWatchRef.current);
+        driverLastSignalAtRef.current = Date.now();
+        driverWatchRef.current = navigator.geolocation.watchPosition((pos) => pushGps(pos.coords), handleError, {
+          enableHighAccuracy: true,
+          maximumAge: 5000,
+          timeout: 45000,
+        });
+        driverRestartingRef.current = false;
+      }
+    }, 5_000);
+
+    return () => {
+      if (driverWatchRef.current != null) navigator.geolocation.clearWatch(driverWatchRef.current);
+      if (driverHeartbeatRef.current != null) clearInterval(driverHeartbeatRef.current);
+      window.removeEventListener("pagehide", handlePageHide);
+      window.removeEventListener("pageshow", handlePageShow);
+      document.removeEventListener("visibilitychange", handleVisibilityFlush);
+      releaseDriverWakeLock();
+      stopSilentAudio();
+    };
+  }, [
+    isDriverMode,
+    driverGpsActive,
+    addLog,
+    requestDriverWakeLock,
+    releaseDriverWakeLock,
+    startSilentAudio,
+    stopSilentAudio,
+  ]);
+
+  // Reprise au premier plan
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState !== "visible" || !driverGpsActiveRef.current) return;
+      requestDriverWakeLock();
+      addLog("👁 Retour au premier plan — GPS vérifié", "ok");
+      if (driverWatchRef.current === null) {
+        // watchPosition mort (iOS a tué le GPS en arrière-plan) → relance complète
+        addLog("🔄 Relance watchPosition (retour premier plan)", "ok");
+        if (!driverRestartingRef.current) {
+          driverRestartingRef.current = true;
+          driverLastSignalAtRef.current = Date.now();
+          driverWatchRef.current = navigator.geolocation.watchPosition((pos) => pushGpsRef.current?.(pos.coords), (e) => handleErrorRef.current?.(e), {
+            enableHighAccuracy: true,
+            maximumAge: 2000,
+            timeout: 15000,
+          });
+          driverRestartingRef.current = false;
+        }
+      } else {
+        // watchPosition encore vivant → getCurrentPosition immédiat pour position fraîche
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            pushGpsRef.current?.(pos.coords);
+            addLog("📍 Position immédiate au retour", "ok");
+          },
+          () => {},
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+        );
+      }
+      setDriverGpsStatus("active");
+    };
+    const handleOnline = () => {
+      if (!driverGpsActiveRef.current) return;
+      if (driverWatchRef.current === null) {
+        addLog("🌐 Réseau rétabli — relance GPS", "ok");
+        driverRestartingRef.current = true;
+        driverLastSignalAtRef.current = Date.now();
+        driverWatchRef.current = navigator.geolocation.watchPosition((pos) => pushGpsRef.current?.(pos.coords), (e) => handleErrorRef.current?.(e), {
+          enableHighAccuracy: true,
+          maximumAge: 2000,
+          timeout: 15000,
+        });
+        driverRestartingRef.current = false;
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("online", handleOnline);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("online", handleOnline);
+    };
+  }, [addLog, requestDriverWakeLock]);
+
   // ── Page principale — toujours rendue (map div toujours dans le DOM) ──────
   return (
     <div
@@ -2382,7 +2667,7 @@ function SuiviPage() {
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         .typo-title   { font-family: 'Syne', sans-serif; font-weight: 800; letter-spacing: -0.025em; }
         .typo-num     { font-family: 'Space Grotesk', sans-serif; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
-        .typo-label   { font-family: 'DM Sans', sans-serif; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; }
+        .typo-label   { font-family: 'DM Sans', sans-serif; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; color:${CASE_SUBTITLE_COLOR}!important; }
         .typo-body    { font-family: 'DM Sans', sans-serif; font-weight: 500; }
         @keyframes gpsRing  { 0%{transform:scale(1);opacity:.6} 100%{transform:scale(2.2);opacity:0} }
         @keyframes pulse    { 0%,100%{opacity:1} 50%{opacity:.4} }
@@ -2415,66 +2700,15 @@ function SuiviPage() {
       {resa && showHelp && <HelpPanel reservationId={resa.id} onClose={() => setShowHelp(false)} />}
 
       {/* ── MAP — toujours dans le DOM pour que Leaflet puisse mesurer le conteneur ── */}
-      <div style={{ flex: 1, position: "relative", minHeight: 0, visibility: loading || error ? "hidden" : "visible" }}>
+      <div
+        style={{
+          flex: 1,
+          position: "relative",
+          minHeight: 0,
+          visibility: loading || error ? "hidden" : "visible",
+        }}
+      >
         <div ref={mapRef} style={{ position: "absolute", inset: 0 }} />
-
-        {/* Bouton recentrer */}
-        {userPanned && taxiPos && (
-          <button
-            onClick={recenterOnDriver}
-            style={{
-              position: "absolute",
-              top: 16,
-              right: 16,
-              zIndex: 1000,
-              background: "rgba(10,10,20,0.9)",
-              border: "1px solid rgba(245,200,66,0.4)",
-              color: "#f5c842",
-              borderRadius: 12,
-              padding: "10px 16px",
-              fontFamily: "'Syne',sans-serif",
-              fontWeight: 700,
-              fontSize: 13,
-              cursor: "pointer",
-              backdropFilter: "blur(8px)",
-              minHeight: 44,
-            }}
-          >
-            🎯 Recentrer
-          </button>
-        )}
-
-        {/* Indicateur last update */}
-        {lastUpdate && (
-          <div
-            style={{
-              position: "absolute",
-              top: 16,
-              left: 16,
-              zIndex: 1000,
-              background: "rgba(10,10,20,0.75)",
-              border: "1px solid rgba(34,197,94,0.3)",
-              borderRadius: 10,
-              padding: "5px 10px",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            <div
-              style={{
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                background: "#22c55e",
-                animation: "pulse 2s infinite",
-              }}
-            />
-            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#64748b" }}>
-              {lastUpdate.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-            </span>
-          </div>
-        )}
 
         {/* Gradient bas */}
         <div
@@ -2542,7 +2776,7 @@ function SuiviPage() {
                 <div className="typo-title" style={{ fontSize: 13, color: statut.color }}>
                   {statut.label}
                 </div>
-                {eta !== null && taxiPos && !courseTerminee && (
+                {eta !== null && driverPos && !courseTerminee && (
                   <div className="typo-body" style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
                     {["en_route", "arrived", "accepted"].includes(effectiveStatus)
                       ? "Arrivée dans "
@@ -2560,13 +2794,15 @@ function SuiviPage() {
                     Destination atteinte
                   </div>
                 )}
-                {!taxiPos && !courseTerminee && (
+                {!driverPos && !courseTerminee && (
                   <div className="typo-body" style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>
-                    ⏳ En attente de la position GPS du chauffeur…
+                    {resa?.gps_validated_at
+                      ? "⏳ En attente de la position GPS du chauffeur…"
+                      : "📡 En attente d'activation du GPS par le chauffeur…"}
                   </div>
                 )}
               </div>
-              {taxiPos && (
+              {driverPos && (
                 <div
                   style={{
                     width: 8,
@@ -2586,22 +2822,22 @@ function SuiviPage() {
           <div style={{ padding: "0 20px 12px" }}>
             <div
               style={{
-                background: taxiPos ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.035)",
-                border: `1px solid ${taxiPos ? "rgba(34,197,94,0.3)" : "rgba(255,255,255,0.08)"}`,
+                background: driverPos ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.035)",
+                border: `1px solid ${driverPos ? "rgba(34,197,94,0.3)" : "rgba(255,255,255,0.08)"}`,
                 borderRadius: 16,
                 padding: "14px 16px",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: taxiPos ? 10 : 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: driverPos ? 10 : 0 }}>
                 <div
                   style={{
                     width: 10,
                     height: 10,
                     borderRadius: "50%",
-                    background: taxiPos ? "#22c55e" : "#475569",
+                    background: driverPos ? "#22c55e" : "#475569",
                     flexShrink: 0,
-                    boxShadow: taxiPos ? "0 0 0 3px rgba(34,197,94,0.2)" : "none",
-                    animation: taxiPos ? "pulse 2s ease-in-out infinite" : "none",
+                    boxShadow: driverPos ? "0 0 0 3px rgba(34,197,94,0.2)" : "none",
+                    animation: driverPos ? "pulse 2s ease-in-out infinite" : "none",
                   }}
                 />
                 <span
@@ -2609,11 +2845,11 @@ function SuiviPage() {
                     fontFamily: "'Syne',sans-serif",
                     fontWeight: 700,
                     fontSize: 13,
-                    color: taxiPos ? "#22c55e" : "#475569",
+                    color: driverPos ? "#22c55e" : "#475569",
                     flex: 1,
                   }}
                 >
-                  {taxiPos ? "🛰 GPS actif" : "📡 En attente GPS chauffeur"}
+                  {driverPos ? "🛰 GPS actif" : "📡 En attente GPS chauffeur"}
                 </span>
                 <button
                   onClick={() => {
@@ -2637,11 +2873,11 @@ function SuiviPage() {
                   {driverGpsActive ? "⬛ Couper" : "▶ Activer"}
                 </button>
               </div>
-              {taxiPos && (
+              {driverPos && (
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
                   {[
-                    { label: "LAT", value: taxiPos.lat.toFixed(4), color: "#e2e8f0" },
-                    { label: "LNG", value: taxiPos.lng.toFixed(4), color: "#e2e8f0" },
+                    { label: "LAT", value: driverPos.lat.toFixed(4), color: "#e2e8f0" },
+                    { label: "LNG", value: driverPos.lng.toFixed(4), color: "#e2e8f0" },
                     {
                       label: "PRÉCISION",
                       value: driverDebug.accuracy !== null ? `±${Math.round(driverDebug.accuracy)}m` : "—",
@@ -2661,7 +2897,7 @@ function SuiviPage() {
                   ))}
                 </div>
               )}
-              {taxiPos && (
+              {driverPos && (
                 <div style={{ marginTop: 8, fontSize: 10, color: "#475569", fontFamily: "'DM Sans',sans-serif" }}>
                   {driverDebug.signalsSent > 0 ? `${driverDebug.signalsSent} màj · ` : ""}âge{" "}
                   {formatDiagnosticAge(trackingDiag.lastPositionAt)}
@@ -2706,108 +2942,7 @@ function SuiviPage() {
           </div>
 
           <div style={{ padding: "0 20px 4px" }}>
-            {/* [FUSION] Barre de progression départ→destination (depuis tracking) */}
-            {resa.depart && (resa.destination || resa.arrivee) && (
-              <div
-                style={{
-                  marginBottom: 14,
-                  background: "rgba(255,255,255,0.03)",
-                  border: "1px solid rgba(255,255,255,0.07)",
-                  borderRadius: 16,
-                  padding: "16px 16px 14px",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                  <span style={{ fontSize: 18, lineHeight: 1 }}>🟢</span>
-                  <span style={{ fontSize: 18, lineHeight: 1 }}>🏁</span>
-                </div>
-                <div
-                  style={{
-                    position: "relative",
-                    height: 6,
-                    borderRadius: 3,
-                    overflow: "visible",
-                    background: "rgba(255,255,255,0.06)",
-                  }}
-                >
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      height: "100%",
-                      width: pctDone !== null ? `${pctDone}%` : "0%",
-                      background: "#f5c842",
-                      borderRadius: 3,
-                      transition: "width 0.6s ease",
-                    }}
-                  />
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "50%",
-                      left: pctDone !== null ? `${pctDone}%` : "0%",
-                      transform: "translate(-50%, -50%)",
-                      transition: "left 0.6s ease",
-                      zIndex: 2,
-                      width: 26,
-                      height: 26,
-                      borderRadius: "50%",
-                      background: "#f5c842",
-                      border: "2px solid #08080f",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      boxShadow: "0 2px 8px rgba(245,200,66,0.45)",
-                    }}
-                  >
-                    <img
-                      src={TAXI_ICON_URI}
-                      style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
-                      alt="taxi"
-                    />
-                  </div>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14 }}>
-                  <span
-                    style={{
-                      fontFamily: "'DM Sans',sans-serif",
-                      fontSize: 12,
-                      color: "#475569",
-                      maxWidth: "45%",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {resa.depart}
-                  </span>
-                  <span
-                    style={{
-                      fontFamily: "'DM Sans',sans-serif",
-                      fontSize: 12,
-                      color: "#475569",
-                      maxWidth: "45%",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      textAlign: "right",
-                    }}
-                  >
-                    {resa.destination || resa.arrivee}
-                  </span>
-                </div>
-                {pctDone !== null && (
-                  <div style={{ textAlign: "center", marginTop: 8 }}>
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "#f5c842" }}>
-                      {pctDone}% parcouru · {etaKm} km restants
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── ACTIONS CHAUFFEUR ── */}
+            {/* ── Actions chauffeur (lecture seule pour le client) ── */}
             {resa.depart && (resa.destination || resa.arrivee) && (
               <div
                 style={{
@@ -2825,22 +2960,24 @@ function SuiviPage() {
                   style={{
                     fontFamily: "'DM Sans',sans-serif",
                     fontSize: 10,
-                    color: "#f8fafc",
+                    color: CASE_SUBTITLE_COLOR,
                     letterSpacing: "0.06em",
                     textTransform: "uppercase",
                     textAlign: "center",
                   }}
                 >
-                  {isDriver ? "Actions chauffeur" : "Étapes de votre course"}
+                  {isDriverMode ? "Actions chauffeur" : "Étapes de votre course"}
                 </div>
 
                 <button
                   type="button"
                   disabled={
-                    !isDriver || statusBusy !== null || ["arrived", "completed", "terminee"].includes(effectiveStatus)
+                    !isDriverMode ||
+                    statusBusy !== null ||
+                    ["arrived", "completed", "terminee"].includes(effectiveStatus)
                   }
                   onClick={async () => {
-                    if (!isDriver || !resaIdRef.current) return;
+                    if (!isDriverMode || !resaIdRef.current) return;
                     setStatusBusy("arrived");
                     try {
                       const { error: e } = await supabase
@@ -2850,7 +2987,9 @@ function SuiviPage() {
                       if (e) throw e;
                       setResa((prev) => (prev ? { ...prev, status: "arrived" } : prev));
                       try {
-                        await notifyStatusFn({ data: { reservation_id: resaIdRef.current, status: "arrived" } });
+                        await notifyStatusFn({
+                          data: { reservation_id: resaIdRef.current, status: "arrived" },
+                        });
                       } catch (err) {
                         console.warn("[suivi] push arrived failed", err);
                       }
@@ -2862,7 +3001,7 @@ function SuiviPage() {
                       setStatusBusy(null);
                     }
                   }}
-                  title={isDriver ? "" : "Action réservée au chauffeur"}
+                  title={isDriverMode ? "" : "Action réservée au chauffeur"}
                   style={{
                     width: "100%",
                     padding: "14px 16px",
@@ -2870,13 +3009,19 @@ function SuiviPage() {
                     background: ["arrived", "completed", "terminee"].includes(effectiveStatus)
                       ? "rgba(34,197,94,0.18)"
                       : "rgba(245,200,66,0.14)",
-                    border: `1px solid ${["arrived", "completed", "terminee"].includes(effectiveStatus) ? "rgba(34,197,94,0.4)" : "rgba(245,200,66,0.4)"}`,
-                    color: ["arrived", "completed", "terminee"].includes(effectiveStatus) ? "#22c55e" : "#f5c842",
+                    border: `1px solid ${
+                      ["arrived", "completed", "terminee"].includes(effectiveStatus)
+                        ? "rgba(34,197,94,0.4)"
+                        : "rgba(245,200,66,0.4)"
+                    }`,
+                    color: ["arrived", "completed", "terminee"].includes(effectiveStatus)
+                      ? "#22c55e"
+                      : "#f5c842",
                     fontFamily: "'Syne',sans-serif",
                     fontWeight: 800,
                     fontSize: 14,
-                    cursor: isDriver ? "pointer" : "not-allowed",
-                    opacity: isDriver ? 1 : 0.7,
+                    cursor: isDriverMode ? "pointer" : "not-allowed",
+                    opacity: isDriverMode ? 1 : 0.7,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -2892,9 +3037,9 @@ function SuiviPage() {
 
                 <button
                   type="button"
-                  disabled={!isDriver || statusBusy !== null || courseTerminee}
+                  disabled={!isDriverMode || statusBusy !== null || courseTerminee}
                   onClick={async () => {
-                    if (!isDriver || !resaIdRef.current) return;
+                    if (!isDriverMode || !resaIdRef.current) return;
                     if (!window.confirm("Confirmer la fin de la course ?")) return;
                     setStatusBusy("completed");
                     try {
@@ -2904,7 +3049,9 @@ function SuiviPage() {
                         .eq("id", resaIdRef.current);
                       if (e) throw e;
                       try {
-                        await notifyStatusFn({ data: { reservation_id: resaIdRef.current, status: "completed" } });
+                        await notifyStatusFn({
+                          data: { reservation_id: resaIdRef.current, status: "completed" },
+                        });
                       } catch (err) {
                         console.warn("[suivi] push completed failed", err);
                       }
@@ -2921,7 +3068,7 @@ function SuiviPage() {
                       setStatusBusy(null);
                     }
                   }}
-                  title={isDriver ? "" : "Action réservée au chauffeur"}
+                  title={isDriverMode ? "" : "Action réservée au chauffeur"}
                   style={{
                     width: "100%",
                     padding: "14px 16px",
@@ -2932,8 +3079,8 @@ function SuiviPage() {
                     fontFamily: "'Syne',sans-serif",
                     fontWeight: 800,
                     fontSize: 14,
-                    cursor: isDriver ? "pointer" : "not-allowed",
-                    opacity: isDriver ? 1 : 0.7,
+                    cursor: isDriverMode ? "pointer" : "not-allowed",
+                    opacity: isDriverMode ? 1 : 0.7,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -2943,7 +3090,7 @@ function SuiviPage() {
                   {statusBusy === "completed" ? "Envoi…" : "🏁 Course terminée"}
                 </button>
 
-                {!isDriver && (
+                {!isDriverMode && (
                   <div
                     style={{
                       fontFamily: "'DM Sans',sans-serif",
@@ -2957,6 +3104,7 @@ function SuiviPage() {
                   </div>
                 )}
 
+                {/* Adresses + ETA */}
                 <div
                   style={{
                     display: "flex",
@@ -2970,7 +3118,7 @@ function SuiviPage() {
                     style={{
                       fontFamily: "'DM Sans',sans-serif",
                       fontSize: 11,
-                      color: "#f8fafc",
+                      color: CASE_SUBTITLE_COLOR,
                       maxWidth: "45%",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
@@ -2983,7 +3131,7 @@ function SuiviPage() {
                     style={{
                       fontFamily: "'DM Sans',sans-serif",
                       fontSize: 11,
-                      color: "#f8fafc",
+                      color: CASE_SUBTITLE_COLOR,
                       maxWidth: "45%",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
@@ -2997,12 +3145,14 @@ function SuiviPage() {
                 {eta !== null && (
                   <div style={{ textAlign: "center" }}>
                     <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: "#64748b" }}>
-                      ⏱ {eta} min{etaKm && <span style={{ color: "#475569" }}> · {etaKm} km restants</span>}
+                      ⏱ {eta} min
+                      {etaKm && <span style={{ color: "#475569" }}> · {etaKm} km restants</span>}
                     </span>
                   </div>
                 )}
               </div>
             )}
+
 
             {/* ── CHAUFFEUR ── */}
             <div
@@ -3017,7 +3167,9 @@ function SuiviPage() {
                 gap: 14,
               }}
             >
+              {/* Triple-tap zone sur photo + nom → mode chauffeur */}
               <div
+                onClick={handleDriverTripleTap}
                 style={{
                   width: 56,
                   height: 56,
@@ -3025,12 +3177,18 @@ function SuiviPage() {
                   flexShrink: 0,
                   overflow: "hidden",
                   border: "2px solid rgba(245,200,66,0.3)",
+                  cursor: "default",
+                  WebkitTapHighlightColor: "transparent",
+                  userSelect: "none",
                 }}
               >
                 <img src={TAXI_ICON_URI} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt="taxi" />
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="typo-title" style={{ fontSize: 18, color: "#f1f5f9" }}>
+              <div style={{ flex: 1, minWidth: 0 }} onClick={handleDriverTripleTap}>
+                <div
+                  className="typo-title"
+                  style={{ fontSize: 18, color: "#f1f5f9", userSelect: "none", WebkitTapHighlightColor: "transparent" }}
+                >
                   {CHAUFFEUR.nom}
                 </div>
                 <div className="typo-body" style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
@@ -3053,7 +3211,7 @@ function SuiviPage() {
                   flexShrink: 0,
                 }}
               >
-                <div className="typo-label" style={{ fontSize: 9, color: "#475569", marginBottom: 4 }}>
+                <div className="typo-label" style={{ fontSize: 9, color: "#f1f5f9", marginBottom: 4 }}>
                   Plaque
                 </div>
                 <div className="typo-num" style={{ fontSize: 14, color: "#f5c842", letterSpacing: "0.12em" }}>
@@ -3099,7 +3257,15 @@ function SuiviPage() {
               }}
             >
               <div style={{ display: "flex", gap: 14, marginBottom: 14 }}>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, paddingTop: 4 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 4,
+                    paddingTop: 4,
+                  }}
+                >
                   <div
                     style={{
                       width: 10,
@@ -3109,7 +3275,14 @@ function SuiviPage() {
                       boxShadow: "0 0 0 3px rgba(34,197,94,0.2)",
                     }}
                   />
-                  <div style={{ width: 2, flex: 1, background: "rgba(255,255,255,0.08)", borderRadius: 1 }} />
+                  <div
+                    style={{
+                      width: 2,
+                      flex: 1,
+                      background: "rgba(255,255,255,0.08)",
+                      borderRadius: 1,
+                    }}
+                  />
                   <div
                     style={{
                       width: 10,
@@ -3131,7 +3304,7 @@ function SuiviPage() {
                   }}
                 >
                   <div>
-                    <div className="typo-label" style={{ fontSize: 10, color: "#475569", marginBottom: 3 }}>
+                    <div className="typo-label" style={{ fontSize: 10, color: "#f1f5f9", marginBottom: 3 }}>
                       Départ
                     </div>
                     <div
@@ -3149,7 +3322,7 @@ function SuiviPage() {
                     </div>
                   </div>
                   <div>
-                    <div className="typo-label" style={{ fontSize: 10, color: "#475569", marginBottom: 3 }}>
+                    <div className="typo-label" style={{ fontSize: 10, color: "#f1f5f9", marginBottom: 3 }}>
                       Destination
                     </div>
                     <div
@@ -3180,7 +3353,7 @@ function SuiviPage() {
                     textAlign: "center",
                   }}
                 >
-                  <div className="typo-label" style={{ fontSize: 9, color: "#475569", marginBottom: 4 }}>
+                  <div className="typo-label" style={{ fontSize: 9, color: "#f1f5f9", marginBottom: 4 }}>
                     Prise en charge
                   </div>
                   <div className="typo-num" style={{ fontSize: 12, color: "#cbd5e1", lineHeight: 1.3 }}>
@@ -3197,7 +3370,7 @@ function SuiviPage() {
                       flexShrink: 0,
                     }}
                   >
-                    <div className="typo-label" style={{ fontSize: 9, color: "#475569", marginBottom: 4 }}>
+                    <div className="typo-label" style={{ fontSize: 9, color: "#f1f5f9", marginBottom: 4 }}>
                       Distance
                     </div>
                     <div className="typo-num" style={{ fontSize: 15, color: "#cbd5e1" }}>
@@ -3215,7 +3388,7 @@ function SuiviPage() {
                     flexShrink: 0,
                   }}
                 >
-                  <div className="typo-label" style={{ fontSize: 9, color: "#475569", marginBottom: 4 }}>
+                  <div className="typo-label" style={{ fontSize: 9, color: "#f1f5f9", marginBottom: 4 }}>
                     Pass.
                   </div>
                   <div className="typo-num" style={{ fontSize: 15, color: "#cbd5e1" }}>
@@ -3231,7 +3404,7 @@ function SuiviPage() {
                     flexShrink: 0,
                   }}
                 >
-                  <div className="typo-label" style={{ fontSize: 9, color: "#475569", marginBottom: 4 }}>
+                  <div className="typo-label" style={{ fontSize: 9, color: "#f1f5f9", marginBottom: 4 }}>
                     Bagages
                   </div>
                   <div className="typo-num" style={{ fontSize: 15, color: "#cbd5e1" }}>
@@ -3249,7 +3422,7 @@ function SuiviPage() {
                       flexShrink: 0,
                     }}
                   >
-                    <div className="typo-label" style={{ fontSize: 9, color: "#64748b", marginBottom: 4 }}>
+                    <div className="typo-label" style={{ fontSize: 9, color: "#f1f5f9", marginBottom: 4 }}>
                       Prix est.
                     </div>
                     <div className="typo-num" style={{ fontSize: 17, color: "#f5c842" }}>
@@ -3264,7 +3437,11 @@ function SuiviPage() {
             {resa.pickup_datetime &&
               (() => {
                 const d = new Date(resa.pickup_datetime);
-                const formatted = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+                const formatted = d.toLocaleDateString("fr-FR", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                });
                 const time = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
                 return (
                   <div
@@ -3405,11 +3582,482 @@ function SuiviPage() {
                   fontWeight: 600,
                 }}
               >
-                <span style={{ display: "inline-block", animation: refreshing ? "spin 0.8s linear infinite" : "none" }}>
+                <span
+                  style={{
+                    display: "inline-block",
+                    animation: refreshing ? "spin 0.8s linear infinite" : "none",
+                  }}
+                >
                   {refreshing ? "⏳" : "🔄"}
                 </span>{" "}
                 Rafraîchir
               </button>
+              {isDriverMode &&
+                (() => {
+                  const statusConfig = {
+                    idle: {
+                      bg: "rgba(99,102,241,0.12)",
+                      border: "rgba(99,102,241,0.35)",
+                      color: "#a5b4fc",
+                      icon: "📍",
+                      label: "Activer GPS",
+                    },
+                    starting: {
+                      bg: "rgba(245,200,66,0.12)",
+                      border: "rgba(245,200,66,0.35)",
+                      color: "#f5c842",
+                      icon: "🔄",
+                      label: "Démarrage…",
+                    },
+                    active: {
+                      bg: "rgba(34,197,94,0.12)",
+                      border: "rgba(34,197,94,0.35)",
+                      color: "#22c55e",
+                      icon: "📡",
+                      label: "GPS actif — tout roule",
+                    },
+                    weak: {
+                      bg: "rgba(245,158,11,0.12)",
+                      border: "rgba(245,158,11,0.35)",
+                      color: "#f59e0b",
+                      icon: "📶",
+                      label: "Signal faible — en attente…",
+                    },
+                    denied: {
+                      bg: "rgba(239,68,68,0.12)",
+                      border: "rgba(239,68,68,0.35)",
+                      color: "#ef4444",
+                      icon: "🚫",
+                      label: "GPS refusé — ouvre les réglages",
+                    },
+                    background: {
+                      bg: "rgba(148,163,184,0.08)",
+                      border: "rgba(148,163,184,0.2)",
+                      color: "#94a3b8",
+                      icon: "🔋",
+                      label: "Arrière-plan — reprise auto…",
+                    },
+                    error: {
+                      bg: "rgba(239,68,68,0.08)",
+                      border: "rgba(239,68,68,0.25)",
+                      color: "#f87171",
+                      icon: "❌",
+                      label: "Erreur GPS — retry en cours…",
+                    },
+                  }[driverGpsStatus];
+                  return (
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      {/* Bouton GPS */}
+                      <button
+                        className="sheet-btn"
+                        onClick={() => {
+                          if (driverGpsStatus === "idle") setDriverGpsActive(true);
+                          else if (driverGpsActive) setDriverGpsActive(false);
+                          else setDriverGpsActive(true);
+                        }}
+                        style={{
+                          width: "100%",
+                          padding: "14px 16px",
+                          borderRadius: 16,
+                          background: statusConfig.bg,
+                          border: `1px solid ${statusConfig.border}`,
+                          color: statusConfig.color,
+                          fontSize: 14,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 8,
+                          fontFamily: "'Syne',sans-serif",
+                          fontWeight: 700,
+                          animation: driverGpsStatus === "starting" ? "spin 1s linear infinite" : "none",
+                        }}
+                      >
+                        <span style={{ fontSize: 18 }}>{statusConfig.icon}</span>
+                        {statusConfig.label}
+                      </button>
+
+                      {/* Bouton Reconnecter GPS — relance realtime + fetch immédiat driver_gps */}
+                      <button
+                        className="sheet-btn"
+                        onClick={async () => {
+                          addLog("🔄 Reconnexion realtime + fetch driver_gps…", "ok");
+                          try {
+                            const { data, error } = await supabase
+                              .from("driver_gps")
+                              .select("latitude,longitude,updated_at")
+                              .eq("id", "driver")
+                              .maybeSingle();
+                            if (error) {
+                              const isRls =
+                                error.code === "42501" || (error.message ?? "").toLowerCase().includes("permission");
+                              addLog(`❌ Fetch driver_gps${isRls ? " (RLS)" : ""}: ${error.message}`, "err");
+                            } else if (data?.latitude && data?.longitude) {
+                              setDriverPos({ lat: data.latitude, lng: data.longitude });
+                              lastDriverPos.current = { lat: data.latitude, lng: data.longitude };
+                              const ageS = data.updated_at
+                                ? Math.round((Date.now() - new Date(data.updated_at).getTime()) / 1000)
+                                : null;
+                              addLog(`✅ Position récupérée (âge ${ageS ?? "?"}s)`, "ok");
+                            } else {
+                              addLog("⚠️ Aucune position en base", "warn");
+                            }
+                          } catch (e: any) {
+                            addLog(`❌ Erreur fetch: ${e?.message ?? e}`, "err");
+                          }
+                          // Relance complète : subscribeRealtime nettoie + recrée les channels
+                          setRetryNonce((n) => n + 1);
+                          addLog("📡 Abonnement realtime relancé", "ok");
+                        }}
+                        style={{
+                          width: "100%",
+                          padding: "10px 14px",
+                          marginTop: 8,
+                          borderRadius: 14,
+                          background: "rgba(59,130,246,0.12)",
+                          border: "1px solid rgba(59,130,246,0.35)",
+                          color: "#60a5fa",
+                          fontSize: 13,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 8,
+                          fontFamily: "'Syne',sans-serif",
+                          fontWeight: 700,
+                        }}
+                      >
+                        <span style={{ fontSize: 15 }}>🔄</span>
+                        Reconnecter GPS
+                      </button>
+
+                      {/* Panel debug — visible dès que mode chauffeur actif */}
+                      <div
+                        style={{
+                          marginTop: 12,
+                          borderRadius: 14,
+                          background: "rgba(0,0,0,0.4)",
+                          border: "1px solid rgba(255,255,255,0.07)",
+                          padding: 12,
+                          fontFamily: "'JetBrains Mono',monospace",
+                          fontSize: 10,
+                        }}
+                      >
+                        <div
+                          style={{
+                            color: "#f5c842",
+                            fontWeight: 700,
+                            fontSize: 11,
+                            marginBottom: 8,
+                            letterSpacing: "0.08em",
+                          }}
+                        >
+                          🛠 DEBUG GPS
+                        </div>
+                        <div
+                          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 12px", marginBottom: 10 }}
+                        >
+                          <div style={{ color: "#64748b" }}>Lat</div>
+                          <div style={{ color: "#e2e8f0" }}>{driverDebug.lat?.toFixed(6) ?? "—"}</div>
+                          <div style={{ color: "#64748b" }}>Lng</div>
+                          <div style={{ color: "#e2e8f0" }}>{driverDebug.lng?.toFixed(6) ?? "—"}</div>
+                          <div style={{ color: "#64748b" }}>Précision</div>
+                          <div
+                            style={{
+                              color: driverDebug.accuracy !== null && driverDebug.accuracy > 50 ? "#f59e0b" : "#22c55e",
+                            }}
+                          >
+                            {driverDebug.accuracy !== null ? `${Math.round(driverDebug.accuracy)}m` : "—"}
+                          </div>
+                          <div style={{ color: "#64748b" }}>Signaux</div>
+                          <div style={{ color: "#22c55e" }}>{driverDebug.signalsSent}</div>
+                          <div style={{ color: "#64748b" }}>Erreurs</div>
+                          <div style={{ color: driverDebug.errors > 0 ? "#ef4444" : "#22c55e" }}>
+                            {driverDebug.errors}
+                          </div>
+                          <div style={{ color: "#64748b" }}>WakeLock</div>
+                          <div style={{ color: driverDebug.wakeLock ? "#22c55e" : "#ef4444" }}>
+                            {driverDebug.wakeLock ? "✅ actif" : "❌ inactif"}
+                          </div>
+                          <div style={{ color: "#64748b" }}>Heartbeat</div>
+                          <div
+                            style={{
+                              color:
+                                driverDebug.heartbeatAge !== null && driverDebug.heartbeatAge > 15
+                                  ? "#f59e0b"
+                                  : "#22c55e",
+                            }}
+                          >
+                            {driverDebug.heartbeatAge !== null ? `${driverDebug.heartbeatAge}s` : "—"}
+                          </div>
+                        </div>
+                        <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 8 }}>
+                          <div style={{ color: "#f5c842", fontSize: 9, marginBottom: 6, letterSpacing: "0.06em" }}>
+                            LOG
+                          </div>
+                          {driverDebug.log.length === 0 && <div style={{ color: "#475569" }}>En attente…</div>}
+                          {driverDebug.log.map((entry, i) => (
+                            <div key={i} style={{ display: "flex", gap: 8, marginBottom: 3 }}>
+                              <span style={{ color: "#475569", flexShrink: 0 }}>{entry.time}</span>
+                              <span
+                                style={{
+                                  color:
+                                    entry.type === "ok" ? "#94a3b8" : entry.type === "warn" ? "#f59e0b" : "#ef4444",
+                                }}
+                              >
+                                {entry.msg}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* ── BOUTONS ACTIONS CHAUFFEUR ── */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
+                        {/* En route */}
+                        {resa &&
+                          !["en_route", "arrived", "completed", "terminee", "terminée"].includes(
+                            (resa.status || "").toLowerCase(),
+                          ) && (
+                            <button
+                              className="sheet-btn"
+                              onClick={async () => {
+                                if (!resaIdRef.current) return;
+                                const { error: e } = await supabase
+                                  .from("reservations")
+                                  .update({ status: "en_route" })
+                                  .eq("id", resaIdRef.current);
+                                if (e) {
+                                  toast.error("Erreur mise à jour statut");
+                                  addLog("❌ Échec statut en_route", "err");
+                                } else {
+                                  setResa((prev) => (prev ? { ...prev, status: "en_route" } : prev));
+                                  toast.success("🚕 Statut mis à jour : En route");
+                                  addLog("✅ Statut → en_route", "ok");
+                                }
+                              }}
+                              style={{
+                                width: "100%",
+                                padding: "14px 16px",
+                                borderRadius: 16,
+                                background: "rgba(59,130,246,0.15)",
+                                border: "1px solid rgba(59,130,246,0.4)",
+                                color: "#60a5fa",
+                                fontSize: 14,
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: 8,
+                                fontFamily: "'Syne',sans-serif",
+                                fontWeight: 700,
+                              }}
+                            >
+                              🚕 Marquer En route
+                            </button>
+                          )}
+
+                        {/* Arrivé */}
+                        {resa && (resa.status || "").toLowerCase() === "en_route" && (
+                          <button
+                            className="sheet-btn"
+                            onClick={async () => {
+                              if (!resaIdRef.current) return;
+                              const { error: e } = await supabase
+                                .from("reservations")
+                                .update({ status: "arrived" })
+                                .eq("id", resaIdRef.current);
+                              if (e) {
+                                toast.error("Erreur mise à jour statut");
+                                addLog("❌ Échec statut arrived", "err");
+                              } else {
+                                setResa((prev) => (prev ? { ...prev, status: "arrived" } : prev));
+                                toast.success("📍 Statut mis à jour : Arrivé chez le client");
+                                addLog("✅ Statut → arrived", "ok");
+                              }
+                            }}
+                            style={{
+                              width: "100%",
+                              padding: "14px 16px",
+                              borderRadius: 16,
+                              background: "rgba(245,200,66,0.15)",
+                              border: "1px solid rgba(245,200,66,0.4)",
+                              color: "#f5c842",
+                              fontSize: 14,
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: 8,
+                              fontFamily: "'Syne',sans-serif",
+                              fontWeight: 700,
+                            }}
+                          >
+                            📍 Marquer Arrivé
+                          </button>
+                        )}
+
+                        {/* Course terminée */}
+                        {resa &&
+                          !courseTerminee &&
+                          ["en_route", "arrived", "accepted"].includes((resa.status || "").toLowerCase()) && (
+                            <button
+                              className="sheet-btn"
+                              onClick={async () => {
+                                if (!resaIdRef.current) return;
+                                const { error: e } = await supabase
+                                  .from("reservations")
+                                  .update({ status: "completed" })
+                                  .eq("id", resaIdRef.current);
+                                if (e) {
+                                  toast.error("Erreur mise à jour statut");
+                                  addLog("❌ Échec statut completed", "err");
+                                } else {
+                                  setCourseTerminee(true);
+                                  setResa((prev) => (prev ? { ...prev, status: "completed" } : prev));
+                                  setDriverGpsActive(false);
+                                  toast.success("🏁 Course terminée — GPS arrêté");
+                                  addLog("✅ Statut → completed · GPS arrêté", "ok");
+                                }
+                              }}
+                              style={{
+                                width: "100%",
+                                padding: "14px 16px",
+                                borderRadius: 16,
+                                background: "rgba(239,68,68,0.12)",
+                                border: "1px solid rgba(239,68,68,0.35)",
+                                color: "#f87171",
+                                fontSize: 14,
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: 8,
+                                fontFamily: "'Syne',sans-serif",
+                                fontWeight: 700,
+                              }}
+                            >
+                              🏁 Terminer la course
+                            </button>
+                          )}
+                      </div>
+
+                      {/* Panneau debug repliable — événements realtime */}
+                      <div
+                        style={{
+                          marginTop: 8,
+                          borderRadius: 14,
+                          background: "rgba(0,0,0,0.4)",
+                          border: "1px solid rgba(255,255,255,0.07)",
+                          overflow: "hidden",
+                          fontFamily: "'JetBrains Mono',monospace",
+                          fontSize: 10,
+                        }}
+                      >
+                        <button
+                          onClick={() => setRtPanelOpen((o) => !o)}
+                          style={{
+                            width: "100%",
+                            padding: "10px 12px",
+                            background: "transparent",
+                            border: "none",
+                            color: "#f5c842",
+                            fontFamily: "'JetBrains Mono',monospace",
+                            fontWeight: 700,
+                            fontSize: 11,
+                            letterSpacing: "0.08em",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <span>📡 DEBUG REALTIME ({realtimeEvents.length})</span>
+                          <span style={{ color: "#64748b" }}>{rtPanelOpen ? "▼" : "▶"}</span>
+                        </button>
+                        {rtPanelOpen && (
+                          <div style={{ padding: "0 12px 12px" }}>
+                            <div
+                              style={{
+                                display: "grid",
+                                gridTemplateColumns: "auto 1fr",
+                                gap: "4px 10px",
+                                marginBottom: 10,
+                                paddingTop: 4,
+                              }}
+                            >
+                              <div style={{ color: "#64748b" }}>État</div>
+                              <div
+                                style={{
+                                  color: trackingDiag.realtime.startsWith("connecté") ? "#22c55e" : "#ef4444",
+                                }}
+                              >
+                                {trackingDiag.realtime}
+                              </div>
+                              <div style={{ color: "#64748b" }}>Stop</div>
+                              <div style={{ color: "#e2e8f0" }}>{trackingDiag.stopReason}</div>
+                              <div style={{ color: "#64748b" }}>Dernière pos.</div>
+                              <div style={{ color: "#e2e8f0" }}>
+                                {driverPos ? `${driverPos.lat.toFixed(5)}, ${driverPos.lng.toFixed(5)}` : "—"}
+                                {trackingDiag.lastPositionAt &&
+                                  ` · il y a ${Math.round((Date.now() - trackingDiag.lastPositionAt.getTime()) / 1000)}s`}
+                              </div>
+                              <div style={{ color: "#64748b" }}>Heartbeat</div>
+                              <div style={{ color: "#e2e8f0" }}>
+                                {trackingDiag.lastHeartbeatAt
+                                  ? `il y a ${Math.round((Date.now() - trackingDiag.lastHeartbeatAt.getTime()) / 1000)}s`
+                                  : "—"}
+                              </div>
+                            </div>
+                            <div
+                              style={{
+                                borderTop: "1px solid rgba(255,255,255,0.06)",
+                                paddingTop: 8,
+                                maxHeight: 200,
+                                overflowY: "auto",
+                              }}
+                            >
+                              <div style={{ color: "#f5c842", fontSize: 9, marginBottom: 6, letterSpacing: "0.06em" }}>
+                                ÉVÉNEMENTS
+                              </div>
+                              {realtimeEvents.length === 0 && <div style={{ color: "#475569" }}>Aucun événement</div>}
+                              {realtimeEvents.map((e, i) => {
+                                const color =
+                                  e.kind === "err"
+                                    ? "#ef4444"
+                                    : e.kind === "pos"
+                                      ? "#22c55e"
+                                      : e.kind === "sub"
+                                        ? "#60a5fa"
+                                        : e.kind === "unsub"
+                                          ? "#f59e0b"
+                                          : "#94a3b8";
+                                const tag =
+                                  e.kind === "sub"
+                                    ? "SUB"
+                                    : e.kind === "unsub"
+                                      ? "UNSUB"
+                                      : e.kind === "pos"
+                                        ? "POS"
+                                        : e.kind === "err"
+                                          ? "ERR"
+                                          : "SYS";
+                                return (
+                                  <div key={i} style={{ display: "flex", gap: 8, marginBottom: 3 }}>
+                                    <span style={{ color: "#475569", flexShrink: 0 }}>{e.time}</span>
+                                    <span style={{ color, flexShrink: 0, width: 42, fontWeight: 700 }}>{tag}</span>
+                                    <span style={{ color: "#cbd5e1", wordBreak: "break-word" }}>{e.msg}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+
               <button
                 className="sheet-btn"
                 onClick={() => setShowHelp(true)}

@@ -34,12 +34,15 @@ export function trackCtaClick(event: CtaEvent): void {
 
   // Don't await — let the click navigate to WhatsApp without delay.
   void supabase
-    .from("cta_events")
-    .insert(payload)
+    .from("site_analytics")
+    .insert({
+      event: event.event_type,
+      session_id: `cta_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    })
     .then(({ error }) => {
       if (error && import.meta.env.DEV) {
         // eslint-disable-next-line no-console
-        console.warn("[analytics] cta_events insert failed:", error.message);
+        console.warn("[analytics] site_analytics insert failed:", error.message);
       }
     });
 }

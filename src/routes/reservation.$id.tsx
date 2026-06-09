@@ -57,7 +57,7 @@ function ConfirmationPage() {
   useEffect(() => {
     if (reservation && !["annulee", "cancelled", "canceled"].includes(reservation.status)) {
       const timeout = setTimeout(() => {
-        navigate({ to: "/suivi/$id", params: { id: reservation.id }, search: { gps: undefined, rid: undefined } });
+        navigate({ to: "/suivi/$id", params: { id: reservation.id } });
       }, 5000);
       return () => clearTimeout(timeout);
     }
@@ -231,7 +231,6 @@ function ConfirmationPage() {
         <Link
           to="/suivi/$id"
           params={{ id: reservation.id }}
-          search={{ gps: undefined, rid: undefined }}
           className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 font-semibold text-primary-foreground shadow transition hover:opacity-90"
         >
           <Navigation className="h-5 w-5" /> {t("conf.track")}

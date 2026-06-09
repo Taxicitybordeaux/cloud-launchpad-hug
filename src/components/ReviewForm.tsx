@@ -19,10 +19,11 @@ export function ReviewForm({ onSubmitted }: { onSubmitted?: () => void }) {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.from("reviews").insert({
-      name: name.trim().slice(0, 80),
-      text: text.trim().slice(0, 1000),
-      rating,
+    // Table "avis" — colonnes réelles : id, note, commentaire, reservation_id, chauffeur_id, created_at
+    // On stocke name dans commentaire (préfixé) et rating dans note
+    const { error } = await (supabase as any).from("avis").insert({
+      note: rating,
+      commentaire: `[${name.trim().slice(0, 80)}] ${text.trim().slice(0, 900)}`,
     });
     setLoading(false);
     if (error) {
@@ -60,9 +61,7 @@ export function ReviewForm({ onSubmitted }: { onSubmitted?: () => void }) {
               className="p-1 transition hover:scale-110"
             >
               <Star
-                className={`h-7 w-7 transition ${
-                  active ? "fill-primary text-primary" : "text-muted-foreground/40"
-                }`}
+                className={`h-7 w-7 transition ${active ? "fill-primary text-primary" : "text-muted-foreground/40"}`}
               />
             </button>
           );

@@ -20,7 +20,15 @@ messaging.onBackgroundMessage((payload) => {
   // Évite le doublon si le navigateur affiche déjà la notif automatiquement
   const title = (payload.notification && payload.notification.title) || "🚖 Taxi City Bordeaux";
   const body = (payload.notification && payload.notification.body) || "";
-  const url = (payload.data && (payload.data.url || payload.data.click_action)) || "/admin/dashboard";
+  const reservationId = payload.data && payload.data.reservation_id;
+  const audience = payload.data && payload.data.audience;
+  let defaultUrl = "/";
+  if (audience === "chauffeur" || audience === "admin") {
+    defaultUrl = "/admin/dashboard";
+  } else if (reservationId) {
+    defaultUrl = "/suivi/" + reservationId;
+  }
+  const url = (payload.data && (payload.data.url || payload.data.click_action)) || defaultUrl;
 
   return self.registration.showNotification(title, {
     body,
@@ -34,7 +42,14 @@ messaging.onBackgroundMessage((payload) => {
 });
 
 self.addEventListener("notificationclick", (event) => {
-  const url = (event.notification.data && event.notification.data.url) || "/admin/dashboard";
+  const notifData = event.notification.data || {};
+  let clickDefault = "/";
+  if (notifData.audience === "chauffeur" || notifData.audience === "admin") {
+    clickDefault = "/admin/dashboard";
+  } else if (notifData.reservation_id) {
+    clickDefault = "/suivi/" + notifData.reservation_id;
+  }
+  const url = notifData.url || clickDefault;
   event.notification.close();
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {

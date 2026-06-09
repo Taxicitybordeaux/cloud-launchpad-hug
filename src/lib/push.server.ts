@@ -30,8 +30,12 @@ function getServiceAccount(): ServiceAccount {
   const raw =
     process.env.FIREBASE_SERVICE_ACCOUNT_JSON ||
     process.env.FIREBASE_SERVICE_ACCOUNT ||
-    (typeof import.meta !== "undefined" ? (import.meta as any).env?.FIREBASE_SERVICE_ACCOUNT_JSON : undefined) ||
-    (typeof import.meta !== "undefined" ? (import.meta as any).env?.FIREBASE_SERVICE_ACCOUNT : undefined);
+    (typeof import.meta !== "undefined"
+      ? (import.meta as any).env?.FIREBASE_SERVICE_ACCOUNT_JSON
+      : undefined) ||
+    (typeof import.meta !== "undefined"
+      ? (import.meta as any).env?.FIREBASE_SERVICE_ACCOUNT
+      : undefined);
   if (!raw) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON missing");
   cachedAccount = JSON.parse(raw) as ServiceAccount;
   return cachedAccount;
@@ -90,7 +94,11 @@ async function getAccessToken(): Promise<string> {
     false,
     ["sign"],
   );
-  const sigBuf = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", cryptoKey, new TextEncoder().encode(data));
+  const sigBuf = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    cryptoKey,
+    new TextEncoder().encode(data),
+  );
   const jwt = `${data}.${base64UrlEncode(sigBuf)}`;
 
   const res = await fetch(tokenUri, {
@@ -158,7 +166,12 @@ async function sendFcmToToken(
   return { ok: false, status: res.status, errorCode };
 }
 
-type SubRow = { id: string; fcm_token: string | null };
+type SubRow = {
+  id: string;
+  fcm_token: string | null;
+  user_agent: string | null;
+  last_seen_at: string | null;
+};
 
 export async function sendPushToAudience(
   audience: PushAudience,
@@ -167,9 +180,10 @@ export async function sendPushToAudience(
 ): Promise<{ sent: number; removed: number }> {
   let q = supabaseAdmin
     .from("push_subscriptions")
-    .select("id, fcm_token")
+    .select("id, fcm_token, user_agent, last_seen_at")
     .eq("audience", audience)
-    .not("fcm_token", "is", null);
+    .not("fcm_token", "is", null)
+    .order("last_seen_at", { ascending: false });
   if (audience === "client" && opts.reservationId) {
     q = q.eq("reservation_id", opts.reservationId);
   }
@@ -186,11 +200,33 @@ export async function sendPushToAudience(
     return { sent: 0, removed: 0 };
   }
 
+  // Dédoublonnage à deux niveaux :
+  //  - par fcm_token (évidence)
+  //  - par user_agent (un même device iOS peut avoir plusieurs fcm_token
+  //    régénérés au fil des sessions / installs PWA → cause des notifs ×N)
+  // On garde la ligne la plus récente (les rows sont déjà triées DESC).
+  const rows = (data as SubRow[]).filter((r) => !!r.fcm_token);
+  const byToken = new Map<string, SubRow>();
+  for (const r of rows) if (!byToken.has(r.fcm_token!)) byToken.set(r.fcm_token!, r);
+  const seenUa = new Set<string>();
+  const staleIds: string[] = [];
+  const uniqueSubs: SubRow[] = [];
+  for (const sub of byToken.values()) {
+    const uaKey = sub.user_agent || "";
+    if (uaKey && seenUa.has(uaKey)) {
+      // doublon device → on l'ignore pour l'envoi ET on le purge de la DB
+      staleIds.push(sub.id);
+      continue;
+    }
+    if (uaKey) seenUa.add(uaKey);
+    uniqueSubs.push(sub);
+  }
+
   let sent = 0;
   const toRemove: string[] = [];
 
   await Promise.all(
-    (data as SubRow[]).map(async (sub) => {
+    uniqueSubs.map(async (sub) => {
       if (!sub.fcm_token) return;
       const r = await sendFcmToToken(accessToken, projectId, sub.fcm_token, payload);
       if (r.ok) {
@@ -208,9 +244,10 @@ export async function sendPushToAudience(
     }),
   );
 
-  if (toRemove.length > 0) {
-    await supabaseAdmin.from("push_subscriptions").delete().in("id", toRemove);
+  const allToRemove = Array.from(new Set([...toRemove, ...staleIds]));
+  if (allToRemove.length > 0) {
+    await supabaseAdmin.from("push_subscriptions").delete().in("id", allToRemove);
   }
 
-  return { sent, removed: toRemove.length };
+  return { sent, removed: allToRemove.length };
 }
