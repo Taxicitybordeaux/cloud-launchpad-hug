@@ -463,6 +463,9 @@ function ReservationPage() {
   const [destMode, setDestMode] = useState<"address" | "poi">("address");
   const [departSearching, setDepartSearching] = useState(false);
   const [destSearching, setDestSearching] = useState(false);
+  const [dictating, setDictating] = useState(false);
+  const [dictateError, setDictateError] = useState<string | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   const [f, setF] = useState<FormState>({
     depart: "",
@@ -943,6 +946,88 @@ function ReservationPage() {
   useEffect(() => {
     if (f.destination && detectPoi(f.destination)) setDestMode("poi");
   }, [f.destination]);
+
+  // ── Dictée vocale : départ + destination en un coup ──────────────────────
+  // Sépare avec « à / vers / jusqu'à / direction / puis / -> »
+  const parseDictation = useCallback((raw: string): { depart: string; destination: string } | null => {
+    const txt = raw.trim().replace(/\s+/g, " ");
+    if (!txt) return null;
+    // Normalise quelques variantes
+    const normalized = txt
+      .replace(/\s*->\s*/gi, " -> ")
+      .replace(/\s*=>\s*/gi, " -> ")
+      .replace(/\bjusqu['’ ]?à\b/gi, "->")
+      .replace(/\bdirection\b/gi, "->")
+      .replace(/\bpuis\b/gi, "->")
+      .replace(/\bvers\b/gi, "->")
+      .replace(/(^|\s)à\s+/gi, " -> ");
+    const parts = normalized.split(/\s*->\s*/).map((s) => s.trim()).filter(Boolean);
+    if (parts.length < 2) return null;
+    // Premier segment = départ, le reste rejoint en destination
+    const depart = parts[0].replace(/^(de\s+|depuis\s+|du\s+)/i, "").trim();
+    const destination = parts.slice(1).join(" ").trim();
+    if (!depart || !destination) return null;
+    return { depart, destination };
+  }, []);
+
+  const handleDictate = useCallback(() => {
+    setDictateError(null);
+    const SR: any =
+      (typeof window !== "undefined" && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)) ||
+      null;
+    if (!SR) {
+      setDictateError("Dictée non supportée par ce navigateur. Essayez Chrome ou Safari.");
+      return;
+    }
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch {}
+      recognitionRef.current = null;
+      setDictating(false);
+      return;
+    }
+    const rec = new SR();
+    const langMap: Record<string, string> = { fr: "fr-FR", en: "en-US", es: "es-ES", it: "it-IT", pt: "pt-PT", ar: "ar-SA" };
+    rec.lang = langMap[lang] ?? "fr-FR";
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+    rec.continuous = false;
+    rec.onstart = () => setDictating(true);
+    rec.onerror = (e: any) => {
+      setDictateError(`Erreur dictée : ${e?.error ?? "inconnue"}`);
+      setDictating(false);
+      recognitionRef.current = null;
+    };
+    rec.onend = () => {
+      setDictating(false);
+      recognitionRef.current = null;
+    };
+    rec.onresult = (event: any) => {
+      const transcript = String(event.results?.[0]?.[0]?.transcript ?? "");
+      const parsed = parseDictation(transcript);
+      if (!parsed) {
+        setDictateError(`Format non reconnu : « ${transcript} ». Dites par ex. « 12 rue de la Paix à gare Saint-Jean ».`);
+        return;
+      }
+      set("depart", parsed.depart);
+      set("destination", parsed.destination);
+      setFromCoord(null);
+      setToCoord(null);
+      setDepartChoices([]);
+      setDestinationChoices([]);
+      setErrors((prev) => {
+        const n = { ...prev };
+        delete n.depart;
+        delete n.destination;
+        return n;
+      });
+    };
+    try {
+      rec.start();
+      recognitionRef.current = rec;
+    } catch (e: any) {
+      setDictateError(`Impossible de démarrer la dictée : ${e?.message ?? e}`);
+    }
+  }, [lang, parseDictation]);
 
   // ── Disponibilité taxi ────────────────────────────────────────────────────
   useEffect(() => {
@@ -1579,9 +1664,43 @@ function ReservationPage() {
 
             {/* ── Adresses ── */}
             <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>
-                {t("res.loc.ride_section")}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 10,
+                  gap: 8,
+                  flexWrap: "wrap",
+                }}
+              >
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5" }}>
+                  {t("res.loc.ride_section")}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDictate}
+                  title="Dicter le départ puis la destination, séparés par « à », « vers », « jusqu'à », « direction », « puis » ou « -> »"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    padding: "6px 12px",
+                    borderRadius: 999,
+                    border: "1px solid rgba(245,200,66,0.5)",
+                    background: dictating ? "#f5c842" : "rgba(245,200,66,0.12)",
+                    color: dictating ? "#0f172a" : "#fde68a",
+                    cursor: "pointer",
+                  }}
+                >
+                  {dictating ? "⏺ Écoute… (clic pour arrêter)" : "🎤 Dicter départ + destination"}
+                </button>
               </div>
+              {dictateError && (
+                <div style={{ color: "#fecaca", fontSize: 11, marginBottom: 8 }}>{dictateError}</div>
+              )}
 
               {/* Départ : saisie libre + toggle Adresse/POI + bouton géoloc */}
               <div style={{ marginBottom: 10 }}>
