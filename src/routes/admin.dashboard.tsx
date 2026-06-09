@@ -750,13 +750,13 @@ function Dashboard() {
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "reservations" }, (payload) => {
         const updated = payload.new as any;
+        const previous = payload.old as any;
         console.log("[RT UPDATE]", updated?.id?.slice(0, 8), "db:", updated?.status);
         if (updated?.id) {
           setItems((prev) =>
             prev.map((item) => {
               if (item.id !== updated.id) return item;
               console.log("[RT UPDATE] local:", item.status, "-> db:", updated.status);
-              // Ne pas écraser un statut local plus avancé avec un statut DB plus ancien
               const rank: Record<string, number> = {
                 pending: 0,
                 accepted: 1,
@@ -773,6 +773,15 @@ function Dashboard() {
             }),
           );
         }
+        // CA jour/mois : rafraîchir dès qu'une course passe en "completed"
+        if (updated?.status === "completed" && previous?.status !== "completed") {
+          fetchStats();
+        }
+      })
+      // Insertion / modification d'une course (trigger trg_reservation_completed_to_course)
+      // → recalcul immédiat du CA jour / CA mois sans recharger la page.
+      .on("postgres_changes", { event: "*", schema: "public", table: "courses" }, () => {
+        fetchStats();
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "site_analytics" }, () => fetchStats())
       .on("postgres_changes", { event: "*", schema: "public", table: "avis" }, () => fetchAvis())
