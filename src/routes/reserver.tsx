@@ -986,7 +986,8 @@ function ReservationPage() {
       return;
     }
     const rec = new SR();
-    rec.lang = lang === "fr" ? "fr-FR" : lang === "en" ? "en-US" : lang === "es" ? "es-ES" : lang === "de" ? "de-DE" : lang === "ar" ? "ar-SA" : "fr-FR";
+    const langMap: Record<string, string> = { fr: "fr-FR", en: "en-US", es: "es-ES", it: "it-IT", pt: "pt-PT", ar: "ar-SA" };
+    rec.lang = langMap[lang] ?? "fr-FR";
     rec.interimResults = false;
     rec.maxAlternatives = 1;
     rec.continuous = false;
