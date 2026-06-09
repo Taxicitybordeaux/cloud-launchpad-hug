@@ -20,6 +20,7 @@ import {
 import logo from "@/assets/logo.jpeg";
 import { supabase } from "@/integrations/supabase/client";
 import { notifyReservationStatus } from "@/lib/push.functions";
+import { useI18n } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/client")({
   head: () => ({
