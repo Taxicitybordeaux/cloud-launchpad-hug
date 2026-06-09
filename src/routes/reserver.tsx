@@ -88,7 +88,55 @@ function shortLabel(label: string): string {
   return kept.slice(0, 2).join(", ");
 }
 
+// Lieux canoniques de l'agglomération bordelaise : coordonnées + label fixés en dur
+// pour éviter qu'un géocodage approximatif ne renvoie un mauvais point.
+type CanonicalPlace = {
+  label: string;
+  coord: [number, number];
+  match: RegExp;
+};
+const CANONICAL_PLACES: CanonicalPlace[] = [
+  {
+    label: "Aéroport de Bordeaux-Mérignac",
+    coord: [44.8286, -0.7156],
+    match: /\b(aeroport|aéroport|airport)\b.*\b(bordeaux|merignac|mérignac|bod)\b|\b(bordeaux|merignac|mérignac|bod)\b.*\b(aeroport|aéroport|airport)\b/i,
+  },
+  {
+    label: "Gare de Bordeaux Saint-Jean",
+    coord: [44.8259, -0.5566],
+    match: /\bgare\b.*\b(bordeaux|saint.?jean|st.?jean)\b|\b(bordeaux|saint.?jean|st.?jean)\b.*\bgare\b/i,
+  },
+  {
+    label: "Place des Quinconces, Bordeaux",
+    coord: [44.8456, -0.5739],
+    match: /\b(place\s+des\s+)?quinconces\b/i,
+  },
+  {
+    label: "Matmut Atlantique, Bordeaux",
+    coord: [44.8951, -0.5614],
+    match: /\b(matmut\s*atlantique|stade\s+(de\s+)?bordeaux|nouveau\s+stade)\b/i,
+  },
+  {
+    label: "Cité du Vin, Bordeaux",
+    coord: [44.8628, -0.5505],
+    match: /\bcit[ée]\s+du\s+vin\b/i,
+  },
+];
+
+function matchCanonicalPlace(text: string): CanonicalPlace | null {
+  const t = text.trim();
+  if (!t) return null;
+  for (const p of CANONICAL_PLACES) {
+    if (p.match.test(t)) return p;
+  }
+  return null;
+}
+
 async function geocodeFullAddress(address: string): Promise<{ coord: [number, number]; label: string } | null> {
+  // 1) Lieux canoniques en priorité absolue
+  const canon = matchCanonicalPlace(address);
+  if (canon) return { coord: canon.coord, label: canon.label };
+
   const trimmed = address.trim();
   const normalized = normalizeAddressText(trimmed);
   const parts = trimmed
