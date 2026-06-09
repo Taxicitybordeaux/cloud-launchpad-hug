@@ -371,7 +371,76 @@ relation(around:${radiusM},${origin[0]},${origin[1]})["name"~"${safeToken}",i];
   }
 }
 
-async function searchNearbyAddressChoices(
+// Filtre strict supermarchés : Overpass shop=supermarket (+ brand si précisée)
+async function searchOverpassSupermarkets(
+  query: string,
+  origin: [number, number],
+  radiusKm: number,
+): Promise<AddressChoice[]> {
+  const brand = extractSupermarketBrand(query);
+  const radiusM = Math.round(radiusKm * 1000);
+  const safeBrand = brand ? brand.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") : null;
+  // Filtre OSM officiel : shop=supermarket. Si une marque est citée, on filtre aussi sur brand/name.
+  const brandFilter = safeBrand ? `["brand"~"${safeBrand}",i]` : "";
+  const nameFilter = safeBrand ? `["name"~"${safeBrand}",i]` : "";
+  const body = `[out:json][timeout:10];(
+node(around:${radiusM},${origin[0]},${origin[1]})["shop"="supermarket"]${brandFilter};
+way(around:${radiusM},${origin[0]},${origin[1]})["shop"="supermarket"]${brandFilter};
+${safeBrand ? `node(around:${radiusM},${origin[0]},${origin[1]})["shop"="supermarket"]${nameFilter};
+way(around:${radiusM},${origin[0]},${origin[1]})["shop"="supermarket"]${nameFilter};` : ""}
+);out center tags 25;`;
+  try {
+    const res = await fetch("https://overpass-api.de/api/interpreter", { method: "POST", body });
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data?.elements)) return [];
+    return data.elements
+      .map((item: any) => {
+        const lat = Number(item.lat ?? item.center?.lat);
+        const lng = Number(item.lon ?? item.center?.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+        const tags = item.tags ?? {};
+        const brandTag = tags.brand || tags["brand:wikidata"] ? tags.brand : null;
+        const namePart = brandTag || tags.name || "Supermarché";
+        const addrPart = [
+          tags["addr:housenumber"] && tags["addr:street"]
+            ? `${tags["addr:housenumber"]} ${tags["addr:street"]}`
+            : tags["addr:street"],
+          tags["addr:postcode"],
+          tags["addr:city"],
+        ].filter(Boolean).join(", ");
+        const coord: [number, number] = [lat, lng];
+        return {
+          label: addrPart ? `${namePart} — ${addrPart}` : namePart,
+          coord,
+          distanceKm: distanceKmBetween(origin, coord),
+          _needsReverse: !addrPart,
+          _baseName: namePart,
+        } as AddressChoice & { _needsReverse?: boolean; _baseName?: string };
+      })
+      .filter(Boolean) as AddressChoice[];
+  } catch {
+    return [];
+  }
+}
+
+// Enrichit les labels qui n'ont pas d'adresse (Overpass sans addr:*) via reverse-geocode
+async function enrichChoiceLabels(choices: AddressChoice[]): Promise<AddressChoice[]> {
+  const enriched = await Promise.all(
+    choices.map(async (c: any) => {
+      if (!c._needsReverse) return c;
+      try {
+        const rev = await reverseGeocode(c.coord[0], c.coord[1]);
+        if (rev) {
+          return { ...c, label: `${c._baseName || c.label} — ${shortLabel(rev)}` };
+        }
+      } catch {}
+      return c;
+    }),
+  );
+  return enriched.map(({ _needsReverse, _baseName, ...rest }: any) => rest);
+}
+
   query: string,
   origin: [number, number],
   radiusKm = 20,
