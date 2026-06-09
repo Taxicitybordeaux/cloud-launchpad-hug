@@ -336,7 +336,7 @@ async function searchNearbyAddressChoices(
       const bHits = tokens.filter((token) => bLabel.includes(token)).length;
       return bHits - aHits || a.distanceKm - b.distanceKm;
     })
-    .slice(0, 4);
+    .slice(0, MAX_CHOICES_DEFAULT);
 }
 
 function requestBrowserPosition(options: PositionOptions): Promise<GeolocationPosition> {
