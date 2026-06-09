@@ -715,22 +715,32 @@ function ReservationPage() {
 
   // Calcule le prix mixte proportionnel pour un trajet de distKm démarrant à pickupMs
   // en découpant le trajet en tranches de 1 minute et pondérant jour/nuit
-  function calculerPrixMixteLocal(distKm: number, pickupMs: number, dureeS: number): number {
+  function calculerDetailMixte(distKm: number, pickupMs: number, dureeS: number) {
     const TARIF_JOUR_KM = 2.16;
     const TARIF_NUIT_KM = 3.24;
     const PRISE = 2.83;
-    if (distKm <= 0) return PRISE;
+    if (distKm <= 0) {
+      return { prix: PRISE, jourKm: 0, nuitKm: 0, jourMin: 0, nuitMin: 0, pctJour: 100, pctNuit: 0, tarifJourKm: TARIF_JOUR_KM, tarifNuitKm: TARIF_NUIT_KM, prise: PRISE };
+    }
     const steps = Math.max(Math.round(dureeS / 60), 1);
     const stepMs = (dureeS * 1000) / steps;
-    let jourKm = 0;
-    let nuitKm = 0;
+    const stepMin = stepMs / 60000;
+    let jourKm = 0, nuitKm = 0, jourMin = 0, nuitMin = 0;
     for (let i = 0; i < steps; i++) {
       const tMs = pickupMs + i * stepMs;
       const frac = distKm / steps;
-      if (isMomentNuit(tMs)) nuitKm += frac;
-      else jourKm += frac;
+      if (isMomentNuit(tMs)) { nuitKm += frac; nuitMin += stepMin; }
+      else { jourKm += frac; jourMin += stepMin; }
     }
-    return parseFloat((PRISE + jourKm * TARIF_JOUR_KM + nuitKm * TARIF_NUIT_KM).toFixed(2));
+    const prix = parseFloat((PRISE + jourKm * TARIF_JOUR_KM + nuitKm * TARIF_NUIT_KM).toFixed(2));
+    const total = jourKm + nuitKm;
+    const pctJour = total > 0 ? Math.round((jourKm / total) * 100) : 100;
+    const pctNuit = 100 - pctJour;
+    return { prix, jourKm, nuitKm, jourMin, nuitMin, pctJour, pctNuit, tarifJourKm: TARIF_JOUR_KM, tarifNuitKm: TARIF_NUIT_KM, prise: PRISE };
+  }
+
+  function calculerPrixMixteLocal(distKm: number, pickupMs: number, dureeS: number): number {
+    return calculerDetailMixte(distKm, pickupMs, dureeS).prix;
   }
 
   // tarifJour : utilisé uniquement pour le badge affiché, basé sur l'heure de départ
