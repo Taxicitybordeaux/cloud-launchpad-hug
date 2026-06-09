@@ -18,42 +18,42 @@ const subSchema = z.object({
 export const subscribePush = createServerFn({ method: "POST" })
   .inputValidator((input) => subSchema.parse(input))
   .handler(async ({ data }) => {
-    const rows = [
+    const ua = data.user_agent ?? null;
+    const endpoint = `fcm://${data.fcm_token}`;
+
+    // 1) Upsert la souscription courante
+    const { error: upErr } = await supabaseAdmin.from("push_subscriptions").upsert(
       {
         audience: data.audience,
-        endpoint: `fcm://${data.fcm_token}`,
+        endpoint,
         fcm_token: data.fcm_token,
         reservation_id: data.reservation_id ?? null,
-        user_agent: data.user_agent ?? null,
+        user_agent: ua,
         last_seen_at: new Date().toISOString(),
       },
-    ];
-
-    // Si l'utilisateur s'abonne en tant qu'admin, on enregistre aussi
-    // la même device comme "chauffeur" (même token FCM, endpoint distinct)
-    if (data.audience === "admin") {
-      rows.push({
-        audience: "chauffeur",
-        endpoint: `fcm://${data.fcm_token}-chauffeur`,
-        fcm_token: data.fcm_token,
-        reservation_id: null,
-        user_agent: data.user_agent ?? null,
-        last_seen_at: new Date().toISOString(),
-      });
+      { onConflict: "endpoint" },
+    );
+    if (upErr) {
+      console.error("[push] subscribe failed", upErr);
+      throw new Error("subscribe_failed");
     }
 
-    for (const row of rows) {
-      const { error } = await supabaseAdmin
+    // 2) Purge des anciens tokens du même device (même user_agent + audience).
+    // iOS Safari/PWA régénère parfois le fcm_token à chaque session ou install,
+    // ce qui laissait s'accumuler plusieurs lignes pour le même device →
+    // notifications dupliquées (×8 observé sur iPhone).
+    if (ua) {
+      const { error: delErr } = await supabaseAdmin
         .from("push_subscriptions")
-        .upsert(row, { onConflict: "endpoint" });
-      if (error) {
-        console.error("[push] subscribe failed", error);
-        throw new Error("subscribe_failed");
-      }
+        .delete()
+        .eq("audience", data.audience)
+        .eq("user_agent", ua)
+        .neq("fcm_token", data.fcm_token);
+      if (delErr) console.warn("[push] dedupe stale tokens failed", delErr);
     }
+
     return { ok: true };
   });
-
 
 export const unsubscribePush = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ fcm_token: z.string().min(10).max(500) }).parse(input))
@@ -105,7 +105,7 @@ export const notifyNewReservation = createServerFn({ method: "POST" })
       title: "🚕 Nouvelle course en attente",
       body: `${clientName} — ${trajet}`,
       url: "/admin/dashboard",
-      tag: `new-res-chauffeur-${r.id}`,
+      tag: `chauffeur-res-${r.id}`, // ✅ même tag que dans notifyReservationStatus → remplace au lieu d'empiler
       requireInteraction: true,
     });
 
@@ -149,14 +149,19 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
     z
       .object({
         reservation_id: z.string().uuid(),
-        status: z.enum(["accepted", "refused", "en_route", "arrived", "completed", "cancelled"]),
+        status: z.enum(["accepted", "refused", "en_route", "arrived", "completed", "cancelled", "modified"]),
+        // Champs optionnels utilisés uniquement pour le statut "modified"
+        old_datetime: z.string().optional().nullable(),
+        new_datetime: z.string().optional().nullable(),
       })
       .parse(input),
   )
   .handler(async ({ data }) => {
     const { data: r } = await supabaseAdmin
       .from("reservations")
-      .select("id, nom, client_name, client_phone, telephone, depart, arrivee, destination, tracking_id, lang")
+      .select(
+        "id, nom, client_name, client_phone, telephone, depart, arrivee, destination, tracking_id, suivi_id, lang",
+      )
       .eq("id", data.reservation_id)
       .maybeSingle();
     if (!r) throw new Error("not_found");
@@ -165,9 +170,37 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
     const trajet = `${r.depart} → ${r.arrivee || r.destination || "—"}`;
     const phone = r.client_phone || r.telephone || "";
     const smsPhone = phone.replace(/[^\d]/g, "").replace(/^0/, "+33");
-    const url = r.tracking_id ? `/suivi/${r.tracking_id}` : `/reservation/${r.id}`;
+    const url = r.suivi_id
+      ? `/suivi/${r.suivi_id}`
+      : r.tracking_id
+        ? `/suivi/${r.tracking_id}`
+        : `/reservation/${r.id}`;
 
     const resLang = ((r as any).lang as Lang) || "fr";
+
+    // Corps dynamique pour "modified" : affiche les horaires si fournis
+    const modifiedBody = (lang: "fr" | "en" | "es" | "pt" | "it" | "ar") => {
+      if (data.old_datetime && data.new_datetime) {
+        const labels: Record<typeof lang, string> = {
+          fr: `Bonjour ${clientName}, votre course a été modifiée : ${data.old_datetime} → ${data.new_datetime}.`,
+          en: `Hello ${clientName}, your ride has been updated: ${data.old_datetime} → ${data.new_datetime}.`,
+          es: `Hola ${clientName}, su carrera ha sido modificada: ${data.old_datetime} → ${data.new_datetime}.`,
+          pt: `Olá ${clientName}, a sua corrida foi alterada: ${data.old_datetime} → ${data.new_datetime}.`,
+          it: `Salve ${clientName}, la sua corsa è stata modificata: ${data.old_datetime} → ${data.new_datetime}.`,
+          ar: `مرحباً ${clientName}، تم تعديل رحلتك: ${data.old_datetime} → ${data.new_datetime}.`,
+        };
+        return labels[lang];
+      }
+      const fallback: Record<typeof lang, string> = {
+        fr: `Bonjour ${clientName}, votre course a été modifiée.`,
+        en: `Hello ${clientName}, your ride has been updated.`,
+        es: `Hola ${clientName}, su carrera ha sido modificada.`,
+        pt: `Olá ${clientName}, a sua corrida foi alterada.`,
+        it: `Salve ${clientName}, la sua corsa è stata modificata.`,
+        ar: `مرحباً ${clientName}، تم تعديل رحلتك.`,
+      };
+      return fallback[lang];
+    };
 
     const PUSH_LABELS: Record<Lang, Record<string, { title: string; body: string }>> = {
       fr: {
@@ -177,6 +210,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
         arrived: { title: "📍 Taxi à proximité", body: `Votre taxi est arrivé au point de prise en charge.` },
         completed: { title: "🏁 Course terminée", body: `Merci d'avoir voyagé avec Taxi City Bordeaux.` },
         cancelled: { title: "Course annulée", body: "Votre course a été annulée." },
+        modified: { title: "✏️ Course modifiée", body: modifiedBody("fr") },
       },
       en: {
         accepted: { title: "✅ Booking confirmed", body: `Hello ${clientName}, your ride has been confirmed.` },
@@ -185,6 +219,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
         arrived: { title: "📍 Taxi nearby", body: `Your taxi has arrived at the pickup point.` },
         completed: { title: "🏁 Ride completed", body: `Thank you for travelling with Taxi City Bordeaux.` },
         cancelled: { title: "Ride cancelled", body: "Your ride has been cancelled." },
+        modified: { title: "✏️ Booking updated", body: modifiedBody("en") },
       },
       es: {
         accepted: { title: "✅ Reserva confirmada", body: `Hola ${clientName}, su carrera ha sido confirmada.` },
@@ -193,6 +228,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
         arrived: { title: "📍 Taxi cerca", body: `Su taxi ha llegado al punto de recogida.` },
         completed: { title: "🏁 Carrera terminada", body: `Gracias por viajar con Taxi City Bordeaux.` },
         cancelled: { title: "Carrera cancelada", body: "Su carrera ha sido cancelada." },
+        modified: { title: "✏️ Reserva modificada", body: modifiedBody("es") },
       },
       pt: {
         accepted: { title: "✅ Reserva confirmada", body: `Olá ${clientName}, a sua corrida foi confirmada.` },
@@ -201,6 +237,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
         arrived: { title: "📍 Táxi próximo", body: `O seu táxi chegou ao ponto de recolha.` },
         completed: { title: "🏁 Corrida terminada", body: `Obrigado por viajar com Taxi City Bordeaux.` },
         cancelled: { title: "Corrida cancelada", body: "A sua corrida foi cancelada." },
+        modified: { title: "✏️ Reserva alterada", body: modifiedBody("pt") },
       },
       it: {
         accepted: {
@@ -215,6 +252,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
         arrived: { title: "📍 Taxi nelle vicinanze", body: `Il suo taxi è arrivato al punto di partenza.` },
         completed: { title: "🏁 Corsa terminata", body: `Grazie per aver viaggiato con Taxi City Bordeaux.` },
         cancelled: { title: "Corsa annullata", body: "La sua corsa è stata annullata." },
+        modified: { title: "✏️ Corsa modificata", body: modifiedBody("it") },
       },
       ar: {
         accepted: { title: "✅ تم تأكيد الحجز", body: `مرحباً ${clientName}، تم تأكيد رحلتك.` },
@@ -223,6 +261,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
         arrived: { title: "📍 السيارة قريبة", body: `وصلت سيارتك إلى نقطة الالتقاء.` },
         completed: { title: "🏁 انتهت الرحلة", body: `شكراً للتنقل مع Taxi City Bordeaux.` },
         cancelled: { title: "تم إلغاء الرحلة", body: "تم إلغاء رحلتك." },
+        modified: { title: "✏️ تم تعديل الرحلة", body: modifiedBody("ar") },
       },
     };
 
@@ -253,12 +292,12 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
     }
 
     let chauffeurResult = { sent: 0, removed: 0 };
-    if (data.status === "accepted") {
+    if (data.status === "accepted" || data.status === "modified") {
       chauffeurResult = await sendPushToAudience("chauffeur", {
-        title: "🚕 Nouvelle course assignée",
+        title: data.status === "modified" ? "✏️ Course modifiée" : "📍 Active ton GPS",
         body: `${clientName} — ${trajet}`,
-        url: "/admin/dashboard",
-        tag: `assign-${r.id}`,
+        url: `${APP_URL}${url}?gps=1`,
+        tag: `chauffeur-res-${r.id}`,
         requireInteraction: true,
       });
     }
