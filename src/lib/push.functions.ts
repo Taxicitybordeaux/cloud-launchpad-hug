@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { DICTS, type Lang } from "@/i18n/dict";
+import { type Lang } from "@/i18n/dict";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sendPushToAudience } from "@/lib/push.server";
@@ -149,10 +149,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
     z
       .object({
         reservation_id: z.string().uuid(),
-        status: z.enum(["accepted", "refused", "en_route", "arrived", "completed", "cancelled", "modified"]),
-        // Champs optionnels utilisés uniquement pour le statut "modified"
-        old_datetime: z.string().optional().nullable(),
-        new_datetime: z.string().optional().nullable(),
+        status: z.enum(["accepted", "refused", "en_route", "arrived", "completed", "cancelled"]),
       })
       .parse(input),
   )
@@ -178,30 +175,6 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
 
     const resLang = ((r as any).lang as Lang) || "fr";
 
-    // Corps dynamique pour "modified" : affiche les horaires si fournis
-    const modifiedBody = (lang: "fr" | "en" | "es" | "pt" | "it" | "ar") => {
-      if (data.old_datetime && data.new_datetime) {
-        const labels: Record<typeof lang, string> = {
-          fr: `Bonjour ${clientName}, votre course a été modifiée : ${data.old_datetime} → ${data.new_datetime}.`,
-          en: `Hello ${clientName}, your ride has been updated: ${data.old_datetime} → ${data.new_datetime}.`,
-          es: `Hola ${clientName}, su carrera ha sido modificada: ${data.old_datetime} → ${data.new_datetime}.`,
-          pt: `Olá ${clientName}, a sua corrida foi alterada: ${data.old_datetime} → ${data.new_datetime}.`,
-          it: `Salve ${clientName}, la sua corsa è stata modificata: ${data.old_datetime} → ${data.new_datetime}.`,
-          ar: `مرحباً ${clientName}، تم تعديل رحلتك: ${data.old_datetime} → ${data.new_datetime}.`,
-        };
-        return labels[lang];
-      }
-      const fallback: Record<typeof lang, string> = {
-        fr: `Bonjour ${clientName}, votre course a été modifiée.`,
-        en: `Hello ${clientName}, your ride has been updated.`,
-        es: `Hola ${clientName}, su carrera ha sido modificada.`,
-        pt: `Olá ${clientName}, a sua corrida foi alterada.`,
-        it: `Salve ${clientName}, la sua corsa è stata modificata.`,
-        ar: `مرحباً ${clientName}، تم تعديل رحلتك.`,
-      };
-      return fallback[lang];
-    };
-
     const PUSH_LABELS: Record<Lang, Record<string, { title: string; body: string }>> = {
       fr: {
         accepted: { title: "✅ Course acceptée", body: `Bonjour ${clientName}, votre course a été confirmée.` },
@@ -210,7 +183,6 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
         arrived: { title: "📍 Taxi à proximité", body: `Votre taxi est arrivé au point de prise en charge.` },
         completed: { title: "🏁 Course terminée", body: `Merci d'avoir voyagé avec Taxi City Bordeaux.` },
         cancelled: { title: "Course annulée", body: "Votre course a été annulée." },
-        modified: { title: "✏️ Course modifiée", body: modifiedBody("fr") },
       },
       en: {
         accepted: { title: "✅ Booking confirmed", body: `Hello ${clientName}, your ride has been confirmed.` },
@@ -219,7 +191,6 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
         arrived: { title: "📍 Taxi nearby", body: `Your taxi has arrived at the pickup point.` },
         completed: { title: "🏁 Ride completed", body: `Thank you for travelling with Taxi City Bordeaux.` },
         cancelled: { title: "Ride cancelled", body: "Your ride has been cancelled." },
-        modified: { title: "✏️ Booking updated", body: modifiedBody("en") },
       },
       es: {
         accepted: { title: "✅ Reserva confirmada", body: `Hola ${clientName}, su carrera ha sido confirmada.` },
@@ -228,7 +199,6 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
         arrived: { title: "📍 Taxi cerca", body: `Su taxi ha llegado al punto de recogida.` },
         completed: { title: "🏁 Carrera terminada", body: `Gracias por viajar con Taxi City Bordeaux.` },
         cancelled: { title: "Carrera cancelada", body: "Su carrera ha sido cancelada." },
-        modified: { title: "✏️ Reserva modificada", body: modifiedBody("es") },
       },
       pt: {
         accepted: { title: "✅ Reserva confirmada", body: `Olá ${clientName}, a sua corrida foi confirmada.` },
@@ -237,7 +207,6 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
         arrived: { title: "📍 Táxi próximo", body: `O seu táxi chegou ao ponto de recolha.` },
         completed: { title: "🏁 Corrida terminada", body: `Obrigado por viajar com Taxi City Bordeaux.` },
         cancelled: { title: "Corrida cancelada", body: "A sua corrida foi cancelada." },
-        modified: { title: "✏️ Reserva alterada", body: modifiedBody("pt") },
       },
       it: {
         accepted: {
@@ -252,7 +221,6 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
         arrived: { title: "📍 Taxi nelle vicinanze", body: `Il suo taxi è arrivato al punto di partenza.` },
         completed: { title: "🏁 Corsa terminata", body: `Grazie per aver viaggiato con Taxi City Bordeaux.` },
         cancelled: { title: "Corsa annullata", body: "La sua corsa è stata annullata." },
-        modified: { title: "✏️ Corsa modificata", body: modifiedBody("it") },
       },
       ar: {
         accepted: { title: "✅ تم تأكيد الحجز", body: `مرحباً ${clientName}، تم تأكيد رحلتك.` },
@@ -261,7 +229,6 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
         arrived: { title: "📍 السيارة قريبة", body: `وصلت سيارتك إلى نقطة الالتقاء.` },
         completed: { title: "🏁 انتهت الرحلة", body: `شكراً للتنقل مع Taxi City Bordeaux.` },
         cancelled: { title: "تم إلغاء الرحلة", body: "تم إلغاء رحلتك." },
-        modified: { title: "✏️ تم تعديل الرحلة", body: modifiedBody("ar") },
       },
     };
 
@@ -279,22 +246,47 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
       { reservationId: r.id },
     );
 
+    const SMS_LABELS: Record<Lang, { en_route: string; arrived: string }> = {
+      fr: {
+        en_route: `Bonjour ${clientName},\nVotre chauffeur est en route vers vous !\n${r.depart}\n📲 Suivez en direct : ${APP_URL}${url}\nTel: 06 73 07 23 22`,
+        arrived: `Bonjour ${clientName},\nVotre taxi est arrive ! Il vous attend au point de prise en charge.\nTel: 06 73 07 23 22`,
+      },
+      en: {
+        en_route: `Hello ${clientName},\nYour driver is on the way!\n${r.depart}\n📲 Track live: ${APP_URL}${url}\nTel: 06 73 07 23 22`,
+        arrived: `Hello ${clientName},\nYour taxi has arrived! It is waiting at the pickup point.\nTel: 06 73 07 23 22`,
+      },
+      es: {
+        en_route: `Hola ${clientName},\n¡Su conductor está en camino!\n${r.depart}\n📲 Siga en directo: ${APP_URL}${url}\nTel: 06 73 07 23 22`,
+        arrived: `Hola ${clientName},\n¡Su taxi ha llegado! Le espera en el punto de recogida.\nTel: 06 73 07 23 22`,
+      },
+      pt: {
+        en_route: `Olá ${clientName},\nO seu motorista está a caminho!\n${r.depart}\n📲 Acompanhe em direto: ${APP_URL}${url}\nTel: 06 73 07 23 22`,
+        arrived: `Olá ${clientName},\nO seu táxi chegou! Está à sua espera no ponto de recolha.\nTel: 06 73 07 23 22`,
+      },
+      it: {
+        en_route: `Salve ${clientName},\nIl suo autista è in arrivo!\n${r.depart}\n📲 Segua in diretta: ${APP_URL}${url}\nTel: 06 73 07 23 22`,
+        arrived: `Salve ${clientName},\nIl suo taxi è arrivato! La sta aspettando al punto di partenza.\nTel: 06 73 07 23 22`,
+      },
+      ar: {
+        en_route: `مرحباً ${clientName},\nسائقك في طريقه إليك!\n${r.depart}\n📲 تابع مباشرة: ${APP_URL}${url}\nTel: 06 73 07 23 22`,
+        arrived: `مرحباً ${clientName},\nوصل سيارتك! تنتظرك في نقطة الالتقاء.\nTel: 06 73 07 23 22`,
+      },
+    };
+
+    const smsLabels = SMS_LABELS[resLang] ?? SMS_LABELS["fr"];
+
     let smsBody: string | null = null;
     if (smsPhone && data.status === "en_route") {
-      smsBody = encodeURIComponent(
-        `Bonjour ${clientName},\nVotre chauffeur est en route vers vous !\n${r.depart}\n📲 Suivez en direct : ${APP_URL}${url}\nTel: 06 73 07 23 22`,
-      );
+      smsBody = encodeURIComponent(smsLabels.en_route);
     }
     if (smsPhone && data.status === "arrived") {
-      smsBody = encodeURIComponent(
-        `Bonjour ${clientName},\nVotre taxi est arrive ! Il vous attend au point de prise en charge.\nTel: 06 73 07 23 22`,
-      );
+      smsBody = encodeURIComponent(smsLabels.arrived);
     }
 
     let chauffeurResult = { sent: 0, removed: 0 };
-    if (data.status === "accepted" || data.status === "modified") {
+    if (data.status === "accepted") {
       chauffeurResult = await sendPushToAudience("chauffeur", {
-        title: data.status === "modified" ? "✏️ Course modifiée" : "📍 Active ton GPS",
+        title: "📍 Active ton GPS",
         body: `${clientName} — ${trajet}`,
         url: `${APP_URL}${url}?gps=1`,
         tag: `chauffeur-res-${r.id}`,
