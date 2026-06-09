@@ -24,6 +24,9 @@ const BORDEAUX_CENTER: [number, number] = [44.8378, -0.5792];
 const DESTINATION_SEARCH_RADIUS_KM = 80;
 const POI_SEARCH_RADIUS_KM = 50;
 const MAX_CHOICES_DEFAULT = 4;
+const MAX_CHOICES_SUPERMARKET = 4;
+const SUPERMARKET_RADIUS_KM = 50;
+const POI_SEARCH_DEBOUNCE_MS = 500;
 const MAX_AUTO_GEO_ACCURACY_M = 1500;
 const MAX_AUTO_GEO_DISTANCE_FROM_BORDEAUX_KM = 130;
 
@@ -31,8 +34,29 @@ const MAX_AUTO_GEO_DISTANCE_FROM_BORDEAUX_KM = 130;
 const POI_KEYWORDS_REGEX =
   /\b(gare|aeroport|aéroport|airport|hopital|hôpital|clinique|stade|matmut|stadium|mairie|hotel|hôtel|université|universite|fac|lycée|lycee|école|ecole|musée|musee|chateau|château|église|eglise|theatre|théâtre|cinema|cinéma|piscine|parc|jardin|zoo|plage|port|marina|monument|tour|cathedrale|cathédrale|supermarche|supermarché|hypermarche|hypermarché|carrefour|leclerc|auchan|intermarche|intermarché|lidl|aldi|monoprix|casino|biocoop|centre commercial|cc\b|galerie|mall)\b/i;
 
+// Marques de supermarchés reconnues (utilisées pour le filtre strict Overpass)
+const SUPERMARKET_BRANDS = [
+  "carrefour", "leclerc", "auchan", "intermarché", "intermarche", "lidl", "aldi",
+  "monoprix", "casino", "biocoop", "super u", "hyper u", "u express", "franprix",
+  "g20", "spar", "cora", "naturalia", "grand frais", "picard",
+] as const;
+const SUPERMARKET_QUERY_REGEX =
+  /\b(supermarch[ée]|hypermarch[ée]|supermarket|hypermarket|epicerie|épicerie|grande\s+surface|carrefour|leclerc|auchan|intermarch[ée]|lidl|aldi|monoprix|casino|biocoop|super\s*u|hyper\s*u|franprix|cora|naturalia|grand\s+frais|picard)\b/i;
+
 function detectPoi(value: string): boolean {
   return POI_KEYWORDS_REGEX.test(value);
+}
+
+function isSupermarketQuery(value: string): boolean {
+  return SUPERMARKET_QUERY_REGEX.test(value);
+}
+
+function extractSupermarketBrand(value: string): string | null {
+  const v = value.toLowerCase();
+  for (const b of SUPERMARKET_BRANDS) {
+    if (v.includes(b)) return b;
+  }
+  return null;
 }
 
 
@@ -347,11 +371,90 @@ relation(around:${radiusM},${origin[0]},${origin[1]})["name"~"${safeToken}",i];
   }
 }
 
+// Filtre strict supermarchés : Overpass shop=supermarket (+ brand si précisée)
+async function searchOverpassSupermarkets(
+  query: string,
+  origin: [number, number],
+  radiusKm: number,
+): Promise<AddressChoice[]> {
+  const brand = extractSupermarketBrand(query);
+  const radiusM = Math.round(radiusKm * 1000);
+  const safeBrand = brand ? brand.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") : null;
+  // Filtre OSM officiel : shop=supermarket. Si une marque est citée, on filtre aussi sur brand/name.
+  const brandFilter = safeBrand ? `["brand"~"${safeBrand}",i]` : "";
+  const nameFilter = safeBrand ? `["name"~"${safeBrand}",i]` : "";
+  const body = `[out:json][timeout:10];(
+node(around:${radiusM},${origin[0]},${origin[1]})["shop"="supermarket"]${brandFilter};
+way(around:${radiusM},${origin[0]},${origin[1]})["shop"="supermarket"]${brandFilter};
+${safeBrand ? `node(around:${radiusM},${origin[0]},${origin[1]})["shop"="supermarket"]${nameFilter};
+way(around:${radiusM},${origin[0]},${origin[1]})["shop"="supermarket"]${nameFilter};` : ""}
+);out center tags 25;`;
+  try {
+    const res = await fetch("https://overpass-api.de/api/interpreter", { method: "POST", body });
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!Array.isArray(data?.elements)) return [];
+    return data.elements
+      .map((item: any) => {
+        const lat = Number(item.lat ?? item.center?.lat);
+        const lng = Number(item.lon ?? item.center?.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+        const tags = item.tags ?? {};
+        const brandTag = tags.brand || tags["brand:wikidata"] ? tags.brand : null;
+        const namePart = brandTag || tags.name || "Supermarché";
+        const addrPart = [
+          tags["addr:housenumber"] && tags["addr:street"]
+            ? `${tags["addr:housenumber"]} ${tags["addr:street"]}`
+            : tags["addr:street"],
+          tags["addr:postcode"],
+          tags["addr:city"],
+        ].filter(Boolean).join(", ");
+        const coord: [number, number] = [lat, lng];
+        return {
+          label: addrPart ? `${namePart} — ${addrPart}` : namePart,
+          coord,
+          distanceKm: distanceKmBetween(origin, coord),
+          _needsReverse: !addrPart,
+          _baseName: namePart,
+        } as AddressChoice & { _needsReverse?: boolean; _baseName?: string };
+      })
+      .filter(Boolean) as AddressChoice[];
+  } catch {
+    return [];
+  }
+}
+
+// Enrichit les labels qui n'ont pas d'adresse (Overpass sans addr:*) via reverse-geocode
+async function enrichChoiceLabels(choices: AddressChoice[]): Promise<AddressChoice[]> {
+  const enriched = await Promise.all(
+    choices.map(async (c: any) => {
+      if (!c._needsReverse) return c;
+      try {
+        const rev = await reverseGeocode(c.coord[0], c.coord[1]);
+        if (rev) {
+          return { ...c, label: `${c._baseName || c.label} — ${shortLabel(rev)}` };
+        }
+      } catch {}
+      return c;
+    }),
+  );
+  return enriched.map(({ _needsReverse, _baseName, ...rest }: any) => rest);
+}
+
+
 async function searchNearbyAddressChoices(
   query: string,
   origin: [number, number],
   radiusKm = 20,
 ): Promise<AddressChoice[]> {
+  // Branche supermarché : filtre OSM strict shop=supermarket
+  if (isSupermarketQuery(query)) {
+    const raw = await searchOverpassSupermarkets(query, origin, SUPERMARKET_RADIUS_KM);
+    const enriched = await enrichChoiceLabels(raw);
+    return dedupeAddressChoices(enriched)
+      .sort((a, b) => a.distanceKm - b.distanceKm)
+      .slice(0, MAX_CHOICES_SUPERMARKET);
+  }
   // Variantes spécifiques pour lieux connus mal reconnus
   const normalizedQ = normalizeAddressText(query);
   const extraVariants: string[] = [];
@@ -994,6 +1097,22 @@ function ReservationPage() {
   useEffect(() => {
     if (f.destination && detectPoi(f.destination)) setDestMode("poi");
   }, [f.destination]);
+
+  // Debounce 500ms : si POI détecté/forcé et pas encore résolu, lance la recherche progressive.
+  useEffect(() => {
+    if (!f.depart || f.depart.length < 3) return;
+    if (fromCoord) return;
+    if (!(departMode === "poi" || detectPoi(f.depart))) return;
+    const id = setTimeout(() => { resolveDepartAddress(); }, POI_SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(id);
+  }, [f.depart, departMode, fromCoord, resolveDepartAddress]);
+  useEffect(() => {
+    if (!f.destination || f.destination.length < 3) return;
+    if (toCoord) return;
+    if (!(destMode === "poi" || detectPoi(f.destination))) return;
+    const id = setTimeout(() => { resolveDestinationAddress(); }, POI_SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(id);
+  }, [f.destination, destMode, toCoord, resolveDestinationAddress]);
 
   // ── Dictée vocale : départ + destination en un coup ──────────────────────
   // Sépare avec « à / vers / jusqu'à / direction / puis / -> »
