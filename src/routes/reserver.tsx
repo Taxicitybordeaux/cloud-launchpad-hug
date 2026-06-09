@@ -615,6 +615,7 @@ function ReservationPage() {
   const [departSearching, setDepartSearching] = useState(false);
   const [destSearching, setDestSearching] = useState(false);
   const [dictating, setDictating] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [dictateError, setDictateError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
 
