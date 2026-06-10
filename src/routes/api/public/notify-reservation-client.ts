@@ -35,8 +35,8 @@ export const Route = createFileRoute("/api/public/notify-reservation-client")({
           referer: request.headers.get("referer"),
         });
 
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const supabaseUrl = "https://auiagkpdpnfqxfngisfc.supabase.co";
+        const serviceKey = process.env.TAXI_SERVICE_KEY || process.env.SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
         if (!supabaseUrl || !serviceKey) {
           log("error", { stage: "cfg" });
           return Response.json({ error: "cfg" }, { status: 500 });
