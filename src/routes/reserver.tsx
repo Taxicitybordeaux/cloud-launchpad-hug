@@ -1232,6 +1232,21 @@ function ReservationPage() {
     const origin = fromCoord ?? BORDEAUX_CENTER;
     const namedPlace = departSearchMode === "poi" || isNamedPlaceQuery(value);
 
+    const canonical = findCanonicalPlace(value, origin);
+    if (canonical) {
+      setCalcLoading(false);
+      setSearchingDepart(false);
+      setDepartChoices([]);
+      setFromCoord(canonical.coord);
+      set("depart", canonical.label);
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.depart;
+        return next;
+      });
+      return;
+    }
+
     if (namedPlace) {
       const nearby = await searchNearbyAddressChoicesStreaming(
         value,
@@ -1335,6 +1350,21 @@ function ReservationPage() {
 
     const origin = resolvedFromCoord ?? BORDEAUX_CENTER;
     const namedPlace = searchMode === "poi" || isNamedPlaceQuery(value);
+
+    const canonical = findCanonicalPlace(value, origin);
+    if (canonical) {
+      setCalcLoading(false);
+      setSearchingDestination(false);
+      setDestinationChoices([]);
+      setToCoord(canonical.coord);
+      set("destination", canonical.label);
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.destination;
+        return next;
+      });
+      return;
+    }
 
     // Pour les lieux nommés (aéroport, gare, supermarché, monument…) ou
     // si le mode « lieu » est actif, on cherche d'abord parmi les POI
