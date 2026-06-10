@@ -1142,9 +1142,10 @@ function SuiviPage() {
             if (["terminee", "terminée", "completed", "done"].includes(newStatus)) {
               toast.info("Course terminée", { description: "Merci d'avoir voyagé avec Taxi City Bordeaux." });
               setCourseTerminee(true);
-              // Client uniquement → page de fin
+              // Client uniquement → page de fin (on passe le vrai UUID, pas le suivi_id)
               if (!isDriver) {
-                setTimeout(() => navigate({ to: "/fin/$id", params: { id } }), 1200);
+                const resaRealId = (payload.new as any)?.id ?? id;
+                setTimeout(() => navigate({ to: "/fin/$id", params: { id: resaRealId } }), 1200);
               }
               return;
             }
@@ -2937,7 +2938,7 @@ function SuiviPage() {
                           toast.info("🚕 Prochaine course chargée");
                           navigate({ to: "/suivi/$id", params: { id: nextSuiviId } });
                         } else {
-                          navigate({ to: "/fin/$id", params: { id } });
+                          navigate({ to: "/fin/$id", params: { id: resa?.id ?? id } });
                         }
                       }, 800);
                     } catch (err) {
