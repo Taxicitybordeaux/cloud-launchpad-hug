@@ -2582,7 +2582,8 @@ function SuiviPage() {
             </div>
           </div>
 
-          {/* ── PANNEAU GPS TAXI — visible par tous ── */}
+          {/* ── PANNEAU GPS TAXI — chauffeur uniquement (is_driver) ── */}
+          {isDriver && (
           <div style={{ padding: "0 20px 12px" }}>
             <div
               style={{
@@ -2704,6 +2705,8 @@ function SuiviPage() {
               )}
             </div>
           </div>
+          )}
+
 
           <div style={{ padding: "0 20px 4px" }}>
             {/* [FUSION] Barre de progression départ→destination (depuis tracking) */}
@@ -2807,8 +2810,8 @@ function SuiviPage() {
               </div>
             )}
 
-            {/* ── ACTIONS CHAUFFEUR ── */}
-            {resa.depart && (resa.destination || resa.arrivee) && (
+            {/* ── ACTIONS CHAUFFEUR — chauffeur uniquement (is_driver, débloqué après acceptation admin) ── */}
+            {isDriver && resa.depart && (resa.destination || resa.arrivee) && (
               <div
                 style={{
                   marginBottom: 14,
