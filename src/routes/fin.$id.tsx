@@ -374,13 +374,26 @@ function FinPage() {
   // ── Charger données ────────────────────────────────────────
   useEffect(() => {
     const load = async () => {
-      const { data: r } = await (supabase as any)
+      // Chercher d'abord par id primaire
+      let { data: r } = await (supabase as any)
         .from("reservations")
         .select(
           "id,depart,destination,status,prix_final,prix_estime,distance_reelle_km,distance_km,duree_reelle_min,chauffeur_id,prenom,nom,email,telephone,paiement,date_course,heure_course",
         )
         .eq("id", id)
-        .single();
+        .maybeSingle();
+
+      // Fallback par suivi_id (si l'URL contient le suivi_id et non le vrai UUID)
+      if (!r) {
+        const { data: bySuivi } = await (supabase as any)
+          .from("reservations")
+          .select(
+            "id,depart,destination,status,prix_final,prix_estime,distance_reelle_km,distance_km,duree_reelle_min,chauffeur_id,prenom,nom,email,telephone,paiement,date_course,heure_course",
+          )
+          .eq("suivi_id", id)
+          .maybeSingle();
+        r = bySuivi;
+      }
 
       if (!r) {
         setLoading(false);
