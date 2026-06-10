@@ -2810,8 +2810,8 @@ function SuiviPage() {
               </div>
             )}
 
-            {/* ── ACTIONS CHAUFFEUR ── */}
-            {resa.depart && (resa.destination || resa.arrivee) && (
+            {/* ── ACTIONS CHAUFFEUR — chauffeur uniquement (is_driver, débloqué après acceptation admin) ── */}
+            {isDriver && resa.depart && (resa.destination || resa.arrivee) && (
               <div
                 style={{
                   marginBottom: 14,
