@@ -2622,7 +2622,17 @@ function SuiviPage() {
                     {taxiPos ? "🛰 GPS actif" : "📡 En attente GPS chauffeur"}
                   </span>
                   <button
+                    disabled={!["en_route", "accepted", "arrived"].includes(effectiveStatus) && !driverGpsActive}
+                    title={
+                      !["en_route", "accepted", "arrived"].includes(effectiveStatus) && !driverGpsActive
+                        ? "⛔ En attente de validation admin"
+                        : ""
+                    }
                     onClick={() => {
+                      if (!["en_route", "accepted", "arrived"].includes(effectiveStatus) && !driverGpsActive) {
+                        toast.error("⛔ Course non encore validée par l'admin");
+                        return;
+                      }
                       if (driverGpsStatus === "idle") setDriverGpsActive(true);
                       else if (driverGpsActive) setDriverGpsActive(false);
                       else setDriverGpsActive(true);
@@ -2636,7 +2646,12 @@ function SuiviPage() {
                       fontSize: 11,
                       fontWeight: 700,
                       fontFamily: "'Syne',sans-serif",
-                      cursor: "pointer",
+                      cursor:
+                        !["en_route", "accepted", "arrived"].includes(effectiveStatus) && !driverGpsActive
+                          ? "not-allowed"
+                          : "pointer",
+                      opacity:
+                        !["en_route", "accepted", "arrived"].includes(effectiveStatus) && !driverGpsActive ? 0.45 : 1,
                       flexShrink: 0,
                     }}
                   >
@@ -2847,10 +2862,17 @@ function SuiviPage() {
                 <button
                   type="button"
                   disabled={
-                    !isDriver || statusBusy !== null || ["arrived", "completed", "terminee"].includes(effectiveStatus)
+                    !isDriver ||
+                    statusBusy !== null ||
+                    ["arrived", "completed", "terminee"].includes(effectiveStatus) ||
+                    !["en_route", "accepted", "arrived"].includes(effectiveStatus)
                   }
                   onClick={async () => {
                     if (!isDriver || !resaIdRef.current) return;
+                    if (!["en_route", "accepted", "arrived"].includes(effectiveStatus)) {
+                      toast.error("⛔ Course non encore validée par l'admin");
+                      return;
+                    }
                     setStatusBusy("arrived");
                     try {
                       const { error: e } = await supabase
@@ -2872,7 +2894,13 @@ function SuiviPage() {
                       setStatusBusy(null);
                     }
                   }}
-                  title={isDriver ? "" : "Action réservée au chauffeur"}
+                  title={
+                    !isDriver
+                      ? "Action réservée au chauffeur"
+                      : !["en_route", "accepted", "arrived"].includes(effectiveStatus)
+                        ? "⛔ En attente de validation admin"
+                        : ""
+                  }
                   style={{
                     width: "100%",
                     padding: "14px 16px",
@@ -2885,8 +2913,11 @@ function SuiviPage() {
                     fontFamily: "'Syne',sans-serif",
                     fontWeight: 800,
                     fontSize: 14,
-                    cursor: isDriver ? "pointer" : "not-allowed",
-                    opacity: isDriver ? 1 : 0.7,
+                    cursor:
+                      isDriver && ["en_route", "accepted", "arrived"].includes(effectiveStatus)
+                        ? "pointer"
+                        : "not-allowed",
+                    opacity: isDriver && ["en_route", "accepted", "arrived"].includes(effectiveStatus) ? 1 : 0.45,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -2902,9 +2933,18 @@ function SuiviPage() {
 
                 <button
                   type="button"
-                  disabled={!isDriver || statusBusy !== null || courseTerminee}
+                  disabled={
+                    !isDriver ||
+                    statusBusy !== null ||
+                    courseTerminee ||
+                    !["en_route", "accepted", "arrived"].includes(effectiveStatus)
+                  }
                   onClick={async () => {
                     if (!isDriver || !resaIdRef.current) return;
+                    if (!["en_route", "accepted", "arrived"].includes(effectiveStatus)) {
+                      toast.error("⛔ Course non encore validée par l'admin");
+                      return;
+                    }
                     if (!window.confirm("Confirmer la fin de la course ?")) return;
                     setStatusBusy("completed");
                     try {
@@ -2938,8 +2978,7 @@ function SuiviPage() {
                           toast.info("🚕 Prochaine course chargée");
                           navigate({ to: "/suivi/$id", params: { id: nextSuiviId } });
                         } else {
-                          // Toujours passer l'UUID réel (resaIdRef.current) — jamais le suivi_id
-                          navigate({ to: "/fin/$id", params: { id: resaIdRef.current || resa?.id || id } });
+                          navigate({ to: "/fin/$id", params: { id: resa?.id ?? id } });
                         }
                       }, 800);
                     } catch (err) {
@@ -2949,7 +2988,13 @@ function SuiviPage() {
                       setStatusBusy(null);
                     }
                   }}
-                  title={isDriver ? "" : "Action réservée au chauffeur"}
+                  title={
+                    !isDriver
+                      ? "Action réservée au chauffeur"
+                      : !["en_route", "accepted", "arrived"].includes(effectiveStatus)
+                        ? "⛔ En attente de validation admin"
+                        : ""
+                  }
                   style={{
                     width: "100%",
                     padding: "14px 16px",
@@ -2960,8 +3005,11 @@ function SuiviPage() {
                     fontFamily: "'Syne',sans-serif",
                     fontWeight: 800,
                     fontSize: 14,
-                    cursor: isDriver ? "pointer" : "not-allowed",
-                    opacity: isDriver ? 1 : 0.7,
+                    cursor:
+                      isDriver && ["en_route", "accepted", "arrived"].includes(effectiveStatus)
+                        ? "pointer"
+                        : "not-allowed",
+                    opacity: isDriver && ["en_route", "accepted", "arrived"].includes(effectiveStatus) ? 1 : 0.45,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -2982,6 +3030,24 @@ function SuiviPage() {
                     }}
                   >
                     🔒 Ces boutons sont utilisés par votre chauffeur.
+                  </div>
+                )}
+
+                {isDriver && !["en_route", "accepted", "arrived"].includes(effectiveStatus) && (
+                  <div
+                    style={{
+                      fontFamily: "'DM Sans',sans-serif",
+                      fontSize: 11,
+                      color: "#f59e0b",
+                      textAlign: "center",
+                      marginTop: 2,
+                      padding: "6px 10px",
+                      background: "rgba(245,158,11,0.08)",
+                      border: "1px solid rgba(245,158,11,0.2)",
+                      borderRadius: 10,
+                    }}
+                  >
+                    ⏳ En attente de validation par l'admin — les boutons seront actifs dès que la course est confirmée.
                   </div>
                 )}
 
