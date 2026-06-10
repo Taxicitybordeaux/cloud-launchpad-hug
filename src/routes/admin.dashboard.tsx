@@ -458,6 +458,10 @@ function Dashboard() {
   // ── Avis ──
   const [avis, setAvis] = useState<any[]>([]);
   const [avisLoading, setAvisLoading] = useState(true);
+
+  // ── Clients ──
+  const [clients, setClients] = useState<any[]>([]);
+  const [clientsLoading, setClientsLoading] = useState(true);
   const initialLoad = useRef(true);
   const fetchAllRef = useRef<() => Promise<void>>(null!);
   const fetchStatsRef = useRef<() => Promise<void>>(null!);
@@ -701,14 +705,24 @@ function Dashboard() {
     setAvisLoading(false);
   }, []);
 
+  const fetchClients = useCallback(async () => {
+    const { data, error } = await (supabase as any)
+      .from("clients")
+      .select("id, name, phone, email, total_courses, created_at")
+      .order("created_at", { ascending: false });
+    if (!error) setClients(data ?? []);
+    setClientsLoading(false);
+  }, []);
+
   const fetchAll = useCallback(async () => {
     setRefreshing(true);
     setStatsLoading(true);
     setCoursesLoading(true);
     setAvisLoading(true);
-    await Promise.all([fetchStats(), fetchCourses(), fetchAvis()]);
+    setClientsLoading(true);
+    await Promise.all([fetchStats(), fetchCourses(), fetchAvis(), fetchClients()]);
     setRefreshing(false);
-  }, [fetchStats, fetchCourses, fetchAvis]);
+  }, [fetchStats, fetchCourses, fetchAvis, fetchClients]);
   fetchAllRef.current = fetchAll;
   fetchStatsRef.current = fetchStats;
 
@@ -778,6 +792,7 @@ function Dashboard() {
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "site_analytics" }, () => fetchStats())
       .on("postgres_changes", { event: "*", schema: "public", table: "avis" }, () => fetchAvis())
+      .on("postgres_changes", { event: "*", schema: "public", table: "clients" }, () => fetchClients())
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
@@ -1379,6 +1394,19 @@ function Dashboard() {
     }
     toast.success("Avis supprimé");
     setAvis((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  // =========================
+  // CLIENTS
+  // =========================
+  const handleDeleteClient = async (id: string) => {
+    const { error } = await (supabase as any).from("clients").delete().eq("id", id);
+    if (error) {
+      toast.error("Suppression impossible", { description: error.message });
+      return;
+    }
+    toast.success("Client supprimé");
+    setClients((prev) => prev.filter((c) => c.id !== id));
   };
 
   // =========================
@@ -2529,7 +2557,6 @@ function Dashboard() {
 
           {/* Itinéraires alternatifs supprimés : la logique « trajet le plus long (rocade) » est appliquée automatiquement côté OSRM. */}
 
-
           {/* ── Bouton annuler uniquement ── */}
           {(normalizeStatus(r.status) === "accepted" || r.status === "en_route" || r.status === "arrived") && (
             <div
@@ -3145,74 +3172,6 @@ function Dashboard() {
           </div>
         )}
 
-        {/* ── Terminées ── */}
-        {!coursesLoading && completed.length > 0 && (
-          <div style={{ marginBottom: 36 }}>
-            <SectionHeader
-              color="#22c55e"
-              label="Terminées"
-              count={completed.length}
-              borderColor="rgba(34,197,94,0.25)"
-            />
-            {completed.map((r) => (
-              <SwipeDeleteRow
-                key={r.id}
-                onDelete={() => handleDeleteReservation(r.id)}
-                disabled={deleteBusy}
-                style={{ marginBottom: 14 }}
-              >
-                <div style={{ ...card, opacity: 0.7 }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 12,
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <div>
-                      <div style={{ color: "#fff", fontWeight: 700, fontSize: 16 }}>{r.client_name || r.nom}</div>
-                      <div style={{ color: "#64748b", fontSize: 12, marginTop: 2 }}>
-                        {r.pickup_datetime
-                          ? formatParis(r.pickup_datetime, {
-                              dateStyle: "short",
-                              timeStyle: "short",
-                            })
-                          : new Date(r.created_at).toLocaleString("fr-FR", {
-                              timeZone: "Europe/Paris",
-                            })}
-                      </div>
-                      <div style={{ color: "#94a3b8", marginTop: 6, fontSize: 13 }}>
-                        <div>🟢 {r.depart}</div>
-                        <div style={{ marginTop: 2 }}>📍 {r.destination || r.arrivee}</div>
-                      </div>
-                    </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "flex-end",
-                        gap: 6,
-                      }}
-                    >
-                      <StatusBadge s={r.status} />
-                    </div>
-                  </div>
-                  {(() => {
-                    const p = getPrix(r);
-                    return p ? (
-                      <div style={{ marginTop: 8, color: "#0ea5e9", fontWeight: 700, fontSize: 15 }}>
-                        💰 {p.toFixed(2)} €
-                      </div>
-                    ) : null;
-                  })()}
-                </div>
-              </SwipeDeleteRow>
-            ))}
-          </div>
-        )}
-
-        {/* ── Refusées ── */}
         {!coursesLoading && (
           <div style={{ marginBottom: 36 }}>
             <SectionHeader color="#ef4444" label="Refusées" count={counts.refused} borderColor="rgba(239,68,68,0.25)" />
@@ -3332,6 +3291,153 @@ function Dashboard() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* ══════════════════════════════
+          SECTION COURSES TERMINÉES
+      ══════════════════════════════ */}
+      <div style={{ marginTop: 48 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          <h2
+            style={{
+              fontFamily: "'Syne',sans-serif",
+              fontSize: 20,
+              fontWeight: 800,
+              color: "#f8fafc",
+              margin: 0,
+            }}
+          >
+            🏁 Courses terminées
+          </h2>
+          {!coursesLoading && completed.length > 0 && (
+            <span
+              style={{
+                background: "rgba(14,165,233,0.12)",
+                color: "#0ea5e9",
+                padding: "2px 10px",
+                borderRadius: 99,
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+            >
+              {completed.length}
+            </span>
+          )}
+        </div>
+
+        {coursesLoading && <div style={{ textAlign: "center", color: "#475569", padding: 40 }}>Chargement…</div>}
+
+        {!coursesLoading && completed.length === 0 && (
+          <div
+            style={{
+              textAlign: "center",
+              color: "#475569",
+              padding: "28px 0",
+              fontSize: 14,
+              border: "1px dashed rgba(255,255,255,0.08)",
+              borderRadius: 16,
+            }}
+          >
+            Aucune course terminée pour l'instant
+          </div>
+        )}
+
+        {!coursesLoading &&
+          completed.map((r) => (
+            <SwipeDeleteRow
+              key={r.id}
+              onDelete={() => handleDeleteReservation(r.id)}
+              disabled={deleteBusy}
+              style={{ marginBottom: 14 }}
+            >
+              <div style={{ ...card }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {/* Nom + badge */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <div style={{ color: "#fff", fontWeight: 700, fontSize: 16 }}>{r.client_name || r.nom}</div>
+                      <StatusBadge s={r.status} />
+                    </div>
+                    {/* Date */}
+                    <div style={{ color: "#64748b", fontSize: 12, marginBottom: 8 }}>
+                      {r.pickup_datetime
+                        ? formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })
+                        : new Date(r.created_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
+                    </div>
+                    {/* Trajet */}
+                    <div style={{ color: "#94a3b8", fontSize: 13, marginBottom: 8 }}>
+                      <div>🟢 {r.depart}</div>
+                      <div style={{ marginTop: 2 }}>🏁 {r.destination || r.arrivee}</div>
+                    </div>
+                    {/* Coordonnées client */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      {(r.client_phone || r.telephone) && (
+                        <a
+                          href={`tel:${r.client_phone || r.telephone}`}
+                          style={{
+                            color: "#22c55e",
+                            fontSize: 13,
+                            textDecoration: "none",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                          }}
+                        >
+                          📞 {r.client_phone || r.telephone}
+                        </a>
+                      )}
+                      {(r.client_email || r.email) && (
+                        <a
+                          href={`mailto:${r.client_email || r.email}`}
+                          style={{
+                            color: "#0ea5e9",
+                            fontSize: 12,
+                            textDecoration: "none",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                          }}
+                        >
+                          ✉️ {r.client_email || r.email}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                  {/* Prix */}
+                  {(() => {
+                    const p = getPrix(r);
+                    return p ? (
+                      <div
+                        style={{
+                          background: "rgba(14,165,233,0.08)",
+                          border: "1px solid rgba(14,165,233,0.2)",
+                          borderRadius: 12,
+                          padding: "8px 14px",
+                          textAlign: "center",
+                          flexShrink: 0,
+                          alignSelf: "flex-start",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontFamily: "'JetBrains Mono',monospace",
+                            fontSize: 18,
+                            fontWeight: 700,
+                            color: "#0ea5e9",
+                          }}
+                        >
+                          {p.toFixed(2)} €
+                        </div>
+                        <div style={{ fontSize: 9, color: "#475569", marginTop: 2, textTransform: "uppercase" }}>
+                          prix final
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+              </div>
+            </SwipeDeleteRow>
+          ))}
       </div>
 
       {/* ══════════════════════════════
@@ -3746,6 +3852,163 @@ function Dashboard() {
         )}
       </div>
 
+      {/* ══════════════════════════════
+          SECTION CLIENTS
+      ══════════════════════════════ */}
+      <div style={{ marginTop: 48 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          <h2
+            style={{
+              fontFamily: "'Syne',sans-serif",
+              fontSize: 20,
+              fontWeight: 800,
+              color: "#f8fafc",
+              margin: 0,
+            }}
+          >
+            👥 Clients
+          </h2>
+          {!clientsLoading && (
+            <span
+              style={{
+                background: "rgba(14,165,233,0.12)",
+                color: "#0ea5e9",
+                padding: "2px 10px",
+                borderRadius: 99,
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+            >
+              {clients.length}
+            </span>
+          )}
+        </div>
+
+        {clientsLoading && (
+          <div style={{ textAlign: "center", color: "#475569", padding: 40 }}>Chargement des clients…</div>
+        )}
+
+        {!clientsLoading && clients.length === 0 && (
+          <div style={{ textAlign: "center", color: "#475569", padding: "20px 0", fontSize: 14 }}>
+            Aucun client enregistré
+          </div>
+        )}
+
+        {!clientsLoading && (
+          <div>
+            <div style={{ color: "#64748b", fontSize: 12, marginBottom: 12 }}>← Swipez pour supprimer un client</div>
+            {clients.map((c) => (
+              <SwipeDeleteRow key={c.id} onDelete={() => handleDeleteClient(c.id)} style={{ marginBottom: 12 }}>
+                <div
+                  style={{
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.07)",
+                    borderRadius: 20,
+                    padding: "14px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {/* Nom */}
+                    <div
+                      style={{
+                        fontFamily: "'Syne',sans-serif",
+                        fontWeight: 700,
+                        fontSize: 15,
+                        color: "#f1f5f9",
+                        marginBottom: 6,
+                      }}
+                    >
+                      {c.name || "—"}
+                    </div>
+                    {/* Téléphone */}
+                    {c.phone && (
+                      <a
+                        href={`tel:${c.phone}`}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          color: "#22c55e",
+                          fontSize: 13,
+                          textDecoration: "none",
+                          marginBottom: 3,
+                        }}
+                      >
+                        📞 {c.phone}
+                      </a>
+                    )}
+                    {/* Email */}
+                    {c.email && (
+                      <a
+                        href={`mailto:${c.email}`}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          color: "#0ea5e9",
+                          fontSize: 12,
+                          textDecoration: "none",
+                          marginBottom: 3,
+                        }}
+                      >
+                        ✉️ {c.email}
+                      </a>
+                    )}
+                    {/* Date inscription */}
+                    {c.created_at && (
+                      <div style={{ color: "#475569", fontSize: 11, marginTop: 4 }}>
+                        Inscrit le {new Date(c.created_at).toLocaleDateString("fr-FR")}
+                      </div>
+                    )}
+                  </div>
+                  {/* Badge nb courses */}
+                  {c.total_courses != null && c.total_courses > 0 && (
+                    <div
+                      style={{
+                        background: "rgba(245,200,66,0.1)",
+                        border: "1px solid rgba(245,200,66,0.25)",
+                        borderRadius: 10,
+                        padding: "6px 12px",
+                        textAlign: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontFamily: "'JetBrains Mono',monospace",
+                          fontSize: 18,
+                          fontWeight: 700,
+                          color: "#f5c842",
+                          lineHeight: 1,
+                        }}
+                      >
+                        {c.total_courses}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 9,
+                          color: "#64748b",
+                          marginTop: 3,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                        }}
+                      >
+                        course{c.total_courses > 1 ? "s" : ""}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </SwipeDeleteRow>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* ── Modale Accepter ── */}
 
       {/* ── Modale carte tracé ── */}
@@ -3836,7 +4099,13 @@ function MapTraceModal({
       }).addTo(map);
 
       // Tracé de la route (style Uber noir, fin)
-      const poly = L.polyline(alt.coords, { color: "#000000", weight: 6, opacity: 1, lineCap: "round", lineJoin: "round" }).addTo(map);
+      const poly = L.polyline(alt.coords, {
+        color: "#000000",
+        weight: 6,
+        opacity: 1,
+        lineCap: "round",
+        lineJoin: "round",
+      }).addTo(map);
 
       // Marqueurs départ / arrivée
       const iconDepart = L.divIcon({
