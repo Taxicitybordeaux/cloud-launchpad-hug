@@ -2583,8 +2583,7 @@ function SuiviPage() {
           </div>
 
           {/* ── PANNEAU GPS TAXI — chauffeur uniquement (is_driver) ── */}
-          {isDriver && (
-          <div style={{ padding: "0 20px 12px" }}>
+          <div hidden={!isDriver} style={{ padding: "0 20px 12px" }}>
             <div
               style={{
                 background: taxiPos ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.035)",
@@ -2705,7 +2704,6 @@ function SuiviPage() {
               )}
             </div>
           </div>
-          )}
 
 
           <div style={{ padding: "0 20px 4px" }}>
