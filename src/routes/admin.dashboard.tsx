@@ -1822,9 +1822,9 @@ function Dashboard() {
     return null;
   };
 
-  const pending = items.filter((r) => normalizeStatus(r.status) === "pending");
-  const accepted = items.filter((r) => normalizeStatus(r.status) === "accepted");
-  const refused = items.filter((r) => normalizeStatus(r.status) === "refused");
+  const pending = items.filter((r) => r.status === "pending");
+  const accepted = items.filter((r) => r.status === "accepted");
+  const refused = items.filter((r) => r.status === "refused");
   // Courses "en cours" = accepted + en_route + arrived (pour la section séparée)
   const inProgress = items.filter((r) => r.status === "en_route" || r.status === "arrived");
   const completed = items.filter((r) => r.status === "completed");
