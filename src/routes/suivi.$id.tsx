@@ -2938,7 +2938,8 @@ function SuiviPage() {
                           toast.info("🚕 Prochaine course chargée");
                           navigate({ to: "/suivi/$id", params: { id: nextSuiviId } });
                         } else {
-                          navigate({ to: "/fin/$id", params: { id: resa?.id ?? id } });
+                          // Toujours passer l'UUID réel (resaIdRef.current) — jamais le suivi_id
+                          navigate({ to: "/fin/$id", params: { id: resaIdRef.current || resa?.id || id } });
                         }
                       }, 800);
                     } catch (err) {
