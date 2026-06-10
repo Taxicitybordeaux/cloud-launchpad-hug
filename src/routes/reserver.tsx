@@ -432,7 +432,7 @@ const CANONICAL_PLACES: Array<{
 ];
 
 function findCanonicalPlace(query: string, origin: [number, number]): AddressChoice | null {
-  const n = normalizeAddressText(query);
+  const n = normalizeAddressText(expandAbbreviations(query));
   for (const p of CANONICAL_PLACES) {
     if (p.match.test(n)) {
       return { label: p.label, coord: p.coord, distanceKm: distanceKmBetween(origin, p.coord) };
@@ -524,8 +524,8 @@ async function searchNearbyAddressChoices(
   if (/aeroport|airport/.test(normalizedQ) && /bordeaux|merignac|bod/.test(normalizedQ)) {
     extraVariants.push("Aéroport de Bordeaux-Mérignac", "Bordeaux-Mérignac Airport", "BOD Bordeaux");
   }
-  if (/gare|saint.jean/.test(normalizedQ) && /bordeaux/.test(normalizedQ)) {
-    extraVariants.push("Gare de Bordeaux-Saint-Jean");
+  if (/gare|saint.jean|st.jean/.test(normalizedQ)) {
+    extraVariants.push("Gare de Bordeaux-Saint-Jean", "Gare Saint Jean Bordeaux", "Bordeaux Saint-Jean");
   }
   const variants = [...new Set([query, `${query}, Gironde`, ...extraVariants])];
   const [nominatimGroups, photonChoices, overpassChoices] = await Promise.all([
@@ -576,8 +576,8 @@ async function searchNearbyAddressChoicesStreaming(
   if (/aeroport|airport/.test(normalizedQ) && /bordeaux|merignac|bod/.test(normalizedQ)) {
     extraVariants.push("Aéroport de Bordeaux-Mérignac", "Bordeaux-Mérignac Airport", "BOD Bordeaux");
   }
-  if (/gare|saint.jean/.test(normalizedQ) && /bordeaux/.test(normalizedQ)) {
-    extraVariants.push("Gare de Bordeaux-Saint-Jean");
+  if (/gare|saint.jean|st.jean/.test(normalizedQ)) {
+    extraVariants.push("Gare de Bordeaux-Saint-Jean", "Gare Saint Jean Bordeaux", "Bordeaux Saint-Jean");
   }
   const variants = [...new Set([query, `${query}, Gironde`, ...extraVariants])];
 
