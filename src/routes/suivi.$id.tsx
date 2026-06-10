@@ -2705,6 +2705,8 @@ function SuiviPage() {
               )}
             </div>
           </div>
+          )}
+
 
           <div style={{ padding: "0 20px 4px" }}>
             {/* [FUSION] Barre de progression départ→destination (depuis tracking) */}
