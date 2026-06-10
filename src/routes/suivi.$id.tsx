@@ -2582,7 +2582,8 @@ function SuiviPage() {
             </div>
           </div>
 
-          {/* ── PANNEAU GPS TAXI — visible par tous ── */}
+          {/* ── PANNEAU GPS TAXI — chauffeur uniquement (is_driver) ── */}
+          {isDriver && (
           <div style={{ padding: "0 20px 12px" }}>
             <div
               style={{
