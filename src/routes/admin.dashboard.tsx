@@ -764,8 +764,9 @@ function Dashboard() {
         }
         fetchStats();
       })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "reservations" }, (payload) => {
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "reservations" }, async (payload) => {
         const updated = payload.new as any;
+        const previous = payload.old as any;
         console.log("[RT UPDATE]", updated?.id?.slice(0, 8), "db:", updated?.status);
         if (updated?.id) {
           setItems((prev) =>
@@ -788,6 +789,32 @@ function Dashboard() {
               return { ...item, ...updated };
             }),
           );
+
+          // ✅ FIX : course terminée depuis /suivi/$id (pas via handleUpdateReservationStatus)
+          // Guard !wasCompleted pour éviter les doublons si plusieurs UPDATE arrivent
+          const wasCompleted = previous?.status === "completed";
+          if (updated.status === "completed" && !wasCompleted) {
+            const phone = updated.client_phone || updated.telephone;
+            if (phone) {
+              try {
+                const { data: existing } = await (supabase as any)
+                  .from("clients")
+                  .select("id,total_courses")
+                  .eq("phone", phone)
+                  .maybeSingle();
+                if (existing) {
+                  await (supabase as any)
+                    .from("clients")
+                    .update({ total_courses: (existing.total_courses ?? 0) + 1 })
+                    .eq("id", existing.id);
+                }
+              } catch (clientErr) {
+                console.error("[RT UPDATE completed] clients update failed", clientErr);
+              }
+            }
+            // Rafraîchit la section 👥 Clients dans tous les cas
+            fetchClients();
+          }
         }
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "site_analytics" }, () => fetchStats())
