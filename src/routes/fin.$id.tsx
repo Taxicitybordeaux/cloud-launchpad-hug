@@ -373,7 +373,7 @@ function FinPage() {
 
   // ── Charger données ────────────────────────────────────────
   useEffect(() => {
-    const load = async () => {
+    const load = async (attempt = 0) => {
       // Chercher d'abord par id primaire
       let { data: r } = await (supabase as any)
         .from("reservations")
@@ -399,10 +399,19 @@ function FinPage() {
         setLoading(false);
         return;
       }
+
+      // Race condition : le statut peut ne pas encore être "completed" (propagation Supabase)
+      // → retry jusqu'à 6 fois × 700ms (~4s) avant de rediriger
       if (r.status !== "completed") {
-        navigate({ to: `/suivi/${id}` });
+        if (attempt < 6) {
+          setTimeout(() => load(attempt + 1), 700);
+          return;
+        }
+        // Après ~4s de tentatives, rediriger vers suivi avec l'UUID réel (r.id, pas id)
+        navigate({ to: "/suivi/$id", params: { id: r.id } });
         return;
       }
+
       setResa(r as Reservation);
 
       if (r.chauffeur_id) {
@@ -410,8 +419,8 @@ function FinPage() {
         if (c) setChauffeur(c as Chauffeur);
       }
 
-      // Vérifier si avis déjà posté
-      const { data: av } = await (supabase as any).from("avis").select("id,note").eq("reservation_id", id).single();
+      // Vérifier si avis déjà posté — utiliser r.id (UUID réel, pas id qui peut être suivi_id)
+      const { data: av } = await (supabase as any).from("avis").select("id,note").eq("reservation_id", r.id).single();
       if (av) {
         setNote(av.note);
         setAvisEnvoye(true);
