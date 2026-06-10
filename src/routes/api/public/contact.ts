@@ -22,8 +22,8 @@ export const Route = createFileRoute('/api/public/contact')({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+        const supabaseUrl = 'https://auiagkpdpnfqxfngisfc.supabase.co'
+        const serviceKey = process.env.TAXI_SERVICE_KEY || process.env.SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
         if (!supabaseUrl || !serviceKey) {
           return Response.json({ error: 'Server config error' }, { status: 500 })
         }
