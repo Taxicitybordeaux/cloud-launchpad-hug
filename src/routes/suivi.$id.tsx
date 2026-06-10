@@ -479,8 +479,10 @@ function SuiviPage() {
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
   // ── Mode chauffeur ────────────────────────────────────────────────────────
+  // José arrive via la notif push sur /suivi/$id — le $id est son token d'accès.
+  // On accepte ?rid=<uuid> (ancien flow) OU que resa.suivi_id / tracking_id corresponde à l'URL.
   const { gps: gpsParam, rid: ridParam } = Route.useSearch();
-  const isDriver = !!ridParam;
+  const isDriver = !!ridParam || (!!resa && (resa.suivi_id === id || resa.tracking_id === id));
   const [driverGpsActive, setDriverGpsActive] = useState(gpsParam === "1");
   const [driverGpsStatus, setDriverGpsStatus] = useState<
     "idle" | "starting" | "active" | "weak" | "denied" | "background" | "error"
@@ -1140,6 +1142,10 @@ function SuiviPage() {
             if (["terminee", "terminée", "completed", "done"].includes(newStatus)) {
               toast.info("Course terminée", { description: "Merci d'avoir voyagé avec Taxi City Bordeaux." });
               setCourseTerminee(true);
+              // Client uniquement → page de fin
+              if (!isDriver) {
+                setTimeout(() => navigate({ to: "/fin/$id", params: { id } }), 1200);
+              }
               return;
             }
             setResa((prev) => {
@@ -1493,9 +1499,9 @@ function SuiviPage() {
 
     const dist = distMeters({ lat: taxiPos.lat, lng: taxiPos.lng }, arrRef);
     // Seuil élargi à 200m pour compenser la précision variable du GPS
-    if (dist < 200) {
+    // Côté client uniquement : indicateur visuel. L'update Supabase se fait via le bouton "Course terminée" de José.
+    if (dist < 200 && !isDriver) {
       setCourseTerminee(true);
-      (supabase as any).from("reservations").update({ status: "completed" }).eq("id", resa.id);
     }
   }, [taxiPos, resa, courseTerminee]);
 
@@ -1653,20 +1659,18 @@ function SuiviPage() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
       } catch {
         const now = new Date().toISOString();
-        await supabase
-          .from("driver_gps")
-          .upsert(
-            {
-              id: "driver",
-              latitude: body.latitude,
-              longitude: body.longitude,
-              accuracy: body.accuracy,
-              is_active: body.is_online,
-              heartbeat_at: now,
-              updated_at: now,
-            },
-            { onConflict: "id" },
-          );
+        await supabase.from("driver_gps").upsert(
+          {
+            id: "driver",
+            latitude: body.latitude,
+            longitude: body.longitude,
+            accuracy: body.accuracy,
+            is_active: body.is_online,
+            heartbeat_at: now,
+            updated_at: now,
+          },
+          { onConflict: "id" },
+        );
       }
     };
 
@@ -2582,129 +2586,133 @@ function SuiviPage() {
             </div>
           </div>
 
-          {/* ── PANNEAU GPS TAXI — chauffeur uniquement (is_driver) ── */}
-          <div hidden={!isDriver} style={{ padding: "0 20px 12px" }}>
-            <div
-              style={{
-                background: taxiPos ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.035)",
-                border: `1px solid ${taxiPos ? "rgba(34,197,94,0.3)" : "rgba(255,255,255,0.08)"}`,
-                borderRadius: 16,
-                padding: "14px 16px",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: taxiPos ? 10 : 0 }}>
-                <div
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: "50%",
-                    background: taxiPos ? "#22c55e" : "#475569",
-                    flexShrink: 0,
-                    boxShadow: taxiPos ? "0 0 0 3px rgba(34,197,94,0.2)" : "none",
-                    animation: taxiPos ? "pulse 2s ease-in-out infinite" : "none",
-                  }}
-                />
-                <span
-                  style={{
-                    fontFamily: "'Syne',sans-serif",
-                    fontWeight: 700,
-                    fontSize: 13,
-                    color: taxiPos ? "#22c55e" : "#475569",
-                    flex: 1,
-                  }}
-                >
-                  {taxiPos ? "🛰 GPS actif" : "📡 En attente GPS chauffeur"}
-                </span>
-                <button
-                  onClick={() => {
-                    if (driverGpsStatus === "idle") setDriverGpsActive(true);
-                    else if (driverGpsActive) setDriverGpsActive(false);
-                    else setDriverGpsActive(true);
-                  }}
-                  style={{
-                    padding: "5px 12px",
-                    borderRadius: 10,
-                    background: driverGpsActive ? "rgba(239,68,68,0.12)" : "rgba(34,197,94,0.12)",
-                    border: `1px solid ${driverGpsActive ? "rgba(239,68,68,0.35)" : "rgba(34,197,94,0.35)"}`,
-                    color: driverGpsActive ? "#f87171" : "#22c55e",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    fontFamily: "'Syne',sans-serif",
-                    cursor: "pointer",
-                    flexShrink: 0,
-                  }}
-                >
-                  {driverGpsActive ? "⬛ Couper" : "▶ Activer"}
-                </button>
-              </div>
-              {taxiPos && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
-                  {[
-                    { label: "LAT", value: taxiPos.lat.toFixed(4), color: "#e2e8f0" },
-                    { label: "LNG", value: taxiPos.lng.toFixed(4), color: "#e2e8f0" },
-                    {
-                      label: "PRÉCISION",
-                      value: driverDebug.accuracy !== null ? `±${Math.round(driverDebug.accuracy)}m` : "—",
-                      color: driverDebug.accuracy !== null && driverDebug.accuracy > 50 ? "#f59e0b" : "#22c55e",
-                    },
-                  ].map(({ label, value, color }) => (
-                    <div key={label} style={{ background: "rgba(0,0,0,0.25)", borderRadius: 10, padding: "7px 10px" }}>
-                      <div
-                        style={{ fontSize: 9, color: "#475569", fontFamily: "'DM Sans',sans-serif", marginBottom: 2 }}
-                      >
-                        {label}
-                      </div>
-                      <div style={{ fontSize: 12, color, fontFamily: "'JetBrains Mono',monospace", fontWeight: 700 }}>
-                        {value}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {taxiPos && (
-                <div style={{ marginTop: 8, fontSize: 10, color: "#475569", fontFamily: "'DM Sans',sans-serif" }}>
-                  {driverDebug.signalsSent > 0 ? `${driverDebug.signalsSent} màj · ` : ""}âge{" "}
-                  {formatDiagnosticAge(trackingDiag.lastPositionAt)}
-                </div>
-              )}
-              {driverGpsActive && (
-                <div
-                  style={{
-                    marginTop: 8,
-                    padding: "6px 10px",
-                    borderRadius: 8,
-                    background: "rgba(245,158,11,0.08)",
-                    border: "1px solid rgba(245,158,11,0.2)",
-                    fontSize: 10,
-                    color: "#f59e0b",
-                    fontFamily: "'DM Sans',sans-serif",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
-                >
-                  ⚠️ Gardez l'écran allumé pendant la course
-                  <button
-                    onClick={() => requestDriverWakeLock()}
+          {/* ── PANNEAU GPS TAXI — chauffeur uniquement (isDriver) ── */}
+          {isDriver && (
+            <div style={{ padding: "0 20px 12px" }}>
+              <div
+                style={{
+                  background: taxiPos ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.035)",
+                  border: `1px solid ${taxiPos ? "rgba(34,197,94,0.3)" : "rgba(255,255,255,0.08)"}`,
+                  borderRadius: 16,
+                  padding: "14px 16px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: taxiPos ? 10 : 0 }}>
+                  <div
                     style={{
-                      marginLeft: "auto",
-                      padding: "2px 8px",
-                      borderRadius: 6,
-                      background: "rgba(245,158,11,0.15)",
-                      border: "1px solid rgba(245,158,11,0.3)",
-                      color: "#f59e0b",
-                      fontSize: 10,
-                      cursor: "pointer",
-                      fontFamily: "'DM Sans',sans-serif",
+                      width: 10,
+                      height: 10,
+                      borderRadius: "50%",
+                      background: taxiPos ? "#22c55e" : "#475569",
+                      flexShrink: 0,
+                      boxShadow: taxiPos ? "0 0 0 3px rgba(34,197,94,0.2)" : "none",
+                      animation: taxiPos ? "pulse 2s ease-in-out infinite" : "none",
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontFamily: "'Syne',sans-serif",
+                      fontWeight: 700,
+                      fontSize: 13,
+                      color: taxiPos ? "#22c55e" : "#475569",
+                      flex: 1,
                     }}
                   >
-                    Activer
+                    {taxiPos ? "🛰 GPS actif" : "📡 En attente GPS chauffeur"}
+                  </span>
+                  <button
+                    onClick={() => {
+                      if (driverGpsStatus === "idle") setDriverGpsActive(true);
+                      else if (driverGpsActive) setDriverGpsActive(false);
+                      else setDriverGpsActive(true);
+                    }}
+                    style={{
+                      padding: "5px 12px",
+                      borderRadius: 10,
+                      background: driverGpsActive ? "rgba(239,68,68,0.12)" : "rgba(34,197,94,0.12)",
+                      border: `1px solid ${driverGpsActive ? "rgba(239,68,68,0.35)" : "rgba(34,197,94,0.35)"}`,
+                      color: driverGpsActive ? "#f87171" : "#22c55e",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      fontFamily: "'Syne',sans-serif",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {driverGpsActive ? "⬛ Couper" : "▶ Activer"}
                   </button>
                 </div>
-              )}
+                {taxiPos && (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+                    {[
+                      { label: "LAT", value: taxiPos.lat.toFixed(4), color: "#e2e8f0" },
+                      { label: "LNG", value: taxiPos.lng.toFixed(4), color: "#e2e8f0" },
+                      {
+                        label: "PRÉCISION",
+                        value: driverDebug.accuracy !== null ? `±${Math.round(driverDebug.accuracy)}m` : "—",
+                        color: driverDebug.accuracy !== null && driverDebug.accuracy > 50 ? "#f59e0b" : "#22c55e",
+                      },
+                    ].map(({ label, value, color }) => (
+                      <div
+                        key={label}
+                        style={{ background: "rgba(0,0,0,0.25)", borderRadius: 10, padding: "7px 10px" }}
+                      >
+                        <div
+                          style={{ fontSize: 9, color: "#475569", fontFamily: "'DM Sans',sans-serif", marginBottom: 2 }}
+                        >
+                          {label}
+                        </div>
+                        <div style={{ fontSize: 12, color, fontFamily: "'JetBrains Mono',monospace", fontWeight: 700 }}>
+                          {value}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {taxiPos && (
+                  <div style={{ marginTop: 8, fontSize: 10, color: "#475569", fontFamily: "'DM Sans',sans-serif" }}>
+                    {driverDebug.signalsSent > 0 ? `${driverDebug.signalsSent} màj · ` : ""}âge{" "}
+                    {formatDiagnosticAge(trackingDiag.lastPositionAt)}
+                  </div>
+                )}
+                {driverGpsActive && (
+                  <div
+                    style={{
+                      marginTop: 8,
+                      padding: "6px 10px",
+                      borderRadius: 8,
+                      background: "rgba(245,158,11,0.08)",
+                      border: "1px solid rgba(245,158,11,0.2)",
+                      fontSize: 10,
+                      color: "#f59e0b",
+                      fontFamily: "'DM Sans',sans-serif",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                  >
+                    ⚠️ Gardez l'écran allumé pendant la course
+                    <button
+                      onClick={() => requestDriverWakeLock()}
+                      style={{
+                        marginLeft: "auto",
+                        padding: "2px 8px",
+                        borderRadius: 6,
+                        background: "rgba(245,158,11,0.15)",
+                        border: "1px solid rgba(245,158,11,0.3)",
+                        color: "#f59e0b",
+                        fontSize: 10,
+                        cursor: "pointer",
+                        fontFamily: "'DM Sans',sans-serif",
+                      }}
+                    >
+                      Activer
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-
+          )}
 
           <div style={{ padding: "0 20px 4px" }}>
             {/* [FUSION] Barre de progression départ→destination (depuis tracking) */}
@@ -2913,8 +2921,25 @@ function SuiviPage() {
                       setResa((prev) => (prev ? { ...prev, status: "completed" } : prev));
                       setDriverGpsActive(false);
                       toast.success("🏁 Course terminée");
-                      const targetId = resaIdRef.current;
-                      setTimeout(() => navigate({ to: "/fin/$id", params: { id: targetId } }), 500);
+
+                      // ── Chercher la prochaine course acceptée ──────────────
+                      const { data: nextResa } = await supabase
+                        .from("reservations")
+                        .select("id, suivi_id, tracking_id, pickup_datetime")
+                        .eq("status", "accepted")
+                        .order("pickup_datetime", { ascending: true })
+                        .limit(1)
+                        .maybeSingle();
+
+                      setTimeout(() => {
+                        if (nextResa) {
+                          const nextSuiviId = nextResa.suivi_id || nextResa.tracking_id || nextResa.id;
+                          toast.info("🚕 Prochaine course chargée");
+                          navigate({ to: "/suivi/$id", params: { id: nextSuiviId } });
+                        } else {
+                          navigate({ to: "/admin/dashboard" });
+                        }
+                      }, 800);
                     } catch (err) {
                       console.error(err);
                       toast.error("Échec de la mise à jour");
