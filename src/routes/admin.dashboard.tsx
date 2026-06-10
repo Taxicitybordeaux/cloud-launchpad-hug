@@ -1162,7 +1162,7 @@ function Dashboard() {
     const name = r.client_name || r.nom;
     const email = r.client_email || r.email;
 
-    // Enregistrer dans clients
+    // Enregistrer dans clients (sans incrémenter total_courses — fait à completed)
     if (phone) {
       try {
         const { data: existing } = await (supabase as any)
@@ -1170,13 +1170,8 @@ function Dashboard() {
           .select("id,total_courses")
           .eq("phone", phone)
           .maybeSingle();
-        if (existing) {
-          await (supabase as any)
-            .from("clients")
-            .update({ total_courses: (existing.total_courses ?? 0) + 1 })
-            .eq("id", existing.id);
-        } else {
-          await (supabase as any).from("clients").insert({ name, phone, email, total_courses: 1 });
+        if (!existing) {
+          await (supabase as any).from("clients").insert({ name, phone, email, total_courses: 0 });
         }
       } catch (clientErr) {
         console.error("[handleAccept] clients insert/update failed", clientErr);
@@ -1332,6 +1327,30 @@ function Dashboard() {
       toast.success(`Statut mis à jour : ${statusLabels[status] ?? status}`);
     }
     setItems((prev) => prev.map((item) => (item.id === r.id ? { ...item, status } : item)));
+
+    // Incrémenter total_courses du client quand la course est terminée
+    if (status === "completed") {
+      const phone = r.client_phone || r.telephone;
+      if (phone) {
+        try {
+          const { data: existing } = await (supabase as any)
+            .from("clients")
+            .select("id,total_courses")
+            .eq("phone", phone)
+            .maybeSingle();
+          if (existing) {
+            await (supabase as any)
+              .from("clients")
+              .update({ total_courses: (existing.total_courses ?? 0) + 1 })
+              .eq("id", existing.id);
+          }
+          // fetchClients pour rafraîchir la section 👥
+          fetchClients();
+        } catch (clientErr) {
+          console.error("[completed] clients update failed", clientErr);
+        }
+      }
+    }
   };
 
   // =========================
