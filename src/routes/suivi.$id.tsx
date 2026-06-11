@@ -787,9 +787,9 @@ function SuiviPage() {
     L.control.zoom({ position: "bottomright" }).addTo(map);
     const icon = L.divIcon({
       className: "",
-      html: `<div style="width:48px;height:48px;border-radius:50%;border:3px solid #f5c842;overflow:hidden;box-shadow:0 0 0 0 rgba(245,200,66,0);animation:driverPulse 2s infinite"><img src="${TAXI_ICON_URI}" style="width:100%;height:100%;object-fit:cover" /></div>`,
-      iconSize: [48, 48],
-      iconAnchor: [24, 24],
+      html: `<div style="width:32px;height:32px;border-radius:50%;border:2px solid #f5c842;overflow:hidden;box-shadow:0 0 0 0 rgba(245,200,66,0);animation:driverPulse 2s infinite"><img src="${TAXI_ICON_URI}" style="width:100%;height:100%;object-fit:cover" /></div>`,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
     });
     markerRef.current = L.marker([lat, lng], { icon }).addTo(map);
     mapInst.current = map;
