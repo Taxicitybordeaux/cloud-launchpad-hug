@@ -335,14 +335,101 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
               {statusLabel}
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white"
-            aria-label="Fermer"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setShowSearch((v) => !v)}
+              className={`rounded-full p-1.5 transition hover:bg-white/10 ${
+                showSearch || filterActive ? "text-[#E8C96D]" : "text-white/60 hover:text-white"
+              }`}
+              aria-label="Rechercher"
+              aria-pressed={showSearch}
+            >
+              <Search className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={exportCsv}
+              disabled={visibleMessages.length === 0}
+              className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white disabled:opacity-40"
+              aria-label="Exporter la conversation en CSV"
+              title="Exporter en CSV"
+            >
+              <Download className="h-4 w-4" />
+            </button>
+            <button
+              onClick={onClose}
+              className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white"
+              aria-label="Fermer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
+
+        {showSearch && (
+          <div className="space-y-2 border-b border-white/10 bg-black/30 px-3 py-2.5">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/40" />
+              <input
+                type="search"
+                value={searchKw}
+                onChange={(e) => setSearchKw(e.target.value)}
+                placeholder="Rechercher un mot-clé…"
+                className="w-full rounded-lg border border-white/10 bg-white/5 py-1.5 pl-8 pr-2 text-xs text-white placeholder-white/40 outline-none focus:border-[#E8C96D]"
+              />
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px] text-white/60">
+              <label className="flex-1">
+                <span className="mb-0.5 block text-[10px] uppercase tracking-wider text-white/40">Du</span>
+                <input
+                  type="date"
+                  value={searchFrom}
+                  onChange={(e) => setSearchFrom(e.target.value)}
+                  className="w-full rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-white outline-none focus:border-[#E8C96D]"
+                />
+              </label>
+              <label className="flex-1">
+                <span className="mb-0.5 block text-[10px] uppercase tracking-wider text-white/40">Au</span>
+                <input
+                  type="date"
+                  value={searchTo}
+                  onChange={(e) => setSearchTo(e.target.value)}
+                  className="w-full rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-white outline-none focus:border-[#E8C96D]"
+                />
+              </label>
+              {filterActive && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchKw("");
+                    setSearchFrom("");
+                    setSearchTo("");
+                  }}
+                  className="self-end rounded-md border border-white/10 px-2 py-1 text-[10px] text-white/60 transition hover:bg-white/10 hover:text-white"
+                >
+                  Réinitialiser
+                </button>
+              )}
+            </div>
+            {filterActive && (
+              <div className="text-[10px] text-white/50">
+                {visibleMessages.length} message{visibleMessages.length > 1 ? "s" : ""} trouvé
+                {visibleMessages.length > 1 ? "s" : ""} sur {messages.length} chargé
+                {messages.length > 1 ? "s" : ""}.{" "}
+                {hasMore && (
+                  <button
+                    type="button"
+                    onClick={loadOlder}
+                    className="underline hover:text-white/80"
+                  >
+                    charger plus d'historique
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Messages */}
         <div
