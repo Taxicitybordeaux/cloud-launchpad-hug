@@ -455,6 +455,7 @@ export type Database = {
           nom: string
           paiement: string | null
           passagers: number
+          phone_cancel_requested_at: string | null
           pickup_datetime: string
           prix_estime: number | null
           refus_motif: string | null
@@ -491,6 +492,7 @@ export type Database = {
           nom: string
           paiement?: string | null
           passagers?: number
+          phone_cancel_requested_at?: string | null
           pickup_datetime: string
           prix_estime?: number | null
           refus_motif?: string | null
@@ -527,6 +529,7 @@ export type Database = {
           nom?: string
           paiement?: string | null
           passagers?: number
+          phone_cancel_requested_at?: string | null
           pickup_datetime?: string
           prix_estime?: number | null
           refus_motif?: string | null
@@ -715,6 +718,7 @@ export type Database = {
           nom: string
           paiement: string | null
           passagers: number
+          phone_cancel_requested_at: string | null
           pickup_datetime: string
           prix_estime: number | null
           refus_motif: string | null

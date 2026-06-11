@@ -14,6 +14,16 @@ import {
   X,
   Loader2,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { ClientAuthHeader } from "@/components/ClientAuthHeader";
 import { getClientSession, clearClientSession } from "@/lib/client-session";
@@ -22,6 +32,7 @@ import {
   listClientReservations,
   updateReservationTime,
   cancelClientReservation,
+  requestPhoneCancellation,
   type ClientReservation,
 } from "@/lib/client-reservations.functions";
 
@@ -77,6 +88,8 @@ function ClientDashboard() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTime, setEditTime] = useState<string>("");
   const [busy, setBusy] = useState<string | null>(null);
+  const [phoneModalId, setPhoneModalId] = useState<string | null>(null);
+  const [phoneModalBusy, setPhoneModalBusy] = useState(false);
 
   useEffect(() => {
     const s = getClientSession();
@@ -164,6 +177,29 @@ function ClientDashboard() {
       );
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function onConfirmPhoneCancel(id: string) {
+    if (!session) return;
+    setPhoneModalBusy(true);
+    try {
+      await requestPhoneCancellation({
+        data: {
+          account_id: session.id,
+          phone: session.phone,
+          email: session.email,
+          reservation_id: id,
+        },
+      });
+      toast.success("Demande d'annulation par téléphone enregistrée");
+      setPhoneModalId(null);
+      refresh();
+      window.location.href = "tel:0673072322";
+    } catch {
+      toast.error("Enregistrement impossible");
+    } finally {
+      setPhoneModalBusy(false);
     }
   }
 
@@ -287,12 +323,22 @@ function ClientDashboard() {
                         <span className="inline-flex items-center gap-1.5 text-xs text-white/60">
                           <Calendar className="h-3.5 w-3.5" /> {fmtDate(r.pickup_datetime)}
                         </span>
-                        <span
-                          className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
-                          style={{ background: status.bg, color: status.fg }}
-                        >
-                          {status.label}
-                        </span>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {r.phone_cancel_requested_at && (
+                            <span
+                              className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+                              style={{ background: "rgba(249,115,22,0.18)", color: "#fdba74" }}
+                            >
+                              Annulation par téléphone demandée
+                            </span>
+                          )}
+                          <span
+                            className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+                            style={{ background: status.bg, color: status.fg }}
+                          >
+                            {status.label}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex items-start gap-2 text-sm text-white">
                         <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#E8C96D]" />
@@ -423,13 +469,18 @@ function ClientDashboard() {
                             </>
                           )}
 
-                          {isActive && (
-                            <a
-                              href="tel:0673072322"
+                          {isActive && !r.phone_cancel_requested_at && (
+                            <button
+                              onClick={() => setPhoneModalId(r.id)}
                               className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white hover:bg-white/10"
                             >
                               <Phone className="h-3.5 w-3.5" /> Annuler par téléphone
-                            </a>
+                            </button>
+                          )}
+                          {isActive && r.phone_cancel_requested_at && (
+                            <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/40">
+                              <Phone className="h-3.5 w-3.5" /> Demande envoyée
+                            </span>
                           )}
                         </div>
                       </div>
@@ -441,6 +492,34 @@ function ClientDashboard() {
           )}
         </section>
       </div>
+
+      <AlertDialog open={!!phoneModalId} onOpenChange={(open) => !open && setPhoneModalId(null)}>
+        <AlertDialogContent className="border-white/10 bg-[#111827]/95 text-white backdrop-blur">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Annuler par téléphone</AlertDialogTitle>
+            <AlertDialogDescription className="text-white/60">
+              Vous allez appeler le <span className="font-semibold text-[#E8C96D]">06 73 07 23 22</span> pour annuler cette course. Confirmez pour enregistrer votre demande et passer l'appel.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => setPhoneModalId(null)}
+              className="border-white/10 bg-transparent text-white hover:bg-white/5"
+            >
+              Retour
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => phoneModalId && onConfirmPhoneCancel(phoneModalId)}
+              disabled={phoneModalBusy}
+              className="text-black"
+              style={{ background: "linear-gradient(135deg, #C9A84C 0%, #E8C96D 100%)" }}
+            >
+              {phoneModalBusy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Phone className="mr-1 h-3.5 w-3.5" />}
+              Confirmer et appeler
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }
