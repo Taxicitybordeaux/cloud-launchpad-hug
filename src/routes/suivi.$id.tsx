@@ -948,6 +948,10 @@ function SuiviPage() {
         }
         if (distanceKm && distanceKm > 0) setTotalKm(parseFloat(distanceKm.toFixed(1)));
 
+        // Relire la carte après les awaits — l'instance peut avoir changé
+        map = mapInst.current ?? map;
+        if (!map) return;
+
         if (tripLayer.current) {
           tripLayer.current.remove();
           tripLayer.current = null;
@@ -990,14 +994,16 @@ function SuiviPage() {
         });
         if (fromMarker.current) fromMarker.current.remove();
         if (toMarker.current) toMarker.current.remove();
-        fromMarker.current = L.marker(a, { icon: depIcon }).addTo(map).bindPopup("📍 Prise en charge");
-        toMarker.current = L.marker(b, { icon: destIcon }).addTo(map).bindPopup("🏁 Destination");
+        // Relire une dernière fois — les awaits geocode/OSRM peuvent avoir duré plusieurs secondes
+        const activeMap = mapInst.current ?? map;
+        fromMarker.current = L.marker(a, { icon: depIcon }).addTo(activeMap).bindPopup("📍 Prise en charge");
+        toMarker.current = L.marker(b, { icon: destIcon }).addTo(activeMap).bindPopup("🏁 Destination");
 
         const driverPos = markerRef.current?.getLatLng();
         if (driverPos) drawApproachLine(driverPos.lat, driverPos.lng, a);
 
-        map.invalidateSize();
-        map.fitBounds(L.latLngBounds([...coords, markerRef.current?.getLatLng()].filter(Boolean)).pad(0.2), {
+        activeMap.invalidateSize();
+        activeMap.fitBounds(L.latLngBounds([...coords, markerRef.current?.getLatLng()].filter(Boolean)).pad(0.2), {
           animate: true,
           duration: 0.8,
         });
