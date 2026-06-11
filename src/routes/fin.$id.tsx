@@ -1,6 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getReservationForFinPublic } from "@/lib/reservation.functions";
 const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_TILE_OPTIONS = { attribution: "© OpenStreetMap contributors", maxZoom: 19 };
 
@@ -349,6 +351,7 @@ function formatDureePDF(min: number): string {
 function FinPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
+  const fetchReservationForFin = useServerFn(getReservationForFinPublic);
 
   const [resa, setResa] = useState<Reservation | null>(null);
   const [chauffeur, setChauffeur] = useState<Chauffeur | null>(null);
@@ -373,9 +376,6 @@ function FinPage() {
 
   // ── Charger données ────────────────────────────────────────
   useEffect(() => {
-    const SELECT_COLS =
-      "id,depart,destination,arrivee,status,prix_estime,distance_km,nom,client_name,email,client_email,telephone,client_phone,paiement,date_course,heure_course,pickup_datetime,suivi_id,tracking_id";
-
     // Trace id unique pour corréler tous les logs d'un même chargement /fin/$id
     const trace = `fin-${Math.random().toString(36).slice(2, 8)}`;
     const t0 = performance.now();
@@ -395,21 +395,12 @@ function FinPage() {
       let r: any = null;
       let lastError: any = null;
 
-      // Utilise la RPC SECURITY DEFINER (get_reservation_for_suivi) qui
-      // accepte UUID / suivi_id / tracking_id et contourne RLS.
-      // Évite "course introuvable" pour le client non-admin.
-      {
-        const { data, error } = await (supabase as any).rpc("get_reservation_for_suivi", { p_key: id });
-        if (error) {
-          lastError = error;
-          log("rpc_lookup error", { code: error.code, message: error.message });
-        } else {
-          const row = Array.isArray(data) ? data[0] : data;
-          if (row) {
-            r = row;
-            log("rpc_lookup", { found: true });
-          }
-        }
+      try {
+        r = await fetchReservationForFin({ data: { key: id } });
+        log("server_lookup", { found: !!r });
+      } catch (error: any) {
+        lastError = error;
+        log("server_lookup error", { message: error?.message });
       }
 
       if (!r) {
@@ -463,7 +454,7 @@ function FinPage() {
       setLoading(false);
     };
     load();
-  }, [id, navigate]);
+  }, [id, navigate, fetchReservationForFin]);
 
 
   // ── Soumettre avis ─────────────────────────────────────────
