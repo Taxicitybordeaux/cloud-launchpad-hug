@@ -465,9 +465,14 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
               Aucun message pour l'instant. Écrivez le premier !
             </div>
           )}
+          {!loading && messages.length > 0 && filterActive && visibleMessages.length === 0 && (
+            <div className="pt-10 text-center text-sm text-white/40">
+              Aucun message ne correspond à votre recherche.
+            </div>
+          )}
 
           <ul className="space-y-2.5">
-            {messages.map((m) => {
+            {visibleMessages.map((m) => {
               const mine = m.sender === role;
               const isRead = mine
                 ? role === "client"
