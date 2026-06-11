@@ -42,10 +42,16 @@ function ClientDashboard() {
       className="min-h-[100dvh] px-4 py-8 sm:py-12"
       style={{ background: "linear-gradient(180deg, #0a0a0a 0%, #111827 100%)" }}
     >
-      <div className="mx-auto max-w-3xl">
-        <Link to="/" className="mb-6 inline-flex items-center gap-1.5 text-xs text-white/60 hover:text-white">
+      <div className="mx-auto flex max-w-3xl flex-col items-center">
+        <Link to="/" className="mb-4 inline-flex items-center gap-1.5 text-xs text-white/60 hover:text-white">
           <ArrowLeft className="h-3.5 w-3.5" /> Accueil
         </Link>
+
+        <img
+          src={logo}
+          alt="Taxi City Bordeaux"
+          className="mb-4 h-14 w-14 rounded-xl object-contain shadow-2xl sm:h-16 sm:w-16"
+        />
 
         <div
           className="rounded-2xl border p-6 sm:p-8"
