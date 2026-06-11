@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Send, X, Loader2, Check, CheckCheck, ChevronUp } from "lucide-react";
+import { Send, X, Loader2, Check, CheckCheck, ChevronUp, Search, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   sendClientMessage,
@@ -31,6 +31,12 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
   const [sending, setSending] = useState(false);
   const [peerOnline, setPeerOnline] = useState(false);
   const [peerTyping, setPeerTyping] = useState(false);
+
+  // Recherche + filtres dates dans l'historique du tchat.
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchKw, setSearchKw] = useState("");
+  const [searchFrom, setSearchFrom] = useState("");
+  const [searchTo, setSearchTo] = useState("");
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -248,6 +254,61 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
   const statusColor = peerOnline || peerTyping ? "text-emerald-400" : "text-white/40";
   const dotColor = peerOnline || peerTyping ? "bg-emerald-400" : "bg-white/30";
 
+  // Filtrage local (sur l'historique chargé : pages courantes) — mot-clé +
+  // plage de dates. Si l'utilisateur veut filtrer plus ancien que ce qui est
+  // chargé, il scrolle vers le haut (loadOlder) et le filtre s'applique.
+  const filterActive =
+    searchKw.trim().length > 0 || searchFrom.length > 0 || searchTo.length > 0;
+  const fromTs = searchFrom ? new Date(searchFrom + "T00:00:00").getTime() : null;
+  const toTs = searchTo ? new Date(searchTo + "T23:59:59").getTime() : null;
+  const kwLower = searchKw.trim().toLowerCase();
+  const visibleMessages = useMemo(() => {
+    if (!filterActive) return messages;
+    return messages.filter((m) => {
+      const ts = new Date(m.created_at).getTime();
+      if (fromTs !== null && ts < fromTs) return false;
+      if (toTs !== null && ts > toTs) return false;
+      if (kwLower && !m.content.toLowerCase().includes(kwLower)) return false;
+      return true;
+    });
+  }, [messages, filterActive, fromTs, toTs, kwLower]);
+
+  function exportCsv() {
+    // Export CSV de la conversation (filtre appliqué si actif). UTF-8 BOM
+    // pour qu'Excel détecte les accents correctement.
+    const rows = visibleMessages;
+    const escape = (v: string) => {
+      const s = String(v ?? "").replace(/\r?\n/g, " ");
+      return /[",;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const header = ["created_at", "sender", "content", "read_by_client", "read_by_chauffeur"];
+    const lines = [
+      header.join(","),
+      ...rows.map((m) =>
+        [
+          new Date(m.created_at).toISOString(),
+          m.sender,
+          escape(m.content),
+          m.read_by_client ? "1" : "0",
+          m.read_by_chauffeur ? "1" : "0",
+        ].join(","),
+      ),
+    ];
+    const blob = new Blob(["\uFEFF" + lines.join("\n")], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `tchat-${reservationId.slice(0, 8)}-${new Date()
+      .toISOString()
+      .slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div
       className="fixed inset-0 z-[200] flex items-end justify-center sm:items-center sm:p-6"
@@ -274,14 +335,101 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
               {statusLabel}
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white"
-            aria-label="Fermer"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setShowSearch((v) => !v)}
+              className={`rounded-full p-1.5 transition hover:bg-white/10 ${
+                showSearch || filterActive ? "text-[#E8C96D]" : "text-white/60 hover:text-white"
+              }`}
+              aria-label="Rechercher"
+              aria-pressed={showSearch}
+            >
+              <Search className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={exportCsv}
+              disabled={visibleMessages.length === 0}
+              className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white disabled:opacity-40"
+              aria-label="Exporter la conversation en CSV"
+              title="Exporter en CSV"
+            >
+              <Download className="h-4 w-4" />
+            </button>
+            <button
+              onClick={onClose}
+              className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white"
+              aria-label="Fermer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
+
+        {showSearch && (
+          <div className="space-y-2 border-b border-white/10 bg-black/30 px-3 py-2.5">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/40" />
+              <input
+                type="search"
+                value={searchKw}
+                onChange={(e) => setSearchKw(e.target.value)}
+                placeholder="Rechercher un mot-clé…"
+                className="w-full rounded-lg border border-white/10 bg-white/5 py-1.5 pl-8 pr-2 text-xs text-white placeholder-white/40 outline-none focus:border-[#E8C96D]"
+              />
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px] text-white/60">
+              <label className="flex-1">
+                <span className="mb-0.5 block text-[10px] uppercase tracking-wider text-white/40">Du</span>
+                <input
+                  type="date"
+                  value={searchFrom}
+                  onChange={(e) => setSearchFrom(e.target.value)}
+                  className="w-full rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-white outline-none focus:border-[#E8C96D]"
+                />
+              </label>
+              <label className="flex-1">
+                <span className="mb-0.5 block text-[10px] uppercase tracking-wider text-white/40">Au</span>
+                <input
+                  type="date"
+                  value={searchTo}
+                  onChange={(e) => setSearchTo(e.target.value)}
+                  className="w-full rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-white outline-none focus:border-[#E8C96D]"
+                />
+              </label>
+              {filterActive && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchKw("");
+                    setSearchFrom("");
+                    setSearchTo("");
+                  }}
+                  className="self-end rounded-md border border-white/10 px-2 py-1 text-[10px] text-white/60 transition hover:bg-white/10 hover:text-white"
+                >
+                  Réinitialiser
+                </button>
+              )}
+            </div>
+            {filterActive && (
+              <div className="text-[10px] text-white/50">
+                {visibleMessages.length} message{visibleMessages.length > 1 ? "s" : ""} trouvé
+                {visibleMessages.length > 1 ? "s" : ""} sur {messages.length} chargé
+                {messages.length > 1 ? "s" : ""}.{" "}
+                {hasMore && (
+                  <button
+                    type="button"
+                    onClick={loadOlder}
+                    className="underline hover:text-white/80"
+                  >
+                    charger plus d'historique
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Messages */}
         <div
@@ -317,9 +465,14 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
               Aucun message pour l'instant. Écrivez le premier !
             </div>
           )}
+          {!loading && messages.length > 0 && filterActive && visibleMessages.length === 0 && (
+            <div className="pt-10 text-center text-sm text-white/40">
+              Aucun message ne correspond à votre recherche.
+            </div>
+          )}
 
           <ul className="space-y-2.5">
-            {messages.map((m) => {
+            {visibleMessages.map((m) => {
               const mine = m.sender === role;
               const isRead = mine
                 ? role === "client"
