@@ -262,6 +262,7 @@ interface Reservation {
   passagers?: number | null;
   bagages?: number | null;
   suivi_id?: string | null;
+  tracking_id?: string | null;
   distance_km?: number | null;
   created_at?: string | null;
   route_coords?: any;
