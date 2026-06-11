@@ -1128,7 +1128,7 @@ function SuiviPage() {
         .on(
           "postgres_changes",
           { event: "UPDATE", schema: "public", table: "reservations", filter: `id=eq.${resaId}` },
-          (payload) => {
+          async (payload) => {
             const r = payload.new as any;
             const newStatus = (r.status || "").toLowerCase();
             if (["refusee", "refused", "annulee", "cancelled", "canceled"].includes(newStatus)) {
@@ -1143,6 +1143,33 @@ function SuiviPage() {
             if (["terminee", "terminée", "completed", "done"].includes(newStatus)) {
               toast.info("Course terminée", { description: "Merci d'avoir voyagé avec Taxi City Bordeaux." });
               setCourseTerminee(true);
+
+              // Incrément total_courses sur la fiche client si le passage à
+              // "completed" se fait depuis /suivi (et pas via l'admin, qui
+              // gère déjà son propre compteur). Idempotent : si l'ancien
+              // statut était déjà "completed", on ne fait rien.
+              const wasCompleted = (payload.old as any)?.status === "completed";
+              if (!wasCompleted) {
+                const phone = (r as any).client_phone || (r as any).telephone;
+                if (phone) {
+                  try {
+                    const { data: existing } = await supabase
+                      .from("clients")
+                      .select("id, total_courses")
+                      .eq("phone", phone)
+                      .maybeSingle();
+                    if (existing) {
+                      await supabase
+                        .from("clients")
+                        .update({ total_courses: (existing.total_courses ?? 0) + 1 })
+                        .eq("id", existing.id);
+                    }
+                  } catch (e) {
+                    console.warn("[suivi] increment total_courses failed", e);
+                  }
+                }
+              }
+
               // Client uniquement → page de fin (on passe le vrai UUID, pas le suivi_id)
               if (!isDriver) {
                 const resaRealId = (payload.new as any)?.id ?? id;
