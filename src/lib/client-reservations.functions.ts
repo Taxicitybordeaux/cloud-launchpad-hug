@@ -91,6 +91,7 @@ export const listClientReservations = createServerFn({ method: "POST" })
       tracking_id: r.tracking_id,
       paiement: r.paiement,
       client_account_id: r.client_account_id,
+      phone_cancel_requested_at: r.phone_cancel_requested_at ?? null,
     }));
   });
 
