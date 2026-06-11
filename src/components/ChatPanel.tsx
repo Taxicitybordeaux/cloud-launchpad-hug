@@ -18,6 +18,12 @@ type Props = {
 const PAGE_SIZE = 30;
 const TYPING_BROADCAST_THROTTLE_MS = 1500;
 const TYPING_HIDE_AFTER_MS = 3500;
+// Colonnes nécessaires uniquement — évite le select * et réduit la bande
+// passante / le coût Supabase sur les longues conversations.
+const MSG_COLS = "id,reservation_id,sender,content,read_by_client,read_by_chauffeur,created_at";
+// Clé localStorage de la file d'attente des messages non envoyés (offline).
+const OFFLINE_QUEUE_KEY = (rid: string, role: string) => `chat:offline:${role}:${rid}`;
+type OfflineMsg = { tempId: string; content: string; at: number };
 
 export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
   const peerRole = role === "client" ? "chauffeur" : "client";
@@ -67,7 +73,7 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
     (async () => {
       const { data } = await supabase
         .from("reservation_messages")
-        .select("*")
+        .select(MSG_COLS)
         .eq("reservation_id", reservationId)
         .order("created_at", { ascending: false })
         .limit(PAGE_SIZE);
@@ -95,7 +101,7 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
     }
     const { data } = await supabase
       .from("reservation_messages")
-      .select("*")
+      .select(MSG_COLS)
       .eq("reservation_id", reservationId)
       .lt("created_at", oldest.created_at)
       .order("created_at", { ascending: false })
