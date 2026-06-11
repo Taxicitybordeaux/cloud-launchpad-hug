@@ -1390,8 +1390,20 @@ function ReservationPage() {
 
     const canonical = findCanonicalPlace(value, origin);
     if (canonical) {
+      const subs = findCanonicalSubPlaces(value, origin);
       setCalcLoading(false);
       setSearchingDestination(false);
+      if (subs && subs.length > 0) {
+        // POI connu avec sous-adresses : on demande à l'utilisateur de préciser.
+        setDestinationChoices(subs);
+        setToCoord(null);
+        set("destination", canonical.label);
+        setErrors((prev) => ({
+          ...prev,
+          destination: "Précisez le point d'arrivée pour ce lieu",
+        }));
+        return;
+      }
       setDestinationChoices([]);
       setToCoord(canonical.coord);
       set("destination", canonical.label);
