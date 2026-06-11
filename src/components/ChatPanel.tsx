@@ -220,32 +220,101 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
     });
   }
 
+  // ── Offline queue ──
+  // Les messages tapés sans connexion sont stockés dans localStorage et
+  // ré-envoyés automatiquement lors du retour en ligne (event `online`).
+  const [queued, setQueued] = useState<OfflineMsg[]>([]);
+  const flushingRef = useRef(false);
+
+  const readQueue = useCallback((): OfflineMsg[] => {
+    try {
+      const raw = localStorage.getItem(OFFLINE_QUEUE_KEY(reservationId, role));
+      return raw ? (JSON.parse(raw) as OfflineMsg[]) : [];
+    } catch {
+      return [];
+    }
+  }, [reservationId, role]);
+
+  const writeQueue = useCallback(
+    (q: OfflineMsg[]) => {
+      try {
+        if (q.length === 0) localStorage.removeItem(OFFLINE_QUEUE_KEY(reservationId, role));
+        else localStorage.setItem(OFFLINE_QUEUE_KEY(reservationId, role), JSON.stringify(q));
+      } catch {}
+      setQueued(q);
+    },
+    [reservationId, role],
+  );
+
+  const sendOne = useCallback(
+    async (content: string) => {
+      if (role === "client") {
+        return await sendClientMessage({ data: { reservation_id: reservationId, content } });
+      }
+      return await sendChauffeurMessage({
+        data: { reservation_id: reservationId, content, skip_push: peerOnline },
+      });
+    },
+    [reservationId, role, peerOnline],
+  );
+
+  const flushQueue = useCallback(async () => {
+    if (flushingRef.current) return;
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+    const q = readQueue();
+    if (q.length === 0) return;
+    flushingRef.current = true;
+    try {
+      const remaining = [...q];
+      while (remaining.length > 0) {
+        const next = remaining[0];
+        try {
+          const msg = await sendOne(next.content);
+          setMessages((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]));
+          remaining.shift();
+          writeQueue(remaining);
+        } catch (e) {
+          console.warn("[chat] flush failed, will retry later", e);
+          break;
+        }
+      }
+    } finally {
+      flushingRef.current = false;
+    }
+  }, [readQueue, writeQueue, sendOne]);
+
+  useEffect(() => {
+    setQueued(readQueue());
+    const onOnline = () => flushQueue();
+    window.addEventListener("online", onOnline);
+    // Tentative immédiate au montage si du backlog existe.
+    flushQueue();
+    return () => window.removeEventListener("online", onOnline);
+  }, [readQueue, flushQueue]);
+
   // ── Send ──
   async function send() {
     const content = input.trim();
     if (!content || sending) return;
     setSending(true);
     stickToBottom.current = true;
+    const isOffline = typeof navigator !== "undefined" && navigator.onLine === false;
+    if (isOffline) {
+      const q = [...readQueue(), { tempId: crypto.randomUUID(), content, at: Date.now() }];
+      writeQueue(q);
+      setInput("");
+      setSending(false);
+      return;
+    }
     try {
-      if (role === "client") {
-        const msg = await sendClientMessage({
-          data: { reservation_id: reservationId, content },
-        });
-        setMessages((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]));
-      } else {
-        // Chauffeur side: skip push if the client is currently in the chat.
-        const msg = await sendChauffeurMessage({
-          data: {
-            reservation_id: reservationId,
-            content,
-            skip_push: peerOnline,
-          },
-        });
-        setMessages((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]));
-      }
+      const msg = await sendOne(content);
+      setMessages((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]));
       setInput("");
     } catch (e) {
-      console.error(e);
+      console.error("[chat] send failed, queuing for retry", e);
+      const q = [...readQueue(), { tempId: crypto.randomUUID(), content, at: Date.now() }];
+      writeQueue(q);
+      setInput("");
     } finally {
       setSending(false);
     }
