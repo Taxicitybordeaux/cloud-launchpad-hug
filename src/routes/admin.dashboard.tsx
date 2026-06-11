@@ -439,6 +439,32 @@ function Dashboard() {
   }, [items]);
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [counts, setCounts] = useState({ pending: 0, accepted: 0, refused: 0 });
+  const [chatThreads, setChatThreads] = useState<AdminChatThread[]>([]);
+  const [openChatId, setOpenChatId] = useState<string | null>(null);
+
+  const refreshChatThreads = useCallback(async () => {
+    try {
+      const t = await listAdminChatThreads();
+      setChatThreads(t);
+    } catch (e) {
+      console.error("[admin] threads", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshChatThreads();
+    const channel = supabase
+      .channel("admin-chat-threads")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "reservation_messages" },
+        () => refreshChatThreads(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refreshChatThreads]);
 
   // ── Actions ──
   const [cardKm, setCardKm] = useState<Record<string, number>>({});
