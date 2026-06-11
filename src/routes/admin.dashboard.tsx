@@ -848,6 +848,9 @@ function Dashboard() {
       .on("postgres_changes", { event: "*", schema: "public", table: "site_analytics" }, () => fetchStats())
       .on("postgres_changes", { event: "*", schema: "public", table: "avis" }, () => fetchAvis())
       .on("postgres_changes", { event: "*", schema: "public", table: "clients" }, () => fetchClients())
+      // CA jour/mois alimenté par la table `courses` → refresh dès qu'une course
+      // est créée/mise à jour/supprimée (trigger trg_reservation_completed_to_course).
+      .on("postgres_changes", { event: "*", schema: "public", table: "courses" }, () => fetchStats())
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
