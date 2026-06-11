@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Mail, Lock, Eye, EyeOff, User, Phone, Loader2, ArrowLeft } from "lucide-react";
-import logo from "@/assets/logo.jpeg";
+import { Mail, Lock, Eye, EyeOff, User, Phone, Loader2 } from "lucide-react";
+import { ClientAuthHeader } from "@/components/ClientAuthHeader";
 import { clientLogin, clientRegister } from "@/lib/client-auth.functions";
 import { setClientSession } from "@/lib/client-session";
 
@@ -79,14 +79,7 @@ function ClientLoginPage() {
       />
 
       <div className="relative mx-auto flex w-full max-w-md flex-col items-center">
-        <Link
-          to="/"
-          className="mb-6 inline-flex items-center gap-1.5 text-xs text-white/60 transition hover:text-white"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" /> Retour à l'accueil
-        </Link>
-
-        <img src={logo} alt="Taxi City Bordeaux" className="mb-6 h-16 w-16 rounded-xl object-contain shadow-2xl" />
+        <ClientAuthHeader />
 
         <div
           className="w-full rounded-2xl border p-6 sm:p-8"
