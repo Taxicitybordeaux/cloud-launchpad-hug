@@ -772,11 +772,17 @@ function SuiviPage() {
     const L = (window as any).L;
     if (!L || !mapRef.current) return;
     if (mapInst.current) {
-      try {
-        mapInst.current.remove();
-      } catch {}
-      mapInst.current = null;
-      markerRef.current = null;
+      // Carte déjà montée → ne pas la détruire (évite l'écran noir au démarrage GPS)
+      if (!markerRef.current) {
+        const icon = L.divIcon({
+          className: "",
+          html: `<div style="width:32px;height:32px;border-radius:50%;border:2px solid #f5c842;overflow:hidden;box-shadow:0 0 0 0 rgba(245,200,66,0);animation:driverPulse 2s infinite"><img src="${TAXI_ICON_URI}" style="width:100%;height:100%;object-fit:cover" /></div>`,
+          iconSize: [32, 32],
+          iconAnchor: [16, 16],
+        });
+        markerRef.current = L.marker([lat, lng], { icon }).addTo(mapInst.current);
+      }
+      return;
     }
     const map = L.map(mapRef.current, { center: [lat, lng], zoom: 14, zoomControl: false });
     initialZoom.current = 14;
@@ -1171,15 +1177,12 @@ function SuiviPage() {
                 }
               }
 
-              // Client → page de fin : on utilise resaIdRef.current (vrai UUID garanti)
-              // Chauffeur → dashboard admin uniquement si courseTerminee est encore false,
-              // c'est-à-dire si le Realtime arrive AVANT que le bouton "Course terminée"
-              // ait eu le temps de setCourseTerminee(true) + naviguer lui-même.
-              // Évite la double navigation quand José clique le bouton dans suivi/$id.
+              // Client → page de fin (on passe le vrai UUID, pas le suivi_id)
+              // Chauffeur → retour au dashboard admin (fallback si le bouton n'a pas redirigé)
               if (!isDriver) {
-                const resaRealId = (payload.new as any)?.id ?? resaIdRef.current;
+                const resaRealId = (payload.new as any)?.id ?? id;
                 setTimeout(() => navigate({ to: "/fin/$id", params: { id: resaRealId } }), 1200);
-              } else if (!courseTerminee) {
+              } else {
                 setTimeout(() => navigate({ to: "/admin/dashboard" }), 1500);
               }
               return;
