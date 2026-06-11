@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { LogOut, User, Phone, Mail, ArrowLeft } from "lucide-react";
+import logo from "@/assets/logo.jpeg";
 import { getClientSession, clearClientSession } from "@/lib/client-session";
 import type { ClientSession } from "@/lib/client-auth.functions";
 
