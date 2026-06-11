@@ -1170,10 +1170,13 @@ function SuiviPage() {
                 }
               }
 
-              // Client uniquement → page de fin (on passe le vrai UUID, pas le suivi_id)
+              // Client → page de fin (on passe le vrai UUID, pas le suivi_id)
+              // Chauffeur → retour au dashboard admin (fallback si le bouton n'a pas redirigé)
               if (!isDriver) {
                 const resaRealId = (payload.new as any)?.id ?? id;
                 setTimeout(() => navigate({ to: "/fin/$id", params: { id: resaRealId } }), 1200);
+              } else {
+                setTimeout(() => navigate({ to: "/admin/dashboard" }), 1500);
               }
               return;
             }

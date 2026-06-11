@@ -395,53 +395,21 @@ function FinPage() {
       let r: any = null;
       let lastError: any = null;
 
-      if (/^[0-9a-fA-F-]{36}$/.test(id)) {
-        const { data, error } = await (supabase as any)
-          .from("reservations")
-          .select(SELECT_COLS)
-          .eq("id", id)
-          .maybeSingle();
+      // Utilise la RPC SECURITY DEFINER (get_reservation_for_suivi) qui
+      // accepte UUID / suivi_id / tracking_id et contourne RLS.
+      // Évite "course introuvable" pour le client non-admin.
+      {
+        const { data, error } = await (supabase as any).rpc("get_reservation_for_suivi", { p_key: id });
         if (error) {
           lastError = error;
-          log("lookup_by_id error", { code: error.code, message: error.message, details: error.details });
+          log("rpc_lookup error", { code: error.code, message: error.message });
         } else {
-          log("lookup_by_id", { found: !!data });
+          const row = Array.isArray(data) ? data[0] : data;
+          if (row) {
+            r = row;
+            log("rpc_lookup", { found: true });
+          }
         }
-        r = data;
-      }
-
-      if (!r) {
-        const { data, error } = await (supabase as any)
-          .from("reservations")
-          .select(SELECT_COLS)
-          .eq("suivi_id", id)
-          .maybeSingle();
-        if (error) {
-          lastError = error;
-          log("lookup_by_suivi_id error", { code: error.code, message: error.message, details: error.details });
-        } else {
-          log("lookup_by_suivi_id", { found: !!data });
-        }
-        r = data;
-      }
-
-      if (!r) {
-        const { data, error } = await (supabase as any)
-          .from("reservations")
-          .select(SELECT_COLS)
-          .eq("tracking_id", id)
-          .maybeSingle();
-        if (error) {
-          lastError = error;
-          log("lookup_by_tracking_id error", {
-            code: error.code,
-            message: error.message,
-            details: error.details,
-          });
-        } else {
-          log("lookup_by_tracking_id", { found: !!data });
-        }
-        r = data;
       }
 
       if (!r) {
