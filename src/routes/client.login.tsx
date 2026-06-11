@@ -66,7 +66,7 @@ function ClientLoginPage() {
 
   return (
     <>
-    <style>{`@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&display=swap');`}</style>
+    <style dangerouslySetInnerHTML={{ __html: "@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&display=swap');" }} />
     <main
       className="relative min-h-[100dvh] overflow-hidden px-4 py-10 sm:py-16"
       style={{ background: "linear-gradient(180deg, #0a0a0a 0%, #111827 100%)" }}
