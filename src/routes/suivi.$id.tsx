@@ -2979,7 +2979,7 @@ function SuiviPage() {
                           toast.info("🚕 Prochaine course chargée");
                           navigate({ to: "/suivi/$id", params: { id: nextSuiviId } });
                         } else {
-                          navigate({ to: "/fin/$id", params: { id: resa?.id ?? id } });
+                          navigate({ to: "/admin/dashboard" });
                         }
                       }, 800);
                     } catch (err) {
