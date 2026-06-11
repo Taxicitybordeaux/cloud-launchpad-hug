@@ -22,6 +22,7 @@ import {
   listClientReservations,
   updateReservationTime,
   cancelClientReservation,
+  requestPhoneCancellation,
   type ClientReservation,
 } from "@/lib/client-reservations.functions";
 
