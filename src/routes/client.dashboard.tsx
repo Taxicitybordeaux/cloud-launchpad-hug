@@ -227,7 +227,7 @@ function ClientDashboard() {
             <Plus className="h-4 w-4" /> Réserver une course
           </Link>
           <a
-            href="tel:+33556000000"
+            href="tel:0673072322"
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-white/10"
           >
             <Phone className="h-4 w-4" /> Annuler par téléphone
@@ -425,7 +425,7 @@ function ClientDashboard() {
 
                           {isActive && (
                             <a
-                              href="tel:+33556000000"
+                              href="tel:0673072322"
                               className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white hover:bg-white/10"
                             >
                               <Phone className="h-3.5 w-3.5" /> Annuler par téléphone
