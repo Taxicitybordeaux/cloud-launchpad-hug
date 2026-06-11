@@ -4,7 +4,7 @@ import { z } from "zod";
 const PUBLIC_COLUMNS =
   "id, nom, telephone, email, pickup_datetime, depart, arrivee, passagers, bagages, service_type, message, status, created_at";
 const FIN_PUBLIC_COLUMNS =
-  "id,depart,destination,arrivee,status,prix_estime,distance_km,nom,client_name,email,client_email,telephone,client_phone,paiement,date_course,heure_course,pickup_datetime,suivi_id,tracking_id";
+  "id,depart,destination,arrivee,status,prix_estime,distance_km,nom,client_name,email,client_email,telephone,client_phone,paiement,date_course,heure_course,pickup_datetime,suivi_id";
 const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 export const getReservationPublic = createServerFn({ method: "POST" })
@@ -45,8 +45,8 @@ export const getReservationForFinPublic = createServerFn({ method: "POST" })
 
     const base = supabaseAdmin.from("reservations").select(FIN_PUBLIC_COLUMNS).limit(1);
     const { data: rows, error } = UUID_RE.test(key)
-      ? await base.or(`id.eq.${key.toLowerCase()},suivi_id.eq.${key.toLowerCase()},tracking_id.eq.${key}`)
-      : await base.or(`suivi_id.eq.${key},tracking_id.eq.${key}`);
+      ? await base.or(`id.eq.${key.toLowerCase()},suivi_id.eq.${key.toLowerCase()}`)
+      : await base.eq("suivi_id", key);
 
     if (error) throw new Error(error.message);
     const row = rows?.[0] ?? null;
