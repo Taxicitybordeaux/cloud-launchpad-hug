@@ -26,7 +26,14 @@ export type AdminChatThread = {
 const sendSchema = z.object({
   reservation_id: z.string().uuid(),
   content: z.string().trim().min(1).max(2000),
+  skip_push: z.boolean().optional(),
 });
+
+// Throttle chauffeur → client pushes per reservation to avoid spam when
+// several messages are typed quickly. FCM `tag` already collapses on-device,
+// but skipping the network call entirely cuts noise + cost.
+const lastChauffeurPushAt = new Map<string, number>();
+const PUSH_THROTTLE_MS = 8000;
 
 export const sendClientMessage = createServerFn({ method: "POST" })
   .inputValidator((input) => sendSchema.parse(input))
