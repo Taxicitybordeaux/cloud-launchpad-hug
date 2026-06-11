@@ -323,12 +323,22 @@ function ClientDashboard() {
                         <span className="inline-flex items-center gap-1.5 text-xs text-white/60">
                           <Calendar className="h-3.5 w-3.5" /> {fmtDate(r.pickup_datetime)}
                         </span>
-                        <span
-                          className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
-                          style={{ background: status.bg, color: status.fg }}
-                        >
-                          {status.label}
-                        </span>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {r.phone_cancel_requested_at && (
+                            <span
+                              className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+                              style={{ background: "rgba(249,115,22,0.18)", color: "#fdba74" }}
+                            >
+                              Annulation par téléphone demandée
+                            </span>
+                          )}
+                          <span
+                            className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+                            style={{ background: status.bg, color: status.fg }}
+                          >
+                            {status.label}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex items-start gap-2 text-sm text-white">
                         <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#E8C96D]" />
