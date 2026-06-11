@@ -254,6 +254,61 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
   const statusColor = peerOnline || peerTyping ? "text-emerald-400" : "text-white/40";
   const dotColor = peerOnline || peerTyping ? "bg-emerald-400" : "bg-white/30";
 
+  // Filtrage local (sur l'historique chargé : pages courantes) — mot-clé +
+  // plage de dates. Si l'utilisateur veut filtrer plus ancien que ce qui est
+  // chargé, il scrolle vers le haut (loadOlder) et le filtre s'applique.
+  const filterActive =
+    searchKw.trim().length > 0 || searchFrom.length > 0 || searchTo.length > 0;
+  const fromTs = searchFrom ? new Date(searchFrom + "T00:00:00").getTime() : null;
+  const toTs = searchTo ? new Date(searchTo + "T23:59:59").getTime() : null;
+  const kwLower = searchKw.trim().toLowerCase();
+  const visibleMessages = useMemo(() => {
+    if (!filterActive) return messages;
+    return messages.filter((m) => {
+      const ts = new Date(m.created_at).getTime();
+      if (fromTs !== null && ts < fromTs) return false;
+      if (toTs !== null && ts > toTs) return false;
+      if (kwLower && !m.content.toLowerCase().includes(kwLower)) return false;
+      return true;
+    });
+  }, [messages, filterActive, fromTs, toTs, kwLower]);
+
+  function exportCsv() {
+    // Export CSV de la conversation (filtre appliqué si actif). UTF-8 BOM
+    // pour qu'Excel détecte les accents correctement.
+    const rows = visibleMessages;
+    const escape = (v: string) => {
+      const s = String(v ?? "").replace(/\r?\n/g, " ");
+      return /[",;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const header = ["created_at", "sender", "content", "read_by_client", "read_by_chauffeur"];
+    const lines = [
+      header.join(","),
+      ...rows.map((m) =>
+        [
+          new Date(m.created_at).toISOString(),
+          m.sender,
+          escape(m.content),
+          m.read_by_client ? "1" : "0",
+          m.read_by_chauffeur ? "1" : "0",
+        ].join(","),
+      ),
+    ];
+    const blob = new Blob(["\uFEFF" + lines.join("\n")], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `tchat-${reservationId.slice(0, 8)}-${new Date()
+      .toISOString()
+      .slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div
       className="fixed inset-0 z-[200] flex items-end justify-center sm:items-center sm:p-6"
