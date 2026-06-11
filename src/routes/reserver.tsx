@@ -403,16 +403,29 @@ const CANONICAL_PLACES: Array<{
   match: RegExp;
   label: string;
   coord: [number, number]; // [lat, lng]
+  subPlaces?: Array<{ label: string; coord: [number, number] }>;
 }> = [
   {
     match: /(aeroport|airport).*(bordeaux|merignac|bod)|^bod$|merignac.*(aeroport|airport)/,
     label: "Aéroport de Bordeaux-Mérignac (Terminal), 33700 Mérignac",
     coord: [44.8283, -0.7156],
+    subPlaces: [
+      { label: "Aéroport Bordeaux-Mérignac — Hall A (Départs), 33700 Mérignac", coord: [44.8295, -0.7166] },
+      { label: "Aéroport Bordeaux-Mérignac — Hall B (Arrivées), 33700 Mérignac", coord: [44.8281, -0.7150] },
+      { label: "Aéroport Bordeaux-Mérignac — Parking P1, 33700 Mérignac", coord: [44.8275, -0.7138] },
+      { label: "Aéroport Bordeaux-Mérignac — Terminal Billi (low-cost), 33700 Mérignac", coord: [44.8235, -0.7193] },
+    ],
   },
   {
     match: /gare.*(saint.jean|st.jean|bordeaux)|bordeaux.*(saint.jean|st.jean).*gare|gare.*bordeaux/,
     label: "Gare de Bordeaux-Saint-Jean, Rue Charles Domercq, 33800 Bordeaux",
     coord: [44.8259, -0.5564],
+    subPlaces: [
+      { label: "Gare Saint-Jean — Parvis principal (Rue Charles Domercq), 33800 Bordeaux", coord: [44.8259, -0.5564] },
+      { label: "Gare Saint-Jean — Sortie Belcier (Rue Amédée Saint-Germain), 33800 Bordeaux", coord: [44.8243, -0.5554] },
+      { label: "Gare Saint-Jean — Dépose-minute (Rue Charles Domercq), 33800 Bordeaux", coord: [44.8262, -0.5572] },
+      { label: "Gare Saint-Jean — Arrêt taxis (Parvis Louis Armand), 33800 Bordeaux", coord: [44.8256, -0.5568] },
+    ],
   },
   {
     match: /place.*(quinconces|kinconce)/,
@@ -429,6 +442,16 @@ const CANONICAL_PLACES: Array<{
     label: "La Cité du Vin, Esplanade de Pontac, 33300 Bordeaux",
     coord: [44.8627, -0.5505],
   },
+  {
+    match: /bordeaux.lac|lac.*bordeaux/,
+    label: "Bordeaux Lac, 33300 Bordeaux",
+    coord: [44.8861, -0.5836],
+  },
+  {
+    match: /meriadeck|mériadeck/,
+    label: "Mériadeck, 33000 Bordeaux",
+    coord: [44.8389, -0.5836],
+  },
 ];
 
 function findCanonicalPlace(query: string, origin: [number, number]): AddressChoice | null {
@@ -436,6 +459,20 @@ function findCanonicalPlace(query: string, origin: [number, number]): AddressCho
   for (const p of CANONICAL_PLACES) {
     if (p.match.test(n)) {
       return { label: p.label, coord: p.coord, distanceKm: distanceKmBetween(origin, p.coord) };
+    }
+  }
+  return null;
+}
+
+function findCanonicalSubPlaces(query: string, origin: [number, number]): AddressChoice[] | null {
+  const n = normalizeAddressText(expandAbbreviations(query));
+  for (const p of CANONICAL_PLACES) {
+    if (p.match.test(n) && p.subPlaces && p.subPlaces.length > 0) {
+      return p.subPlaces.map((s) => ({
+        label: s.label,
+        coord: s.coord,
+        distanceKm: distanceKmBetween(origin, s.coord),
+      }));
     }
   }
   return null;
@@ -1353,8 +1390,20 @@ function ReservationPage() {
 
     const canonical = findCanonicalPlace(value, origin);
     if (canonical) {
+      const subs = findCanonicalSubPlaces(value, origin);
       setCalcLoading(false);
       setSearchingDestination(false);
+      if (subs && subs.length > 0) {
+        // POI connu avec sous-adresses : on demande à l'utilisateur de préciser.
+        setDestinationChoices(subs);
+        setToCoord(null);
+        set("destination", canonical.label);
+        setErrors((prev) => ({
+          ...prev,
+          destination: "Précisez le point d'arrivée pour ce lieu",
+        }));
+        return;
+      }
       setDestinationChoices([]);
       setToCoord(canonical.coord);
       set("destination", canonical.label);
