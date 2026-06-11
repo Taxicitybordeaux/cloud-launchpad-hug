@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Send, X, Loader2, Check, CheckCheck, ChevronUp } from "lucide-react";
+import { Send, X, Loader2, Check, CheckCheck, ChevronUp, Search, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   sendClientMessage,
@@ -31,6 +31,12 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
   const [sending, setSending] = useState(false);
   const [peerOnline, setPeerOnline] = useState(false);
   const [peerTyping, setPeerTyping] = useState(false);
+
+  // Recherche + filtres dates dans l'historique du tchat.
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchKw, setSearchKw] = useState("");
+  const [searchFrom, setSearchFrom] = useState("");
+  const [searchTo, setSearchTo] = useState("");
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
