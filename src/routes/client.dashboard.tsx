@@ -475,11 +475,15 @@ function ClientDashboard() {
 
                           {isActive && (
                             <button
-                              disabled
-                              title="Bientôt disponible"
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/40"
+                              onClick={() => setChatId(r.id)}
+                              className="relative inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white hover:bg-white/10"
                             >
                               <MessageCircle className="h-3.5 w-3.5" /> Tchat
+                              {unread[r.id] > 0 && (
+                                <span className="ml-0.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                                  {unread[r.id]}
+                                </span>
+                              )}
                             </button>
                           )}
 
