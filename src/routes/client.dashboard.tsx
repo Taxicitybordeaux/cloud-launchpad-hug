@@ -14,6 +14,16 @@ import {
   X,
   Loader2,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { ClientAuthHeader } from "@/components/ClientAuthHeader";
 import { getClientSession, clearClientSession } from "@/lib/client-session";
