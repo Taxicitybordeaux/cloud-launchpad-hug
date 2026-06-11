@@ -126,6 +126,10 @@ async function sendFcmToToken(
 ): Promise<{ ok: boolean; status: number; errorCode?: string }> {
   const url = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
   const clickUrl = payload.url ?? "/";
+  // Idempotency key : FCM dédoublonne déjà via `tag` (collapsing côté
+  // appareil), mais on ajoute un en-tête X-Goog-Request-Id stable par
+  // (token, tag) pour qu'un retry réseau ne crée pas une seconde notif.
+  const idem = `${payload.tag || "taxi-fcm"}:${token.slice(-12)}`;
   const body = {
     message: {
       token,
@@ -149,21 +153,42 @@ async function sendFcmToToken(
       data: { url: clickUrl, tag: payload.tag || "taxi-fcm" },
     },
   };
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-  if (res.ok) return { ok: true, status: res.status };
-  let errorCode: string | undefined;
-  try {
-    const j: any = await res.json();
-    errorCode = j?.error?.details?.find?.((d: any) => d?.errorCode)?.errorCode || j?.error?.status;
-  } catch {}
-  return { ok: false, status: res.status, errorCode };
+
+  // Retry simple sur erreurs réseau et 5xx — backoff exponentiel court.
+  // 429 (quota) → retry. Erreurs définitives (400/404/UNREGISTERED) → pas de retry.
+  const MAX_ATTEMPTS = 3;
+  let lastStatus = 0;
+  let lastErrorCode: string | undefined;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+          "X-Goog-Request-Id": idem,
+        },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) return { ok: true, status: res.status };
+      lastStatus = res.status;
+      try {
+        const j: any = await res.json();
+        lastErrorCode =
+          j?.error?.details?.find?.((d: any) => d?.errorCode)?.errorCode || j?.error?.status;
+      } catch {}
+      // erreurs définitives — pas de retry
+      if ([400, 401, 403, 404].includes(res.status)) {
+        return { ok: false, status: res.status, errorCode: lastErrorCode };
+      }
+    } catch (e) {
+      console.warn(`[push] FCM attempt ${attempt} network error`, e);
+    }
+    if (attempt < MAX_ATTEMPTS) {
+      await new Promise((r) => setTimeout(r, 300 * attempt));
+    }
+  }
+  return { ok: false, status: lastStatus, errorCode: lastErrorCode };
 }
 
 type SubRow = {

@@ -18,6 +18,12 @@ type Props = {
 const PAGE_SIZE = 30;
 const TYPING_BROADCAST_THROTTLE_MS = 1500;
 const TYPING_HIDE_AFTER_MS = 3500;
+// Colonnes nécessaires uniquement — évite le select * et réduit la bande
+// passante / le coût Supabase sur les longues conversations.
+const MSG_COLS = "id,reservation_id,sender,content,read_by_client,read_by_chauffeur,created_at";
+// Clé localStorage de la file d'attente des messages non envoyés (offline).
+const OFFLINE_QUEUE_KEY = (rid: string, role: string) => `chat:offline:${role}:${rid}`;
+type OfflineMsg = { tempId: string; content: string; at: number };
 
 export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
   const peerRole = role === "client" ? "chauffeur" : "client";
@@ -67,7 +73,7 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
     (async () => {
       const { data } = await supabase
         .from("reservation_messages")
-        .select("*")
+        .select(MSG_COLS)
         .eq("reservation_id", reservationId)
         .order("created_at", { ascending: false })
         .limit(PAGE_SIZE);
@@ -95,7 +101,7 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
     }
     const { data } = await supabase
       .from("reservation_messages")
-      .select("*")
+      .select(MSG_COLS)
       .eq("reservation_id", reservationId)
       .lt("created_at", oldest.created_at)
       .order("created_at", { ascending: false })
@@ -214,32 +220,101 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
     });
   }
 
+  // ── Offline queue ──
+  // Les messages tapés sans connexion sont stockés dans localStorage et
+  // ré-envoyés automatiquement lors du retour en ligne (event `online`).
+  const [queued, setQueued] = useState<OfflineMsg[]>([]);
+  const flushingRef = useRef(false);
+
+  const readQueue = useCallback((): OfflineMsg[] => {
+    try {
+      const raw = localStorage.getItem(OFFLINE_QUEUE_KEY(reservationId, role));
+      return raw ? (JSON.parse(raw) as OfflineMsg[]) : [];
+    } catch {
+      return [];
+    }
+  }, [reservationId, role]);
+
+  const writeQueue = useCallback(
+    (q: OfflineMsg[]) => {
+      try {
+        if (q.length === 0) localStorage.removeItem(OFFLINE_QUEUE_KEY(reservationId, role));
+        else localStorage.setItem(OFFLINE_QUEUE_KEY(reservationId, role), JSON.stringify(q));
+      } catch {}
+      setQueued(q);
+    },
+    [reservationId, role],
+  );
+
+  const sendOne = useCallback(
+    async (content: string) => {
+      if (role === "client") {
+        return await sendClientMessage({ data: { reservation_id: reservationId, content } });
+      }
+      return await sendChauffeurMessage({
+        data: { reservation_id: reservationId, content, skip_push: peerOnline },
+      });
+    },
+    [reservationId, role, peerOnline],
+  );
+
+  const flushQueue = useCallback(async () => {
+    if (flushingRef.current) return;
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+    const q = readQueue();
+    if (q.length === 0) return;
+    flushingRef.current = true;
+    try {
+      const remaining = [...q];
+      while (remaining.length > 0) {
+        const next = remaining[0];
+        try {
+          const msg = await sendOne(next.content);
+          setMessages((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]));
+          remaining.shift();
+          writeQueue(remaining);
+        } catch (e) {
+          console.warn("[chat] flush failed, will retry later", e);
+          break;
+        }
+      }
+    } finally {
+      flushingRef.current = false;
+    }
+  }, [readQueue, writeQueue, sendOne]);
+
+  useEffect(() => {
+    setQueued(readQueue());
+    const onOnline = () => flushQueue();
+    window.addEventListener("online", onOnline);
+    // Tentative immédiate au montage si du backlog existe.
+    flushQueue();
+    return () => window.removeEventListener("online", onOnline);
+  }, [readQueue, flushQueue]);
+
   // ── Send ──
   async function send() {
     const content = input.trim();
     if (!content || sending) return;
     setSending(true);
     stickToBottom.current = true;
+    const isOffline = typeof navigator !== "undefined" && navigator.onLine === false;
+    if (isOffline) {
+      const q = [...readQueue(), { tempId: crypto.randomUUID(), content, at: Date.now() }];
+      writeQueue(q);
+      setInput("");
+      setSending(false);
+      return;
+    }
     try {
-      if (role === "client") {
-        const msg = await sendClientMessage({
-          data: { reservation_id: reservationId, content },
-        });
-        setMessages((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]));
-      } else {
-        // Chauffeur side: skip push if the client is currently in the chat.
-        const msg = await sendChauffeurMessage({
-          data: {
-            reservation_id: reservationId,
-            content,
-            skip_push: peerOnline,
-          },
-        });
-        setMessages((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]));
-      }
+      const msg = await sendOne(content);
+      setMessages((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]));
       setInput("");
     } catch (e) {
-      console.error(e);
+      console.error("[chat] send failed, queuing for retry", e);
+      const q = [...readQueue(), { tempId: crypto.randomUUID(), content, at: Date.now() }];
+      writeQueue(q);
+      setInput("");
     } finally {
       setSending(false);
     }
@@ -366,6 +441,12 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
             </button>
           </div>
         </div>
+
+        {queued.length > 0 && (
+          <div className="border-b border-amber-500/20 bg-amber-500/10 px-4 py-2 text-[11px] text-amber-300">
+            📡 {queued.length} message{queued.length > 1 ? "s" : ""} en attente — envoi automatique au retour en ligne.
+          </div>
+        )}
 
         {showSearch && (
           <div className="space-y-2 border-b border-white/10 bg-black/30 px-3 py-2.5">
