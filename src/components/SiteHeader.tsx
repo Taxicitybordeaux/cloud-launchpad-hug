@@ -1,10 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { Phone, Menu, X, UserCircle2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import logo from "@/assets/logo.jpeg";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useT } from "@/i18n/I18nProvider";
+import { getClientSession } from "@/lib/client-session";
 
 const PHONE = "0673072322";
 const PHONE_DISPLAY = "06 73 07 23 22";
@@ -12,6 +13,13 @@ const PHONE_DISPLAY = "06 73 07 23 22";
 export function SiteHeader() {
   const t = useT();
   const [open, setOpen] = useState(false);
+  // Session-aware "Mon espace" — si déjà connecté on saute /client/login.
+  // Hydraté côté client uniquement pour rester SSR-safe.
+  const [hasSession, setHasSession] = useState(false);
+  useEffect(() => {
+    setHasSession(!!getClientSession());
+  }, []);
+  const espaceTarget = hasSession ? "/client/dashboard" : "/client/login";
 
   const links = [
     { to: "/", label: t("nav.home") },
@@ -59,7 +67,7 @@ export function SiteHeader() {
           <ThemeToggle />
           <LanguageSwitcher />
           <Link
-            to="/client/login"
+            to={espaceTarget}
             className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground/80 transition hover:border-primary hover:text-primary"
           >
             <UserCircle2 className="h-4 w-4" /> Mon espace
@@ -118,7 +126,7 @@ export function SiteHeader() {
             ))}
             <div className="mt-4 mb-3 flex flex-col gap-2.5">
               <Link
-                to="/client/login"
+                to={espaceTarget}
                 onClick={() => setOpen(false)}
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-3 text-base font-semibold"
               >

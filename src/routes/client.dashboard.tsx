@@ -37,6 +37,7 @@ import {
   requestPhoneCancellation,
   type ClientReservation,
 } from "@/lib/client-reservations.functions";
+import { useI18n, useT } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/client/dashboard")({
   head: () => ({
@@ -82,6 +83,8 @@ function toLocalInput(iso: string) {
 
 function ClientDashboard() {
   const navigate = useNavigate();
+  const t = useT();
+  const { dir, isRtl } = useI18n();
   const [session, setSession] = useState<ClientSession | null>(null);
   const [ready, setReady] = useState(false);
   const [rows, setRows] = useState<ClientReservation[] | null>(null);
@@ -267,8 +270,9 @@ function ClientDashboard() {
 
   return (
     <main
+      dir={dir}
       className="relative min-h-[100dvh] overflow-hidden px-4 py-8 sm:py-12"
-      style={{ background: "linear-gradient(180deg, #0a0a0a 0%, #111827 100%)" }}
+      style={{ background: "linear-gradient(180deg, #0a0a0a 0%, #111827 100%)", textAlign: isRtl ? "right" : undefined }}
     >
       <div
         aria-hidden
@@ -287,14 +291,14 @@ function ClientDashboard() {
               className="mt-1 text-2xl font-bold text-white sm:text-3xl"
               style={{ fontFamily: "'Syne', 'Playfair Display', serif" }}
             >
-              Bonjour {greeting}
+              {t("client_dashboard_hello")} {greeting}
             </h1>
           </div>
           <button
             onClick={logout}
             className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-xs text-white/70 transition hover:bg-white/5"
           >
-            <LogOut className="h-3.5 w-3.5" /> Déconnexion
+            <LogOut className="h-3.5 w-3.5" /> {t("client_logout")}
           </button>
         </div>
 
@@ -318,7 +322,7 @@ function ClientDashboard() {
         {/* Liste */}
         <section>
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-white/60">
-            Mes courses
+            {t("client_my_rides")}
           </h2>
 
           {loading && (
@@ -329,7 +333,7 @@ function ClientDashboard() {
 
           {!loading && rows && rows.length === 0 && (
             <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-sm text-white/60">
-              Aucune course pour le moment.
+              {t("client_no_rides")}
               <div className="mt-4">
                 <Link
                   to="/reserver"
