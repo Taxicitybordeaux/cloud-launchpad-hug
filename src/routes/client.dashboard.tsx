@@ -569,6 +569,15 @@ function ClientDashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {chatId && (
+        <ChatPanel
+          reservationId={chatId}
+          role="client"
+          peerName="José 🚖"
+          onClose={() => setChatId(null)}
+        />
+      )}
     </main>
   );
 }
