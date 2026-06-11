@@ -4,6 +4,7 @@ import { Mail, Lock, Eye, EyeOff, User, Phone, Loader2 } from "lucide-react";
 import { ClientAuthHeader } from "@/components/ClientAuthHeader";
 import { clientLogin, clientRegister } from "@/lib/client-auth.functions";
 import { setClientSession } from "@/lib/client-session";
+import { useI18n, useT } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/client/login")({
   head: () => ({
@@ -20,6 +21,8 @@ type Mode = "login" | "register";
 
 function ClientLoginPage() {
   const navigate = useNavigate();
+  const t = useT();
+  const { dir, isRtl } = useI18n();
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -68,8 +71,9 @@ function ClientLoginPage() {
     <>
     <style dangerouslySetInnerHTML={{ __html: "@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&display=swap');" }} />
     <main
+      dir={dir}
       className="relative min-h-[100dvh] overflow-hidden px-4 py-10 sm:py-16"
-      style={{ background: "linear-gradient(180deg, #0a0a0a 0%, #111827 100%)" }}
+      style={{ background: "linear-gradient(180deg, #0a0a0a 0%, #111827 100%)", textAlign: isRtl ? "right" : undefined }}
     >
       {/* halo doré subtil */}
       <div
@@ -95,10 +99,10 @@ function ClientLoginPage() {
             className="text-center text-2xl font-bold text-white sm:text-3xl"
             style={{ fontFamily: "'Syne', 'Playfair Display', serif" }}
           >
-            Mon Espace Client
+            {t("client_login_title")}
           </h1>
           <p className="mt-2 text-center text-sm text-white/60">
-            {mode === "login" ? "Connectez-vous pour suivre vos courses" : "Créez votre compte en 30 secondes"}
+            {mode === "login" ? t("client_login_subtitle") : t("client_register_title")}
           </p>
 
           <form onSubmit={onSubmit} className="mt-6 space-y-3.5">
@@ -109,7 +113,7 @@ function ClientLoginPage() {
                     type="text"
                     inputMode="text"
                     autoComplete="name"
-                    placeholder="Nom complet"
+                    placeholder={t("client_name_field")}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full bg-transparent text-white placeholder:text-white/40 focus:outline-none"
@@ -120,7 +124,7 @@ function ClientLoginPage() {
                     type="tel"
                     inputMode="tel"
                     autoComplete="tel"
-                    placeholder="Téléphone"
+                    placeholder={t("client_phone_field")}
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className="w-full bg-transparent text-white placeholder:text-white/40 focus:outline-none"
@@ -134,7 +138,7 @@ function ClientLoginPage() {
                 type="email"
                 inputMode="email"
                 autoComplete="email"
-                placeholder="Email"
+                placeholder={t("client_email")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-transparent text-white placeholder:text-white/40 focus:outline-none"
@@ -145,7 +149,7 @@ function ClientLoginPage() {
               <input
                 type={showPwd ? "text" : "password"}
                 autoComplete={mode === "login" ? "current-password" : "new-password"}
-                placeholder="Mot de passe"
+                placeholder={t("client_password")}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-transparent text-white placeholder:text-white/40 focus:outline-none"
@@ -181,7 +185,7 @@ function ClientLoginPage() {
                 boxShadow: "0 10px 30px -10px rgba(201,168,76,0.5)",
               }}
             >
-              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : (mode === "login" ? "Se connecter" : "Créer mon compte")}
+              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : (mode === "login" ? t("client_login_btn") : t("client_register_btn"))}
             </button>
           </form>
 
@@ -191,9 +195,9 @@ function ClientLoginPage() {
             className="mt-5 block w-full text-center text-sm text-white/70 transition hover:text-white"
           >
             {mode === "login" ? (
-              <>Première fois ? <span className="font-semibold text-[#E8C96D]">Créer mon compte</span></>
+              <span className="font-semibold text-[#E8C96D]">{t("client_register_link")}</span>
             ) : (
-              <>Déjà inscrit ? <span className="font-semibold text-[#E8C96D]">Se connecter</span></>
+              <span className="font-semibold text-[#E8C96D]">{t("client_login_btn")}</span>
             )}
           </button>
         </div>
