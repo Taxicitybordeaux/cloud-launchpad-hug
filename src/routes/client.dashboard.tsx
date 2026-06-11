@@ -180,6 +180,29 @@ function ClientDashboard() {
     }
   }
 
+  async function onConfirmPhoneCancel(id: string) {
+    if (!session) return;
+    setPhoneModalBusy(true);
+    try {
+      await requestPhoneCancellation({
+        data: {
+          account_id: session.id,
+          phone: session.phone,
+          email: session.email,
+          reservation_id: id,
+        },
+      });
+      toast.success("Demande d'annulation par téléphone enregistrée");
+      setPhoneModalId(null);
+      refresh();
+      window.location.href = "tel:0673072322";
+    } catch {
+      toast.error("Enregistrement impossible");
+    } finally {
+      setPhoneModalBusy(false);
+    }
+  }
+
   function recommander(r: ClientReservation) {
     const params = new URLSearchParams();
     if (r.depart) params.set("depart", r.depart);
