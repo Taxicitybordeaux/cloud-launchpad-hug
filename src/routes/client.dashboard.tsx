@@ -492,6 +492,34 @@ function ClientDashboard() {
           )}
         </section>
       </div>
+
+      <AlertDialog open={!!phoneModalId} onOpenChange={(open) => !open && setPhoneModalId(null)}>
+        <AlertDialogContent className="border-white/10 bg-[#111827]/95 text-white backdrop-blur">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Annuler par téléphone</AlertDialogTitle>
+            <AlertDialogDescription className="text-white/60">
+              Vous allez appeler le <span className="font-semibold text-[#E8C96D]">06 73 07 23 22</span> pour annuler cette course. Confirmez pour enregistrer votre demande et passer l'appel.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => setPhoneModalId(null)}
+              className="border-white/10 bg-transparent text-white hover:bg-white/5"
+            >
+              Retour
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => phoneModalId && onConfirmPhoneCancel(phoneModalId)}
+              disabled={phoneModalBusy}
+              className="text-black"
+              style={{ background: "linear-gradient(135deg, #C9A84C 0%, #E8C96D 100%)" }}
+            >
+              {phoneModalBusy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Phone className="mr-1 h-3.5 w-3.5" />}
+              Confirmer et appeler
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }
