@@ -199,3 +199,16 @@ export const cancelClientReservation = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
+
+export const requestPhoneCancellation = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => CancelSchema.parse(input))
+  .handler(async ({ data }) => {
+    await assertOwnership(data.reservation_id, data);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("reservations")
+      .update({ phone_cancel_requested_at: new Date().toISOString() })
+      .eq("id", data.reservation_id);
+    if (error) throw new Error("UPDATE_FAILED");
+    return { ok: true };
+  });
