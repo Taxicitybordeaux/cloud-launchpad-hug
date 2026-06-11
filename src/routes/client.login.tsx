@@ -211,6 +211,8 @@ function ClientLoginPage() {
         </p>
       </div>
     </main>
+    </>
+
   );
 }
 
