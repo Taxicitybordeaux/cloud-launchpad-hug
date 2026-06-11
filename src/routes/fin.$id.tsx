@@ -376,74 +376,122 @@ function FinPage() {
     const SELECT_COLS =
       "id,depart,destination,arrivee,status,prix_estime,distance_km,nom,client_name,email,client_email,telephone,client_phone,paiement,date_course,heure_course,pickup_datetime,suivi_id,tracking_id";
 
+    // Trace id unique pour corréler tous les logs d'un même chargement /fin/$id
+    const trace = `fin-${Math.random().toString(36).slice(2, 8)}`;
+    const t0 = performance.now();
+    const log = (step: string, extra: Record<string, unknown> = {}) => {
+      // eslint-disable-next-line no-console
+      console.info(`[fin.$id ${trace}] ${step}`, {
+        param_id: id,
+        elapsed_ms: Math.round(performance.now() - t0),
+        ...extra,
+      });
+    };
+
+    log("start", { is_uuid: /^[0-9a-fA-F-]{36}$/.test(id) });
+
     const load = async (attempt = 0) => {
-      // 1) Chercher par id primaire (UUID)
+      log("attempt", { attempt });
       let r: any = null;
+      let lastError: any = null;
+
       if (/^[0-9a-fA-F-]{36}$/.test(id)) {
-        const { data } = await (supabase as any)
+        const { data, error } = await (supabase as any)
           .from("reservations")
           .select(SELECT_COLS)
           .eq("id", id)
           .maybeSingle();
+        if (error) {
+          lastError = error;
+          log("lookup_by_id error", { code: error.code, message: error.message, details: error.details });
+        } else {
+          log("lookup_by_id", { found: !!data });
+        }
         r = data;
       }
 
-      // 2) Fallback par suivi_id
       if (!r) {
-        const { data } = await (supabase as any)
+        const { data, error } = await (supabase as any)
           .from("reservations")
           .select(SELECT_COLS)
           .eq("suivi_id", id)
           .maybeSingle();
+        if (error) {
+          lastError = error;
+          log("lookup_by_suivi_id error", { code: error.code, message: error.message, details: error.details });
+        } else {
+          log("lookup_by_suivi_id", { found: !!data });
+        }
         r = data;
       }
 
-      // 3) Fallback par tracking_id
       if (!r) {
-        const { data } = await (supabase as any)
+        const { data, error } = await (supabase as any)
           .from("reservations")
           .select(SELECT_COLS)
           .eq("tracking_id", id)
           .maybeSingle();
+        if (error) {
+          lastError = error;
+          log("lookup_by_tracking_id error", {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+          });
+        } else {
+          log("lookup_by_tracking_id", { found: !!data });
+        }
         r = data;
       }
 
       if (!r) {
         if (attempt < 4) {
+          log("not_found_retry", { next_attempt: attempt + 1, lastError: lastError?.message ?? null });
           setTimeout(() => load(attempt + 1), 700);
           return;
         }
+        log("give_up_not_found", { lastError: lastError?.message ?? null });
         setLoading(false);
         return;
       }
 
-      // Race condition : statut peut ne pas encore être "completed"
+      log("loaded", {
+        reservation_id: r.id,
+        status: r.status,
+        suivi_id: r.suivi_id ?? null,
+        tracking_id: r.tracking_id ?? null,
+      });
+
       if (r.status !== "completed") {
         if (attempt < 6) {
+          log("status_not_completed_retry", { status: r.status, next_attempt: attempt + 1 });
           setTimeout(() => load(attempt + 1), 700);
           return;
         }
+        log("status_not_completed_redirect_suivi", { status: r.status });
         navigate({ to: "/suivi/$id", params: { id: r.suivi_id || r.tracking_id || r.id } });
         return;
       }
 
       setResa(r as Reservation);
 
-      // Avis : table optionnelle — ignore les erreurs si absente
       try {
-        const { data: av } = await (supabase as any)
+        const { data: av, error: avErr } = await (supabase as any)
           .from("avis")
           .select("id,note")
           .eq("reservation_id", r.id)
           .maybeSingle();
+        if (avErr) log("avis_lookup_error", { code: avErr.code, message: avErr.message });
         if (av) {
           setNote(av.note);
           setAvisEnvoye(true);
+          log("avis_found", { note: av.note });
         }
-      } catch {
-        /* table avis absente — ignorer */
+      } catch (e: any) {
+        log("avis_exception", { message: e?.message });
       }
 
+      log("done");
       setLoading(false);
     };
     load();
