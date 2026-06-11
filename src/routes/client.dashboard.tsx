@@ -37,6 +37,7 @@ import {
   requestPhoneCancellation,
   type ClientReservation,
 } from "@/lib/client-reservations.functions";
+import { useI18n, useT } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/client/dashboard")({
   head: () => ({
