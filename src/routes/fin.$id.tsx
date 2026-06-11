@@ -373,63 +373,82 @@ function FinPage() {
 
   // ── Charger données ────────────────────────────────────────
   useEffect(() => {
-    const load = async (attempt = 0) => {
-      // Chercher d'abord par id primaire
-      let { data: r } = await (supabase as any)
-        .from("reservations")
-        .select(
-          "id,depart,destination,status,prix_final,prix_estime,distance_reelle_km,distance_km,duree_reelle_min,chauffeur_id,prenom,nom,email,telephone,paiement,date_course,heure_course",
-        )
-        .eq("id", id)
-        .maybeSingle();
+    const SELECT_COLS =
+      "id,depart,destination,arrivee,status,prix_estime,distance_km,nom,client_name,email,client_email,telephone,client_phone,paiement,date_course,heure_course,pickup_datetime,suivi_id,tracking_id";
 
-      // Fallback par suivi_id (si l'URL contient le suivi_id et non le vrai UUID)
-      if (!r) {
-        const { data: bySuivi } = await (supabase as any)
+    const load = async (attempt = 0) => {
+      // 1) Chercher par id primaire (UUID)
+      let r: any = null;
+      if (/^[0-9a-fA-F-]{36}$/.test(id)) {
+        const { data } = await (supabase as any)
           .from("reservations")
-          .select(
-            "id,depart,destination,status,prix_final,prix_estime,distance_reelle_km,distance_km,duree_reelle_min,chauffeur_id,prenom,nom,email,telephone,paiement,date_course,heure_course",
-          )
+          .select(SELECT_COLS)
+          .eq("id", id)
+          .maybeSingle();
+        r = data;
+      }
+
+      // 2) Fallback par suivi_id
+      if (!r) {
+        const { data } = await (supabase as any)
+          .from("reservations")
+          .select(SELECT_COLS)
           .eq("suivi_id", id)
           .maybeSingle();
-        r = bySuivi;
+        r = data;
+      }
+
+      // 3) Fallback par tracking_id
+      if (!r) {
+        const { data } = await (supabase as any)
+          .from("reservations")
+          .select(SELECT_COLS)
+          .eq("tracking_id", id)
+          .maybeSingle();
+        r = data;
       }
 
       if (!r) {
+        if (attempt < 4) {
+          setTimeout(() => load(attempt + 1), 700);
+          return;
+        }
         setLoading(false);
         return;
       }
 
-      // Race condition : le statut peut ne pas encore être "completed" (propagation Supabase)
-      // → retry jusqu'à 6 fois × 700ms (~4s) avant de rediriger
+      // Race condition : statut peut ne pas encore être "completed"
       if (r.status !== "completed") {
         if (attempt < 6) {
           setTimeout(() => load(attempt + 1), 700);
           return;
         }
-        // Après ~4s de tentatives, rediriger vers suivi avec l'UUID réel (r.id, pas id)
-        navigate({ to: "/suivi/$id", params: { id: r.id } });
+        navigate({ to: "/suivi/$id", params: { id: r.suivi_id || r.tracking_id || r.id } });
         return;
       }
 
       setResa(r as Reservation);
 
-      if (r.chauffeur_id) {
-        const { data: c } = await (supabase as any).from("chauffeurs").select("*").eq("id", r.chauffeur_id).single();
-        if (c) setChauffeur(c as Chauffeur);
-      }
-
-      // Vérifier si avis déjà posté — utiliser r.id (UUID réel, pas id qui peut être suivi_id)
-      const { data: av } = await (supabase as any).from("avis").select("id,note").eq("reservation_id", r.id).single();
-      if (av) {
-        setNote(av.note);
-        setAvisEnvoye(true);
+      // Avis : table optionnelle — ignore les erreurs si absente
+      try {
+        const { data: av } = await (supabase as any)
+          .from("avis")
+          .select("id,note")
+          .eq("reservation_id", r.id)
+          .maybeSingle();
+        if (av) {
+          setNote(av.note);
+          setAvisEnvoye(true);
+        }
+      } catch {
+        /* table avis absente — ignorer */
       }
 
       setLoading(false);
     };
     load();
   }, [id, navigate]);
+
 
   // ── Soumettre avis ─────────────────────────────────────────
   const soumettreAvis = useCallback(async () => {
