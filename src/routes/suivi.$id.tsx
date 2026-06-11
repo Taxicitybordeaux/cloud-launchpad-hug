@@ -480,10 +480,11 @@ function SuiviPage() {
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
   // ── Mode chauffeur ────────────────────────────────────────────────────────
-  // José arrive via la notif push sur /suivi/$id — le $id est son token d'accès.
-  // On accepte ?rid=<uuid> (ancien flow) OU que resa.suivi_id / tracking_id corresponde à l'URL.
+  // Mode chauffeur uniquement via lien GPS admin/push : ?gps=1 ou ?rid=<uuid>.
+  // Ne pas utiliser resa.suivi_id/tracking_id ici : ce sont aussi les liens client,
+  // sinon le client est pris pour le chauffeur et ne part pas vers /fin/$id.
   const { gps: gpsParam, rid: ridParam } = Route.useSearch();
-  const isDriver = !!ridParam || (!!resa && (resa.suivi_id === id || resa.tracking_id === id));
+  const isDriver = gpsParam === "1" || (!!ridParam && (!resa || ridParam === resa.id));
   const [driverGpsActive, setDriverGpsActive] = useState(gpsParam === "1");
   const [driverGpsStatus, setDriverGpsStatus] = useState<
     "idle" | "starting" | "active" | "weak" | "denied" | "background" | "error"
