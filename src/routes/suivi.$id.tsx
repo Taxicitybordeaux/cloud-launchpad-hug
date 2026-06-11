@@ -961,28 +961,26 @@ function SuiviPage() {
           tripOutline.current = null;
         }
 
+        // Outline (contour sombre) en PREMIER = en dessous
         tripOutline.current = L.polyline(coords, {
           color: "#000000",
-          weight: 9,
-          opacity: 1,
+          weight: 11,
+          opacity: 0.55,
           lineCap: "round",
           lineJoin: "round",
         }).addTo(map);
+        // Trait principal en SECOND = au-dessus de l'outline
         tripLayer.current = L.polyline(coords, {
-          color: "#111111",
+          color: "#f5c842",
           weight: 5,
-          opacity: 1,
+          opacity: 0.92,
           lineCap: "round",
           lineJoin: "round",
         }).addTo(map);
 
         const depIcon = L.divIcon({
           className: "",
-          html: `<div style="position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center">
-          <span style="position:absolute;inset:0;border-radius:50%;background:rgba(34,197,94,0.35);animation:gpsRing 1.6s ease-out infinite"></span>
-          <span style="position:absolute;inset:6px;border-radius:50%;background:rgba(34,197,94,0.5);animation:gpsRing 1.6s ease-out infinite;animation-delay:.4s"></span>
-          <div style="position:relative;width:30px;height:30px;background:#22c55e;border-radius:50%;border:3px solid white;box-shadow:0 4px 14px rgba(34,197,94,0.7);display:flex;align-items:center;justify-content:center;font-size:15px">📍</div></div>
-        <style>@keyframes gpsRing{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.6);opacity:0}}</style>`,
+          html: `<div style="position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center"><span style="position:absolute;inset:0;border-radius:50%;background:rgba(34,197,94,0.35);animation:gpsRing 1.6s ease-out infinite"></span><span style="position:absolute;inset:6px;border-radius:50%;background:rgba(34,197,94,0.5);animation:gpsRing 1.6s ease-out infinite;animation-delay:.4s"></span><div style="position:relative;width:30px;height:30px;background:#22c55e;border-radius:50%;border:3px solid white;box-shadow:0 4px 14px rgba(34,197,94,0.7);display:flex;align-items:center;justify-content:center;font-size:15px">📍</div></div>`,
           iconSize: [44, 44],
           iconAnchor: [22, 22],
         });
@@ -2631,8 +2629,8 @@ function SuiviPage() {
             </div>
           </div>
 
-          {/* ── PANNEAU GPS TAXI — chauffeur uniquement (isDriver) ── */}
-          {isDriver && (
+          {/* ── PANNEAU GPS TAXI — chauffeur (interactif) + client (lecture seule) ── */}
+          {(isDriver || taxiPos) && (
             <div style={{ padding: "0 20px 12px" }}>
               <div
                 style={{
@@ -2640,6 +2638,7 @@ function SuiviPage() {
                   border: `1px solid ${taxiPos ? "rgba(34,197,94,0.3)" : "rgba(255,255,255,0.08)"}`,
                   borderRadius: 16,
                   padding: "14px 16px",
+                  pointerEvents: isDriver ? "auto" : "none",
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: taxiPos ? 10 : 0 }}>
@@ -2665,42 +2664,44 @@ function SuiviPage() {
                   >
                     {taxiPos ? "🛰 GPS actif" : "📡 En attente GPS chauffeur"}
                   </span>
-                  <button
-                    disabled={!["en_route", "accepted", "arrived"].includes(effectiveStatus) && !driverGpsActive}
-                    title={
-                      !["en_route", "accepted", "arrived"].includes(effectiveStatus) && !driverGpsActive
-                        ? "⛔ En attente de validation admin"
-                        : ""
-                    }
-                    onClick={() => {
-                      if (!["en_route", "accepted", "arrived"].includes(effectiveStatus) && !driverGpsActive) {
-                        toast.error("⛔ Course non encore validée par l'admin");
-                        return;
-                      }
-                      if (driverGpsStatus === "idle") setDriverGpsActive(true);
-                      else if (driverGpsActive) setDriverGpsActive(false);
-                      else setDriverGpsActive(true);
-                    }}
-                    style={{
-                      padding: "5px 12px",
-                      borderRadius: 10,
-                      background: driverGpsActive ? "rgba(239,68,68,0.12)" : "rgba(34,197,94,0.12)",
-                      border: `1px solid ${driverGpsActive ? "rgba(239,68,68,0.35)" : "rgba(34,197,94,0.35)"}`,
-                      color: driverGpsActive ? "#f87171" : "#22c55e",
-                      fontSize: 11,
-                      fontWeight: 700,
-                      fontFamily: "'Syne',sans-serif",
-                      cursor:
+                  {isDriver && (
+                    <button
+                      disabled={!["en_route", "accepted", "arrived"].includes(effectiveStatus) && !driverGpsActive}
+                      title={
                         !["en_route", "accepted", "arrived"].includes(effectiveStatus) && !driverGpsActive
-                          ? "not-allowed"
-                          : "pointer",
-                      opacity:
-                        !["en_route", "accepted", "arrived"].includes(effectiveStatus) && !driverGpsActive ? 0.45 : 1,
-                      flexShrink: 0,
-                    }}
-                  >
-                    {driverGpsActive ? "⬛ Couper" : "▶ Activer"}
-                  </button>
+                          ? "⛔ En attente de validation admin"
+                          : ""
+                      }
+                      onClick={() => {
+                        if (!["en_route", "accepted", "arrived"].includes(effectiveStatus) && !driverGpsActive) {
+                          toast.error("⛔ Course non encore validée par l'admin");
+                          return;
+                        }
+                        if (driverGpsStatus === "idle") setDriverGpsActive(true);
+                        else if (driverGpsActive) setDriverGpsActive(false);
+                        else setDriverGpsActive(true);
+                      }}
+                      style={{
+                        padding: "5px 12px",
+                        borderRadius: 10,
+                        background: driverGpsActive ? "rgba(239,68,68,0.12)" : "rgba(34,197,94,0.12)",
+                        border: `1px solid ${driverGpsActive ? "rgba(239,68,68,0.35)" : "rgba(34,197,94,0.35)"}`,
+                        color: driverGpsActive ? "#f87171" : "#22c55e",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        fontFamily: "'Syne',sans-serif",
+                        cursor:
+                          !["en_route", "accepted", "arrived"].includes(effectiveStatus) && !driverGpsActive
+                            ? "not-allowed"
+                            : "pointer",
+                        opacity:
+                          !["en_route", "accepted", "arrived"].includes(effectiveStatus) && !driverGpsActive ? 0.45 : 1,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {driverGpsActive ? "⬛ Couper" : "▶ Activer"}
+                    </button>
+                  )}
                 </div>
                 {taxiPos && (
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
@@ -2735,7 +2736,7 @@ function SuiviPage() {
                     {formatDiagnosticAge(trackingDiag.lastPositionAt)}
                   </div>
                 )}
-                {driverGpsActive && (
+                {isDriver && driverGpsActive && (
                   <div
                     style={{
                       marginTop: 8,
@@ -2876,8 +2877,8 @@ function SuiviPage() {
               </div>
             )}
 
-            {/* ── ACTIONS CHAUFFEUR — chauffeur uniquement (is_driver, débloqué après acceptation admin) ── */}
-            {isDriver && resa.depart && (resa.destination || resa.arrivee) && (
+            {/* ── ACTIONS CHAUFFEUR — interactif pour José, lecture seule pour le client ── */}
+            {resa.depart && (resa.destination || resa.arrivee) && (
               <div
                 style={{
                   marginBottom: 14,
@@ -2888,6 +2889,8 @@ function SuiviPage() {
                   display: "flex",
                   flexDirection: "column",
                   gap: 10,
+                  pointerEvents: isDriver ? "auto" : "none",
+                  opacity: isDriver ? 1 : 0.85,
                 }}
               >
                 <div
@@ -3068,12 +3071,16 @@ function SuiviPage() {
                     style={{
                       fontFamily: "'DM Sans',sans-serif",
                       fontSize: 10,
-                      color: "#64748b",
+                      color: "#475569",
                       textAlign: "center",
                       marginTop: 2,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 5,
                     }}
                   >
-                    🔒 Ces boutons sont utilisés par votre chauffeur.
+                    🔒 Contrôlé par votre chauffeur
                   </div>
                 )}
 
