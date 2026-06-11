@@ -12,6 +12,8 @@ import logo from "@/assets/logo.jpeg";
 
 import { notifyReservationStatus } from "@/lib/push.functions";
 import { getFcmToken } from "@/lib/firebase";
+import { ChatPanel } from "@/components/ChatPanel";
+import { listAdminChatThreads, type AdminChatThread } from "@/lib/chat.functions";
 
 const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_TILE_OPTIONS = { attribution: "© OpenStreetMap contributors", maxZoom: 19 };
