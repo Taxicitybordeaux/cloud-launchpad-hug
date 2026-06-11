@@ -88,6 +88,8 @@ function ClientDashboard() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTime, setEditTime] = useState<string>("");
   const [busy, setBusy] = useState<string | null>(null);
+  const [phoneModalId, setPhoneModalId] = useState<string | null>(null);
+  const [phoneModalBusy, setPhoneModalBusy] = useState(false);
 
   useEffect(() => {
     const s = getClientSession();
