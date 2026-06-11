@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import bcrypt from "bcryptjs";
+
 
 // Session token = simple opaque random string (auth maison, pas Supabase Auth).
 // On le stocke côté client (localStorage) et on l'enregistre côté serveur
@@ -46,6 +46,7 @@ export const clientRegister = createServerFn({ method: "POST" })
       .maybeSingle();
     if (existing) throw new Error("EMAIL_TAKEN");
 
+    const { default: bcrypt } = await import("bcryptjs");
     const hash = await bcrypt.hash(data.password, 10);
     const token = genToken();
 
@@ -82,6 +83,7 @@ export const clientLogin = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!row) throw new Error("INVALID_CREDENTIALS");
 
+    const { default: bcrypt } = await import("bcryptjs");
     const ok = await bcrypt.compare(data.password, row.password_hash);
     if (!ok) throw new Error("INVALID_CREDENTIALS");
 
