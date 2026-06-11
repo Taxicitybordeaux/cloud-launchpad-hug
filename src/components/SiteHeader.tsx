@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Phone, Menu, X } from "lucide-react";
+import { Phone, Menu, X, UserCircle2 } from "lucide-react";
 import { useState } from "react";
 import logo from "@/assets/logo.jpeg";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -58,6 +58,12 @@ export function SiteHeader() {
         <div className="hidden items-center gap-2 md:flex">
           <ThemeToggle />
           <LanguageSwitcher />
+          <Link
+            to="/client/login"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground/80 transition hover:border-primary hover:text-primary"
+          >
+            <UserCircle2 className="h-4 w-4" /> Mon espace
+          </Link>
           <a
             href={`tel:${PHONE}`}
             className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-semibold transition hover:border-primary"
@@ -111,6 +117,13 @@ export function SiteHeader() {
               </Link>
             ))}
             <div className="mt-4 mb-3 flex flex-col gap-2.5">
+              <Link
+                to="/client/login"
+                onClick={() => setOpen(false)}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-3 text-base font-semibold"
+              >
+                <UserCircle2 className="h-5 w-5 text-primary" /> Mon espace client
+              </Link>
               <a
                 href={`tel:${PHONE}`}
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-3 text-base font-semibold"

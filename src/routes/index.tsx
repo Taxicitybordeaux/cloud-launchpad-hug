@@ -15,6 +15,9 @@ import {
   Quote,
   HelpCircle,
   MessageCircle,
+  UserCircle2,
+  BellRing,
+  History,
 } from "lucide-react";
 import logo from "@/assets/logo.jpeg";
 import heroCar from "@/assets/hero-bordeaux.jpg";
@@ -350,6 +353,92 @@ function Home() {
                 {t("tarifs.event.title")}
               </h3>
               <p className="mt-2 text-sm text-muted-foreground">{t("tarifs.event.desc")}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ESPACE CLIENT */}
+      <section className="border-t border-border bg-gradient-to-b from-background to-card/40">
+        <div className="mx-auto max-w-6xl px-4 py-12 sm:py-16 md:py-20">
+          <div className="grid items-center gap-8 md:grid-cols-2 md:gap-12">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">Espace client</p>
+              <h2 className="mt-3 font-display text-3xl font-bold sm:text-4xl md:text-5xl">
+                Votre <span className="italic text-primary">tableau de bord</span> personnel
+              </h2>
+              <p className="mt-4 text-base leading-relaxed text-foreground/80 sm:text-lg">
+                Créez votre compte en 30 secondes pour retrouver toutes vos courses, suivre votre chauffeur en temps réel,
+                et réserver plus vite la prochaine fois. C'est gratuit, c'est simple, et ça reste entre nous.
+              </p>
+
+              <ul className="mt-6 space-y-3 text-sm sm:text-base">
+                <li className="flex items-start gap-3">
+                  <History className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                  <span><b>Historique complet</b> de vos trajets, reçus et tarifs.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <BellRing className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                  <span><b>Notifications</b> dès que le chauffeur est en route ou arrivé.</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <MessageCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                  <span><b>Tchat direct</b> avec votre chauffeur pendant la course.</span>
+                </li>
+              </ul>
+
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  to="/client/login"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3.5 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-gold)] transition hover:opacity-90 sm:text-base"
+                >
+                  <UserCircle2 className="h-5 w-5" /> Accéder à mon espace
+                </Link>
+                <Link
+                  to="/client/login"
+                  className="inline-flex items-center justify-center rounded-xl border border-border px-5 py-3.5 text-sm font-semibold transition hover:border-primary sm:text-base"
+                >
+                  Créer un compte
+                </Link>
+              </div>
+            </div>
+
+            <div className="relative">
+              <div
+                className="rounded-2xl border border-border/70 p-6 shadow-[var(--shadow-elegant)] sm:p-8"
+                style={{ background: "linear-gradient(180deg, oklch(0.16 0.012 60) 0%, oklch(0.12 0.01 60) 100%)" }}
+              >
+                <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-primary">
+                    <UserCircle2 className="h-5 w-5" />
+                  </div>
+                  <div className="text-sm">
+                    <div className="font-semibold text-white">Bonjour Camille</div>
+                    <div className="text-xs text-white/50">Connectée à l'instant</div>
+                  </div>
+                </div>
+                <div className="mt-4 space-y-3">
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-white/60">Aujourd'hui · 14:30</span>
+                      <span className="rounded-full bg-primary/15 px-2 py-0.5 font-medium text-primary">Terminée</span>
+                    </div>
+                    <div className="mt-1 text-sm text-white/90">Gare Saint-Jean → Aéroport Mérignac</div>
+                  </div>
+                  <div className="rounded-xl border border-primary/30 bg-primary/5 p-3">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-white/60">Demain · 09:00</span>
+                      <span className="rounded-full bg-primary px-2 py-0.5 font-medium text-primary-foreground">Confirmée</span>
+                    </div>
+                    <div className="mt-1 text-sm text-white/90">Bordeaux Centre → Saint-Émilion</div>
+                  </div>
+                </div>
+              </div>
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -inset-6 -z-10 rounded-3xl opacity-30 blur-3xl"
+                style={{ background: "radial-gradient(circle, var(--primary) 0%, transparent 70%)" }}
+              />
             </div>
           </div>
         </div>
