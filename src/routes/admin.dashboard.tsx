@@ -256,8 +256,9 @@ function isNuit(iso: string): boolean {
 }
 
 const normalizeStatus = (s: unknown): "pending" | "accepted" | "refused" => {
-  if (s === "accepted") return "accepted";
-  if (s === "refused") return "refused";
+  if (s === "accepted" || s === "en_route" || s === "arrived") return "accepted";
+  if (s === "refused" || s === "cancelled" || s === "canceled" || s === "refusee" || s === "annulee") return "refused";
+  if (s === "completed" || s === "terminee" || s === "terminée" || s === "done") return "refused"; // exclure du comptage actif
   return "pending";
 };
 
@@ -455,10 +456,8 @@ function Dashboard() {
     refreshChatThreads();
     const channel = supabase
       .channel("admin-chat-threads")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "reservation_messages" },
-        () => refreshChatThreads(),
+      .on("postgres_changes", { event: "*", schema: "public", table: "reservation_messages" }, () =>
+        refreshChatThreads(),
       )
       .subscribe();
     return () => {
@@ -685,8 +684,16 @@ function Dashboard() {
     const nowIso = new Date().toISOString();
     const tomorrowIso = new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString();
     const [caJR, caMR, cJR, cliR, visR] = await Promise.all([
-      supabase.from("courses").select("prix_final").gte("created_at", todayIso),
-      supabase.from("courses").select("prix_final").gte("created_at", monthIso),
+      supabase
+        .from("reservations")
+        .select("prix_estime")
+        .in("status", ["completed", "terminee", "terminée", "done"])
+        .gte("created_at", todayIso),
+      supabase
+        .from("reservations")
+        .select("prix_estime")
+        .in("status", ["completed", "terminee", "terminée", "done"])
+        .gte("created_at", monthIso),
       supabase
         .from("reservations")
         .select("id", { count: "exact", head: true })
@@ -694,10 +701,14 @@ function Dashboard() {
         .lt("pickup_datetime", tomorrowIso)
         .neq("status", "refused"),
       supabase.from("clients").select("id", { count: "exact", head: true }),
-      supabase.from("site_analytics").select("session_id").eq("event", "visit").gte("created_at", todayIso),
+      supabase
+        .from("site_analytics")
+        .select("session_id")
+        .in("event", ["visit", "suivi_open", "reserver_open", "page_view"])
+        .gte("created_at", todayIso),
     ]);
-    setCaJ((caJR.data ?? []).reduce((s: number, c: any) => s + (Number(c.prix_final) || 0), 0));
-    setCaM((caMR.data ?? []).reduce((s: number, c: any) => s + (Number(c.prix_final) || 0), 0));
+    setCaJ((caJR.data ?? []).reduce((s: number, c: any) => s + (Number(c.prix_estime) || 0), 0));
+    setCaM((caMR.data ?? []).reduce((s: number, c: any) => s + (Number(c.prix_estime) || 0), 0));
     setCoursesJ(cJR.count ?? 0);
     setClientsTotal(cliR.count ?? 0);
     setVisitors(new Set((visR.data ?? []).map((v: any) => v.session_id)).size);
@@ -742,6 +753,34 @@ function Dashboard() {
     setClientsLoading(false);
   }, []);
 
+  // ── Sync clients depuis les courses terminées existantes ──────────────────
+  const syncClientsFromCompleted = useCallback(async () => {
+    try {
+      const { data: completedResas } = await (supabase as any)
+        .from("reservations")
+        .select("client_name,nom,client_phone,telephone,client_email,email")
+        .in("status", ["completed", "terminee", "terminée", "done"]);
+      if (!completedResas?.length) return;
+      for (const r of completedResas) {
+        const phone = r.client_phone || r.telephone;
+        const name = r.client_name || r.nom;
+        const email = r.client_email || r.email;
+        if (!phone) continue;
+        const { data: existing } = await (supabase as any)
+          .from("clients")
+          .select("id,total_courses")
+          .eq("phone", phone)
+          .maybeSingle();
+        if (!existing) {
+          await (supabase as any).from("clients").insert({ name, phone, email, total_courses: 1 });
+        }
+      }
+      await fetchClients();
+    } catch (e) {
+      console.warn("[syncClientsFromCompleted]", e);
+    }
+  }, [fetchClients]);
+
   const fetchAll = useCallback(async () => {
     setRefreshing(true);
     setStatsLoading(true);
@@ -769,6 +808,8 @@ function Dashboard() {
   useEffect(() => {
     fetchAllRef.current?.().finally(() => {
       initialLoad.current = false;
+      // Rattraper les clients des courses déjà terminées avant la mise en prod
+      syncClientsFromCompleted();
     });
     const ch = supabase
       .channel("dash-courses")
@@ -851,6 +892,11 @@ function Dashboard() {
       // CA jour/mois alimenté par la table `courses` → refresh dès qu'une course
       // est créée/mise à jour/supprimée (trigger trg_reservation_completed_to_course).
       .on("postgres_changes", { event: "*", schema: "public", table: "courses" }, () => fetchStats())
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "reservations", filter: "status=eq.completed" },
+        () => fetchStats(),
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
@@ -4088,9 +4134,7 @@ function Dashboard() {
 
       {/* ── Tchats clients ── */}
       <div style={{ padding: "20px 16px", maxWidth: 720, margin: "0 auto", width: "100%" }}>
-        <div style={{ color: "#f8fafc", fontWeight: 700, fontSize: 16, marginBottom: 12 }}>
-          💬 Tchats
-        </div>
+        <div style={{ color: "#f8fafc", fontWeight: 700, fontSize: 16, marginBottom: 12 }}>💬 Tchats</div>
         {chatThreads.length === 0 ? (
           <div
             style={{
@@ -4133,9 +4177,7 @@ function Dashboard() {
                       marginBottom: 4,
                     }}
                   >
-                    <span style={{ fontWeight: 700, fontSize: 14 }}>
-                      {t.client_name || "Client"}
-                    </span>
+                    <span style={{ fontWeight: 700, fontSize: 14 }}>{t.client_name || "Client"}</span>
                     <span style={{ color: "#64748b", fontSize: 11 }}>
                       {new Date(t.last_message_at).toLocaleString("fr-FR", {
                         dateStyle: "short",
@@ -4189,16 +4231,12 @@ function Dashboard() {
         <ChatPanel
           reservationId={openChatId}
           role="chauffeur"
-          peerName={
-            chatThreads.find((t) => t.reservation_id === openChatId)?.client_name || "Client"
-          }
+          peerName={chatThreads.find((t) => t.reservation_id === openChatId)?.client_name || "Client"}
           onClose={() => setOpenChatId(null)}
         />
       )}
 
       {/* ── Modale Accepter ── */}
-
-
 
       {/* ── Modale carte tracé ── */}
       {mapModal && (
