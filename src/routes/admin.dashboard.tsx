@@ -258,7 +258,7 @@ function isNuit(iso: string): boolean {
 const normalizeStatus = (s: unknown): "pending" | "accepted" | "refused" => {
   if (s === "accepted" || s === "en_route" || s === "arrived") return "accepted";
   if (s === "refused" || s === "cancelled" || s === "canceled" || s === "refusee" || s === "annulee") return "refused";
-  if (s === "completed" || s === "terminee" || s === "terminée" || s === "done") return "refused"; // exclure du comptage actif
+  if (s === "completed" || s === "terminee" || s === "terminée" || s === "done") return "refused";
   return "pending";
 };
 
@@ -1946,11 +1946,10 @@ function Dashboard() {
   };
 
   const pending = items.filter((r) => r.status === "pending");
-  const accepted = items.filter((r) => r.status === "accepted");
-  const refused = items.filter((r) => r.status === "refused");
-  // Courses "en cours" = accepted + en_route + arrived (pour la section séparée)
-  const inProgress = items.filter((r) => r.status === "en_route" || r.status === "arrived");
-  const completed = items.filter((r) => r.status === "completed");
+  const accepted = items.filter((r) => r.status === "accepted" || r.status === "en_route" || r.status === "arrived");
+  const completed = items.filter((r) => ["completed", "terminee", "terminée", "done"].includes(r.status));
+  const refused = items.filter((r) => ["refused", "cancelled", "canceled", "refusee", "annulee"].includes(r.status));
+  const inProgress = items.filter((r) => r.status === "en_route" || r.status === "arrived"); // gardé pour compatibilité GPS
 
   // =========================
   // ENVOYER NOUVEAU PRIX
@@ -3245,7 +3244,7 @@ function Dashboard() {
             <SectionHeader
               color="#f59e0b"
               label="En attente"
-              count={counts.pending}
+              count={pending.length}
               borderColor="rgba(245,158,11,0.25)"
             />
             <div style={{ color: "#64748b", fontSize: 12, marginBottom: 12 }}>
@@ -3262,28 +3261,13 @@ function Dashboard() {
           </div>
         )}
 
-        {/* ── En cours (en_route + arrived) ── */}
-        {!coursesLoading && inProgress.length > 0 && (
-          <div style={{ marginBottom: 36 }}>
-            <SectionHeader
-              color="#f5c842"
-              label="En cours"
-              count={inProgress.length}
-              borderColor="rgba(245,200,66,0.25)"
-            />
-            {inProgress.map((r) => (
-              <CourseCard key={r.id} r={r} />
-            ))}
-          </div>
-        )}
-
-        {/* ── Acceptées (planifiées) ── */}
+        {/* ── Acceptées (accepted + en_route + arrived) ── */}
         {!coursesLoading && (
           <div style={{ marginBottom: 36 }}>
             <SectionHeader
               color="#22c55e"
               label="Acceptées"
-              count={counts.accepted}
+              count={accepted.length}
               borderColor="rgba(34,197,94,0.25)"
             />
             {accepted.length === 0 && (
@@ -3297,7 +3281,7 @@ function Dashboard() {
 
         {!coursesLoading && (
           <div style={{ marginBottom: 36 }}>
-            <SectionHeader color="#ef4444" label="Refusées" count={counts.refused} borderColor="rgba(239,68,68,0.25)" />
+            <SectionHeader color="#ef4444" label="Refusées" count={refused.length} borderColor="rgba(239,68,68,0.25)" />
             {refused.length === 0 && (
               <div style={{ textAlign: "center", color: "#475569", padding: "20px 0" }}>Aucune course refusée</div>
             )}
