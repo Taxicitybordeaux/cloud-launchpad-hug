@@ -25,6 +25,8 @@ import { Route as ReservationIdRouteImport } from './routes/reservation.$id'
 import { Route as FinIdRouteImport } from './routes/fin.$id'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as CourseIdRouteImport } from './routes/course.$id'
+import { Route as ClientLoginRouteImport } from './routes/client.login'
+import { Route as ClientDashboardRouteImport } from './routes/client.dashboard'
 import { Route as AdminFlowCheckRouteImport } from './routes/admin.flow-check'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
 import { Route as AdminCoursesRouteImport } from './routes/admin.courses'
@@ -120,6 +122,16 @@ const CourseIdRoute = CourseIdRouteImport.update({
   path: '/course/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ClientLoginRoute = ClientLoginRouteImport.update({
+  id: '/client/login',
+  path: '/client/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClientDashboardRoute = ClientDashboardRouteImport.update({
+  id: '/client/dashboard',
+  path: '/client/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminFlowCheckRoute = AdminFlowCheckRouteImport.update({
   id: '/flow-check',
   path: '/flow-check',
@@ -211,6 +223,8 @@ export interface FileRoutesByFullPath {
   '/admin/courses': typeof AdminCoursesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/flow-check': typeof AdminFlowCheckRoute
+  '/client/dashboard': typeof ClientDashboardRoute
+  '/client/login': typeof ClientLoginRoute
   '/course/$id': typeof CourseIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/fin/$id': typeof FinIdRoute
@@ -243,6 +257,8 @@ export interface FileRoutesByTo {
   '/admin/courses': typeof AdminCoursesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/flow-check': typeof AdminFlowCheckRoute
+  '/client/dashboard': typeof ClientDashboardRoute
+  '/client/login': typeof ClientLoginRoute
   '/course/$id': typeof CourseIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/fin/$id': typeof FinIdRoute
@@ -276,6 +292,8 @@ export interface FileRoutesById {
   '/admin/courses': typeof AdminCoursesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/flow-check': typeof AdminFlowCheckRoute
+  '/client/dashboard': typeof ClientDashboardRoute
+  '/client/login': typeof ClientLoginRoute
   '/course/$id': typeof CourseIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/fin/$id': typeof FinIdRoute
@@ -310,6 +328,8 @@ export interface FileRouteTypes {
     | '/admin/courses'
     | '/admin/dashboard'
     | '/admin/flow-check'
+    | '/client/dashboard'
+    | '/client/login'
     | '/course/$id'
     | '/email/unsubscribe'
     | '/fin/$id'
@@ -342,6 +362,8 @@ export interface FileRouteTypes {
     | '/admin/courses'
     | '/admin/dashboard'
     | '/admin/flow-check'
+    | '/client/dashboard'
+    | '/client/login'
     | '/course/$id'
     | '/email/unsubscribe'
     | '/fin/$id'
@@ -374,6 +396,8 @@ export interface FileRouteTypes {
     | '/admin/courses'
     | '/admin/dashboard'
     | '/admin/flow-check'
+    | '/client/dashboard'
+    | '/client/login'
     | '/course/$id'
     | '/email/unsubscribe'
     | '/fin/$id'
@@ -404,6 +428,8 @@ export interface RootRouteChildren {
   ReservationRoute: typeof ReservationRouteWithChildren
   ReserverRoute: typeof ReserverRoute
   ServicesRoute: typeof ServicesRoute
+  ClientDashboardRoute: typeof ClientDashboardRoute
+  ClientLoginRoute: typeof ClientLoginRoute
   CourseIdRoute: typeof CourseIdRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   FinIdRoute: typeof FinIdRoute
@@ -533,6 +559,20 @@ declare module '@tanstack/react-router' {
       path: '/course/$id'
       fullPath: '/course/$id'
       preLoaderRoute: typeof CourseIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/client/login': {
+      id: '/client/login'
+      path: '/client/login'
+      fullPath: '/client/login'
+      preLoaderRoute: typeof ClientLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/client/dashboard': {
+      id: '/client/dashboard'
+      path: '/client/dashboard'
+      fullPath: '/client/dashboard'
+      preLoaderRoute: typeof ClientDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/flow-check': {
@@ -674,6 +714,8 @@ const rootRouteChildren: RootRouteChildren = {
   ReservationRoute: ReservationRouteWithChildren,
   ReserverRoute: ReserverRoute,
   ServicesRoute: ServicesRoute,
+  ClientDashboardRoute: ClientDashboardRoute,
+  ClientLoginRoute: ClientLoginRoute,
   CourseIdRoute: CourseIdRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   FinIdRoute: FinIdRoute,
