@@ -32,6 +32,33 @@ export type Database = {
         }
         Relationships: []
       }
+      client_accounts: {
+        Row: {
+          client_name: string | null
+          created_at: string
+          email: string
+          id: string
+          password_hash: string
+          phone: string | null
+        }
+        Insert: {
+          client_name?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          password_hash: string
+          phone?: string | null
+        }
+        Update: {
+          client_name?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          password_hash?: string
+          phone?: string | null
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           created_at: string
@@ -367,10 +394,49 @@ export type Database = {
           },
         ]
       }
+      reservation_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          read_by_chauffeur: boolean
+          read_by_client: boolean
+          reservation_id: string
+          sender: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          read_by_chauffeur?: boolean
+          read_by_client?: boolean
+          reservation_id: string
+          sender: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          read_by_chauffeur?: boolean
+          read_by_client?: boolean
+          reservation_id?: string
+          sender?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_messages_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "reservations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reservations: {
         Row: {
           arrivee: string
           bagages: number | null
+          client_account_id: string | null
           client_email: string | null
           client_name: string | null
           client_phone: string | null
@@ -406,6 +472,7 @@ export type Database = {
         Insert: {
           arrivee: string
           bagages?: number | null
+          client_account_id?: string | null
           client_email?: string | null
           client_name?: string | null
           client_phone?: string | null
@@ -441,6 +508,7 @@ export type Database = {
         Update: {
           arrivee?: string
           bagages?: number | null
+          client_account_id?: string | null
           client_email?: string | null
           client_name?: string | null
           client_phone?: string | null
@@ -473,7 +541,15 @@ export type Database = {
           tracking_id?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "reservations_client_account_id_fkey"
+            columns: ["client_account_id"]
+            isOneToOne: false
+            referencedRelation: "client_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reviews: {
         Row: {
@@ -620,6 +696,7 @@ export type Database = {
         Returns: {
           arrivee: string
           bagages: number | null
+          client_account_id: string | null
           client_email: string | null
           client_name: string | null
           client_phone: string | null
