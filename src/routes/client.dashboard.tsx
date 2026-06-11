@@ -92,6 +92,8 @@ function ClientDashboard() {
   const [busy, setBusy] = useState<string | null>(null);
   const [phoneModalId, setPhoneModalId] = useState<string | null>(null);
   const [phoneModalBusy, setPhoneModalBusy] = useState(false);
+  const [chatId, setChatId] = useState<string | null>(null);
+  const [unread, setUnread] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const s = getClientSession();
