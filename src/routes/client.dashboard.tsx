@@ -26,6 +26,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { ClientAuthHeader } from "@/components/ClientAuthHeader";
+import { ChatPanel } from "@/components/ChatPanel";
+import { supabase } from "@/integrations/supabase/client";
 import { getClientSession, clearClientSession } from "@/lib/client-session";
 import type { ClientSession } from "@/lib/client-auth.functions";
 import {
@@ -90,6 +92,8 @@ function ClientDashboard() {
   const [busy, setBusy] = useState<string | null>(null);
   const [phoneModalId, setPhoneModalId] = useState<string | null>(null);
   const [phoneModalBusy, setPhoneModalBusy] = useState(false);
+  const [chatId, setChatId] = useState<string | null>(null);
+  const [unread, setUnread] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const s = getClientSession();
@@ -120,6 +124,47 @@ function ClientDashboard() {
   useEffect(() => {
     if (ready) refresh();
   }, [ready, refresh]);
+
+  // Unread counts (messages from chauffeur not yet read by client)
+  const loadUnread = useCallback(async (ids: string[]) => {
+    if (ids.length === 0) return;
+    const { data } = await supabase
+      .from("reservation_messages")
+      .select("reservation_id")
+      .in("reservation_id", ids)
+      .eq("sender", "chauffeur")
+      .eq("read_by_client", false);
+    const counts: Record<string, number> = {};
+    for (const r of (data ?? []) as { reservation_id: string }[]) {
+      counts[r.reservation_id] = (counts[r.reservation_id] ?? 0) + 1;
+    }
+    setUnread(counts);
+  }, []);
+
+  useEffect(() => {
+    if (!rows) return;
+    const ids = rows.map((r) => r.id);
+    loadUnread(ids);
+    if (ids.length === 0) return;
+    const channel = supabase
+      .channel("client-chat-unread")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "reservation_messages" },
+        (payload) => {
+          const row: any = payload.new ?? payload.old;
+          if (row?.reservation_id && ids.includes(row.reservation_id)) {
+            loadUnread(ids);
+          }
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [rows, loadUnread]);
+
+
 
   function logout() {
     clearClientSession();
@@ -430,11 +475,15 @@ function ClientDashboard() {
 
                           {isActive && (
                             <button
-                              disabled
-                              title="Bientôt disponible"
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/40"
+                              onClick={() => setChatId(r.id)}
+                              className="relative inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white hover:bg-white/10"
                             >
                               <MessageCircle className="h-3.5 w-3.5" /> Tchat
+                              {unread[r.id] > 0 && (
+                                <span className="ml-0.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                                  {unread[r.id]}
+                                </span>
+                              )}
                             </button>
                           )}
 
@@ -520,6 +569,15 @@ function ClientDashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {chatId && (
+        <ChatPanel
+          reservationId={chatId}
+          role="client"
+          peerName="José 🚖"
+          onClose={() => setChatId(null)}
+        />
+      )}
     </main>
   );
 }

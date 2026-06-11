@@ -12,6 +12,8 @@ import logo from "@/assets/logo.jpeg";
 
 import { notifyReservationStatus } from "@/lib/push.functions";
 import { getFcmToken } from "@/lib/firebase";
+import { ChatPanel } from "@/components/ChatPanel";
+import { listAdminChatThreads, type AdminChatThread } from "@/lib/chat.functions";
 
 const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_TILE_OPTIONS = { attribution: "© OpenStreetMap contributors", maxZoom: 19 };
@@ -437,6 +439,32 @@ function Dashboard() {
   }, [items]);
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [counts, setCounts] = useState({ pending: 0, accepted: 0, refused: 0 });
+  const [chatThreads, setChatThreads] = useState<AdminChatThread[]>([]);
+  const [openChatId, setOpenChatId] = useState<string | null>(null);
+
+  const refreshChatThreads = useCallback(async () => {
+    try {
+      const t = await listAdminChatThreads();
+      setChatThreads(t);
+    } catch (e) {
+      console.error("[admin] threads", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshChatThreads();
+    const channel = supabase
+      .channel("admin-chat-threads")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "reservation_messages" },
+        () => refreshChatThreads(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refreshChatThreads]);
 
   // ── Actions ──
   const [cardKm, setCardKm] = useState<Record<string, number>>({});
@@ -4055,7 +4083,119 @@ function Dashboard() {
         )}
       </div>
 
+      {/* ── Tchats clients ── */}
+      <div style={{ padding: "20px 16px", maxWidth: 720, margin: "0 auto", width: "100%" }}>
+        <div style={{ color: "#f8fafc", fontWeight: 700, fontSize: 16, marginBottom: 12 }}>
+          💬 Tchats
+        </div>
+        {chatThreads.length === 0 ? (
+          <div
+            style={{
+              textAlign: "center",
+              color: "#475569",
+              padding: "28px 0",
+              fontSize: 14,
+              border: "1px dashed rgba(255,255,255,0.08)",
+              borderRadius: 16,
+            }}
+          >
+            Aucun message client
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {chatThreads.map((t) => (
+              <button
+                key={t.reservation_id}
+                onClick={() => setOpenChatId(t.reservation_id)}
+                style={{
+                  textAlign: "left",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 14,
+                  padding: 14,
+                  color: "#fff",
+                  cursor: "pointer",
+                  display: "flex",
+                  gap: 12,
+                  alignItems: "center",
+                  width: "100%",
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      marginBottom: 4,
+                    }}
+                  >
+                    <span style={{ fontWeight: 700, fontSize: 14 }}>
+                      {t.client_name || "Client"}
+                    </span>
+                    <span style={{ color: "#64748b", fontSize: 11 }}>
+                      {new Date(t.last_message_at).toLocaleString("fr-FR", {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      })}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: 12,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {t.last_message_content}
+                  </div>
+                  {(t.depart || t.destination) && (
+                    <div style={{ color: "#475569", fontSize: 11, marginTop: 2 }}>
+                      {t.depart} → {t.destination}
+                    </div>
+                  )}
+                </div>
+                {t.unread_chauffeur > 0 && (
+                  <span
+                    style={{
+                      background: "#ef4444",
+                      color: "#fff",
+                      borderRadius: 999,
+                      minWidth: 22,
+                      height: 22,
+                      padding: "0 7px",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {t.unread_chauffeur}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {openChatId && (
+        <ChatPanel
+          reservationId={openChatId}
+          role="chauffeur"
+          peerName={
+            chatThreads.find((t) => t.reservation_id === openChatId)?.client_name || "Client"
+          }
+          onClose={() => setOpenChatId(null)}
+        />
+      )}
+
       {/* ── Modale Accepter ── */}
+
+
 
       {/* ── Modale carte tracé ── */}
       {mapModal && (
