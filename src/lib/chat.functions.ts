@@ -26,7 +26,14 @@ export type AdminChatThread = {
 const sendSchema = z.object({
   reservation_id: z.string().uuid(),
   content: z.string().trim().min(1).max(2000),
+  skip_push: z.boolean().optional(),
 });
+
+// Throttle chauffeur → client pushes per reservation to avoid spam when
+// several messages are typed quickly. FCM `tag` already collapses on-device,
+// but skipping the network call entirely cuts noise + cost.
+const lastChauffeurPushAt = new Map<string, number>();
+const PUSH_THROTTLE_MS = 8000;
 
 export const sendClientMessage = createServerFn({ method: "POST" })
   .inputValidator((input) => sendSchema.parse(input))
@@ -66,20 +73,28 @@ export const sendChauffeurMessage = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
 
-    const body = data.content.length > 80 ? data.content.slice(0, 77) + "…" : data.content;
-    try {
-      await sendPushToAudience(
-        "client",
-        {
-          title: "💬 José vous répond",
-          body,
-          url: "/client/dashboard",
-          tag: `chat-${data.reservation_id}`,
-        },
-        { reservationId: data.reservation_id },
-      );
-    } catch (e) {
-      console.error("[chat] push to client failed", e);
+    const now = Date.now();
+    const last = lastChauffeurPushAt.get(data.reservation_id) ?? 0;
+    const shouldPush = !data.skip_push && now - last >= PUSH_THROTTLE_MS;
+
+    if (shouldPush) {
+      const body =
+        data.content.length > 80 ? data.content.slice(0, 77) + "…" : data.content;
+      lastChauffeurPushAt.set(data.reservation_id, now);
+      try {
+        await sendPushToAudience(
+          "client",
+          {
+            title: "💬 José vous répond",
+            body,
+            url: "/client/dashboard",
+            tag: `chat-${data.reservation_id}`,
+          },
+          { reservationId: data.reservation_id },
+        );
+      } catch (e) {
+        console.error("[chat] push to client failed", e);
+      }
     }
     return row as ChatMessage;
   });
