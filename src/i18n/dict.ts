@@ -538,7 +538,7 @@ const fr: Dict = {
   "taxi.banner.busy.title": "Taxi actuellement en course",
   "taxi.banner.busy.desc":
     "Vous pouvez tout de même réserver — votre demande sera prise en charge dès que le taxi sera libre.",
-  "taxi.banner.available.msg": "Taxi disponible — réservation confirmée rapidamente !",
+  "taxi.banner.available.msg": "Taxi disponible — réservation confirmée rapidement !",
 
   // Espace client
   client_login_title: "Mon Espace Client",
