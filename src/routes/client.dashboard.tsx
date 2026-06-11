@@ -26,6 +26,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { ClientAuthHeader } from "@/components/ClientAuthHeader";
+import { ChatPanel } from "@/components/ChatPanel";
+import { supabase } from "@/integrations/supabase/client";
 import { getClientSession, clearClientSession } from "@/lib/client-session";
 import type { ClientSession } from "@/lib/client-auth.functions";
 import {
