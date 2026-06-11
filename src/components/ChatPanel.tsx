@@ -442,6 +442,12 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
           </div>
         </div>
 
+        {queued.length > 0 && (
+          <div className="border-b border-amber-500/20 bg-amber-500/10 px-4 py-2 text-[11px] text-amber-300">
+            📡 {queued.length} message{queued.length > 1 ? "s" : ""} en attente — envoi automatique au retour en ligne.
+          </div>
+        )}
+
         {showSearch && (
           <div className="space-y-2 border-b border-white/10 bg-black/30 px-3 py-2.5">
             <div className="relative">
