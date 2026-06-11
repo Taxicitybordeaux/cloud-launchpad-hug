@@ -968,26 +968,17 @@ function SuiviPage() {
 
         const depIcon = L.divIcon({
           className: "",
-          html: `<div style="position:relative;width:44px;height:44px">
-            <span style="position:absolute;inset:0;border-radius:50%;background:rgba(34,197,94,0.35);animation:gpsRing 1.6s ease-out infinite"></span>
-            <span style="position:absolute;inset:6px;border-radius:50%;background:rgba(34,197,94,0.5);animation:gpsRing 1.6s ease-out infinite;animation-delay:.4s"></span>
-            <div style="position:absolute;top:7px;left:7px;width:30px;height:30px;background:#22c55e;border-radius:50%;border:3px solid white;box-shadow:0 4px 14px rgba(34,197,94,0.7)">
-              <svg viewBox="0 0 24 24" width="16" height="16" style="position:absolute;top:4px;left:4px" fill="white" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-              </svg>
-            </div>
-          </div>
-          <style>@keyframes gpsRing{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.6);opacity:0}}</style>`,
+          html: `<div style="position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center">
+          <span style="position:absolute;inset:0;border-radius:50%;background:rgba(34,197,94,0.35);animation:gpsRing 1.6s ease-out infinite"></span>
+          <span style="position:absolute;inset:6px;border-radius:50%;background:rgba(34,197,94,0.5);animation:gpsRing 1.6s ease-out infinite;animation-delay:.4s"></span>
+          <div style="position:relative;width:30px;height:30px;background:#22c55e;border-radius:50%;border:3px solid white;box-shadow:0 4px 14px rgba(34,197,94,0.7);display:flex;align-items:center;justify-content:center;font-size:15px">📍</div></div>
+        <style>@keyframes gpsRing{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.6);opacity:0}}</style>`,
           iconSize: [44, 44],
           iconAnchor: [22, 22],
         });
         const destIcon = L.divIcon({
           className: "",
-          html: `<div style="position:relative;width:34px;height:34px;background:#ef4444;border-radius:50%;border:3px solid white;box-shadow:0 2px 10px rgba(239,68,68,0.6)">
-            <svg viewBox="0 0 24 24" width="18" height="18" style="position:absolute;top:5px;left:5px" fill="white" xmlns="http://www.w3.org/2000/svg">
-              <path d="M5 3v18h2v-7h12l-3-4 3-4H7V3z"/>
-            </svg>
-          </div>`,
+          html: `<div style="width:34px;height:34px;background:#ef4444;border-radius:50%;border:3px solid white;box-shadow:0 2px 10px rgba(239,68,68,0.6);display:flex;align-items:center;justify-content:center;font-size:16px">🏁</div>`,
           iconSize: [34, 34],
           iconAnchor: [17, 17],
         });
@@ -1180,12 +1171,15 @@ function SuiviPage() {
                 }
               }
 
-              // Client → page de fin (on passe le vrai UUID, pas le suivi_id)
-              // Chauffeur → retour au dashboard admin (fallback si le bouton n'a pas redirigé)
+              // Client → page de fin : on utilise resaIdRef.current (vrai UUID garanti)
+              // Chauffeur → dashboard admin uniquement si courseTerminee est encore false,
+              // c'est-à-dire si le Realtime arrive AVANT que le bouton "Course terminée"
+              // ait eu le temps de setCourseTerminee(true) + naviguer lui-même.
+              // Évite la double navigation quand José clique le bouton dans suivi/$id.
               if (!isDriver) {
-                const resaRealId = (payload.new as any)?.id ?? id;
+                const resaRealId = (payload.new as any)?.id ?? resaIdRef.current;
                 setTimeout(() => navigate({ to: "/fin/$id", params: { id: resaRealId } }), 1200);
-              } else {
+              } else if (!courseTerminee) {
                 setTimeout(() => navigate({ to: "/admin/dashboard" }), 1500);
               }
               return;
