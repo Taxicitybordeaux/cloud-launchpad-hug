@@ -363,27 +363,37 @@ function Home() {
         <div className="mx-auto max-w-6xl px-4 py-12 sm:py-16 md:py-20">
           <div className="grid items-center gap-8 md:grid-cols-2 md:gap-12">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">Espace client</p>
-              <h2 className="mt-3 font-display text-3xl font-bold sm:text-4xl md:text-5xl">
-                Votre <span className="italic text-primary">tableau de bord</span> personnel
-              </h2>
-              <p className="mt-4 text-base leading-relaxed text-foreground/80 sm:text-lg">
-                Créez votre compte en 30 secondes pour retrouver toutes vos courses, suivre votre chauffeur en temps réel,
-                et réserver plus vite la prochaine fois. C'est gratuit, c'est simple, et ça reste entre nous.
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">
+                {t("home.client.eyebrow")}
               </p>
+              <h2 className="mt-3 font-display text-3xl font-bold sm:text-4xl md:text-5xl">
+                {t("home.client.title.before")}
+                <span className="italic text-primary">{t("home.client.title.italic")}</span>
+                {t("home.client.title.after")}
+              </h2>
+              <p className="mt-4 text-base leading-relaxed text-foreground/80 sm:text-lg">{t("home.client.desc")}</p>
 
               <ul className="mt-6 space-y-3 text-sm sm:text-base">
                 <li className="flex items-start gap-3">
                   <History className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                  <span><b>Historique complet</b> de vos trajets, reçus et tarifs.</span>
+                  <span>
+                    <b>{t("home.client.li1.bold")}</b>
+                    {t("home.client.li1.rest")}
+                  </span>
                 </li>
                 <li className="flex items-start gap-3">
                   <BellRing className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                  <span><b>Notifications</b> dès que le chauffeur est en route ou arrivé.</span>
+                  <span>
+                    <b>{t("home.client.li2.bold")}</b>
+                    {t("home.client.li2.rest")}
+                  </span>
                 </li>
                 <li className="flex items-start gap-3">
                   <MessageCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                  <span><b>Tchat direct</b> avec votre chauffeur pendant la course.</span>
+                  <span>
+                    <b>{t("home.client.li3.bold")}</b>
+                    {t("home.client.li3.rest")}
+                  </span>
                 </li>
               </ul>
 
@@ -392,13 +402,13 @@ function Home() {
                   to="/client/login"
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3.5 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-gold)] transition hover:opacity-90 sm:text-base"
                 >
-                  <UserCircle2 className="h-5 w-5" /> Accéder à mon espace
+                  <UserCircle2 className="h-5 w-5" /> {t("home.client.cta_login")}
                 </Link>
                 <Link
                   to="/client/login"
                   className="inline-flex items-center justify-center rounded-xl border border-border px-5 py-3.5 text-sm font-semibold transition hover:border-primary sm:text-base"
                 >
-                  Créer un compte
+                  {t("home.client.cta_register")}
                 </Link>
               </div>
             </div>
@@ -413,24 +423,28 @@ function Home() {
                     <UserCircle2 className="h-5 w-5" />
                   </div>
                   <div className="text-sm">
-                    <div className="font-semibold text-white">Bonjour Camille</div>
-                    <div className="text-xs text-white/50">Connectée à l'instant</div>
+                    <div className="font-semibold text-white">{t("home.client.mock.hello")}</div>
+                    <div className="text-xs text-white/50">{t("home.client.mock.connected")}</div>
                   </div>
                 </div>
                 <div className="mt-4 space-y-3">
                   <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-white/60">Aujourd'hui · 14:30</span>
-                      <span className="rounded-full bg-primary/15 px-2 py-0.5 font-medium text-primary">Terminée</span>
+                      <span className="text-white/60">{t("home.client.mock.ride1.time")}</span>
+                      <span className="rounded-full bg-primary/15 px-2 py-0.5 font-medium text-primary">
+                        {t("home.client.mock.status_done")}
+                      </span>
                     </div>
-                    <div className="mt-1 text-sm text-white/90">Gare Saint-Jean → Aéroport Mérignac</div>
+                    <div className="mt-1 text-sm text-white/90">{t("home.client.mock.ride1.route")}</div>
                   </div>
                   <div className="rounded-xl border border-primary/30 bg-primary/5 p-3">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-white/60">Demain · 09:00</span>
-                      <span className="rounded-full bg-primary px-2 py-0.5 font-medium text-primary-foreground">Confirmée</span>
+                      <span className="text-white/60">{t("home.client.mock.ride2.time")}</span>
+                      <span className="rounded-full bg-primary px-2 py-0.5 font-medium text-primary-foreground">
+                        {t("home.client.mock.status_confirmed")}
+                      </span>
                     </div>
-                    <div className="mt-1 text-sm text-white/90">Bordeaux Centre → Saint-Émilion</div>
+                    <div className="mt-1 text-sm text-white/90">{t("home.client.mock.ride2.route")}</div>
                   </div>
                 </div>
               </div>
