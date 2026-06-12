@@ -812,7 +812,7 @@ function Dashboard() {
       syncClientsFromCompleted();
     });
     const ch = supabase
-      .channel("dash-courses")
+      .channel("dash-courses-" + Date.now())
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "reservations" }, (payload) => {
         const n = payload.new as any;
         if (!initialLoad.current) {
