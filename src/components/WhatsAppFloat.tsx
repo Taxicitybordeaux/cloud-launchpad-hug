@@ -13,12 +13,6 @@ export function WhatsAppFloat() {
   const { t, lang } = useI18n();
   const location = useLocation();
 
-  // ── Monter uniquement côté client pour éviter l'erreur d'hydratation ──
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   const isHiddenPage =
     location.pathname.startsWith("/tracking/") ||
     location.pathname.startsWith("/suivi/") ||
@@ -64,7 +58,7 @@ export function WhatsAppFloat() {
   }, [barHeight]);
 
   // Ne rien rendre côté serveur ni avant hydratation
-  if (!mounted || isHiddenPage) return null;
+  if (typeof document === "undefined" || isHiddenPage) return null;
 
   const btnBase: React.CSSProperties = {
     flex: 1,
