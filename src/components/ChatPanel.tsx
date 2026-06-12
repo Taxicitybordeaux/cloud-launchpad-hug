@@ -289,6 +289,8 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
         try {
           const msg = await sendOne(next.content);
           setMessages((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]));
+          channelRef.current?.send({ type: "broadcast", event: "new_message", payload: msg });
+
           remaining.shift();
           writeQueue(remaining);
         } catch (e) {
@@ -327,7 +329,9 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
     try {
       const msg = await sendOne(content);
       setMessages((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]));
+      channelRef.current?.send({ type: "broadcast", event: "new_message", payload: msg });
       setInput("");
+
     } catch (e) {
       console.error("[chat] send failed, queuing for retry", e);
       const q = [...readQueue(), { tempId: crypto.randomUUID(), content, at: Date.now() }];
