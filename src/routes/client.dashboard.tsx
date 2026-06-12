@@ -357,7 +357,7 @@ function ClientDashboard() {
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="inline-flex items-center gap-1.5 text-xs text-white/60">
-                          <Calendar className="h-3.5 w-3.5" /> {fmtDate(r.pickup_datetime)}
+                          <Calendar className="h-3.5 w-3.5" /> {fmtDate(r.pickup_datetime, locale)}
                         </span>
                         <div className="flex flex-wrap items-center gap-1.5">
                           {r.phone_cancel_requested_at && (
