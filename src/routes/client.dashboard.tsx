@@ -84,7 +84,8 @@ function toLocalInput(iso: string) {
 function ClientDashboard() {
   const navigate = useNavigate();
   const t = useT();
-  const { dir, isRtl } = useI18n();
+  const { dir, isRtl, lang } = useI18n();
+  const locale = lang === "fr" ? "fr-FR" : lang === "en" ? "en-US" : lang === "es" ? "es-ES" : lang === "it" ? "it-IT" : lang === "pt" ? "pt-PT" : lang === "ar" ? "ar" : "fr-FR";
   const [session, setSession] = useState<ClientSession | null>(null);
   const [ready, setReady] = useState(false);
   const [rows, setRows] = useState<ClientReservation[] | null>(null);
