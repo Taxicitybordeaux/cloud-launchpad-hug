@@ -24,6 +24,8 @@ function applyDocDir(l: Lang) {
 export function I18nProvider({ children }: { children: ReactNode }) {
   // SSR-safe: always start with 'fr', then hydrate from localStorage / navigator on client.
   const [lang, setLangState] = useState<Lang>("fr");
+  // Prevent children from rendering with stale 'fr' lang before localStorage is read.
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     try {
@@ -40,6 +42,8 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       }
     } catch {
       /* noop */
+    } finally {
+      setHydrated(true);
     }
   }, []);
 
@@ -57,6 +61,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const t = (key: string) => dict[key] ?? DICTS.fr[key] ?? key;
   const dir = dirOf(lang);
   const isRtl = isRtlLang(lang);
+
+  // Don't render children until localStorage has been read — prevents
+  // WhatsAppFloat (and any other client component) from mounting with lang='fr'
+  // and then never re-translating because their own `mounted` flag is already set.
+  if (!hydrated) return null;
 
   return <Ctx.Provider value={{ lang, setLang, t, dir, isRtl }}>{children}</Ctx.Provider>;
 }
