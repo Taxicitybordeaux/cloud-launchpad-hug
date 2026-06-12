@@ -114,9 +114,11 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
   }, [reservationId, messages, hasMore, loadingMore]);
 
 
-  // ── Single realtime channel: postgres_changes + presence + broadcast ──
+  // ── Realtime channel: presence + typing broadcast only ──
+  // postgres_changes on reservation_messages is locked to admins by RLS,
+  // so non-admins poll via listReservationMessages below. We keep the
+  // channel for presence ("online" dot) and typing indicator.
   useEffect(() => {
-    // Guard against React strict-mode double-subscribe.
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
@@ -127,46 +129,21 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
     });
     channelRef.current = channel;
 
-    // New / updated messages.
     channel
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "reservation_messages",
-          filter: `reservation_id=eq.${reservationId}`,
-        },
-        (payload) => {
-          const m = payload.new as ChatMessage;
-          setMessages((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
-          if (m.sender === peerRole) markRead();
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "reservation_messages",
-          filter: `reservation_id=eq.${reservationId}`,
-        },
-        (payload) => {
-          const m = payload.new as ChatMessage;
-          setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, ...m } : x)));
-        },
-      )
-      // Typing indicator (broadcast).
       .on("broadcast", { event: "typing" }, ({ payload }) => {
         if (!payload || payload.role === role) return;
         setPeerTyping(true);
         if (typingHideTimer.current) clearTimeout(typingHideTimer.current);
-        typingHideTimer.current = setTimeout(
-          () => setPeerTyping(false),
-          TYPING_HIDE_AFTER_MS,
-        );
+        typingHideTimer.current = setTimeout(() => setPeerTyping(false), TYPING_HIDE_AFTER_MS);
       })
-      // Presence: detect if peer is currently in the chat.
+      .on("broadcast", { event: "new_message" }, ({ payload }) => {
+        // Best-effort instant delivery between client ↔ chauffeur. The
+        // canonical row still arrives via the next poll if this misses.
+        const m = payload as ChatMessage;
+        if (!m?.id) return;
+        setMessages((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
+        if (m.sender === peerRole) markRead();
+      })
       .on("presence", { event: "sync" }, () => {
         const state = channel.presenceState() as Record<string, unknown[]>;
         setPeerOnline(Boolean(state[peerRole] && state[peerRole].length > 0));
@@ -183,6 +160,45 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
       channelRef.current = null;
     };
   }, [reservationId, role, peerRole, markRead]);
+
+  // ── Polling fallback (4s) — fetches messages newer than what we have.
+  useEffect(() => {
+    let stop = false;
+    const tick = async () => {
+      if (stop || document.hidden) return;
+      try {
+        const latest = await listReservationMessages({
+          data: { reservation_id: reservationId, limit: PAGE_SIZE },
+        });
+        if (stop || latest.length === 0) return;
+        setMessages((prev) => {
+          const seen = new Set(prev.map((m) => m.id));
+          const merged = [...prev];
+          let added = false;
+          for (const m of latest) {
+            if (!seen.has(m.id)) {
+              merged.push(m);
+              added = true;
+            } else {
+              // refresh read flags
+              const idx = merged.findIndex((x) => x.id === m.id);
+              if (idx >= 0) merged[idx] = { ...merged[idx], ...m };
+            }
+          }
+          if (added && latest.some((m) => m.sender === peerRole)) markRead();
+          return merged.sort((a, b) => a.created_at.localeCompare(b.created_at));
+        });
+      } catch {
+        /* swallow */
+      }
+    };
+    const id = setInterval(tick, 4000);
+    return () => {
+      stop = true;
+      clearInterval(id);
+    };
+  }, [reservationId, peerRole, markRead]);
+
 
   // ── Scroll handling: stick-to-bottom + restore on prepend ──
   useEffect(() => {
