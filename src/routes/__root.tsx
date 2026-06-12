@@ -23,8 +23,11 @@ export const Route = createRootRoute({
       { rel: "stylesheet", href: appCss },
       // Manifest PWA — requis pour push iOS + "Ajouter à l'écran d'accueil"
       { rel: "manifest", href: "/manifest.json" },
-      // Icône iOS (remplacer par un PNG 180×180 pour un meilleur rendu)
-      { rel: "apple-touch-icon", href: "/favicon.ico" },
+      // Icône iOS — PNG 180×180 (rendu home screen)
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
+      { rel: "icon", type: "image/png", sizes: "192x192", href: "/icon-192.png" },
+      { rel: "icon", type: "image/png", sizes: "512x512", href: "/icon-512.png" },
     ],
   }),
   shellComponent: RootDocument,
