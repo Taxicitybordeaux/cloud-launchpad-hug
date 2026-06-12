@@ -21,30 +21,26 @@ function applyDocDir(l: Lang) {
   document.documentElement.dir = d;
 }
 
-export function I18nProvider({ children }: { children: ReactNode }) {
-  // SSR-safe: always start with 'fr', then hydrate from localStorage / navigator on client.
-  const [lang, setLangState] = useState<Lang>("fr");
-  // Prevent children from rendering with stale 'fr' lang before localStorage is read.
-  const [hydrated, setHydrated] = useState(false);
+function readStoredLang(): Lang {
+  // Appelé uniquement côté client (dans useState initializer lazy).
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored && isLang(stored)) return stored;
+  } catch {
+    /* noop */
+  }
+  return "fr";
+}
 
+export function I18nProvider({ children }: { children: ReactNode }) {
+  // Lazy initializer : lit localStorage au premier rendu CLIENT.
+  // Côté SSR typeof window === 'undefined' → le lazy fn retourne 'fr'.
+  const [lang, setLangState] = useState<Lang>(() => (typeof window === "undefined" ? "fr" : readStoredLang()));
+
+  // Synchronise document.documentElement dès le premier rendu client.
   useEffect(() => {
-    try {
-      // Uniquement si l'utilisateur a fait un choix explicite (localStorage)
-      // On n'utilise JAMAIS navigator.language pour éviter que Google
-      // et les bots anglophones indexent la version anglaise.
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored && isLang(stored)) {
-        setLangState(stored);
-        applyDocDir(stored);
-      } else {
-        // Pas de choix stocké → on reste en français (défaut SSR)
-        applyDocDir("fr");
-      }
-    } catch {
-      /* noop */
-    } finally {
-      setHydrated(true);
-    }
+    applyDocDir(lang);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const setLang = (l: Lang) => {
@@ -61,11 +57,6 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const t = (key: string) => dict[key] ?? DICTS.fr[key] ?? key;
   const dir = dirOf(lang);
   const isRtl = isRtlLang(lang);
-
-  // Don't render children until localStorage has been read — prevents
-  // WhatsAppFloat (and any other client component) from mounting with lang='fr'
-  // and then never re-translating because their own `mounted` flag is already set.
-  if (!hydrated) return null;
 
   return <Ctx.Provider value={{ lang, setLang, t, dir, isRtl }}>{children}</Ctx.Provider>;
 }
