@@ -128,20 +128,17 @@ function ClientDashboard() {
     if (ready) refresh();
   }, [ready, refresh]);
 
-  // Unread counts (messages from chauffeur not yet read by client)
+  // Unread counts (messages from chauffeur not yet read by client) — via
+  // server fn because the table is locked to admins at the RLS level.
   const loadUnread = useCallback(async (ids: string[]) => {
     if (ids.length === 0) return;
-    const { data } = await supabase
-      .from("reservation_messages")
-      .select("reservation_id")
-      .in("reservation_id", ids)
-      .eq("sender", "chauffeur")
-      .eq("read_by_client", false);
-    const counts: Record<string, number> = {};
-    for (const r of (data ?? []) as { reservation_id: string }[]) {
-      counts[r.reservation_id] = (counts[r.reservation_id] ?? 0) + 1;
+    try {
+      const { countUnreadForClient } = await import("@/lib/chat.functions");
+      const counts = await countUnreadForClient({ data: { reservation_ids: ids } });
+      setUnread(counts);
+    } catch (e) {
+      console.warn("[client.dashboard] unread load failed", e);
     }
-    setUnread(counts);
   }, []);
 
   useEffect(() => {
@@ -149,23 +146,11 @@ function ClientDashboard() {
     const ids = rows.map((r) => r.id);
     loadUnread(ids);
     if (ids.length === 0) return;
-    const channel = supabase
-      .channel("client-chat-unread")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "reservation_messages" },
-        (payload) => {
-          const row: any = payload.new ?? payload.old;
-          if (row?.reservation_id && ids.includes(row.reservation_id)) {
-            loadUnread(ids);
-          }
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    // Poll every 15s for unread updates (RLS blocks anon realtime here).
+    const it = setInterval(() => loadUnread(ids), 15000);
+    return () => clearInterval(it);
   }, [rows, loadUnread]);
+
 
 
 
