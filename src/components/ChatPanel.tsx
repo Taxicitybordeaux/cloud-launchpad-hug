@@ -4,9 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   sendClientMessage,
   sendChauffeurMessage,
+  listReservationMessages,
+  markReservationMessagesRead,
   type ChatMessage,
 } from "@/lib/chat.functions";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+
 
 type Props = {
   reservationId: string;
@@ -51,18 +54,14 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
   const stickToBottom = useRef(true);
   const prependAnchor = useRef<{ height: number } | null>(null);
 
-  // Mark peer's unread messages as read.
+  // Mark peer's unread messages as read (via server fn — RLS locks anon).
   const markRead = useCallback(async () => {
-    const patch =
-      role === "client" ? { read_by_client: true } : { read_by_chauffeur: true };
-    const readCol = role === "client" ? "read_by_client" : "read_by_chauffeur";
-    await supabase
-      .from("reservation_messages")
-      .update(patch)
-      .eq("reservation_id", reservationId)
-      .eq("sender", peerRole)
-      .eq(readCol, false);
-  }, [reservationId, role, peerRole]);
+    try {
+      await markReservationMessagesRead({ data: { reservation_id: reservationId, role } });
+    } catch (e) {
+      console.warn("[chat] markRead failed", e);
+    }
+  }, [reservationId, role]);
 
   // ── Initial load (latest PAGE_SIZE messages, ASC for render) ──
   useEffect(() => {
@@ -71,19 +70,22 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
     setMessages([]);
     setHasMore(true);
     (async () => {
-      const { data } = await supabase
-        .from("reservation_messages")
-        .select(MSG_COLS)
-        .eq("reservation_id", reservationId)
-        .order("created_at", { ascending: false })
-        .limit(PAGE_SIZE);
-      if (cancelled) return;
-      const rows = ((data ?? []) as ChatMessage[]).slice().reverse();
-      setMessages(rows);
-      setHasMore((data?.length ?? 0) >= PAGE_SIZE);
-      setLoading(false);
-      stickToBottom.current = true;
-      markRead();
+      try {
+        const rows = await listReservationMessages({
+          data: { reservation_id: reservationId, limit: PAGE_SIZE },
+        });
+        if (cancelled) return;
+        setMessages(rows);
+        setHasMore(rows.length >= PAGE_SIZE);
+      } catch (e) {
+        console.warn("[chat] initial load failed", e);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+          stickToBottom.current = true;
+          markRead();
+        }
+      }
     })();
     return () => {
       cancelled = true;
@@ -95,22 +97,22 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
     if (loadingMore || !hasMore || messages.length === 0) return;
     setLoadingMore(true);
     const oldest = messages[0];
-    // Capture height to restore scroll position after prepending.
     if (scrollRef.current) {
       prependAnchor.current = { height: scrollRef.current.scrollHeight };
     }
-    const { data } = await supabase
-      .from("reservation_messages")
-      .select(MSG_COLS)
-      .eq("reservation_id", reservationId)
-      .lt("created_at", oldest.created_at)
-      .order("created_at", { ascending: false })
-      .limit(PAGE_SIZE);
-    const older = ((data ?? []) as ChatMessage[]).slice().reverse();
-    setMessages((prev) => [...older, ...prev]);
-    setHasMore((data?.length ?? 0) >= PAGE_SIZE);
-    setLoadingMore(false);
+    try {
+      const older = await listReservationMessages({
+        data: { reservation_id: reservationId, before: oldest.created_at, limit: PAGE_SIZE },
+      });
+      setMessages((prev) => [...older, ...prev]);
+      setHasMore(older.length >= PAGE_SIZE);
+    } catch (e) {
+      console.warn("[chat] loadOlder failed", e);
+    } finally {
+      setLoadingMore(false);
+    }
   }, [reservationId, messages, hasMore, loadingMore]);
+
 
   // ── Single realtime channel: postgres_changes + presence + broadcast ──
   useEffect(() => {
