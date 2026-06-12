@@ -365,7 +365,7 @@ function ClientDashboard() {
                               className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
                               style={{ background: "rgba(249,115,22,0.18)", color: "#fdba74" }}
                             >
-                              Annulation par téléphone demandée
+                              {t("cd_phone_cancel_requested")}
                             </span>
                           )}
                           <span
@@ -386,7 +386,7 @@ function ClientDashboard() {
                       </div>
                       {r.prix_estime != null && (
                         <div className="text-xs text-white/60">
-                          Prix estimé :{" "}
+                          {t("cd_price_estimated")} :{" "}
                           <span className="font-semibold text-[#E8C96D]">
                             {Number(r.prix_estime).toFixed(2)} €
                           </span>
@@ -397,18 +397,18 @@ function ClientDashboard() {
                     {isOpen && (
                       <div className="border-t border-white/10 bg-black/30 p-4 sm:p-5">
                         <div className="mb-4 grid gap-1.5 text-xs text-white/70">
-                          <div>Passagers : {r.nb_passagers ?? r.passagers ?? 1}</div>
-                          <div>Bagages : {r.bagages ?? 0}</div>
-                          {r.paiement && <div>Paiement : {r.paiement}</div>}
+                          <div>{t("cd_passengers")} : {r.nb_passagers ?? r.passagers ?? 1}</div>
+                          <div>{t("cd_luggage")} : {r.bagages ?? 0}</div>
+                          {r.paiement && <div>{t("cd_payment")} : {r.paiement}</div>}
                           <div className="text-white/40">
-                            Réf. {(r.tracking_id || r.id).slice(0, 10)}
+                            {t("cd_ref")} {(r.tracking_id || r.id).slice(0, 10)}
                           </div>
                         </div>
 
                         {editingId === r.id ? (
                           <div className="mb-3 rounded-xl border border-white/10 bg-white/5 p-3">
                             <label className="mb-1.5 block text-xs text-white/70">
-                              Nouvelle date / heure
+                              {t("cd_new_datetime")}
                             </label>
                             <input
                               type="datetime-local"
@@ -423,7 +423,7 @@ function ClientDashboard() {
                                 disabled={busy === r.id}
                                 className="flex-1 rounded-lg bg-[#E8C96D] px-3 py-2 text-xs font-semibold text-black disabled:opacity-60"
                               >
-                                {busy === r.id ? "…" : "Confirmer"}
+                                {busy === r.id ? "…" : t("cd_confirm")}
                               </button>
                               <button
                                 onClick={() => {
@@ -432,7 +432,7 @@ function ClientDashboard() {
                                 }}
                                 className="rounded-lg border border-white/10 px-3 py-2 text-xs text-white/70 hover:bg-white/5"
                               >
-                                Annuler
+                                {t("cd_cancel")}
                               </button>
                             </div>
                           </div>
@@ -447,7 +447,7 @@ function ClientDashboard() {
                               }}
                               className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white hover:bg-white/10"
                             >
-                              <Clock className="h-3.5 w-3.5" /> Modifier l'heure
+                              <Clock className="h-3.5 w-3.5" /> {t("cd_edit_time")}
                             </button>
                           )}
 
@@ -460,7 +460,7 @@ function ClientDashboard() {
                                   "linear-gradient(135deg, #C9A84C 0%, #E8C96D 100%)",
                               }}
                             >
-                              <Eye className="h-3.5 w-3.5" /> Suivre ma course
+                              <Eye className="h-3.5 w-3.5" /> {t("cd_track_ride")}
                             </a>
                           )}
 
@@ -469,7 +469,7 @@ function ClientDashboard() {
                               onClick={() => setChatId(r.id)}
                               className="relative inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white hover:bg-white/10"
                             >
-                              <MessageCircle className="h-3.5 w-3.5" /> Tchat
+                              <MessageCircle className="h-3.5 w-3.5" /> {t("cd_chat")}
                               {unread[r.id] > 0 && (
                                 <span className="ml-0.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
                                   {unread[r.id]}
@@ -484,7 +484,7 @@ function ClientDashboard() {
                               disabled={busy === r.id}
                               className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300 hover:bg-red-500/20 disabled:opacity-60"
                             >
-                              <X className="h-3.5 w-3.5" /> Annuler
+                              <X className="h-3.5 w-3.5" /> {t("cd_cancel")}
                             </button>
                           )}
 
@@ -498,13 +498,13 @@ function ClientDashboard() {
                                     "linear-gradient(135deg, #C9A84C 0%, #E8C96D 100%)",
                                 }}
                               >
-                                <RotateCw className="h-3.5 w-3.5" /> Recommander
+                                <RotateCw className="h-3.5 w-3.5" /> {t("cd_recommend")}
                               </button>
                               <Link
                                 to="/reserver"
                                 className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white hover:bg-white/10"
                               >
-                                <Plus className="h-3.5 w-3.5" /> Nouvelle course
+                                <Plus className="h-3.5 w-3.5" /> {t("cd_new_ride")}
                               </Link>
                             </>
                           )}
@@ -514,12 +514,12 @@ function ClientDashboard() {
                               onClick={() => setPhoneModalId(r.id)}
                               className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white hover:bg-white/10"
                             >
-                              <Phone className="h-3.5 w-3.5" /> Annuler par téléphone
+                              <Phone className="h-3.5 w-3.5" /> {t("cd_cancel_phone")}
                             </button>
                           )}
                           {isActive && r.phone_cancel_requested_at && (
                             <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/40">
-                              <Phone className="h-3.5 w-3.5" /> Demande envoyée
+                              <Phone className="h-3.5 w-3.5" /> {t("cd_request_sent")}
                             </span>
                           )}
                         </div>
