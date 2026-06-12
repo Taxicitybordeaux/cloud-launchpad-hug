@@ -99,6 +99,76 @@ export const sendChauffeurMessage = createServerFn({ method: "POST" })
     return row as ChatMessage;
   });
 
+export const listReservationMessages = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z
+      .object({
+        reservation_id: z.string().uuid(),
+        before: z.string().datetime().optional(),
+        limit: z.number().int().min(1).max(100).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let q = supabaseAdmin
+      .from("reservation_messages")
+      .select("id,reservation_id,sender,content,read_by_client,read_by_chauffeur,created_at")
+      .eq("reservation_id", data.reservation_id)
+      .order("created_at", { ascending: false })
+      .limit(data.limit ?? 30);
+    if (data.before) q = q.lt("created_at", data.before);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    return ((rows ?? []) as ChatMessage[]).slice().reverse();
+  });
+
+export const markReservationMessagesRead = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z
+      .object({
+        reservation_id: z.string().uuid(),
+        role: z.enum(["client", "chauffeur"]),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const peer = data.role === "client" ? "chauffeur" : "client";
+    const patch =
+      data.role === "client" ? { read_by_client: true } : { read_by_chauffeur: true };
+    const readCol = data.role === "client" ? "read_by_client" : "read_by_chauffeur";
+    const { error } = await supabaseAdmin
+      .from("reservation_messages")
+      .update(patch)
+      .eq("reservation_id", data.reservation_id)
+      .eq("sender", peer)
+      .eq(readCol, false);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const countUnreadForClient = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z.object({ reservation_ids: z.array(z.string().uuid()).max(200) }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    if (data.reservation_ids.length === 0) return {} as Record<string, number>;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("reservation_messages")
+      .select("reservation_id")
+      .in("reservation_id", data.reservation_ids)
+      .eq("sender", "chauffeur")
+      .eq("read_by_client", false);
+    if (error) throw new Error(error.message);
+    const counts: Record<string, number> = {};
+    for (const r of (rows ?? []) as { reservation_id: string }[]) {
+      counts[r.reservation_id] = (counts[r.reservation_id] ?? 0) + 1;
+    }
+    return counts;
+  });
+
 export const listAdminChatThreads = createServerFn({ method: "GET" }).handler(async () => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -143,3 +213,4 @@ export const listAdminChatThreads = createServerFn({ method: "GET" }).handler(as
   threads.sort((a, b) => b.last_message_at.localeCompare(a.last_message_at));
   return threads;
 });
+

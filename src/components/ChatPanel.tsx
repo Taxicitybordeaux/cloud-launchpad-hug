@@ -4,9 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   sendClientMessage,
   sendChauffeurMessage,
+  listReservationMessages,
+  markReservationMessagesRead,
   type ChatMessage,
 } from "@/lib/chat.functions";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+
 
 type Props = {
   reservationId: string;
@@ -51,18 +54,14 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
   const stickToBottom = useRef(true);
   const prependAnchor = useRef<{ height: number } | null>(null);
 
-  // Mark peer's unread messages as read.
+  // Mark peer's unread messages as read (via server fn — RLS locks anon).
   const markRead = useCallback(async () => {
-    const patch =
-      role === "client" ? { read_by_client: true } : { read_by_chauffeur: true };
-    const readCol = role === "client" ? "read_by_client" : "read_by_chauffeur";
-    await supabase
-      .from("reservation_messages")
-      .update(patch)
-      .eq("reservation_id", reservationId)
-      .eq("sender", peerRole)
-      .eq(readCol, false);
-  }, [reservationId, role, peerRole]);
+    try {
+      await markReservationMessagesRead({ data: { reservation_id: reservationId, role } });
+    } catch (e) {
+      console.warn("[chat] markRead failed", e);
+    }
+  }, [reservationId, role]);
 
   // ── Initial load (latest PAGE_SIZE messages, ASC for render) ──
   useEffect(() => {
@@ -71,19 +70,22 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
     setMessages([]);
     setHasMore(true);
     (async () => {
-      const { data } = await supabase
-        .from("reservation_messages")
-        .select(MSG_COLS)
-        .eq("reservation_id", reservationId)
-        .order("created_at", { ascending: false })
-        .limit(PAGE_SIZE);
-      if (cancelled) return;
-      const rows = ((data ?? []) as ChatMessage[]).slice().reverse();
-      setMessages(rows);
-      setHasMore((data?.length ?? 0) >= PAGE_SIZE);
-      setLoading(false);
-      stickToBottom.current = true;
-      markRead();
+      try {
+        const rows = await listReservationMessages({
+          data: { reservation_id: reservationId, limit: PAGE_SIZE },
+        });
+        if (cancelled) return;
+        setMessages(rows);
+        setHasMore(rows.length >= PAGE_SIZE);
+      } catch (e) {
+        console.warn("[chat] initial load failed", e);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+          stickToBottom.current = true;
+          markRead();
+        }
+      }
     })();
     return () => {
       cancelled = true;
@@ -95,26 +97,28 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
     if (loadingMore || !hasMore || messages.length === 0) return;
     setLoadingMore(true);
     const oldest = messages[0];
-    // Capture height to restore scroll position after prepending.
     if (scrollRef.current) {
       prependAnchor.current = { height: scrollRef.current.scrollHeight };
     }
-    const { data } = await supabase
-      .from("reservation_messages")
-      .select(MSG_COLS)
-      .eq("reservation_id", reservationId)
-      .lt("created_at", oldest.created_at)
-      .order("created_at", { ascending: false })
-      .limit(PAGE_SIZE);
-    const older = ((data ?? []) as ChatMessage[]).slice().reverse();
-    setMessages((prev) => [...older, ...prev]);
-    setHasMore((data?.length ?? 0) >= PAGE_SIZE);
-    setLoadingMore(false);
+    try {
+      const older = await listReservationMessages({
+        data: { reservation_id: reservationId, before: oldest.created_at, limit: PAGE_SIZE },
+      });
+      setMessages((prev) => [...older, ...prev]);
+      setHasMore(older.length >= PAGE_SIZE);
+    } catch (e) {
+      console.warn("[chat] loadOlder failed", e);
+    } finally {
+      setLoadingMore(false);
+    }
   }, [reservationId, messages, hasMore, loadingMore]);
 
-  // ── Single realtime channel: postgres_changes + presence + broadcast ──
+
+  // ── Realtime channel: presence + typing broadcast only ──
+  // postgres_changes on reservation_messages is locked to admins by RLS,
+  // so non-admins poll via listReservationMessages below. We keep the
+  // channel for presence ("online" dot) and typing indicator.
   useEffect(() => {
-    // Guard against React strict-mode double-subscribe.
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
@@ -125,46 +129,21 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
     });
     channelRef.current = channel;
 
-    // New / updated messages.
     channel
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "reservation_messages",
-          filter: `reservation_id=eq.${reservationId}`,
-        },
-        (payload) => {
-          const m = payload.new as ChatMessage;
-          setMessages((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
-          if (m.sender === peerRole) markRead();
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "reservation_messages",
-          filter: `reservation_id=eq.${reservationId}`,
-        },
-        (payload) => {
-          const m = payload.new as ChatMessage;
-          setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, ...m } : x)));
-        },
-      )
-      // Typing indicator (broadcast).
       .on("broadcast", { event: "typing" }, ({ payload }) => {
         if (!payload || payload.role === role) return;
         setPeerTyping(true);
         if (typingHideTimer.current) clearTimeout(typingHideTimer.current);
-        typingHideTimer.current = setTimeout(
-          () => setPeerTyping(false),
-          TYPING_HIDE_AFTER_MS,
-        );
+        typingHideTimer.current = setTimeout(() => setPeerTyping(false), TYPING_HIDE_AFTER_MS);
       })
-      // Presence: detect if peer is currently in the chat.
+      .on("broadcast", { event: "new_message" }, ({ payload }) => {
+        // Best-effort instant delivery between client ↔ chauffeur. The
+        // canonical row still arrives via the next poll if this misses.
+        const m = payload as ChatMessage;
+        if (!m?.id) return;
+        setMessages((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
+        if (m.sender === peerRole) markRead();
+      })
       .on("presence", { event: "sync" }, () => {
         const state = channel.presenceState() as Record<string, unknown[]>;
         setPeerOnline(Boolean(state[peerRole] && state[peerRole].length > 0));
@@ -181,6 +160,45 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
       channelRef.current = null;
     };
   }, [reservationId, role, peerRole, markRead]);
+
+  // ── Polling fallback (4s) — fetches messages newer than what we have.
+  useEffect(() => {
+    let stop = false;
+    const tick = async () => {
+      if (stop || document.hidden) return;
+      try {
+        const latest = await listReservationMessages({
+          data: { reservation_id: reservationId, limit: PAGE_SIZE },
+        });
+        if (stop || latest.length === 0) return;
+        setMessages((prev) => {
+          const seen = new Set(prev.map((m) => m.id));
+          const merged = [...prev];
+          let added = false;
+          for (const m of latest) {
+            if (!seen.has(m.id)) {
+              merged.push(m);
+              added = true;
+            } else {
+              // refresh read flags
+              const idx = merged.findIndex((x) => x.id === m.id);
+              if (idx >= 0) merged[idx] = { ...merged[idx], ...m };
+            }
+          }
+          if (added && latest.some((m) => m.sender === peerRole)) markRead();
+          return merged.sort((a, b) => a.created_at.localeCompare(b.created_at));
+        });
+      } catch {
+        /* swallow */
+      }
+    };
+    const id = setInterval(tick, 4000);
+    return () => {
+      stop = true;
+      clearInterval(id);
+    };
+  }, [reservationId, peerRole, markRead]);
+
 
   // ── Scroll handling: stick-to-bottom + restore on prepend ──
   useEffect(() => {
@@ -271,6 +289,8 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
         try {
           const msg = await sendOne(next.content);
           setMessages((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]));
+          channelRef.current?.send({ type: "broadcast", event: "new_message", payload: msg });
+
           remaining.shift();
           writeQueue(remaining);
         } catch (e) {
@@ -309,7 +329,9 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
     try {
       const msg = await sendOne(content);
       setMessages((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]));
+      channelRef.current?.send({ type: "broadcast", event: "new_message", payload: msg });
       setInput("");
+
     } catch (e) {
       console.error("[chat] send failed, queuing for retry", e);
       const q = [...readQueue(), { tempId: crypto.randomUUID(), content, at: Date.now() }];
