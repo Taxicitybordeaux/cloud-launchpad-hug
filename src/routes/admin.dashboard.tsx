@@ -832,6 +832,7 @@ function Dashboard() {
           setItems((prev) => (prev.some((item) => item.id === n.id) ? prev : [n, ...prev]));
         }
         fetchStats();
+        fetchClients();
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "reservations" }, async (payload) => {
         const updated = payload.new as any;
