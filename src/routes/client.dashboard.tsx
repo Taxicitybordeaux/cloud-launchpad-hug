@@ -334,10 +334,11 @@ function ClientDashboard() {
           {!loading && rows && rows.length > 0 && (
             <ul className="space-y-3">
               {rows.map((r) => {
-                const status = STATUS_LABEL[r.status] || {
-                  label: r.status,
-                  bg: "rgba(255,255,255,0.08)",
-                  fg: "#fff",
+                const meta = STATUS_META[r.status];
+                const status = {
+                  label: meta ? t(meta.key) : r.status,
+                  bg: meta?.bg || "rgba(255,255,255,0.08)",
+                  fg: meta?.fg || "#fff",
                 };
                 const isOpen = openId === r.id;
                 const isActive = ACTIVE_STATUSES.has(r.status);
