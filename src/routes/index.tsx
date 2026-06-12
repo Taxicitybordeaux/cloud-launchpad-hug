@@ -517,40 +517,7 @@ function Home() {
         </div>
       </section>
 
-      {/* BARRE FLOTTANTE BAS — WhatsApp · Appeler · Réserver */}
-      <div className="fixed bottom-0 inset-x-0 z-50 flex" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
-        {/* WhatsApp */}
-        <a
-          href={WHATSAPP}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex flex-1 flex-col items-center justify-center gap-1 py-3.5 text-xs font-semibold text-white transition active:brightness-90"
-          style={{ backgroundColor: "#25D366" }}
-        >
-          <MessageCircle className="h-5 w-5" />
-          <span>WhatsApp</span>
-        </a>
-
-        {/* Appeler */}
-        <a
-          href={`tel:${PHONE}`}
-          className="flex flex-1 flex-col items-center justify-center gap-1 py-3.5 text-xs font-semibold text-white transition active:brightness-90"
-          style={{ backgroundColor: "#1B3A6B" }}
-        >
-          <Phone className="h-5 w-5" />
-          <span>Appeler</span>
-        </a>
-
-        {/* Réserver */}
-        <Link
-          to="/reservation"
-          className="flex flex-1 flex-col items-center justify-center gap-1 py-3.5 text-xs font-semibold text-white transition active:brightness-90"
-          style={{ backgroundColor: "#00B4D8" }}
-        >
-          <ArrowRight className="h-5 w-5" />
-          <span>Réservation</span>
-        </Link>
-      </div>
+      {/* BARRE FLOTTANTE BAS — rendu par WhatsAppFloat dans __root.tsx */}
     </>
   );
 }
