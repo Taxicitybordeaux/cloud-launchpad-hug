@@ -52,20 +52,20 @@ export const Route = createFileRoute("/client/dashboard")({
 const ACTIVE_STATUSES = new Set(["nouvelle", "pending", "accepted", "en_route", "arrived"]);
 const CANCELLABLE = new Set(["nouvelle", "pending", "accepted"]);
 
-const STATUS_LABEL: Record<string, { label: string; bg: string; fg: string }> = {
-  nouvelle: { label: "En attente", bg: "rgba(234,179,8,0.15)", fg: "#facc15" },
-  pending: { label: "En attente", bg: "rgba(234,179,8,0.15)", fg: "#facc15" },
-  accepted: { label: "Acceptée", bg: "rgba(34,197,94,0.15)", fg: "#4ade80" },
-  en_route: { label: "Chauffeur en route", bg: "rgba(59,130,246,0.18)", fg: "#60a5fa" },
-  arrived: { label: "Chauffeur arrivé", bg: "rgba(99,102,241,0.18)", fg: "#a5b4fc" },
-  completed: { label: "Terminée", bg: "rgba(148,163,184,0.18)", fg: "#cbd5e1" },
-  cancelled: { label: "Annulée", bg: "rgba(239,68,68,0.18)", fg: "#fca5a5" },
-  refused: { label: "Refusée", bg: "rgba(239,68,68,0.18)", fg: "#fca5a5" },
+const STATUS_META: Record<string, { key: string; bg: string; fg: string }> = {
+  nouvelle: { key: "cd_status_pending", bg: "rgba(234,179,8,0.15)", fg: "#facc15" },
+  pending: { key: "cd_status_pending", bg: "rgba(234,179,8,0.15)", fg: "#facc15" },
+  accepted: { key: "cd_status_accepted", bg: "rgba(34,197,94,0.15)", fg: "#4ade80" },
+  en_route: { key: "cd_status_en_route", bg: "rgba(59,130,246,0.18)", fg: "#60a5fa" },
+  arrived: { key: "cd_status_arrived", bg: "rgba(99,102,241,0.18)", fg: "#a5b4fc" },
+  completed: { key: "cd_status_completed", bg: "rgba(148,163,184,0.18)", fg: "#cbd5e1" },
+  cancelled: { key: "cd_status_cancelled", bg: "rgba(239,68,68,0.18)", fg: "#fca5a5" },
+  refused: { key: "cd_status_refused", bg: "rgba(239,68,68,0.18)", fg: "#fca5a5" },
 };
 
-function fmtDate(iso: string) {
+function fmtDate(iso: string, locale: string) {
   try {
-    return new Date(iso).toLocaleString("fr-FR", {
+    return new Date(iso).toLocaleString(locale, {
       dateStyle: "medium",
       timeStyle: "short",
       timeZone: "Europe/Paris",
