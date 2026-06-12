@@ -3,6 +3,7 @@ import * as React from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { SiteHeader } from "@/components/SiteHeader";
+import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import appCss from "@/styles.css?url";
 
 export const Route = createRootRoute({
@@ -61,6 +62,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           {showHeader && <SiteHeader />}
           {children}
           <Toaster />
+          <WhatsAppFloat />
         </I18nProvider>
         <Scripts />
       </body>
