@@ -539,7 +539,7 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
               className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-white/60 hover:bg-white/10 disabled:opacity-50"
             >
               {loadingMore ? <Loader2 className="h-3 w-3 animate-spin" /> : <ChevronUp className="h-3 w-3" />}
-              Messages plus anciens
+              {t("chat_older_messages")}
             </button>
           </div>
         )}
