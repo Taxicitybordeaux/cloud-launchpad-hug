@@ -132,7 +132,7 @@ function ClientDashboard() {
       setRows(data);
     } catch (e) {
       console.error(e);
-      toast.error("Impossible de charger vos courses");
+      toast.error(t("cd_toast_load_err"));
     } finally {
       setLoading(false);
     }
