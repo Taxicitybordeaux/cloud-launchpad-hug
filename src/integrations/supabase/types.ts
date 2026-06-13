@@ -176,6 +176,44 @@ export type Database = {
         }
         Relationships: []
       }
+      direct_messages: {
+        Row: {
+          client_account_id: string
+          content: string
+          created_at: string
+          id: string
+          read_by_chauffeur: boolean
+          read_by_client: boolean
+          sender: string
+        }
+        Insert: {
+          client_account_id: string
+          content: string
+          created_at?: string
+          id?: string
+          read_by_chauffeur?: boolean
+          read_by_client?: boolean
+          sender: string
+        }
+        Update: {
+          client_account_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          read_by_chauffeur?: boolean
+          read_by_client?: boolean
+          sender?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "direct_messages_client_account_id_fkey"
+            columns: ["client_account_id"]
+            isOneToOne: false
+            referencedRelation: "client_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       driver_gps: {
         Row: {
           accuracy: number | null
