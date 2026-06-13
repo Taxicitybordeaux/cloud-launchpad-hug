@@ -625,6 +625,19 @@ const fr: Dict = {
   cd_status_completed: "Terminée",
   cd_status_cancelled: "Annulée",
   cd_status_refused: "Refusée",
+  cd_book_same: "Refaire la même course",
+  cd_toast_load_err: "Impossible de charger vos courses",
+  cd_toast_time_changed: "Heure modifiée — chauffeur notifié",
+  cd_toast_locked_edit: "Cette course ne peut plus être modifiée",
+  cd_toast_edit_failed: "Modification impossible",
+  cd_confirm_cancel: "Confirmer l'annulation de cette course ?",
+  cd_toast_cancelled: "Course annulée",
+  cd_toast_locked_cancel: "Cette course ne peut plus être annulée",
+  cd_toast_cancel_failed: "Annulation impossible",
+  cd_toast_phone_recorded: "Demande d'annulation par téléphone enregistrée",
+  cd_toast_phone_failed: "Enregistrement impossible",
+  cd_msg_to_jose: "💬 Message à José",
+  cd_meta_title: "Mon espace client — Taxi City Bordeaux",
 };
 
 const en: Dict = {
