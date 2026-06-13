@@ -599,7 +599,7 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
             <div
               className="flex items-center gap-1 rounded-2xl px-3 py-2"
               style={{ background: "rgba(255,255,255,0.08)" }}
-              aria-label="L'autre personne est en train d'écrire"
+              aria-label={t("chat_typing_aria")}
             >
               <Dot delay="0ms" />
               <Dot delay="150ms" />
