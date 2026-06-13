@@ -625,6 +625,19 @@ const fr: Dict = {
   cd_status_completed: "Terminée",
   cd_status_cancelled: "Annulée",
   cd_status_refused: "Refusée",
+  cd_book_same: "Refaire la même course",
+  cd_toast_load_err: "Impossible de charger vos courses",
+  cd_toast_time_changed: "Heure modifiée — chauffeur notifié",
+  cd_toast_locked_edit: "Cette course ne peut plus être modifiée",
+  cd_toast_edit_failed: "Modification impossible",
+  cd_confirm_cancel: "Confirmer l'annulation de cette course ?",
+  cd_toast_cancelled: "Course annulée",
+  cd_toast_locked_cancel: "Cette course ne peut plus être annulée",
+  cd_toast_cancel_failed: "Annulation impossible",
+  cd_toast_phone_recorded: "Demande d'annulation par téléphone enregistrée",
+  cd_toast_phone_failed: "Enregistrement impossible",
+  cd_msg_to_jose: "💬 Message à José",
+  cd_meta_title: "Mon espace client — Taxi City Bordeaux",
 };
 
 const en: Dict = {
@@ -1202,6 +1215,19 @@ const en: Dict = {
   cd_status_completed: "Completed",
   cd_status_cancelled: "Cancelled",
   cd_status_refused: "Refused",
+  cd_book_same: "Book the same ride",
+  cd_toast_load_err: "Could not load your rides",
+  cd_toast_time_changed: "Time updated — driver notified",
+  cd_toast_locked_edit: "This ride can no longer be edited",
+  cd_toast_edit_failed: "Update failed",
+  cd_confirm_cancel: "Cancel this ride?",
+  cd_toast_cancelled: "Ride cancelled",
+  cd_toast_locked_cancel: "This ride can no longer be cancelled",
+  cd_toast_cancel_failed: "Cancellation failed",
+  cd_toast_phone_recorded: "Phone cancellation request recorded",
+  cd_toast_phone_failed: "Could not record request",
+  cd_msg_to_jose: "💬 Message José",
+  cd_meta_title: "My client area — Taxi City Bordeaux",
 };
 
 const es: Dict = {
@@ -1784,6 +1810,19 @@ const es: Dict = {
   cd_status_completed: "Finalizada",
   cd_status_cancelled: "Cancelada",
   cd_status_refused: "Rechazada",
+  cd_book_same: "Repetir el mismo viaje",
+  cd_toast_load_err: "No se pudieron cargar sus viajes",
+  cd_toast_time_changed: "Hora modificada — conductor notificado",
+  cd_toast_locked_edit: "Este viaje ya no se puede modificar",
+  cd_toast_edit_failed: "Modificación imposible",
+  cd_confirm_cancel: "¿Confirmar la cancelación de este viaje?",
+  cd_toast_cancelled: "Viaje cancelado",
+  cd_toast_locked_cancel: "Este viaje ya no se puede cancelar",
+  cd_toast_cancel_failed: "Cancelación imposible",
+  cd_toast_phone_recorded: "Solicitud de cancelación por teléfono registrada",
+  cd_toast_phone_failed: "Registro imposible",
+  cd_msg_to_jose: "💬 Mensaje a José",
+  cd_meta_title: "Mi área de cliente — Taxi City Bordeaux",
 };
 
 const it: Dict = {
@@ -2369,6 +2408,19 @@ const it: Dict = {
   cd_status_completed: "Completata",
   cd_status_cancelled: "Annullata",
   cd_status_refused: "Rifiutata",
+  cd_book_same: "Ripeti la stessa corsa",
+  cd_toast_load_err: "Impossibile caricare le tue corse",
+  cd_toast_time_changed: "Orario modificato — autista avvisato",
+  cd_toast_locked_edit: "Questa corsa non può più essere modificata",
+  cd_toast_edit_failed: "Modifica impossibile",
+  cd_confirm_cancel: "Confermare l'annullamento di questa corsa?",
+  cd_toast_cancelled: "Corsa annullata",
+  cd_toast_locked_cancel: "Questa corsa non può più essere annullata",
+  cd_toast_cancel_failed: "Annullamento impossibile",
+  cd_toast_phone_recorded: "Richiesta di annullamento telefonico registrata",
+  cd_toast_phone_failed: "Registrazione impossibile",
+  cd_msg_to_jose: "💬 Messaggio a José",
+  cd_meta_title: "Area cliente — Taxi City Bordeaux",
 };
 
 // Dictionnaire arabe — traductions clés ; fallback automatique sur le français pour les clés manquantes.
@@ -2941,6 +2993,19 @@ const ar: Dict = {
   cd_status_completed: "منتهية",
   cd_status_cancelled: "ملغاة",
   cd_status_refused: "مرفوضة",
+  cd_book_same: "إعادة نفس الرحلة",
+  cd_toast_load_err: "تعذّر تحميل رحلاتك",
+  cd_toast_time_changed: "تم تعديل الوقت — تم إشعار السائق",
+  cd_toast_locked_edit: "لا يمكن تعديل هذه الرحلة بعد الآن",
+  cd_toast_edit_failed: "تعذّر التعديل",
+  cd_confirm_cancel: "تأكيد إلغاء هذه الرحلة؟",
+  cd_toast_cancelled: "تم إلغاء الرحلة",
+  cd_toast_locked_cancel: "لا يمكن إلغاء هذه الرحلة بعد الآن",
+  cd_toast_cancel_failed: "تعذّر الإلغاء",
+  cd_toast_phone_recorded: "تم تسجيل طلب الإلغاء عبر الهاتف",
+  cd_toast_phone_failed: "تعذّر التسجيل",
+  cd_msg_to_jose: "💬 رسالة إلى خوسيه",
+  cd_meta_title: "فضائي كعميل — Taxi City Bordeaux",
 };
 
 const pt: Dict = {
@@ -3542,6 +3607,19 @@ const pt: Dict = {
   cd_status_completed: "Concluída",
   cd_status_cancelled: "Cancelada",
   cd_status_refused: "Recusada",
+  cd_book_same: "Repetir a mesma corrida",
+  cd_toast_load_err: "Não foi possível carregar as suas corridas",
+  cd_toast_time_changed: "Hora alterada — motorista notificado",
+  cd_toast_locked_edit: "Esta corrida já não pode ser alterada",
+  cd_toast_edit_failed: "Alteração impossível",
+  cd_confirm_cancel: "Confirmar o cancelamento desta corrida?",
+  cd_toast_cancelled: "Corrida cancelada",
+  cd_toast_locked_cancel: "Esta corrida já não pode ser cancelada",
+  cd_toast_cancel_failed: "Cancelamento impossível",
+  cd_toast_phone_recorded: "Pedido de cancelamento telefónico registado",
+  cd_toast_phone_failed: "Registo impossível",
+  cd_msg_to_jose: "💬 Mensagem para o José",
+  cd_meta_title: "A minha área de cliente — Taxi City Bordeaux",
 };
 
 export const DICTS: Record<Lang, Dict> = { fr, en, es, pt, it, ar };

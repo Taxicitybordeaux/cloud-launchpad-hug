@@ -132,7 +132,7 @@ function ClientDashboard() {
       setRows(data);
     } catch (e) {
       console.error(e);
-      toast.error("Impossible de charger vos courses");
+      toast.error(t("cd_toast_load_err"));
     } finally {
       setLoading(false);
     }
@@ -183,13 +183,13 @@ function ClientDashboard() {
           pickup_datetime: new Date(editTime).toISOString(),
         },
       });
-      toast.success("Heure modifiée — chauffeur notifié");
+      toast.success(t("cd_toast_time_changed"));
       setEditingId(null);
       setEditTime("");
       refresh();
     } catch (e: any) {
       toast.error(
-        e?.message === "STATUS_LOCKED" ? "Cette course ne peut plus être modifiée" : "Modification impossible",
+        e?.message === "STATUS_LOCKED" ? t("cd_toast_locked_edit") : t("cd_toast_edit_failed"),
       );
     } finally {
       setBusy(null);
@@ -198,7 +198,7 @@ function ClientDashboard() {
 
   async function onCancel(id: string) {
     if (!session) return;
-    if (!confirm("Confirmer l'annulation de cette course ?")) return;
+    if (!confirm(t("cd_confirm_cancel"))) return;
     setBusy(id);
     try {
       await cancelClientReservation({
@@ -209,10 +209,10 @@ function ClientDashboard() {
           reservation_id: id,
         },
       });
-      toast.success("Course annulée");
+      toast.success(t("cd_toast_cancelled"));
       refresh();
     } catch (e: any) {
-      toast.error(e?.message === "STATUS_LOCKED" ? "Cette course ne peut plus être annulée" : "Annulation impossible");
+      toast.error(e?.message === "STATUS_LOCKED" ? t("cd_toast_locked_cancel") : t("cd_toast_cancel_failed"));
     } finally {
       setBusy(null);
     }
@@ -230,12 +230,12 @@ function ClientDashboard() {
           reservation_id: id,
         },
       });
-      toast.success("Demande d'annulation par téléphone enregistrée");
+      toast.success(t("cd_toast_phone_recorded"));
       setPhoneModalId(null);
       refresh();
       window.location.href = "tel:0673072322";
     } catch {
-      toast.error("Enregistrement impossible");
+      toast.error(t("cd_toast_phone_failed"));
     } finally {
       setPhoneModalBusy(false);
     }
@@ -606,7 +606,7 @@ function ClientDashboard() {
             width: "100%",
           }}
         >
-          <div style={{ color: "#f8fafc", fontWeight: 700, fontSize: 16, marginBottom: 12 }}>💬 Message à José</div>
+          <div style={{ color: "#f8fafc", fontWeight: 700, fontSize: 16, marginBottom: 12 }}>{t("cd_msg_to_jose")}</div>
           <div
             style={{
               borderRadius: 16,
