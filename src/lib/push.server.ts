@@ -201,7 +201,7 @@ type SubRow = {
 export async function sendPushToAudience(
   audience: PushAudience,
   payload: PushPayload,
-  opts: { reservationId?: string } = {},
+  opts: { reservationId?: string; accountId?: string } = {},
 ): Promise<{ sent: number; removed: number }> {
   let q = supabaseAdmin
     .from("push_subscriptions")
@@ -212,6 +212,9 @@ export async function sendPushToAudience(
   if (audience === "client" && opts.reservationId) {
     q = q.eq("reservation_id", opts.reservationId);
   }
+  // accountId is accepted for API symmetry with direct chat callers; no
+  // column filter today — push_subscriptions has no client_account_id.
+  void opts.accountId;
   const { data, error } = await q;
   if (error || !data || data.length === 0) return { sent: 0, removed: 0 };
 
