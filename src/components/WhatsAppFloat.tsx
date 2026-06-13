@@ -19,7 +19,8 @@ export function WhatsAppFloat() {
     location.pathname.startsWith("/reservation/") ||
     location.pathname.startsWith("/scan/") ||
     location.pathname.startsWith("/admin") ||
-    location.pathname.startsWith("/reserver");
+    location.pathname.startsWith("/reserver") ||
+    location.pathname.startsWith("/client");
 
   const draft = useReservationDraft();
   const message = draft ? buildReservationMessage(draft, lang) : t("wa.default");
