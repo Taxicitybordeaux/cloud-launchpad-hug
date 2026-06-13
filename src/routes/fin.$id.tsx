@@ -195,6 +195,23 @@ interface Chauffeur {
 
 // STAR_LABELS est maintenant dynamique via t() dans FinPage
 
+// ── Chargement du logo (pour insertion dans le PDF) ──────────
+async function loadLogoDataUrl(): Promise<string | null> {
+  try {
+    const res = await fetch("/logo-taxi-city-bordeaux.jpeg");
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 // ── Générer le PDF du reçu côté client ───────────────────────
 async function genererRecuPDF(
   resa: Reservation,
@@ -220,15 +237,25 @@ async function genererRecuPDF(
   doc.setFillColor(...gold);
   doc.rect(0, 0, W, 38, "F");
 
-  // ── Logo / titre ──
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(22);
-  doc.setTextColor(...dark);
-  doc.text("🚕 Taxi City Bordeaux", 14, 18);
+  // ── Logo ──
+  const logoDataUrl = await loadLogoDataUrl();
+  if (logoDataUrl) {
+    // Logo rectangulaire ~512x343 → ratio conservé, hauteur 26mm
+    const logoH = 26;
+    const logoW = logoH * (512 / 343);
+    doc.addImage(logoDataUrl, "JPEG", 14, 6, logoW, logoH);
+  } else {
+    // Repli texte si le logo n'a pas pu être chargé
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.setTextColor(...dark);
+    doc.text("Taxi City Bordeaux", 14, 18);
+  }
 
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  doc.text("REÇU DE COURSE", 14, 28);
+  doc.setTextColor(...dark);
+  doc.text("REÇU DE COURSE", 14, 32);
   doc.text(`Réf : ${resa.id.slice(0, 8).toUpperCase()}`, W - 14, 28, { align: "right" });
 
   // ── Date émission ──
@@ -412,7 +439,7 @@ async function genererRecuPDF(
   doc.setTextColor(...gray);
   doc.text("Taxi City Bordeaux — SIRET XXX XXX XXX XXXXX", W / 2, y, { align: "center" });
   doc.text("Ce document tient lieu de reçu officiel.", W / 2, y + 6, { align: "center" });
-  doc.text("Merci de votre confiance 🚕", W / 2, y + 12, { align: "center" });
+  doc.text("Merci de votre confiance.", W / 2, y + 12, { align: "center" });
 
   // ── Téléchargement ──
   const dateStr = now.toISOString().slice(0, 10);
@@ -906,15 +933,10 @@ function FinPage() {
               }}
             >
               <img
-                src="/taxi-icon.png"
+                src="/logo-taxi-city-bordeaux.jpeg"
                 alt="Taxi City Bordeaux"
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                onError={(event) => {
-                  const target = event.currentTarget as HTMLImageElement;
-                  target.style.display = "none";
-                }}
               />
-              <span style={{ fontSize: 28, position: "absolute" }}>🚕</span>
             </div>
           </div>
 
