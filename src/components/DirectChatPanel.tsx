@@ -9,6 +9,7 @@ import {
   type DirectMessage as ChatMessage,
 } from "@/lib/chat.functions";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { useI18n, useT } from "@/i18n/I18nProvider";
 
 type Props = {
   accountId: string;
