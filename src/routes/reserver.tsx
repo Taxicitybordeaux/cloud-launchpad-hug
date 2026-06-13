@@ -278,15 +278,34 @@ async function searchPhotonAddress(query: string, origin: [number, number]): Pro
 // Nombre max de suggestions affichées (top N). Configurable selon contexte.
 const MAX_CHOICES_DEFAULT = 4;
 const MAX_CHOICES_SUPERMARKET = 5; // un peu plus pour comparer plusieurs magasins
-const SUPERMARKET_RADIUS_KM = 15;  // on resserre pour éviter les magasins trop loin
+const SUPERMARKET_RADIUS_KM = 15; // on resserre pour éviter les magasins trop loin
 const SUPERMARKET_MAX_DISTANCE_KM = 25;
 
 // Marques de supermarchés courantes — utilisées pour filtrer Overpass par catégorie
 // (shop=supermarket) et éliminer les POIs sans rapport (école qui contient « lidl » dans un texte, etc.)
 const SUPERMARKET_BRANDS = [
-  "aldi", "lidl", "carrefour", "leclerc", "auchan", "intermarche", "intermarché",
-  "super u", "hyper u", "u express", "casino", "monoprix", "franprix", "biocoop",
-  "grand frais", "picard", "spar", "g20", "netto", "cora", "match", "colruyt",
+  "aldi",
+  "lidl",
+  "carrefour",
+  "leclerc",
+  "auchan",
+  "intermarche",
+  "intermarché",
+  "super u",
+  "hyper u",
+  "u express",
+  "casino",
+  "monoprix",
+  "franprix",
+  "biocoop",
+  "grand frais",
+  "picard",
+  "spar",
+  "g20",
+  "netto",
+  "cora",
+  "match",
+  "colruyt",
 ];
 
 function detectSupermarketBrand(query: string): string | null {
@@ -323,12 +342,24 @@ way(around:${radiusM},${origin[0]},${origin[1]})["name"~"${safeToken}",i];
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 6000);
-    const res = await fetch("https://overpass-api.de/api/interpreter", { method: "POST", body, signal: controller.signal });
+    const res = await fetch("https://overpass-api.de/api/interpreter", {
+      method: "POST",
+      body,
+      signal: controller.signal,
+    });
     clearTimeout(timer);
     if (!res.ok) return [];
     const data = await res.json();
     if (!Array.isArray(data?.elements)) return [];
-    type Raw = { name: string; brand: string; shop: string; street: string; lat: number; lng: number; distanceKm: number };
+    type Raw = {
+      name: string;
+      brand: string;
+      shop: string;
+      street: string;
+      lat: number;
+      lng: number;
+      distanceKm: number;
+    };
     const raws: Raw[] = data.elements
       .map((item: any): Raw | null => {
         const lat = Number(item.lat ?? item.center?.lat);
@@ -388,7 +419,7 @@ way(around:${radiusM},${origin[0]},${origin[1]})["name"~"${safeToken}",i];
           coord: [r.lat, r.lng] as [number, number],
           distanceKm: r.distanceKm,
         } as AddressChoice;
-      })
+      }),
     );
     // On filtre les POIs sans aucune adresse identifiable (trop ambigus)
     return enriched.filter((c) => c.label.includes("—") || c.label.includes(","));
@@ -411,7 +442,7 @@ const CANONICAL_PLACES: Array<{
     coord: [44.8283, -0.7156],
     subPlaces: [
       { label: "Aéroport Bordeaux-Mérignac — Hall A (Départs), 33700 Mérignac", coord: [44.8295, -0.7166] },
-      { label: "Aéroport Bordeaux-Mérignac — Hall B (Arrivées), 33700 Mérignac", coord: [44.8281, -0.7150] },
+      { label: "Aéroport Bordeaux-Mérignac — Hall B (Arrivées), 33700 Mérignac", coord: [44.8281, -0.715] },
       { label: "Aéroport Bordeaux-Mérignac — Parking P1, 33700 Mérignac", coord: [44.8275, -0.7138] },
       { label: "Aéroport Bordeaux-Mérignac — Terminal Billi (low-cost), 33700 Mérignac", coord: [44.8235, -0.7193] },
     ],
@@ -422,7 +453,10 @@ const CANONICAL_PLACES: Array<{
     coord: [44.8259, -0.5564],
     subPlaces: [
       { label: "Gare Saint-Jean — Parvis principal (Rue Charles Domercq), 33800 Bordeaux", coord: [44.8259, -0.5564] },
-      { label: "Gare Saint-Jean — Sortie Belcier (Rue Amédée Saint-Germain), 33800 Bordeaux", coord: [44.8243, -0.5554] },
+      {
+        label: "Gare Saint-Jean — Sortie Belcier (Rue Amédée Saint-Germain), 33800 Bordeaux",
+        coord: [44.8243, -0.5554],
+      },
       { label: "Gare Saint-Jean — Dépose-minute (Rue Charles Domercq), 33800 Bordeaux", coord: [44.8262, -0.5572] },
       { label: "Gare Saint-Jean — Arrêt taxis (Parvis Louis Armand), 33800 Bordeaux", coord: [44.8256, -0.5568] },
     ],
@@ -513,8 +547,9 @@ function rankAndTrim(
 ): AddressChoice[] {
   const tokens = usefulSearchTokens(query);
   const brand = detectSupermarketBrand(query);
-  let pool = dedupeAddressChoices([...(canonical ? [canonical] : []), ...buckets])
-    .filter((choice) => isPlausibleAddressMatch(query, choice.label));
+  let pool = dedupeAddressChoices([...(canonical ? [canonical] : []), ...buckets]).filter((choice) =>
+    isPlausibleAddressMatch(query, choice.label),
+  );
 
   if (brand) {
     // Filtrage strict supermarchés : on ne garde que les libellés dont le NOM (avant " — ")
@@ -849,9 +884,7 @@ function ReservationPage() {
     recog.onresult = (event: any) => {
       const transcript: string = event.results[0][0].transcript;
       // Sépare via mots-clés. On enlève "de"/"depuis" initial éventuel.
-      const cleaned = transcript
-        .trim()
-        .replace(/^\s*(de|depuis|du|d'|partir de|départ)\s+/i, "");
+      const cleaned = transcript.trim().replace(/^\s*(de|depuis|du|d'|partir de|départ)\s+/i, "");
       const splitRegex =
         /\s+(?:jusqu'?[àa]|jusque?|destination|direction|vers|puis|->|=>|à destination de|à\s+(?=[A-ZÀ-Ÿ]))\s+/i;
       const parts = cleaned.split(splitRegex);
@@ -891,19 +924,23 @@ function ReservationPage() {
     recog.start();
   }, []);
 
-
-  const [f, setF] = useState<FormState>({
-    depart: "",
-    destination: "",
-    date: "",
-    heure: "",
-    passagers: 1,
-    bagages: 0,
-    paiement: "especes",
-    prenom: "",
-    nom: "",
-    phone: "",
-    email: "",
+  const [f, setF] = useState<FormState>(() => {
+    // Pré-remplir depuis les query params (?depart=...&destination=...)
+    // Ex: venant de "Réserver la même course" dans l'espace client.
+    const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+    return {
+      depart: params?.get("depart") ?? "",
+      destination: params?.get("destination") ?? "",
+      date: "",
+      heure: "",
+      passagers: 1,
+      bagages: 0,
+      paiement: "especes",
+      prenom: "",
+      nom: "",
+      phone: "",
+      email: "",
+    };
   });
 
   const set = (k: keyof FormState, v: any) => setF((p) => ({ ...p, [k]: v }));
@@ -1068,11 +1105,7 @@ function ReservationPage() {
             L.polyline(coords, { color: "#111111", weight: 5, opacity: 1, lineCap: "round", lineJoin: "round" }),
           ]).addTo(mapInst.current);
           mapInst.current.fitBounds(
-            L.latLngBounds([
-              [fromCoord[0], fromCoord[1]],
-              [toCoord[0], toCoord[1]],
-              ...coords,
-            ]),
+            L.latLngBounds([[fromCoord[0], fromCoord[1]], [toCoord[0], toCoord[1]], ...coords]),
             { padding: [60, 60], maxZoom: 16, animate: true },
           );
         }
@@ -1512,7 +1545,6 @@ function ReservationPage() {
   useEffect(() => {
     resolveDepartAddressRef.current = resolveDepartAddress;
   }, [resolveDepartAddress]);
-
 
   // ── Disponibilité taxi ────────────────────────────────────────────────────
   useEffect(() => {
@@ -2129,9 +2161,7 @@ function ReservationPage() {
                   flexWrap: "wrap",
                 }}
               >
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5" }}>
-                  {t("res.loc.ride_section")}
-                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5" }}>{t("res.loc.ride_section")}</div>
                 <button
                   type="button"
                   onClick={startVoiceRecognitionBoth}
@@ -2154,7 +2184,6 @@ function ReservationPage() {
                   {voiceBothListening ? "⏹ J'écoute…" : "🎤 Dicter départ + destination"}
                 </button>
               </div>
-
 
               {/* Départ : saisie libre + bouton géoloc */}
               <div style={{ marginBottom: 10 }}>
@@ -2183,10 +2212,12 @@ function ReservationPage() {
                   role="tablist"
                   aria-label="Mode de recherche départ"
                 >
-                  {([
-                    { key: "address", label: "🏠 Adresse" },
-                    { key: "poi", label: "📍 Lieu / POI" },
-                  ] as const).map((opt) => {
+                  {(
+                    [
+                      { key: "address", label: "🏠 Adresse" },
+                      { key: "poi", label: "📍 Lieu / POI" },
+                    ] as const
+                  ).map((opt) => {
                     const active = departSearchMode === opt.key;
                     return (
                       <button
@@ -2268,15 +2299,44 @@ function ReservationPage() {
                   <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>✓ {t("res.geo.btn")}</div>
                 )}
                 {searchingDepart && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, color: "#fde68a", fontSize: 11 }}>
-                    <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", border: "2px solid #fde68a", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      marginTop: 6,
+                      color: "#fde68a",
+                      fontSize: 11,
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-block",
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        border: "2px solid #fde68a",
+                        borderTopColor: "transparent",
+                        animation: "spin 0.8s linear infinite",
+                      }}
+                    />
                     Recherche en cours…
                   </div>
                 )}
                 {searchingDepart && departChoices.length === 0 && (
                   <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
                     {[0, 1, 2].map((i) => (
-                      <div key={i} style={{ height: 44, borderRadius: 10, background: "linear-gradient(90deg, rgba(245,200,66,0.05), rgba(245,200,66,0.15), rgba(245,200,66,0.05))", backgroundSize: "200% 100%", animation: "shimmer 1.4s ease-in-out infinite" }} />
+                      <div
+                        key={i}
+                        style={{
+                          height: 44,
+                          borderRadius: 10,
+                          background:
+                            "linear-gradient(90deg, rgba(245,200,66,0.05), rgba(245,200,66,0.15), rgba(245,200,66,0.05))",
+                          backgroundSize: "200% 100%",
+                          animation: "shimmer 1.4s ease-in-out infinite",
+                        }}
+                      />
                     ))}
                   </div>
                 )}
@@ -2345,10 +2405,12 @@ function ReservationPage() {
                     role="tablist"
                     aria-label="Mode de recherche destination"
                   >
-                    {([
-                      { key: "address", label: "🏠 Adresse" },
-                      { key: "poi", label: "📍 Lieu / POI" },
-                    ] as const).map((opt) => {
+                    {(
+                      [
+                        { key: "address", label: "🏠 Adresse" },
+                        { key: "poi", label: "📍 Lieu / POI" },
+                      ] as const
+                    ).map((opt) => {
                       const autoPoi = opt.key === "poi" && searchMode === "address" && isNamedPlaceQuery(f.destination);
                       const active = searchMode === opt.key || autoPoi;
                       return (
@@ -2430,15 +2492,44 @@ function ReservationPage() {
                   <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.destination}</div>
                 )}
                 {searchingDestination && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, color: "#fde68a", fontSize: 11 }}>
-                    <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", border: "2px solid #fde68a", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      marginTop: 6,
+                      color: "#fde68a",
+                      fontSize: 11,
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-block",
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        border: "2px solid #fde68a",
+                        borderTopColor: "transparent",
+                        animation: "spin 0.8s linear infinite",
+                      }}
+                    />
                     Recherche en cours…
                   </div>
                 )}
                 {searchingDestination && destinationChoices.length === 0 && (
                   <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
                     {[0, 1, 2].map((i) => (
-                      <div key={i} style={{ height: 44, borderRadius: 10, background: "linear-gradient(90deg, rgba(245,200,66,0.05), rgba(245,200,66,0.15), rgba(245,200,66,0.05))", backgroundSize: "200% 100%", animation: "shimmer 1.4s ease-in-out infinite" }} />
+                      <div
+                        key={i}
+                        style={{
+                          height: 44,
+                          borderRadius: 10,
+                          background:
+                            "linear-gradient(90deg, rgba(245,200,66,0.05), rgba(245,200,66,0.15), rgba(245,200,66,0.05))",
+                          backgroundSize: "200% 100%",
+                          animation: "shimmer 1.4s ease-in-out infinite",
+                        }}
+                      />
                     ))}
                   </div>
                 )}
