@@ -565,11 +565,20 @@ function FinPage() {
       map.fitBounds(bounds, { padding: [60, 60], maxZoom: 16, animate: true });
       setTimeout(() => map.invalidateSize(), 150);
       routeDrawn.current = true;
+
+      const onResize = () => map.invalidateSize();
+      window.addEventListener("resize", onResize);
+      window.addEventListener("orientationchange", onResize);
+      (map as any)._finResizeHandler = onResize;
     };
 
     drawMap();
     return () => {
       mounted = false;
+      if (mapInst.current?._finResizeHandler) {
+        window.removeEventListener("resize", mapInst.current._finResizeHandler);
+        window.removeEventListener("orientationchange", mapInst.current._finResizeHandler);
+      }
     };
   }, [showMap, resa]);
 
@@ -651,6 +660,30 @@ function FinPage() {
         textarea { resize:none; font-family:'DM Sans',sans-serif; }
         textarea:focus { outline:none; border-color:#f5c842 !important; box-shadow:0 0 0 3px rgba(245,200,66,0.15) !important; }
         button:active { transform:scale(0.97); }
+
+        /* ── Mobile (≤480px déjà ciblé par maxWidth, ajustements ≤360px) ── */
+        @media (max-width: 360px) {
+          .fin-price-val { font-size: 32px !important; }
+          .fin-stats-grid { gap: 6px !important; }
+          .fin-stats-grid > div { padding: 10px 6px !important; }
+          .fin-stats-grid .fin-stat-icon { font-size: 17px !important; }
+          .fin-stats-grid .fin-stat-val { font-size: 12px !important; }
+          .fin-recap-header { gap: 10px; }
+          .fin-recap-logo { width: 46px !important; height: 46px !important; }
+          .star-btn { font-size: 30px !important; padding: 2px !important; }
+        }
+
+        /* ── Très petits écrans : récap empile prix/logo ── */
+        @media (max-width: 320px) {
+          .fin-recap-header { flex-wrap: wrap; }
+          .fin-recap-logo { margin-left: auto; }
+        }
+
+        /* ── Hauteur de carte adaptée aux petits écrans / paysage ── */
+        .fin-map { height: 240px; }
+        @media (max-height: 700px) {
+          .fin-map { height: 180px !important; }
+        }
       `}</style>
 
       <div
@@ -694,7 +727,10 @@ function FinPage() {
           }}
         >
           {/* Prix */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+          <div
+            className="fin-recap-header"
+            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}
+          >
             <div>
               <div
                 style={{
@@ -708,6 +744,7 @@ function FinPage() {
                 {t("fin.price_label")}
               </div>
               <div
+                className="fin-price-val"
                 style={{
                   fontFamily: "'Clash Display',sans-serif",
                   fontSize: 40,
@@ -725,6 +762,7 @@ function FinPage() {
               </div>
             </div>
             <div
+              className="fin-recap-logo"
               style={{
                 width: 56,
                 height: 56,
@@ -734,6 +772,8 @@ function FinPage() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                position: "relative",
+                flexShrink: 0,
               }}
             >
               <img
@@ -750,7 +790,7 @@ function FinPage() {
           </div>
 
           {/* Stats */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          <div className="fin-stats-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
             {[
               {
                 icon: "📏",
@@ -773,8 +813,12 @@ function FinPage() {
                 key={label}
                 style={{ background: "rgba(0,0,0,0.25)", borderRadius: 14, padding: "12px 10px", textAlign: "center" }}
               >
-                <div style={{ fontSize: 20, marginBottom: 4 }}>{icon}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#f5f5f5" }}>{value}</div>
+                <div className="fin-stat-icon" style={{ fontSize: 20, marginBottom: 4 }}>
+                  {icon}
+                </div>
+                <div className="fin-stat-val" style={{ fontSize: 13, fontWeight: 700, color: "#f5f5f5" }}>
+                  {value}
+                </div>
                 <div
                   style={{
                     fontSize: 10,
@@ -930,7 +974,7 @@ function FinPage() {
               ▾
             </span>
           </button>
-          {showMap && <div ref={mapRef} style={{ height: 240, borderTop: "1px solid #2a2a4a" }} />}
+          {showMap && <div ref={mapRef} className="fin-map" style={{ borderTop: "1px solid #2a2a4a" }} />}
         </div>
 
         {/* ── Notation chauffeur ── */}
