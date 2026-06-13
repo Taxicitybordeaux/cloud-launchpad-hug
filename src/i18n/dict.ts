@@ -1810,6 +1810,19 @@ const es: Dict = {
   cd_status_completed: "Finalizada",
   cd_status_cancelled: "Cancelada",
   cd_status_refused: "Rechazada",
+  cd_book_same: "Repetir el mismo viaje",
+  cd_toast_load_err: "No se pudieron cargar sus viajes",
+  cd_toast_time_changed: "Hora modificada — conductor notificado",
+  cd_toast_locked_edit: "Este viaje ya no se puede modificar",
+  cd_toast_edit_failed: "Modificación imposible",
+  cd_confirm_cancel: "¿Confirmar la cancelación de este viaje?",
+  cd_toast_cancelled: "Viaje cancelado",
+  cd_toast_locked_cancel: "Este viaje ya no se puede cancelar",
+  cd_toast_cancel_failed: "Cancelación imposible",
+  cd_toast_phone_recorded: "Solicitud de cancelación por teléfono registrada",
+  cd_toast_phone_failed: "Registro imposible",
+  cd_msg_to_jose: "💬 Mensaje a José",
+  cd_meta_title: "Mi área de cliente — Taxi City Bordeaux",
 };
 
 const it: Dict = {
