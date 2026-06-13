@@ -13,7 +13,13 @@ import logo from "@/assets/logo.jpeg";
 import { notifyReservationStatus } from "@/lib/push.functions";
 import { getFcmToken } from "@/lib/firebase";
 import { ChatPanel } from "@/components/ChatPanel";
-import { listAdminChatThreads, type AdminChatThread } from "@/lib/chat.functions";
+import {
+  listAdminChatThreads,
+  listAdminDirectThreads,
+  type AdminChatThread,
+  type AdminDirectThread,
+} from "@/lib/chat.functions";
+import { DirectChatPanel } from "@/components/DirectChatPanel";
 
 const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_TILE_OPTIONS = { attribution: "© OpenStreetMap contributors", maxZoom: 19 };
@@ -441,6 +447,8 @@ function Dashboard() {
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [counts, setCounts] = useState({ pending: 0, accepted: 0, refused: 0 });
   const [chatThreads, setChatThreads] = useState<AdminChatThread[]>([]);
+  const [directThreads, setDirectThreads] = useState<AdminDirectThread[]>([]);
+  const [openDirectId, setOpenDirectId] = useState<string | null>(null);
   const [openChatId, setOpenChatId] = useState<string | null>(null);
 
   const refreshChatThreads = useCallback(async () => {
@@ -4218,6 +4226,95 @@ function Dashboard() {
           role="chauffeur"
           peerName={chatThreads.find((t) => t.reservation_id === openChatId)?.client_name || "Client"}
           onClose={() => setOpenChatId(null)}
+        />
+      )}
+
+      {/* ── Messages directs clients ── */}
+      <div style={{ padding: "20px 16px", maxWidth: 720, margin: "0 auto", width: "100%" }}>
+        <div style={{ color: "#f8fafc", fontWeight: 700, fontSize: 16, marginBottom: 12 }}>💬 Messages directs</div>
+        {directThreads.length === 0 ? (
+          <div
+            style={{
+              textAlign: "center",
+              color: "#475569",
+              padding: "28px 0",
+              fontSize: 14,
+              border: "1px dashed rgba(255,255,255,0.08)",
+              borderRadius: 16,
+            }}
+          >
+            Aucun message direct
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {directThreads.map((t) => (
+              <button
+                key={t.client_account_id}
+                onClick={() => setOpenDirectId(t.client_account_id)}
+                style={{
+                  textAlign: "left",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 14,
+                  padding: 14,
+                  color: "#fff",
+                  cursor: "pointer",
+                  display: "flex",
+                  gap: 12,
+                  alignItems: "center",
+                  width: "100%",
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                    <span style={{ fontWeight: 700, fontSize: 14 }}>{t.client_name || t.client_email || "Client"}</span>
+                    <span style={{ color: "#64748b", fontSize: 11 }}>
+                      {new Date(t.last_message_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      color: "#94a3b8",
+                      fontSize: 12,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {t.last_message_content}
+                  </div>
+                </div>
+                {t.unread_chauffeur > 0 && (
+                  <span
+                    style={{
+                      background: "#ef4444",
+                      color: "#fff",
+                      borderRadius: 999,
+                      minWidth: 22,
+                      height: 22,
+                      padding: "0 7px",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {t.unread_chauffeur}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {openDirectId && (
+        <DirectChatPanel
+          accountId={openDirectId}
+          role="chauffeur"
+          peerName={directThreads.find((t) => t.client_account_id === openDirectId)?.client_name || "Client"}
+          onClose={() => setOpenDirectId(null)}
         />
       )}
 
