@@ -2408,6 +2408,19 @@ const it: Dict = {
   cd_status_completed: "Completata",
   cd_status_cancelled: "Annullata",
   cd_status_refused: "Rifiutata",
+  cd_book_same: "Ripeti la stessa corsa",
+  cd_toast_load_err: "Impossibile caricare le tue corse",
+  cd_toast_time_changed: "Orario modificato — autista avvisato",
+  cd_toast_locked_edit: "Questa corsa non può più essere modificata",
+  cd_toast_edit_failed: "Modifica impossibile",
+  cd_confirm_cancel: "Confermare l'annullamento di questa corsa?",
+  cd_toast_cancelled: "Corsa annullata",
+  cd_toast_locked_cancel: "Questa corsa non può più essere annullata",
+  cd_toast_cancel_failed: "Annullamento impossibile",
+  cd_toast_phone_recorded: "Richiesta di annullamento telefonico registrata",
+  cd_toast_phone_failed: "Registrazione impossibile",
+  cd_msg_to_jose: "💬 Messaggio a José",
+  cd_meta_title: "Area cliente — Taxi City Bordeaux",
 };
 
 // Dictionnaire arabe — traductions clés ; fallback automatique sur le français pour les clés manquantes.
