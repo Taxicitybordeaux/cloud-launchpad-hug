@@ -1215,6 +1215,19 @@ const en: Dict = {
   cd_status_completed: "Completed",
   cd_status_cancelled: "Cancelled",
   cd_status_refused: "Refused",
+  cd_book_same: "Book the same ride",
+  cd_toast_load_err: "Could not load your rides",
+  cd_toast_time_changed: "Time updated — driver notified",
+  cd_toast_locked_edit: "This ride can no longer be edited",
+  cd_toast_edit_failed: "Update failed",
+  cd_confirm_cancel: "Cancel this ride?",
+  cd_toast_cancelled: "Ride cancelled",
+  cd_toast_locked_cancel: "This ride can no longer be cancelled",
+  cd_toast_cancel_failed: "Cancellation failed",
+  cd_toast_phone_recorded: "Phone cancellation request recorded",
+  cd_toast_phone_failed: "Could not record request",
+  cd_msg_to_jose: "💬 Message José",
+  cd_meta_title: "My client area — Taxi City Bordeaux",
 };
 
 const es: Dict = {
