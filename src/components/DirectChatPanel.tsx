@@ -629,7 +629,7 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
               send();
             }
           }}
-          placeholder="Écrire un message…"
+          placeholder={t("chat_input_placeholder")}
           rows={1}
           className="max-h-32 flex-1 resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/40 outline-none focus:border-[#E8C96D]"
         />
