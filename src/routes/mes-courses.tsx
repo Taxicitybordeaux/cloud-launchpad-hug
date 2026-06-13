@@ -914,6 +914,17 @@ function MesCourses() {
             </div>
           )}
         </div>
+        <img
+          src="/logo-taxi-city-bordeaux.jpeg"
+          alt="Taxi City Bordeaux"
+          style={{
+            height: 36,
+            width: "auto",
+            borderRadius: 8,
+            marginLeft: "auto",
+            flexShrink: 0,
+          }}
+        />
       </div>
 
       {loading ? (
