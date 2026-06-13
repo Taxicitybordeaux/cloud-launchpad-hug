@@ -436,7 +436,7 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
             className={`rounded-full p-1.5 transition hover:bg-white/10 ${
               showSearch || filterActive ? "text-[#E8C96D]" : "text-white/60 hover:text-white"
             }`}
-            aria-label="Rechercher"
+            aria-label={t("chat_search")}
             aria-pressed={showSearch}
           >
             <Search className="h-4 w-4" />
