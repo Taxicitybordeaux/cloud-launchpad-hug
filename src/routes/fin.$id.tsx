@@ -92,9 +92,10 @@ async function geocode(adresse: string): Promise<[number, number] | null> {
   }
 }
 
+// from/to en [lat, lng] ; getRouteGeoCoords (osrm.ts) attend [lng, lat]
 async function getPolyline(from: [number, number], to: [number, number]): Promise<[number, number][]> {
   try {
-    const result = await getRouteGeoCoords(from, to);
+    const result = await getRouteGeoCoords([from[1], from[0]], [to[1], to[0]]);
     return result?.coords ?? [];
   } catch {
     return [];
@@ -134,7 +135,11 @@ interface Chauffeur {
 // STAR_LABELS est maintenant dynamique via t() dans FinPage
 
 // ── Générer le PDF du reçu côté client ───────────────────────
-async function genererRecuPDF(resa: Reservation, chauffeur: Chauffeur | null): Promise<void> {
+async function genererRecuPDF(
+  resa: Reservation,
+  chauffeur: Chauffeur | null,
+  fallback?: { distanceKm?: number | null; dureeMin?: number | null },
+): Promise<void> {
   await loadJsPDF();
   const { jsPDF } = (window as any).jspdf;
   const doc = new jsPDF({ unit: "mm", format: "a4" });
@@ -205,9 +210,19 @@ async function genererRecuPDF(resa: Reservation, chauffeur: Chauffeur | null): P
           ? `${resa.distance_reelle_km} km`
           : resa.distance_km != null
             ? `${resa.distance_km} km`
+            : fallback?.distanceKm != null
+              ? `${fallback.distanceKm} km`
+              : "—",
+    },
+    {
+      label: "Durée",
+      value:
+        resa.duree_reelle_min != null
+          ? formatDureePDF(resa.duree_reelle_min)
+          : fallback?.dureeMin != null
+            ? formatDureePDF(fallback.dureeMin)
             : "—",
     },
-    { label: "Durée", value: resa.duree_reelle_min != null ? formatDureePDF(resa.duree_reelle_min) : "—" },
     { label: "Date", value: resa.date_course ?? now.toLocaleDateString("fr-FR") },
     {
       label: "Heure",
@@ -334,7 +349,7 @@ async function genererRecuPDF(resa: Reservation, chauffeur: Chauffeur | null): P
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...gray);
-  doc.text("Taxi City Bordeaux — SIRET 000 000 000 00000", W / 2, y, { align: "center" });
+  doc.text("Taxi City Bordeaux — SIRET XXX XXX XXX XXXXX", W / 2, y, { align: "center" });
   doc.text("Ce document tient lieu de reçu officiel.", W / 2, y + 6, { align: "center" });
   doc.text("Merci de votre confiance 🚕", W / 2, y + 12, { align: "center" });
 
@@ -384,6 +399,10 @@ function FinPage() {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInst = useRef<any>(null);
   const routeDrawn = useRef(false);
+
+  // Fallback distance/durée calculées via OSRM si absentes en base
+  const [fallbackDistanceKm, setFallbackDistanceKm] = useState<number | null>(null);
+  const [fallbackDureeMin, setFallbackDureeMin] = useState<number | null>(null);
 
   // ── Charger données ────────────────────────────────────────
   useEffect(() => {
@@ -467,6 +486,37 @@ function FinPage() {
     load();
   }, [id, navigate, fetchReservationForFin]);
 
+  // ── Fallback distance/durée via OSRM si non renseignées ─────
+  useEffect(() => {
+    if (!resa) return;
+    const hasDistance = resa.distance_reelle_km != null || resa.distance_km != null;
+    const hasDuree = resa.duree_reelle_min != null;
+    if (hasDistance && hasDuree) return;
+
+    let mounted = true;
+    (async () => {
+      try {
+        const [fromCoord, toCoord] = await Promise.all([geocode(resa.depart), geocode(resa.destination)]);
+        if (!mounted || !fromCoord || !toCoord) return;
+        // getRouteGeoCoords attend [lng, lat] ; geocode() renvoie [lat, lng]
+        const result = await getRouteGeoCoords([fromCoord[1], fromCoord[0]], [toCoord[1], toCoord[0]]);
+        if (!mounted || !result) return;
+        if (!hasDistance && typeof result.distanceKm === "number" && result.distanceKm > 0) {
+          setFallbackDistanceKm(Math.round(result.distanceKm * 10) / 10);
+        }
+        if (!hasDuree && typeof result.durationSec === "number" && result.durationSec > 0) {
+          setFallbackDureeMin(Math.round(result.durationSec / 60));
+        }
+      } catch {
+        // silencieux : on garde "—" en cas d'échec
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [resa]);
+
   // ── Soumettre avis ─────────────────────────────────────────
   const soumettreAvis = useCallback(async () => {
     if (!note || avisLoading || avisEnvoye) return;
@@ -503,7 +553,7 @@ function FinPage() {
     setRecuLoading(true);
     setRecuMsg("");
     try {
-      await genererRecuPDF(resa, chauffeur);
+      await genererRecuPDF(resa, chauffeur, { distanceKm: fallbackDistanceKm, dureeMin: fallbackDureeMin });
       setRecuMsg(t("fin.pdf.success"));
     } catch (e) {
       console.error(e);
@@ -511,7 +561,7 @@ function FinPage() {
     }
     setRecuLoading(false);
     setTimeout(() => setRecuMsg(""), 4000);
-  }, [resa, chauffeur, recuLoading]);
+  }, [resa, chauffeur, recuLoading, fallbackDistanceKm, fallbackDureeMin]);
 
   // ── Replay carte ───────────────────────────────────────────
   useEffect(() => {
@@ -800,12 +850,19 @@ function FinPage() {
                     ? `${resa.distance_reelle_km} km`
                     : resa.distance_km != null
                       ? `${resa.distance_km} km`
-                      : "—",
+                      : fallbackDistanceKm != null
+                        ? `${fallbackDistanceKm} km`
+                        : "—",
               },
               {
                 icon: "⏱",
                 label: t("fin.stat.duration"),
-                value: resa.duree_reelle_min != null ? formatDuree(resa.duree_reelle_min) : "—",
+                value:
+                  resa.duree_reelle_min != null
+                    ? formatDuree(resa.duree_reelle_min)
+                    : fallbackDureeMin != null
+                      ? formatDuree(fallbackDureeMin)
+                      : "—",
               },
               { icon: "🛣️", label: t("fin.stat.trip"), value: t("fin.stat.trip_done") },
             ].map(({ icon, label, value }) => (
@@ -978,8 +1035,8 @@ function FinPage() {
         </div>
 
         {/* ── Notation chauffeur ── */}
-        {chauffeur && (
-          <div style={{ background: "#111120", borderRadius: 20, border: "1px solid #2a2a4a", padding: 20 }}>
+        <div style={{ background: "#111120", borderRadius: 20, border: "1px solid #2a2a4a", padding: 20 }}>
+          {chauffeur && (
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
               <div
                 style={{
@@ -1015,101 +1072,101 @@ function FinPage() {
                 </div>
               </div>
             </div>
+          )}
 
-            {avisEnvoye ? (
-              <div style={{ textAlign: "center", padding: "16px 0" }}>
-                <div style={{ fontSize: 40, marginBottom: 8 }}>🙏</div>
-                <div style={{ fontWeight: 700, fontSize: 16, color: "#22c55e", marginBottom: 4 }}>
-                  {t("fin.rating.thanks")}
-                </div>
-                <div style={{ fontSize: 13, color: "#64748b" }}>
-                  {t("fin.rating.rated")} {chauffeur.prenom} {"★".repeat(note)}
-                </div>
+          {avisEnvoye ? (
+            <div style={{ textAlign: "center", padding: "16px 0" }}>
+              <div style={{ fontSize: 40, marginBottom: 8 }}>🙏</div>
+              <div style={{ fontWeight: 700, fontSize: 16, color: "#22c55e", marginBottom: 4 }}>
+                {t("fin.rating.thanks")}
               </div>
-            ) : (
-              <>
-                <div style={{ fontWeight: 700, fontSize: 15, color: "#f5f5f5", marginBottom: 4, textAlign: "center" }}>
-                  {t("fin.rating.title")}
-                </div>
-                <div style={{ textAlign: "center", marginBottom: 6 }}>
-                  <span
-                    style={{
-                      fontSize: 13,
-                      color: displayNote ? "#f5c842" : "#64748b",
-                      fontWeight: 600,
-                      minHeight: 20,
-                      display: "inline-block",
-                    }}
-                  >
-                    {displayNote ? STAR_LABELS[displayNote] : t("fin.rating.tap")}
-                  </span>
-                </div>
-
-                <div style={{ display: "flex", justifyContent: "center", gap: 4, marginBottom: 16 }}>
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <button
-                      key={n}
-                      className="star-btn"
-                      onMouseEnter={() => setHoverNote(n)}
-                      onMouseLeave={() => setHoverNote(0)}
-                      onClick={() => setNote(n)}
-                      style={{
-                        fontSize: 36,
-                        opacity: n <= displayNote ? 1 : 0.25,
-                        filter: n <= displayNote ? "none" : "grayscale(1)",
-                        transform: n === displayNote ? "scale(1.2)" : "scale(1)",
-                      }}
-                    >
-                      ★
-                    </button>
-                  ))}
-                </div>
-
-                <textarea
-                  value={commentaire}
-                  onChange={(e) => setCommentaire(e.target.value)}
-                  placeholder={t("fin.rating.comment")}
-                  maxLength={300}
-                  rows={3}
+              <div style={{ fontSize: 13, color: "#64748b" }}>
+                {t("fin.rating.rated")} {chauffeur ? chauffeur.prenom : ""} {"★".repeat(note)}
+              </div>
+            </div>
+          ) : (
+            <>
+              <div style={{ fontWeight: 700, fontSize: 15, color: "#f5f5f5", marginBottom: 4, textAlign: "center" }}>
+                {t("fin.rating.title")}
+              </div>
+              <div style={{ textAlign: "center", marginBottom: 6 }}>
+                <span
                   style={{
-                    width: "100%",
-                    background: "#1a1a2e",
-                    border: "2px solid #2a2a4a",
-                    borderRadius: 14,
-                    padding: "12px 14px",
-                    color: "#f5f5f5",
-                    fontSize: 14,
-                    marginBottom: 12,
-                  }}
-                />
-
-                <button
-                  onClick={soumettreAvis}
-                  disabled={!note || avisLoading}
-                  style={{
-                    width: "100%",
-                    height: 52,
-                    background: note ? "linear-gradient(135deg,#f5c842,#e6a800)" : "rgba(245,200,66,0.2)",
-                    color: note ? "#0a0a14" : "rgba(245,200,66,0.4)",
-                    border: "none",
-                    borderRadius: 14,
-                    fontFamily: "'Clash Display',sans-serif",
-                    fontWeight: 700,
-                    fontSize: 16,
-                    cursor: note ? "pointer" : "not-allowed",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 8,
-                    transition: "all 0.2s",
+                    fontSize: 13,
+                    color: displayNote ? "#f5c842" : "#64748b",
+                    fontWeight: 600,
+                    minHeight: 20,
+                    display: "inline-block",
                   }}
                 >
-                  {avisLoading ? t("fin.rating.sending") : t("fin.rating.submit")}
-                </button>
-              </>
-            )}
-          </div>
-        )}
+                  {displayNote ? STAR_LABELS[displayNote] : t("fin.rating.tap")}
+                </span>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "center", gap: 4, marginBottom: 16 }}>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button
+                    key={n}
+                    className="star-btn"
+                    onMouseEnter={() => setHoverNote(n)}
+                    onMouseLeave={() => setHoverNote(0)}
+                    onClick={() => setNote(n)}
+                    style={{
+                      fontSize: 36,
+                      opacity: n <= displayNote ? 1 : 0.25,
+                      filter: n <= displayNote ? "none" : "grayscale(1)",
+                      transform: n === displayNote ? "scale(1.2)" : "scale(1)",
+                    }}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+
+              <textarea
+                value={commentaire}
+                onChange={(e) => setCommentaire(e.target.value)}
+                placeholder={t("fin.rating.comment")}
+                maxLength={300}
+                rows={3}
+                style={{
+                  width: "100%",
+                  background: "#1a1a2e",
+                  border: "2px solid #2a2a4a",
+                  borderRadius: 14,
+                  padding: "12px 14px",
+                  color: "#f5f5f5",
+                  fontSize: 14,
+                  marginBottom: 12,
+                }}
+              />
+
+              <button
+                onClick={soumettreAvis}
+                disabled={!note || avisLoading}
+                style={{
+                  width: "100%",
+                  height: 52,
+                  background: note ? "linear-gradient(135deg,#f5c842,#e6a800)" : "rgba(245,200,66,0.2)",
+                  color: note ? "#0a0a14" : "rgba(245,200,66,0.4)",
+                  border: "none",
+                  borderRadius: 14,
+                  fontFamily: "'Clash Display',sans-serif",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  cursor: note ? "pointer" : "not-allowed",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  transition: "all 0.2s",
+                }}
+              >
+                {avisLoading ? t("fin.rating.sending") : t("fin.rating.submit")}
+              </button>
+            </>
+          )}
+        </div>
 
         {/* ── Actions rapides ── */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
