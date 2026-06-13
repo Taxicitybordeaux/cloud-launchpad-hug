@@ -3607,6 +3607,19 @@ const pt: Dict = {
   cd_status_completed: "Concluída",
   cd_status_cancelled: "Cancelada",
   cd_status_refused: "Recusada",
+  cd_book_same: "Repetir a mesma corrida",
+  cd_toast_load_err: "Não foi possível carregar as suas corridas",
+  cd_toast_time_changed: "Hora alterada — motorista notificado",
+  cd_toast_locked_edit: "Esta corrida já não pode ser alterada",
+  cd_toast_edit_failed: "Alteração impossível",
+  cd_confirm_cancel: "Confirmar o cancelamento desta corrida?",
+  cd_toast_cancelled: "Corrida cancelada",
+  cd_toast_locked_cancel: "Esta corrida já não pode ser cancelada",
+  cd_toast_cancel_failed: "Cancelamento impossível",
+  cd_toast_phone_recorded: "Pedido de cancelamento telefónico registado",
+  cd_toast_phone_failed: "Registo impossível",
+  cd_msg_to_jose: "💬 Mensagem para o José",
+  cd_meta_title: "A minha área de cliente — Taxi City Bordeaux",
 };
 
 export const DICTS: Record<Lang, Dict> = { fr, en, es, pt, it, ar };
