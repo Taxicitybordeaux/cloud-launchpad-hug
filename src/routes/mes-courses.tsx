@@ -187,6 +187,11 @@ function MapReplay({ depart, destination }: { depart: string; destination: strin
           map.fitBounds([fromCoords, toCoords], { padding: [60, 60], maxZoom: 16 });
         }
         setTimeout(() => map.invalidateSize(), 100);
+
+        const onResize = () => map.invalidateSize();
+        window.addEventListener("resize", onResize);
+        window.addEventListener("orientationchange", onResize);
+        (map as any)._mcResizeHandler = onResize;
       } catch {
         setError(true);
       }
@@ -195,6 +200,10 @@ function MapReplay({ depart, destination }: { depart: string; destination: strin
     init();
     return () => {
       mounted = false;
+      if (mapInst.current?._mcResizeHandler) {
+        window.removeEventListener("resize", mapInst.current._mcResizeHandler);
+        window.removeEventListener("orientationchange", mapInst.current._mcResizeHandler);
+      }
       mapInst.current?.remove();
       mapInst.current = null;
     };
@@ -289,7 +298,7 @@ function CourseCard({ course, onRebook }: { course: Course; onRebook: (c: Course
         </div>
 
         {/* Trajet */}
-        <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+        <div className="mc-route-row" style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 3, flexShrink: 0 }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e" }} />
             <div style={{ width: 1.5, height: 20, background: "rgba(255,255,255,0.08)", margin: "3px 0" }} />
@@ -325,7 +334,7 @@ function CourseCard({ course, onRebook }: { course: Course; onRebook: (c: Course
             </div>
           </div>
           {isTerminee && (course.prix_final != null || course.prix_estime != null) && (
-            <div style={{ textAlign: "right", flexShrink: 0 }}>
+            <div className="mc-route-price" style={{ textAlign: "right", flexShrink: 0 }}>
               <div
                 style={{
                   fontSize: 20,
@@ -392,7 +401,7 @@ function CourseCard({ course, onRebook }: { course: Course; onRebook: (c: Course
         )}
 
         {/* Chevron */}
-        <div style={{ display: "flex", justifyContent: "center", marginTop: 10 }}>
+        <div style={{ display: "flex", justifyContent: "center", marginTop: 10, padding: "6px 0", minHeight: 24 }}>
           <span
             style={{
               color: "#334155",
@@ -423,7 +432,7 @@ function CourseCard({ course, onRebook }: { course: Course; onRebook: (c: Course
           {isTerminee && <MapReplay depart={course.depart} destination={course.destination} />}
 
           {/* Boutons action */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div className="mc-action-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <button
               onClick={() => onRebook(course)}
               style={{
@@ -737,6 +746,10 @@ function EmailGate({ onFound }: { onFound: (courses: Course[]) => void }) {
       <div style={{ width: "100%", maxWidth: 380 }}>
         <input
           type="email"
+          inputMode="email"
+          autoComplete="email"
+          autoCapitalize="off"
+          autoCorrect="off"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && search()}
@@ -838,8 +851,25 @@ function MesCourses() {
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         @keyframes slideUp { from { transform: translateY(40px); opacity:0; } to { transform: translateY(0); opacity:1; } }
         @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
         input[type="date"]::-webkit-calendar-picker-indicator,
         input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1) opacity(0.4); }
+
+        /* Petits écrans (≤360px) : compacter stats et trajet */
+        @media (max-width: 360px) {
+          .mc-stats-grid { gap: 6px !important; }
+          .mc-stats-grid > div { padding: 10px 6px !important; }
+          .mc-stats-grid .mc-stat-val { font-size: 14px !important; }
+          .mc-route-price { font-size: 17px !important; }
+          .mc-action-grid { gap: 8px !important; }
+          .mc-action-grid button { padding: 12px 6px !important; font-size: 13px !important; }
+        }
+
+        /* Très petits écrans : la valeur prix passe sous le trajet plutôt que de l'écraser */
+        @media (max-width: 320px) {
+          .mc-route-row { flex-wrap: wrap; }
+          .mc-route-price { width: 100%; text-align: left !important; margin-top: 8px; }
+        }
       `}</style>
 
       {/* Header */}
@@ -865,8 +895,13 @@ function MesCourses() {
             color: "#f5c842",
             fontSize: 20,
             cursor: "pointer",
-            padding: 0,
+            padding: 8,
+            margin: -8,
             lineHeight: 1,
+            minWidth: 44,
+            minHeight: 44,
+            display: "flex",
+            alignItems: "center",
           }}
         >
           ←
@@ -915,6 +950,7 @@ function MesCourses() {
           {/* Stats */}
           {stats.terminees > 0 && (
             <div
+              className="mc-stats-grid"
               style={{
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr 1fr",
@@ -938,7 +974,10 @@ function MesCourses() {
                   }}
                 >
                   <div style={{ fontSize: 20, marginBottom: 4 }}>{icon}</div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: "#f5c842", fontVariantNumeric: "tabular-nums" }}>
+                  <div
+                    className="mc-stat-val"
+                    style={{ fontSize: 16, fontWeight: 800, color: "#f5c842", fontVariantNumeric: "tabular-nums" }}
+                  >
                     {val}
                   </div>
                   <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{label}</div>
