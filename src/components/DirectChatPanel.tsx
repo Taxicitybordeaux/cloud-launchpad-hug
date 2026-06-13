@@ -9,6 +9,7 @@ import {
   type DirectMessage as ChatMessage,
 } from "@/lib/chat.functions";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { useI18n, useT } from "@/i18n/I18nProvider";
 
 type Props = {
   accountId: string;
@@ -28,6 +29,22 @@ const OFFLINE_QUEUE_KEY = (rid: string, role: string) => `chat:offline:${role}:$
 type OfflineMsg = { tempId: string; content: string; at: number };
 
 export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
+  const t = useT();
+  const { lang } = useI18n();
+  const locale =
+    lang === "fr"
+      ? "fr-FR"
+      : lang === "en"
+        ? "en-US"
+        : lang === "es"
+          ? "es-ES"
+          : lang === "it"
+            ? "it-IT"
+            : lang === "pt"
+              ? "pt-PT"
+              : lang === "ar"
+                ? "ar"
+                : "fr-FR";
   const peerRole = role === "client" ? "chauffeur" : "client";
   const title = peerName || (role === "client" ? "José 🚖" : "Client");
 
@@ -337,10 +354,10 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
   }
 
   const statusLabel = useMemo(() => {
-    if (peerTyping) return "Écrit…";
-    if (peerOnline) return "En ligne";
-    return "Hors ligne";
-  }, [peerOnline, peerTyping]);
+    if (peerTyping) return t("chat_status_typing");
+    if (peerOnline) return t("chat_status_online");
+    return t("chat_status_offline");
+  }, [peerOnline, peerTyping, t]);
 
   const statusColor = peerOnline || peerTyping ? "text-emerald-400" : "text-white/40";
   const dotColor = peerOnline || peerTyping ? "bg-emerald-400" : "bg-white/30";
@@ -419,7 +436,7 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
             className={`rounded-full p-1.5 transition hover:bg-white/10 ${
               showSearch || filterActive ? "text-[#E8C96D]" : "text-white/60 hover:text-white"
             }`}
-            aria-label="Rechercher"
+            aria-label={t("chat_search")}
             aria-pressed={showSearch}
           >
             <Search className="h-4 w-4" />
@@ -429,8 +446,8 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
             onClick={exportCsv}
             disabled={visibleMessages.length === 0}
             className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white disabled:opacity-40"
-            aria-label="Exporter la conversation en CSV"
-            title="Exporter en CSV"
+            aria-label={t("chat_export_csv")}
+            title={t("chat_export_csv")}
           >
             <Download className="h-4 w-4" />
           </button>
@@ -439,7 +456,7 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
               type="button"
               onClick={() => onClose()}
               className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white"
-              aria-label="Fermer"
+              aria-label={t("chat_close")}
             >
               <X className="h-4 w-4" />
             </button>
@@ -449,7 +466,7 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
 
       {queued.length > 0 && (
         <div className="border-b border-amber-500/20 bg-amber-500/10 px-4 py-2 text-[11px] text-amber-300">
-          📡 {queued.length} message{queued.length > 1 ? "s" : ""} en attente — envoi automatique au retour en ligne.
+          {t("chat_queued_prefix")} {queued.length} {t("chat_queued_suffix")}
         </div>
       )}
 
@@ -461,13 +478,13 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
               type="search"
               value={searchKw}
               onChange={(e) => setSearchKw(e.target.value)}
-              placeholder="Rechercher un mot-clé…"
+              placeholder={t("chat_search_placeholder")}
               className="w-full rounded-lg border border-white/10 bg-white/5 py-1.5 pl-8 pr-2 text-xs text-white placeholder-white/40 outline-none focus:border-[#E8C96D]"
             />
           </div>
           <div className="flex items-center gap-1.5 text-[11px] text-white/60">
             <label className="flex-1">
-              <span className="mb-0.5 block text-[10px] uppercase tracking-wider text-white/40">Du</span>
+              <span className="mb-0.5 block text-[10px] uppercase tracking-wider text-white/40">{t("chat_from")}</span>
               <input
                 type="date"
                 value={searchFrom}
@@ -476,7 +493,7 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
               />
             </label>
             <label className="flex-1">
-              <span className="mb-0.5 block text-[10px] uppercase tracking-wider text-white/40">Au</span>
+              <span className="mb-0.5 block text-[10px] uppercase tracking-wider text-white/40">{t("chat_to")}</span>
               <input
                 type="date"
                 value={searchTo}
@@ -494,18 +511,16 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
                 }}
                 className="self-end rounded-md border border-white/10 px-2 py-1 text-[10px] text-white/60 transition hover:bg-white/10 hover:text-white"
               >
-                Réinitialiser
+                {t("chat_reset")}
               </button>
             )}
           </div>
           {filterActive && (
             <div className="text-[10px] text-white/50">
-              {visibleMessages.length} message{visibleMessages.length > 1 ? "s" : ""} trouvé
-              {visibleMessages.length > 1 ? "s" : ""} sur {messages.length} chargé
-              {messages.length > 1 ? "s" : ""}.{" "}
+              {visibleMessages.length} {t("chat_found_on_loaded")} {messages.length} {t("chat_loaded")}{" "}
               {hasMore && (
                 <button type="button" onClick={loadOlder} className="underline hover:text-white/80">
-                  charger plus d'historique
+                  {t("chat_load_more_history")}
                 </button>
               )}
             </div>
@@ -524,7 +539,7 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
               className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-white/60 hover:bg-white/10 disabled:opacity-50"
             >
               {loadingMore ? <Loader2 className="h-3 w-3 animate-spin" /> : <ChevronUp className="h-3 w-3" />}
-              Messages plus anciens
+              {t("chat_older_messages")}
             </button>
           </div>
         )}
@@ -536,11 +551,11 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
         )}
         {!loading && messages.length === 0 && (
           <div className="pt-10 text-center text-sm text-white/40">
-            Aucun message pour l'instant. Écrivez le premier !
+            {t("chat_no_messages")}
           </div>
         )}
         {!loading && messages.length > 0 && filterActive && visibleMessages.length === 0 && (
-          <div className="pt-10 text-center text-sm text-white/40">Aucun message ne correspond à votre recherche.</div>
+          <div className="pt-10 text-center text-sm text-white/40">{t("chat_no_match")}</div>
         )}
 
         <ul className="space-y-2.5">
@@ -566,7 +581,7 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
                     }`}
                   >
                     <span>
-                      {new Date(m.created_at).toLocaleTimeString("fr-FR", {
+                      {new Date(m.created_at).toLocaleTimeString(locale, {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
@@ -584,7 +599,7 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
             <div
               className="flex items-center gap-1 rounded-2xl px-3 py-2"
               style={{ background: "rgba(255,255,255,0.08)" }}
-              aria-label="L'autre personne est en train d'écrire"
+              aria-label={t("chat_typing_aria")}
             >
               <Dot delay="0ms" />
               <Dot delay="150ms" />
@@ -614,7 +629,7 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
               send();
             }
           }}
-          placeholder="Écrire un message…"
+          placeholder={t("chat_input_placeholder")}
           rows={1}
           className="max-h-32 flex-1 resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/40 outline-none focus:border-[#E8C96D]"
         />
@@ -623,7 +638,7 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
           disabled={sending || !input.trim()}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-black transition active:scale-95 disabled:opacity-50"
           style={{ background: "linear-gradient(135deg, #C9A84C 0%, #E8C96D 100%)" }}
-          aria-label="Envoyer"
+          aria-label={t("chat_send")}
         >
           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </button>
