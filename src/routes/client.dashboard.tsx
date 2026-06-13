@@ -606,7 +606,7 @@ function ClientDashboard() {
             width: "100%",
           }}
         >
-          <div style={{ color: "#f8fafc", fontWeight: 700, fontSize: 16, marginBottom: 12 }}>💬 Message à José</div>
+          <div style={{ color: "#f8fafc", fontWeight: 700, fontSize: 16, marginBottom: 12 }}>{t("cd_msg_to_jose")}</div>
           <div
             style={{
               borderRadius: 16,
