@@ -354,10 +354,10 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
   }
 
   const statusLabel = useMemo(() => {
-    if (peerTyping) return "Écrit…";
-    if (peerOnline) return "En ligne";
-    return "Hors ligne";
-  }, [peerOnline, peerTyping]);
+    if (peerTyping) return t("chat_status_typing");
+    if (peerOnline) return t("chat_status_online");
+    return t("chat_status_offline");
+  }, [peerOnline, peerTyping, t]);
 
   const statusColor = peerOnline || peerTyping ? "text-emerald-400" : "text-white/40";
   const dotColor = peerOnline || peerTyping ? "bg-emerald-400" : "bg-white/30";
