@@ -551,11 +551,11 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
         )}
         {!loading && messages.length === 0 && (
           <div className="pt-10 text-center text-sm text-white/40">
-            Aucun message pour l'instant. Écrivez le premier !
+            {t("chat_no_messages")}
           </div>
         )}
         {!loading && messages.length > 0 && filterActive && visibleMessages.length === 0 && (
-          <div className="pt-10 text-center text-sm text-white/40">Aucun message ne correspond à votre recherche.</div>
+          <div className="pt-10 text-center text-sm text-white/40">{t("chat_no_match")}</div>
         )}
 
         <ul className="space-y-2.5">
