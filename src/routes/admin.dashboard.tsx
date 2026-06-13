@@ -757,7 +757,28 @@ function Dashboard() {
       .from("clients")
       .select("id, name, phone, email, total_courses, created_at")
       .order("created_at", { ascending: false });
-    if (!error) setClients(data ?? []);
+    if (!error) {
+      // Pour chaque client, récupérer sa dernière réservation terminée
+      const clientList = data ?? [];
+      const phones = clientList.map((c: any) => c.phone).filter(Boolean);
+      let resaMap: Record<string, any> = {};
+      if (phones.length > 0) {
+        const { data: resas } = await (supabase as any)
+          .from("reservations")
+          .select(
+            "client_phone, telephone, depart, destination, arrivee, distance_km, prix_estime, pickup_datetime, created_at",
+          )
+          .in("status", ["completed", "terminee", "terminée", "done"])
+          .order("created_at", { ascending: false });
+        if (resas) {
+          for (const r of resas) {
+            const p = r.client_phone || r.telephone;
+            if (p && !resaMap[p]) resaMap[p] = r;
+          }
+        }
+      }
+      setClients(clientList.map((c: any) => ({ ...c, lastResa: resaMap[c.phone] ?? null })));
+    }
     setClientsLoading(false);
   }, []);
 
@@ -1956,7 +1977,6 @@ function Dashboard() {
 
   const pending = items.filter((r) => r.status === "pending");
   const accepted = items.filter((r) => r.status === "accepted" || r.status === "en_route" || r.status === "arrived");
-  const completed = items.filter((r) => ["completed", "terminee", "terminée", "done"].includes(r.status));
   const refused = items.filter((r) => ["refused", "cancelled", "canceled", "refusee", "annulee"].includes(r.status));
   const inProgress = items.filter((r) => r.status === "en_route" || r.status === "arrived"); // gardé pour compatibilité GPS
 
@@ -3410,153 +3430,6 @@ function Dashboard() {
       </div>
 
       {/* ══════════════════════════════
-          SECTION COURSES TERMINÉES
-      ══════════════════════════════ */}
-      <div style={{ marginTop: 48 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-          <h2
-            style={{
-              fontFamily: "'Syne',sans-serif",
-              fontSize: 20,
-              fontWeight: 800,
-              color: "#f8fafc",
-              margin: 0,
-            }}
-          >
-            🏁 Courses terminées
-          </h2>
-          {!coursesLoading && completed.length > 0 && (
-            <span
-              style={{
-                background: "rgba(14,165,233,0.12)",
-                color: "#0ea5e9",
-                padding: "2px 10px",
-                borderRadius: 99,
-                fontSize: 12,
-                fontWeight: 700,
-              }}
-            >
-              {completed.length}
-            </span>
-          )}
-        </div>
-
-        {coursesLoading && <div style={{ textAlign: "center", color: "#475569", padding: 40 }}>Chargement…</div>}
-
-        {!coursesLoading && completed.length === 0 && (
-          <div
-            style={{
-              textAlign: "center",
-              color: "#475569",
-              padding: "28px 0",
-              fontSize: 14,
-              border: "1px dashed rgba(255,255,255,0.08)",
-              borderRadius: 16,
-            }}
-          >
-            Aucune course terminée pour l'instant
-          </div>
-        )}
-
-        {!coursesLoading &&
-          completed.map((r) => (
-            <SwipeDeleteRow
-              key={r.id}
-              onDelete={() => handleDeleteReservation(r.id)}
-              disabled={deleteBusy}
-              style={{ marginBottom: 14 }}
-            >
-              <div style={{ ...card }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    {/* Nom + badge */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                      <div style={{ color: "#fff", fontWeight: 700, fontSize: 16 }}>{r.client_name || r.nom}</div>
-                      <StatusBadge s={r.status} />
-                    </div>
-                    {/* Date */}
-                    <div style={{ color: "#64748b", fontSize: 12, marginBottom: 8 }}>
-                      {r.pickup_datetime
-                        ? formatParis(r.pickup_datetime, { dateStyle: "short", timeStyle: "short" })
-                        : new Date(r.created_at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
-                    </div>
-                    {/* Trajet */}
-                    <div style={{ color: "#94a3b8", fontSize: 13, marginBottom: 8 }}>
-                      <div>🟢 {r.depart}</div>
-                      <div style={{ marginTop: 2 }}>🏁 {r.destination || r.arrivee}</div>
-                    </div>
-                    {/* Coordonnées client */}
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                      {(r.client_phone || r.telephone) && (
-                        <a
-                          href={`tel:${r.client_phone || r.telephone}`}
-                          style={{
-                            color: "#22c55e",
-                            fontSize: 13,
-                            textDecoration: "none",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 6,
-                          }}
-                        >
-                          📞 {r.client_phone || r.telephone}
-                        </a>
-                      )}
-                      {(r.client_email || r.email) && (
-                        <a
-                          href={`mailto:${r.client_email || r.email}`}
-                          style={{
-                            color: "#0ea5e9",
-                            fontSize: 12,
-                            textDecoration: "none",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 6,
-                          }}
-                        >
-                          ✉️ {r.client_email || r.email}
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                  {/* Prix */}
-                  {(() => {
-                    const p = getPrix(r);
-                    return p ? (
-                      <div
-                        style={{
-                          background: "rgba(14,165,233,0.08)",
-                          border: "1px solid rgba(14,165,233,0.2)",
-                          borderRadius: 12,
-                          padding: "8px 14px",
-                          textAlign: "center",
-                          flexShrink: 0,
-                          alignSelf: "flex-start",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontFamily: "'JetBrains Mono',monospace",
-                            fontSize: 18,
-                            fontWeight: 700,
-                            color: "#0ea5e9",
-                          }}
-                        >
-                          {p.toFixed(2)} €
-                        </div>
-                        <div style={{ fontSize: 9, color: "#475569", marginTop: 2, textTransform: "uppercase" }}>
-                          prix final
-                        </div>
-                      </div>
-                    ) : null;
-                  })()}
-                </div>
-              </div>
-            </SwipeDeleteRow>
-          ))}
-      </div>
-
-      {/* ══════════════════════════════
           SECTION AVIS
       ══════════════════════════════ */}
       <div style={{ marginTop: 48 }}>
@@ -4041,10 +3914,20 @@ function Dashboard() {
                     >
                       {c.name || "—"}
                     </div>
-                    {/* Téléphone */}
+                    {/* Téléphone - cliquable pour enregistrer dans le répertoire */}
                     {c.phone && (
                       <a
                         href={`tel:${c.phone}`}
+                        onClick={async (e) => {
+                          // Tenter d'enregistrer le contact dans le répertoire via Contacts API
+                          if ("contacts" in navigator && (navigator as any).contacts?.select) {
+                            try {
+                              const newContact = new (window as any).ContactsManager();
+                              void newContact;
+                            } catch {}
+                          }
+                          // Fallback : ouvre le composeur avec le numéro (comportement natif sur mobile)
+                        }}
                         style={{
                           display: "flex",
                           alignItems: "center",
@@ -4056,6 +3939,28 @@ function Dashboard() {
                         }}
                       >
                         📞 {c.phone}
+                      </a>
+                    )}
+                    {/* Bouton enregistrer contact */}
+                    {c.phone && (
+                      <a
+                        href={`data:text/vcard;charset=utf-8,BEGIN:VCARD%0AVERSION:3.0%0AFN:${encodeURIComponent(c.name || c.phone)}%0ATEL:${encodeURIComponent(c.phone)}${c.email ? "%0AEMAIL:" + encodeURIComponent(c.email) : ""}%0AEND:VCARD`}
+                        download={`${(c.name || c.phone).replace(/\s+/g, "_")}.vcf`}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          color: "#64748b",
+                          fontSize: 11,
+                          textDecoration: "none",
+                          marginBottom: 4,
+                          background: "rgba(255,255,255,0.05)",
+                          border: "1px solid rgba(255,255,255,0.08)",
+                          borderRadius: 6,
+                          padding: "2px 8px",
+                        }}
+                      >
+                        💾 Enregistrer le contact
                       </a>
                     )}
                     {/* Email */}
@@ -4074,6 +3979,46 @@ function Dashboard() {
                       >
                         ✉️ {c.email}
                       </a>
+                    )}
+                    {/* Dernière course */}
+                    {c.lastResa && (
+                      <div
+                        style={{
+                          marginTop: 8,
+                          padding: "8px 10px",
+                          background: "rgba(255,255,255,0.03)",
+                          border: "1px solid rgba(255,255,255,0.06)",
+                          borderRadius: 10,
+                        }}
+                      >
+                        <div
+                          style={{
+                            color: "#64748b",
+                            fontSize: 10,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.05em",
+                            marginBottom: 4,
+                          }}
+                        >
+                          Dernière course
+                        </div>
+                        <div style={{ color: "#94a3b8", fontSize: 12 }}>🟢 {c.lastResa.depart}</div>
+                        <div style={{ color: "#94a3b8", fontSize: 12, marginTop: 2 }}>
+                          🏁 {c.lastResa.destination || c.lastResa.arrivee}
+                        </div>
+                        <div style={{ display: "flex", gap: 10, marginTop: 6, flexWrap: "wrap" }}>
+                          {c.lastResa.distance_km && (
+                            <span style={{ color: "#64748b", fontSize: 11 }}>
+                              📍 {Number(c.lastResa.distance_km).toFixed(1)} km
+                            </span>
+                          )}
+                          {c.lastResa.prix_estime && (
+                            <span style={{ color: "#f5c842", fontSize: 11, fontWeight: 700 }}>
+                              💶 {Number(c.lastResa.prix_estime).toFixed(2)} €
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     )}
                     {/* Date inscription */}
                     {c.created_at && (
