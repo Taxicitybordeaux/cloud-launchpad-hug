@@ -581,7 +581,7 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
                     }`}
                   >
                     <span>
-                      {new Date(m.created_at).toLocaleTimeString("fr-FR", {
+                      {new Date(m.created_at).toLocaleTimeString(locale, {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
