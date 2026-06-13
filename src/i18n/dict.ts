@@ -2993,6 +2993,19 @@ const ar: Dict = {
   cd_status_completed: "منتهية",
   cd_status_cancelled: "ملغاة",
   cd_status_refused: "مرفوضة",
+  cd_book_same: "إعادة نفس الرحلة",
+  cd_toast_load_err: "تعذّر تحميل رحلاتك",
+  cd_toast_time_changed: "تم تعديل الوقت — تم إشعار السائق",
+  cd_toast_locked_edit: "لا يمكن تعديل هذه الرحلة بعد الآن",
+  cd_toast_edit_failed: "تعذّر التعديل",
+  cd_confirm_cancel: "تأكيد إلغاء هذه الرحلة؟",
+  cd_toast_cancelled: "تم إلغاء الرحلة",
+  cd_toast_locked_cancel: "لا يمكن إلغاء هذه الرحلة بعد الآن",
+  cd_toast_cancel_failed: "تعذّر الإلغاء",
+  cd_toast_phone_recorded: "تم تسجيل طلب الإلغاء عبر الهاتف",
+  cd_toast_phone_failed: "تعذّر التسجيل",
+  cd_msg_to_jose: "💬 رسالة إلى خوسيه",
+  cd_meta_title: "فضائي كعميل — Taxi City Bordeaux",
 };
 
 const pt: Dict = {
