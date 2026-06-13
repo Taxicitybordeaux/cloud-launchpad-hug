@@ -29,6 +29,22 @@ const OFFLINE_QUEUE_KEY = (rid: string, role: string) => `chat:offline:${role}:$
 type OfflineMsg = { tempId: string; content: string; at: number };
 
 export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
+  const t = useT();
+  const { lang } = useI18n();
+  const locale =
+    lang === "fr"
+      ? "fr-FR"
+      : lang === "en"
+        ? "en-US"
+        : lang === "es"
+          ? "es-ES"
+          : lang === "it"
+            ? "it-IT"
+            : lang === "pt"
+              ? "pt-PT"
+              : lang === "ar"
+                ? "ar"
+                : "fr-FR";
   const peerRole = role === "client" ? "chauffeur" : "client";
   const title = peerName || (role === "client" ? "José 🚖" : "Client");
 
