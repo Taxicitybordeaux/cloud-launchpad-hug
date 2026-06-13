@@ -456,7 +456,7 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
               type="button"
               onClick={() => onClose()}
               className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white"
-              aria-label="Fermer"
+              aria-label={t("chat_close")}
             >
               <X className="h-4 w-4" />
             </button>
