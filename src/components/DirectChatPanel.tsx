@@ -446,8 +446,8 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
             onClick={exportCsv}
             disabled={visibleMessages.length === 0}
             className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white disabled:opacity-40"
-            aria-label="Exporter la conversation en CSV"
-            title="Exporter en CSV"
+            aria-label={t("chat_export_csv")}
+            title={t("chat_export_csv")}
           >
             <Download className="h-4 w-4" />
           </button>
