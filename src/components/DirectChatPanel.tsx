@@ -638,7 +638,7 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
           disabled={sending || !input.trim()}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-black transition active:scale-95 disabled:opacity-50"
           style={{ background: "linear-gradient(135deg, #C9A84C 0%, #E8C96D 100%)" }}
-          aria-label="Envoyer"
+          aria-label={t("chat_send")}
         >
           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </button>
