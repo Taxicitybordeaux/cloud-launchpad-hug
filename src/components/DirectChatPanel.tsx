@@ -478,7 +478,7 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
               type="search"
               value={searchKw}
               onChange={(e) => setSearchKw(e.target.value)}
-              placeholder="Rechercher un mot-clé…"
+              placeholder={t("chat_search_placeholder")}
               className="w-full rounded-lg border border-white/10 bg-white/5 py-1.5 pl-8 pr-2 text-xs text-white placeholder-white/40 outline-none focus:border-[#E8C96D]"
             />
           </div>
