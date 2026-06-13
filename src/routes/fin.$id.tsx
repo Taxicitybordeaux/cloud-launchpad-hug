@@ -83,13 +83,74 @@ import { geocodeAddress } from "@/lib/geocode";
 import { getRouteGeoCoords } from "@/lib/osrm";
 
 async function geocode(adresse: string): Promise<[number, number] | null> {
-  try {
-    const c = await geocodeAddress(adresse);
-    if (!c) return null;
-    return [c.lat, c.lng];
-  } catch {
-    return null;
+  // Nominatim échoue souvent sur des adresses complexes type
+  // "Aéroport Bordeaux-Mérignac — Hall A (Départs), 33700 Mérignac".
+  // On tente plusieurs variantes, de la plus précise à la plus générale,
+  // et on garde le premier résultat valide.
+  const candidates = buildGeocodeCandidates(adresse);
+
+  for (const candidate of candidates) {
+    try {
+      const c = await geocodeAddress(candidate);
+      if (c) {
+        // eslint-disable-next-line no-console
+        console.info("[geocode] success", { original: adresse, candidate, result: c });
+        return [c.lat, c.lng];
+      }
+    } catch {
+      // on continue avec la variante suivante
+    }
   }
+  // eslint-disable-next-line no-console
+  console.warn("[geocode] all candidates failed", { adresse, candidates });
+  return null;
+}
+
+// Construit une liste de variantes d'adresse à essayer, sans perdre
+// d'information à la première tentative : on retire progressivement
+// les précisions les moins géocodables (parenthèses, puis détails après
+// un tiret long), tout en gardant la ville/code postal.
+function buildGeocodeCandidates(adresse: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const add = (s: string) => {
+    const t = s.replace(/\s{2,}/g, " ").trim();
+    if (t && !seen.has(t)) {
+      seen.add(t);
+      out.push(t);
+    }
+  };
+
+  // 1) Adresse complète telle que saisie
+  add(adresse);
+
+  // 2) Sans les précisions entre parenthèses (ex: "(Départs)")
+  const noParens = adresse.replace(/\([^)]*\)/g, "");
+  add(noParens);
+
+  // 3) En coupant après le dernier tiret long "—" (garde nom de lieu + ville/CP)
+  //    ex: "Aéroport Bordeaux-Mérignac — Hall A, 33700 Mérignac"
+  //     →  "Aéroport Bordeaux-Mérignac, 33700 Mérignac"
+  const parts = noParens.split("—").map((p) => p.trim());
+  if (parts.length > 1) {
+    const lieu = parts[0];
+    const reste = parts[parts.length - 1];
+    // garde le code postal/ville s'il est présent dans la dernière partie
+    const cpVille = reste.match(/\d{5}\s*[A-Za-zÀ-ÿ\-' ]+/);
+    add(cpVille ? `${lieu}, ${cpVille[0]}` : lieu);
+    add(lieu);
+  }
+
+  // 4) Juste le nom du lieu + code postal/ville extrait de l'adresse complète
+  const cpVilleGlobal = adresse.match(/\d{5}\s*[A-Za-zÀ-ÿ\-' ]+/);
+  if (cpVilleGlobal) {
+    const avantCp = adresse.slice(0, adresse.indexOf(cpVilleGlobal[0]));
+    const nomLieu = avantCp.split(/[—,]/)[0].trim();
+    if (nomLieu) add(`${nomLieu}, ${cpVilleGlobal[0]}`);
+    add(cpVilleGlobal[0]);
+  }
+
+  return out;
 }
 
 // from/to en [lat, lng] ; getRouteGeoCoords (osrm.ts) attend [lng, lat]
