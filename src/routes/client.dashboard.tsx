@@ -230,12 +230,12 @@ function ClientDashboard() {
           reservation_id: id,
         },
       });
-      toast.success("Demande d'annulation par téléphone enregistrée");
+      toast.success(t("cd_toast_phone_recorded"));
       setPhoneModalId(null);
       refresh();
       window.location.href = "tel:0673072322";
     } catch {
-      toast.error("Enregistrement impossible");
+      toast.error(t("cd_toast_phone_failed"));
     } finally {
       setPhoneModalBusy(false);
     }
