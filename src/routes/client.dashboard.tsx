@@ -183,13 +183,13 @@ function ClientDashboard() {
           pickup_datetime: new Date(editTime).toISOString(),
         },
       });
-      toast.success("Heure modifiée — chauffeur notifié");
+      toast.success(t("cd_toast_time_changed"));
       setEditingId(null);
       setEditTime("");
       refresh();
     } catch (e: any) {
       toast.error(
-        e?.message === "STATUS_LOCKED" ? "Cette course ne peut plus être modifiée" : "Modification impossible",
+        e?.message === "STATUS_LOCKED" ? t("cd_toast_locked_edit") : t("cd_toast_edit_failed"),
       );
     } finally {
       setBusy(null);
