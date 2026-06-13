@@ -511,7 +511,7 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
                 }}
                 className="self-end rounded-md border border-white/10 px-2 py-1 text-[10px] text-white/60 transition hover:bg-white/10 hover:text-white"
               >
-                Réinitialiser
+                {t("chat_reset")}
               </button>
             )}
           </div>
