@@ -466,7 +466,7 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
 
       {queued.length > 0 && (
         <div className="border-b border-amber-500/20 bg-amber-500/10 px-4 py-2 text-[11px] text-amber-300">
-          📡 {queued.length} message{queued.length > 1 ? "s" : ""} en attente — envoi automatique au retour en ligne.
+          {t("chat_queued_prefix")} {queued.length} {t("chat_queued_suffix")}
         </div>
       )}
 
