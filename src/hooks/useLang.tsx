@@ -1,6 +1,6 @@
 // src/hooks/useLang.tsx
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { LANGUAGES, DICTS, dirOf, type Lang } from "@/lib/dict";
+import { LANGUAGES, DICTS, dirOf, type Lang } from "@/i18n/dict";
 
 const STORAGE_KEY = "lang";
 const DEFAULT_LANG: Lang = "fr";
@@ -36,11 +36,7 @@ export function LangProvider({ children }: { children: ReactNode }) {
     return DICTS[lang]?.[key] ?? DICTS[DEFAULT_LANG]?.[key] ?? key;
   };
 
-  return (
-    <LangContext.Provider value={{ lang, setLang, t, dir: dirOf(lang) }}>
-      {children}
-    </LangContext.Provider>
-  );
+  return <LangContext.Provider value={{ lang, setLang, t, dir: dirOf(lang) }}>{children}</LangContext.Provider>;
 }
 
 export function useLang(): LangContextValue {

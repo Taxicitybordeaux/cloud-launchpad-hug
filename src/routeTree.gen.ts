@@ -22,6 +22,7 @@ import { Route as AProposRouteImport } from './routes/a-propos'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SuiviIdRouteImport } from './routes/suivi.$id'
 import { Route as ReservationIdRouteImport } from './routes/reservation.$id'
+import { Route as FinIdRouteImport } from './routes/fin.$id'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as CourseIdRouteImport } from './routes/course.$id'
 import { Route as ClientLoginRouteImport } from './routes/client.login'
@@ -105,6 +106,11 @@ const ReservationIdRoute = ReservationIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => ReservationRoute,
+} as any)
+const FinIdRoute = FinIdRouteImport.update({
+  id: '/fin/$id',
+  path: '/fin/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
   id: '/email/unsubscribe',
@@ -221,6 +227,7 @@ export interface FileRoutesByFullPath {
   '/client/login': typeof ClientLoginRoute
   '/course/$id': typeof CourseIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/fin/$id': typeof FinIdRoute
   '/reservation/$id': typeof ReservationIdRoute
   '/suivi/$id': typeof SuiviIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
@@ -254,6 +261,7 @@ export interface FileRoutesByTo {
   '/client/login': typeof ClientLoginRoute
   '/course/$id': typeof CourseIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/fin/$id': typeof FinIdRoute
   '/reservation/$id': typeof ReservationIdRoute
   '/suivi/$id': typeof SuiviIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
@@ -288,6 +296,7 @@ export interface FileRoutesById {
   '/client/login': typeof ClientLoginRoute
   '/course/$id': typeof CourseIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/fin/$id': typeof FinIdRoute
   '/reservation/$id': typeof ReservationIdRoute
   '/suivi/$id': typeof SuiviIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
@@ -323,6 +332,7 @@ export interface FileRouteTypes {
     | '/client/login'
     | '/course/$id'
     | '/email/unsubscribe'
+    | '/fin/$id'
     | '/reservation/$id'
     | '/suivi/$id'
     | '/api/admin/send-course-email'
@@ -356,6 +366,7 @@ export interface FileRouteTypes {
     | '/client/login'
     | '/course/$id'
     | '/email/unsubscribe'
+    | '/fin/$id'
     | '/reservation/$id'
     | '/suivi/$id'
     | '/api/admin/send-course-email'
@@ -389,6 +400,7 @@ export interface FileRouteTypes {
     | '/client/login'
     | '/course/$id'
     | '/email/unsubscribe'
+    | '/fin/$id'
     | '/reservation/$id'
     | '/suivi/$id'
     | '/api/admin/send-course-email'
@@ -420,6 +432,7 @@ export interface RootRouteChildren {
   ClientLoginRoute: typeof ClientLoginRoute
   CourseIdRoute: typeof CourseIdRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
+  FinIdRoute: typeof FinIdRoute
   SuiviIdRoute: typeof SuiviIdRoute
   ApiAdminSendCourseEmailRoute: typeof ApiAdminSendCourseEmailRoute
   ApiPublicContactRoute: typeof ApiPublicContactRoute
@@ -526,6 +539,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/reservation/$id'
       preLoaderRoute: typeof ReservationIdRouteImport
       parentRoute: typeof ReservationRoute
+    }
+    '/fin/$id': {
+      id: '/fin/$id'
+      path: '/fin/$id'
+      fullPath: '/fin/$id'
+      preLoaderRoute: typeof FinIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/email/unsubscribe': {
       id: '/email/unsubscribe'
@@ -698,6 +718,7 @@ const rootRouteChildren: RootRouteChildren = {
   ClientLoginRoute: ClientLoginRoute,
   CourseIdRoute: CourseIdRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
+  FinIdRoute: FinIdRoute,
   SuiviIdRoute: SuiviIdRoute,
   ApiAdminSendCourseEmailRoute: ApiAdminSendCourseEmailRoute,
   ApiPublicContactRoute: ApiPublicContactRoute,
