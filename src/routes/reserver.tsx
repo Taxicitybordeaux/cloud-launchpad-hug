@@ -883,27 +883,51 @@ function ReservationPage() {
     };
     recog.onresult = (event: any) => {
       const transcript: string = event.results[0][0].transcript;
-      // Sépare via mots-clés. On enlève "de"/"depuis" initial éventuel.
-      const cleaned = transcript.trim().replace(/^\s*(de|depuis|du|d'|partir de|départ)\s+/i, "");
-      const splitRegex =
-        /\s+(?:jusqu'?[àa]|jusque?|destination|direction|vers|puis|->|=>|à destination de|à\s+(?=[A-ZÀ-Ÿ]))\s+/i;
-      const parts = cleaned.split(splitRegex);
+      const raw = transcript.trim();
       let depart = "";
       let destination = "";
-      if (parts.length >= 2) {
-        depart = parts[0].trim();
-        destination = parts.slice(1).join(" ").trim();
+
+      // ── Stratégie 1 : "départ [X] destination [Y]" ou "de [X] à [Y]" ──
+      // Cherche un mot-clé de départ EN DÉBUT de phrase
+      const departPrefixMatch = raw.match(/^(?:de|depuis|du|d'|partir de|départ[:\s]?)\s+(.+)/i);
+      const cleanedWithDepart = departPrefixMatch ? departPrefixMatch[1] : raw;
+
+      // Séparateurs destination
+      const destSepRegex =
+        /\s+(?:jusqu'?[àa]|jusque?|destination[:\s]?|direction|vers|puis|->|=>|à destination de)\s+/i;
+
+      // Séparateurs départ (quand les deux mots-clés sont dans la phrase)
+      // Ex : "départ rue X destination rue Y" → on cherche d'abord "destination" comme séparateur
+      // Ex : "rue X départ destination rue Y" → cas bizarre, on ignore
+      const destParts = cleanedWithDepart.split(destSepRegex);
+
+      if (destParts.length >= 2) {
+        // Le premier morceau avant le séparateur destination = départ
+        depart = destParts[0].trim();
+        destination = destParts.slice(1).join(" ").trim();
       } else {
-        // fallback : tente " à " simple
-        const idx = cleaned.toLowerCase().lastIndexOf(" à ");
-        if (idx > 0) {
-          depart = cleaned.slice(0, idx).trim();
-          destination = cleaned.slice(idx + 3).trim();
+        // ── Stratégie 2 : pas de séparateur destination → cherche "départ" au milieu
+        // Ex : "rue Victor Hugo départ, place de la Victoire destination"
+        const midDepartMatch = raw.match(
+          /^(.+?)\s+(?:départ|depuis|de chez)\s+(.+?)(?:\s+(?:destination|vers|à|jusqu'?à)\s+(.+))?$/i,
+        );
+        if (midDepartMatch && midDepartMatch[3]) {
+          depart = midDepartMatch[2].trim();
+          destination = midDepartMatch[3].trim();
         } else {
-          // pas de séparateur trouvé → on met tout en destination
-          destination = cleaned;
+          // ── Stratégie 3 : fallback " à " simple
+          const aIdx = cleanedWithDepart.toLowerCase().lastIndexOf(" à ");
+          if (departPrefixMatch && aIdx > 0) {
+            // On avait un préfixe de départ ET un " à " → split propre
+            depart = cleanedWithDepart.slice(0, aIdx).trim();
+            destination = cleanedWithDepart.slice(aIdx + 3).trim();
+          } else {
+            // Aucun séparateur trouvé → tout en destination (comportement original)
+            destination = raw;
+          }
         }
       }
+
       if (depart) {
         set("depart", depart);
         setFromCoord(null);
