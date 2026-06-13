@@ -1,1129 +1,4219 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useRef, useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { getReservationForFinPublic } from "@/lib/reservation.functions";
-const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-const OSM_TILE_OPTIONS = { attribution: "© OpenStreetMap contributors", maxZoom: 19 };
-
-export const Route = createFileRoute("/fin/$id")({
-  head: () => ({ meta: [{ title: "Course terminée — Taxi City Bordeaux" }] }),
-  component: FinPage,
-});
-
-// ── jsPDF loader (CDN, gratuit, 0 backend) ────────────────────
-function loadJsPDF(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if ((window as any).jspdf?.jsPDF) {
-      resolve();
-      return;
-    }
-    const existing = document.getElementById("jspdf-js");
-    if (existing) {
-      const poll = setInterval(() => {
-        if ((window as any).jspdf?.jsPDF) {
-          clearInterval(poll);
-          resolve();
-        }
-      }, 50);
-      setTimeout(() => {
-        clearInterval(poll);
-        reject(new Error("jsPDF timeout"));
-      }, 8000);
-      return;
-    }
-    const s = document.createElement("script");
-    s.id = "jspdf-js";
-    s.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("jsPDF load error"));
-    document.head.appendChild(s);
-  });
-}
-
-// ── Leaflet loader ────────────────────────────────────────────
-function loadLeaflet(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if ((window as any).L) {
-      resolve();
-      return;
-    }
-    if (!document.getElementById("leaflet-css")) {
-      const l = document.createElement("link");
-      l.id = "leaflet-css";
-      l.rel = "stylesheet";
-      l.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-      document.head.appendChild(l);
-    }
-    const existing = document.getElementById("leaflet-js");
-    if (existing) {
-      const poll = setInterval(() => {
-        if ((window as any).L) {
-          clearInterval(poll);
-          resolve();
-        }
-      }, 50);
-      setTimeout(() => {
-        clearInterval(poll);
-        (window as any).L ? resolve() : reject();
-      }, 8000);
-      return;
-    }
-    const s = document.createElement("script");
-    s.id = "leaflet-js";
-    s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-    s.onload = () => resolve();
-    s.onerror = () => reject();
-    document.head.appendChild(s);
-  });
-}
-
-import { geocodeAddress } from "@/lib/geocode";
-import { getRouteGeoCoords } from "@/lib/osrm";
-
-async function geocode(adresse: string): Promise<[number, number] | null> {
-  try {
-    const c = await geocodeAddress(adresse);
-    if (!c) return null;
-    return [c.lat, c.lng];
-  } catch {
-    return null;
-  }
-}
-
-async function getPolyline(from: [number, number], to: [number, number]): Promise<[number, number][]> {
-  try {
-    const result = await getRouteGeoCoords(from, to);
-    return result?.coords ?? [];
-  } catch {
-    return [];
-  }
-}
-
-interface Reservation {
-  id: string;
-  depart: string;
-  destination: string;
-  status: string;
-  prix_final: number | null;
-  prix_estime?: number | null;
-  distance_reelle_km: number | null;
-  distance_km?: number | null;
-  duree_reelle_min: number | null;
-  chauffeur_id: string | null;
-  prenom: string;
-  nom: string;
-  email: string;
-  telephone: string;
-  paiement: string;
-  date_course?: string;
-  heure_course?: string;
-}
-
-interface Chauffeur {
-  id: string;
-  prenom: string;
-  photo_url: string | null;
-  vehicule: string;
-  plaque: string;
-  note_moyenne: number;
-  nb_avis: number;
-}
-
-const STAR_LABELS = ["", "Mauvais", "Passable", "Bien", "Très bien", "Excellent !"];
-
-// ── Générer le PDF du reçu côté client ───────────────────────
-async function genererRecuPDF(resa: Reservation, chauffeur: Chauffeur | null): Promise<void> {
-  await loadJsPDF();
-  const { jsPDF } = (window as any).jspdf;
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
-
-  const W = 210;
-  const gold = [245, 200, 66] as [number, number, number];
-  const dark = [15, 15, 25] as [number, number, number];
-  const gray = [100, 116, 139] as [number, number, number];
-  const white = [245, 245, 245] as [number, number, number];
-  const green = [34, 197, 94] as [number, number, number];
-
-  // ── Fond dark ──
-  doc.setFillColor(...dark);
-  doc.rect(0, 0, W, 297, "F");
-
-  // ── Bande header dorée ──
-  doc.setFillColor(...gold);
-  doc.rect(0, 0, W, 38, "F");
-
-  // ── Logo / titre ──
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(22);
-  doc.setTextColor(...dark);
-  doc.text("🚕 Taxi City Bordeaux", 14, 18);
-
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text("REÇU DE COURSE", 14, 28);
-  doc.text(`Réf : ${resa.id.slice(0, 8).toUpperCase()}`, W - 14, 28, { align: "right" });
-
-  // ── Date émission ──
-  doc.setTextColor(...gray);
-  doc.setFontSize(9);
-  const now = new Date();
-  const dateEmission = now.toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  doc.text(`Émis le ${dateEmission}`, W - 14, 34, { align: "right" });
-
-  let y = 52;
-
-  // ── Bloc récap course ──
-  doc.setFillColor(26, 26, 46);
-  doc.roundedRect(12, y, W - 24, 52, 4, 4, "F");
-
-  // Prix
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(28);
-  doc.setTextColor(...gold);
-  const prixTotal = resa.prix_final != null ? resa.prix_final : (resa.prix_estime ?? null);
-  doc.text(prixTotal != null ? `${prixTotal.toFixed(2)} EUR` : "Prix non renseigné", 14, y + 16);
-
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(...gray);
-  doc.text(resa.paiement === "cb" ? "Paiement par carte bancaire" : "Paiement en espèces", 14, y + 24);
-
-  // Stats ligne
-  const stats = [
-    {
-      label: "Distance",
-      value:
-        resa.distance_reelle_km != null
-          ? `${resa.distance_reelle_km} km`
-          : resa.distance_km != null
-            ? `${resa.distance_km} km`
-            : "—",
-    },
-    { label: "Durée", value: resa.duree_reelle_min != null ? formatDureePDF(resa.duree_reelle_min) : "—" },
-    { label: "Date", value: resa.date_course ?? now.toLocaleDateString("fr-FR") },
-    {
-      label: "Heure",
-      value: resa.heure_course ?? now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
-    },
-  ];
-  const colW = (W - 28) / stats.length;
-  stats.forEach(({ label, value }, i) => {
-    const x = 14 + i * colW;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.setTextColor(...white);
-    doc.text(value, x, y + 38);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(...gray);
-    doc.text(label, x, y + 44);
-  });
-
-  y += 62;
-
-  // ── Trajet ──
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(...gold);
-  doc.text("TRAJET", 14, y);
-  y += 6;
-
-  doc.setFillColor(26, 26, 46);
-  doc.roundedRect(12, y, W - 24, 38, 4, 4, "F");
-
-  // Point départ vert
-  doc.setFillColor(...green);
-  doc.circle(20, y + 11, 2.5, "F");
-  doc.setFillColor(...gray);
-  doc.rect(19.5, y + 13.5, 1, 10, "F");
-  // Point arrivée doré
-  doc.setFillColor(...gold);
-  doc.circle(20, y + 27, 2.5, "F");
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(...gray);
-  doc.text("Départ", 26, y + 8);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(...white);
-  doc.text(doc.splitTextToSize(resa.depart, W - 50)[0], 26, y + 14);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(...gray);
-  doc.text("Arrivée", 26, y + 22);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(...white);
-  doc.text(doc.splitTextToSize(resa.destination, W - 50)[0], 26, y + 28);
-
-  y += 48;
-
-  // ── Chauffeur ──
-  if (chauffeur) {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.setTextColor(...gold);
-    doc.text("CHAUFFEUR", 14, y);
-    y += 6;
-
-    doc.setFillColor(26, 26, 46);
-    doc.roundedRect(12, y, W - 24, 30, 4, 4, "F");
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    doc.setTextColor(...white);
-    doc.text(chauffeur.prenom, 14, y + 12);
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(...gray);
-    doc.text(`${chauffeur.vehicule}  •  Plaque : ${chauffeur.plaque}`, 14, y + 20);
-
-    const stars = "★".repeat(Math.round(chauffeur.note_moyenne)) + "☆".repeat(5 - Math.round(chauffeur.note_moyenne));
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.setTextColor(...gold);
-    doc.text(stars, W - 14, y + 12, { align: "right" });
-    doc.setFontSize(8);
-    doc.setTextColor(...gray);
-    doc.text(`${chauffeur.note_moyenne.toFixed(1)} / 5  (${chauffeur.nb_avis} avis)`, W - 14, y + 20, {
-      align: "right",
-    });
-
-    y += 40;
-  }
-
-  // ── Passager ──
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(...gold);
-  doc.text("PASSAGER", 14, y);
-  y += 6;
-
-  doc.setFillColor(26, 26, 46);
-  doc.roundedRect(12, y, W - 24, 24, 4, 4, "F");
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(...white);
-  doc.text(`${resa.prenom} ${resa.nom}`, 14, y + 10);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(...gray);
-  doc.text(`${resa.email}  •  ${resa.telephone}`, 14, y + 18);
-
-  y += 34;
-
-  // ── Séparateur ──
-  doc.setDrawColor(...gold);
-  doc.setLineWidth(0.3);
-  doc.line(14, y, W - 14, y);
-  y += 8;
-
-  // ── Footer ──
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(...gray);
-  doc.text("Taxi City Bordeaux — SIRET 000 000 000 00000", W / 2, y, { align: "center" });
-  doc.text("Ce document tient lieu de reçu officiel.", W / 2, y + 6, { align: "center" });
-  doc.text("Merci de votre confiance 🚕", W / 2, y + 12, { align: "center" });
-
-  // ── Téléchargement ──
-  const dateStr = now.toISOString().slice(0, 10);
-  doc.save(`recu-taxi-${resa.id.slice(0, 8)}-${dateStr}.pdf`);
-}
-
-function formatDureePDF(min: number): string {
-  if (min < 60) return `${min} min`;
-  return `${Math.floor(min / 60)}h${(min % 60).toString().padStart(2, "0")}`;
-}
-
-// ══════════════════════════════════════════════════════════════
-function FinPage() {
-  const { id } = Route.useParams();
-  const navigate = useNavigate();
-  const fetchReservationForFin = useServerFn(getReservationForFinPublic);
-
-  const [resa, setResa] = useState<Reservation | null>(null);
-  const [chauffeur, setChauffeur] = useState<Chauffeur | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  // Notation
-  const [note, setNote] = useState(0);
-  const [hoverNote, setHoverNote] = useState(0);
-  const [commentaire, setCommentaire] = useState("");
-  const [avisEnvoye, setAvisEnvoye] = useState(false);
-  const [avisLoading, setAvisLoading] = useState(false);
-
-  // Reçu PDF
-  const [recuLoading, setRecuLoading] = useState(false);
-  const [recuMsg, setRecuMsg] = useState("");
-
-  // Replay carte
-  const [showMap, setShowMap] = useState(false);
-  const mapRef = useRef<HTMLDivElement>(null);
-  const mapInst = useRef<any>(null);
-  const routeDrawn = useRef(false);
-
-  // ── Charger données ────────────────────────────────────────
-  useEffect(() => {
-    // Trace id unique pour corréler tous les logs d'un même chargement /fin/$id
-    const trace = `fin-${Math.random().toString(36).slice(2, 8)}`;
-    const t0 = performance.now();
-    const log = (step: string, extra: Record<string, unknown> = {}) => {
-      // eslint-disable-next-line no-console
-      console.info(`[fin.$id ${trace}] ${step}`, {
-        param_id: id,
-        elapsed_ms: Math.round(performance.now() - t0),
-        ...extra,
-      });
-    };
-
-    log("start", { is_uuid: /^[0-9a-fA-F-]{36}$/.test(id) });
-
-    const load = async (attempt = 0) => {
-      log("attempt", { attempt });
-      let r: any = null;
-      let lastError: any = null;
-
-      try {
-        r = await fetchReservationForFin({ data: { key: id } });
-        log("server_lookup", { found: !!r });
-      } catch (error: any) {
-        lastError = error;
-        log("server_lookup error", { message: error?.message });
-      }
-
-      if (!r) {
-        if (attempt < 4) {
-          log("not_found_retry", { next_attempt: attempt + 1, lastError: lastError?.message ?? null });
-          setTimeout(() => load(attempt + 1), 700);
-          return;
-        }
-        log("give_up_not_found", { lastError: lastError?.message ?? null });
-        setLoading(false);
-        return;
-      }
-
-      log("loaded", {
-        reservation_id: r.id,
-        status: r.status,
-        suivi_id: r.suivi_id ?? null,
-        tracking_id: r.tracking_id ?? null,
-      });
-
-      if (r.status !== "completed") {
-        if (attempt < 6) {
-          log("status_not_completed_retry", { status: r.status, next_attempt: attempt + 1 });
-          setTimeout(() => load(attempt + 1), 700);
-          return;
-        }
-        log("status_not_completed_redirect_suivi", { status: r.status });
-        navigate({ to: "/suivi/$id", params: { id: r.suivi_id || r.tracking_id || r.id } });
-        return;
-      }
-
-      setResa(r as Reservation);
-
-      try {
-        const { data: av, error: avErr } = await (supabase as any)
-          .from("avis")
-          .select("id,note")
-          .eq("reservation_id", r.id)
-          .maybeSingle();
-        if (avErr) log("avis_lookup_error", { code: avErr.code, message: avErr.message });
-        if (av) {
-          setNote(av.note);
-          setAvisEnvoye(true);
-          log("avis_found", { note: av.note });
-        }
-      } catch (e: any) {
-        log("avis_exception", { message: e?.message });
-      }
-
-      log("done");
-      setLoading(false);
-    };
-    load();
-  }, [id, navigate, fetchReservationForFin]);
-
-
-  // ── Soumettre avis ─────────────────────────────────────────
-  const soumettreAvis = useCallback(async () => {
-    if (!note || avisLoading || avisEnvoye) return;
-    setAvisLoading(true);
-    try {
-      await (supabase as any).from("avis").insert({
-        reservation_id: id,
-        note,
-        commentaire: commentaire.trim() || null,
-      });
-
-      if (chauffeur) {
-        const newNb = chauffeur.nb_avis + 1;
-        const newNote = (chauffeur.note_moyenne * chauffeur.nb_avis + note) / newNb;
-        await (supabase as any)
-          .from("chauffeurs")
-          .update({
-            note_moyenne: Math.round(newNote * 100) / 100,
-            nb_avis: newNb,
-          })
-          .eq("id", chauffeur.id);
-      }
-
-      setAvisEnvoye(true);
-    } catch (e) {
-      console.error(e);
-    }
-    setAvisLoading(false);
-  }, [note, commentaire, id, chauffeur, avisEnvoye, avisLoading]);
-
-  // ── Télécharger le reçu PDF ────────────────────────────────
-  const telechargerRecu = useCallback(async () => {
-    if (!resa || recuLoading) return;
-    setRecuLoading(true);
-    setRecuMsg("");
-    try {
-      await genererRecuPDF(resa, chauffeur);
-      setRecuMsg("✅ PDF téléchargé !");
-    } catch (e) {
-      console.error(e);
-      setRecuMsg("❌ Erreur lors de la génération du PDF");
-    }
-    setRecuLoading(false);
-    setTimeout(() => setRecuMsg(""), 4000);
-  }, [resa, chauffeur, recuLoading]);
-
-  // ── Replay carte ───────────────────────────────────────────
-  useEffect(() => {
-    if (!showMap || !resa || routeDrawn.current) return;
-    let mounted = true;
-
-    const drawMap = async () => {
-      try {
-        await loadLeaflet();
-      } catch {
-        return;
-      }
-      if (!mounted || !mapRef.current) return;
-      const L = (window as any).L;
-      if (mapInst.current) {
-        mapInst.current.remove();
-        mapInst.current = null;
-      }
-
-      const map = L.map(mapRef.current, { zoomControl: false, attributionControl: false });
-      L.tileLayer(OSM_TILE_URL, OSM_TILE_OPTIONS).addTo(map);
-      L.control.zoom({ position: "bottomright" }).addTo(map);
-      mapInst.current = map;
-
-      const [fromCoord, toCoord] = await Promise.all([geocode(resa.depart), geocode(resa.destination)]);
-
-      if (!fromCoord || !toCoord) return;
-
-      const mkIcon = (emoji: string, color: string) =>
-        L.divIcon({
-          className: "",
-          html: `<div style="width:36px;height:36px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 2px 12px rgba(0,0,0,0.4);">${emoji}</div>`,
-          iconSize: [36, 36],
-          iconAnchor: [18, 18],
-        });
-
-      L.marker(fromCoord, { icon: mkIcon("🟢", "rgba(34,197,94,0.85)") })
-        .addTo(map)
-        .bindPopup(`<b>Départ</b><br>${resa.depart}`);
-      L.marker(toCoord, { icon: mkIcon("📍", "rgba(245,200,66,0.85)") })
-        .addTo(map)
-        .bindPopup(`<b>Arrivée</b><br>${resa.destination}`);
-
-      const coords = await getPolyline(fromCoord, toCoord);
-      if (coords.length > 0) {
-        L.polyline(coords, { color: "#000000", weight: 8, opacity: 1, lineCap: "round", lineJoin: "round" }).addTo(map);
-        L.polyline(coords, { color: "#111111", weight: 5, opacity: 1, lineCap: "round", lineJoin: "round" }).addTo(map);
-      }
-
-      const bounds = L.latLngBounds([fromCoord, toCoord]);
-      map.fitBounds(bounds, { padding: [60, 60], maxZoom: 16, animate: true });
-      setTimeout(() => map.invalidateSize(), 150);
-      routeDrawn.current = true;
-    };
-
-    drawMap();
-    return () => {
-      mounted = false;
-    };
-  }, [showMap, resa]);
-
-  // ── Navigation ─────────────────────────────────────────────
-  const nouvelleResa = () => navigate({ to: "/reserver" });
-  const memeTrajet = () => {
-    if (!resa) return;
-    navigate({
-      to: `/reserver?depart=${encodeURIComponent(resa.depart)}&destination=${encodeURIComponent(resa.destination)}`,
-    });
-  };
-
-  const formatDuree = (min: number) => {
-    if (min < 60) return `${min} min`;
-    return `${Math.floor(min / 60)}h${(min % 60).toString().padStart(2, "0")}`;
-  };
-
-  // ── États de chargement / erreur ───────────────────────────
-  if (loading)
-    return (
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: "#0a0a14",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <div style={{ textAlign: "center", fontFamily: "'DM Sans',sans-serif" }}>
-          <div style={{ fontSize: 52, marginBottom: 16 }}>🏁</div>
-          <div style={{ color: "#64748b" }}>Chargement du récapitulatif…</div>
-        </div>
-      </div>
-    );
-
-  if (!resa)
-    return (
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: "#0a0a14",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 24,
-        }}
-      >
-        <div style={{ textAlign: "center", color: "#f5f5f5", fontFamily: "'DM Sans',sans-serif" }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>❌</div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>Course introuvable</div>
-        </div>
-      </div>
-    );
-
-  const displayNote = hoverNote || note;
-
-  return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "#0a0a14",
-        fontFamily: "'DM Sans',sans-serif",
-        overflowY: "auto",
-        WebkitOverflowScrolling: "touch",
-      }}
-    >
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Clash+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&display=swap');
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        @keyframes fadeIn { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes checkPop { 0% { transform:scale(0); } 70% { transform:scale(1.2); } 100% { transform:scale(1); } }
-        @keyframes pdfPulse { 0%,100% { box-shadow:0 0 0 0 rgba(245,200,66,0.4); } 50% { box-shadow:0 0 0 8px rgba(245,200,66,0); } }
-        .star-btn { background:none; border:none; cursor:pointer; padding:4px; font-size:36px; transition:transform 0.15s ease; line-height:1; }
-        .star-btn:active { transform:scale(0.85); }
-        textarea { resize:none; font-family:'DM Sans',sans-serif; }
-        textarea:focus { outline:none; border-color:#f5c842 !important; box-shadow:0 0 0 3px rgba(245,200,66,0.15) !important; }
-        button:active { transform:scale(0.97); }
-      `}</style>
-
-      <div
-        style={{
-          maxWidth: 480,
-          margin: "0 auto",
-          padding: "24px 20px calc(40px + env(safe-area-inset-bottom,0px))",
-          display: "flex",
-          flexDirection: "column",
-          gap: 20,
-          animation: "fadeIn 0.4s ease",
-        }}
-      >
-        {/* ── Header ── */}
-        <div style={{ textAlign: "center", paddingTop: 12 }}>
-          <div style={{ fontSize: 64, marginBottom: 12, animation: "checkPop 0.5s cubic-bezier(0.34,1.56,0.64,1)" }}>
-            🏁
-          </div>
-          <h1
-            style={{
-              fontFamily: "'Clash Display',sans-serif",
-              fontWeight: 700,
-              fontSize: 28,
-              color: "#f5f5f5",
-              margin: "0 0 6px",
-            }}
-          >
-            Course terminée !
-          </h1>
-          <p style={{ color: "#64748b", fontSize: 15, margin: 0 }}>Merci d'avoir voyagé avec Taxi City Bordeaux</p>
-        </div>
-
-        {/* ── Récap course ── */}
-        <div
-          style={{
-            background: "linear-gradient(135deg,#1a1408,#211808)",
-            border: "1px solid rgba(245,200,66,0.25)",
-            borderRadius: 20,
-            padding: 20,
-            boxShadow: "0 4px 24px rgba(245,200,66,0.08)",
-          }}
-        >
-          {/* Prix */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-            <div>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "rgba(245,200,66,0.6)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                  fontWeight: 700,
-                }}
-              >
-                Prix final
-              </div>
-              <div
-                style={{
-                  fontFamily: "'Clash Display',sans-serif",
-                  fontSize: 40,
-                  fontWeight: 700,
-                  color: "#f5c842",
-                  lineHeight: 1.1,
-                }}
-              >
-                {(resa.prix_final != null ? resa.prix_final : resa.prix_estime) != null
-                  ? `${(resa.prix_final != null ? resa.prix_final : resa.prix_estime)!.toFixed(2)} €`
-                  : "—"}
-              </div>
-              <div style={{ fontSize: 12, color: "#64748b", marginTop: 3 }}>
-                {resa.paiement === "cb" ? "💳 Carte bancaire" : "💵 Espèces"}
-              </div>
-            </div>
-            <div
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 18,
-                overflow: "hidden",
-                background: "rgba(245,200,66,0.08)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <img
-                src="/taxi-icon.png"
-                alt="Taxi City Bordeaux"
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                onError={(event) => {
-                  const target = event.currentTarget as HTMLImageElement;
-                  target.style.display = "none";
-                }}
-              />
-              <span style={{ fontSize: 28, position: "absolute" }}>🚕</span>
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-            {[
-              {
-                icon: "📏",
-                label: "Distance",
-                value: resa.distance_reelle_km != null ? `${resa.distance_reelle_km} km` : "—",
-              },
-              {
-                icon: "⏱",
-                label: "Durée",
-                value: resa.duree_reelle_min != null ? formatDuree(resa.duree_reelle_min) : "—",
-              },
-              { icon: "🛣️", label: "Trajet", value: "Terminé" },
-            ].map(({ icon, label, value }) => (
-              <div
-                key={label}
-                style={{ background: "rgba(0,0,0,0.25)", borderRadius: 14, padding: "12px 10px", textAlign: "center" }}
-              >
-                <div style={{ fontSize: 20, marginBottom: 4 }}>{icon}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#f5f5f5" }}>{value}</div>
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: "#64748b",
-                    marginTop: 2,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.04em",
-                  }}
-                >
-                  {label}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Trajet */}
-          <div style={{ marginTop: 16, display: "flex", gap: 10, alignItems: "flex-start" }}>
-            <div
-              style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 4, flexShrink: 0 }}
-            >
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#22c55e" }} />
-              <div style={{ width: 2, height: 20, background: "rgba(255,255,255,0.1)", margin: "3px 0" }} />
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#f5c842" }} />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 2 }}>Départ</div>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "#f5f5f5",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  marginBottom: 8,
-                }}
-              >
-                {resa.depart}
-              </div>
-              <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 2 }}>Arrivée</div>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "#f5f5f5",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {resa.destination}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Reçu PDF ── */}
-        <div style={{ background: "#111120", borderRadius: 20, border: "1px solid #2a2a4a", padding: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-            <div
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
-                background: "rgba(245,200,66,0.1)",
-                border: "1px solid rgba(245,200,66,0.25)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 22,
-              }}
-            >
-              📄
-            </div>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 15, color: "#f5f5f5" }}>Reçu de course</div>
-              <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                PDF généré instantanément sur votre appareil
-              </div>
-            </div>
-          </div>
-
-          {recuMsg && (
-            <div
-              style={{
-                padding: "10px 14px",
-                background: recuMsg.startsWith("✅") ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
-                border: `1px solid ${recuMsg.startsWith("✅") ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
-                borderRadius: 12,
-                color: recuMsg.startsWith("✅") ? "#22c55e" : "#ef4444",
-                fontSize: 13,
-                marginBottom: 12,
-              }}
-            >
-              {recuMsg}
-            </div>
-          )}
-
-          <button
-            onClick={telechargerRecu}
-            disabled={recuLoading}
-            style={{
-              width: "100%",
-              height: 52,
-              background: recuLoading ? "rgba(245,200,66,0.15)" : "linear-gradient(135deg,#f5c842,#e6a800)",
-              color: recuLoading ? "rgba(245,200,66,0.5)" : "#0a0a14",
-              border: "none",
-              borderRadius: 14,
-              fontFamily: "'Clash Display',sans-serif",
-              fontWeight: 700,
-              fontSize: 16,
-              cursor: recuLoading ? "not-allowed" : "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 10,
-              transition: "all 0.2s",
-              animation: !recuLoading ? "pdfPulse 2s ease-in-out infinite" : "none",
-            }}
-          >
-            {recuLoading ? <>⏳ Génération en cours…</> : <>⬇️ Télécharger le reçu PDF</>}
-          </button>
-
-          <div style={{ marginTop: 10, fontSize: 11, color: "#475569", textAlign: "center" }}>
-            Gratuit · Généré sur votre appareil · Aucune donnée envoyée
-          </div>
-        </div>
-
-        {/* ── Replay itinéraire ── */}
-        <div style={{ background: "#111120", borderRadius: 20, border: "1px solid #2a2a4a", overflow: "hidden" }}>
-          <button
-            onClick={() => setShowMap((v) => !v)}
-            style={{
-              width: "100%",
-              padding: "16px 18px",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              color: "#f5f5f5",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 20 }}>🗺️</span>
-              <span style={{ fontWeight: 700, fontSize: 15 }}>Revoir l'itinéraire</span>
-            </div>
-            <span
-              style={{
-                fontSize: 18,
-                color: "#64748b",
-                transition: "transform 0.2s",
-                transform: showMap ? "rotate(180deg)" : "rotate(0)",
-              }}
-            >
-              ▾
-            </span>
-          </button>
-          {showMap && <div ref={mapRef} style={{ height: 240, borderTop: "1px solid #2a2a4a" }} />}
-        </div>
-
-        {/* ── Notation chauffeur ── */}
-        {chauffeur && (
-          <div style={{ background: "#111120", borderRadius: 20, border: "1px solid #2a2a4a", padding: 20 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
-              <div
-                style={{
-                  width: 52,
-                  height: 52,
-                  borderRadius: "50%",
-                  background: "rgba(245,200,66,0.12)",
-                  border: "2px solid rgba(245,200,66,0.25)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 24,
-                  flexShrink: 0,
-                  overflow: "hidden",
-                }}
-              >
-                {chauffeur.photo_url ? (
-                  <img
-                    src={chauffeur.photo_url}
-                    alt={chauffeur.prenom}
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  />
-                ) : (
-                  "👤"
-                )}
-              </div>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 16, color: "#f5f5f5" }}>{chauffeur.prenom}</div>
-                <div style={{ fontSize: 13, color: "#64748b" }}>{chauffeur.vehicule}</div>
-                <div style={{ fontSize: 12, color: "#f5c842", marginTop: 2 }}>
-                  {"★".repeat(Math.round(chauffeur.note_moyenne))}{" "}
-                  <span style={{ color: "#64748b" }}>{chauffeur.note_moyenne.toFixed(1)}</span>
-                </div>
-              </div>
-            </div>
-
-            {avisEnvoye ? (
-              <div style={{ textAlign: "center", padding: "16px 0" }}>
-                <div style={{ fontSize: 40, marginBottom: 8 }}>🙏</div>
-                <div style={{ fontWeight: 700, fontSize: 16, color: "#22c55e", marginBottom: 4 }}>
-                  Merci pour votre avis !
-                </div>
-                <div style={{ fontSize: 13, color: "#64748b" }}>
-                  Vous avez noté {chauffeur.prenom} {"★".repeat(note)}
-                </div>
-              </div>
-            ) : (
-              <>
-                <div style={{ fontWeight: 700, fontSize: 15, color: "#f5f5f5", marginBottom: 4, textAlign: "center" }}>
-                  Comment s'est passée votre course ?
-                </div>
-                <div style={{ textAlign: "center", marginBottom: 6 }}>
-                  <span
-                    style={{
-                      fontSize: 13,
-                      color: displayNote ? "#f5c842" : "#64748b",
-                      fontWeight: 600,
-                      minHeight: 20,
-                      display: "inline-block",
-                    }}
-                  >
-                    {displayNote ? STAR_LABELS[displayNote] : "Touchez une étoile"}
-                  </span>
-                </div>
-
-                <div style={{ display: "flex", justifyContent: "center", gap: 4, marginBottom: 16 }}>
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <button
-                      key={n}
-                      className="star-btn"
-                      onMouseEnter={() => setHoverNote(n)}
-                      onMouseLeave={() => setHoverNote(0)}
-                      onClick={() => setNote(n)}
-                      style={{
-                        fontSize: 36,
-                        opacity: n <= displayNote ? 1 : 0.25,
-                        filter: n <= displayNote ? "none" : "grayscale(1)",
-                        transform: n === displayNote ? "scale(1.2)" : "scale(1)",
-                      }}
-                    >
-                      ★
-                    </button>
-                  ))}
-                </div>
-
-                <textarea
-                  value={commentaire}
-                  onChange={(e) => setCommentaire(e.target.value)}
-                  placeholder="Un commentaire ? (optionnel)"
-                  maxLength={300}
-                  rows={3}
-                  style={{
-                    width: "100%",
-                    background: "#1a1a2e",
-                    border: "2px solid #2a2a4a",
-                    borderRadius: 14,
-                    padding: "12px 14px",
-                    color: "#f5f5f5",
-                    fontSize: 14,
-                    marginBottom: 12,
-                  }}
-                />
-
-                <button
-                  onClick={soumettreAvis}
-                  disabled={!note || avisLoading}
-                  style={{
-                    width: "100%",
-                    height: 52,
-                    background: note ? "linear-gradient(135deg,#f5c842,#e6a800)" : "rgba(245,200,66,0.2)",
-                    color: note ? "#0a0a14" : "rgba(245,200,66,0.4)",
-                    border: "none",
-                    borderRadius: 14,
-                    fontFamily: "'Clash Display',sans-serif",
-                    fontWeight: 700,
-                    fontSize: 16,
-                    cursor: note ? "pointer" : "not-allowed",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 8,
-                    transition: "all 0.2s",
-                  }}
-                >
-                  {avisLoading ? "Envoi…" : "Envoyer mon avis"}
-                </button>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* ── Actions rapides ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <button
-            onClick={memeTrajet}
-            style={{
-              padding: "16px 12px",
-              background: "linear-gradient(135deg,#f5c842,#e6a800)",
-              border: "none",
-              borderRadius: 16,
-              color: "#0a0a14",
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: "pointer",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 6,
-              minHeight: 72,
-            }}
-          >
-            <span style={{ fontSize: 22 }}>🔁</span>
-            Même trajet
-          </button>
-          <button
-            onClick={nouvelleResa}
-            style={{
-              padding: "16px 12px",
-              background: "#1a1a2e",
-              border: "2px solid #2a2a4a",
-              borderRadius: 16,
-              color: "#f5f5f5",
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: "pointer",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 6,
-              minHeight: 72,
-            }}
-          >
-            <span style={{ fontSize: 22 }}>➕</span>
-            Nouvelle course
-          </button>
-        </div>
-
-        {/* ── Lien historique ── */}
-        <button
-          onClick={() => navigate({ to: "/mes-courses" })}
-          style={{
-            width: "100%",
-            padding: "14px",
-            background: "none",
-            border: "1px solid #2a2a4a",
-            borderRadius: 14,
-            color: "#64748b",
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-          }}
-        >
-          📋 Voir toutes mes courses
-        </button>
-      </div>
-    </div>
-  );
-}
+export const LANGUAGES = [
+  { code: "fr", label: "Français", flag: "🇫🇷" },
+  { code: "en", label: "English", flag: "🇬🇧" },
+  { code: "es", label: "Español", flag: "🇪🇸" },
+  { code: "pt", label: "Português", flag: "🇵🇹" },
+  { code: "it", label: "Italiano", flag: "🇮🇹" },
+  { code: "ar", label: "العربية", flag: "🇸🇦" },
+] as const;
+
+export type Lang = (typeof LANGUAGES)[number]["code"];
+
+// Langues écrites de droite à gauche
+export const RTL_LANGS: ReadonlySet<Lang> = new Set<Lang>(["ar"]);
+export const isRtl = (l: Lang) => RTL_LANGS.has(l);
+export const dirOf = (l: Lang): "rtl" | "ltr" => (isRtl(l) ? "rtl" : "ltr");
+
+type Dict = Record<string, string>;
+
+const fr: Dict = {
+  // Common / nav / header
+  "nav.home": "Accueil",
+  "nav.services": "Services",
+  "nav.tarifs": "Tarifs",
+  "nav.about": "À propos",
+  "nav.contact": "Contact",
+  "nav.book": "Réserver",
+  "nav.book_long": "Réserver une course",
+  "common.available_247": "Disponible 7j/7 — 24h/24",
+  "common.lang_label": "Langue",
+
+  // Home — hero
+  "home.hero.badge": "Disponible 7j/7 — 24h/24",
+  "home.hero.title.before": "Votre taxi à",
+  "home.hero.title.city": "Bordeaux",
+  "home.hero.title.after": ", ponctuel et confortable.",
+  "home.hero.subtitle":
+    "Trajets professionnels ou personnels, courses immédiates ou réservées : nous vous emmenons partout en Gironde et en France, de jour comme de nuit, dans un véhicule soigné.",
+  "home.hero.need_taxi": "J'ai besoin d'un taxi…",
+  "home.hero.book_now": "Réserver une course",
+  "home.hero.tag1": "Réservation rapide",
+  "home.hero.tag2": "Conventionné CPAM",
+  "home.hero.tag3": "Tarifs transparents",
+
+  // Home — destinations
+  "home.dest.eyebrow": "Destinations",
+  "home.dest.title": "Là où l'on vous emmène",
+  "home.dest.intro":
+    "Quelques itinéraires que nos clients réservent au quotidien — l'arrivée en douceur, c'est notre métier.",
+  "home.dest.gare.title": "Gare Bordeaux Saint-Jean",
+  "home.dest.gare.sub": "Accueil sur demande à l'arrivée du train.",
+  "home.dest.airport.title": "Aéroport de Bordeaux",
+  "home.dest.airport.sub": "Suivi des vols en temps réel.",
+  "home.dest.vine.title": "Châteaux & vignobles",
+  "home.dest.vine.sub": "Médoc, Saint-Émilion, Sauternes — à la journée.",
+  "home.dest.cta": "Réserver",
+
+  // Home — best sellers Bordeaux
+  "home.best.eyebrow": "Incontournables",
+  "home.best.title": "Les best-sellers de Bordeaux",
+  "home.best.intro": "Les lieux que nos clients adorent visiter — on vous y emmène en toute sérénité.",
+  "home.best.miroir.title": "Miroir d'eau",
+  "home.best.miroir.sub": "Place de la Bourse, l'icône bordelaise.",
+  "home.best.cite.title": "Cité du Vin",
+  "home.best.cite.sub": "Le voyage au cœur des vignobles.",
+  "home.best.emilion.title": "Saint-Émilion",
+  "home.best.emilion.sub": "Village médiéval & Grand Cru classé.",
+  "home.best.pilat.title": "Dune du Pilat",
+  "home.best.pilat.sub": "La plus haute dune d'Europe.",
+
+  // Home — why us
+  "home.why.eyebrow": "Pourquoi nous",
+  "home.why.title": "Un service simple, humain, fiable.",
+  "home.why.desc":
+    "Taxi City Bordeaux, c'est un chauffeur de proximité, un véhicule entretenu et l'envie de bien faire. Pas de surprise sur la facture, pas d'attente interminable — on confirme, on arrive, on vous dépose.",
+  "home.why.years": "années d'expérience",
+  "home.why.f1.t": "Ponctualité garantie",
+  "home.why.f1.d": "Suivi de vol et de train, marge anti-retard.",
+  "home.why.f2.t": "Tarifs clairs",
+  "home.why.f2.d": "Tarifs réglementés, paiement CB & espèces.",
+  "home.why.f3.t": "Conventionné CPAM",
+  "home.why.f3.d": "Transports de santé pris en charge.",
+
+  // Home — services
+  "home.services.eyebrow": "Nos prestations",
+  "home.services.title": "Pour tous vos déplacements",
+  "home.services.see_all": "Voir tous les services",
+  "svc.airport.title": "Aéroport de Bordeaux",
+  "svc.airport.desc": "Transferts depuis et vers l'aéroport, jour et nuit.",
+  "svc.train.title": "Gare Saint-Jean",
+  "svc.train.desc": "Prise en charge à l'arrivée, accueil personnalisé.",
+  "svc.business.title": "Déplacements business",
+  "svc.business.desc": "Discrétion et ponctualité pour vos rendez-vous.",
+  "svc.wedding.title": "Assistance dépannage voiture",
+  "svc.wedding.desc": "Vous nous appelez en cas de panne, on vient vous récupérer rapidement.",
+  "svc.cpam.title": "Conventionné CPAM",
+  "svc.cpam.desc": "Bon de transport accepté, toutes distances.",
+  "svc.long.title": "Longues distances",
+  "svc.long.desc": "Trajets toutes distances en France et en Europe.",
+
+  // Home — testimonials
+  "home.test.eyebrow": "Ils nous ont fait confiance",
+  "home.test.title": "Ce qu'en disent nos clients",
+  "review.title": "Laissez votre avis",
+  "review.intro": "Votre retour nous aide à progresser et oriente nos futurs clients.",
+  "review.rating": "Note",
+  "review.name.placeholder": "Votre prénom",
+  "review.text.placeholder": "Partagez votre expérience…",
+  "review.submit": "Publier mon avis",
+  "review.success": "Merci ! Votre avis a bien été publié.",
+  "review.error.fields": "Merci de renseigner une note, votre nom et un message.",
+  "review.error.submit": "Impossible d'envoyer votre avis. Réessayez.",
+  "home.test.t1":
+    "Chauffeur très ponctuel, voiture impeccable. J'ai été déposée à Mérignac en toute tranquillité, je recommande.",
+  "home.test.t2":
+    "Réservation simple, prix annoncé respecté. Parfait pour mes déplacements professionnels à la semaine.",
+  "home.test.t3":
+    "Pris en charge à la gare avec mes enfants, le chauffeur a été d'une grande gentillesse. On rappellera.",
+
+  // Home — FAQ
+  "home.faq.eyebrow": "Vos questions",
+  "home.faq.title": "On vous répond franchement",
+  "home.faq.intro":
+    "Quelques réponses aux questions qu'on nous pose le plus souvent. Si vous ne trouvez pas, un coup de fil suffit.",
+  "faq.q1": "Êtes-vous conventionné CPAM ?",
+  "faq.a1":
+    "Oui, nous sommes conventionnés avec la CPAM pour les transports de santé (consultations, dialyses, hospitalisations…). Pensez à demander à votre médecin la prescription médicale de transport, et nous nous occupons du reste. Sur présentation d'un bon de transport, prise en charge directe par l'Assurance Maladie. Tiers payant ou ALD — bon de transport toutes distances.",
+  "faq.q2": "Que se passe-t-il si mon vol a du retard à Mérignac ?",
+  "faq.a2":
+    "On suit votre vol en temps réel. Si l'avion arrive en avance ou en retard, on ajuste l'heure de prise en charge.",
+  "faq.q3": "Comment annuler ou modifier ma réservation ?",
+  "faq.a3":
+    "Un simple appel ou message WhatsApp suffit. L'annulation est gratuite jusqu'à 2 heures avant la course. Pour une modification (horaire, adresse, nombre de passagers), prévenez-nous dès que possible — on s'arrange.",
+  "faq.q4": "Quels moyens de paiement acceptez-vous ?",
+  "faq.a4":
+    "Carte bancaire (sans contact, Apple Pay, Google Pay), espèces, et virement pour les comptes professionnels. Une facture est remise systématiquement à la fin de la course, sur demande pour vos notes de frais.",
+  "faq.q5": "Faut-il réserver à l'avance ?",
+  "faq.a5":
+    "Pas obligatoire — on prend aussi les courses immédiates si on est disponible. Pour un train tôt le matin, un vol ou un rendez-vous important, mieux vaut réserver la veille pour être tranquille.",
+  "faq.q6": "Combien de bagages puis-je emporter ?",
+  "faq.a6":
+    "Une berline confortable accepte facilement 3 à 4 valises et 4 passagers. Pour un groupe ou du matériel encombrant, prévenez-nous à la réservation, on adapte le véhicule.",
+
+  // Home — final CTA
+  // Home — comment réserver
+  "home.how.eyebrow": "Comment ça marche",
+  "home.how.title": "Réserver en ligne, c'est 2 minutes",
+  "home.how.intro": "Un parcours simple et transparent, de la réservation à la dépose.",
+  "home.how.s1.t": "Remplissez le formulaire",
+  "home.how.s1.d": "Départ, destination, date, heure, passagers — 2 minutes chrono.",
+  "home.how.s2.t": "Confirmation instantanée",
+  "home.how.s2.d": "Vous recevez immédiatement un email et un SMS de prise en compte de votre réservation.",
+  "home.how.s3.t": "Le taxi accepte",
+  "home.how.s3.d": "Votre chauffeur valide la course et vous confirme le prix définitif.",
+  "home.how.s4.t": "Suivez en temps réel",
+  "home.how.s4.d": "Position GPS, heure d'arrivée estimée, nom du chauffeur et numéro de plaque — tout en direct.",
+  "home.how.s5.t": "Vous montez à bord",
+  "home.how.s5.d": "Vous montez à bord, on s'occupe du reste.",
+  "home.how.s6.t": "Règlement",
+  "home.how.s6.d": "Carte ou espèces — comme vous préférez. Facture remise à la fin.",
+  "sim.eyebrow": "Simulateur de tarif",
+  "sim.title": "Estimez le prix de votre course",
+  "sim.intro":
+    "Saisissez vos adresses de départ et d'arrivée — le tarif est calculé automatiquement selon l'heure actuelle.",
+  "sim.pickup": "Prise en charge",
+  "sim.perkm": "Tarif au km",
+  "sim.perkm_mixed": "Tarif moyen pondéré",
+  "sim.estimate": "Tarif estimé",
+  "sim.badge_mixed": "tarif mixte",
+  "sim.dist_label": "Distance estimée",
+  "sim.duration_label": "Durée estimée",
+  "sim.geocoding": "Localisation…",
+  "sim.addr_error": "Adresse introuvable — essayez d'être plus précis.",
+  "sim.addr_placeholder": "Adresse, ville, lieu-dit…",
+  "sim.from_label": "Adresse de départ",
+  "sim.to_label": "Adresse de destination",
+  "sim.dist_loading": "Calcul de la distance…",
+  "sim.disclaimer":
+    "Estimation indicative basée sur nos tarifs officiels. Le prix réel peut varier selon le trajet exact, les conditions de circulation et les éventuels suppléments.",
+  "sim.cta_book": "Réserver maintenant",
+  "sim.period_day": "☀️ Tarif jour (7h–19h) —",
+  "sim.period_night": "🌙 Tarif nuit (19h–7h) —",
+  "sim.booking_fee_note": "* Des frais de réservation peuvent être appliqués",
+  "home.cta.title": "Prêt à réserver votre course ?",
+  "home.cta.desc":
+    "Confirmation rapide, chauffeur professionnel et prix transparent — appelez-nous ou réservez en ligne.",
+  "home.cta.online": "Réserver en ligne",
+
+  // Services page
+  "services.eyebrow": "Nos prestations",
+  "services.title": "Un service taxi pour chaque besoin",
+  "services.intro": "À Bordeaux, en Gironde et partout en France — un seul interlocuteur, un service haut de gamme.",
+  "services.cta": "Réserver",
+  "services.b1": "7j/7 – 24h/24",
+  "services.b2": "Jusqu'à 4 passagers",
+  "services.b3": "Chauffeur professionnel",
+  "svcp.airport.title": "Transferts Aéroport de Bordeaux",
+  "svcp.airport.desc":
+    "Prise en charge ponctuelle pour vos vols, suivi en temps réel des horaires, accueil sur demande.",
+  "svcp.airport.p1": "Accueil sur demande",
+  "svcp.airport.p2": "Suivi des vols",
+  "svcp.airport.p3": "Aller-retour possible",
+  "svcp.train.title": "Gare Saint-Jean & gares TGV",
+  "svcp.train.desc": "Transferts depuis ou vers la gare de Bordeaux Saint-Jean et toutes les gares de la région.",
+  "svcp.train.p1": "Accueil sur demande",
+  "svcp.train.p2": "Prise en charge ponctuelle",
+  "svcp.train.p3": "Disponible 24h/24",
+  "svcp.business.title": "Déplacements professionnels",
+  "svcp.business.desc": "Service discret et premium pour vos rendez-vous, séminaires et déplacements d'affaires.",
+  "svcp.business.p1": "Facturation entreprise",
+  "svcp.business.p2": "Wifi à bord",
+  "svcp.business.p3": "Discrétion garantie",
+  "svcp.wedding.title": "Assistance dépannage voiture",
+  "svcp.wedding.desc": "En cas de panne, on vient vous récupérer rapidement et on vous emmène à destination.",
+  "svcp.wedding.p1": "Intervention rapide",
+  "svcp.wedding.p2": "Toutes zones Gironde",
+  "svcp.wedding.p3": "Disponible 24h/24",
+  "svcp.cpam.title": "Transport conventionné CPAM",
+  "svcp.cpam.desc":
+    "Transport assis professionnalisé pris en charge par l'Assurance Maladie. Bon de transport toutes distances.",
+  "svcp.cpam.p1": "Tiers payant / ALD",
+  "svcp.cpam.p2": "Bon de transport toutes distances",
+  "svcp.cpam.p3": "Hôpitaux & cliniques",
+  "svcp.long.title": "Longues distances",
+  "svcp.long.desc": "Trajets toutes distances en France et en Europe.",
+  "svcp.long.p1": "Tarifs réglementés",
+  "svcp.long.p2": "Tarif au kilomètre",
+  "svcp.long.p3": "Confort longue durée",
+
+  // Tarifs page
+  "tarifs.eyebrow": "Tarifs",
+  "tarifs.title": "Des prix transparents",
+  "tarifs.intro":
+    "Tarifs indicatifs basés sur la réglementation préfectorale. Un tarif précis vous est confirmé à la réservation.",
+  "tarifs.col.from": "Départ",
+  "tarifs.col.to": "Arrivée",
+  "tarifs.col.day": "Tarif jour",
+  "tarifs.col.night": "Tarif nuit",
+  "tarifs.note": "Tarifs jour de 7h à 19h et tarifs nuit de 19h à 7h, en heure de Paris.",
+  "tarifs.cpam.title": "🏥 Conventionné CPAM",
+  "tarifs.cpam.desc":
+    "Sur présentation d'un bon de transport, prise en charge directe par l'Assurance Maladie. Tiers payant ou ALD — bon de transport toutes distances.",
+  "tarifs.event.title": "🚗 Assistance dépannage voiture",
+  "tarifs.event.desc":
+    "En cas de panne, on vient vous récupérer rapidement et on vous emmène à destination. Disponible 7j/7.",
+  "tarifs.cta": "Réserver",
+  "city.bdx_centre": "Bordeaux centre",
+  "city.cenon": "Cenon / Floirac",
+  "city.merignac": "Mérignac",
+  "city.bdx": "Bordeaux",
+  "city.airport": "Aéroport Mérignac",
+  "city.gare": "Gare Saint-Jean",
+  "city.arcachon": "Arcachon",
+  "city.stemilion": "Saint-Émilion",
+
+  // About page
+  "about.eyebrow": "Notre histoire",
+  "about.title": "À propos de Taxi City Bordeaux",
+  "about.p1.brand": "Taxi City Bordeaux",
+  "about.p1":
+    "est une entreprise de taxi indépendante à Bordeaux. Nous avons à cœur de proposer un service à la hauteur de l'élégance bordelaise : ponctualité, confort et discrétion.",
+  "about.p2":
+    "Que vous soyez un particulier qui rejoint l'aéroport, un professionnel en déplacement, ou un patient nécessitant un transport médical conventionné, nous adaptons notre prestation à votre besoin.",
+  "about.p3":
+    "Notre véhicule climatisé et soigneusement entretenu, vous garantit un trajet agréable, en toutes circonstances.",
+  "about.b1.t": "Chauffeur professionnel",
+  "about.b1.d":
+    "Carte professionnelle de taxi, formation continue, parfaite connaissance de Bordeaux et de la Gironde.",
+  "about.b2.t": "Disponible 7j/7",
+  "about.b2.d": "De jour comme de nuit, week-ends et jours fériés inclus.",
+  "about.b3.t": "Bordeaux & Gironde",
+  "about.b3.d":
+    "Station officielle à Bordeaux. Toute la métropole, l'aéroport, les gares et toute la France sur réservation.",
+  "about.b4.t": "Conventionné CPAM",
+  "about.b4.d": "Transport assis professionnalisé pris en charge par l'Assurance Maladie.",
+  "about.cta": "Réserver une course",
+
+  // Contact page
+  "contact.eyebrow": "Contact",
+  "contact.title": "Nous contacter",
+  "contact.intro": "Disponible 7j/7 — un appel suffit, ou envoyez-nous un message.",
+  "contact.phone": "Téléphone",
+  "contact.phone.sub": "Réponse immédiate",
+  "contact.wa.title": "WhatsApp",
+  "contact.wa.line": "Discutons sur WhatsApp",
+  "contact.wa.sub": "Idéal pour envoyer une adresse",
+  "contact.email": "Email",
+  "contact.email.sub": "Devis & demandes spéciales",
+  "contact.zone.title": "Zone d'intervention",
+  "contact.zone.line1": "Bordeaux & Métropole",
+  "contact.zone.line2": "Toute la Gironde (33)",
+  "contact.zone.sub": "Longues distances sur toute la France sur réservation.",
+  "contact.form.eyebrow": "Formulaire",
+  "contact.form.title": "Envoyez-nous un message",
+  "contact.form.intro":
+    "Pour une question ou une demande particulière — nous vous répondons dans les plus brefs délais.",
+  "contact.form.name": "Nom complet *",
+  "contact.form.email": "Email *",
+  "contact.form.phone": "Téléphone (facultatif)",
+  "contact.form.subject": "Sujet (facultatif)",
+  "contact.form.subject.ph": "Ex : Devis trajet Bordeaux → Paris",
+  "contact.form.message": "Message *",
+  "contact.form.message.ph": "Détaillez votre demande…",
+  "contact.form.send": "Envoyer le message",
+  "contact.form.sending": "Envoi…",
+  "contact.form.error": "Une erreur est survenue. Merci de nous appeler directement au 06 73 07 23 22.",
+  "contact.form.success.title": "Message envoyé !",
+  "contact.form.success.desc": "Merci de nous avoir contactés. Nous vous répondons rapidement par email.",
+  "contact.form.success.again": "Envoyer un autre message",
+  "contact.form.note": "Pour une course, utilisez plutôt le formulaire de réservation.",
+  "contact.err.name": "Nom requis",
+  "contact.err.email": "Email invalide",
+  "contact.err.message": "Message trop court (10 caractères min)",
+  "contact.err.phone": "Numéro invalide",
+
+  // Reservation page
+  "res.eyebrow": "Réservation en ligne",
+  "res.title": "Réservez votre taxi",
+  "res.intro": "Remplissez le formulaire — nous vous rappelons pour confirmer.",
+  "res.f.name": "Nom complet *",
+  "res.f.phone": "Téléphone *",
+  "res.f.email": "Email (facultatif)",
+  "res.f.trip": "Type de trajet *",
+  "res.f.trip.one": "Aller simple",
+  "res.f.trip.round": "Aller / retour",
+  "res.f.pickup": "Date et heure de prise en charge *",
+  "res.f.return": "Date et heure de retour *",
+  "res.f.from": "Adresse de départ *",
+  "res.f.from.ph": "Ex : 12 cours de l'Intendance, Bordeaux",
+  "res.f.to": "Adresse d'arrivée *",
+  "res.f.to.ph": "Ex : Aéroport Mérignac",
+  "res.f.passengers": "Passagers",
+  "res.f.luggage": "Bagages",
+  "res.f.kind": "Type de course",
+  "res.f.kind.standard": "Standard",
+  "res.f.kind.airport": "Aéroport",
+  "res.f.kind.train": "Gare",
+  "res.f.kind.cpam": "Conventionné CPAM",
+  "res.f.kind.wedding": "Assistance dépannage",
+  "res.f.kind.business": "Business",
+  "res.f.kind.long": "Longue distance",
+  "res.f.needs": "Besoins spécifiques",
+  "res.f.needs.cpam": "CPAM / médical",
+  "res.f.needs.cpam.hint": "Transport conventionné",
+  "res.f.needs.bags": "Assistance bagages",
+  "res.f.needs.bags.hint": "Aide à la prise en charge",
+  "res.f.needs.child": "Siège enfant",
+  "res.f.needs.child.hint": "Préciser l'âge en message",
+  "res.f.message": "Message (facultatif)",
+  "res.f.message.ph": "Numéro de vol, âge des enfants, précisions…",
+  "res.send": "Envoyer ma demande",
+  "res.sending": "Envoi…",
+  "res.note": "Pour une course immédiate, appelez-nous directement au 06 73 07 23 22",
+  "res.err.global": "Erreur lors de l'envoi. Merci de nous appeler au 06 73 07 23 22.",
+  "res.err.phone": "Numéro de téléphone invalide",
+  "res.err.name": "Nom requis",
+  "res.err.pickup": "Date/heure requise",
+  "res.err.future": "La date doit être dans le futur",
+  "res.err.from": "Adresse de départ requise",
+  "res.err.to": "Adresse d'arrivée requise",
+  "res.err.return": "Date de retour postérieure à l'aller",
+
+  // Confirmation page
+  "conf.cancelled.title": "Réservation annulée",
+  "conf.cancelled.desc": "Cette réservation a bien été annulée.",
+  "conf.ok.title": "Demande enregistrée !",
+  "conf.ok.desc": "Nous vous rappelons rapidement pour confirmer votre course.",
+  "conf.ref.label": "N° de réservation",
+  "conf.ref.note": "À conserver pour toute modification ou annulation.",
+  "conf.summary": "Récapitulatif",
+  "conf.row.pickup": "Prise en charge",
+  "conf.row.from": "Départ",
+  "conf.row.to": "Arrivée",
+  "conf.row.phone": "Téléphone",
+  "conf.passengers": "passager(s)",
+  "conf.luggage": "bagage(s)",
+  "conf.wa": "Confirmer sur WhatsApp",
+  "conf.modify.title": "Modifier ou annuler",
+  "conf.modify.desc":
+    "Pour modifier votre demande, contactez-nous par téléphone ou WhatsApp avec votre numéro de réservation.",
+  "conf.cancel": "Annuler ma réservation",
+  "conf.cancel.confirm": "Confirmer l'annulation",
+  "conf.cancel.keep": "Garder ma réservation",
+  "conf.back": "← Retour à l'accueil",
+  "conf.notfound.title": "Réservation introuvable",
+  "conf.notfound.desc": "Le lien semble invalide ou la réservation a été supprimée.",
+  "conf.notfound.cta": "Faire une nouvelle réservation",
+
+  // WhatsApp float
+  "wa.float.send": "Envoyer ma demande",
+  "wa.float.label": "Réserver sur WhatsApp",
+  "wa.aria.hint": "Ouvre une conversation WhatsApp dans un nouvel onglet.",
+  "wa.aria.draftReady": "Votre demande de réservation est prête à être envoyée sur WhatsApp.",
+  "wa.default": "Bonjour je souhaite reserver un taxi . pouvez vous me confirmer la disponibilitè merci .",
+  "wa.btn.call": "Appeler",
+  "wa.btn.quote": "Réservation",
+  "wa.btn.whatsapp": "WhatsApp",
+  "wa.aria.whatsapp": "Contacter sur WhatsApp",
+  "wa.aria.nav": "Actions de contact rapides",
+  // Tracking page
+  "suivi.title": "Suivi de votre chauffeur",
+  "suivi.hello": "Bonjour",
+  "suivi.pickup_at": "prise en charge à",
+  "suivi.status": "Statut",
+  "suivi.online": "En route",
+  "suivi.offline": "Hors ligne",
+  "suivi.eta": "Arrivée estimée",
+  "suivi.distance": "Distance",
+  "suivi.last_update": "Dernière mise à jour",
+  "suivi.view_reservation": "Voir ma réservation",
+  "suivi.notfound.title": "Réservation introuvable",
+  "suivi.notfound.desc": "Le lien de suivi est invalide ou expiré.",
+  "suivi.back_home": "Retour à l'accueil",
+  "conf.track": "Suivre mon chauffeur en direct",
+
+  // FAQ Services — suivi vol, attente, CPAM/ALD
+  "faqx.title": "Questions fréquentes",
+  "faqx.intro": "Tout ce qu'il faut savoir avant votre course.",
+  "faqx.tracking.q": "Comment fonctionne le suivi en temps réel de mon vol ou de mon train ?",
+  "faqx.tracking.a":
+    "Dès que vous nous communiquez votre numéro de vol ou de train, nous le suivons automatiquement. Si l'arrivée est avancée ou retardée, l'heure de prise en charge est ajustée — vous n'avez rien à faire, le chauffeur sera là quand vous sortirez.",
+  "faqx.wait.q": "Combien de temps le chauffeur attend-il après l'atterrissage ?",
+  "faqx.wait.a":
+    "Le chauffeur se présente après l'atterrissage réel (et non l'horaire prévu). Le temps nécessaire pour récupérer vos bagages et passer la douane est pris en compte. Au-delà, le temps d'attente supplémentaire est facturé au tarif réglementé en vigueur, en toute transparence.",
+  "faqx.cpam.q": "Comment se passe la prise en charge CPAM / ALD ?",
+  "faqx.cpam.a":
+    "Munissez-vous de la prescription médicale de transport remise par votre médecin. Sur présentation de ce bon de transport, nous appliquons le tiers payant : la course est directement prise en charge par l'Assurance Maladie. En ALD (affection longue durée), la prise en charge est intégrale et valable pour toutes les distances — y compris les longs trajets vers un centre spécialisé.",
+
+  // Page /reserver — chaînes locales (non couvertes par res.*)
+  "res.err.required": "Requis",
+  "res.geo.btn": "Ma position",
+  "res.geo.loading": "Localisation…",
+  "res.geo.err.denied": "Permission refusée — autorisez la localisation dans les paramètres.",
+  "res.geo.err.unavailable": "Position introuvable. Saisissez l’adresse manuellement.",
+  "res.geo.err.timeout": "Délai d’attente dépassé. Réessayez ou saisissez l’adresse.",
+  "res.geo.err.unsupported": "Géolocalisation non supportée par votre navigateur.",
+  "res.err.slot_taken": "Ce créneau est déjà réservé. Choisissez un autre horaire (±30 min).",
+  "res.loc.subtitle": "Réponse sous 15 min · 7j/7 · 24h/24",
+  "res.loc.success_title": "Votre demande a été envoyée !",
+  "res.loc.success_desc": "Vous serez contacté sous 15 min. Un email de confirmation a été envoyé à {email}.",
+  "res.loc.contact_section": "Vos coordonnées",
+  "res.loc.firstname": "Prénom",
+  "res.loc.lastname": "Nom",
+  "res.loc.phone": "Téléphone",
+  "res.loc.email": "Email",
+  "res.loc.ride_section": "Votre course",
+  "res.loc.depart_label": "Adresse de départ",
+  "res.loc.dest_label": "Adresse de destination",
+  "res.loc.oneway": "Aller simple",
+  "res.loc.roundtrip": "Aller-retour",
+  "res.loc.date_label": "Date",
+  "res.loc.time_label": "Heure",
+  "res.loc.rate_section": "Tarif",
+  "res.loc.day_rate": "Tarif jour",
+  "res.loc.night_rate": "Tarif nuit",
+  "res.loc.auto_calc": "Calculé automatiquement",
+  "res.loc.day_full": "Jour (7h–19h) — 2,16 €/km",
+  "res.loc.night_full": "Nuit (19h–7h) — 3,24 €/km",
+  "res.loc.payment_section": "Moyen de paiement",
+  "res.loc.cash": "Espèces",
+  "res.loc.card": "CB",
+  "res.loc.mode_section": "Mode de réservation",
+  "res.loc.mode_form": "Formulaire",
+  "res.loc.mode_email": "Email",
+  "res.loc.retry": "Réessayer",
+  "res.loc.send_email": "Envoyer par email",
+  "res.loc.send_wa": "Envoyer sur WhatsApp",
+  "res.loc.send_sms": "Envoyer par SMS",
+  "res.loc.passenger_sg": "passager",
+  "res.loc.passengers_pl": "passagers",
+  "res.loc.luggage_sg": "bagage",
+  "res.loc.luggage_pl": "bagages",
+  "res.loc.trip": "Trajet",
+  "res.loc.from": "Départ",
+  "res.loc.to": "Destination",
+  "res.loc.date": "Date",
+  "res.loc.pax": "Passagers",
+  "res.loc.bags": "Bagages",
+  "res.loc.rate": "Tarif",
+  "res.loc.day": "Jour",
+  "res.loc.night": "Nuit",
+  "res.loc.tbd": "À préciser",
+  "res.loc.client": "Client",
+  "res.loc.email_subject": "Réservation taxi",
+  "res.loc.wa.hello": "Bonjour, je m'appelle",
+  "res.loc.wa.hello_anon": "Bonjour",
+  "res.loc.wa.body": "je souhaite réserver un taxi. Êtes-vous disponible ?",
+  "res.wa.hello": "Bonjour, je m'appelle",
+  "res.wa.hello_anon": "Bonjour",
+  "res.wa.body": "je souhaite réserver un taxi. Êtes-vous disponible ?",
+
+  // TrackingQRSection
+  "qr.badge": "SUIVI EN TEMPS RÉEL",
+  "qr.title": "Lien pour suivre votre taxi en temps réel",
+  "qr.subtitle":
+    "Un lien unique généré pour chaque client au moment de la confirmation du taxi. Ouvrez le lien sur votre téléphone, et suivez l'arrivée du taxi sur la carte.",
+  "qr.banner.title": "Ouvrez ce lien sur votre téléphone et flashez le QR code",
+  "qr.banner.desc": "Position du chauffeur, ETA, prix estimé. Aucune installation requise.",
+  "qr.timer": "Nouveau code dans {count}s",
+  "qr.copy": "🔗 Copier le lien",
+  "qr.copied": "✓ Lien copié !",
+  "qr.step1.t": "Réservez",
+  "qr.step1.d": "Formulaire, email ou WhatsApp",
+  "qr.step2.t": "Cliquez sur le lien",
+  "qr.step2.d": "Lien unique généré pour vous",
+  "qr.step3.t": "Suivez en direct",
+  "qr.step3.d": "Carte, ETA, destination, prix",
+  "qr.step4.t": "Montez à bord !",
+  "qr.step4.d": "Coordonnées chauffeur en 1 clic",
+  "qr.feat1.t": "Position GPS",
+  "qr.feat1.d": "Suivi temps réel",
+  "qr.feat2.t": "Temps d'arrivée",
+  "qr.feat2.d": "Précision à la minute",
+  "qr.feat3.t": "Tarif estimé",
+  "qr.feat3.d": "Fourchette transparente",
+  "qr.feat4.t": "Contact direct",
+  "qr.feat4.d": "06 73 07 23 22",
+  "qr.feat5.t": "Lien unique",
+  "qr.feat5.d": "Par client, par scan",
+  "qr.cta": "📞 Réserver — 06 73 07 23 22",
+  "rsim.title": "Simulateur de prix",
+  "rsim.estimate": "Tarif estimé",
+  "rsim.day": "Tarif jour (7h–19h) — 2,16 €/km",
+  "rsim.night": "Tarif nuit (19h–7h) — 3,24 €/km",
+  "rsim.partition": "{j}% jour / {n}% nuit",
+  "rsim.pickup": "Prise en charge : 2,83 €",
+  "rsim.loading": "⏳ Calcul de l'itinéraire…",
+  "rsim.distance": "Distance",
+  "rsim.duration": "Durée estimée",
+  "rsim.hint": "Saisissez le départ et la destination pour calculer automatiquement.",
+  "rsim.outbound": "Aller",
+  "rsim.return": "Retour",
+  "rsim.total": "TOTAL ESTIMÉ",
+  "rsim.total_round": "TOTAL ESTIMÉ (aller + retour)",
+  "rsim.mixed": "Tarif mixte — votre trajet déborde sur le tarif nuit",
+  "rsim.fees": "* Des frais de réservation peuvent être appliqués",
+  "rsim.indicative": "Prix indicatif — le compteur fait foi",
+
+  // Taxi availability badge & banner
+  "taxi.badge.available": "🚕 Taxi disponible",
+  "taxi.badge.busy": "🚕 Taxi en course",
+  "taxi.banner.busy.title": "Taxi actuellement en course",
+  "taxi.banner.busy.desc":
+    "Vous pouvez tout de même réserver — votre demande sera prise en charge dès que le taxi sera libre.",
+  "taxi.banner.available.msg": "Taxi disponible — réservation confirmée rapidement !",
+
+  // Home — espace client section
+  "home.client.eyebrow": "Espace client",
+  "home.client.title.before": "Votre ",
+  "home.client.title.italic": "tableau de bord",
+  "home.client.title.after": " personnel",
+  "home.client.desc":
+    "Créez votre compte en 30 secondes pour retrouver toutes vos courses, suivre votre chauffeur en temps réel, et réserver plus vite la prochaine fois. C'est gratuit, c'est simple, et ça reste entre nous.",
+  "home.client.li1.bold": "Historique complet",
+  "home.client.li1.rest": " de vos trajets, reçus et tarifs.",
+  "home.client.li2.bold": "Notifications",
+  "home.client.li2.rest": " dès que le chauffeur est en route ou arrivé.",
+  "home.client.li3.bold": "Tchat direct",
+  "home.client.li3.rest": " avec votre chauffeur pendant la course.",
+  "home.client.cta_login": "Accéder à mon espace",
+  "home.client.cta_register": "Créer un compte",
+  "home.client.mock.hello": "Bonjour Camille",
+  "home.client.mock.connected": "Connectée à l'instant",
+  "home.client.mock.status_done": "Terminée",
+  "home.client.mock.status_confirmed": "Confirmée",
+  "home.client.mock.ride1.time": "Aujourd'hui · 14:30",
+  "home.client.mock.ride1.route": "Gare Saint-Jean → Aéroport Mérignac",
+  "home.client.mock.ride2.time": "Demain · 09:00",
+  "home.client.mock.ride2.route": "Bordeaux Centre → Saint-Émilion",
+
+  // Espace client
+  client_login_title: "Mon Espace Client",
+  client_login_subtitle: "Connectez-vous pour suivre vos courses",
+  client_email: "Email",
+  client_password: "Mot de passe",
+  client_login_btn: "Se connecter",
+  client_register_link: "Première fois ? Créer mon compte",
+  client_register_title: "Créez votre compte en 30 secondes",
+  client_name_field: "Nom complet",
+  client_phone_field: "Téléphone",
+  client_register_btn: "Créer mon compte",
+  client_dashboard_hello: "Bonjour",
+  client_my_rides: "Mes courses",
+  client_rebook_same: "Refaire cette course",
+  client_rebook_other: "Réserver une autre course",
+  client_track_ride: "Suivre ma course",
+  client_modify_time: "Modifier l'heure",
+  client_modify_time_title: "Nouvelle heure de prise en charge",
+  client_modify_time_confirm: "Confirmer",
+  client_chat_placeholder: "Écrire un message…",
+  client_chat_send: "Envoyer",
+  client_chat_title: "Tchat avec votre chauffeur",
+  client_logout: "Déconnexion",
+  client_no_rides: "Aucune course pour le moment.",
+  cd_back_home: "Accueil",
+  cd_eyebrow: "Espace client",
+  cd_book_ride: "Réserver une course",
+  cd_cancel_phone: "Annuler par téléphone",
+  cd_loading: "Chargement…",
+  cd_book: "Réserver",
+  cd_phone_cancel_requested: "Annulation par téléphone demandée",
+  cd_price_estimated: "Prix estimé",
+  cd_passengers: "Passagers",
+  cd_luggage: "Bagages",
+  cd_payment: "Paiement",
+  cd_ref: "Réf.",
+  cd_new_datetime: "Nouvelle date / heure",
+  cd_confirm: "Confirmer",
+  cd_cancel: "Annuler",
+  cd_edit_time: "Modifier l'heure",
+  cd_track_ride: "Suivre ma course",
+  cd_chat: "Tchat",
+  cd_recommend: "Recommander",
+  cd_new_ride: "Nouvelle course",
+  cd_request_sent: "Demande envoyée",
+  cd_modal_title: "Annuler par téléphone",
+  cd_modal_desc_before: "Vous allez appeler le",
+  cd_modal_desc_after: "pour annuler cette course. Confirmez pour enregistrer votre demande et passer l'appel.",
+  cd_back: "Retour",
+  cd_back_site: "Site",
+  cd_confirm_and_call: "Confirmer et appeler",
+  cd_status_pending: "En attente",
+  cd_status_accepted: "Acceptée",
+  cd_status_en_route: "Chauffeur en route",
+  cd_status_arrived: "Chauffeur arrivé",
+  cd_status_completed: "Terminée",
+  cd_status_cancelled: "Annulée",
+  cd_status_refused: "Refusée",
+  cd_book_same: "Refaire la même course",
+  cd_toast_load_err: "Impossible de charger vos courses",
+  cd_toast_time_changed: "Heure modifiée — chauffeur notifié",
+  cd_toast_locked_edit: "Cette course ne peut plus être modifiée",
+  cd_toast_edit_failed: "Modification impossible",
+  cd_confirm_cancel: "Confirmer l'annulation de cette course ?",
+  cd_toast_cancelled: "Course annulée",
+  cd_toast_locked_cancel: "Cette course ne peut plus être annulée",
+  cd_toast_cancel_failed: "Annulation impossible",
+  cd_toast_phone_recorded: "Demande d'annulation par téléphone enregistrée",
+  cd_toast_phone_failed: "Enregistrement impossible",
+  cd_msg_to_jose: "💬 Message à José",
+  cd_meta_title: "Mon espace client — Taxi City Bordeaux",
+  chat_status_typing: "Écrit…",
+  chat_status_online: "En ligne",
+  chat_status_offline: "Hors ligne",
+  chat_search: "Rechercher",
+  chat_export_csv: "Exporter en CSV",
+  chat_close: "Fermer",
+  chat_queued_prefix: "📡",
+  chat_queued_suffix: "messages en attente — envoi automatique au retour en ligne.",
+  chat_search_placeholder: "Rechercher un mot-clé…",
+  chat_from: "Du",
+  chat_to: "Au",
+  chat_reset: "Réinitialiser",
+  chat_load_more_history: "charger plus d'historique",
+  chat_older_messages: "Messages plus anciens",
+  chat_no_messages: "Aucun message pour l'instant. Écrivez le premier !",
+  chat_no_match: "Aucun message ne correspond à votre recherche.",
+  chat_typing_aria: "L'autre personne est en train d'écrire",
+  chat_input_placeholder: "Écrire un message…",
+  chat_send: "Envoyer",
+  chat_found_on_loaded: "trouvés sur",
+  chat_loaded: "chargés.",
+
+  // Page fin/$id
+  "fin.loading": "Chargement du récapitulatif…",
+  "fin.notfound": "Course introuvable",
+  "fin.title": "Course terminée !",
+  "fin.subtitle": "Merci d'avoir voyagé avec Taxi City Bordeaux",
+  "fin.price_label": "Prix final",
+  "fin.payment.cb": "💳 Carte bancaire",
+  "fin.payment.cash": "💵 Espèces",
+  "fin.stat.distance": "Distance",
+  "fin.stat.duration": "Durée",
+  "fin.stat.trip": "Trajet",
+  "fin.stat.trip_done": "Terminé",
+  "fin.route.from": "Départ",
+  "fin.route.to": "Arrivée",
+  "fin.pdf.title": "Reçu de course",
+  "fin.pdf.subtitle": "PDF généré instantanément sur votre appareil",
+  "fin.pdf.download": "⬇️ Télécharger le reçu PDF",
+  "fin.pdf.loading": "⏳ Génération en cours…",
+  "fin.pdf.success": "✅ PDF téléchargé !",
+  "fin.pdf.error": "❌ Erreur lors de la génération du PDF",
+  "fin.pdf.note": "Gratuit · Généré sur votre appareil · Aucune donnée envoyée",
+  "fin.map.toggle": "Revoir l'itinéraire",
+  "fin.rating.title": "Comment s'est passée votre course ?",
+  "fin.rating.tap": "Touchez une étoile",
+  "fin.rating.comment": "Un commentaire ? (optionnel)",
+  "fin.rating.submit": "Envoyer mon avis",
+  "fin.rating.sending": "Envoi…",
+  "fin.rating.thanks": "Merci pour votre avis !",
+  "fin.rating.rated": "Vous avez noté",
+  "fin.action.same": "Même trajet",
+  "fin.action.new": "Nouvelle course",
+  "fin.action.history": "📋 Voir toutes mes courses",
+  "fin.star.bad": "Mauvais",
+  "fin.star.ok": "Passable",
+  "fin.star.good": "Bien",
+  "fin.star.great": "Très bien",
+  "fin.star.excellent": "Excellent !",
+
+  // Page mes-courses
+  "mc.title": "Mes courses",
+  "mc.count_sg": "trajet",
+  "mc.count_pl": "trajets",
+  "mc.stat.rides": "courses",
+  "mc.stat.spent": "dépensés",
+  "mc.stat.km": "parcourus",
+  "mc.from": "Départ",
+  "mc.to": "Arrivée",
+  "mc.action.same": "Même trajet",
+  "mc.action.receipt": "Reçu PDF",
+  "mc.action.track": "Suivre",
+  "mc.action.new": "➕ Nouvelle course",
+  "mc.map.unavailable": "Carte indisponible",
+  "mc.map.loading": "Chargement carte…",
+  "mc.status.completed": "Terminée",
+  "mc.status.accepted": "Acceptée",
+  "mc.status.pending": "En attente",
+  "mc.status.refused": "Refusée",
+  "mc.status.en_route": "En route",
+  "mc.status.arrived": "Arrivé",
+  "mc.status.cancelled": "Annulée",
+  "mc.rebook.title": "🔁 Même trajet",
+  "mc.rebook.subtitle": "Choisissez la date et l'heure",
+  "mc.rebook.from": "Départ",
+  "mc.rebook.to": "Destination",
+  "mc.rebook.date": "Date",
+  "mc.rebook.time": "Heure",
+  "mc.rebook.btn": "🚕 Réserver maintenant",
+  "mc.rebook.loading": "Réservation…",
+  "mc.rebook.success": "Réservation enregistrée !",
+  "mc.rebook.redirect": "Redirection vers le suivi…",
+  "mc.gate.title": "Retrouver mes courses",
+  "mc.gate.subtitle": "Entrez votre email pour voir l'historique de vos courses",
+  "mc.gate.placeholder": "votre@email.fr",
+  "mc.gate.btn": "Voir mes courses",
+  "mc.gate.loading": "Recherche…",
+  "mc.gate.err.invalid": "Adresse email invalide",
+  "mc.gate.err.notfound": "Aucune course trouvée pour cet email.",
+};
+
+const en: Dict = {
+  "nav.home": "Home",
+  "nav.services": "Services",
+  "nav.tarifs": "Pricing",
+  "nav.about": "About",
+  "nav.contact": "Contact",
+  "nav.book": "Book",
+  "nav.book_long": "Book a ride",
+  "common.available_247": "Available 24/7",
+  "common.lang_label": "Language",
+
+  "home.hero.badge": "Available 24/7",
+  "home.hero.title.before": "Your taxi in",
+  "home.hero.title.city": "Bordeaux",
+  "home.hero.title.after": ", on time and comfortable.",
+  "home.hero.subtitle":
+    "Business or personal trips, immediate or scheduled rides: we drive you anywhere in Gironde and across France, day and night, in a well-maintained car.",
+  "home.hero.need_taxi": "I need a taxi…",
+  "home.hero.book_now": "Book a ride",
+  "home.hero.tag1": "Quick booking",
+  "home.hero.tag2": "CPAM-certified medical rides",
+  "home.hero.tag3": "Transparent pricing",
+
+  "home.dest.eyebrow": "Destinations",
+  "home.dest.title": "Where we drive you",
+  "home.dest.intro": "A few routes our customers book every day — a smooth arrival is what we do best.",
+  "home.dest.gare.title": "Bordeaux Saint-Jean station",
+  "home.dest.gare.sub": "Meet & greet on request at arrival.",
+  "home.dest.airport.title": "Bordeaux airport",
+  "home.dest.airport.sub": "Real-time flight tracking.",
+  "home.dest.vine.title": "Châteaux & vineyards",
+  "home.dest.vine.sub": "Médoc, Saint-Émilion, Sauternes — full day trips.",
+  "home.dest.cta": "Book",
+
+  "home.best.eyebrow": "Must-sees",
+  "home.best.title": "Bordeaux best-sellers",
+  "home.best.intro": "The places our customers love to visit — we'll take you there with peace of mind.",
+  "home.best.miroir.title": "Miroir d'eau (Water Mirror)",
+  "home.best.miroir.sub": "Place de la Bourse, the Bordeaux icon.",
+  "home.best.cite.title": "Cité du Vin (Wine Museum)",
+  "home.best.cite.sub": "A journey through the world's vineyards.",
+  "home.best.emilion.title": "Saint-Émilion Village",
+  "home.best.emilion.sub": "Medieval village & Grand Cru classé wines.",
+  "home.best.pilat.title": "Dune of Pilat",
+  "home.best.pilat.sub": "The highest dune in Europe.",
+
+  "home.why.eyebrow": "Why choose us",
+  "home.why.title": "A simple, human and reliable service.",
+  "home.why.desc":
+    "Taxi City Bordeaux means a local driver, a well-kept car and a real care for the job. No surprise on the bill, no endless wait — we confirm, we arrive, we drive you.",
+  "home.why.years": "years of experience",
+  "home.why.f1.t": "Guaranteed punctuality",
+  "home.why.f1.d": "Flight & train tracking, anti-delay buffer.",
+  "home.why.f2.t": "Clear pricing",
+  "home.why.f2.d": "Regulated rates, card & cash payment.",
+  "home.why.f3.t": "CPAM-certified medical rides",
+  "home.why.f3.d": "Health transports covered.",
+
+  "home.services.eyebrow": "Our services",
+  "home.services.title": "For every kind of trip",
+  "home.services.see_all": "See all services",
+  "svc.airport.title": "Bordeaux airport",
+  "svc.airport.desc": "Transfers to and from the airport, day & night.",
+  "svc.train.title": "Saint-Jean station",
+  "svc.train.desc": "Pick-up on arrival, personal greeting.",
+  "svc.business.title": "Business travel",
+  "svc.business.desc": "Discretion and punctuality for your meetings.",
+  "svc.wedding.title": "Car breakdown assistance",
+  "svc.wedding.desc": "Call us if your car breaks down — we pick you up quickly.",
+  "svc.cpam.title": "CPAM medical transport",
+  "svc.cpam.desc": "Medical transport voucher accepted, any distance.",
+  "svc.long.title": "Long distance",
+  "svc.long.desc": "Any-distance trips across France and Europe.",
+
+  "home.test.eyebrow": "They trusted us",
+  "home.test.title": "What our clients say",
+  "home.test.t1": "Very punctual driver, spotless car. Dropped off at Mérignac with no stress, highly recommend.",
+  "home.test.t2": "Easy booking, exact price as quoted. Perfect for my weekly business trips.",
+  "home.test.t3": "Picked up at the station with my kids, the driver was so kind. We'll book again.",
+
+  "home.faq.eyebrow": "Your questions",
+  "home.faq.title": "Honest answers",
+  "home.faq.intro": "A few answers to the questions we get most often. If you can't find yours, just give us a call.",
+  "faq.q1": "Are you CPAM-certified for medical transport?",
+  "faq.a1":
+    "Yes, we are certified by the CPAM for health transport (consultations, dialysis, hospital stays…). Just ask your doctor for the medical transport prescription, and we take care of the rest. With a transport voucher, direct billing to the French health insurance. Third-party payment or ALD — transport voucher for all distances.",
+  "faq.q2": "What if my flight at Mérignac is delayed?",
+  "faq.a2": "We track your flight in real time. If your plane lands early or late, we adjust the pick-up time.",
+  "faq.q3": "How can I cancel or change my booking?",
+  "faq.a3":
+    "A simple call or WhatsApp message is enough. Cancellation is free up to 2 hours before the ride. For a change (time, address, passengers), let us know as soon as possible — we'll arrange it.",
+  "faq.q4": "Which payment methods do you accept?",
+  "faq.a4":
+    "Card (contactless, Apple Pay, Google Pay), cash, and bank transfer for company accounts. A receipt is always provided at the end of the ride, on request for expense reports.",
+  "faq.q5": "Do I need to book in advance?",
+  "faq.a5":
+    "Not mandatory — we also take immediate rides if we're available. For an early train, a flight or an important meeting, it's safer to book the day before.",
+  "faq.q6": "How much luggage can I bring?",
+  "faq.a6":
+    "A comfortable sedan easily fits 3 to 4 suitcases and 4 passengers. For a group or bulky items, let us know when booking and we'll adapt the vehicle.",
+
+  // Home — how it works
+  "home.how.eyebrow": "How it works",
+  "home.how.title": "Booking is as simple as a phone call",
+  "home.how.intro": "No queue, no robot. Just a direct chat with your driver — we confirm, we show up, we drive you.",
+  "home.how.s1.t": "Fill in the form",
+  "home.how.s1.d": "Pick-up, destination, date, time, passengers — 2 minutes flat.",
+  "home.how.s2.t": "Instant confirmation",
+  "home.how.s2.d": "You immediately receive an email and SMS confirming your booking.",
+  "home.how.s3.t": "Your driver accepts",
+  "home.how.s3.d": "Your driver validates the ride and confirms the final price.",
+  "home.how.s4.t": "Track in real time",
+  "home.how.s4.d": "GPS position, estimated arrival, driver name and plate number — all live.",
+  "home.how.s5.t": "You get in",
+  "home.how.s5.d": "You get in, we take care of the rest.",
+  "home.how.s6.t": "Payment",
+  "home.how.s6.d": "Card or cash — as you prefer. Receipt provided at the end.",
+  "sim.eyebrow": "Fare estimator",
+  "sim.title": "Estimate your ride price",
+  "sim.intro":
+    "Enter your departure and destination addresses — the fare is calculated automatically based on the current time.",
+  "sim.pickup": "Pickup fee",
+  "sim.perkm": "Per-km rate",
+  "sim.perkm_mixed": "Weighted average rate",
+  "sim.estimate": "Estimated fare",
+  "sim.badge_mixed": "mixed rate",
+  "sim.dist_label": "Estimated distance",
+  "sim.duration_label": "Estimated duration",
+  "sim.geocoding": "Locating…",
+  "sim.addr_error": "Address not found — try being more specific.",
+  "sim.addr_placeholder": "Address, city, landmark…",
+  "sim.from_label": "Departure address",
+  "sim.to_label": "Destination address",
+  "sim.dist_loading": "Calculating distance…",
+  "sim.disclaimer":
+    "Indicative estimate based on our official rates. The actual price may vary depending on the exact route, traffic conditions and any extras.",
+  "sim.cta_book": "Book now",
+  "sim.period_day": "☀️ Daytime rate (7am–7pm) —",
+  "sim.period_night": "🌙 Night rate (7pm–7am) —",
+  "sim.booking_fee_note": "* A booking fee may apply",
+  "home.cta.title": "Ready to book your ride?",
+  "home.cta.desc": "Quick confirmation, professional driver and transparent price — call us or book online.",
+  "home.cta.online": "Book online",
+
+  "services.eyebrow": "Our services",
+  "services.title": "A taxi service for every need",
+  "services.intro": "In Bordeaux, across Gironde and all over France — one contact, premium service.",
+  "services.cta": "Book",
+  "services.b1": "24/7",
+  "services.b2": "Up to 4 passengers",
+  "services.b3": "Professional driver",
+  "svcp.airport.title": "Bordeaux Airport transfers",
+  "svcp.airport.desc": "On-time pick-up for your flights, real-time tracking, meet & greet on request.",
+  "svcp.airport.p1": "Meet & greet on request",
+  "svcp.airport.p2": "Flight tracking",
+  "svcp.airport.p3": "Round-trip available",
+  "svcp.train.title": "Saint-Jean & TGV stations",
+  "svcp.train.desc": "Transfers to or from Bordeaux Saint-Jean and any station in the region.",
+  "svcp.train.p1": "Meet & greet on request",
+  "svcp.train.p2": "On-time pick-up",
+  "svcp.train.p3": "Available 24/7",
+  "svcp.business.title": "Business travel",
+  "svcp.business.desc": "Discreet, premium service for meetings, seminars and business trips.",
+  "svcp.business.p1": "Company invoicing",
+  "svcp.business.p2": "Onboard Wi-Fi",
+  "svcp.business.p3": "Guaranteed discretion",
+  "svcp.wedding.title": "Car breakdown assistance",
+  "svcp.wedding.desc": "If your car breaks down, we pick you up quickly and drive you to your destination.",
+  "svcp.wedding.p1": "Quick response",
+  "svcp.wedding.p2": "Across Gironde",
+  "svcp.wedding.p3": "Available 24/7",
+  "svcp.cpam.title": "CPAM medical transport",
+  "svcp.cpam.desc":
+    "Seated professional transport covered by the French health insurance. Voucher accepted any distance.",
+  "svcp.cpam.p1": "Direct billing / ALD",
+  "svcp.cpam.p2": "Voucher any distance",
+  "svcp.cpam.p3": "Hospitals & clinics",
+  "svcp.long.title": "Long distance",
+  "svcp.long.desc": "Any-distance trips across France and Europe.",
+  "svcp.long.p1": "Regulated rates",
+  "svcp.long.p2": "Per-kilometer rate",
+  "svcp.long.p3": "Long-haul comfort",
+
+  "tarifs.eyebrow": "Pricing",
+  "tarifs.title": "Transparent prices",
+  "tarifs.intro": "Indicative prices based on the prefectoral regulations. An exact price is confirmed at booking.",
+  "tarifs.col.from": "From",
+  "tarifs.col.to": "To",
+  "tarifs.col.day": "Day rate",
+  "tarifs.col.night": "Night / Sun. rate",
+  "tarifs.note": "Night rates apply 7pm–7am, Sundays and bank holidays.",
+  "tarifs.cpam.title": "🏥 CPAM medical transport",
+  "tarifs.cpam.desc":
+    "With a medical transport voucher, direct billing to the French health insurance. Direct billing or ALD — voucher accepted any distance.",
+  "tarifs.event.title": "🚗 Car breakdown assistance",
+  "tarifs.event.desc":
+    "If your car breaks down, we pick you up quickly and drive you to your destination. Available 7/7.",
+  "tarifs.cta": "Book",
+  "city.bdx_centre": "Bordeaux center",
+  "city.cenon": "Cenon / Floirac",
+  "city.merignac": "Mérignac",
+  "city.bdx": "Bordeaux",
+  "city.airport": "Mérignac airport",
+  "city.gare": "Saint-Jean station",
+  "city.arcachon": "Arcachon",
+  "city.stemilion": "Saint-Émilion",
+
+  "about.eyebrow": "Our story",
+  "about.title": "About Taxi City Bordeaux",
+  "about.p1.brand": "Taxi City Bordeaux",
+  "about.p1":
+    "is an independent taxi business in Bordeaux. We aim to deliver a service worthy of Bordeaux's elegance: punctuality, comfort and discretion.",
+  "about.p2":
+    "Whether you're a private customer heading to the airport, a professional on the move, or a patient needing medical transport, we adapt our service to your need.",
+  "about.p3": "Our air-conditioned and carefully maintained car guarantees a pleasant ride in any situation.",
+  "about.b1.t": "Professional driver",
+  "about.b1.d": "Official taxi card, ongoing training, deep knowledge of Bordeaux and Gironde.",
+  "about.b2.t": "Available 24/7",
+  "about.b2.d": "Day and night, weekends and bank holidays included.",
+  "about.b3.t": "Bordeaux & Gironde",
+  "about.b3.d": "Official station in Bordeaux. Whole metropolitan area, airport, stations and all France on booking.",
+  "about.b4.t": "CPAM medical transport",
+  "about.b4.d": "Seated professional transport covered by the French health insurance.",
+  "about.cta": "Book a ride",
+
+  "contact.eyebrow": "Contact",
+  "contact.title": "Get in touch",
+  "contact.intro": "Available 24/7 — one call is enough, or send us a message.",
+  "contact.phone": "Phone",
+  "contact.phone.sub": "Immediate answer",
+  "contact.wa.title": "WhatsApp",
+  "contact.wa.line": "Chat on WhatsApp",
+  "contact.wa.sub": "Great for sharing an address",
+  "contact.email": "Email",
+  "contact.email.sub": "Quotes & special requests",
+  "contact.zone.title": "Service area",
+  "contact.zone.line1": "Bordeaux & Metropolitan area",
+  "contact.zone.line2": "All of Gironde (33)",
+  "contact.zone.sub": "Long-distance trips across France on request.",
+  "contact.form.eyebrow": "Form",
+  "contact.form.title": "Send us a message",
+  "contact.form.intro": "For a question or a special request — we reply as soon as possible.",
+  "contact.form.name": "Full name *",
+  "contact.form.email": "Email *",
+  "contact.form.phone": "Phone (optional)",
+  "contact.form.subject": "Subject (optional)",
+  "contact.form.subject.ph": "Ex: Quote Bordeaux → Paris",
+  "contact.form.message": "Message *",
+  "contact.form.message.ph": "Tell us about your request…",
+  "contact.form.send": "Send message",
+  "contact.form.sending": "Sending…",
+  "contact.form.error": "An error occurred. Please call us directly at +33 6 73 07 23 22.",
+  "contact.form.success.title": "Message sent!",
+  "contact.form.success.desc": "Thanks for reaching out. We'll get back to you by email shortly.",
+  "contact.form.success.again": "Send another message",
+  "contact.form.note": "For a ride, please use the booking form instead.",
+  "contact.err.name": "Name required",
+  "contact.err.email": "Invalid email",
+  "contact.err.message": "Message too short (10 characters min)",
+  "contact.err.phone": "Invalid phone number",
+
+  "res.eyebrow": "Online booking",
+  "res.title": "Book your taxi",
+  "res.intro": "Fill the form — we call you back to confirm.",
+  "res.f.name": "Full name *",
+  "res.f.phone": "Phone *",
+  "res.f.email": "Email (optional)",
+  "res.f.trip": "Trip type *",
+  "res.f.trip.one": "One way",
+  "res.f.trip.round": "Round trip",
+  "res.f.pickup": "Pick-up date and time *",
+  "res.f.return": "Return date and time *",
+  "res.f.from": "Pick-up address *",
+  "res.f.from.ph": "Ex: 12 cours de l'Intendance, Bordeaux",
+  "res.f.to": "Drop-off address *",
+  "res.f.to.ph": "Ex: Mérignac airport",
+  "res.f.passengers": "Passengers",
+  "res.f.luggage": "Luggage",
+  "res.f.kind": "Service type",
+  "res.f.kind.standard": "Standard",
+  "res.f.kind.airport": "Airport",
+  "res.f.kind.train": "Station",
+  "res.f.kind.cpam": "CPAM medical",
+  "res.f.kind.wedding": "Breakdown assistance",
+  "res.f.kind.business": "Business",
+  "res.f.kind.long": "Long distance",
+  "res.f.needs": "Special needs",
+  "res.f.needs.cpam": "CPAM / medical",
+  "res.f.needs.cpam.hint": "Covered transport",
+  "res.f.needs.bags": "Luggage help",
+  "res.f.needs.bags.hint": "Help loading bags",
+  "res.f.needs.child": "Child seat",
+  "res.f.needs.child.hint": "State child age in message",
+  "res.f.message": "Message (optional)",
+  "res.f.message.ph": "Flight number, kids' age, details…",
+  "res.send": "Send my request",
+  "res.sending": "Sending…",
+  "res.note": "For an immediate ride, call us directly at +33 6 73 07 23 22",
+  "res.err.global": "Sending failed. Please call us at +33 6 73 07 23 22.",
+  "res.err.phone": "Invalid phone number",
+  "res.err.name": "Name required",
+  "res.err.pickup": "Date/time required",
+  "res.err.future": "Date must be in the future",
+  "res.err.from": "Pick-up address required",
+  "res.err.to": "Drop-off address required",
+  "res.err.return": "Return date must be after pick-up",
+
+  "conf.cancelled.title": "Booking cancelled",
+  "conf.cancelled.desc": "This booking has been cancelled.",
+  "conf.ok.title": "Request received!",
+  "conf.ok.desc": "We'll call you back shortly to confirm your ride.",
+  "conf.ref.label": "Booking number",
+  "conf.ref.note": "Keep it for any change or cancellation.",
+  "conf.summary": "Summary",
+  "conf.row.pickup": "Pick-up",
+  "conf.row.from": "From",
+  "conf.row.to": "To",
+  "conf.row.phone": "Phone",
+  "conf.passengers": "passenger(s)",
+  "conf.luggage": "luggage piece(s)",
+  "conf.wa": "Confirm on WhatsApp",
+  "conf.modify.title": "Change or cancel",
+  "conf.modify.desc": "To change your request, contact us by phone or WhatsApp with your booking number.",
+  "conf.cancel": "Cancel my booking",
+  "conf.cancel.confirm": "Confirm cancellation",
+  "conf.cancel.keep": "Keep my booking",
+  "conf.back": "← Back to home",
+  "conf.notfound.title": "Booking not found",
+  "conf.notfound.desc": "The link looks invalid or the booking was deleted.",
+  "conf.notfound.cta": "Make a new booking",
+
+  "wa.float.send": "Send my request",
+  "wa.float.label": "Book on WhatsApp",
+  "wa.aria.hint": "Opens a WhatsApp conversation in a new tab.",
+  "wa.aria.draftReady": "Your booking request is ready to send on WhatsApp.",
+  "wa.default": "Hello, I'd like to book a taxi. Could you confirm availability? Thanks.",
+  "wa.btn.call": "Call",
+  "wa.btn.quote": "Book a ride",
+  "wa.btn.whatsapp": "WhatsApp",
+  "wa.aria.whatsapp": "Contact us on WhatsApp",
+  "wa.aria.nav": "Quick contact actions",
+  "suivi.title": "Track your driver",
+  "suivi.hello": "Hello",
+  "suivi.pickup_at": "pickup at",
+  "suivi.status": "Status",
+  "suivi.online": "On the way",
+  "suivi.offline": "Offline",
+  "suivi.eta": "Estimated arrival",
+  "suivi.distance": "Distance",
+  "suivi.last_update": "Last update",
+  "suivi.view_reservation": "View my booking",
+  "suivi.notfound.title": "Booking not found",
+  "suivi.notfound.desc": "This tracking link is invalid or expired.",
+  "suivi.back_home": "Back to home",
+  "conf.track": "Track my driver live",
+
+  "faqx.title": "Frequently asked questions",
+  "faqx.intro": "Everything you need to know before your ride.",
+  "faqx.tracking.q": "How does real-time flight or train tracking work?",
+  "faqx.tracking.a":
+    "As soon as you share your flight or train number, we track it automatically. If your arrival is early or delayed, the pick-up time is adjusted — you don't need to do anything, your driver will be waiting when you come out.",
+  "faqx.wait.q": "How long does the driver wait after landing?",
+  "faqx.wait.a":
+    "The driver shows up based on actual landing time (not the scheduled one), and we account for the time needed to collect your luggage and clear customs. Beyond that, additional waiting time is billed at the official regulated rate, in full transparency.",
+  "faqx.cpam.q": "How does CPAM / ALD coverage work?",
+  "faqx.cpam.a":
+    "Bring the medical transport prescription given by your doctor. With this transport voucher we apply third-party payment: the ride is billed directly to the French health insurance. Under ALD (long-term illness), coverage is full and valid for all distances — including long trips to a specialised centre.",
+
+  "res.err.required": "Required",
+  "res.geo.btn": "My location",
+  "res.geo.loading": "Locating…",
+  "res.geo.err.denied": "Permission denied — please allow location access in your browser settings.",
+  "res.geo.err.unavailable": "Position unavailable. Please enter the address manually.",
+  "res.geo.err.timeout": "Location timed out. Try again or enter the address manually.",
+  "res.geo.err.unsupported": "Geolocation is not supported by your browser.",
+  "res.err.slot_taken": "This slot is already booked. Please choose another time (±30 min).",
+  "res.loc.subtitle": "Reply within 15 min · 7/7 · 24/7",
+  "res.loc.success_title": "Your request has been sent!",
+  "res.loc.success_desc": "You will be contacted within 15 min. A confirmation email has been sent to {email}.",
+  "res.loc.contact_section": "Your details",
+  "res.loc.firstname": "First name",
+  "res.loc.lastname": "Last name",
+  "res.loc.phone": "Phone",
+  "res.loc.email": "Email",
+  "res.loc.ride_section": "Your ride",
+  "res.loc.depart_label": "Pick-up address",
+  "res.loc.dest_label": "Drop-off address",
+  "res.loc.oneway": "One way",
+  "res.loc.roundtrip": "Round trip",
+  "res.loc.date_label": "Date",
+  "res.loc.time_label": "Time",
+  "res.loc.rate_section": "Rate",
+  "res.loc.day_rate": "Day rate",
+  "res.loc.night_rate": "Night rate",
+  "res.loc.auto_calc": "Auto-calculated",
+  "res.loc.day_full": "Day (7am–7pm) — €2.16/km",
+  "res.loc.night_full": "Night (7pm–7am) — €3.24/km",
+  "res.loc.payment_section": "Payment method",
+  "res.loc.cash": "Cash",
+  "res.loc.card": "Card",
+  "res.loc.mode_section": "Booking method",
+  "res.loc.mode_form": "Form",
+  "res.loc.mode_email": "Email",
+  "res.loc.retry": "Retry",
+  "res.loc.send_email": "Send by email",
+  "res.loc.send_wa": "Send on WhatsApp",
+  "res.loc.send_sms": "Send by SMS",
+  "res.loc.passenger_sg": "passenger",
+  "res.loc.passengers_pl": "passengers",
+  "res.loc.luggage_sg": "piece of luggage",
+  "res.loc.luggage_pl": "pieces of luggage",
+  "res.loc.trip": "Trip",
+  "res.loc.from": "From",
+  "res.loc.to": "To",
+  "res.loc.date": "Date",
+  "res.loc.pax": "Passengers",
+  "res.loc.bags": "Luggage",
+  "res.loc.rate": "Rate",
+  "res.loc.day": "Day",
+  "res.loc.night": "Night",
+  "res.loc.tbd": "To be specified",
+  "res.loc.client": "Client",
+  "res.loc.email_subject": "Taxi booking",
+  "res.wa.hello": "Hello, my name is",
+  "res.wa.hello_anon": "Hello",
+  "res.wa.body": "I'd like to book a taxi. Are you available?",
+  "res.loc.wa.hello": "Hello, my name is",
+  "res.loc.wa.hello_anon": "Hello",
+  "res.loc.wa.body": "I'd like to book a taxi. Are you available?",
+  "review.title": "Leave a review",
+  "review.intro": "Your feedback helps us improve and guides future customers.",
+  "review.rating": "Rating",
+  "review.name.placeholder": "Your first name",
+  "review.text.placeholder": "Share your experience…",
+  "review.submit": "Post my review",
+  "review.success": "Thank you! Your review has been published.",
+  "review.error.fields": "Please provide a rating, your name and a message.",
+  "review.error.submit": "Unable to submit your review. Please try again.",
+
+  // TrackingQRSection
+  "qr.badge": "REAL-TIME TRACKING",
+  "qr.title": "Link to track your taxi in real time",
+  "qr.subtitle":
+    "A unique link generated for every client when the taxi is confirmed. Open the link on your phone and follow your taxi's arrival on the map.",
+  "qr.banner.title": "Open this link on your phone and scan the QR code",
+  "qr.banner.desc": "Driver location, ETA, estimated fare. No app required.",
+  "qr.timer": "New code in {count}s",
+  "qr.copy": "🔗 Copy link",
+  "qr.copied": "✓ Link copied!",
+  "qr.step1.t": "Book",
+  "qr.step1.d": "Form, email or WhatsApp",
+  "qr.step2.t": "Click the link",
+  "qr.step2.d": "Unique link generated for you",
+  "qr.step3.t": "Track live",
+  "qr.step3.d": "Map, ETA, destination, fare",
+  "qr.step4.t": "Get in!",
+  "qr.step4.d": "Driver contact in 1 tap",
+  "qr.feat1.t": "GPS Position",
+  "qr.feat1.d": "Real-time tracking",
+  "qr.feat2.t": "Arrival time",
+  "qr.feat2.d": "Minute-accurate ETA",
+  "qr.feat3.t": "Estimated fare",
+  "qr.feat3.d": "Transparent price range",
+  "qr.feat4.t": "Direct contact",
+  "qr.feat4.d": "06 73 07 23 22",
+  "qr.feat5.t": "Unique link",
+  "qr.feat5.d": "Per client, per scan",
+  "qr.cta": "📞 Book — 06 73 07 23 22",
+  "rsim.title": "Price simulator",
+  "rsim.estimate": "Estimated fare",
+  "rsim.day": "Day rate (7am–7pm) — €2.16/km",
+  "rsim.night": "Night rate (7pm–7am) — €3.24/km",
+  "rsim.partition": "{j}% day / {n}% night",
+  "rsim.pickup": "Pickup fee: €2.83",
+  "rsim.loading": "⏳ Calculating route…",
+  "rsim.distance": "Distance",
+  "rsim.duration": "Estimated duration",
+  "rsim.hint": "Enter pickup and destination to calculate automatically.",
+  "rsim.outbound": "Outbound",
+  "rsim.return": "Return",
+  "rsim.total": "ESTIMATED TOTAL",
+  "rsim.total_round": "ESTIMATED TOTAL (round trip)",
+  "rsim.mixed": "Mixed rate — your trip overlaps with the night rate",
+  "rsim.fees": "* Booking fees may apply",
+  "rsim.indicative": "Indicative price — the meter is authoritative",
+
+  // Taxi availability badge & banner
+  "taxi.badge.available": "🚕 Taxi available",
+  "taxi.badge.busy": "🚕 Taxi on a ride",
+  "taxi.banner.busy.title": "Taxi currently on a ride",
+  "taxi.banner.busy.desc": "You can still book — your request will be handled as soon as the taxi is free.",
+  "taxi.banner.available.msg": "Taxi available — booking confirmed quickly!",
+
+  // Home — client space section
+  "home.client.eyebrow": "Client area",
+  "home.client.title.before": "Your personal ",
+  "home.client.title.italic": "dashboard",
+  "home.client.title.after": "",
+  "home.client.desc":
+    "Create your account in 30 seconds to access all your rides, track your driver in real time, and book faster next time. Free, simple, and private.",
+  "home.client.li1.bold": "Full history",
+  "home.client.li1.rest": " of your trips, receipts and fares.",
+  "home.client.li2.bold": "Notifications",
+  "home.client.li2.rest": " as soon as your driver is on the way or arrived.",
+  "home.client.li3.bold": "Direct chat",
+  "home.client.li3.rest": " with your driver during the ride.",
+  "home.client.cta_login": "Access my account",
+  "home.client.cta_register": "Create an account",
+  "home.client.mock.hello": "Hello Camille",
+  "home.client.mock.connected": "Connected just now",
+  "home.client.mock.status_done": "Completed",
+  "home.client.mock.status_confirmed": "Confirmed",
+  "home.client.mock.ride1.time": "Today · 14:30",
+  "home.client.mock.ride1.route": "Saint-Jean Station → Mérignac Airport",
+  "home.client.mock.ride2.time": "Tomorrow · 09:00",
+  "home.client.mock.ride2.route": "Bordeaux Centre → Saint-Émilion",
+
+  // Client area
+  client_login_title: "My Client Area",
+  client_login_subtitle: "Sign in to track your rides",
+  client_email: "Email",
+  client_password: "Password",
+  client_login_btn: "Sign in",
+  client_register_link: "First time? Create an account",
+  client_register_title: "Create your account in 30 seconds",
+  client_name_field: "Full name",
+  client_phone_field: "Phone",
+  client_register_btn: "Create my account",
+  client_dashboard_hello: "Hello",
+  client_my_rides: "My rides",
+  client_rebook_same: "Book this ride again",
+  client_rebook_other: "Book another ride",
+  client_track_ride: "Track my ride",
+  client_modify_time: "Change pickup time",
+  client_modify_time_title: "New pickup time",
+  client_modify_time_confirm: "Confirm",
+  client_chat_placeholder: "Write a message…",
+  client_chat_send: "Send",
+  client_chat_title: "Chat with your driver",
+  client_logout: "Sign out",
+  client_no_rides: "No rides yet.",
+  cd_back_home: "Home",
+  cd_eyebrow: "Client area",
+  cd_book_ride: "Book a ride",
+  cd_cancel_phone: "Cancel by phone",
+  cd_loading: "Loading…",
+  cd_book: "Book",
+  cd_phone_cancel_requested: "Phone cancellation requested",
+  cd_price_estimated: "Estimated price",
+  cd_passengers: "Passengers",
+  cd_luggage: "Luggage",
+  cd_payment: "Payment",
+  cd_ref: "Ref.",
+  cd_new_datetime: "New date / time",
+  cd_confirm: "Confirm",
+  cd_cancel: "Cancel",
+  cd_edit_time: "Edit time",
+  cd_track_ride: "Track my ride",
+  cd_chat: "Chat",
+  cd_recommend: "Book again",
+  cd_new_ride: "New ride",
+  cd_request_sent: "Request sent",
+  cd_modal_title: "Cancel by phone",
+  cd_modal_desc_before: "You are about to call",
+  cd_modal_desc_after: "to cancel this ride. Confirm to record your request and place the call.",
+  cd_back: "Back",
+  cd_back_site: "Site",
+  cd_confirm_and_call: "Confirm and call",
+  cd_status_pending: "Pending",
+  cd_status_accepted: "Accepted",
+  cd_status_en_route: "Driver en route",
+  cd_status_arrived: "Driver arrived",
+  cd_status_completed: "Completed",
+  cd_status_cancelled: "Cancelled",
+  cd_status_refused: "Refused",
+  cd_book_same: "Book the same ride",
+  cd_toast_load_err: "Could not load your rides",
+  cd_toast_time_changed: "Time updated — driver notified",
+  cd_toast_locked_edit: "This ride can no longer be edited",
+  cd_toast_edit_failed: "Update failed",
+  cd_confirm_cancel: "Cancel this ride?",
+  cd_toast_cancelled: "Ride cancelled",
+  cd_toast_locked_cancel: "This ride can no longer be cancelled",
+  cd_toast_cancel_failed: "Cancellation failed",
+  cd_toast_phone_recorded: "Phone cancellation request recorded",
+  cd_toast_phone_failed: "Could not record request",
+  cd_msg_to_jose: "💬 Message José",
+  cd_meta_title: "My client area — Taxi City Bordeaux",
+  chat_status_typing: "Typing…",
+  chat_status_online: "Online",
+  chat_status_offline: "Offline",
+  chat_search: "Search",
+  chat_export_csv: "Export as CSV",
+  chat_close: "Close",
+  chat_queued_prefix: "📡",
+  chat_queued_suffix: "messages queued — sent automatically when back online.",
+  chat_search_placeholder: "Search a keyword…",
+  chat_from: "From",
+  chat_to: "To",
+  chat_reset: "Reset",
+  chat_load_more_history: "load more history",
+  chat_older_messages: "Older messages",
+  chat_no_messages: "No messages yet. Write the first one!",
+  chat_no_match: "No message matches your search.",
+  chat_typing_aria: "The other person is typing",
+  chat_input_placeholder: "Write a message…",
+  chat_send: "Send",
+  chat_found_on_loaded: "found on",
+  chat_loaded: "loaded.",
+
+  // Page fin/$id
+  "fin.loading": "Loading summary…",
+  "fin.notfound": "Ride not found",
+  "fin.title": "Ride completed!",
+  "fin.subtitle": "Thank you for riding with Taxi City Bordeaux",
+  "fin.price_label": "Final price",
+  "fin.payment.cb": "💳 Credit card",
+  "fin.payment.cash": "💵 Cash",
+  "fin.stat.distance": "Distance",
+  "fin.stat.duration": "Duration",
+  "fin.stat.trip": "Trip",
+  "fin.stat.trip_done": "Done",
+  "fin.route.from": "Pickup",
+  "fin.route.to": "Drop-off",
+  "fin.pdf.title": "Ride receipt",
+  "fin.pdf.subtitle": "PDF generated instantly on your device",
+  "fin.pdf.download": "⬇️ Download receipt PDF",
+  "fin.pdf.loading": "⏳ Generating…",
+  "fin.pdf.success": "✅ PDF downloaded!",
+  "fin.pdf.error": "❌ Error generating PDF",
+  "fin.pdf.note": "Free · Generated on your device · No data sent",
+  "fin.map.toggle": "View route",
+  "fin.rating.title": "How was your ride?",
+  "fin.rating.tap": "Tap a star",
+  "fin.rating.comment": "A comment? (optional)",
+  "fin.rating.submit": "Submit my review",
+  "fin.rating.sending": "Sending…",
+  "fin.rating.thanks": "Thanks for your review!",
+  "fin.rating.rated": "You rated",
+  "fin.action.same": "Same route",
+  "fin.action.new": "New ride",
+  "fin.action.history": "📋 View all my rides",
+  "fin.star.bad": "Bad",
+  "fin.star.ok": "Fair",
+  "fin.star.good": "Good",
+  "fin.star.great": "Very good",
+  "fin.star.excellent": "Excellent!",
+
+  // Page mes-courses
+  "mc.title": "My rides",
+  "mc.count_sg": "trip",
+  "mc.count_pl": "trips",
+  "mc.stat.rides": "rides",
+  "mc.stat.spent": "spent",
+  "mc.stat.km": "travelled",
+  "mc.from": "Pickup",
+  "mc.to": "Drop-off",
+  "mc.action.same": "Same route",
+  "mc.action.receipt": "Receipt PDF",
+  "mc.action.track": "Track",
+  "mc.action.new": "➕ New ride",
+  "mc.map.unavailable": "Map unavailable",
+  "mc.map.loading": "Loading map…",
+  "mc.status.completed": "Completed",
+  "mc.status.accepted": "Accepted",
+  "mc.status.pending": "Pending",
+  "mc.status.refused": "Refused",
+  "mc.status.en_route": "En route",
+  "mc.status.arrived": "Arrived",
+  "mc.status.cancelled": "Cancelled",
+  "mc.rebook.title": "🔁 Same route",
+  "mc.rebook.subtitle": "Choose date and time",
+  "mc.rebook.from": "Pickup",
+  "mc.rebook.to": "Destination",
+  "mc.rebook.date": "Date",
+  "mc.rebook.time": "Time",
+  "mc.rebook.btn": "🚕 Book now",
+  "mc.rebook.loading": "Booking…",
+  "mc.rebook.success": "Booking confirmed!",
+  "mc.rebook.redirect": "Redirecting to tracking…",
+  "mc.gate.title": "Find my rides",
+  "mc.gate.subtitle": "Enter your email to view your ride history",
+  "mc.gate.placeholder": "your@email.com",
+  "mc.gate.btn": "View my rides",
+  "mc.gate.loading": "Searching…",
+  "mc.gate.err.invalid": "Invalid email address",
+  "mc.gate.err.notfound": "No rides found for this email.",
+};
+
+const es: Dict = {
+  "nav.home": "Inicio",
+  "nav.services": "Servicios",
+  "nav.tarifs": "Tarifas",
+  "nav.about": "Nosotros",
+  "nav.contact": "Contacto",
+  "nav.book": "Reservar",
+  "nav.book_long": "Reservar un viaje",
+  "common.available_247": "Disponible 24/7",
+  "common.lang_label": "Idioma",
+
+  "home.hero.badge": "Disponible 24/7",
+  "home.hero.title.before": "Su taxi en",
+  "home.hero.title.city": "Burdeos",
+  "home.hero.title.after": ", puntual y confortable.",
+  "home.hero.subtitle":
+    "Viajes profesionales o personales, carreras inmediatas o reservadas: le llevamos por toda la Gironda y Francia, de día y de noche, en un vehículo cuidado.",
+  "home.hero.need_taxi": "Necesito un taxi…",
+  "home.hero.book_now": "Reservar un viaje",
+  "home.hero.tag1": "Reserva rápida",
+  "home.hero.tag2": "Concertado CPAM",
+  "home.hero.tag3": "Tarifas transparentes",
+
+  "home.dest.eyebrow": "Destinos",
+  "home.dest.title": "A donde le llevamos",
+  "home.dest.intro":
+    "Algunos trayectos que nuestros clientes reservan a diario — la llegada con calma es nuestro oficio.",
+  "home.dest.gare.title": "Estación Bordeaux Saint-Jean",
+  "home.dest.gare.sub": "Recibimiento a petición a la llegada del tren.",
+  "home.dest.airport.title": "Aeropuerto de Burdeos",
+  "home.dest.airport.sub": "Seguimiento de vuelos en tiempo real.",
+  "home.dest.vine.title": "Castillos y viñedos",
+  "home.dest.vine.sub": "Médoc, Saint-Émilion, Sauternes — por jornada.",
+  "home.dest.cta": "Reservar",
+
+  // Home — best sellers Bordeaux
+  "home.best.eyebrow": "Imprescindibles",
+  "home.best.title": "Los imprescindibles de Burdeos",
+  "home.best.intro": "Los lugares que nuestros clientes adoran visitar — le llevamos con total tranquilidad.",
+  "home.best.miroir.title": "Espejo de Agua",
+  "home.best.miroir.sub": "Plaza de la Bolsa, el icono bordelés.",
+  "home.best.cite.title": "Ciudad del Vino",
+  "home.best.cite.sub": "Un viaje al corazón de los viñedos.",
+  "home.best.emilion.title": "Saint-Émilion",
+  "home.best.emilion.sub": "Villa medieval y Grand Cru classé.",
+  "home.best.pilat.title": "Duna del Pilat",
+  "home.best.pilat.sub": "La duna más alta de Europa.",
+
+  "home.why.eyebrow": "Por qué nosotros",
+  "home.why.title": "Un servicio sencillo, humano y fiable.",
+  "home.why.desc":
+    "Taxi City Bordeaux es un chófer cercano, un vehículo cuidado y ganas de hacerlo bien. Sin sorpresas en la factura, sin esperas eternas — confirmamos, llegamos y le acercamos a su destino.",
+  "home.why.years": "años de experiencia",
+  "home.why.f1.t": "Puntualidad garantizada",
+  "home.why.f1.d": "Seguimiento de vuelos y trenes, margen anti-retraso.",
+  "home.why.f2.t": "Tarifas claras",
+  "home.why.f2.d": "Tarifas reguladas, pago con tarjeta y efectivo.",
+  "home.why.f3.t": "Concertado CPAM",
+  "home.why.f3.d": "Transportes médicos cubiertos.",
+
+  "home.services.eyebrow": "Nuestros servicios",
+  "home.services.title": "Para todos sus desplazamientos",
+  "home.services.see_all": "Ver todos los servicios",
+  "svc.airport.title": "Aeropuerto de Burdeos",
+  "svc.airport.desc": "Traslados desde y hacia el aeropuerto, día y noche.",
+  "svc.train.title": "Estación Saint-Jean",
+  "svc.train.desc": "Recogida a la llegada, recibimiento personal.",
+  "svc.business.title": "Viajes de negocios",
+  "svc.business.desc": "Discreción y puntualidad para sus reuniones.",
+  "svc.wedding.title": "Asistencia avería coche",
+  "svc.wedding.desc": "Llámenos en caso de avería, le recogemos rápidamente.",
+  "svc.cpam.title": "Transporte médico CPAM",
+  "svc.cpam.desc": "Bono de transporte aceptado, todas distancias.",
+  "svc.long.title": "Larga distancia",
+  "svc.long.desc": "Trayectos a cualquier distancia en Francia y Europa.",
+
+  "home.test.eyebrow": "Confiaron en nosotros",
+  "home.test.title": "Lo que dicen nuestros clientes",
+  "home.test.t1": "Chófer muy puntual, coche impecable. Llegué a Mérignac sin estrés, lo recomiendo.",
+  "home.test.t2": "Reserva sencilla, precio anunciado respetado. Perfecto para mis viajes de negocio semanales.",
+  "home.test.t3": "Nos recogió en la estación con mis hijos, el chófer fue muy amable. Volveremos a llamar.",
+
+  "home.faq.eyebrow": "Sus preguntas",
+  "home.faq.title": "Respondemos con franqueza",
+  "home.faq.intro":
+    "Algunas respuestas a las preguntas más frecuentes. Si no encuentra la suya, basta con una llamada.",
+  "faq.q1": "¿Está concertado con la CPAM?",
+  "faq.a1":
+    "Sí, estamos concertados con la CPAM para transportes médicos (consultas, diálisis, hospitalizaciones…). Pida a su médico la prescripción de transporte y nos encargamos del resto. Con un bono de transporte, facturación directa a la Seguridad Social. Tercer pagador o ALD — bono de transporte para todas las distancias.",
+  "faq.q2": "¿Y si mi vuelo se retrasa en Mérignac?",
+  "faq.a2": "Seguimos su vuelo en tiempo real. Si el avión llega antes o después, ajustamos la hora de recogida.",
+  "faq.q3": "¿Cómo cancelo o modifico mi reserva?",
+  "faq.a3":
+    "Una llamada o WhatsApp es suficiente. La cancelación es gratuita hasta 2 horas antes. Para cualquier cambio (hora, dirección, pasajeros), avísenos cuanto antes.",
+  "faq.q4": "¿Qué métodos de pago aceptan?",
+  "faq.a4":
+    "Tarjeta (contactless, Apple Pay, Google Pay), efectivo, y transferencia para cuentas profesionales. Factura al final de la carrera bajo petición.",
+  "faq.q5": "¿Hay que reservar con antelación?",
+  "faq.a5":
+    "No es obligatorio — también atendemos carreras inmediatas si estamos disponibles. Para un tren temprano o un vuelo, mejor reservar la víspera.",
+  "faq.q6": "¿Cuánto equipaje puedo llevar?",
+  "faq.a6":
+    "Una berlina cómoda admite 3 o 4 maletas y 4 pasajeros. Para grupos o material voluminoso, avísenos al reservar.",
+
+  // Home — cómo reservar
+  "home.how.eyebrow": "Cómo funciona",
+  "home.how.title": "Reservar es tan simple como una llamada",
+  "home.how.intro":
+    "Sin colas, sin robots. Una conversación directa con su conductor — confirmamos, llegamos, le llevamos.",
+  "home.how.s1.t": "Rellene el formulario",
+  "home.how.s1.d": "Salida, destino, fecha, hora, pasajeros — 2 minutos.",
+  "home.how.s2.t": "Confirmación instantánea",
+  "home.how.s2.d": "Recibirá inmediatamente un email y un SMS confirmando su reserva.",
+  "home.how.s3.t": "El taxi acepta",
+  "home.how.s3.d": "Su conductor valida la carrera y le confirma el precio definitivo.",
+  "home.how.s4.t": "Siga en tiempo real",
+  "home.how.s4.d": "Posición GPS, hora estimada, nombre del conductor y matrícula — todo en directo.",
+  "home.how.s5.t": "Sube al coche",
+  "home.how.s5.d": "Sube al coche, nos ocupamos del resto.",
+  "home.how.s6.t": "Pago",
+  "home.how.s6.d": "Tarjeta o efectivo — como prefiera. Factura al final.",
+  "sim.eyebrow": "Simulador de tarifa",
+  "sim.title": "Estima el precio de tu trayecto",
+  "sim.intro":
+    "Introduce las direcciones de salida y destino — la tarifa se calcula automáticamente según la hora actual.",
+  "sim.pickup": "Bajada de bandera",
+  "sim.perkm": "Tarifa por km",
+  "sim.perkm_mixed": "Tarifa media ponderada",
+  "sim.estimate": "Tarifa estimada",
+  "sim.badge_mixed": "tarifa mixta",
+  "sim.dist_label": "Distancia estimada",
+  "sim.duration_label": "Duración estimada",
+  "sim.geocoding": "Localizando…",
+  "sim.addr_error": "Dirección no encontrada — intenta ser más preciso.",
+  "sim.addr_placeholder": "Dirección, ciudad, lugar…",
+  "sim.from_label": "Dirección de salida",
+  "sim.to_label": "Dirección de destino",
+  "sim.dist_loading": "Calculando la distancia…",
+  "sim.disclaimer":
+    "Estimación orientativa basada en nuestras tarifas oficiales. El precio real puede variar según el trayecto exacto, el tráfico y posibles suplementos.",
+  "sim.cta_book": "Reservar ahora",
+  "sim.period_day": "☀️ Tarifa diurna (7h–19h) —",
+  "sim.period_night": "🌙 Tarifa nocturna (19h–7h) —",
+  "sim.booking_fee_note": "* Pueden aplicarse gastos de reserva",
+  "home.cta.title": "¿Listo para reservar su carrera?",
+  "home.cta.desc": "Confirmación rápida, chófer profesional y precio transparente — llámenos o reserve en línea.",
+  "home.cta.online": "Reservar en línea",
+
+  "services.eyebrow": "Nuestros servicios",
+  "services.title": "Un servicio de taxi para cada necesidad",
+  "services.intro": "En Burdeos, en la Gironda y en toda Francia — un único interlocutor, servicio premium.",
+  "services.cta": "Reservar",
+  "services.b1": "24/7",
+  "services.b2": "Hasta 4 pasajeros",
+  "services.b3": "Chófer profesional",
+  "svcp.airport.title": "Traslados al aeropuerto de Burdeos",
+  "svcp.airport.desc": "Recogida puntual para sus vuelos, seguimiento en tiempo real, recibimiento a petición.",
+  "svcp.airport.p1": "Recibimiento a petición",
+  "svcp.airport.p2": "Seguimiento de vuelos",
+  "svcp.airport.p3": "Ida y vuelta posible",
+  "svcp.train.title": "Estación Saint-Jean y estaciones TGV",
+  "svcp.train.desc": "Traslados desde o hacia Bordeaux Saint-Jean y todas las estaciones de la región.",
+  "svcp.train.p1": "Recibimiento a petición",
+  "svcp.train.p2": "Recogida puntual",
+  "svcp.train.p3": "Disponible 24/7",
+  "svcp.business.title": "Viajes profesionales",
+  "svcp.business.desc": "Servicio discreto y premium para reuniones, seminarios y desplazamientos de negocio.",
+  "svcp.business.p1": "Facturación a empresa",
+  "svcp.business.p2": "Wifi a bordo",
+  "svcp.business.p3": "Discreción garantizada",
+  "svcp.wedding.title": "Asistencia avería coche",
+  "svcp.wedding.desc": "En caso de avería, le recogemos rápidamente y le llevamos a su destino.",
+  "svcp.wedding.p1": "Intervención rápida",
+  "svcp.wedding.p2": "Toda la Gironda",
+  "svcp.wedding.p3": "Disponible 24/7",
+  "svcp.cpam.title": "Transporte médico CPAM",
+  "svcp.cpam.desc":
+    "Transporte sentado profesional cubierto por la Seguridad Social francesa. Bono aceptado todas distancias.",
+  "svcp.cpam.p1": "Pago directo / ALD",
+  "svcp.cpam.p2": "Bono todas distancias",
+  "svcp.cpam.p3": "Hospitales y clínicas",
+  "svcp.long.title": "Larga distancia",
+  "svcp.long.desc": "Trayectos a cualquier distancia en Francia y Europa.",
+  "svcp.long.p1": "Tarifas reguladas",
+  "svcp.long.p2": "Tarifa por kilómetro",
+  "svcp.long.p3": "Confort larga duración",
+
+  "tarifs.eyebrow": "Tarifas",
+  "tarifs.title": "Precios transparentes",
+  "tarifs.intro": "Tarifas indicativas según la regulación prefectoral. Un precio exacto se confirma al reservar.",
+  "tarifs.col.from": "Origen",
+  "tarifs.col.to": "Destino",
+  "tarifs.col.day": "Tarifa día",
+  "tarifs.col.night": "Tarifa noche / dom",
+  "tarifs.note": "Tarifa nocturna de 19 h a 7 h, domingos y festivos.",
+  "tarifs.cpam.title": "🏥 Concertado CPAM",
+  "tarifs.cpam.desc":
+    "Con bono de transporte, pago directo a la Seguridad Social francesa. Pago directo o ALD — bono todas distancias.",
+  "tarifs.event.title": "🚗 Asistencia avería coche",
+  "tarifs.event.desc": "En caso de avería, le recogemos rápidamente y le llevamos a su destino. Disponible 7/7.",
+  "tarifs.cta": "Reservar",
+  "city.bdx_centre": "Burdeos centro",
+  "city.cenon": "Cenon / Floirac",
+  "city.merignac": "Mérignac",
+  "city.bdx": "Burdeos",
+  "city.airport": "Aeropuerto de Mérignac",
+  "city.gare": "Estación Saint-Jean",
+  "city.arcachon": "Arcachon",
+  "city.stemilion": "Saint-Émilion",
+
+  "about.eyebrow": "Nuestra historia",
+  "about.title": "Sobre Taxi City Bordeaux",
+  "about.p1.brand": "Taxi City Bordeaux",
+  "about.p1":
+    "es una empresa de taxi independiente en Burdeos. Buscamos un servicio a la altura de la elegancia bordelesa: puntualidad, confort y discreción.",
+  "about.p2":
+    "Tanto si es un particular que va al aeropuerto, un profesional en viaje o un paciente que necesita transporte médico, adaptamos el servicio a su necesidad.",
+  "about.p3":
+    "Nuestro vehículo reciente, climatizado y cuidado, garantiza un trayecto agradable en toda circunstancia.",
+  "about.b1.t": "Chófer profesional",
+  "about.b1.d": "Tarjeta profesional de taxi, formación continua, perfecto conocimiento de Burdeos y la Gironda.",
+  "about.b2.t": "Disponible 24/7",
+  "about.b2.d": "Día y noche, fines de semana y festivos incluidos.",
+  "about.b3.t": "Burdeos y Gironda",
+  "about.b3.d":
+    "Parada oficial en Burdeos. Toda la metrópoli, el aeropuerto, las estaciones y toda Francia con reserva.",
+  "about.b4.t": "Concertado CPAM",
+  "about.b4.d": "Transporte sentado profesional cubierto por la Seguridad Social francesa.",
+  "about.cta": "Reservar un viaje",
+
+  "contact.eyebrow": "Contacto",
+  "contact.title": "Contáctenos",
+  "contact.intro": "Disponible 24/7 — basta una llamada, o envíenos un mensaje.",
+  "contact.phone": "Teléfono",
+  "contact.phone.sub": "Respuesta inmediata",
+  "contact.wa.title": "WhatsApp",
+  "contact.wa.line": "Hablemos por WhatsApp",
+  "contact.wa.sub": "Ideal para enviar una dirección",
+  "contact.email": "Email",
+  "contact.email.sub": "Presupuestos y solicitudes especiales",
+  "contact.zone.title": "Zona de servicio",
+  "contact.zone.line1": "Burdeos y área metropolitana",
+  "contact.zone.line2": "Toda la Gironda (33)",
+  "contact.zone.sub": "Viajes de larga distancia por toda Francia con reserva.",
+  "contact.form.eyebrow": "Formulario",
+  "contact.form.title": "Envíenos un mensaje",
+  "contact.form.intro": "Para una pregunta o una petición especial — respondemos lo antes posible.",
+  "contact.form.name": "Nombre completo *",
+  "contact.form.email": "Email *",
+  "contact.form.phone": "Teléfono (opcional)",
+  "contact.form.subject": "Asunto (opcional)",
+  "contact.form.subject.ph": "Ej: Presupuesto Burdeos → París",
+  "contact.form.message": "Mensaje *",
+  "contact.form.message.ph": "Detalle su solicitud…",
+  "contact.form.send": "Enviar mensaje",
+  "contact.form.sending": "Enviando…",
+  "contact.form.error": "Ha ocurrido un error. Llámenos directamente al +33 6 73 07 23 22.",
+  "contact.form.success.title": "¡Mensaje enviado!",
+  "contact.form.success.desc": "Gracias por contactarnos. Le respondemos pronto por email.",
+  "contact.form.success.again": "Enviar otro mensaje",
+  "contact.form.note": "Para un viaje, utilice mejor el formulario de reserva.",
+  "contact.err.name": "Nombre obligatorio",
+  "contact.err.email": "Email no válido",
+  "contact.err.message": "Mensaje demasiado corto (mín. 10 caracteres)",
+  "contact.err.phone": "Número no válido",
+
+  "res.eyebrow": "Reserva en línea",
+  "res.title": "Reserve su taxi",
+  "res.intro": "Rellene el formulario — le llamamos para confirmar.",
+  "res.f.name": "Nombre completo *",
+  "res.f.phone": "Teléfono *",
+  "res.f.email": "Email (opcional)",
+  "res.f.trip": "Tipo de trayecto *",
+  "res.f.trip.one": "Solo ida",
+  "res.f.trip.round": "Ida y vuelta",
+  "res.f.pickup": "Fecha y hora de recogida *",
+  "res.f.return": "Fecha y hora de regreso *",
+  "res.f.from": "Dirección de recogida *",
+  "res.f.from.ph": "Ej: 12 cours de l'Intendance, Burdeos",
+  "res.f.to": "Dirección de destino *",
+  "res.f.to.ph": "Ej: Aeropuerto de Mérignac",
+  "res.f.passengers": "Pasajeros",
+  "res.f.luggage": "Equipaje",
+  "res.f.kind": "Tipo de servicio",
+  "res.f.kind.standard": "Estándar",
+  "res.f.kind.airport": "Aeropuerto",
+  "res.f.kind.train": "Estación",
+  "res.f.kind.cpam": "CPAM médico",
+  "res.f.kind.wedding": "Asistencia avería",
+  "res.f.kind.business": "Negocios",
+  "res.f.kind.long": "Larga distancia",
+  "res.f.needs": "Necesidades especiales",
+  "res.f.needs.cpam": "CPAM / médico",
+  "res.f.needs.cpam.hint": "Transporte concertado",
+  "res.f.needs.bags": "Ayuda con equipaje",
+  "res.f.needs.bags.hint": "Asistencia para cargar",
+  "res.f.needs.child": "Silla infantil",
+  "res.f.needs.child.hint": "Indique la edad en el mensaje",
+  "res.f.message": "Mensaje (opcional)",
+  "res.f.message.ph": "Número de vuelo, edad de los niños, detalles…",
+  "res.send": "Enviar mi solicitud",
+  "res.sending": "Enviando…",
+  "res.note": "Para un viaje inmediato, llámenos directamente al +33 6 73 07 23 22",
+  "res.err.global": "Error de envío. Llámenos al +33 6 73 07 23 22.",
+  "res.err.phone": "Número de teléfono no válido",
+  "res.err.name": "Nombre obligatorio",
+  "res.err.pickup": "Fecha/hora obligatoria",
+  "res.err.future": "La fecha debe ser futura",
+  "res.err.from": "Dirección de recogida obligatoria",
+  "res.err.to": "Dirección de destino obligatoria",
+  "res.err.return": "La fecha de regreso debe ser posterior a la ida",
+
+  "conf.cancelled.title": "Reserva cancelada",
+  "conf.cancelled.desc": "Esta reserva ha sido cancelada.",
+  "conf.ok.title": "¡Solicitud registrada!",
+  "conf.ok.desc": "Le llamamos pronto para confirmar su carrera.",
+  "conf.ref.label": "N.º de reserva",
+  "conf.ref.note": "Conserve para cualquier cambio o cancelación.",
+  "conf.summary": "Resumen",
+  "conf.row.pickup": "Recogida",
+  "conf.row.from": "Origen",
+  "conf.row.to": "Destino",
+  "conf.row.phone": "Teléfono",
+  "conf.passengers": "pasajero(s)",
+  "conf.luggage": "maleta(s)",
+  "conf.wa": "Confirmar por WhatsApp",
+  "conf.modify.title": "Modificar o cancelar",
+  "conf.modify.desc": "Para modificar su solicitud, contáctenos por teléfono o WhatsApp con su número de reserva.",
+  "conf.cancel": "Cancelar mi reserva",
+  "conf.cancel.confirm": "Confirmar la cancelación",
+  "conf.cancel.keep": "Mantener mi reserva",
+  "conf.back": "← Volver al inicio",
+  "conf.notfound.title": "Reserva no encontrada",
+  "conf.notfound.desc": "El enlace parece no válido o la reserva fue eliminada.",
+  "conf.notfound.cta": "Hacer una nueva reserva",
+
+  "wa.float.send": "Enviar mi solicitud",
+  "wa.float.label": "Reservar por WhatsApp",
+  "wa.aria.hint": "Abre una conversación de WhatsApp en una nueva pestaña.",
+  "wa.aria.draftReady": "Tu solicitud de reserva está lista para enviarse por WhatsApp.",
+  "wa.default": "Hola, quisiera reservar un taxi. ¿Podría confirmarme la disponibilidad? Gracias.",
+  "wa.btn.call": "Llamar",
+  "wa.btn.quote": "Reservar viaje",
+  "wa.btn.whatsapp": "WhatsApp",
+  "wa.aria.whatsapp": "Contactar por WhatsApp",
+  "wa.aria.nav": "Acciones de contacto rápido",
+  "suivi.title": "Sigue a tu conductor",
+  "suivi.hello": "Hola",
+  "suivi.pickup_at": "recogida a las",
+  "suivi.status": "Estado",
+  "suivi.online": "En camino",
+  "suivi.offline": "Desconectado",
+  "suivi.eta": "Llegada estimada",
+  "suivi.distance": "Distancia",
+  "suivi.last_update": "Última actualización",
+  "suivi.view_reservation": "Ver mi reserva",
+  "suivi.notfound.title": "Reserva no encontrada",
+  "suivi.notfound.desc": "El enlace de seguimiento no es válido o ha expirado.",
+  "suivi.back_home": "Volver al inicio",
+  "conf.track": "Seguir a mi conductor en vivo",
+
+  "faqx.title": "Preguntas frecuentes",
+  "faqx.intro": "Todo lo que debe saber antes de su trayecto.",
+  "faqx.tracking.q": "¿Cómo funciona el seguimiento en tiempo real de mi vuelo o tren?",
+  "faqx.tracking.a":
+    "En cuanto nos facilita su número de vuelo o tren, lo seguimos automáticamente. Si la llegada se adelanta o se retrasa, ajustamos la hora de recogida — no tiene que hacer nada, el conductor le esperará a la salida.",
+  "faqx.wait.q": "¿Cuánto tiempo espera el conductor tras el aterrizaje?",
+  "faqx.wait.a":
+    "El conductor llega según la hora real de aterrizaje (no la prevista), e incluimos el tiempo necesario para recoger el equipaje y pasar la aduana. A partir de ahí, el tiempo de espera adicional se factura según la tarifa oficial regulada, con total transparencia.",
+  "faqx.cpam.q": "¿Cómo funciona la cobertura CPAM / ALD?",
+  "faqx.cpam.a":
+    "Traiga la prescripción médica de transporte entregada por su médico. Con este bono de transporte aplicamos el tercero pagador: el trayecto lo abona directamente la Seguridad Social francesa. En ALD (enfermedad de larga duración), la cobertura es total y válida para todas las distancias, incluidos los traslados largos a centros especializados.",
+
+  "res.err.required": "Obligatorio",
+  "res.geo.btn": "Mi posición",
+  "res.geo.loading": "Localizando…",
+  "res.geo.err.denied": "Permiso denegado — permita el acceso a la ubicación en la configuración.",
+  "res.geo.err.unavailable": "Posición no disponible. Introduzca la dirección manualmente.",
+  "res.geo.err.timeout": "Tiempo de espera agotado. Inténtelo de nuevo o escriba la dirección.",
+  "res.geo.err.unsupported": "La geolocalización no está disponible en su navegador.",
+  "res.err.slot_taken": "Este horario ya está reservado. Elija otro (±30 min).",
+  "res.loc.subtitle": "Respuesta en 15 min · 7/7 · 24/24",
+  "res.loc.success_title": "¡Su solicitud ha sido enviada!",
+  "res.loc.success_desc": "Será contactado en 15 min. Se ha enviado un email de confirmación a {email}.",
+  "res.loc.contact_section": "Sus datos",
+  "res.loc.firstname": "Nombre",
+  "res.loc.lastname": "Apellido",
+  "res.loc.phone": "Teléfono",
+  "res.loc.email": "Email",
+  "res.loc.ride_section": "Su carrera",
+  "res.loc.depart_label": "Dirección de recogida",
+  "res.loc.dest_label": "Dirección de destino",
+  "res.loc.oneway": "Solo ida",
+  "res.loc.roundtrip": "Ida y vuelta",
+  "res.loc.date_label": "Fecha",
+  "res.loc.time_label": "Hora",
+  "res.loc.rate_section": "Tarifa",
+  "res.loc.day_rate": "Tarifa día",
+  "res.loc.night_rate": "Tarifa noche",
+  "res.loc.auto_calc": "Calculado automáticamente",
+  "res.loc.day_full": "Día (7h–19h) — 2,16 €/km",
+  "res.loc.night_full": "Noche (19h–7h) — 3,24 €/km",
+  "res.loc.payment_section": "Método de pago",
+  "res.loc.cash": "Efectivo",
+  "res.loc.card": "Tarjeta",
+  "res.loc.mode_section": "Modo de reserva",
+  "res.loc.mode_form": "Formulario",
+  "res.loc.mode_email": "Email",
+  "res.loc.retry": "Reintentar",
+  "res.loc.send_email": "Enviar por email",
+  "res.loc.send_wa": "Enviar por WhatsApp",
+  "res.loc.send_sms": "Enviar por SMS",
+  "res.loc.passenger_sg": "pasajero",
+  "res.loc.passengers_pl": "pasajeros",
+  "res.loc.luggage_sg": "maleta",
+  "res.loc.luggage_pl": "maletas",
+  "res.loc.trip": "Trayecto",
+  "res.loc.from": "Salida",
+  "res.loc.to": "Destino",
+  "res.loc.date": "Fecha",
+  "res.loc.pax": "Pasajeros",
+  "res.loc.bags": "Equipaje",
+  "res.loc.rate": "Tarifa",
+  "res.loc.day": "Día",
+  "res.loc.night": "Noche",
+  "res.loc.tbd": "A precisar",
+  "res.loc.client": "Cliente",
+  "res.loc.email_subject": "Reserva de taxi",
+  "res.wa.hello": "Hola, me llamo",
+  "res.wa.hello_anon": "Hola",
+  "res.wa.body": "quisiera reservar un taxi. ¿Está disponible?",
+  "res.loc.wa.hello": "Hola, me llamo",
+  "res.loc.wa.hello_anon": "Hola",
+  "res.loc.wa.body": "quisiera reservar un taxi. ¿Está disponible?",
+  "review.title": "Deje su opinión",
+  "review.intro": "Su comentario nos ayuda a mejorar y orienta a futuros clientes.",
+  "review.rating": "Nota",
+  "review.name.placeholder": "Su nombre",
+  "review.text.placeholder": "Comparta su experiencia…",
+  "review.submit": "Publicar mi opinión",
+  "review.success": "¡Gracias! Su opinión ha sido publicada.",
+  "review.error.fields": "Por favor indique una nota, su nombre y un mensaje.",
+  "review.error.submit": "No se ha podido enviar su opinión. Inténtelo de nuevo.",
+
+  // TrackingQRSection
+  "qr.badge": "SEGUIMIENTO EN TIEMPO REAL",
+  "qr.title": "Enlace para seguir tu taxi en tiempo real",
+  "qr.subtitle":
+    "Un enlace único generado para cada cliente cuando se confirma el taxi. Abre el enlace en tu teléfono y sigue la llegada del taxi en el mapa.",
+  "qr.banner.title": "Abre este enlace en tu teléfono y escanea el QR",
+  "qr.banner.desc": "Posición del conductor, ETA, precio estimado. Sin instalación.",
+  "qr.timer": "Nuevo código en {count}s",
+  "qr.copy": "🔗 Copiar enlace",
+  "qr.copied": "✓ ¡Enlace copiado!",
+  "qr.step1.t": "Reserva",
+  "qr.step1.d": "Formulario, email o WhatsApp",
+  "qr.step2.t": "Pulsa el enlace",
+  "qr.step2.d": "Enlace único generado para ti",
+  "qr.step3.t": "Sigue en directo",
+  "qr.step3.d": "Mapa, ETA, destino, precio",
+  "qr.step4.t": "¡Súbete!",
+  "qr.step4.d": "Contacto del conductor en 1 toque",
+  "qr.feat1.t": "Posición GPS",
+  "qr.feat1.d": "Seguimiento en tiempo real",
+  "qr.feat2.t": "Hora de llegada",
+  "qr.feat2.d": "Precisión al minuto",
+  "qr.feat3.t": "Tarifa estimada",
+  "qr.feat3.d": "Horquilla transparente",
+  "qr.feat4.t": "Contacto directo",
+  "qr.feat4.d": "06 73 07 23 22",
+  "qr.feat5.t": "Enlace único",
+  "qr.feat5.d": "Por cliente, por escaneo",
+  "qr.cta": "📞 Reservar — 06 73 07 23 22",
+  "rsim.title": "Simulador de precio",
+  "rsim.estimate": "Tarifa estimada",
+  "rsim.day": "Tarifa de día (7h–19h) — 2,16 €/km",
+  "rsim.night": "Tarifa de noche (19h–7h) — 3,24 €/km",
+  "rsim.partition": "{j}% día / {n}% noche",
+  "rsim.pickup": "Toma de servicio: 2,83 €",
+  "rsim.loading": "⏳ Calculando la ruta…",
+  "rsim.distance": "Distancia",
+  "rsim.duration": "Duración estimada",
+  "rsim.hint": "Introduce salida y destino para calcular automáticamente.",
+  "rsim.outbound": "Ida",
+  "rsim.return": "Vuelta",
+  "rsim.total": "TOTAL ESTIMADO",
+  "rsim.total_round": "TOTAL ESTIMADO (ida y vuelta)",
+  "rsim.mixed": "Tarifa mixta — tu trayecto entra en la tarifa nocturna",
+  "rsim.fees": "* Pueden aplicarse gastos de reserva",
+  "rsim.indicative": "Precio indicativo — el taxímetro tiene preferencia",
+
+  // Taxi availability badge & banner
+  "taxi.badge.available": "🚕 Taxi disponible",
+  "taxi.badge.busy": "🚕 Taxi en carrera",
+  "taxi.banner.busy.title": "Taxi actualmente en carrera",
+  "taxi.banner.busy.desc": "Puede reservar de todas formas — su solicitud se atenderá en cuanto el taxi esté libre.",
+  "taxi.banner.available.msg": "Taxi disponible — ¡reserva confirmada rápidamente!",
+
+  // Home — área cliente
+  "home.client.eyebrow": "Área cliente",
+  "home.client.title.before": "Tu ",
+  "home.client.title.italic": "panel personal",
+  "home.client.title.after": "",
+  "home.client.desc":
+    "Crea tu cuenta en 30 segundos para acceder a todos tus trayectos, seguir a tu conductor en tiempo real y reservar más rápido la próxima vez. Gratis, sencillo y privado.",
+  "home.client.li1.bold": "Historial completo",
+  "home.client.li1.rest": " de tus trayectos, recibos y tarifas.",
+  "home.client.li2.bold": "Notificaciones",
+  "home.client.li2.rest": " en cuanto tu conductor esté en camino o haya llegado.",
+  "home.client.li3.bold": "Chat directo",
+  "home.client.li3.rest": " con tu conductor durante el trayecto.",
+  "home.client.cta_login": "Acceder a mi espacio",
+  "home.client.cta_register": "Crear una cuenta",
+  "home.client.mock.hello": "Hola Camille",
+  "home.client.mock.connected": "Conectada ahora mismo",
+  "home.client.mock.status_done": "Terminada",
+  "home.client.mock.status_confirmed": "Confirmada",
+  "home.client.mock.ride1.time": "Hoy · 14:30",
+  "home.client.mock.ride1.route": "Estación Saint-Jean → Aeropuerto Mérignac",
+  "home.client.mock.ride2.time": "Mañana · 09:00",
+  "home.client.mock.ride2.route": "Centro Burdeos → Saint-Émilion",
+
+  // Espacio cliente
+  client_login_title: "Mi Espacio Cliente",
+  client_login_subtitle: "Inicie sesión para seguir sus viajes",
+  client_email: "Email",
+  client_password: "Contraseña",
+  client_login_btn: "Iniciar sesión",
+  client_register_link: "¿Primera vez? Crear cuenta",
+  client_register_title: "Cree su cuenta en 30 segundos",
+  client_name_field: "Nombre completo",
+  client_phone_field: "Teléfono",
+  client_register_btn: "Crear mi cuenta",
+  client_dashboard_hello: "Hola",
+  client_my_rides: "Mis viajes",
+  client_rebook_same: "Reservar este viaje de nuevo",
+  client_rebook_other: "Reservar otro viaje",
+  client_track_ride: "Seguir mi viaje",
+  client_modify_time: "Modificar la hora",
+  client_modify_time_title: "Nueva hora de recogida",
+  client_modify_time_confirm: "Confirmar",
+  client_chat_placeholder: "Escribe un mensaje…",
+  client_chat_send: "Enviar",
+  client_chat_title: "Chat con tu chofer",
+  client_logout: "Cerrar sesión",
+  client_no_rides: "Aún no hay viajes.",
+  cd_back_home: "Inicio",
+  cd_eyebrow: "Área del cliente",
+  cd_book_ride: "Reservar un viaje",
+  cd_cancel_phone: "Cancelar por teléfono",
+  cd_loading: "Cargando…",
+  cd_book: "Reservar",
+  cd_phone_cancel_requested: "Cancelación por teléfono solicitada",
+  cd_price_estimated: "Precio estimado",
+  cd_passengers: "Pasajeros",
+  cd_luggage: "Equipaje",
+  cd_payment: "Pago",
+  cd_ref: "Ref.",
+  cd_new_datetime: "Nueva fecha / hora",
+  cd_confirm: "Confirmar",
+  cd_cancel: "Cancelar",
+  cd_edit_time: "Modificar la hora",
+  cd_track_ride: "Seguir mi viaje",
+  cd_chat: "Chat",
+  cd_recommend: "Reservar de nuevo",
+  cd_new_ride: "Nuevo viaje",
+  cd_request_sent: "Solicitud enviada",
+  cd_modal_title: "Cancelar por teléfono",
+  cd_modal_desc_before: "Va a llamar al",
+  cd_modal_desc_after: "para cancelar este viaje. Confirme para registrar su solicitud y realizar la llamada.",
+  cd_back: "Volver",
+  cd_back_site: "Site",
+  cd_confirm_and_call: "Confirmar y llamar",
+  cd_status_pending: "En espera",
+  cd_status_accepted: "Aceptada",
+  cd_status_en_route: "Conductor en camino",
+  cd_status_arrived: "Conductor llegó",
+  cd_status_completed: "Finalizada",
+  cd_status_cancelled: "Cancelada",
+  cd_status_refused: "Rechazada",
+  cd_book_same: "Repetir el mismo viaje",
+  cd_toast_load_err: "No se pudieron cargar sus viajes",
+  cd_toast_time_changed: "Hora modificada — conductor notificado",
+  cd_toast_locked_edit: "Este viaje ya no se puede modificar",
+  cd_toast_edit_failed: "Modificación imposible",
+  cd_confirm_cancel: "¿Confirmar la cancelación de este viaje?",
+  cd_toast_cancelled: "Viaje cancelado",
+  cd_toast_locked_cancel: "Este viaje ya no se puede cancelar",
+  cd_toast_cancel_failed: "Cancelación imposible",
+  cd_toast_phone_recorded: "Solicitud de cancelación por teléfono registrada",
+  cd_toast_phone_failed: "Registro imposible",
+  cd_msg_to_jose: "💬 Mensaje a José",
+  cd_meta_title: "Mi área de cliente — Taxi City Bordeaux",
+  chat_status_typing: "Escribiendo…",
+  chat_status_online: "En línea",
+  chat_status_offline: "Sin conexión",
+  chat_search: "Buscar",
+  chat_export_csv: "Exportar a CSV",
+  chat_close: "Cerrar",
+  chat_queued_prefix: "📡",
+  chat_queued_suffix: "mensajes en cola — envío automático al volver en línea.",
+  chat_search_placeholder: "Buscar una palabra clave…",
+  chat_from: "Del",
+  chat_to: "Al",
+  chat_reset: "Restablecer",
+  chat_load_more_history: "cargar más historial",
+  chat_older_messages: "Mensajes más antiguos",
+  chat_no_messages: "Aún no hay mensajes. ¡Escribe el primero!",
+  chat_no_match: "Ningún mensaje coincide con su búsqueda.",
+  chat_typing_aria: "La otra persona está escribiendo",
+  chat_input_placeholder: "Escribir un mensaje…",
+  chat_send: "Enviar",
+  chat_found_on_loaded: "encontrados de",
+  chat_loaded: "cargados.",
+
+  // Page fin/$id
+  "fin.loading": "Cargando resumen…",
+  "fin.notfound": "Carrera no encontrada",
+  "fin.title": "¡Carrera completada!",
+  "fin.subtitle": "Gracias por viajar con Taxi City Bordeaux",
+  "fin.price_label": "Precio final",
+  "fin.payment.cb": "💳 Tarjeta bancaria",
+  "fin.payment.cash": "💵 Efectivo",
+  "fin.stat.distance": "Distancia",
+  "fin.stat.duration": "Duración",
+  "fin.stat.trip": "Trayecto",
+  "fin.stat.trip_done": "Completado",
+  "fin.route.from": "Salida",
+  "fin.route.to": "Llegada",
+  "fin.pdf.title": "Recibo de carrera",
+  "fin.pdf.subtitle": "PDF generado al instante en su dispositivo",
+  "fin.pdf.download": "⬇️ Descargar recibo PDF",
+  "fin.pdf.loading": "⏳ Generando…",
+  "fin.pdf.success": "✅ ¡PDF descargado!",
+  "fin.pdf.error": "❌ Error al generar el PDF",
+  "fin.pdf.note": "Gratis · Generado en su dispositivo · Sin envío de datos",
+  "fin.map.toggle": "Ver itinerario",
+  "fin.rating.title": "¿Cómo fue su carrera?",
+  "fin.rating.tap": "Toque una estrella",
+  "fin.rating.comment": "¿Un comentario? (opcional)",
+  "fin.rating.submit": "Enviar mi opinión",
+  "fin.rating.sending": "Enviando…",
+  "fin.rating.thanks": "¡Gracias por su opinión!",
+  "fin.rating.rated": "Ha valorado a",
+  "fin.action.same": "Mismo trayecto",
+  "fin.action.new": "Nueva carrera",
+  "fin.action.history": "📋 Ver todas mis carreras",
+  "fin.star.bad": "Malo",
+  "fin.star.ok": "Regular",
+  "fin.star.good": "Bien",
+  "fin.star.great": "Muy bien",
+  "fin.star.excellent": "¡Excelente!",
+
+  // Page mes-courses
+  "mc.title": "Mis carreras",
+  "mc.count_sg": "trayecto",
+  "mc.count_pl": "trayectos",
+  "mc.stat.rides": "carreras",
+  "mc.stat.spent": "gastados",
+  "mc.stat.km": "recorridos",
+  "mc.from": "Salida",
+  "mc.to": "Llegada",
+  "mc.action.same": "Mismo trayecto",
+  "mc.action.receipt": "Recibo PDF",
+  "mc.action.track": "Seguir",
+  "mc.action.new": "➕ Nueva carrera",
+  "mc.map.unavailable": "Mapa no disponible",
+  "mc.map.loading": "Cargando mapa…",
+  "mc.status.completed": "Completada",
+  "mc.status.accepted": "Aceptada",
+  "mc.status.pending": "En espera",
+  "mc.status.refused": "Rechazada",
+  "mc.status.en_route": "En ruta",
+  "mc.status.arrived": "Llegado",
+  "mc.status.cancelled": "Cancelada",
+  "mc.rebook.title": "🔁 Mismo trayecto",
+  "mc.rebook.subtitle": "Elija la fecha y la hora",
+  "mc.rebook.from": "Salida",
+  "mc.rebook.to": "Destino",
+  "mc.rebook.date": "Fecha",
+  "mc.rebook.time": "Hora",
+  "mc.rebook.btn": "🚕 Reservar ahora",
+  "mc.rebook.loading": "Reservando…",
+  "mc.rebook.success": "¡Reserva registrada!",
+  "mc.rebook.redirect": "Redirigiendo al seguimiento…",
+  "mc.gate.title": "Encontrar mis carreras",
+  "mc.gate.subtitle": "Introduce tu email para ver el historial de tus carreras",
+  "mc.gate.placeholder": "tu@email.com",
+  "mc.gate.btn": "Ver mis carreras",
+  "mc.gate.loading": "Buscando…",
+  "mc.gate.err.invalid": "Dirección de email inválida",
+  "mc.gate.err.notfound": "No se encontraron carreras para este email.",
+};
+
+const it: Dict = {
+  "nav.home": "Home",
+  "nav.services": "Servizi",
+  "nav.tarifs": "Tariffe",
+  "nav.about": "Chi siamo",
+  "nav.contact": "Contatti",
+  "nav.book": "Prenota",
+  "nav.book_long": "Prenota una corsa",
+  "common.available_247": "Disponibile 24/7",
+  "common.lang_label": "Lingua",
+
+  "home.hero.badge": "Disponibile 24/7",
+  "home.hero.title.before": "Il tuo taxi a",
+  "home.hero.title.city": "Bordeaux",
+  "home.hero.title.after": ", puntuale e confortevole.",
+  "home.hero.subtitle":
+    "Viaggi di lavoro o personali, corse immediate o prenotate: ti portiamo ovunque in Gironda e in Francia, di giorno e di notte, in un veicolo curato.",
+  "home.hero.need_taxi": "Ho bisogno di un taxi…",
+  "home.hero.book_now": "Prenota una corsa",
+  "home.hero.tag1": "Prenotazione rapida",
+  "home.hero.tag2": "Convenzionato CPAM",
+  "home.hero.tag3": "Tariffe trasparenti",
+
+  "home.dest.eyebrow": "Destinazioni",
+  "home.dest.title": "Dove ti portiamo",
+  "home.dest.intro":
+    "Alcuni itinerari prenotati ogni giorno dai nostri clienti: arrivare in tranquillità è il nostro mestiere.",
+  "home.dest.gare.title": "Stazione Bordeaux Saint-Jean",
+  "home.dest.gare.sub": "Accoglienza su richiesta all'arrivo del treno.",
+  "home.dest.airport.title": "Aeroporto di Bordeaux",
+  "home.dest.airport.sub": "Monitoraggio voli in tempo reale.",
+  "home.dest.vine.title": "Castelli e vigneti",
+  "home.dest.vine.sub": "Médoc, Saint-Émilion, Sauternes — giornate intere.",
+  "home.dest.cta": "Prenota",
+
+  // Home — best sellers Bordeaux
+  "home.best.eyebrow": "Da non perdere",
+  "home.best.title": "I must-see di Bordeaux",
+  "home.best.intro": "I luoghi che i nostri clienti amano visitare — ti ci portiamo in tutta tranquillità.",
+  "home.best.miroir.title": "Specchio d'acqua",
+  "home.best.miroir.sub": "Place de la Bourse, l'icona di Bordeaux.",
+  "home.best.cite.title": "Cité du Vin",
+  "home.best.cite.sub": "Un viaggio nel cuore dei vigneti.",
+  "home.best.emilion.title": "Saint-Émilion",
+  "home.best.emilion.sub": "Borgo medievale e Grand Cru classé.",
+  "home.best.pilat.title": "Duna del Pilat",
+  "home.best.pilat.sub": "La duna più alta d'Europa.",
+
+  "home.why.eyebrow": "Perché noi",
+  "home.why.title": "Un servizio semplice, umano e affidabile.",
+  "home.why.desc":
+    "Taxi City Bordeaux significa un autista locale, un veicolo curato e l'esigenza di fare bene le cose. Nessuna sorpresa in fattura, nessuna attesa infinita: confermiamo, arriviamo, vi portiamo a destinazione.",
+  "home.why.years": "anni di esperienza",
+  "home.why.f1.t": "Puntualità garantita",
+  "home.why.f1.d": "Monitoraggio voli e treni, margine per i ritardi.",
+  "home.why.f2.t": "Tariffe chiare",
+  "home.why.f2.d": "Tariffe regolamentate, carta e contanti.",
+  "home.why.f3.t": "Convenzionato CPAM",
+  "home.why.f3.d": "Trasporti medici rimborsati.",
+
+  "home.services.eyebrow": "I nostri servizi",
+  "home.services.title": "Per ogni tipo di corsa",
+  "home.services.see_all": "Vedi tutti i servizi",
+  "svc.airport.title": "Aeroporto di Bordeaux",
+  "svc.airport.desc": "Trasferimenti da/per l'aeroporto, giorno e notte.",
+  "svc.train.title": "Stazione Saint-Jean",
+  "svc.train.desc": "Recupero all'arrivo, accoglienza personalizzata.",
+  "svc.business.title": "Trasferte aziendali",
+  "svc.business.desc": "Discrezione e puntualità per i vostri appuntamenti.",
+  "svc.wedding.title": "Soccorso auto in panne",
+  "svc.wedding.desc": "In caso di guasto, veniamo a recuperarvi rapidamente.",
+  "svc.cpam.title": "Trasporto medico CPAM",
+  "svc.cpam.desc": "Buono di trasporto accettato, qualsiasi distanza.",
+  "svc.long.title": "Lunga distanza",
+  "svc.long.desc": "Corse di qualsiasi distanza in Francia e in Europa.",
+
+  "home.test.eyebrow": "Si sono affidati a noi",
+  "home.test.title": "Cosa dicono i nostri clienti",
+  "home.test.t1": "Autista molto puntuale, auto impeccabile. Arrivata a Mérignac senza stress, vivamente consigliato.",
+  "home.test.t2": "Prenotazione semplice, prezzo come annunciato. Perfetto per i miei viaggi di lavoro settimanali.",
+  "home.test.t3": "Recuperati in stazione con i bambini, autista molto gentile. Prenoteremo di nuovo.",
+
+  "home.faq.eyebrow": "Le tue domande",
+  "home.faq.title": "Rispondiamo onestamente",
+  "home.faq.intro": "Alcune risposte alle domande più frequenti. Se non trovi la tua, una telefonata basta.",
+  "faq.q1": "Siete convenzionati CPAM per il trasporto medico?",
+  "faq.a1":
+    "Sì, siamo convenzionati per il trasporto medico assicurato (esami, dialisi, ospedale…). Fatevi rilasciare la prescrizione di trasporto dal medico, ci occupiamo del resto. Con un buono di trasporto, fatturazione diretta all'assicurazione sanitaria. Terzo pagante o ALD — buono di trasporto per tutte le distanze.",
+  "faq.q2": "Cosa succede se il mio volo a Mérignac è in ritardo?",
+  "faq.a2":
+    "Monitoriamo il vostro volo in tempo reale. In caso di atterraggio anticipato o ritardato adattiamo l'orario di prelievo.",
+  "faq.q3": "Come modificare o annullare la mia prenotazione?",
+  "faq.a3":
+    "Una telefonata o un messaggio WhatsApp bastano. Annullamento gratuito fino a 2 ore prima della corsa. Per modifiche (orario, indirizzo, persone) avvisateci il prima possibile.",
+  "faq.q4": "Quali pagamenti accettate?",
+  "faq.a4":
+    "Carta (contactless, Apple Pay, Google Pay), contanti e bonifico per i conti aziendali. Ricevuta a fine corsa, fattura su richiesta per le spese di viaggio.",
+  "faq.q5": "Devo prenotare in anticipo?",
+  "faq.a5":
+    "Non obbligatoriamente: accettiamo anche corse immediate se siamo disponibili. Per un treno o un volo presto al mattino, meglio prenotare il giorno prima.",
+  "faq.q6": "Quanti bagagli posso portare?",
+  "faq.a6":
+    "Una berlina confortevole accoglie facilmente 3-4 valigie e 4 persone. Per gruppi o oggetti ingombranti, segnalatecelo al momento della prenotazione.",
+
+  // Home — come prenotare
+  "home.how.eyebrow": "Come funziona",
+  "home.how.title": "Prenotare è semplice come una telefonata",
+  "home.how.intro":
+    "Niente code, niente robot. Una chiacchierata diretta con il tuo autista — confermiamo, arriviamo, ti portiamo.",
+  "home.how.s1.t": "Compila il modulo",
+  "home.how.s1.d": "Partenza, destinazione, data, ora, passeggeri — 2 minuti.",
+  "home.how.s2.t": "Conferma istantanea",
+  "home.how.s2.d": "Ricevi subito un'email e un SMS di conferma della prenotazione.",
+  "home.how.s3.t": "Il taxi accetta",
+  "home.how.s3.d": "Il tuo autista valida la corsa e ti conferma il prezzo definitivo.",
+  "home.how.s4.t": "Segui in tempo reale",
+  "home.how.s4.d": "Posizione GPS, orario stimato, nome dell'autista e targa — tutto in diretta.",
+  "home.how.s5.t": "Sali a bordo",
+  "home.how.s5.d": "Sali a bordo, pensiamo a tutto noi.",
+  "home.how.s6.t": "Pagamento",
+  "home.how.s6.d": "Carta o contanti — come preferisci. Ricevuta alla fine.",
+  "sim.eyebrow": "Simulatore tariffa",
+  "sim.title": "Stima il prezzo della corsa",
+  "sim.intro":
+    "Inserisci gli indirizzi di partenza e destinazione — la tariffa viene calcolata automaticamente in base all'ora attuale.",
+  "sim.pickup": "Diritto di chiamata",
+  "sim.perkm": "Tariffa al km",
+  "sim.perkm_mixed": "Tariffa media ponderata",
+  "sim.estimate": "Tariffa stimata",
+  "sim.badge_mixed": "tariffa mista",
+  "sim.dist_label": "Distanza stimata",
+  "sim.duration_label": "Durata stimata",
+  "sim.geocoding": "Localizzazione…",
+  "sim.addr_error": "Indirizzo non trovato — prova ad essere più preciso.",
+  "sim.addr_placeholder": "Indirizzo, città, luogo…",
+  "sim.from_label": "Indirizzo di partenza",
+  "sim.to_label": "Indirizzo di destinazione",
+  "sim.dist_loading": "Calcolo della distanza…",
+  "sim.disclaimer":
+    "Stima indicativa basata sulle nostre tariffe ufficiali. Il prezzo reale può variare in base al percorso esatto, al traffico ed eventuali supplementi.",
+  "sim.cta_book": "Prenota ora",
+  "sim.period_day": "☀️ Tariffa diurna (7–19) —",
+  "sim.period_night": "🌙 Tariffa notturna (19–7) —",
+  "sim.booking_fee_note": "* Potrebbero essere applicati costi di prenotazione",
+  "home.cta.title": "Pronto a prenotare la tua corsa?",
+  "home.cta.desc": "Conferma rapida, autista professionale e prezzo trasparente: chiamateci o prenotate online.",
+  "home.cta.online": "Prenota online",
+
+  "services.eyebrow": "I nostri servizi",
+  "services.title": "Un servizio taxi per ogni esigenza",
+  "services.intro": "A Bordeaux, in Gironda e in tutta la Francia: un solo interlocutore, servizio premium.",
+  "services.cta": "Prenota",
+  "services.b1": "24/7",
+  "services.b2": "Fino a 4 persone",
+  "services.b3": "Autista professionale",
+  "svcp.airport.title": "Trasferimenti Aeroporto di Bordeaux",
+  "svcp.airport.desc": "Prelievo puntuale per i vostri voli, monitoraggio in tempo reale, accoglienza su richiesta.",
+  "svcp.airport.p1": "Accoglienza su richiesta",
+  "svcp.airport.p2": "Monitoraggio volo",
+  "svcp.airport.p3": "Andata e ritorno possibili",
+  "svcp.train.title": "Stazione Saint-Jean & TGV",
+  "svcp.train.desc": "Trasferimenti da o per la stazione di Bordeaux Saint-Jean e tutte le stazioni della regione.",
+  "svcp.train.p1": "Accoglienza su richiesta",
+  "svcp.train.p2": "Prelievo puntuale",
+  "svcp.train.p3": "Disponibile 24/7",
+  "svcp.business.title": "Trasferte aziendali",
+  "svcp.business.desc": "Servizio premium e discreto per appuntamenti, riunioni e viaggi di lavoro.",
+  "svcp.business.p1": "Fattura aziendale",
+  "svcp.business.p2": "Wi-Fi a bordo",
+  "svcp.business.p3": "Discrezione garantita",
+  "svcp.wedding.title": "Soccorso auto in panne",
+  "svcp.wedding.desc": "In caso di guasto, veniamo a recuperarvi rapidamente e vi portiamo a destinazione.",
+  "svcp.wedding.p1": "Intervento rapido",
+  "svcp.wedding.p2": "Tutta la Gironda",
+  "svcp.wedding.p3": "Disponibile 24/7",
+  "svcp.cpam.title": "Trasporto medico CPAM",
+  "svcp.cpam.desc":
+    "Trasporto sanitario seduto professionale, rimborsato dall'assicurazione sanitaria francese. Buono accettato qualsiasi distanza.",
+  "svcp.cpam.p1": "Pagamento diretto / ALD",
+  "svcp.cpam.p2": "Buono qualsiasi distanza",
+  "svcp.cpam.p3": "Cliniche e ospedali",
+  "svcp.long.title": "Lunga distanza",
+  "svcp.long.desc": "Corse di qualsiasi distanza in Francia ed Europa.",
+  "svcp.long.p1": "Tariffe regolamentate",
+  "svcp.long.p2": "Tariffa al km",
+  "svcp.long.p3": "Comfort sulle lunghe distanze",
+
+  "tarifs.eyebrow": "Tariffe",
+  "tarifs.title": "Tariffe trasparenti",
+  "tarifs.intro": "Tariffe indicative secondo le norme prefettizie. Un prezzo preciso è confermato alla prenotazione.",
+  "tarifs.col.from": "Partenza",
+  "tarifs.col.to": "Destinazione",
+  "tarifs.col.day": "Tariffa diurna",
+  "tarifs.col.night": "Notturna / Dom.",
+  "tarifs.note": "Tariffa notturna dalle 19 alle 7, domeniche e festivi.",
+  "tarifs.cpam.title": "🏥 Trasporto medico CPAM",
+  "tarifs.cpam.desc":
+    "Con prescrizione, pagamento diretto con la cassa malattia francese. Pagamento diretto o ALD — buono qualsiasi distanza.",
+  "tarifs.event.title": "🚗 Soccorso auto in panne",
+  "tarifs.event.desc":
+    "In caso di guasto, veniamo a recuperarvi rapidamente e vi portiamo a destinazione. Disponibile 7/7.",
+  "tarifs.cta": "Prenota",
+  "city.bdx_centre": "Bordeaux centro",
+  "city.cenon": "Cenon / Floirac",
+  "city.merignac": "Mérignac",
+  "city.bdx": "Bordeaux",
+  "city.airport": "Aeroporto Mérignac",
+  "city.gare": "Stazione Saint-Jean",
+  "city.arcachon": "Arcachon",
+  "city.stemilion": "Saint-Émilion",
+
+  "about.eyebrow": "La nostra storia",
+  "about.title": "Chi siamo — Taxi City Bordeaux",
+  "about.p1.brand": "Taxi City Bordeaux",
+  "about.p1":
+    "è un'azienda di taxi indipendente a Bordeaux. Vogliamo offrire un servizio all'altezza dell'eleganza di Bordeaux: puntualità, comfort e discrezione.",
+  "about.p2":
+    "Privato in partenza per l'aeroporto, professionista in trasferta o paziente in trasporto medico: adattiamo il nostro servizio alle vostre esigenze.",
+  "about.p3": "Il nostro veicolo climatizzato e curato, garantisce un viaggio piacevole in qualsiasi circostanza.",
+  "about.b1.t": "Autista professionale",
+  "about.b1.d": "Licenza taxi ufficiale, formazione continua, perfetta conoscenza di Bordeaux e della Gironda.",
+  "about.b2.t": "Disponibile 24/7",
+  "about.b2.d": "Giorno e notte, weekend e festivi inclusi.",
+  "about.b3.t": "Bordeaux & Gironda",
+  "about.b3.d":
+    "Stazionamento ufficiale a Bordeaux. Tutta l'agglomerazione, l'aeroporto, le stazioni e tutta la Francia su prenotazione.",
+  "about.b4.t": "Convenzionato CPAM",
+  "about.b4.d": "Trasporto sanitario seduto professionale, rimborsato dall'assicurazione sanitaria.",
+  "about.cta": "Prenota una corsa",
+
+  "contact.eyebrow": "Contatti",
+  "contact.title": "Contattateci",
+  "contact.intro": "Disponibili 24/7: una telefonata basta, oppure inviateci un messaggio.",
+  "contact.phone": "Telefono",
+  "contact.phone.sub": "Risposta immediata",
+  "contact.wa.title": "WhatsApp",
+  "contact.wa.line": "Scriveteci su WhatsApp",
+  "contact.wa.sub": "Ideale per inviare un indirizzo",
+  "contact.email": "Email",
+  "contact.email.sub": "Richieste particolari",
+  "contact.zone.title": "Zona di intervento",
+  "contact.zone.line1": "Bordeaux & area metropolitana",
+  "contact.zone.line2": "Tutta la Gironda (33)",
+  "contact.zone.sub": "Lunghe distanze in tutta la Francia su prenotazione.",
+  "contact.form.eyebrow": "Modulo",
+  "contact.form.title": "Inviateci un messaggio",
+  "contact.form.intro": "Per una domanda o una richiesta particolare — vi rispondiamo al più presto.",
+  "contact.form.name": "Nome completo *",
+  "contact.form.email": "Email *",
+  "contact.form.phone": "Telefono (opzionale)",
+  "contact.form.subject": "Oggetto (opzionale)",
+  "contact.form.subject.ph": "Es.: Bordeaux → Parigi",
+  "contact.form.message": "Messaggio *",
+  "contact.form.message.ph": "Descrivete la vostra richiesta…",
+  "contact.form.send": "Invia il messaggio",
+  "contact.form.sending": "Invio…",
+  "contact.form.error": "Si è verificato un errore. Chiamateci direttamente: +33 6 73 07 23 22.",
+  "contact.form.success.title": "Messaggio inviato!",
+  "contact.form.success.desc": "Grazie per la vostra richiesta. Vi rispondiamo a breve via email.",
+  "contact.form.success.again": "Invia un altro messaggio",
+  "contact.form.note": "Per una corsa, usate il modulo di prenotazione.",
+  "contact.err.name": "Nome richiesto",
+  "contact.err.email": "Email non valida",
+  "contact.err.message": "Messaggio troppo corto (min. 10 caratteri)",
+  "contact.err.phone": "Numero non valido",
+
+  "res.eyebrow": "Prenotazione online",
+  "res.title": "Prenota il tuo taxi",
+  "res.intro": "Compila il modulo, ti richiamiamo per confermare.",
+  "res.f.name": "Nome completo *",
+  "res.f.phone": "Telefono *",
+  "res.f.email": "Email (opzionale)",
+  "res.f.trip": "Tipo di corsa *",
+  "res.f.trip.one": "Solo andata",
+  "res.f.trip.round": "Andata e ritorno",
+  "res.f.pickup": "Data e ora di prelievo *",
+  "res.f.return": "Data e ora di ritorno *",
+  "res.f.from": "Indirizzo di partenza *",
+  "res.f.from.ph": "Es.: 12 cours de l'Intendance, Bordeaux",
+  "res.f.to": "Indirizzo di arrivo *",
+  "res.f.to.ph": "Es.: Aeroporto Mérignac",
+  "res.f.passengers": "Persone",
+  "res.f.luggage": "Bagagli",
+  "res.f.kind": "Tipo di servizio",
+  "res.f.kind.standard": "Standard",
+  "res.f.kind.airport": "Aeroporto",
+  "res.f.kind.train": "Stazione",
+  "res.f.kind.cpam": "Medico CPAM",
+  "res.f.kind.wedding": "Soccorso panne",
+  "res.f.kind.business": "Affari",
+  "res.f.kind.long": "Lunga distanza",
+  "res.f.needs": "Esigenze particolari",
+  "res.f.needs.cpam": "CPAM / medico",
+  "res.f.needs.cpam.hint": "Trasporto sanitario",
+  "res.f.needs.bags": "Aiuto bagagli",
+  "res.f.needs.bags.hint": "Aiuto al carico",
+  "res.f.needs.child": "Seggiolino bambino",
+  "res.f.needs.child.hint": "Indica l'età nel messaggio",
+  "res.f.message": "Messaggio (opzionale)",
+  "res.f.message.ph": "Numero di volo, età dei bambini, dettagli…",
+  "res.send": "Invia la mia richiesta",
+  "res.sending": "Invio…",
+  "res.note": "Per una corsa immediata, chiamateci direttamente: +33 6 73 07 23 22",
+  "res.err.global": "Invio fallito. Chiamateci: +33 6 73 07 23 22.",
+  "res.err.phone": "Numero di telefono non valido",
+  "res.err.name": "Nome richiesto",
+  "res.err.pickup": "Data/ora richiesta",
+  "res.err.future": "La data deve essere futura",
+  "res.err.from": "Indirizzo di partenza richiesto",
+  "res.err.to": "Indirizzo di arrivo richiesto",
+  "res.err.return": "Il ritorno deve essere dopo l'andata",
+
+  "conf.cancelled.title": "Prenotazione annullata",
+  "conf.cancelled.desc": "Questa prenotazione è stata annullata.",
+  "conf.ok.title": "Richiesta ricevuta!",
+  "conf.ok.desc": "Vi richiamiamo a breve per confermare la corsa.",
+  "conf.ref.label": "Numero di prenotazione",
+  "conf.ref.note": "Conservatelo per qualsiasi modifica o annullamento.",
+  "conf.summary": "Riepilogo",
+  "conf.row.pickup": "Prelievo",
+  "conf.row.from": "Partenza",
+  "conf.row.to": "Arrivo",
+  "conf.row.phone": "Telefono",
+  "conf.passengers": "passeggero(i)",
+  "conf.luggage": "bagaglio(i)",
+  "conf.wa": "Conferma su WhatsApp",
+  "conf.modify.title": "Modificare o annullare",
+  "conf.modify.desc":
+    "Per modificare la richiesta, contattateci per telefono o WhatsApp con il numero di prenotazione.",
+  "conf.cancel": "Annulla la prenotazione",
+  "conf.cancel.confirm": "Conferma l'annullamento",
+  "conf.cancel.keep": "Mantieni la prenotazione",
+  "conf.back": "← Torna alla home",
+  "conf.notfound.title": "Prenotazione non trovata",
+  "conf.notfound.desc": "Il link sembra non valido o la prenotazione è stata cancellata.",
+  "conf.notfound.cta": "Effettua una nuova prenotazione",
+
+  "wa.float.send": "Invia la mia richiesta",
+  "wa.float.label": "Prenota su WhatsApp",
+  "wa.aria.hint": "Apre una conversazione WhatsApp in una nuova scheda.",
+  "wa.aria.draftReady": "La tua richiesta di prenotazione è pronta per essere inviata su WhatsApp.",
+  "wa.default": "Salve, vorrei prenotare un taxi. Potete confermarmi la disponibilità? Grazie.",
+  "wa.btn.call": "Chiama",
+  "wa.btn.quote": "Prenota corsa",
+  "wa.btn.whatsapp": "WhatsApp",
+  "wa.aria.whatsapp": "Contattaci su WhatsApp",
+  "wa.aria.nav": "Azioni di contatto rapido",
+  "suivi.title": "Segui il tuo autista",
+  "suivi.hello": "Ciao",
+  "suivi.pickup_at": "prelievo alle",
+  "suivi.status": "Stato",
+  "suivi.online": "In arrivo",
+  "suivi.offline": "Offline",
+  "suivi.eta": "Arrivo stimato",
+  "suivi.distance": "Distanza",
+  "suivi.last_update": "Ultimo aggiornamento",
+  "suivi.view_reservation": "Vedi la mia prenotazione",
+  "suivi.notfound.title": "Prenotazione non trovata",
+  "suivi.notfound.desc": "Il link di tracciamento non è valido o è scaduto.",
+  "suivi.back_home": "Torna alla home",
+  "conf.track": "Segui il mio autista in tempo reale",
+
+  "faqx.title": "Domande frequenti",
+  "faqx.intro": "Tutto quello che c'è da sapere prima della corsa.",
+  "faqx.tracking.q": "Come funziona il tracciamento in tempo reale del volo o del treno?",
+  "faqx.tracking.a":
+    "Appena ci comunica il numero del volo o del treno, lo seguiamo automaticamente. Se l'arrivo è in anticipo o in ritardo, l'orario di prelievo viene aggiornato — non deve fare nulla, l'autista la aspetterà all'uscita.",
+  "faqx.wait.q": "Quanto tempo attende l'autista dopo l'atterraggio?",
+  "faqx.wait.a":
+    "L'autista si presenta in base all'orario reale di atterraggio (non a quello previsto) e teniamo conto del tempo per ritirare i bagagli e passare la dogana. Oltre, l'attesa supplementare è fatturata secondo la tariffa ufficiale regolamentata, in totale trasparenza.",
+  "faqx.cpam.q": "Come funziona la copertura CPAM / ALD?",
+  "faqx.cpam.a":
+    "Porti la prescrizione medica di trasporto rilasciata dal medico. Con questo buono di trasporto applichiamo il pagamento diretto: la corsa è a carico dell'Assicurazione Sanitaria francese. In ALD (malattia di lunga durata) la copertura è totale e valida per tutte le distanze, anche per lunghi trasferimenti verso centri specializzati.",
+
+  "res.err.required": "Obbligatorio",
+  "res.geo.btn": "La mia posizione",
+  "res.geo.loading": "Localizzazione…",
+  "res.geo.err.denied": "Autorizzazione negata — consenti la geolocalizzazione nelle impostazioni.",
+  "res.geo.err.unavailable": "Posizione non disponibile. Inserisci l’indirizzo manualmente.",
+  "res.geo.err.timeout": "Tempo scaduto. Riprova o inserisci l’indirizzo.",
+  "res.geo.err.unsupported": "La geolocalizzazione non è supportata dal tuo browser.",
+  "res.err.slot_taken": "Questo orario è già prenotato. Scegli un altro (±30 min).",
+  "res.loc.subtitle": "Risposta entro 15 min · 7/7 · 24/24",
+  "res.loc.success_title": "La tua richiesta è stata inviata!",
+  "res.loc.success_desc": "Sarai contattato entro 15 min. Una email di conferma è stata inviata a {email}.",
+  "res.loc.contact_section": "I tuoi dati",
+  "res.loc.firstname": "Nome",
+  "res.loc.lastname": "Cognome",
+  "res.loc.phone": "Telefono",
+  "res.loc.email": "Email",
+  "res.loc.ride_section": "La tua corsa",
+  "res.loc.depart_label": "Indirizzo di partenza",
+  "res.loc.dest_label": "Indirizzo di arrivo",
+  "res.loc.oneway": "Solo andata",
+  "res.loc.roundtrip": "Andata e ritorno",
+  "res.loc.date_label": "Data",
+  "res.loc.time_label": "Ora",
+  "res.loc.rate_section": "Tariffa",
+  "res.loc.day_rate": "Tariffa diurna",
+  "res.loc.night_rate": "Tariffa notturna",
+  "res.loc.auto_calc": "Calcolato automaticamente",
+  "res.loc.day_full": "Giorno (7h–19h) — 2,16 €/km",
+  "res.loc.night_full": "Notte (19h–7h) — 3,24 €/km",
+  "res.loc.payment_section": "Metodo di pagamento",
+  "res.loc.cash": "Contanti",
+  "res.loc.card": "Carta",
+  "res.loc.mode_section": "Modalità di prenotazione",
+  "res.loc.mode_form": "Modulo",
+  "res.loc.mode_email": "Email",
+  "res.loc.retry": "Riprova",
+  "res.loc.send_email": "Invia per email",
+  "res.loc.send_wa": "Invia su WhatsApp",
+  "res.loc.send_sms": "Invia per SMS",
+  "res.loc.passenger_sg": "passeggero",
+  "res.loc.passengers_pl": "passeggeri",
+  "res.loc.luggage_sg": "bagaglio",
+  "res.loc.luggage_pl": "bagagli",
+  "res.loc.trip": "Corsa",
+  "res.loc.from": "Partenza",
+  "res.loc.to": "Destinazione",
+  "res.loc.date": "Data",
+  "res.loc.pax": "Passeggeri",
+  "res.loc.bags": "Bagagli",
+  "res.loc.rate": "Tariffa",
+  "res.loc.day": "Giorno",
+  "res.loc.night": "Notte",
+  "res.loc.tbd": "Da precisare",
+  "res.loc.client": "Cliente",
+  "res.loc.email_subject": "Prenotazione taxi",
+  "res.wa.hello": "Salve, mi chiamo",
+  "res.wa.hello_anon": "Salve",
+  "res.wa.body": "vorrei prenotare un taxi. Siete disponibili?",
+  "res.loc.wa.hello": "Salve, mi chiamo",
+  "res.loc.wa.hello_anon": "Salve",
+  "res.loc.wa.body": "vorrei prenotare un taxi. Siete disponibili?",
+  "review.title": "Lascia una recensione",
+  "review.intro": "Il tuo feedback ci aiuta a migliorare e orienta i futuri clienti.",
+  "review.rating": "Voto",
+  "review.name.placeholder": "Il tuo nome",
+  "review.text.placeholder": "Condividi la tua esperienza…",
+  "review.submit": "Pubblica la mia recensione",
+  "review.success": "Grazie! La tua recensione è stata pubblicata.",
+  "review.error.fields": "Inserisci un voto, il tuo nome e un messaggio.",
+  "review.error.submit": "Impossibile inviare la recensione. Riprova.",
+
+  // TrackingQRSection
+  "qr.badge": "TRACCIAMENTO IN TEMPO REALE",
+  "qr.title": "Link per seguire il tuo taxi in tempo reale",
+  "qr.subtitle":
+    "Un QR univoco generato per ogni cliente. Scansionalo, apri il link sul telefono e segui l'arrivo del taxi sulla mappa.",
+  "qr.banner.title": "Apri questo link sul tuo telefono e scansiona il QR",
+  "qr.banner.desc": "Posizione dell'autista, ETA, prezzo stimato. Nessuna app richiesta.",
+  "qr.timer": "Nuovo codice tra {count}s",
+  "qr.copy": "🔗 Copia link",
+  "qr.copied": "✓ Link copiato!",
+  "qr.step1.t": "Prenota",
+  "qr.step1.d": "Modulo, email o WhatsApp",
+  "qr.step2.t": "Scansiona il QR",
+  "qr.step2.d": "Link univoco generato per te",
+  "qr.step3.t": "Segui in diretta",
+  "qr.step3.d": "Mappa, ETA, destinazione, tariffa",
+  "qr.step4.t": "Sali a bordo!",
+  "qr.step4.d": "Contatto autista in 1 tocco",
+  "qr.feat1.t": "Posizione GPS",
+  "qr.feat1.d": "Tracciamento in tempo reale",
+  "qr.feat2.t": "Orario di arrivo",
+  "qr.feat2.d": "Precisione al minuto",
+  "qr.feat3.t": "Tariffa stimata",
+  "qr.feat3.d": "Fascia di prezzo trasparente",
+  "qr.feat4.t": "Contatto diretto",
+  "qr.feat4.d": "06 73 07 23 22",
+  "qr.feat5.t": "QR univoco",
+  "qr.feat5.d": "Per cliente, per scansione",
+  "qr.cta": "📞 Prenota — 06 73 07 23 22",
+  "rsim.title": "Simulatore di prezzo",
+  "rsim.estimate": "Tariffa stimata",
+  "rsim.day": "Tariffa diurna (7–19) — 2,16 €/km",
+  "rsim.night": "Tariffa notturna (19–7) — 3,24 €/km",
+  "rsim.partition": "{j}% giorno / {n}% notte",
+  "rsim.pickup": "Presa in carico: 2,83 €",
+  "rsim.loading": "⏳ Calcolo del percorso…",
+  "rsim.distance": "Distanza",
+  "rsim.duration": "Durata stimata",
+  "rsim.hint": "Inserisci partenza e destinazione per calcolare automaticamente.",
+  "rsim.outbound": "Andata",
+  "rsim.return": "Ritorno",
+  "rsim.total": "TOTALE STIMATO",
+  "rsim.total_round": "TOTALE STIMATO (andata e ritorno)",
+  "rsim.mixed": "Tariffa mista — il tragitto rientra nella tariffa notturna",
+  "rsim.fees": "* Possono essere applicate spese di prenotazione",
+  "rsim.indicative": "Prezzo indicativo — fa fede il tassametro",
+
+  // Taxi availability badge & banner
+  "taxi.badge.available": "🚕 Taxi disponibile",
+  "taxi.badge.busy": "🚕 Taxi in corsa",
+  "taxi.banner.busy.title": "Taxi attualmente in corsa",
+  "taxi.banner.busy.desc":
+    "Puoi comunque prenotare — la tua richiesta sarà presa in carico non appena il taxi sarà libero.",
+  "taxi.banner.available.msg": "Taxi disponibile — prenotazione confermata rapidamente!",
+
+  // Home — area cliente
+  "home.client.eyebrow": "Area cliente",
+  "home.client.title.before": "Il tuo ",
+  "home.client.title.italic": "pannello personale",
+  "home.client.title.after": "",
+  "home.client.desc":
+    "Crea il tuo account in 30 secondi per ritrovare tutte le tue corse, seguire il conducente in tempo reale e prenotare più velocemente la prossima volta. Gratuito, semplice e riservato.",
+  "home.client.li1.bold": "Cronologia completa",
+  "home.client.li1.rest": " dei tuoi viaggi, ricevute e tariffe.",
+  "home.client.li2.bold": "Notifiche",
+  "home.client.li2.rest": " non appena il conducente è in arrivo o è arrivato.",
+  "home.client.li3.bold": "Chat diretta",
+  "home.client.li3.rest": " con il conducente durante la corsa.",
+  "home.client.cta_login": "Accedi alla mia area",
+  "home.client.cta_register": "Crea un account",
+  "home.client.mock.hello": "Ciao Camille",
+  "home.client.mock.connected": "Connessa adesso",
+  "home.client.mock.status_done": "Terminata",
+  "home.client.mock.status_confirmed": "Confermata",
+  "home.client.mock.ride1.time": "Oggi · 14:30",
+  "home.client.mock.ride1.route": "Stazione Saint-Jean → Aeroporto Mérignac",
+  "home.client.mock.ride2.time": "Domani · 09:00",
+  "home.client.mock.ride2.route": "Centro Bordeaux → Saint-Émilion",
+
+  // Area cliente
+  client_login_title: "La mia Area Cliente",
+  client_login_subtitle: "Accedi per seguire le tue corse",
+  client_email: "Email",
+  client_password: "Password",
+  client_login_btn: "Accedi",
+  client_register_link: "Prima volta? Crea un account",
+  client_register_title: "Crea il tuo account in 30 secondi",
+  client_name_field: "Nome completo",
+  client_phone_field: "Telefono",
+  client_register_btn: "Crea il mio account",
+  client_dashboard_hello: "Ciao",
+  client_my_rides: "Le mie corse",
+  client_rebook_same: "Prenota di nuovo questa corsa",
+  client_rebook_other: "Prenota un'altra corsa",
+  client_track_ride: "Segui la corsa",
+  client_modify_time: "Modifica l'orario",
+  client_modify_time_title: "Nuovo orario di partenza",
+  client_modify_time_confirm: "Conferma",
+  client_chat_placeholder: "Scrivi un messaggio…",
+  client_chat_send: "Invia",
+  client_chat_title: "Chat con l'autista",
+  client_logout: "Disconnetti",
+  client_no_rides: "Nessuna corsa per ora.",
+  cd_back_home: "Home",
+  cd_eyebrow: "Area cliente",
+  cd_book_ride: "Prenota una corsa",
+  cd_cancel_phone: "Annulla per telefono",
+  cd_loading: "Caricamento…",
+  cd_book: "Prenota",
+  cd_phone_cancel_requested: "Annullamento telefonico richiesto",
+  cd_price_estimated: "Prezzo stimato",
+  cd_passengers: "Passeggeri",
+  cd_luggage: "Bagagli",
+  cd_payment: "Pagamento",
+  cd_ref: "Rif.",
+  cd_new_datetime: "Nuova data / ora",
+  cd_confirm: "Conferma",
+  cd_cancel: "Annulla",
+  cd_edit_time: "Modifica orario",
+  cd_track_ride: "Segui la mia corsa",
+  cd_chat: "Chat",
+  cd_recommend: "Prenota di nuovo",
+  cd_new_ride: "Nuova corsa",
+  cd_request_sent: "Richiesta inviata",
+  cd_modal_title: "Annulla per telefono",
+  cd_modal_desc_before: "Stai per chiamare il",
+  cd_modal_desc_after:
+    "per annullare questa corsa. Conferma per registrare la tua richiesta ed effettuare la chiamata.",
+  cd_back: "Indietro",
+  cd_back_site: "Site",
+  cd_confirm_and_call: "Conferma e chiama",
+  cd_status_pending: "In attesa",
+  cd_status_accepted: "Accettata",
+  cd_status_en_route: "Autista in arrivo",
+  cd_status_arrived: "Autista arrivato",
+  cd_status_completed: "Completata",
+  cd_status_cancelled: "Annullata",
+  cd_status_refused: "Rifiutata",
+  cd_book_same: "Ripeti la stessa corsa",
+  cd_toast_load_err: "Impossibile caricare le tue corse",
+  cd_toast_time_changed: "Orario modificato — autista avvisato",
+  cd_toast_locked_edit: "Questa corsa non può più essere modificata",
+  cd_toast_edit_failed: "Modifica impossibile",
+  cd_confirm_cancel: "Confermare l'annullamento di questa corsa?",
+  cd_toast_cancelled: "Corsa annullata",
+  cd_toast_locked_cancel: "Questa corsa non può più essere annullata",
+  cd_toast_cancel_failed: "Annullamento impossibile",
+  cd_toast_phone_recorded: "Richiesta di annullamento telefonico registrata",
+  cd_toast_phone_failed: "Registrazione impossibile",
+  cd_msg_to_jose: "💬 Messaggio a José",
+  cd_meta_title: "Area cliente — Taxi City Bordeaux",
+  chat_status_typing: "Sta scrivendo…",
+  chat_status_online: "Online",
+  chat_status_offline: "Offline",
+  chat_search: "Cerca",
+  chat_export_csv: "Esporta CSV",
+  chat_close: "Chiudi",
+  chat_queued_prefix: "📡",
+  chat_queued_suffix: "messaggi in coda — invio automatico al ritorno online.",
+  chat_search_placeholder: "Cerca una parola chiave…",
+  chat_from: "Dal",
+  chat_to: "Al",
+  chat_reset: "Reimposta",
+  chat_load_more_history: "caricare più cronologia",
+  chat_older_messages: "Messaggi più vecchi",
+  chat_no_messages: "Nessun messaggio per ora. Scrivi il primo!",
+  chat_no_match: "Nessun messaggio corrisponde alla tua ricerca.",
+  chat_typing_aria: "L'altra persona sta scrivendo",
+  chat_input_placeholder: "Scrivi un messaggio…",
+  chat_send: "Invia",
+  chat_found_on_loaded: "trovati su",
+  chat_loaded: "caricati.",
+
+  // Page fin/$id
+  "fin.loading": "Caricamento riepilogo…",
+  "fin.notfound": "Corsa non trovata",
+  "fin.title": "Corsa completata!",
+  "fin.subtitle": "Grazie per aver scelto Taxi City Bordeaux",
+  "fin.price_label": "Prezzo finale",
+  "fin.payment.cb": "💳 Carta di credito",
+  "fin.payment.cash": "💵 Contanti",
+  "fin.stat.distance": "Distanza",
+  "fin.stat.duration": "Durata",
+  "fin.stat.trip": "Percorso",
+  "fin.stat.trip_done": "Completato",
+  "fin.route.from": "Partenza",
+  "fin.route.to": "Arrivo",
+  "fin.pdf.title": "Ricevuta corsa",
+  "fin.pdf.subtitle": "PDF generato istantaneamente sul tuo dispositivo",
+  "fin.pdf.download": "⬇️ Scarica ricevuta PDF",
+  "fin.pdf.loading": "⏳ Generazione in corso…",
+  "fin.pdf.success": "✅ PDF scaricato!",
+  "fin.pdf.error": "❌ Errore durante la generazione del PDF",
+  "fin.pdf.note": "Gratuito · Generato sul tuo dispositivo · Nessun dato inviato",
+  "fin.map.toggle": "Rivedi il percorso",
+  "fin.rating.title": "Com'è andata la corsa?",
+  "fin.rating.tap": "Tocca una stella",
+  "fin.rating.comment": "Un commento? (facoltativo)",
+  "fin.rating.submit": "Invia la mia recensione",
+  "fin.rating.sending": "Invio…",
+  "fin.rating.thanks": "Grazie per la tua recensione!",
+  "fin.rating.rated": "Hai valutato",
+  "fin.action.same": "Stesso percorso",
+  "fin.action.new": "Nuova corsa",
+  "fin.action.history": "📋 Vedi tutte le mie corse",
+  "fin.star.bad": "Scarso",
+  "fin.star.ok": "Sufficiente",
+  "fin.star.good": "Bene",
+  "fin.star.great": "Molto bene",
+  "fin.star.excellent": "Eccellente!",
+
+  // Page mes-courses
+  "mc.title": "Le mie corse",
+  "mc.count_sg": "viaggio",
+  "mc.count_pl": "viaggi",
+  "mc.stat.rides": "corse",
+  "mc.stat.spent": "spesi",
+  "mc.stat.km": "percorsi",
+  "mc.from": "Partenza",
+  "mc.to": "Arrivo",
+  "mc.action.same": "Stesso percorso",
+  "mc.action.receipt": "Ricevuta PDF",
+  "mc.action.track": "Segui",
+  "mc.action.new": "➕ Nuova corsa",
+  "mc.map.unavailable": "Mappa non disponibile",
+  "mc.map.loading": "Caricamento mappa…",
+  "mc.status.completed": "Completata",
+  "mc.status.accepted": "Accettata",
+  "mc.status.pending": "In attesa",
+  "mc.status.refused": "Rifiutata",
+  "mc.status.en_route": "In rotta",
+  "mc.status.arrived": "Arrivato",
+  "mc.status.cancelled": "Annullata",
+  "mc.rebook.title": "🔁 Stesso percorso",
+  "mc.rebook.subtitle": "Scegli data e ora",
+  "mc.rebook.from": "Partenza",
+  "mc.rebook.to": "Destinazione",
+  "mc.rebook.date": "Data",
+  "mc.rebook.time": "Ora",
+  "mc.rebook.btn": "🚕 Prenota ora",
+  "mc.rebook.loading": "Prenotazione…",
+  "mc.rebook.success": "Prenotazione registrata!",
+  "mc.rebook.redirect": "Reindirizzamento al tracking…",
+  "mc.gate.title": "Trova le mie corse",
+  "mc.gate.subtitle": "Inserisci la tua email per vedere la cronologia delle corse",
+  "mc.gate.placeholder": "tua@email.com",
+  "mc.gate.btn": "Vedi le mie corse",
+  "mc.gate.loading": "Ricerca…",
+  "mc.gate.err.invalid": "Indirizzo email non valido",
+  "mc.gate.err.notfound": "Nessuna corsa trovata per questa email.",
+};
+
+// Dictionnaire arabe — traductions clés ; fallback automatique sur le français pour les clés manquantes.
+const ar: Dict = {
+  "nav.home": "الرئيسية",
+  "nav.services": "الخدمات",
+  "nav.tarifs": "الأسعار",
+  "nav.about": "من نحن",
+  "nav.contact": "اتصل بنا",
+  "nav.book": "احجز",
+  "nav.book_long": "احجز سيارة أجرة",
+  "common.available_247": "متاح 24/7",
+  "common.lang_label": "اللغة",
+
+  "home.hero.badge": "متاح 24/7",
+  "home.hero.title.before": "سيارة الأجرة في",
+  "home.hero.title.city": "بوردو",
+  "home.hero.title.after": "، دقيقة ومريحة.",
+  "home.hero.subtitle":
+    "رحلات مهنية أو شخصية، فورية أو محجوزة: نأخذك إلى كل مكان في جيروند وفرنسا، ليلاً ونهاراً، في سيارة مهيأة بعناية.",
+  "home.hero.need_taxi": "أحتاج سيارة أجرة…",
+  "home.hero.book_now": "احجز رحلة",
+  "home.hero.tag1": "حجز سريع",
+  "home.hero.tag2": "معتمد لدى التأمين الصحي (CPAM)",
+  "home.hero.tag3": "أسعار شفافة",
+
+  "home.dest.eyebrow": "الوجهات",
+  "home.dest.title": "حيث نأخذك",
+  "home.dest.intro": "بعض المسارات التي يحجزها عملاؤنا يومياً — وصول مريح هو تخصصنا.",
+  "home.dest.gare.title": "محطة بوردو سان جان",
+  "home.dest.gare.sub": "استقبال عند الطلب لدى وصول القطار.",
+  "home.dest.airport.title": "مطار بوردو",
+  "home.dest.airport.sub": "تتبع الرحلات في الوقت الفعلي.",
+  "home.dest.vine.title": "القلاع وكروم العنب",
+  "home.dest.vine.sub": "ميدوك، سان إيميليون، سوتيرن — رحلات يوم كامل.",
+  "home.dest.cta": "احجز",
+
+  // Home — best sellers Bordeaux
+  "home.best.eyebrow": "لا يُفوَّت",
+  "home.best.title": "أبرز معالم بوردو",
+  "home.best.intro": "الأماكن التي يعشق عملاؤنا زيارتها — نأخذك إليها بكل راحة وأمان.",
+  "home.best.miroir.title": "مرآة الماء",
+  "home.best.miroir.sub": "ساحة البورصة، رمز بوردو الأيقوني.",
+  "home.best.cite.title": "مدينة النبيذ",
+  "home.best.cite.sub": "رحلة إلى قلب كروم العنب.",
+  "home.best.emilion.title": "سان إيميليون",
+  "home.best.emilion.sub": "قرية قروسطية وتراث Grand Cru الفاخر.",
+  "home.best.pilat.title": "كثيب بيلا",
+  "home.best.pilat.sub": "أعلى كثيب رملي في أوروبا.",
+
+  "home.why.eyebrow": "لماذا نحن",
+  "home.why.title": "خدمة بسيطة، إنسانية، موثوقة.",
+  "home.why.desc":
+    "تاكسي سيتي بوردو يعني سائقاً محلياً، وسيارة مُعتنى بها، ورغبة حقيقية في إتقان العمل. لا مفاجآت في الفاتورة، لا انتظار طويل — نؤكد، نصل، ونوصلك.",
+  "home.why.years": "سنوات من الخبرة",
+  "home.why.f1.t": "دقة مضمونة في المواعيد",
+  "home.why.f1.d": "تتبع الرحلات والقطارات، هامش لتفادي التأخير.",
+  "home.why.f2.t": "أسعار واضحة",
+  "home.why.f2.d": "أسعار منظمة، الدفع بالبطاقة وكاش.",
+  "home.why.f3.t": "معتمد لدى التأمين الصحي",
+  "home.why.f3.d": "نقل المرضى مغطى بالتأمين.",
+
+  "home.services.eyebrow": "خدماتنا",
+  "home.services.title": "لكل تنقلاتك",
+  "home.services.see_all": "عرض جميع الخدمات",
+  "svc.airport.title": "مطار بوردو",
+  "svc.airport.desc": "نقل من وإلى المطار، ليلاً ونهاراً.",
+  "svc.train.title": "محطة سان جان",
+  "svc.train.desc": "استقبال عند الوصول، ترحيب شخصي.",
+  "svc.business.title": "تنقلات الأعمال",
+  "svc.business.desc": "تكتم ودقة في المواعيد لاجتماعاتك.",
+  "svc.wedding.title": "إغاثة عطل السيارة",
+  "svc.wedding.desc": "اتصل بنا في حال تعطل سيارتك، نأتي لاستقبالك بسرعة.",
+  "svc.cpam.title": "النقل الطبي CPAM",
+  "svc.cpam.desc": "وصفة نقل مقبولة لجميع المسافات.",
+  "svc.long.title": "المسافات الطويلة",
+  "svc.long.desc": "رحلات في جميع أنحاء فرنسا وأوروبا.",
+
+  "home.test.eyebrow": "وثقوا بنا",
+  "home.test.title": "ماذا يقول عملاؤنا",
+  "home.test.t1": "سائق دقيق جداً، سيارة نظيفة. وصلت إلى المطار دون أي ضغط، أنصح بشدة.",
+  "home.test.t2": "حجز سهل، السعر مطابق للعرض. مثالي لرحلات عملي الأسبوعية.",
+  "home.test.t3": "استقبلنا في المحطة مع أطفالي، السائق كان لطيفاً جداً. سنحجز مرة أخرى.",
+
+  "home.faq.eyebrow": "أسئلتكم",
+  "home.faq.title": "إجابات صادقة",
+  "home.faq.intro": "بعض الإجابات على الأسئلة الأكثر تكراراً. إذا لم تجد سؤالك، اتصل بنا.",
+  "faq.q1": "هل أنتم معتمدون من CPAM للنقل الطبي؟",
+  "faq.a1":
+    "نعم، نحن معتمدون من CPAM للنقل الصحي (الاستشارات، غسيل الكلى، الإقامة في المستشفى…). فقط اطلب وصفة النقل الطبي من طبيبك، ونحن نتولى الباقي. عند تقديم بون النقل، التغطية المباشرة من التأمين الصحي. الدفع من طرف ثالث أو ALD — بون نقل لجميع المسافات.",
+  "faq.q2": "ماذا لو تأخرت رحلتي في ميرينياك؟",
+  "faq.a2": "نتتبع رحلتك في الوقت الفعلي. إذا هبطت طائرتك مبكراً أو متأخراً، نضبط وقت الاستقبال.",
+  "faq.q3": "كيف ألغي أو أعدل حجزي؟",
+  "faq.a3":
+    "مكالمة بسيطة أو رسالة واتساب تكفي. الإلغاء مجاني حتى ساعتين قبل الرحلة. للتعديل (الوقت، العنوان، الركاب)، أعلمنا في أقرب وقت — سنرتب الأمر.",
+  "faq.q4": "ما هي طرق الدفع المقبولة؟",
+  "faq.a4":
+    "البطاقة (تلامسي، Apple Pay، Google Pay)، النقد، والتحويل البنكي للحسابات التجارية. نقدم إيصالاً في نهاية الرحلة، عند الطلب لتقارير المصاريف.",
+  "faq.q5": "هل يجب الحجز مسبقاً؟",
+  "faq.a5":
+    "ليس إلزامياً — نقبل أيضاً الرحلات الفورية إذا كنا متاحين. لقطار مبكر أو رحلة طيران أو اجتماع مهم، يفضل الحجز قبل يوم.",
+  "faq.q6": "كم من الأمتعة يمكنني حملها؟",
+  "faq.a6": "السيارة تتسع بسهولة لـ 3-4 حقائب و4 ركاب. للمجموعات أو الأمتعة الكبيرة، أعلمنا عند الحجز ونكيف السيارة.",
+
+  // Home — كيف نحجز
+  "home.how.eyebrow": "كيف يعمل",
+  "home.how.title": "الحجز بسيط كاتصال هاتفي",
+  "home.how.intro": "لا انتظار ولا روبوت. فقط تواصل مباشر مع سائقك — نؤكد، نصل، ننقلك.",
+  "home.how.s1.t": "املأ النموذج",
+  "home.how.s1.d": "نقطة الانطلاق، الوجهة، التاريخ، الوقت، المسافرون — دقيقتان.",
+  "home.how.s2.t": "تأكيد فوري",
+  "home.how.s2.d": "ستتلقى فوراً بريداً إلكترونياً ورسالة SMS تؤكد حجزك.",
+  "home.how.s3.t": "السائق يقبل",
+  "home.how.s3.d": "يتحقق سائقك من الرحلة ويؤكد لك السعر النهائي.",
+  "home.how.s4.t": "تتبع في الوقت الفعلي",
+  "home.how.s4.d": "الموقع GPS، وقت الوصال المقدر، اسم السائق ورقم اللوحة — كل شيء مباشر.",
+  "home.how.s5.t": "اصعد إلى السيارة",
+  "home.how.s5.d": "اصعد إلى السيارة، نحن نتكفل بالباقي.",
+  "home.how.s6.t": "الدفع",
+  "home.how.s6.d": "بطاقة أو نقداً — كما تفضل. وصل في النهاية.",
+  "sim.eyebrow": "محاكي الأسعار",
+  "sim.title": "احسب سعر رحلتك",
+  "sim.intro": "أدخل عناوين الانطلاق والوصول — يُحسب السعر تلقائياً بناءً على الوقت الحالي.",
+  "sim.pickup": "أجرة الانطلاق",
+  "sim.perkm": "السعر لكل كم",
+  "sim.perkm_mixed": "متوسط السعر المرجّح",
+  "sim.estimate": "السعر التقديري",
+  "sim.badge_mixed": "تعريفة مختلطة",
+  "sim.dist_label": "المسافة التقديرية",
+  "sim.duration_label": "المدة التقديرية",
+  "sim.geocoding": "جارٍ التحديد…",
+  "sim.addr_error": "العنوان غير موجود — حاول أن تكون أكثر تحديداً.",
+  "sim.addr_placeholder": "عنوان، مدينة، موقع…",
+  "sim.from_label": "عنوان الانطلاق",
+  "sim.to_label": "عنوان الوصول",
+  "sim.dist_loading": "جارٍ حساب المسافة…",
+  "sim.disclaimer":
+    "تقدير إرشادي بناءً على أسعارنا الرسمية. قد يختلف السعر الفعلي حسب المسار الدقيق وحالة المرور والإضافات المحتملة.",
+  "sim.cta_book": "احجز الآن",
+  "sim.period_day": "☀️ التعريفة النهارية (7ص–7م) —",
+  "sim.period_night": "🌙 التعريفة الليلية (7م–7ص) —",
+  "sim.booking_fee_note": "* قد تُطبَّق رسوم حجز",
+  "home.cta.title": "جاهز لحجز رحلتك؟",
+  "home.cta.desc": "تأكيد سريع، سائق محترف وسعر شفاف — اتصل بنا أو احجز عبر الإنترنت.",
+  "home.cta.online": "احجز عبر الإنترنت",
+
+  "services.eyebrow": "خدماتنا",
+  "services.title": "خدمة تاكسي لكل احتياج",
+  "services.intro": "في بوردو، عبر جيروند وكل أنحاء فرنسا — جهة اتصال واحدة، خدمة مميزة.",
+  "services.cta": "احجز",
+  "services.b1": "24/7",
+  "services.b2": "حتى 4 ركاب",
+  "services.b3": "سائق محترف",
+  "svcp.airport.title": "نقل من وإلى مطار ميرينياك",
+  "svcp.airport.desc": "استقبال دقيق لرحلاتك، تتبع فوري، استقبال عند الطلب.",
+  "svcp.airport.p1": "استقبال عند الطلب",
+  "svcp.airport.p2": "تتبع الرحلات",
+  "svcp.airport.p3": "ذهاب وإياب متاح",
+  "svcp.train.title": "محطات سان جان وTGV",
+  "svcp.train.desc": "نقل من وإلى محطة بوردو سان جان وأي محطة في المنطقة.",
+  "svcp.train.p1": "استقبال عند الطلب",
+  "svcp.train.p2": "استقبال دقيق",
+  "svcp.train.p3": "متاح 24/7",
+  "svcp.business.title": "تنقلات الأعمال",
+  "svcp.business.desc": "خدمة متميزة بتكتم لاجتماعاتك وندواتك ورحلات عملك.",
+  "svcp.business.p1": "فوترة باسم الشركة",
+  "svcp.business.p2": "واي فاي على متن السيارة",
+  "svcp.business.p3": "تكتم مضمون",
+  "svcp.wedding.title": "إغاثة عطل السيارة",
+  "svcp.wedding.desc": "في حال تعطل سيارتك، نأتي لاستقبالك بسرعة ونوصلك إلى وجهتك.",
+  "svcp.wedding.p1": "تدخل سريع",
+  "svcp.wedding.p2": "كل منطقة جيروند",
+  "svcp.wedding.p3": "متاح 24/7",
+  "svcp.cpam.title": "النقل الطبي CPAM",
+  "svcp.cpam.desc": "نقل احترافي جالس مغطى بالتأمين الصحي الفرنسي. وصفة نقل لجميع المسافات.",
+  "svcp.cpam.p1": "فوترة مباشرة / ALD",
+  "svcp.cpam.p2": "وصفة نقل لجميع المسافات",
+  "svcp.cpam.p3": "مستشفيات وعيادات",
+  "svcp.long.title": "المسافات الطويلة",
+  "svcp.long.desc": "رحلات في كل فرنسا وأوروبا.",
+  "svcp.long.p1": "أسعار منظمة",
+  "svcp.long.p2": "تعرفة بالكيلومتر",
+  "svcp.long.p3": "راحة للمسافات الطويلة",
+
+  "tarifs.eyebrow": "الأسعار",
+  "tarifs.title": "أسعار شفافة",
+  "tarifs.intro": "أسعار إرشادية مبنية على اللوائح المحلية. السعر النهائي يُؤكد عند الحجز.",
+  "tarifs.col.from": "من",
+  "tarifs.col.to": "إلى",
+  "tarifs.col.day": "تعرفة النهار",
+  "tarifs.col.night": "تعرفة الليل / الأحد",
+  "tarifs.note": "تعرفة الليل من 19:00 إلى 07:00، أيام الأحد والعطل الرسمية.",
+  "tarifs.cpam.title": "🏥 النقل الطبي CPAM",
+  "tarifs.cpam.desc": "بوصفة نقل طبي، فوترة مباشرة للتأمين الصحي. فوترة مباشرة أو ALD — وصفة لجميع المسافات.",
+  "tarifs.event.title": "🚗 إغاثة عطل السيارة",
+  "tarifs.event.desc": "في حال تعطل سيارتك، نأتي لاستقبالك بسرعة ونوصلك إلى وجهتك. متاح 7/7.",
+  "tarifs.cta": "احجز",
+  "city.bdx_centre": "وسط بوردو",
+  "city.cenon": "سينون / فلواراك",
+  "city.merignac": "ميرينياك",
+  "city.bdx": "بوردو",
+  "city.airport": "مطار ميرينياك",
+  "city.gare": "محطة سان جان",
+  "city.arcachon": "أركاشون",
+  "city.stemilion": "سان إيميليون",
+
+  "about.eyebrow": "قصتنا",
+  "about.title": "عن تاكسي سيتي بوردو",
+  "about.p1.brand": "تاكسي سيتي بوردو",
+  "about.p1": "شركة تاكسي مستقلة في بوردو. نهدف لتقديم خدمة تليق بأناقة بوردو: دقة، راحة، وتكتم.",
+  "about.p2":
+    "سواء كنت عميلاً خاصاً متجهاً للمطار، أو محترفاً في تنقل، أو مريضاً يحتاج نقلاً طبياً، نكيف خدمتنا حسب حاجتك.",
+  "about.p3": "سيارتنا الحديثة المكيفة والمعتنى بها بدقة تضمن رحلة ممتعة في كل الأحوال.",
+  "about.b1.t": "سائق محترف",
+  "about.b1.d": "بطاقة تاكسي رسمية، تدريب مستمر، معرفة عميقة ببوردو وجيروند.",
+  "about.b2.t": "متاح 24/7",
+  "about.b2.d": "ليلاً ونهاراً، عطل نهاية الأسبوع والعطل الرسمية.",
+  "about.b3.t": "بوردو وجيروند",
+  "about.b3.d": "محطة رسمية في بوردو. كامل المنطقة الحضرية، المطار، المحطات وكل فرنسا عند الحجز.",
+  "about.b4.t": "النقل الطبي CPAM",
+  "about.b4.d": "نقل احترافي جالس مغطى بالتأمين الصحي الفرنسي.",
+  "about.cta": "احجز رحلة",
+
+  "contact.eyebrow": "اتصل بنا",
+  "contact.title": "تواصل معنا",
+  "contact.intro": "متاح 24/7 — مكالمة واحدة تكفي، أو أرسل لنا رسالة.",
+  "contact.phone": "الهاتف",
+  "contact.phone.sub": "رد فوري",
+  "contact.wa.title": "واتساب",
+  "contact.wa.line": "دردش عبر واتساب",
+  "contact.wa.sub": "ممتاز لمشاركة عنوان",
+  "contact.email": "البريد الإلكتروني",
+  "contact.email.sub": "الطلبات الخاصة",
+  "contact.zone.title": "منطقة الخدمة",
+  "contact.zone.line1": "بوردو والمنطقة الحضرية",
+  "contact.zone.line2": "كامل جيروند (33)",
+  "contact.zone.sub": "رحلات طويلة عبر كامل فرنسا بالحجز المسبق.",
+  "contact.form.eyebrow": "نموذج",
+  "contact.form.title": "أرسل لنا رسالة",
+  "contact.form.intro": "لسؤال أو طلب خاص — نرد بأسرع وقت ممكن.",
+  "contact.form.name": "الاسم الكامل *",
+  "contact.form.email": "البريد الإلكتروني *",
+  "contact.form.phone": "الهاتف (اختياري)",
+  "contact.form.subject": "الموضوع (اختياري)",
+  "contact.form.subject.ph": "مثال: بوردو → باريس",
+  "contact.form.message": "الرسالة *",
+  "contact.form.message.ph": "أخبرنا عن طلبك…",
+  "contact.form.send": "أرسل الرسالة",
+  "contact.form.sending": "جاري الإرسال…",
+  "contact.form.error": "حدث خطأ. الرجاء الاتصال بنا مباشرة على ‎+33 6 73 07 23 22.",
+  "contact.form.success.title": "تم إرسال الرسالة!",
+  "contact.form.success.desc": "شكراً لتواصلك. سنرد عليك بالبريد الإلكتروني قريباً.",
+  "contact.form.success.again": "أرسل رسالة أخرى",
+  "contact.form.note": "للحجز، الرجاء استخدام نموذج الحجز.",
+  "contact.err.name": "الاسم مطلوب",
+  "contact.err.email": "بريد إلكتروني غير صالح",
+  "contact.err.message": "الرسالة قصيرة جداً (10 أحرف كحد أدنى)",
+  "contact.err.phone": "رقم هاتف غير صالح",
+
+  "res.eyebrow": "حجز عبر الإنترنت",
+  "res.title": "احجز سيارة الأجرة",
+  "res.intro": "املأ النموذج — سنعاود الاتصال بك للتأكيد.",
+  "res.f.name": "الاسم الكامل *",
+  "res.f.phone": "الهاتف *",
+  "res.f.email": "البريد الإلكتروني (اختياري)",
+  "res.f.trip": "نوع الرحلة *",
+  "res.f.trip.one": "ذهاب فقط",
+  "res.f.trip.round": "ذهاب وإياب",
+  "res.f.pickup": "تاريخ ووقت الاستقبال *",
+  "res.f.return": "تاريخ ووقت العودة *",
+  "res.f.from": "عنوان الاستقبال *",
+  "res.f.from.ph": "مثال: 12 cours de l'Intendance, Bordeaux",
+  "res.f.to": "عنوان الوصول *",
+  "res.f.to.ph": "مثال: مطار ميرينياك",
+  "res.f.passengers": "الركاب",
+  "res.f.luggage": "الأمتعة",
+  "res.f.kind": "نوع الخدمة",
+  "res.f.kind.standard": "عادي",
+  "res.f.kind.airport": "مطار",
+  "res.f.kind.train": "محطة",
+  "res.f.kind.cpam": "طبي CPAM",
+  "res.f.kind.wedding": "إغاثة عطل",
+  "res.f.kind.business": "أعمال",
+  "res.f.kind.long": "مسافة طويلة",
+  "res.f.needs": "احتياجات خاصة",
+  "res.f.needs.cpam": "CPAM / طبي",
+  "res.f.needs.cpam.hint": "نقل مغطى",
+  "res.f.needs.bags": "مساعدة في الأمتعة",
+  "res.f.needs.bags.hint": "مساعدة في التحميل",
+  "res.f.needs.child": "مقعد طفل",
+  "res.f.needs.child.hint": "أذكر العمر في الرسالة",
+  "res.f.message": "رسالة (اختيارية)",
+  "res.f.message.ph": "رقم الرحلة، عمر الأطفال، تفاصيل…",
+  "res.send": "أرسل طلبي",
+  "res.sending": "جاري الإرسال…",
+  "res.note": "لرحلة فورية، اتصل بنا مباشرة على ‎+33 6 73 07 23 22",
+  "res.err.global": "فشل الإرسال. الرجاء الاتصال بنا على ‎+33 6 73 07 23 22.",
+  "res.err.phone": "رقم هاتف غير صالح",
+  "res.err.name": "الاسم مطلوب",
+  "res.err.pickup": "التاريخ/الوقت مطلوب",
+  "res.err.future": "يجب أن يكون التاريخ في المستقبل",
+  "res.err.from": "عنوان الاستقبال مطلوب",
+  "res.err.to": "عنوان الوصول مطلوب",
+  "res.err.return": "تاريخ العودة يجب أن يكون بعد الاستقبال",
+
+  "conf.cancelled.title": "تم إلغاء الحجز",
+  "conf.cancelled.desc": "تم إلغاء هذا الحجز.",
+  "conf.ok.title": "تم استلام الطلب!",
+  "conf.ok.desc": "سنعاود الاتصال بك قريباً لتأكيد رحلتك.",
+  "conf.ref.label": "رقم الحجز",
+  "conf.ref.note": "احتفظ به لأي تعديل أو إلغاء.",
+  "conf.summary": "ملخص",
+  "conf.row.pickup": "الاستقبال",
+  "conf.row.from": "من",
+  "conf.row.to": "إلى",
+  "conf.row.phone": "الهاتف",
+  "conf.passengers": "راكب/ركاب",
+  "conf.luggage": "قطعة/قطع أمتعة",
+  "conf.wa": "أكد عبر واتساب",
+  "conf.modify.title": "تعديل أو إلغاء",
+  "conf.modify.desc": "لتعديل طلبك، اتصل بنا هاتفياً أو عبر واتساب مع رقم الحجز.",
+  "conf.cancel": "إلغاء حجزي",
+  "conf.cancel.confirm": "تأكيد الإلغاء",
+  "conf.cancel.keep": "احتفظ بحجزي",
+  "conf.back": "← العودة للرئيسية",
+  "conf.notfound.title": "الحجز غير موجود",
+  "conf.notfound.desc": "الرابط غير صالح أو تم حذف الحجز.",
+  "conf.notfound.cta": "إنشاء حجز جديد",
+
+  "wa.float.send": "أرسل طلبي",
+  "wa.float.label": "احجز عبر واتساب",
+  "wa.aria.hint": "يفتح محادثة واتساب في علامة تبويب جديدة.",
+  "wa.aria.draftReady": "طلب الحجز جاهز للإرسال عبر واتساب.",
+  "wa.default": "مرحباً، أود حجز سيارة أجرة. هل يمكنك تأكيد التوفر؟ شكراً.",
+  "wa.btn.call": "اتصال",
+  "wa.btn.quote": "حجز رحلة",
+  "wa.btn.whatsapp": "واتساب",
+  "wa.aria.whatsapp": "التواصل عبر واتساب",
+  "wa.aria.nav": "إجراءات التواصل السريع",
+  "suivi.title": "تتبع سائقك",
+  "suivi.hello": "مرحباً",
+  "suivi.pickup_at": "الاستقبال في",
+  "suivi.status": "الحالة",
+  "suivi.online": "في الطريق",
+  "suivi.offline": "غير متصل",
+  "suivi.eta": "الوصول المتوقع",
+  "suivi.distance": "المسافة",
+  "suivi.last_update": "آخر تحديث",
+  "suivi.view_reservation": "عرض حجزي",
+  "suivi.notfound.title": "الحجز غير موجود",
+  "suivi.notfound.desc": "رابط التتبع غير صالح أو منتهي الصلاحية.",
+  "suivi.back_home": "العودة للرئيسية",
+  "conf.track": "تتبع سائقي مباشرة",
+
+  "faqx.title": "الأسئلة الشائعة",
+  "faqx.intro": "كل ما تحتاج معرفته قبل رحلتك.",
+  "faqx.tracking.q": "كيف يعمل التتبع المباشر لرحلتي الجوية أو القطار؟",
+  "faqx.tracking.a":
+    "بمجرد إعطائنا رقم الرحلة أو القطار، نتابعه تلقائيًا. إذا وصلت مبكرًا أو متأخرًا، نعدّل وقت الاستقبال — لا داعي لفعل أي شيء، السائق سينتظرك عند الخروج.",
+  "faqx.wait.q": "كم من الوقت ينتظر السائق بعد الهبوط؟",
+  "faqx.wait.a":
+    "يحضر السائق وفقًا لوقت الهبوط الفعلي (وليس المجدول)، ونحسب الوقت اللازم لاستلام الأمتعة وإجراءات الجمارك. بعد ذلك، يُحتسب وقت الانتظار الإضافي وفق التعرفة الرسمية المعتمدة، بكل شفافية.",
+  "faqx.cpam.q": "كيف تتم التغطية CPAM / ALD؟",
+  "faqx.cpam.a":
+    "أحضر وصفة النقل الطبي من طبيبك. بتقديم بون النقل، نطبّق نظام الدفع المباشر: تتولى التأمين الصحي الفرنسي تكاليف الرحلة مباشرة. في حالة ALD (مرض طويل الأمد)، التغطية كاملة وصالحة لجميع المسافات — بما في ذلك الرحلات الطويلة إلى المراكز المتخصصة.",
+
+  "res.err.required": "مطلوب",
+  "res.geo.btn": "موقعي",
+  "res.geo.loading": "جاري تحديد الموقع…",
+  "res.geo.err.denied": "تم رفض الإذن — يُرجى تفعيل الوصول إلى الموقع في إعدادات المتصفح.",
+  "res.geo.err.unavailable": "الموقع غير متاح. يُرجى إدخال العنوان يدوياً.",
+  "res.geo.err.timeout": "انتهت مهلة الطلب. حاول مجدداً أو أدخل العنوان.",
+  "res.geo.err.unsupported": "التحديد الجغرافي غير مدعوم في متصفحك.",
+  "res.err.slot_taken": "هذا الموعد محجوز مسبقاً. اختر موعداً آخر (±30 دقيقة).",
+  "res.loc.subtitle": "رد خلال 15 دقيقة · 7/7 · 24/24",
+  "res.loc.success_title": "تم إرسال طلبك!",
+  "res.loc.success_desc": "سيتم التواصل معك خلال 15 دقيقة. تم إرسال رسالة تأكيد إلى {email}.",
+  "res.loc.contact_section": "بياناتك",
+  "res.loc.firstname": "الاسم الأول",
+  "res.loc.lastname": "اللقب",
+  "res.loc.phone": "الهاتف",
+  "res.loc.email": "البريد الإلكتروني",
+  "res.loc.ride_section": "رحلتك",
+  "res.loc.depart_label": "عنوان الاستقبال",
+  "res.loc.dest_label": "عنوان الوصول",
+  "res.loc.oneway": "ذهاب فقط",
+  "res.loc.roundtrip": "ذهاب وإياب",
+  "res.loc.date_label": "التاريخ",
+  "res.loc.time_label": "الوقت",
+  "res.loc.rate_section": "التعرفة",
+  "res.loc.day_rate": "تعرفة النهار",
+  "res.loc.night_rate": "تعرفة الليل",
+  "res.loc.auto_calc": "محسوب تلقائياً",
+  "res.loc.day_full": "نهار (7ص–7م) — 2,16 €/كم",
+  "res.loc.night_full": "ليل (7م–7ص) — 3,24 €/كم",
+  "res.loc.payment_section": "طريقة الدفع",
+  "res.loc.cash": "نقداً",
+  "res.loc.card": "بطاقة",
+  "res.loc.mode_section": "طريقة الحجز",
+  "res.loc.mode_form": "نموذج",
+  "res.loc.mode_email": "بريد إلكتروني",
+  "res.loc.retry": "إعادة المحاولة",
+  "res.loc.send_email": "إرسال بالبريد الإلكتروني",
+  "res.loc.send_wa": "إرسال عبر واتساب",
+  "res.loc.send_sms": "إرسال بـ SMS",
+  "res.loc.passenger_sg": "راكب",
+  "res.loc.passengers_pl": "ركاب",
+  "res.loc.luggage_sg": "قطعة أمتعة",
+  "res.loc.luggage_pl": "قطع أمتعة",
+  "res.loc.trip": "الرحلة",
+  "res.loc.from": "من",
+  "res.loc.to": "إلى",
+  "res.loc.date": "التاريخ",
+  "res.loc.pax": "الركاب",
+  "res.loc.bags": "الأمتعة",
+  "res.loc.rate": "التعرفة",
+  "res.loc.day": "نهار",
+  "res.loc.night": "ليل",
+  "res.loc.tbd": "سيُحدد لاحقاً",
+  "res.loc.client": "العميل",
+  "res.loc.email_subject": "حجز تاكسي",
+  "res.wa.hello": "مرحباً، اسمي",
+  "res.wa.hello_anon": "مرحباً",
+  "res.wa.body": "أود حجز سيارة أجرة. هل أنتم متاحون؟",
+  "res.loc.wa.hello": "مرحباً، اسمي",
+  "res.loc.wa.hello_anon": "مرحباً",
+  "res.loc.wa.body": "أود حجز سيارة أجرة. هل أنتم متاحون؟",
+  "review.title": "اترك تقييمك",
+  "review.intro": "ملاحظاتك تساعدنا على التحسين وتوجيه العملاء المستقبليين.",
+  "review.rating": "التقييم",
+  "review.name.placeholder": "اسمك الأول",
+  "review.text.placeholder": "شاركنا تجربتك…",
+  "review.submit": "نشر تقييمي",
+  "review.success": "شكراً! تم نشر تقييمك.",
+  "review.error.fields": "يرجى تقديم تقييم واسمك ورسالة.",
+  "review.error.submit": "تعذّر إرسال تقييمك. يرجى المحاولة مجدداً.",
+
+  // TrackingQRSection
+  "qr.badge": "تتبع فوري مباشر",
+  "qr.title": "رابط لتتبع سيارة الأجرة الخاصة بك في الوقت الفعلي",
+  "qr.subtitle": "رمز QR فريد يُنشأ لكل عميل. امسحه، افتح الرابط على هاتفك، وتابع وصول سيارة الأجرة على الخريطة.",
+  "qr.banner.title": "افتح هذا الرابط على هاتفك وامسح رمز QR",
+  "qr.banner.desc": "موقع السائق، وقت الوصول المقدر، السعر التقريبي. لا يلزم تثبيت أي تطبيق.",
+  "qr.timer": "رمز جديد خلال {count}ث",
+  "qr.copy": "🔗 نسخ الرابط",
+  "qr.copied": "✓ تم نسخ الرابط!",
+  "qr.step1.t": "احجز",
+  "qr.step1.d": "نموذج أو بريد إلكتروني أو واتساب",
+  "qr.step2.t": "امسح رمز QR",
+  "qr.step2.d": "رابط فريد مُنشأ خصيصاً لك",
+  "qr.step3.t": "تابع مباشرة",
+  "qr.step3.d": "خريطة، ETA، الوجهة، السعر",
+  "qr.step4.t": "اركب!",
+  "qr.step4.d": "معلومات السائق بلمسة واحدة",
+  "qr.feat1.t": "موقع GPS",
+  "qr.feat1.d": "تتبع فوري مباشر",
+  "qr.feat2.t": "وقت الوصول",
+  "qr.feat2.d": "دقة بالدقيقة",
+  "qr.feat3.t": "السعر التقديري",
+  "qr.feat3.d": "نطاق سعري شفاف",
+  "qr.feat4.t": "تواصل مباشر",
+  "qr.feat4.d": "06 73 07 23 22",
+  "qr.feat5.t": "رمز QR فريد",
+  "qr.feat5.d": "لكل عميل، لكل مسح",
+  "qr.cta": "📞 احجز — 06 73 07 23 22",
+  "rsim.title": "محاكي السعر",
+  "rsim.estimate": "الأجرة المقدّرة",
+  "rsim.day": "تعرفة النهار (7ص–7م) — 2,16 €/كم",
+  "rsim.night": "تعرفة الليل (7م–7ص) — 3,24 €/كم",
+  "rsim.partition": "{j}% نهار / {n}% ليل",
+  "rsim.pickup": "رسوم البدء: 2,83 €",
+  "rsim.loading": "⏳ جاري حساب المسار…",
+  "rsim.distance": "المسافة",
+  "rsim.duration": "المدة المقدرة",
+  "rsim.hint": "أدخل نقطة الانطلاق والوجهة للحساب التلقائي.",
+  "rsim.outbound": "ذهاب",
+  "rsim.return": "إياب",
+  "rsim.total": "الإجمالي التقديري",
+  "rsim.total_round": "الإجمالي التقديري (ذهاب وإياب)",
+  "rsim.mixed": "تعرفة مختلطة — رحلتك تمتد إلى التعرفة الليلية",
+  "rsim.fees": "* قد تطبق رسوم الحجز",
+  "rsim.indicative": "سعر إرشادي — العداد هو المرجع",
+
+  // Taxi availability badge & banner
+  "taxi.badge.available": "🚕 سيارة الأجرة متاحة",
+  "taxi.badge.busy": "🚕 سيارة الأجرة في رحلة",
+  "taxi.banner.busy.title": "سيارة الأجرة في رحلة حالياً",
+  "taxi.banner.busy.desc": "يمكنك الحجز على أي حال — سيتم معالجة طلبك فور انتهاء الرحلة الحالية.",
+  "taxi.banner.available.msg": "🚕 سيارة الأجرة متاحة — سيتم تأكيد الحجز بسرعة!",
+
+  // Home — منطقة العميل
+  "home.client.eyebrow": "منطقة العميل",
+  "home.client.title.before": "لوحة التحكم ",
+  "home.client.title.italic": "الشخصية",
+  "home.client.title.after": " الخاصة بك",
+  "home.client.desc":
+    "أنشئ حسابك في 30 ثانية للوصول إلى جميع رحلاتك، ومتابعة سائقك في الوقت الفعلي، والحجز بشكل أسرع في المرة القادمة. مجاني وبسيط وخاص.",
+  "home.client.li1.bold": "السجل الكامل",
+  "home.client.li1.rest": " لرحلاتك وإيصالاتك وتعريفاتك.",
+  "home.client.li2.bold": "الإشعارات",
+  "home.client.li2.rest": " فور انطلاق السائق أو وصوله.",
+  "home.client.li3.bold": "دردشة مباشرة",
+  "home.client.li3.rest": " مع سائقك خلال الرحلة.",
+  "home.client.cta_login": "الوصول إلى حسابي",
+  "home.client.cta_register": "إنشاء حساب",
+  "home.client.mock.hello": "مرحباً كاميل",
+  "home.client.mock.connected": "متصلة الآن",
+  "home.client.mock.status_done": "مكتملة",
+  "home.client.mock.status_confirmed": "مؤكدة",
+  "home.client.mock.ride1.time": "اليوم · 14:30",
+  "home.client.mock.ride1.route": "محطة سان جان → مطار ميريناك",
+  "home.client.mock.ride2.time": "غداً · 09:00",
+  "home.client.mock.ride2.route": "وسط بوردو → سان إميليون",
+
+  // مساحة العميل
+  client_login_title: "مساحتي الشخصية",
+  client_login_subtitle: "سجّل الدخول لمتابعة رحلاتك",
+  client_email: "البريد الإلكتروني",
+  client_password: "كلمة المرور",
+  client_login_btn: "تسجيل الدخول",
+  client_register_link: "المرة الأولى؟ أنشئ حساباً",
+  client_register_title: "أنشئ حسابك في 30 ثانية",
+  client_name_field: "الاسم الكامل",
+  client_phone_field: "رقم الهاتف",
+  client_register_btn: "إنشاء حسابي",
+  client_dashboard_hello: "مرحباً",
+  client_my_rides: "رحلاتي",
+  client_rebook_same: "احجز هذه الرحلة مجدداً",
+  client_rebook_other: "احجز رحلة أخرى",
+  client_track_ride: "تتبّع رحلتي",
+  client_modify_time: "تعديل الوقت",
+  client_modify_time_title: "وقت الالتقاء الجديد",
+  client_modify_time_confirm: "تأكيد",
+  client_chat_placeholder: "اكتب رسالة…",
+  client_chat_send: "إرسال",
+  client_chat_title: "محادثة مع السائق",
+  client_logout: "تسجيل الخروج",
+  client_no_rides: "لا توجد رحلات بعد.",
+  cd_back_home: "الرئيسية",
+  cd_eyebrow: "فضاء العميل",
+  cd_book_ride: "حجز سيارة أجرة",
+  cd_cancel_phone: "إلغاء عبر الهاتف",
+  cd_loading: "جارٍ التحميل…",
+  cd_book: "احجز",
+  cd_phone_cancel_requested: "تم طلب الإلغاء عبر الهاتف",
+  cd_price_estimated: "السعر التقديري",
+  cd_passengers: "الركاب",
+  cd_luggage: "الأمتعة",
+  cd_payment: "الدفع",
+  cd_ref: "مرجع",
+  cd_new_datetime: "تاريخ / وقت جديد",
+  cd_confirm: "تأكيد",
+  cd_cancel: "إلغاء",
+  cd_edit_time: "تعديل الوقت",
+  cd_track_ride: "تتبع رحلتي",
+  cd_chat: "دردشة",
+  cd_recommend: "احجز مجدداً",
+  cd_new_ride: "رحلة جديدة",
+  cd_request_sent: "تم إرسال الطلب",
+  cd_modal_title: "إلغاء عبر الهاتف",
+  cd_modal_desc_before: "ستتصل بالرقم",
+  cd_modal_desc_after: "لإلغاء هذه الرحلة. أكّد لتسجيل طلبك وإجراء المكالمة.",
+  cd_back: "رجوع",
+  cd_back_site: "Site",
+  cd_confirm_and_call: "تأكيد واتصال",
+  cd_status_pending: "قيد الانتظار",
+  cd_status_accepted: "مقبولة",
+  cd_status_en_route: "السائق في الطريق",
+  cd_status_arrived: "وصل السائق",
+  cd_status_completed: "منتهية",
+  cd_status_cancelled: "ملغاة",
+  cd_status_refused: "مرفوضة",
+  cd_book_same: "إعادة نفس الرحلة",
+  cd_toast_load_err: "تعذّر تحميل رحلاتك",
+  cd_toast_time_changed: "تم تعديل الوقت — تم إشعار السائق",
+  cd_toast_locked_edit: "لا يمكن تعديل هذه الرحلة بعد الآن",
+  cd_toast_edit_failed: "تعذّر التعديل",
+  cd_confirm_cancel: "تأكيد إلغاء هذه الرحلة؟",
+  cd_toast_cancelled: "تم إلغاء الرحلة",
+  cd_toast_locked_cancel: "لا يمكن إلغاء هذه الرحلة بعد الآن",
+  cd_toast_cancel_failed: "تعذّر الإلغاء",
+  cd_toast_phone_recorded: "تم تسجيل طلب الإلغاء عبر الهاتف",
+  cd_toast_phone_failed: "تعذّر التسجيل",
+  cd_msg_to_jose: "💬 رسالة إلى خوسيه",
+  cd_meta_title: "فضائي كعميل — Taxi City Bordeaux",
+  chat_status_typing: "يكتب…",
+  chat_status_online: "متصل",
+  chat_status_offline: "غير متصل",
+  chat_search: "بحث",
+  chat_export_csv: "تصدير CSV",
+  chat_close: "إغلاق",
+  chat_queued_prefix: "📡",
+  chat_queued_suffix: "رسائل في الانتظار — إرسال تلقائي عند العودة للاتصال.",
+  chat_search_placeholder: "ابحث عن كلمة مفتاحية…",
+  chat_from: "من",
+  chat_to: "إلى",
+  chat_reset: "إعادة تعيين",
+  chat_load_more_history: "تحميل المزيد من السجل",
+  chat_older_messages: "رسائل أقدم",
+  chat_no_messages: "لا توجد رسائل بعد. اكتب الأولى!",
+  chat_no_match: "لا توجد رسالة تطابق بحثك.",
+  chat_typing_aria: "الشخص الآخر يكتب",
+  chat_input_placeholder: "اكتب رسالة…",
+  chat_send: "إرسال",
+  chat_found_on_loaded: "موجودة من أصل",
+  chat_loaded: "محملة.",
+
+  // Page fin/$id
+  "fin.loading": "جارٍ تحميل الملخص…",
+  "fin.notfound": "الرحلة غير موجودة",
+  "fin.title": "!انتهت الرحلة",
+  "fin.subtitle": "شكراً لاختيارك Taxi City Bordeaux",
+  "fin.price_label": "السعر النهائي",
+  "fin.payment.cb": "💳 بطاقة بنكية",
+  "fin.payment.cash": "💵 نقداً",
+  "fin.stat.distance": "المسافة",
+  "fin.stat.duration": "المدة",
+  "fin.stat.trip": "الرحلة",
+  "fin.stat.trip_done": "منتهية",
+  "fin.route.from": "نقطة الانطلاق",
+  "fin.route.to": "الوجهة",
+  "fin.pdf.title": "إيصال الرحلة",
+  "fin.pdf.subtitle": "PDF يُنشأ فوراً على جهازك",
+  "fin.pdf.download": "⬇️ تحميل إيصال PDF",
+  "fin.pdf.loading": "⏳ جارٍ الإنشاء…",
+  "fin.pdf.success": "!✅ تم تحميل PDF",
+  "fin.pdf.error": "❌ خطأ في إنشاء PDF",
+  "fin.pdf.note": "مجاني · يُنشأ على جهازك · لا إرسال بيانات",
+  "fin.map.toggle": "مشاهدة المسار",
+  "fin.rating.title": "كيف كانت رحلتك؟",
+  "fin.rating.tap": "انقر على نجمة",
+  "fin.rating.comment": "تعليق؟ (اختياري)",
+  "fin.rating.submit": "إرسال تقييمي",
+  "fin.rating.sending": "جارٍ الإرسال…",
+  "fin.rating.thanks": "!شكراً على تقييمك",
+  "fin.rating.rated": "لقد قيّمت",
+  "fin.action.same": "نفس المسار",
+  "fin.action.new": "رحلة جديدة",
+  "fin.action.history": "📋 عرض كل رحلاتي",
+  "fin.star.bad": "سيئ",
+  "fin.star.ok": "مقبول",
+  "fin.star.good": "جيد",
+  "fin.star.great": "جيد جداً",
+  "fin.star.excellent": "!ممتاز",
+
+  // Page mes-courses
+  "mc.title": "رحلاتي",
+  "mc.count_sg": "رحلة",
+  "mc.count_pl": "رحلات",
+  "mc.stat.rides": "رحلات",
+  "mc.stat.spent": "أُنفق",
+  "mc.stat.km": "مقطوعة",
+  "mc.from": "نقطة الانطلاق",
+  "mc.to": "الوجهة",
+  "mc.action.same": "نفس المسار",
+  "mc.action.receipt": "إيصال PDF",
+  "mc.action.track": "تتبع",
+  "mc.action.new": "➕ رحلة جديدة",
+  "mc.map.unavailable": "الخريطة غير متاحة",
+  "mc.map.loading": "جارٍ تحميل الخريطة…",
+  "mc.status.completed": "منتهية",
+  "mc.status.accepted": "مقبولة",
+  "mc.status.pending": "قيد الانتظار",
+  "mc.status.refused": "مرفوضة",
+  "mc.status.en_route": "في الطريق",
+  "mc.status.arrived": "وصل",
+  "mc.status.cancelled": "ملغاة",
+  "mc.rebook.title": "🔁 نفس المسار",
+  "mc.rebook.subtitle": "اختر التاريخ والوقت",
+  "mc.rebook.from": "نقطة الانطلاق",
+  "mc.rebook.to": "الوجهة",
+  "mc.rebook.date": "التاريخ",
+  "mc.rebook.time": "الوقت",
+  "mc.rebook.btn": "🚕 احجز الآن",
+  "mc.rebook.loading": "جارٍ الحجز…",
+  "mc.rebook.success": "!تم تسجيل الحجز",
+  "mc.rebook.redirect": "إعادة توجيه للتتبع…",
+  "mc.gate.title": "إيجاد رحلاتي",
+  "mc.gate.subtitle": "أدخل بريدك الإلكتروني لعرض سجل رحلاتك",
+  "mc.gate.placeholder": "بريدك@الإلكتروني.com",
+  "mc.gate.btn": "عرض رحلاتي",
+  "mc.gate.loading": "جارٍ البحث…",
+  "mc.gate.err.invalid": "عنوان البريد الإلكتروني غير صالح",
+  "mc.gate.err.notfound": "لم يتم العثور على رحلات لهذا البريد الإلكتروني.",
+};
+
+const pt: Dict = {
+  // Common / nav / header
+  "nav.home": "Início",
+  "nav.services": "Serviços",
+  "nav.tarifs": "Tarifas",
+  "nav.about": "Sobre",
+  "nav.contact": "Contacto",
+  "nav.book": "Reservar",
+  "nav.book_long": "Reservar uma corrida",
+  "common.available_247": "Disponível 7d/7 — 24h/24",
+  "common.lang_label": "Idioma",
+
+  // Home — hero
+  "home.hero.badge": "Disponível 7d/7 — 24h/24",
+  "home.hero.title.before": "O seu táxi em",
+  "home.hero.title.city": "Bordéus",
+  "home.hero.title.after": ", pontual e confortável.",
+  "home.hero.subtitle":
+    "Deslocações profissionais ou pessoais, corridas imediatas ou reservadas: levamo-lo a qualquer parte da Gironde e da França, de dia e de noite, num veículo cuidado.",
+  "home.hero.need_taxi": "Preciso de um táxi…",
+  "home.hero.book_now": "Reservar uma corrida",
+  "home.hero.tag1": "Reserva rápida",
+  "home.hero.tag2": "Convencionado CPAM",
+  "home.hero.tag3": "Tarifas transparentes",
+
+  // Home — destinations
+  "home.dest.eyebrow": "Destinos",
+  "home.dest.title": "Para onde o levamos",
+  "home.dest.intro":
+    "Alguns trajetos que os nossos clientes reservam todos os dias — uma chegada tranquila é a nossa especialidade.",
+  "home.dest.gare.title": "Estação Bordeaux Saint-Jean",
+  "home.dest.gare.sub": "Receção a pedido à chegada do comboio.",
+  "home.dest.airport.title": "Aeroporto de Bordéus",
+  "home.dest.airport.sub": "Acompanhamento de voos em tempo real.",
+  "home.dest.vine.title": "Castelos e vinhas",
+  "home.dest.vine.sub": "Médoc, Saint-Émilion, Sauternes — dia inteiro.",
+  "home.dest.cta": "Reservar",
+
+  // Home — best sellers Bordeaux
+  "home.best.eyebrow": "Imperdíveis",
+  "home.best.title": "Os must-see de Bordéus",
+  "home.best.intro": "Os lugares que os nossos clientes adoram visitar — levamo-los com toda a tranquilidade.",
+  "home.best.miroir.title": "Espelho de Água",
+  "home.best.miroir.sub": "Place de la Bourse, o ícone de Bordéus.",
+  "home.best.cite.title": "Cidade do Vinho",
+  "home.best.cite.sub": "Uma viagem ao coração dos vinhedos.",
+  "home.best.emilion.title": "Saint-Émilion",
+  "home.best.emilion.sub": "Vila medieval e Grand Cru classé.",
+  "home.best.pilat.title": "Duna do Pilat",
+  "home.best.pilat.sub": "A duna mais alta da Europa.",
+
+  // Home — why us
+  "home.why.eyebrow": "Porquê nós",
+  "home.why.title": "Um serviço simples, humano e fiável.",
+  "home.why.desc":
+    "Taxi City Bordeaux é um motorista de proximidade, um veículo bem mantido e a vontade de fazer bem. Sem surpresas na fatura, sem esperas intermináveis — confirmamos, chegamos, deixamo-lo no destino.",
+  "home.why.years": "anos de experiência",
+  "home.why.f1.t": "Pontualidade garantida",
+  "home.why.f1.d": "Acompanhamento de voos e comboios, margem antiatraso.",
+  "home.why.f2.t": "Tarifas claras",
+  "home.why.f2.d": "Tarifas regulamentadas, pagamento em cartão e dinheiro.",
+  "home.why.f3.t": "Convencionado CPAM",
+  "home.why.f3.d": "Transporte de saúde com cobertura.",
+
+  // Home — services
+  "home.services.eyebrow": "Os nossos serviços",
+  "home.services.title": "Para todas as suas deslocações",
+  "home.services.see_all": "Ver todos os serviços",
+  "svc.airport.title": "Aeroporto de Bordéus",
+  "svc.airport.desc": "Transferes de e para o aeroporto, dia e noite.",
+  "svc.train.title": "Estação Saint-Jean",
+  "svc.train.desc": "Receção à chegada, atendimento personalizado.",
+  "svc.business.title": "Deslocações profissionais",
+  "svc.business.desc": "Discrição e pontualidade para as suas reuniões.",
+  "svc.wedding.title": "Assistência em avaria automóvel",
+  "svc.wedding.desc": "Telefone-nos em caso de avaria, vamos buscá-lo rapidamente.",
+  "svc.cpam.title": "Convencionado CPAM",
+  "svc.cpam.desc": "Voucher de transporte aceite, todas as distâncias.",
+  "svc.long.title": "Longas distâncias",
+  "svc.long.desc": "Trajetos de qualquer distância em França e na Europa.",
+
+  // Home — testimonials
+  "home.test.eyebrow": "Confiaram em nós",
+  "home.test.title": "O que dizem os nossos clientes",
+  "home.test.t1":
+    "Motorista muito pontual, carro impecável. Fui levada a Mérignac com toda a tranquilidade, recomendo.",
+  "home.test.t2":
+    "Reserva simples, preço anunciado respeitado. Perfeito para as minhas deslocações profissionais semanais.",
+  "home.test.t3":
+    "Recebidos na estação com os meus filhos, o motorista foi extremamente simpático. Vamos voltar a chamar.",
+
+  // Home — FAQ
+  "home.faq.eyebrow": "As suas questões",
+  "home.faq.title": "Respondemos com franqueza",
+  "home.faq.intro": "Algumas respostas às perguntas mais frequentes. Se não encontrar, basta um telefonema.",
+  "faq.q1": "Estão convencionados com a CPAM?",
+  "faq.a1":
+    "Sim, somos convencionados com a CPAM para transportes de saúde (consultas, diálises, hospitalizações…). Peça ao seu médico a prescrição médica de transporte e nós tratamos do resto. Mediante apresentação do voucher de transporte, cobertura direta pelo Seguro de Saúde. Terceiro pagador ou ALD — voucher de transporte para todas as distâncias.",
+  "faq.q2": "E se o meu voo se atrasar em Mérignac?",
+  "faq.a2":
+    "Acompanhamos o seu voo em tempo real. Se o avião chegar mais cedo ou com atraso, ajustamos a hora de recolha.",
+  "faq.q3": "Como cancelar ou alterar a minha reserva?",
+  "faq.a3":
+    "Basta uma chamada ou mensagem WhatsApp. O cancelamento é gratuito até 2 horas antes da corrida. Para alterações (hora, morada, passageiros), avise-nos o mais cedo possível — combinamos.",
+  "faq.q4": "Que meios de pagamento aceitam?",
+  "faq.a4":
+    "Cartão (sem contacto, Apple Pay, Google Pay), dinheiro e transferência bancária para contas profissionais. Recibo entregue no fim da corrida, fatura a pedido para notas de despesa.",
+  "faq.q5": "É preciso reservar com antecedência?",
+  "faq.a5":
+    "Não é obrigatório — também aceitamos corridas imediatas se estivermos disponíveis. Para um comboio de manhã cedo, um voo ou uma reunião importante, é mais seguro reservar na véspera.",
+  "faq.q6": "Quanta bagagem posso levar?",
+  "faq.a6":
+    "Uma berlina confortável transporta facilmente 3 a 4 malas e 4 passageiros. Para um grupo ou material volumoso, avise-nos na reserva e adaptamos o veículo.",
+
+  // Home — final CTA
+  // Home — como reservar
+  "home.how.eyebrow": "Como funciona",
+  "home.how.title": "Reservar é tão simples como um telefonema",
+  "home.how.intro":
+    "Sem filas, sem robôs. Apenas uma conversa direta com o seu motorista — confirmamos, chegamos, levamo-lo.",
+  "home.how.s1.t": "Preencha o formulário",
+  "home.how.s1.d": "Partida, destino, data, hora, passageiros — 2 minutos.",
+  "home.how.s2.t": "Confirmação instantânea",
+  "home.how.s2.d": "Receberá imediatamente um email e um SMS a confirmar a sua reserva.",
+  "home.how.s3.t": "O táxi aceita",
+  "home.how.s3.d": "O seu motorista valida a corrida e confirma o preço definitivo.",
+  "home.how.s4.t": "Acompanhe em tempo real",
+  "home.how.s4.d": "Posição GPS, hora estimada, nome do motorista e matrícula — tudo em direto.",
+  "home.how.s5.t": "Entre no carro",
+  "home.how.s5.d": "Entre no carro, tratamos do resto.",
+  "home.how.s6.t": "Pagamento",
+  "home.how.s6.d": "Cartão ou dinheiro — como preferir. Recibo no final.",
+  "sim.eyebrow": "Simulador de tarifa",
+  "sim.title": "Estime o preço da sua viagem",
+  "sim.intro":
+    "Introduza os endereços de partida e destino — a tarifa é calculada automaticamente com base na hora atual.",
+  "sim.pickup": "Bandeirada",
+  "sim.perkm": "Tarifa por km",
+  "sim.perkm_mixed": "Tarifa média ponderada",
+  "sim.estimate": "Tarifa estimada",
+  "sim.badge_mixed": "tarifa mista",
+  "sim.dist_label": "Distância estimada",
+  "sim.duration_label": "Duração estimada",
+  "sim.geocoding": "A localizar…",
+  "sim.addr_error": "Endereço não encontrado — tente ser mais preciso.",
+  "sim.addr_placeholder": "Endereço, cidade, local…",
+  "sim.from_label": "Endereço de partida",
+  "sim.to_label": "Endereço de destino",
+  "sim.dist_loading": "A calcular a distância…",
+  "sim.disclaimer":
+    "Estimativa indicativa baseada nas nossas tarifas oficiais. O preço real pode variar consoante o trajeto exato, o trânsito e eventuais suplementos.",
+  "sim.cta_book": "Reservar agora",
+  "sim.period_day": "☀️ Tarifa diurna (7h–19h) —",
+  "sim.period_night": "🌙 Tarifa noturna (19h–7h) —",
+  "sim.booking_fee_note": "* Podem ser aplicadas taxas de reserva",
+  "home.cta.title": "Pronto para reservar a sua corrida?",
+  "home.cta.desc": "Confirmação rápida, motorista profissional e preço transparente — telefone-nos ou reserve online.",
+  "home.cta.online": "Reservar online",
+
+  // Services page
+  "services.eyebrow": "Os nossos serviços",
+  "services.title": "Um serviço de táxi para cada necessidade",
+  "services.intro": "Em Bordéus, na Gironde e em toda a França — um único interlocutor, um serviço de alta qualidade.",
+  "services.cta": "Reservar",
+  "services.b1": "7d/7 – 24h/24",
+  "services.b2": "Até 4 passageiros",
+  "services.b3": "Motorista profissional",
+  "svcp.airport.title": "Transferes Aeroporto de Bordeaux",
+  "svcp.airport.desc": "Recolha pontual para os seus voos, acompanhamento em tempo real, receção a pedido.",
+  "svcp.airport.p1": "Receção a pedido",
+  "svcp.airport.p2": "Acompanhamento de voos",
+  "svcp.airport.p3": "Ida e volta possível",
+  "svcp.train.title": "Estação Saint-Jean e estações TGV",
+  "svcp.train.desc": "Transferes de e para a estação de Bordeaux Saint-Jean e todas as estações da região.",
+  "svcp.train.p1": "Receção a pedido",
+  "svcp.train.p2": "Recolha pontual",
+  "svcp.train.p3": "Disponível 24h/24",
+  "svcp.business.title": "Deslocações profissionais",
+  "svcp.business.desc": "Serviço discreto e premium para as suas reuniões, seminários e viagens de negócios.",
+  "svcp.business.p1": "Faturação a empresas",
+  "svcp.business.p2": "Wifi a bordo",
+  "svcp.business.p3": "Discrição garantida",
+  "svcp.wedding.title": "Assistência em avaria automóvel",
+  "svcp.wedding.desc": "Em caso de avaria, vamos buscá-lo rapidamente e levamo-lo ao destino.",
+  "svcp.wedding.p1": "Intervenção rápida",
+  "svcp.wedding.p2": "Toda a Gironde",
+  "svcp.wedding.p3": "Disponível 24h/24",
+  "svcp.cpam.title": "Transporte convencionado CPAM",
+  "svcp.cpam.desc":
+    "Transporte sentado profissionalizado coberto pelo Seguro de Saúde. Voucher de transporte para todas as distâncias.",
+  "svcp.cpam.p1": "Terceiro pagador / ALD",
+  "svcp.cpam.p2": "Voucher de transporte todas as distâncias",
+  "svcp.cpam.p3": "Hospitais e clínicas",
+  "svcp.long.title": "Longas distâncias",
+  "svcp.long.desc": "Trajetos de qualquer distância em França e na Europa.",
+  "svcp.long.p1": "Tarifas regulamentadas",
+  "svcp.long.p2": "Tarifa por quilómetro",
+  "svcp.long.p3": "Conforto longa duração",
+
+  // Tarifs page
+  "tarifs.eyebrow": "Tarifas",
+  "tarifs.title": "Preços transparentes",
+  "tarifs.intro": "Tarifas indicativas baseadas na regulamentação prefeitoral. O preço exato é confirmado na reserva.",
+  "tarifs.col.from": "Partida",
+  "tarifs.col.to": "Chegada",
+  "tarifs.col.day": "Tarifa diurna",
+  "tarifs.col.night": "Tarifa noturna / dom",
+  "tarifs.note": "Tarifa noturna aplicada das 19h às 7h, domingos e feriados.",
+  "tarifs.cpam.title": "🏥 Convencionado CPAM",
+  "tarifs.cpam.desc":
+    "Mediante apresentação do voucher de transporte, cobertura direta pelo Seguro de Saúde. Terceiro pagador ou ALD — voucher de transporte para todas as distâncias.",
+  "tarifs.event.title": "🚗 Assistência em avaria automóvel",
+  "tarifs.event.desc": "Em caso de avaria, vamos buscá-lo rapidamente e levamo-lo ao destino. Disponível 7d/7.",
+  "tarifs.cta": "Reservar",
+  "city.bdx_centre": "Centro de Bordéus",
+  "city.cenon": "Cenon / Floirac",
+  "city.merignac": "Mérignac",
+  "city.bdx": "Bordéus",
+  "city.airport": "Aeroporto Mérignac",
+  "city.gare": "Estação Saint-Jean",
+  "city.arcachon": "Arcachon",
+  "city.stemilion": "Saint-Émilion",
+
+  // About page
+  "about.eyebrow": "A nossa história",
+  "about.title": "Sobre Taxi City Bordeaux",
+  "about.p1.brand": "Taxi City Bordeaux",
+  "about.p1":
+    "é uma empresa de táxi independente em Bordéus. Procuramos oferecer um serviço à altura da elegância bordalesa: pontualidade, conforto e discrição.",
+  "about.p2":
+    "Quer seja um particular a caminho do aeroporto, um profissional em deslocação ou um paciente que precisa de transporte médico convencionado, adaptamos o nosso serviço à sua necessidade.",
+  "about.p3":
+    "O nosso veículo climatizado e cuidadosamente mantido, garante uma viagem agradável em todas as circunstâncias.",
+  "about.b1.t": "Motorista profissional",
+  "about.b1.d": "Cartão profissional de táxi, formação contínua, perfeito conhecimento de Bordéus e da Gironde.",
+  "about.b2.t": "Disponível 7d/7",
+  "about.b2.d": "De dia e de noite, fins de semana e feriados incluídos.",
+  "about.b3.t": "Bordéus e Gironde",
+  "about.b3.d": "Estação oficial em Bordéus. Toda a metrópole, aeroporto, estações e toda a França mediante reserva.",
+  "about.b4.t": "Convencionado CPAM",
+  "about.b4.d": "Transporte sentado profissionalizado coberto pelo Seguro de Saúde.",
+  "about.cta": "Reservar uma corrida",
+
+  // Contact page
+  "contact.eyebrow": "Contacto",
+  "contact.title": "Fale connosco",
+  "contact.intro": "Disponível 7d/7 — basta uma chamada, ou envie-nos uma mensagem.",
+  "contact.phone": "Telefone",
+  "contact.phone.sub": "Resposta imediata",
+  "contact.wa.title": "WhatsApp",
+  "contact.wa.line": "Falemos no WhatsApp",
+  "contact.wa.sub": "Ideal para enviar uma morada",
+  "contact.email": "Email",
+  "contact.email.sub": "Orçamentos e pedidos especiais",
+  "contact.zone.title": "Zona de intervenção",
+  "contact.zone.line1": "Bordéus e área metropolitana",
+  "contact.zone.line2": "Toda a Gironde (33)",
+  "contact.zone.sub": "Longas distâncias por toda a França mediante reserva.",
+  "contact.form.eyebrow": "Formulário",
+  "contact.form.title": "Envie-nos uma mensagem",
+  "contact.form.intro": "Para uma questão ou pedido especial — respondemos o mais rapidamente possível.",
+  "contact.form.name": "Nome completo *",
+  "contact.form.email": "Email *",
+  "contact.form.phone": "Telefone (opcional)",
+  "contact.form.subject": "Assunto (opcional)",
+  "contact.form.subject.ph": "Ex.: Orçamento Bordéus → Paris",
+  "contact.form.message": "Mensagem *",
+  "contact.form.message.ph": "Detalhe o seu pedido…",
+  "contact.form.send": "Enviar mensagem",
+  "contact.form.sending": "A enviar…",
+  "contact.form.error": "Ocorreu um erro. Por favor ligue diretamente para 06 73 07 23 22.",
+  "contact.form.success.title": "Mensagem enviada!",
+  "contact.form.success.desc": "Obrigado por nos contactar. Responderemos rapidamente por email.",
+  "contact.form.success.again": "Enviar outra mensagem",
+  "contact.form.note": "Para uma corrida, utilize antes o formulário de reserva.",
+  "contact.err.name": "Nome obrigatório",
+  "contact.err.email": "Email inválido",
+  "contact.err.message": "Mensagem demasiado curta (mín. 10 caracteres)",
+  "contact.err.phone": "Número inválido",
+
+  // Reservation page
+  "res.eyebrow": "Reserva online",
+  "res.title": "Reserve o seu táxi",
+  "res.intro": "Preencha o formulário — ligamos para confirmar.",
+  "res.f.name": "Nome completo *",
+  "res.f.phone": "Telefone *",
+  "res.f.email": "Email (opcional)",
+  "res.f.trip": "Tipo de trajeto *",
+  "res.f.trip.one": "Só ida",
+  "res.f.trip.round": "Ida e volta",
+  "res.f.pickup": "Data e hora de recolha *",
+  "res.f.return": "Data e hora de regresso *",
+  "res.f.from": "Morada de partida *",
+  "res.f.from.ph": "Ex.: 12 cours de l'Intendance, Bordéus",
+  "res.f.to": "Morada de chegada *",
+  "res.f.to.ph": "Ex.: Aeroporto Mérignac",
+  "res.f.passengers": "Passageiros",
+  "res.f.luggage": "Bagagens",
+  "res.f.kind": "Tipo de corrida",
+  "res.f.kind.standard": "Standard",
+  "res.f.kind.airport": "Aeroporto",
+  "res.f.kind.train": "Estação",
+  "res.f.kind.cpam": "Convencionado CPAM",
+  "res.f.kind.wedding": "Assistência avaria",
+  "res.f.kind.business": "Business",
+  "res.f.kind.long": "Longa distância",
+  "res.f.needs": "Necessidades específicas",
+  "res.f.needs.cpam": "CPAM / médico",
+  "res.f.needs.cpam.hint": "Transporte convencionado",
+  "res.f.needs.bags": "Ajuda com bagagem",
+  "res.f.needs.bags.hint": "Apoio na recolha",
+  "res.f.needs.child": "Cadeira para criança",
+  "res.f.needs.child.hint": "Indicar idade na mensagem",
+  "res.f.message": "Mensagem (opcional)",
+  "res.f.message.ph": "Número de voo, idade das crianças, observações…",
+  "res.send": "Enviar pedido",
+  "res.sending": "A enviar…",
+  "res.note": "Para uma corrida imediata, ligue diretamente para 06 73 07 23 22",
+  "res.err.global": "Erro no envio. Por favor ligue para 06 73 07 23 22.",
+  "res.err.phone": "Número de telefone inválido",
+  "res.err.name": "Nome obrigatório",
+  "res.err.pickup": "Data/hora obrigatória",
+  "res.err.future": "A data deve ser futura",
+  "res.err.from": "Morada de partida obrigatória",
+  "res.err.to": "Morada de chegada obrigatória",
+  "res.err.return": "Data de regresso posterior à de ida",
+
+  // Confirmation page
+  "conf.cancelled.title": "Reserva cancelada",
+  "conf.cancelled.desc": "Esta reserva foi cancelada com sucesso.",
+  "conf.ok.title": "Pedido registado!",
+  "conf.ok.desc": "Ligamos brevemente para confirmar a sua corrida.",
+  "conf.ref.label": "Nº de reserva",
+  "conf.ref.note": "A guardar para qualquer alteração ou cancelamento.",
+  "conf.summary": "Resumo",
+  "conf.row.pickup": "Recolha",
+  "conf.row.from": "Partida",
+  "conf.row.to": "Chegada",
+  "conf.row.phone": "Telefone",
+  "conf.passengers": "passageiro(s)",
+  "conf.luggage": "bagagem(s)",
+  "conf.wa": "Confirmar via WhatsApp",
+  "conf.modify.title": "Alterar ou cancelar",
+  "conf.modify.desc": "Para alterar o pedido, contacte-nos por telefone ou WhatsApp com o seu número de reserva.",
+  "conf.cancel": "Cancelar a minha reserva",
+  "conf.cancel.confirm": "Confirmar cancelamento",
+  "conf.cancel.keep": "Manter a minha reserva",
+  "conf.back": "← Voltar ao início",
+  "conf.notfound.title": "Reserva não encontrada",
+  "conf.notfound.desc": "O link parece inválido ou a reserva foi removida.",
+  "conf.notfound.cta": "Fazer nova reserva",
+
+  // WhatsApp float
+  "wa.float.send": "Enviar pedido",
+  "wa.float.label": "Reservar pelo WhatsApp",
+  "wa.aria.hint": "Abre uma conversa no WhatsApp num novo separador.",
+  "wa.aria.draftReady": "O seu pedido de reserva está pronto para ser enviado pelo WhatsApp.",
+  "wa.default": "Olá, gostaria de reservar um táxi. Pode confirmar a disponibilidade? Obrigado.",
+  "wa.btn.call": "Ligar",
+  "wa.btn.quote": "Reservar corrida",
+  "wa.btn.whatsapp": "WhatsApp",
+  "wa.aria.whatsapp": "Contactar pelo WhatsApp",
+  "wa.aria.nav": "Ações de contacto rápido",
+  // Tracking page
+  "suivi.title": "Acompanhamento do seu motorista",
+  "suivi.hello": "Olá",
+  "suivi.pickup_at": "recolha às",
+  "suivi.status": "Estado",
+  "suivi.online": "A caminho",
+  "suivi.offline": "Offline",
+  "suivi.eta": "Chegada estimada",
+  "suivi.distance": "Distância",
+  "suivi.last_update": "Última atualização",
+  "suivi.view_reservation": "Ver a minha reserva",
+  "suivi.notfound.title": "Reserva não encontrada",
+  "suivi.notfound.desc": "O link de acompanhamento é inválido ou expirou.",
+  "suivi.back_home": "Voltar ao início",
+  "conf.track": "Acompanhar o meu motorista em direto",
+
+  // FAQ Services
+  "faqx.title": "Perguntas frequentes",
+  "faqx.intro": "Tudo o que precisa de saber antes da sua corrida.",
+  "faqx.tracking.q": "Como funciona o acompanhamento em tempo real do meu voo ou comboio?",
+  "faqx.tracking.a":
+    "Assim que nos comunica o número do voo ou comboio, acompanhamo-lo automaticamente. Se a chegada for adiantada ou atrasada, ajustamos a hora de recolha — não tem de fazer nada, o motorista estará à sua espera à saída.",
+  "faqx.wait.q": "Quanto tempo espera o motorista após a aterragem?",
+  "faqx.wait.a":
+    "O motorista apresenta-se com base na hora real de aterragem (não a prevista) e contamos o tempo necessário para recolher a bagagem e passar a alfândega. Para além disso, o tempo de espera adicional é cobrado segundo a tarifa oficial regulamentada, com total transparência.",
+  "faqx.cpam.q": "Como funciona a cobertura CPAM / ALD?",
+  "faqx.cpam.a":
+    "Traga a prescrição médica de transporte entregue pelo seu médico. Com este voucher de transporte aplicamos o terceiro pagador: a corrida é faturada diretamente ao Seguro de Saúde francês. Em ALD (doença de longa duração), a cobertura é total e válida para todas as distâncias — incluindo trajetos longos para um centro especializado.",
+
+  "res.err.required": "Obrigatório",
+  "res.geo.btn": "A minha posição",
+  "res.geo.loading": "A localizar…",
+  "res.geo.err.denied": "Permissão negada — permita o acesso à localização nas definições.",
+  "res.geo.err.unavailable": "Posição indisponível. Introduza o endereço manualmente.",
+  "res.geo.err.timeout": "Tempo limite excedido. Tente novamente ou escreva o endereço.",
+  "res.geo.err.unsupported": "A geolocalização não é suportada pelo seu navegador.",
+  "res.err.slot_taken": "Este horário já está reservado. Escolha outro (±30 min).",
+  "res.loc.subtitle": "Resposta em 15 min · 7/7 · 24/24",
+  "res.loc.success_title": "O seu pedido foi enviado!",
+  "res.loc.success_desc": "Será contactado em 15 min. Um email de confirmação foi enviado para {email}.",
+  "res.loc.contact_section": "Os seus dados",
+  "res.loc.firstname": "Nome próprio",
+  "res.loc.lastname": "Apelido",
+  "res.loc.phone": "Telefone",
+  "res.loc.email": "Email",
+  "res.loc.ride_section": "A sua corrida",
+  "res.loc.depart_label": "Morada de partida",
+  "res.loc.dest_label": "Morada de destino",
+  "res.loc.oneway": "Só ida",
+  "res.loc.roundtrip": "Ida e volta",
+  "res.loc.date_label": "Data",
+  "res.loc.time_label": "Hora",
+  "res.loc.rate_section": "Tarifa",
+  "res.loc.day_rate": "Tarifa diurna",
+  "res.loc.night_rate": "Tarifa noturna",
+  "res.loc.auto_calc": "Calculado automaticamente",
+  "res.loc.day_full": "Dia (7h–19h) — 2,16 €/km",
+  "res.loc.night_full": "Noite (19h–7h) — 3,24 €/km",
+  "res.loc.payment_section": "Método de pagamento",
+  "res.loc.cash": "Dinheiro",
+  "res.loc.card": "Cartão",
+  "res.loc.mode_section": "Modo de reserva",
+  "res.loc.mode_form": "Formulário",
+  "res.loc.mode_email": "Email",
+  "res.loc.retry": "Tentar novamente",
+  "res.loc.send_email": "Enviar por email",
+  "res.loc.send_wa": "Enviar por WhatsApp",
+  "res.loc.send_sms": "Enviar por SMS",
+  "res.loc.passenger_sg": "passageiro",
+  "res.loc.passengers_pl": "passageiros",
+  "res.loc.luggage_sg": "bagagem",
+  "res.loc.luggage_pl": "bagagens",
+  "res.loc.trip": "Trajeto",
+  "res.loc.from": "Partida",
+  "res.loc.to": "Destino",
+  "res.loc.date": "Data",
+  "res.loc.pax": "Passageiros",
+  "res.loc.bags": "Bagagens",
+  "res.loc.rate": "Tarifa",
+  "res.loc.day": "Dia",
+  "res.loc.night": "Noite",
+  "res.loc.tbd": "A precisar",
+  "res.loc.client": "Cliente",
+  "res.loc.email_subject": "Reserva de táxi",
+  "res.wa.hello": "Olá, chamo-me",
+  "res.wa.hello_anon": "Olá",
+  "res.wa.body": "gostaria de reservar um táxi. Estão disponíveis?",
+  "res.loc.wa.hello": "Olá, chamo-me",
+  "res.loc.wa.hello_anon": "Olá",
+  "res.loc.wa.body": "gostaria de reservar um táxi. Estão disponíveis?",
+  "review.title": "Deixe a sua avaliação",
+  "review.intro": "O seu feedback ajuda-nos a melhorar e orienta futuros clientes.",
+  "review.rating": "Nota",
+  "review.name.placeholder": "O seu primeiro nome",
+  "review.text.placeholder": "Partilhe a sua experiência…",
+  "review.submit": "Publicar a minha avaliação",
+  "review.success": "Obrigado! A sua avaliação foi publicada.",
+  "review.error.fields": "Por favor indique uma nota, o seu nome e uma mensagem.",
+  "review.error.submit": "Não foi possível enviar a sua avaliação. Tente novamente.",
+
+  // TrackingQRSection
+  "qr.badge": "SEGUIMENTO EM TEMPO REAL",
+  "qr.title": "Link para acompanhar o seu táxi em tempo real",
+  "qr.subtitle":
+    "Um QR único gerado para cada cliente. Digitalize, abra o link no telemóvel e siga a chegada do táxi no mapa.",
+  "qr.banner.title": "Abra este link no seu telemóvel e digitalize o QR",
+  "qr.banner.desc": "Posição do motorista, ETA, preço estimado. Sem instalação necessária.",
+  "qr.timer": "Novo código em {count}s",
+  "qr.copy": "🔗 Copiar link",
+  "qr.copied": "✓ Link copiado!",
+  "qr.step1.t": "Reserve",
+  "qr.step1.d": "Formulário, email ou WhatsApp",
+  "qr.step2.t": "Digitalize o QR",
+  "qr.step2.d": "Link único gerado para si",
+  "qr.step3.t": "Siga em direto",
+  "qr.step3.d": "Mapa, ETA, destino, preço",
+  "qr.step4.t": "Entre no carro!",
+  "qr.step4.d": "Contacto do motorista num toque",
+  "qr.feat1.t": "Posição GPS",
+  "qr.feat1.d": "Seguimento em tempo real",
+  "qr.feat2.t": "Hora de chegada",
+  "qr.feat2.d": "Precisão ao minuto",
+  "qr.feat3.t": "Tarifa estimada",
+  "qr.feat3.d": "Intervalo de preço transparente",
+  "qr.feat4.t": "Contacto direto",
+  "qr.feat4.d": "06 73 07 23 22",
+  "qr.feat5.t": "QR único",
+  "qr.feat5.d": "Por cliente, por digitalização",
+  "qr.cta": "📞 Reservar — 06 73 07 23 22",
+  "rsim.title": "Simulador de preço",
+  "rsim.estimate": "Tarifa estimada",
+  "rsim.day": "Tarifa de dia (7h–19h) — 2,16 €/km",
+  "rsim.night": "Tarifa noturna (19h–7h) — 3,24 €/km",
+  "rsim.partition": "{j}% dia / {n}% noite",
+  "rsim.pickup": "Tomada de serviço: 2,83 €",
+  "rsim.loading": "⏳ A calcular o itinerário…",
+  "rsim.distance": "Distância",
+  "rsim.duration": "Duração estimada",
+  "rsim.hint": "Indique partida e destino para calcular automaticamente.",
+  "rsim.outbound": "Ida",
+  "rsim.return": "Volta",
+  "rsim.total": "TOTAL ESTIMADO",
+  "rsim.total_round": "TOTAL ESTIMADO (ida e volta)",
+  "rsim.mixed": "Tarifa mista — o trajeto entra na tarifa noturna",
+  "rsim.fees": "* Podem aplicar-se taxas de reserva",
+  "rsim.indicative": "Preço indicativo — o taxímetro prevalece",
+
+  // Taxi availability badge & banner
+  "taxi.badge.available": "🚕 Táxi disponível",
+  "taxi.badge.busy": "🚕 Táxi em corrida",
+  "taxi.banner.busy.title": "Táxi atualmente em corrida",
+  "taxi.banner.busy.desc": "Pode reservar na mesma — o seu pedido será tratado assim que o táxi estiver livre.",
+  "taxi.banner.available.msg": "Táxi disponível — reserva confirmada rapidamente!",
+
+  // Home — área cliente
+  "home.client.eyebrow": "Área cliente",
+  "home.client.title.before": "O seu ",
+  "home.client.title.italic": "painel pessoal",
+  "home.client.title.after": "",
+  "home.client.desc":
+    "Crie a sua conta em 30 segundos para aceder a todas as suas corridas, seguir o motorista em tempo real e reservar mais rapidamente da próxima vez. Gratuito, simples e privado.",
+  "home.client.li1.bold": "Histórico completo",
+  "home.client.li1.rest": " das suas corridas, recibos e tarifas.",
+  "home.client.li2.bold": "Notificações",
+  "home.client.li2.rest": " assim que o motorista estiver a caminho ou tiver chegado.",
+  "home.client.li3.bold": "Chat direto",
+  "home.client.li3.rest": " com o seu motorista durante a corrida.",
+  "home.client.cta_login": "Aceder à minha área",
+  "home.client.cta_register": "Criar uma conta",
+  "home.client.mock.hello": "Olá Camille",
+  "home.client.mock.connected": "Ligada agora mesmo",
+  "home.client.mock.status_done": "Concluída",
+  "home.client.mock.status_confirmed": "Confirmada",
+  "home.client.mock.ride1.time": "Hoje · 14:30",
+  "home.client.mock.ride1.route": "Estação Saint-Jean → Aeroporto Mérignac",
+  "home.client.mock.ride2.time": "Amanhã · 09:00",
+  "home.client.mock.ride2.route": "Centro de Bordéus → Saint-Émilion",
+
+  // Área cliente
+  client_login_title: "Minha Área Cliente",
+  client_login_subtitle: "Inicie sessão para acompanhar as suas corridas",
+  client_email: "Email",
+  client_password: "Palavra-passe",
+  client_login_btn: "Entrar",
+  client_register_link: "Primeira vez? Criar conta",
+  client_register_title: "Crie a sua conta em 30 segundos",
+  client_name_field: "Nome completo",
+  client_phone_field: "Telefone",
+  client_register_btn: "Criar a minha conta",
+  client_dashboard_hello: "Olá",
+  client_my_rides: "As minhas corridas",
+  client_rebook_same: "Reservar esta corrida de novo",
+  client_rebook_other: "Reservar outra corrida",
+  client_track_ride: "Acompanhar a corrida",
+  client_modify_time: "Alterar a hora",
+  client_modify_time_title: "Nova hora de recolha",
+  client_modify_time_confirm: "Confirmar",
+  client_chat_placeholder: "Escreva uma mensagem…",
+  client_chat_send: "Enviar",
+  client_chat_title: "Conversa com o motorista",
+  client_logout: "Terminar sessão",
+  client_no_rides: "Ainda sem corridas.",
+  cd_back_home: "Início",
+  cd_eyebrow: "Área do cliente",
+  cd_book_ride: "Reservar uma corrida",
+  cd_cancel_phone: "Cancelar por telefone",
+  cd_loading: "A carregar…",
+  cd_book: "Reservar",
+  cd_phone_cancel_requested: "Cancelamento por telefone solicitado",
+  cd_price_estimated: "Preço estimado",
+  cd_passengers: "Passageiros",
+  cd_luggage: "Bagagem",
+  cd_payment: "Pagamento",
+  cd_ref: "Ref.",
+  cd_new_datetime: "Nova data / hora",
+  cd_confirm: "Confirmar",
+  cd_cancel: "Cancelar",
+  cd_edit_time: "Editar a hora",
+  cd_track_ride: "Seguir a minha corrida",
+  cd_chat: "Chat",
+  cd_recommend: "Reservar de novo",
+  cd_new_ride: "Nova corrida",
+  cd_request_sent: "Pedido enviado",
+  cd_modal_title: "Cancelar por telefone",
+  cd_modal_desc_before: "Vai ligar para",
+  cd_modal_desc_after: "para cancelar esta corrida. Confirme para registar o seu pedido e efetuar a chamada.",
+  cd_back: "Voltar",
+  cd_back_site: "Site",
+  cd_confirm_and_call: "Confirmar e ligar",
+  cd_status_pending: "Pendente",
+  cd_status_accepted: "Aceite",
+  cd_status_en_route: "Motorista a caminho",
+  cd_status_arrived: "Motorista chegou",
+  cd_status_completed: "Concluída",
+  cd_status_cancelled: "Cancelada",
+  cd_status_refused: "Recusada",
+  cd_book_same: "Repetir a mesma corrida",
+  cd_toast_load_err: "Não foi possível carregar as suas corridas",
+  cd_toast_time_changed: "Hora alterada — motorista notificado",
+  cd_toast_locked_edit: "Esta corrida já não pode ser alterada",
+  cd_toast_edit_failed: "Alteração impossível",
+  cd_confirm_cancel: "Confirmar o cancelamento desta corrida?",
+  cd_toast_cancelled: "Corrida cancelada",
+  cd_toast_locked_cancel: "Esta corrida já não pode ser cancelada",
+  cd_toast_cancel_failed: "Cancelamento impossível",
+  cd_toast_phone_recorded: "Pedido de cancelamento telefónico registado",
+  cd_toast_phone_failed: "Registo impossível",
+  cd_msg_to_jose: "💬 Mensagem para o José",
+  cd_meta_title: "A minha área de cliente — Taxi City Bordeaux",
+  chat_status_typing: "A escrever…",
+  chat_status_online: "Online",
+  chat_status_offline: "Offline",
+  chat_search: "Pesquisar",
+  chat_export_csv: "Exportar em CSV",
+  chat_close: "Fechar",
+  chat_queued_prefix: "📡",
+  chat_queued_suffix: "mensagens em fila — envio automático ao voltar online.",
+  chat_search_placeholder: "Pesquisar uma palavra-chave…",
+  chat_from: "De",
+  chat_to: "Até",
+  chat_reset: "Repor",
+  chat_load_more_history: "carregar mais histórico",
+  chat_older_messages: "Mensagens mais antigas",
+  chat_no_messages: "Ainda sem mensagens. Escreva a primeira!",
+  chat_no_match: "Nenhuma mensagem corresponde à sua pesquisa.",
+  chat_typing_aria: "A outra pessoa está a escrever",
+  chat_input_placeholder: "Escrever uma mensagem…",
+  chat_send: "Enviar",
+  chat_found_on_loaded: "encontradas em",
+  chat_loaded: "carregadas.",
+
+  // Page fin/$id
+  "fin.loading": "A carregar o resumo…",
+  "fin.notfound": "Corrida não encontrada",
+  "fin.title": "Corrida concluída!",
+  "fin.subtitle": "Obrigado por viajar com o Taxi City Bordeaux",
+  "fin.price_label": "Preço final",
+  "fin.payment.cb": "💳 Cartão bancário",
+  "fin.payment.cash": "💵 Dinheiro",
+  "fin.stat.distance": "Distância",
+  "fin.stat.duration": "Duração",
+  "fin.stat.trip": "Percurso",
+  "fin.stat.trip_done": "Concluído",
+  "fin.route.from": "Partida",
+  "fin.route.to": "Chegada",
+  "fin.pdf.title": "Recibo da corrida",
+  "fin.pdf.subtitle": "PDF gerado instantaneamente no seu dispositivo",
+  "fin.pdf.download": "⬇️ Descarregar recibo PDF",
+  "fin.pdf.loading": "⏳ A gerar…",
+  "fin.pdf.success": "✅ PDF descarregado!",
+  "fin.pdf.error": "❌ Erro ao gerar o PDF",
+  "fin.pdf.note": "Gratuito · Gerado no seu dispositivo · Sem envio de dados",
+  "fin.map.toggle": "Ver itinerário",
+  "fin.rating.title": "Como correu a sua viagem?",
+  "fin.rating.tap": "Toque numa estrela",
+  "fin.rating.comment": "Um comentário? (opcional)",
+  "fin.rating.submit": "Enviar a minha avaliação",
+  "fin.rating.sending": "A enviar…",
+  "fin.rating.thanks": "Obrigado pela sua avaliação!",
+  "fin.rating.rated": "Avaliou",
+  "fin.action.same": "Mesmo percurso",
+  "fin.action.new": "Nova corrida",
+  "fin.action.history": "📋 Ver todas as minhas corridas",
+  "fin.star.bad": "Mau",
+  "fin.star.ok": "Razoável",
+  "fin.star.good": "Bom",
+  "fin.star.great": "Muito bom",
+  "fin.star.excellent": "Excelente!",
+
+  // Page mes-courses
+  "mc.title": "As minhas corridas",
+  "mc.count_sg": "viagem",
+  "mc.count_pl": "viagens",
+  "mc.stat.rides": "corridas",
+  "mc.stat.spent": "gastos",
+  "mc.stat.km": "percorridos",
+  "mc.from": "Partida",
+  "mc.to": "Chegada",
+  "mc.action.same": "Mesmo percurso",
+  "mc.action.receipt": "Recibo PDF",
+  "mc.action.track": "Acompanhar",
+  "mc.action.new": "➕ Nova corrida",
+  "mc.map.unavailable": "Mapa indisponível",
+  "mc.map.loading": "A carregar mapa…",
+  "mc.status.completed": "Concluída",
+  "mc.status.accepted": "Aceite",
+  "mc.status.pending": "Pendente",
+  "mc.status.refused": "Recusada",
+  "mc.status.en_route": "A caminho",
+  "mc.status.arrived": "Chegou",
+  "mc.status.cancelled": "Cancelada",
+  "mc.rebook.title": "🔁 Mesmo percurso",
+  "mc.rebook.subtitle": "Escolha a data e a hora",
+  "mc.rebook.from": "Partida",
+  "mc.rebook.to": "Destino",
+  "mc.rebook.date": "Data",
+  "mc.rebook.time": "Hora",
+  "mc.rebook.btn": "🚕 Reservar agora",
+  "mc.rebook.loading": "A reservar…",
+  "mc.rebook.success": "Reserva registada!",
+  "mc.rebook.redirect": "A redirecionar para o acompanhamento…",
+  "mc.gate.title": "Encontrar as minhas corridas",
+  "mc.gate.subtitle": "Introduza o seu email para ver o histórico das suas corridas",
+  "mc.gate.placeholder": "o.seu@email.pt",
+  "mc.gate.btn": "Ver as minhas corridas",
+  "mc.gate.loading": "A pesquisar…",
+  "mc.gate.err.invalid": "Endereço de email inválido",
+  "mc.gate.err.notfound": "Nenhuma corrida encontrada para este email.",
+};
+
+export const DICTS: Record<Lang, Dict> = { fr, en, es, pt, it, ar };
