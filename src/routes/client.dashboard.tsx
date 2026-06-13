@@ -13,6 +13,8 @@ import {
   Plus,
   X,
   Loader2,
+  ArrowLeft,
+  RotateCcw,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -282,30 +284,54 @@ function ClientDashboard() {
               {t("client_dashboard_hello")} {greeting}
             </h1>
           </div>
-          <button
-            onClick={logout}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-xs text-white/70 transition hover:bg-white/5"
-          >
-            <LogOut className="h-3.5 w-3.5" /> {t("client_logout")}
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-xs text-white/70 transition hover:bg-white/5"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" /> {t("cd_back")}
+            </Link>
+            <button
+              onClick={logout}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-xs text-white/70 transition hover:bg-white/5"
+            >
+              <LogOut className="h-3.5 w-3.5" /> {t("client_logout")}
+            </button>
+          </div>
         </div>
 
         {/* Actions */}
-        <div className="mb-6 grid gap-3 sm:grid-cols-2">
-          <Link
-            to="/reserver"
-            className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-semibold text-black transition active:scale-[0.98]"
-            style={{ background: "linear-gradient(135deg, #C9A84C 0%, #E8C96D 100%)" }}
-          >
-            <Plus className="h-4 w-4" /> {t("cd_book_ride")}
-          </Link>
-          <a
-            href="tel:0673072322"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-white/10"
-          >
-            <Phone className="h-4 w-4" /> {t("cd_cancel_phone")}
-          </a>
-        </div>
+        {(() => {
+          const lastRide = rows && rows.length > 0 ? rows[0] : null;
+          const sameRideUrl = lastRide
+            ? `/reserver?depart=${encodeURIComponent(lastRide.depart)}&destination=${encodeURIComponent(lastRide.destination || lastRide.arrivee || "")}`
+            : null;
+          return (
+            <div className={`mb-6 grid gap-3 ${sameRideUrl ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+              <Link
+                to="/reserver"
+                className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-semibold text-black transition active:scale-[0.98]"
+                style={{ background: "linear-gradient(135deg, #C9A84C 0%, #E8C96D 100%)" }}
+              >
+                <Plus className="h-4 w-4" /> {t("cd_book_ride")}
+              </Link>
+              {sameRideUrl && (
+                <a
+                  href={sameRideUrl}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#C9A84C]/40 bg-[#C9A84C]/10 px-5 py-3.5 text-sm font-semibold text-[#E8C96D] transition hover:bg-[#C9A84C]/20"
+                >
+                  <RotateCcw className="h-4 w-4" /> {t("cd_book_same")}
+                </a>
+              )}
+              <a
+                href="tel:0673072322"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-white/10"
+              >
+                <Phone className="h-4 w-4" /> {t("cd_cancel_phone")}
+              </a>
+            </div>
+          );
+        })()}
 
         {/* Liste */}
         <section>
