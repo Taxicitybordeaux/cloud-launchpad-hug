@@ -491,24 +491,42 @@ function FinPage() {
     if (!resa) return;
     const hasDistance = resa.distance_reelle_km != null || resa.distance_km != null;
     const hasDuree = resa.duree_reelle_min != null;
+    // eslint-disable-next-line no-console
+    console.info("[fin.$id] fallback check", {
+      hasDistance,
+      hasDuree,
+      distance_reelle_km: resa.distance_reelle_km,
+      distance_km: resa.distance_km,
+      duree_reelle_min: resa.duree_reelle_min,
+    });
     if (hasDistance && hasDuree) return;
 
     let mounted = true;
     (async () => {
       try {
         const [fromCoord, toCoord] = await Promise.all([geocode(resa.depart), geocode(resa.destination)]);
+        // eslint-disable-next-line no-console
+        console.info("[fin.$id] fallback geocode", { fromCoord, toCoord });
         if (!mounted || !fromCoord || !toCoord) return;
         // getRouteGeoCoords attend [lng, lat] ; geocode() renvoie [lat, lng]
         const result = await getRouteGeoCoords([fromCoord[1], fromCoord[0]], [toCoord[1], toCoord[0]]);
         if (!mounted || !result) return;
+        // eslint-disable-next-line no-console
+        console.info("[fin.$id] fallback OSRM result", result);
         if (!hasDistance && typeof result.distanceKm === "number" && result.distanceKm > 0) {
           setFallbackDistanceKm(Math.round(result.distanceKm * 10) / 10);
         }
-        if (!hasDuree && typeof result.durationSec === "number" && result.durationSec > 0) {
-          setFallbackDureeMin(Math.round(result.durationSec / 60));
+        if (!hasDuree) {
+          if (typeof result.durationSec === "number" && result.durationSec > 0) {
+            setFallbackDureeMin(Math.round(result.durationSec / 60));
+          } else if (typeof result.distanceKm === "number" && result.distanceKm > 0) {
+            // OSRM n'a pas renvoyé de durée exploitable : estimation à ~35 km/h moyen (ville/rocade)
+            setFallbackDureeMin(Math.round((result.distanceKm / 35) * 60));
+          }
         }
-      } catch {
-        // silencieux : on garde "—" en cas d'échec
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error("[fin.$id] fallback error", e);
       }
     })();
 
