@@ -5,6 +5,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useLang } from "@/hooks/useLang";
 
 export const Route = createFileRoute("/mes-courses")({
   head: () => ({ meta: [{ title: "Mes courses — Taxi City Bordeaux" }] }),
@@ -102,15 +103,18 @@ interface Course {
   created_at: string;
 }
 
-const STATUT_LABELS: Record<string, { label: string; color: string; bg: string }> = {
-  completed: { label: "Terminée", color: "#22c55e", bg: "rgba(34,197,94,0.12)" },
-  accepted: { label: "Acceptée", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
-  pending: { label: "En attente", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
-  refused: { label: "Refusée", color: "#ef4444", bg: "rgba(239,68,68,0.12)" },
-  en_route: { label: "En route", color: "#f5c842", bg: "rgba(245,200,66,0.12)" },
-  arrived: { label: "Arrivé", color: "#22c55e", bg: "rgba(34,197,94,0.12)" },
-  cancelled: { label: "Annulée", color: "#ef4444", bg: "rgba(239,68,68,0.12)" },
-};
+// STATUT_LABELS est maintenant dynamique via getStatutLabels(t) dans les composants
+function getStatutLabels(t: (k: string) => string): Record<string, { label: string; color: string; bg: string }> {
+  return {
+    completed: { label: t("mc.status.completed"), color: "#22c55e", bg: "rgba(34,197,94,0.12)" },
+    accepted: { label: t("mc.status.accepted"), color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
+    pending: { label: t("mc.status.pending"), color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+    refused: { label: t("mc.status.refused"), color: "#ef4444", bg: "rgba(239,68,68,0.12)" },
+    en_route: { label: t("mc.status.en_route"), color: "#f5c842", bg: "rgba(245,200,66,0.12)" },
+    arrived: { label: t("mc.status.arrived"), color: "#22c55e", bg: "rgba(34,197,94,0.12)" },
+    cancelled: { label: t("mc.status.cancelled"), color: "#ef4444", bg: "rgba(239,68,68,0.12)" },
+  };
+}
 
 function formatDate(dateStr: string, heureStr?: string): string {
   try {
@@ -132,6 +136,7 @@ function MapReplay({ depart, destination }: { depart: string; destination: strin
   const mapInst = useRef<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const { t } = useLang();
 
   useEffect(() => {
     let mounted = true;
@@ -209,7 +214,7 @@ function MapReplay({ depart, destination }: { depart: string; destination: strin
           fontSize: 13,
         }}
       >
-        Carte indisponible
+        {t("mc.map.unavailable")}
       </div>
     );
 
@@ -229,7 +234,7 @@ function MapReplay({ depart, destination }: { depart: string; destination: strin
             fontSize: 13,
           }}
         >
-          Chargement carte…
+          {t("mc.map.loading")}
         </div>
       )}
       <div ref={mapRef} style={{ height: 180 }} />
@@ -240,6 +245,8 @@ function MapReplay({ depart, destination }: { depart: string; destination: strin
 function CourseCard({ course, onRebook }: { course: Course; onRebook: (c: Course) => void }) {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
+  const { t } = useLang();
+  const STATUT_LABELS = getStatutLabels(t);
   const statut = STATUT_LABELS[course.status] ?? {
     label: course.status,
     color: "#94a3b8",
@@ -289,7 +296,7 @@ function CourseCard({ course, onRebook }: { course: Course; onRebook: (c: Course
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#f5c842" }} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 1 }}>Départ</div>
+            <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 1 }}>{t("mc.from")}</div>
             <div
               style={{
                 fontSize: 14,
@@ -303,7 +310,7 @@ function CourseCard({ course, onRebook }: { course: Course; onRebook: (c: Course
             >
               {course.depart}
             </div>
-            <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 1 }}>Arrivée</div>
+            <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 1 }}>{t("mc.to")}</div>
             <div
               style={{
                 fontSize: 14,
@@ -435,7 +442,7 @@ function CourseCard({ course, onRebook }: { course: Course; onRebook: (c: Course
               }}
             >
               <span style={{ fontSize: 20 }}>🔁</span>
-              Même trajet
+              {t("mc.action.same")}
             </button>
             {isTerminee ? (
               <button
@@ -456,7 +463,7 @@ function CourseCard({ course, onRebook }: { course: Course; onRebook: (c: Course
                 }}
               >
                 <span style={{ fontSize: 20 }}>📄</span>
-                Reçu PDF
+                {t("mc.action.receipt")}
               </button>
             ) : (
               <button
@@ -477,7 +484,7 @@ function CourseCard({ course, onRebook }: { course: Course; onRebook: (c: Course
                 }}
               >
                 <span style={{ fontSize: 20 }}>📍</span>
-                Suivre
+                {t("mc.action.track")}
               </button>
             )}
           </div>
@@ -493,6 +500,7 @@ function RebookModal({ course, onClose }: { course: Course; onClose: () => void 
   const [heure, setHeure] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const { t } = useLang();
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -566,19 +574,21 @@ function RebookModal({ course, onClose }: { course: Course; onClose: () => void 
         {done ? (
           <div style={{ textAlign: "center", padding: "20px 0" }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: "#22c55e" }}>Réservation enregistrée !</div>
-            <div style={{ fontSize: 13, color: "#64748b", marginTop: 6 }}>Redirection vers le suivi…</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "#22c55e" }}>{t("mc.rebook.success")}</div>
+            <div style={{ fontSize: 13, color: "#64748b", marginTop: 6 }}>{t("mc.rebook.redirect")}</div>
           </div>
         ) : (
           <>
-            <div style={{ fontSize: 17, fontWeight: 700, color: "#f5f5f5", marginBottom: 4 }}>🔁 Même trajet</div>
-            <div style={{ fontSize: 13, color: "#64748b", marginBottom: 20 }}>Choisissez la date et l'heure</div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: "#f5f5f5", marginBottom: 4 }}>
+              {t("mc.rebook.title")}
+            </div>
+            <div style={{ fontSize: 13, color: "#64748b", marginBottom: 20 }}>{t("mc.rebook.subtitle")}</div>
 
             {/* Trajet résumé */}
             <div
               style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "12px 16px", marginBottom: 20 }}
             >
-              <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 4 }}>Départ</div>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 4 }}>{t("mc.rebook.from")}</div>
               <div
                 style={{
                   fontSize: 14,
@@ -592,7 +602,7 @@ function RebookModal({ course, onClose }: { course: Course; onClose: () => void 
               >
                 {course.depart}
               </div>
-              <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 4 }}>Destination</div>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 4 }}>{t("mc.rebook.to")}</div>
               <div
                 style={{
                   fontSize: 14,
@@ -609,7 +619,9 @@ function RebookModal({ course, onClose }: { course: Course; onClose: () => void 
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
               <div>
-                <label style={{ display: "block", fontSize: 12, color: "#94a3b8", marginBottom: 6 }}>Date</label>
+                <label style={{ display: "block", fontSize: 12, color: "#94a3b8", marginBottom: 6 }}>
+                  {t("mc.rebook.date")}
+                </label>
                 <input
                   type="date"
                   value={date}
@@ -630,7 +642,9 @@ function RebookModal({ course, onClose }: { course: Course; onClose: () => void 
                 />
               </div>
               <div>
-                <label style={{ display: "block", fontSize: 12, color: "#94a3b8", marginBottom: 6 }}>Heure</label>
+                <label style={{ display: "block", fontSize: 12, color: "#94a3b8", marginBottom: 6 }}>
+                  {t("mc.rebook.time")}
+                </label>
                 <input
                   type="time"
                   value={heure}
@@ -667,7 +681,7 @@ function RebookModal({ course, onClose }: { course: Course; onClose: () => void 
                 fontFamily: "'DM Sans',sans-serif",
               }}
             >
-              {loading ? "Réservation…" : "🚕 Réserver maintenant"}
+              {loading ? t("mc.rebook.loading") : t("mc.rebook.btn")}
             </button>
           </>
         )}
@@ -681,10 +695,11 @@ function EmailGate({ onFound }: { onFound: (courses: Course[]) => void }) {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
+  const { t } = useLang();
 
   const search = async () => {
     if (!email.includes("@")) {
-      setErr("Adresse email invalide");
+      setErr(t("mc.gate.err.invalid"));
       return;
     }
     setLoading(true);
@@ -697,7 +712,7 @@ function EmailGate({ onFound }: { onFound: (courses: Course[]) => void }) {
       .limit(50);
     setLoading(false);
     if (!data || data.length === 0) {
-      setErr("Aucune course trouvée pour cet email.");
+      setErr(t("mc.gate.err.notfound"));
       return;
     }
     onFound(data as Course[]);
@@ -715,11 +730,9 @@ function EmailGate({ onFound }: { onFound: (courses: Course[]) => void }) {
           fontFamily: "'DM Sans',sans-serif",
         }}
       >
-        Retrouver mes courses
+        {t("mc.gate.title")}
       </div>
-      <div style={{ fontSize: 14, color: "#64748b", textAlign: "center" }}>
-        Entrez votre email pour voir l'historique de vos courses
-      </div>
+      <div style={{ fontSize: 14, color: "#64748b", textAlign: "center" }}>{t("mc.gate.subtitle")}</div>
 
       <div style={{ width: "100%", maxWidth: 380 }}>
         <input
@@ -727,7 +740,7 @@ function EmailGate({ onFound }: { onFound: (courses: Course[]) => void }) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && search()}
-          placeholder="votre@email.fr"
+          placeholder={t("mc.gate.placeholder")}
           style={{
             width: "100%",
             padding: "14px 16px",
@@ -757,7 +770,7 @@ function EmailGate({ onFound }: { onFound: (courses: Course[]) => void }) {
             cursor: "pointer",
           }}
         >
-          {loading ? "Recherche…" : "Voir mes courses"}
+          {loading ? t("mc.gate.loading") : t("mc.gate.btn")}
         </button>
       </div>
     </div>
@@ -771,6 +784,7 @@ function MesCourses() {
   const [loading, setLoading] = useState(true);
   const [showGate, setShowGate] = useState(false);
   const [rebookTarget, setRebookTarget] = useState<Course | null>(null);
+  const { t } = useLang();
 
   useEffect(() => {
     const load = async () => {
@@ -858,10 +872,10 @@ function MesCourses() {
           ←
         </button>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#f5f5f5" }}>Mes courses</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#f5f5f5" }}>{t("mc.title")}</div>
           {!showGate && courses.length > 0 && (
             <div style={{ fontSize: 12, color: "#64748b" }}>
-              {courses.length} trajet{courses.length > 1 ? "s" : ""}
+              {courses.length} {courses.length > 1 ? t("mc.count_pl") : t("mc.count_sg")}
             </div>
           )}
         </div>
@@ -909,9 +923,9 @@ function MesCourses() {
               }}
             >
               {[
-                { icon: "🚕", val: stats.terminees, label: "courses" },
-                { icon: "💶", val: `${stats.depenses.toFixed(0)} €`, label: "dépensés" },
-                { icon: "📍", val: `${stats.km.toFixed(0)} km`, label: "parcourus" },
+                { icon: "🚕", val: stats.terminees, label: t("mc.stat.rides") },
+                { icon: "💶", val: `${stats.depenses.toFixed(0)} €`, label: t("mc.stat.spent") },
+                { icon: "📍", val: `${stats.km.toFixed(0)} km`, label: t("mc.stat.km") },
               ].map(({ icon, val, label }) => (
                 <div
                   key={label}
@@ -958,7 +972,7 @@ function MesCourses() {
               gap: 8,
             }}
           >
-            ➕ Nouvelle course
+            {t("mc.action.new")}
           </button>
         </div>
       )}
