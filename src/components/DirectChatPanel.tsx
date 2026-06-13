@@ -517,12 +517,10 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
           </div>
           {filterActive && (
             <div className="text-[10px] text-white/50">
-              {visibleMessages.length} message{visibleMessages.length > 1 ? "s" : ""} trouvé
-              {visibleMessages.length > 1 ? "s" : ""} sur {messages.length} chargé
-              {messages.length > 1 ? "s" : ""}.{" "}
+              {visibleMessages.length} {t("chat_found_on_loaded")} {messages.length} {t("chat_loaded")}{" "}
               {hasMore && (
                 <button type="button" onClick={loadOlder} className="underline hover:text-white/80">
-                  charger plus d'historique
+                  {t("chat_load_more_history")}
                 </button>
               )}
             </div>
