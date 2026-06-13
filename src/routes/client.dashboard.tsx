@@ -198,7 +198,7 @@ function ClientDashboard() {
 
   async function onCancel(id: string) {
     if (!session) return;
-    if (!confirm("Confirmer l'annulation de cette course ?")) return;
+    if (!confirm(t("cd_confirm_cancel"))) return;
     setBusy(id);
     try {
       await cancelClientReservation({
@@ -209,10 +209,10 @@ function ClientDashboard() {
           reservation_id: id,
         },
       });
-      toast.success("Course annulée");
+      toast.success(t("cd_toast_cancelled"));
       refresh();
     } catch (e: any) {
-      toast.error(e?.message === "STATUS_LOCKED" ? "Cette course ne peut plus être annulée" : "Annulation impossible");
+      toast.error(e?.message === "STATUS_LOCKED" ? t("cd_toast_locked_cancel") : t("cd_toast_cancel_failed"));
     } finally {
       setBusy(null);
     }
