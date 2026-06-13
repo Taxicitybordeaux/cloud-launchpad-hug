@@ -10,7 +10,6 @@ import {
 } from "@/lib/chat.functions";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
-
 type Props = {
   accountId: string;
   role: "client" | "chauffeur";
@@ -113,7 +112,6 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
     }
   }, [accountId, messages, hasMore, loadingMore]);
 
-
   // ── Realtime channel: presence + typing broadcast only ──
   // postgres_changes on reservation_messages is locked to admins by RLS,
   // so non-admins poll via listReservationMessages below. We keep the
@@ -198,7 +196,6 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
       clearInterval(id);
     };
   }, [accountId, peerRole, markRead]);
-
 
   // ── Scroll handling: stick-to-bottom + restore on prepend ──
   useEffect(() => {
@@ -329,7 +326,6 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
       setMessages((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]));
       channelRef.current?.send({ type: "broadcast", event: "new_message", payload: msg });
       setInput("");
-
     } catch (e) {
       console.error("[chat] send failed, queuing for retry", e);
       const q = [...readQueue(), { tempId: crypto.randomUUID(), content, at: Date.now() }];
@@ -352,8 +348,7 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
   // Filtrage local (sur l'historique chargé : pages courantes) — mot-clé +
   // plage de dates. Si l'utilisateur veut filtrer plus ancien que ce qui est
   // chargé, il scrolle vers le haut (loadOlder) et le filtre s'applique.
-  const filterActive =
-    searchKw.trim().length > 0 || searchFrom.length > 0 || searchTo.length > 0;
+  const filterActive = searchKw.trim().length > 0 || searchFrom.length > 0 || searchTo.length > 0;
   const fromTs = searchFrom ? new Date(searchFrom + "T00:00:00").getTime() : null;
   const toTs = searchTo ? new Date(searchTo + "T23:59:59").getTime() : null;
   const kwLower = searchKw.trim().toLowerCase();
@@ -395,9 +390,7 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `tchat-${accountId.slice(0, 8)}-${new Date()
-      .toISOString()
-      .slice(0, 10)}.csv`;
+    a.download = `tchat-${accountId.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -405,271 +398,236 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[200] flex items-end justify-center sm:items-center sm:p-6"
-      style={{ background: "rgba(0,0,0,0.6)" }}
-      onClick={() => onClose?.()}
-    >
+    <div className="flex h-full w-full flex-col overflow-hidden" style={{ background: "#0f172a" }}>
+      {/* Header */}
       <div
-        onClick={(e) => e.stopPropagation()}
-        className="flex h-[88vh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border-t border-white/10 shadow-2xl sm:h-[680px] sm:rounded-2xl sm:border"
-        style={{ background: "#0f172a" }}
+        className="flex items-center justify-between border-b border-white/10 px-4 py-3"
+        style={{
+          background: "linear-gradient(180deg, rgba(201,168,76,0.12) 0%, transparent 100%)",
+        }}
       >
-        {/* Header */}
-        <div
-          className="flex items-center justify-between border-b border-white/10 px-4 py-3"
-          style={{
-            background:
-              "linear-gradient(180deg, rgba(201,168,76,0.12) 0%, transparent 100%)",
-          }}
-        >
-          <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-white">{title}</div>
-            <div className={`flex items-center gap-1.5 text-[11px] ${statusColor}`}>
-              <span className={`inline-block h-1.5 w-1.5 rounded-full ${dotColor}`} />{" "}
-              {statusLabel}
-            </div>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-white">{title}</div>
+          <div className={`flex items-center gap-1.5 text-[11px] ${statusColor}`}>
+            <span className={`inline-block h-1.5 w-1.5 rounded-full ${dotColor}`} /> {statusLabel}
           </div>
-          <div className="flex items-center gap-1">
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setShowSearch((v) => !v)}
+            className={`rounded-full p-1.5 transition hover:bg-white/10 ${
+              showSearch || filterActive ? "text-[#E8C96D]" : "text-white/60 hover:text-white"
+            }`}
+            aria-label="Rechercher"
+            aria-pressed={showSearch}
+          >
+            <Search className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={exportCsv}
+            disabled={visibleMessages.length === 0}
+            className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white disabled:opacity-40"
+            aria-label="Exporter la conversation en CSV"
+            title="Exporter en CSV"
+          >
+            <Download className="h-4 w-4" />
+          </button>
+          {onClose && (
             <button
               type="button"
-              onClick={() => setShowSearch((v) => !v)}
-              className={`rounded-full p-1.5 transition hover:bg-white/10 ${
-                showSearch || filterActive ? "text-[#E8C96D]" : "text-white/60 hover:text-white"
-              }`}
-              aria-label="Rechercher"
-              aria-pressed={showSearch}
-            >
-              <Search className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={exportCsv}
-              disabled={visibleMessages.length === 0}
-              className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white disabled:opacity-40"
-              aria-label="Exporter la conversation en CSV"
-              title="Exporter en CSV"
-            >
-              <Download className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => onClose?.()}
+              onClick={() => onClose()}
               className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white"
               aria-label="Fermer"
             >
               <X className="h-4 w-4" />
             </button>
-          </div>
+          )}
         </div>
+      </div>
 
-        {queued.length > 0 && (
-          <div className="border-b border-amber-500/20 bg-amber-500/10 px-4 py-2 text-[11px] text-amber-300">
-            📡 {queued.length} message{queued.length > 1 ? "s" : ""} en attente — envoi automatique au retour en ligne.
+      {queued.length > 0 && (
+        <div className="border-b border-amber-500/20 bg-amber-500/10 px-4 py-2 text-[11px] text-amber-300">
+          📡 {queued.length} message{queued.length > 1 ? "s" : ""} en attente — envoi automatique au retour en ligne.
+        </div>
+      )}
+
+      {showSearch && (
+        <div className="space-y-2 border-b border-white/10 bg-black/30 px-3 py-2.5">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/40" />
+            <input
+              type="search"
+              value={searchKw}
+              onChange={(e) => setSearchKw(e.target.value)}
+              placeholder="Rechercher un mot-clé…"
+              className="w-full rounded-lg border border-white/10 bg-white/5 py-1.5 pl-8 pr-2 text-xs text-white placeholder-white/40 outline-none focus:border-[#E8C96D]"
+            />
           </div>
-        )}
-
-        {showSearch && (
-          <div className="space-y-2 border-b border-white/10 bg-black/30 px-3 py-2.5">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/40" />
+          <div className="flex items-center gap-1.5 text-[11px] text-white/60">
+            <label className="flex-1">
+              <span className="mb-0.5 block text-[10px] uppercase tracking-wider text-white/40">Du</span>
               <input
-                type="search"
-                value={searchKw}
-                onChange={(e) => setSearchKw(e.target.value)}
-                placeholder="Rechercher un mot-clé…"
-                className="w-full rounded-lg border border-white/10 bg-white/5 py-1.5 pl-8 pr-2 text-xs text-white placeholder-white/40 outline-none focus:border-[#E8C96D]"
+                type="date"
+                value={searchFrom}
+                onChange={(e) => setSearchFrom(e.target.value)}
+                className="w-full rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-white outline-none focus:border-[#E8C96D]"
               />
-            </div>
-            <div className="flex items-center gap-1.5 text-[11px] text-white/60">
-              <label className="flex-1">
-                <span className="mb-0.5 block text-[10px] uppercase tracking-wider text-white/40">Du</span>
-                <input
-                  type="date"
-                  value={searchFrom}
-                  onChange={(e) => setSearchFrom(e.target.value)}
-                  className="w-full rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-white outline-none focus:border-[#E8C96D]"
-                />
-              </label>
-              <label className="flex-1">
-                <span className="mb-0.5 block text-[10px] uppercase tracking-wider text-white/40">Au</span>
-                <input
-                  type="date"
-                  value={searchTo}
-                  onChange={(e) => setSearchTo(e.target.value)}
-                  className="w-full rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-white outline-none focus:border-[#E8C96D]"
-                />
-              </label>
-              {filterActive && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchKw("");
-                    setSearchFrom("");
-                    setSearchTo("");
-                  }}
-                  className="self-end rounded-md border border-white/10 px-2 py-1 text-[10px] text-white/60 transition hover:bg-white/10 hover:text-white"
-                >
-                  Réinitialiser
+            </label>
+            <label className="flex-1">
+              <span className="mb-0.5 block text-[10px] uppercase tracking-wider text-white/40">Au</span>
+              <input
+                type="date"
+                value={searchTo}
+                onChange={(e) => setSearchTo(e.target.value)}
+                className="w-full rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-white outline-none focus:border-[#E8C96D]"
+              />
+            </label>
+            {filterActive && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchKw("");
+                  setSearchFrom("");
+                  setSearchTo("");
+                }}
+                className="self-end rounded-md border border-white/10 px-2 py-1 text-[10px] text-white/60 transition hover:bg-white/10 hover:text-white"
+              >
+                Réinitialiser
+              </button>
+            )}
+          </div>
+          {filterActive && (
+            <div className="text-[10px] text-white/50">
+              {visibleMessages.length} message{visibleMessages.length > 1 ? "s" : ""} trouvé
+              {visibleMessages.length > 1 ? "s" : ""} sur {messages.length} chargé
+              {messages.length > 1 ? "s" : ""}.{" "}
+              {hasMore && (
+                <button type="button" onClick={loadOlder} className="underline hover:text-white/80">
+                  charger plus d'historique
                 </button>
               )}
             </div>
-            {filterActive && (
-              <div className="text-[10px] text-white/50">
-                {visibleMessages.length} message{visibleMessages.length > 1 ? "s" : ""} trouvé
-                {visibleMessages.length > 1 ? "s" : ""} sur {messages.length} chargé
-                {messages.length > 1 ? "s" : ""}.{" "}
-                {hasMore && (
-                  <button
-                    type="button"
-                    onClick={loadOlder}
-                    className="underline hover:text-white/80"
-                  >
-                    charger plus d'historique
-                  </button>
-                )}
-              </div>
-            )}
+          )}
+        </div>
+      )}
+
+      {/* Messages */}
+      <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto px-4 py-4">
+        {hasMore && messages.length > 0 && (
+          <div className="mb-2 flex justify-center">
+            <button
+              type="button"
+              onClick={loadOlder}
+              disabled={loadingMore}
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-white/60 hover:bg-white/10 disabled:opacity-50"
+            >
+              {loadingMore ? <Loader2 className="h-3 w-3 animate-spin" /> : <ChevronUp className="h-3 w-3" />}
+              Messages plus anciens
+            </button>
           </div>
         )}
 
-        {/* Messages */}
-        <div
-          ref={scrollRef}
-          onScroll={onScroll}
-          className="flex-1 overflow-y-auto px-4 py-4"
-        >
-          {hasMore && messages.length > 0 && (
-            <div className="mb-2 flex justify-center">
-              <button
-                type="button"
-                onClick={loadOlder}
-                disabled={loadingMore}
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-white/60 hover:bg-white/10 disabled:opacity-50"
-              >
-                {loadingMore ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <ChevronUp className="h-3 w-3" />
-                )}
-                Messages plus anciens
-              </button>
-            </div>
-          )}
+        {loading && (
+          <div className="flex justify-center pt-10 text-white/40">
+            <Loader2 className="h-4 w-4 animate-spin" />
+          </div>
+        )}
+        {!loading && messages.length === 0 && (
+          <div className="pt-10 text-center text-sm text-white/40">
+            Aucun message pour l'instant. Écrivez le premier !
+          </div>
+        )}
+        {!loading && messages.length > 0 && filterActive && visibleMessages.length === 0 && (
+          <div className="pt-10 text-center text-sm text-white/40">Aucun message ne correspond à votre recherche.</div>
+        )}
 
-          {loading && (
-            <div className="flex justify-center pt-10 text-white/40">
-              <Loader2 className="h-4 w-4 animate-spin" />
-            </div>
-          )}
-          {!loading && messages.length === 0 && (
-            <div className="pt-10 text-center text-sm text-white/40">
-              Aucun message pour l'instant. Écrivez le premier !
-            </div>
-          )}
-          {!loading && messages.length > 0 && filterActive && visibleMessages.length === 0 && (
-            <div className="pt-10 text-center text-sm text-white/40">
-              Aucun message ne correspond à votre recherche.
-            </div>
-          )}
-
-          <ul className="space-y-2.5">
-            {visibleMessages.map((m) => {
-              const mine = m.sender === role;
-              const isRead = mine
-                ? role === "client"
-                  ? m.read_by_chauffeur
-                  : m.read_by_client
-                : false;
-              return (
-                <li
-                  key={m.id}
-                  className={`flex ${mine ? "justify-end" : "justify-start"}`}
+        <ul className="space-y-2.5">
+          {visibleMessages.map((m) => {
+            const mine = m.sender === role;
+            const isRead = mine ? (role === "client" ? m.read_by_chauffeur : m.read_by_client) : false;
+            return (
+              <li key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={`max-w-[78%] rounded-2xl px-3.5 py-2 text-sm leading-snug ${
+                    mine ? "text-black" : "text-white"
+                  }`}
+                  style={
+                    mine
+                      ? { background: "linear-gradient(135deg, #C9A84C 0%, #E8C96D 100%)" }
+                      : { background: "rgba(255,255,255,0.08)" }
+                  }
                 >
+                  <div className="whitespace-pre-wrap break-words">{m.content}</div>
                   <div
-                    className={`max-w-[78%] rounded-2xl px-3.5 py-2 text-sm leading-snug ${
-                      mine ? "text-black" : "text-white"
+                    className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${
+                      mine ? "text-black/55" : "text-white/40"
                     }`}
-                    style={
-                      mine
-                        ? { background: "linear-gradient(135deg, #C9A84C 0%, #E8C96D 100%)" }
-                        : { background: "rgba(255,255,255,0.08)" }
-                    }
                   >
-                    <div className="whitespace-pre-wrap break-words">{m.content}</div>
-                    <div
-                      className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${
-                        mine ? "text-black/55" : "text-white/40"
-                      }`}
-                    >
-                      <span>
-                        {new Date(m.created_at).toLocaleTimeString("fr-FR", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                      {mine &&
-                        (isRead ? (
-                          <CheckCheck className="h-3 w-3" />
-                        ) : (
-                          <Check className="h-3 w-3" />
-                        ))}
-                    </div>
+                    <span>
+                      {new Date(m.created_at).toLocaleTimeString("fr-FR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                    {mine && (isRead ? <CheckCheck className="h-3 w-3" /> : <Check className="h-3 w-3" />)}
                   </div>
-                </li>
-              );
-            })}
-          </ul>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
 
-          {peerTyping && (
-            <div className="mt-3 flex justify-start">
-              <div
-                className="flex items-center gap-1 rounded-2xl px-3 py-2"
-                style={{ background: "rgba(255,255,255,0.08)" }}
-                aria-label="L'autre personne est en train d'écrire"
-              >
-                <Dot delay="0ms" />
-                <Dot delay="150ms" />
-                <Dot delay="300ms" />
-              </div>
+        {peerTyping && (
+          <div className="mt-3 flex justify-start">
+            <div
+              className="flex items-center gap-1 rounded-2xl px-3 py-2"
+              style={{ background: "rgba(255,255,255,0.08)" }}
+              aria-label="L'autre personne est en train d'écrire"
+            >
+              <Dot delay="0ms" />
+              <Dot delay="150ms" />
+              <Dot delay="300ms" />
             </div>
-          )}
-        </div>
-
-        {/* Input */}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            send();
-          }}
-          className="flex items-end gap-2 border-t border-white/10 bg-black/30 px-3 py-3"
-        >
-          <textarea
-            value={input}
-            onChange={(e) => {
-              setInput(e.target.value);
-              if (e.target.value.trim().length > 0) emitTyping();
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send();
-              }
-            }}
-            placeholder="Écrire un message…"
-            rows={1}
-            className="max-h-32 flex-1 resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/40 outline-none focus:border-[#E8C96D]"
-          />
-          <button
-            type="submit"
-            disabled={sending || !input.trim()}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-black transition active:scale-95 disabled:opacity-50"
-            style={{ background: "linear-gradient(135deg, #C9A84C 0%, #E8C96D 100%)" }}
-            aria-label="Envoyer"
-          >
-            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </button>
-        </form>
+          </div>
+        )}
       </div>
+
+      {/* Input */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          send();
+        }}
+        className="flex items-end gap-2 border-t border-white/10 bg-black/30 px-3 py-3"
+      >
+        <textarea
+          value={input}
+          onChange={(e) => {
+            setInput(e.target.value);
+            if (e.target.value.trim().length > 0) emitTyping();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              send();
+            }
+          }}
+          placeholder="Écrire un message…"
+          rows={1}
+          className="max-h-32 flex-1 resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/40 outline-none focus:border-[#E8C96D]"
+        />
+        <button
+          type="submit"
+          disabled={sending || !input.trim()}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-black transition active:scale-95 disabled:opacity-50"
+          style={{ background: "linear-gradient(135deg, #C9A84C 0%, #E8C96D 100%)" }}
+          aria-label="Envoyer"
+        >
+          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+        </button>
+      </form>
     </div>
   );
 }
