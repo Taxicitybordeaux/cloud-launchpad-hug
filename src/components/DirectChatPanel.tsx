@@ -493,7 +493,7 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
               />
             </label>
             <label className="flex-1">
-              <span className="mb-0.5 block text-[10px] uppercase tracking-wider text-white/40">Au</span>
+              <span className="mb-0.5 block text-[10px] uppercase tracking-wider text-white/40">{t("chat_to")}</span>
               <input
                 type="date"
                 value={searchTo}
