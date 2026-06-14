@@ -1440,6 +1440,8 @@ const es: Dict = {
   "nav.contact": "Contacto",
   "nav.book": "Reservar",
   "nav.book_long": "Reservar un viaje",
+  "nav.account": "Mi cuenta",
+  "nav.account_long": "Mi área de cliente",
   "common.available_247": "Disponible 24/7",
   "common.lang_label": "Idioma",
 
