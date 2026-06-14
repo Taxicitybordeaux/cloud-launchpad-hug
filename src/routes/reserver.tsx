@@ -888,17 +888,15 @@ function ReservationPage() {
       let destination = "";
 
       // ── Stratégie 1 : "départ [X] destination [Y]" ou "de [X] à [Y]" ──
-      // Cherche un mot-clé de départ EN DÉBUT de phrase
-      const departPrefixMatch = raw.match(/^(?:de|depuis|du|d'|partir de|départ[:\s]?)\s+(.+)/i);
+      // Cherche un mot-clé de départ EN DÉBUT de phrase (accent optionnel)
+      const departPrefixMatch = raw.match(/^(?:de|depuis|du|d'|partir de|d[ée]part[:\s]?)\s+(.+)/i);
       const cleanedWithDepart = departPrefixMatch ? departPrefixMatch[1] : raw;
 
-      // Séparateurs destination
+      // Séparateurs destination (accent optionnel sur "destination" déjà ok)
       const destSepRegex =
-        /\s+(?:jusqu'?[àa]|jusque?|destination[:\s]?|direction|vers|puis|->|=>|à destination de)\s+/i;
+        /\s+(?:jusqu'?[àa]|jusque?|destination[:\s]?|direction|vers|puis|->|=>|à destination de|arriv[ée]e?[:\s]?)\s+/i;
 
       // Séparateurs départ (quand les deux mots-clés sont dans la phrase)
-      // Ex : "départ rue X destination rue Y" → on cherche d'abord "destination" comme séparateur
-      // Ex : "rue X départ destination rue Y" → cas bizarre, on ignore
       const destParts = cleanedWithDepart.split(destSepRegex);
 
       if (destParts.length >= 2) {
@@ -907,20 +905,24 @@ function ReservationPage() {
         destination = destParts.slice(1).join(" ").trim();
       } else {
         // ── Stratégie 2 : pas de séparateur destination → cherche "départ" au milieu
-        // Ex : "rue Victor Hugo départ, place de la Victoire destination"
         const midDepartMatch = raw.match(
-          /^(.+?)\s+(?:départ|depuis|de chez)\s+(.+?)(?:\s+(?:destination|vers|à|jusqu'?à)\s+(.+))?$/i,
+          /^(.+?)\s+(?:d[ée]part|depuis|de chez)\s+(.+?)(?:\s+(?:destination|vers|à|jusqu'?[àa])\s+(.+))?$/i,
         );
         if (midDepartMatch && midDepartMatch[3]) {
           depart = midDepartMatch[2].trim();
           destination = midDepartMatch[3].trim();
         } else {
-          // ── Stratégie 3 : fallback " à " simple
-          const aIdx = cleanedWithDepart.toLowerCase().lastIndexOf(" à ");
-          if (departPrefixMatch && aIdx > 0) {
-            // On avait un préfixe de départ ET un " à " → split propre
-            depart = cleanedWithDepart.slice(0, aIdx).trim();
-            destination = cleanedWithDepart.slice(aIdx + 3).trim();
+          // ── Stratégie 3 : fallback " à " / " vers " simple (sans préfixe)
+          const lower = raw.toLowerCase();
+          let sepIdx = -1;
+          let sepLen = 0;
+          for (const sep of [" vers ", " jusqu'à ", " jusqu'a ", " à ", " a "]) {
+            const i = lower.lastIndexOf(sep);
+            if (i > 0) { sepIdx = i; sepLen = sep.length; break; }
+          }
+          if (sepIdx > 0) {
+            depart = raw.slice(0, sepIdx).trim();
+            destination = raw.slice(sepIdx + sepLen).trim();
           } else {
             // Aucun séparateur trouvé → tout en destination (comportement original)
             destination = raw;
@@ -1149,91 +1151,23 @@ function ReservationPage() {
 
     const fetchOsrm = async () => {
       try {
-        // Appel direct OSRM public avec timeout de 6 s
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 6000);
-        const url =
-          `https://router.project-osrm.org/route/v1/driving/` +
-          `${fromCoord[1]},${fromCoord[0]};${toCoord[1]},${toCoord[0]}` +
-          `?overview=false`;
-        const res = await fetch(url, { signal: controller.signal });
-        clearTimeout(timer);
-        if (res.ok) {
-          const json = await res.json();
-          const route = json?.routes?.[0];
-          if (route) {
-            setOrsResult({
-              distanceKm: parseFloat((route.distance / 1000).toFixed(2)),
-              dureeS: Math.round(route.duration),
-            });
-            setCalcLoading(false);
-            return;
-          }
-        }
-      } catch {
-        // timeout ou erreur réseau → fallback
-      }
-
-      // Fallback : essai via Edge Function Supabase
-      try {
-        const controller2 = new AbortController();
-        const timer2 = setTimeout(() => controller2.abort(), 8000);
-        const res2 = await fetch(`${SUPABASE_URL}/functions/v1/osrm-route`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({
-            from_lng: fromCoord[1],
-            from_lat: fromCoord[0],
-            to_lng: toCoord[1],
-            to_lat: toCoord[0],
-            overview: "false",
-          }),
-          signal: controller2.signal,
-        });
-        clearTimeout(timer2);
-        if (res2.ok) {
-          const json2 = await res2.json();
-          if (json2?.distance && json2?.duration) {
-            setOrsResult({
-              distanceKm: parseFloat((json2.distance / 1000).toFixed(2)),
-              dureeS: Math.round(json2.duration),
-            });
-            setCalcLoading(false);
-            return;
-          }
+        const { getDistanceAndDurationKm } = await import("@/lib/osrm");
+        const r = await getDistanceAndDurationKm(
+          [fromCoord[1], fromCoord[0]],
+          [toCoord[1], toCoord[0]],
+        );
+        if (r && r.distanceKm > 0 && r.dureeS > 0) {
+          setOrsResult({
+            distanceKm: parseFloat(r.distanceKm.toFixed(2)),
+            dureeS: Math.round(r.dureeS),
+          });
+          setCalcLoading(false);
+          return;
         }
       } catch {
         // fallback vol d'oiseau
       }
 
-      // Fallback final : OSRM demo server (autre instance publique)
-      try {
-        const controller3 = new AbortController();
-        const timer3 = setTimeout(() => controller3.abort(), 8000);
-        const url3 =
-          `https://routing.openstreetmap.de/routed-car/route/v1/driving/` +
-          `${fromCoord[1]},${fromCoord[0]};${toCoord[1]},${toCoord[0]}` +
-          `?overview=false`;
-        const res3 = await fetch(url3, { signal: controller3.signal });
-        clearTimeout(timer3);
-        if (res3.ok) {
-          const json3 = await res3.json();
-          const route3 = json3?.routes?.[0];
-          if (route3) {
-            setOrsResult({
-              distanceKm: parseFloat((route3.distance / 1000).toFixed(2)),
-              dureeS: Math.round(route3.duration),
-            });
-            setCalcLoading(false);
-            return;
-          }
-        }
-      } catch {
-        // dernier fallback
-      }
 
       // Fallback GraphHopper retiré : la clé API ne peut pas être embarquée
       // côté client sans être abusée. OSRM (étapes précédentes) reste primaire.

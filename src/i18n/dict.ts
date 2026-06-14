@@ -25,6 +25,8 @@ const fr: Dict = {
   "nav.contact": "Contact",
   "nav.book": "Réserver",
   "nav.book_long": "Réserver une course",
+  "nav.account": "Mon espace",
+  "nav.account_long": "Mon espace client",
   "common.available_247": "Disponible 7j/7 — 24h/24",
   "common.lang_label": "Langue",
 
@@ -747,6 +749,8 @@ const en: Dict = {
   "nav.contact": "Contact",
   "nav.book": "Book",
   "nav.book_long": "Book a ride",
+  "nav.account": "My account",
+  "nav.account_long": "My client area",
   "common.available_247": "Available 24/7",
   "common.lang_label": "Language",
 
@@ -1436,6 +1440,8 @@ const es: Dict = {
   "nav.contact": "Contacto",
   "nav.book": "Reservar",
   "nav.book_long": "Reservar un viaje",
+  "nav.account": "Mi cuenta",
+  "nav.account_long": "Mi área de cliente",
   "common.available_247": "Disponible 24/7",
   "common.lang_label": "Idioma",
 
@@ -2130,6 +2136,8 @@ const it: Dict = {
   "nav.contact": "Contatti",
   "nav.book": "Prenota",
   "nav.book_long": "Prenota una corsa",
+  "nav.account": "Il mio spazio",
+  "nav.account_long": "La mia area cliente",
   "common.available_247": "Disponibile 24/7",
   "common.lang_label": "Lingua",
 
@@ -2828,6 +2836,8 @@ const ar: Dict = {
   "nav.contact": "اتصل بنا",
   "nav.book": "احجز",
   "nav.book_long": "احجز سيارة أجرة",
+  "nav.account": "حسابي",
+  "nav.account_long": "منطقة العميل",
   "common.available_247": "متاح 24/7",
   "common.lang_label": "اللغة",
 
@@ -3512,6 +3522,8 @@ const pt: Dict = {
   "nav.contact": "Contacto",
   "nav.book": "Reservar",
   "nav.book_long": "Reservar uma corrida",
+  "nav.account": "Minha conta",
+  "nav.account_long": "Minha área de cliente",
   "common.available_247": "Disponível 7d/7 — 24h/24",
   "common.lang_label": "Idioma",
 

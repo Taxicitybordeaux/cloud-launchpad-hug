@@ -70,7 +70,7 @@ export function SiteHeader() {
             to={espaceTarget}
             className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground/80 transition hover:border-primary hover:text-primary"
           >
-            <UserCircle2 className="h-4 w-4" /> Mon espace
+            <UserCircle2 className="h-4 w-4" /> {t("nav.account")}
           </Link>
           <a
             href={`tel:${PHONE}`}
@@ -130,7 +130,7 @@ export function SiteHeader() {
                 onClick={() => setOpen(false)}
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-3 text-base font-semibold"
               >
-                <UserCircle2 className="h-5 w-5 text-primary" /> Mon espace client
+                <UserCircle2 className="h-5 w-5 text-primary" /> {t("nav.account_long")}
               </Link>
               <a
                 href={`tel:${PHONE}`}
