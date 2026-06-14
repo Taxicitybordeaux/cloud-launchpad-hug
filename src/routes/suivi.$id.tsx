@@ -1683,27 +1683,11 @@ function SuiviPage() {
   }, [addLog]);
 
   const startSilentAudio = useCallback(() => {
-    if (silentAudioRef.current) return;
-    try {
-      const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const oscillator = ctx.createOscillator();
-      const gain = ctx.createGain();
-      gain.gain.value = 0.001;
-      oscillator.connect(gain);
-      gain.connect(ctx.destination);
-      oscillator.start();
-      silentAudioRef.current = { ctx, oscillator, gain };
-    } catch {}
+    // No-op: l'oscillateur produisait un son audible sur certains navigateurs.
   }, []);
 
   const stopSilentAudio = useCallback(() => {
-    try {
-      silentAudioRef.current?.oscillator?.stop?.();
-      silentAudioRef.current?.ctx?.close?.();
-    } catch {}
-    silentAudioRef.current = null;
+    // No-op
   }, []);
 
   const requestDriverWakeLock = useCallback(async () => {
