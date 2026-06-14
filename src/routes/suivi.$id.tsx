@@ -369,40 +369,22 @@ function ease(t: number) {
 }
 
 // ── Leaflet loader ────────────────────────────────────────────────────────────
+// La PWA ne doit pas dépendre d'un CDN externe pour afficher le tracé/les icônes.
+// On charge Leaflet depuis le bundle Vite, une seule fois, côté navigateur.
+let leafletLoadPromise: Promise<void> | null = null;
 function loadLeaflet(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if ((window as any).L) {
-      resolve();
-      return;
-    }
-    if (!document.getElementById("leaflet-css")) {
-      const l = document.createElement("link");
-      l.id = "leaflet-css";
-      l.rel = "stylesheet";
-      l.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-      document.head.appendChild(l);
-    }
-    const existing = document.getElementById("leaflet-js") as HTMLScriptElement | null;
-    if (existing) {
-      const poll = setInterval(() => {
-        if ((window as any).L) {
-          clearInterval(poll);
-          resolve();
-        }
-      }, 50);
-      setTimeout(() => {
-        clearInterval(poll);
-        (window as any).L ? resolve() : reject(new Error("Leaflet timeout"));
-      }, 8000);
-      return;
-    }
-    const s = document.createElement("script");
-    s.id = "leaflet-js";
-    s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("Leaflet load error"));
-    document.head.appendChild(s);
-  });
+  if ((window as any).L) return Promise.resolve();
+  if (!leafletLoadPromise) {
+    leafletLoadPromise = (async () => {
+      await import("leaflet/dist/leaflet.css");
+      const mod = await import("leaflet");
+      (window as any).L = (mod as any).default ?? mod;
+    })().catch((err) => {
+      leafletLoadPromise = null;
+      throw err;
+    });
+  }
+  return leafletLoadPromise;
 }
 
 // ── Types GPS ─────────────────────────────────────────────────────────────────
