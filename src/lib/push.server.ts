@@ -148,13 +148,10 @@ async function sendFcmToToken(
   const body = {
     message: {
       token,
-      // Android/Chrome en PWA installée affiche plus fiablement une notification
-      // racine. Le Service Worker reste présent pour les navigateurs qui livrent
-      // le message via onBackgroundMessage.
-      notification: {
-        title: payload.title,
-        body: payload.body,
-      },
+      // NE PAS mettre "notification" racine ici : si présent, FCM tente d'afficher
+      // la notif lui-même sans passer par le Service Worker → silencieux sur Android
+      // PWA en background (comportement observé). On délègue 100% au SW via
+      // webpush.notification — c'est la version qui fonctionne en production.
       webpush: {
         headers: payload.requireInteraction ? { Urgency: "high", TTL: "86400" } : { TTL: "3600" },
         data,
