@@ -1,7 +1,8 @@
 /* Firebase Cloud Messaging — Service Worker (notifications en arrière-plan) */
 /* eslint-disable */
-importScripts("https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js");
-importScripts("https://www.gstatic.com/firebasejs/10.13.0/firebase-messaging-compat.js");
+// Version fixée à 10.13.2 (dernière stable compat) — à mettre à jour si Firebase déprécie
+importScripts("https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js");
+importScripts("https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js");
 
 firebase.initializeApp({
   apiKey: "AIzaSyB8wYcBq5-KVdPDAnXGcWzcCkTYmftTKdY",
@@ -17,9 +18,16 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
   console.log("[FCM SW] Message background reçu :", payload);
 
-  // Évite le doublon si le navigateur affiche déjà la notif automatiquement
-  const title = (payload.notification && payload.notification.title) || "🚖 Taxi City Bordeaux";
-  const body = (payload.notification && payload.notification.body) || "";
+  // push.server.ts envoie uniquement via webpush.notification (pas de champ "notification"
+  // au niveau racine du message FCM) → le navigateur ne crée PAS de notif automatique.
+  // On affiche donc toujours la notif ici.
+  // Si un jour le payload contient une notification racine ET que le navigateur
+  // l'affiche déjà, onBackgroundMessage n'est pas appelé → pas de doublon.
+
+  const notif = payload.notification || {};
+  const title = notif.title || "🚖 Taxi City Bordeaux";
+  const body = notif.body || "";
+
   const reservationId = payload.data && payload.data.reservation_id;
   const audience = payload.data && payload.data.audience;
   let defaultUrl = "/";
@@ -30,14 +38,20 @@ messaging.onBackgroundMessage((payload) => {
   }
   const url = (payload.data && (payload.data.url || payload.data.click_action)) || defaultUrl;
 
-  return self.registration.showNotification(title, {
-    body,
-    icon: "/favicon.ico",
-    badge: "/favicon.ico",
-    tag: (payload.data && payload.data.tag) || "taxi-fcm",
-    data: { url, ...(payload.data || {}) },
-    vibrate: [200, 100, 200],
-    requireInteraction: true,
+  // Ferme les éventuelles notifs avec le même tag avant d'en créer une nouvelle
+  // pour éviter l'empilement en cas de retry
+  const tag = (payload.data && payload.data.tag) || "taxi-fcm";
+  return self.registration.getNotifications({ tag }).then((existing) => {
+    existing.forEach((n) => n.close());
+    return self.registration.showNotification(title, {
+      body,
+      icon: payload.notification?.icon || "/favicon.ico",
+      badge: "/favicon.ico",
+      tag,
+      data: { url, ...(payload.data || {}) },
+      vibrate: [200, 100, 200],
+      requireInteraction: true,
+    });
   });
 });
 
