@@ -19,12 +19,11 @@ const CACHE_PREFIX = "osrm:longest:v3:";
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 jours
 const FETCH_TIMEOUT_MS = 8000;
 
-const SUPABASE_URL =
-  (import.meta.env.VITE_SUPABASE_URL as string) || "https://yxbbkzugsreztiacnswf.supabase.co";
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string) || "https://auiagkpdpnfqxfngisfc.supabase.co";
 const SUPABASE_ANON_KEY =
   (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string) ||
   (import.meta.env.VITE_SUPABASE_ANON_KEY as string) ||
-  "";
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1aWFna3BkcG5mcXhmbmdpc2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0MzU2NzUsImV4cCI6MjA5NDAxMTY3NX0.MkW2KzCYHvQ0GEjjP3_puf3PkCHWaYcvW2bI1ctTuJU";
 const OSRM_EDGE_URL = `${SUPABASE_URL}/functions/v1/osrm-route`;
 
 type LongestRoute = {
@@ -58,7 +57,9 @@ function readCache(key: string): LongestRoute | null {
   if (m && Date.now() - m.at < CACHE_TTL_MS) {
     if (isValidRoute(m.value)) return m.value;
     memCache.delete(key);
-    try { sessionStorage?.removeItem(key); } catch {}
+    try {
+      sessionStorage?.removeItem(key);
+    } catch {}
   }
   try {
     if (typeof sessionStorage === "undefined") return null;
@@ -116,9 +117,7 @@ function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number)
   const toRad = (d: number) => (d * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
   const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
@@ -135,7 +134,7 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = FETC
 // ─── Cœur : Edge Function Supabase osrm-route ────────────────────────────────
 export async function getLongestRoute(
   from: [number, number], // [lat, lng]
-  to: [number, number],   // [lat, lng]
+  to: [number, number], // [lat, lng]
 ): Promise<LongestRoute> {
   const empty: LongestRoute = { distanceKm: 0, durationSec: 0, coords: [] };
   if (!from || !to) return empty;
