@@ -2647,6 +2647,49 @@ function SuiviPage() {
             <div style={{ width: 40, height: 4, background: "rgba(255,255,255,0.1)", borderRadius: 9 }} />
           </div>
 
+          {/* ── Notification client (juste après la carte) ── */}
+          {pushStatus !== "granted" && pushStatus !== "unsupported" && (
+            <div style={{ padding: "0 20px 14px" }}>
+              <button
+                onClick={async () => {
+                  const ok = await subscribe("client", resa?.id);
+                  if (ok) toast.success("🔔 Notifications activées — vous serez prévenu à chaque étape");
+                  else if (typeof Notification !== "undefined" && Notification.permission === "denied")
+                    toast.error("Notifications bloquées. Autorisez-les dans les réglages du navigateur.");
+                  else toast.error("Impossible d'activer les notifications sur ce navigateur.");
+                }}
+                disabled={pushStatus === "loading"}
+                style={{
+                  width: "100%",
+                  padding: 14,
+                  borderRadius: 16,
+                  background: "rgba(245,200,66,0.12)",
+                  border: "1px solid rgba(245,200,66,0.35)",
+                  color: "#f5c842",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  minHeight: 52,
+                  fontFamily: "'DM Sans', sans-serif",
+                }}
+              >
+                {pushStatus === "loading" ? "⏳ Activation…" : "🔔 Notification client *"}
+              </button>
+              <p
+                style={{
+                  margin: "8px 4px 0",
+                  fontSize: 12,
+                  color: "#94a3b8",
+                  fontFamily: "'DM Sans', sans-serif",
+                  textAlign: "center",
+                }}
+              >
+                * Pour recevoir les notifs, veuillez cliquer sur ce bouton
+              </p>
+            </div>
+          )}
+
+
           {/* ── STATUT ── */}
           <div style={{ padding: "0 20px 12px" }}>
             <div
