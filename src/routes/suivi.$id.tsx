@@ -350,6 +350,8 @@ function normalizeLatLngTuple(value: unknown): [number, number] | null {
   if (!isLatLngTuple(value)) return null;
   const first = Number(value[0]);
   const second = Number(value[1]);
+  if (Math.abs(first) <= 10 && second >= 35 && second <= 60) return [second, first];
+  if (first >= 35 && first <= 60 && Math.abs(second) <= 10) return [first, second];
   if (Math.abs(first) <= 90 && Math.abs(second) <= 180) return [first, second];
   if (Math.abs(second) <= 90 && Math.abs(first) <= 180) return [second, first];
   return null;
