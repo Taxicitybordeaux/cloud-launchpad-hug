@@ -33,13 +33,60 @@ import { ReviewForm } from "@/components/ReviewForm";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/")({
+const HOME_TITLE = "Taxi City Bordeaux – Taxi 7j/7 à Bordeaux & en Gironde";
+const HOME_DESC =
+  "Réservez votre taxi à Bordeaux : aéroport Mérignac, gare Saint-Jean, vignobles, longues distances. Conventionné CPAM. Service ponctuel et confortable, jour & nuit.";
+const HOME_URL = "https://taxicitybordeaux.fr/";
+
+const HOME_FAQ = [
+  {
+    q: "Êtes-vous conventionné CPAM ?",
+    a: "Oui, nous sommes conventionnés avec la CPAM pour les transports de santé (consultations, dialyses, hospitalisations…). Sur présentation d'un bon de transport, prise en charge directe par l'Assurance Maladie. Tiers payant ou ALD — bon de transport toutes distances.",
+  },
+  {
+    q: "Que se passe-t-il si mon vol a du retard à Mérignac ?",
+    a: "On suit votre vol en temps réel. Si l'avion arrive en avance ou en retard, on ajuste l'heure de prise en charge.",
+  },
+  {
+    q: "Comment annuler ou modifier ma réservation ?",
+    a: "Un simple appel ou message WhatsApp suffit. L'annulation est gratuite jusqu'à 2 heures avant la course. Pour une modification, prévenez-nous dès que possible — on s'arrange.",
+  },
+  {
+    q: "Quels moyens de paiement acceptez-vous ?",
+    a: "Carte bancaire (sans contact, Apple Pay, Google Pay), espèces, et virement pour les comptes professionnels. Une facture est remise à la fin de la course, sur demande pour vos notes de frais.",
+  },
+  {
+    q: "Faut-il réserver à l'avance ?",
+    a: "Pas obligatoire — on prend aussi les courses immédiates si on est disponible. Pour un train tôt le matin, un vol ou un rendez-vous important, mieux vaut réserver la veille.",
+  },
+  {
+    q: "Combien de bagages puis-je emporter ?",
+    a: "Une berline confortable accepte facilement 3 à 4 valises et 4 passagers. Pour un groupe ou du matériel encombrant, prévenez-nous à la réservation, on adapte le véhicule.",
+  },
+];
+
   head: () => ({
     meta: [
-      { title: "Taxi City Bordeaux – Taxi 7j/7 à Bordeaux & en Gironde" },
+      { title: HOME_TITLE },
+      { name: "description", content: HOME_DESC },
+      { property: "og:title", content: HOME_TITLE },
+      { property: "og:description", content: HOME_DESC },
+      { property: "og:url", content: HOME_URL },
+      { property: "og:type", content: "website" },
+    ],
+    links: [{ rel: "canonical", href: HOME_URL }],
+    scripts: [
       {
-        name: "description",
-        content:
-          "Réservez votre taxi à Bordeaux : aéroport Mérignac, gare Saint-Jean, vignobles, longues distances. Conventionné CPAM. Service ponctuel et confortable, jour & nuit.",
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: HOME_FAQ.map((f) => ({
+            "@type": "Question",
+            name: f.q,
+            acceptedAnswer: { "@type": "Answer", text: f.a },
+          })),
+        }),
       },
     ],
   }),

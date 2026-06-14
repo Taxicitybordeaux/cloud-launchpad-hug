@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+
+Disallow: /admin
+Disallow: /api/
+Disallow: /lovable/
+Disallow: /login
+Disallow: /client/
+Disallow: /mes-courses
+Disallow: /suivi/
+Disallow: /reservation/
+Disallow: /course/
+Disallow: /fin/
+
+Sitemap: https://taxicitybordeaux.fr/sitemap.xml
