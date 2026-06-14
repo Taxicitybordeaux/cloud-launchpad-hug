@@ -1299,25 +1299,40 @@ function SuiviPage() {
     const toastId = "suivi-load";
 
     const init = async () => {
-      // 1. Valider l'ID
-      const parsed = suiviIdSchema.safeParse(id);
+      // 1. Résoudre l'ID de suivi.
+      // Compatible anciens liens : suivi_id / tracking_id peuvent être du texte,
+      // tandis que l'id interne de réservation est un UUID.
+      const trackingKey = id.trim();
+      const parsed = suiviIdSchema.safeParse(trackingKey);
       let r: Reservation | null = null;
 
       setLoadStep(1);
-      if (parsed.success) {
-        // Chercher d'abord par suivi_id
+      if (trackingKey) {
+        // Chercher d'abord par suivi_id texte
         const { data: byTracking } = await (supabase as any)
           .from("reservations")
           .select(
             "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,bagages,suivi_id,distance_km,created_at,route_coords,route_label,lang",
           )
-          .eq("suivi_id", parsed.data)
+          .eq("suivi_id", trackingKey)
           .maybeSingle();
         if (byTracking) r = byTracking;
+
+        // Compatibilité anciens liens tracking_id
+        if (!r) {
+          const { data: byLegacyTracking } = await (supabase as any)
+            .from("reservations")
+            .select(
+              "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,bagages,suivi_id,distance_km,created_at,route_coords,route_label,lang",
+            )
+            .eq("tracking_id", trackingKey)
+            .maybeSingle();
+          if (byLegacyTracking) r = byLegacyTracking;
+        }
       }
 
-      // Fallback par id direct
-      if (!r) {
+      // Fallback par id direct uniquement si UUID valide (sinon le backend renvoie 400)
+      if (!r && parsed.success) {
         const { data: byId } = await (supabase as any)
           .from("reservations")
           .select(
