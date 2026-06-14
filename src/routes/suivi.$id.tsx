@@ -3002,6 +3002,72 @@ function SuiviPage() {
                   disabled={
                     !isDriver ||
                     statusBusy !== null ||
+                    ["en_route", "arrived", "completed", "terminee"].includes(effectiveStatus) ||
+                    !["accepted", "en_route"].includes(effectiveStatus)
+                  }
+                  onClick={async () => {
+                    if (!isDriver || !resaIdRef.current) return;
+                    if (!["accepted", "en_route"].includes(effectiveStatus)) {
+                      toast.error("⛔ Course non encore validée par l'admin");
+                      return;
+                    }
+                    setStatusBusy("en_route");
+                    try {
+                      const result = await notifyStatusFn({
+                        data: { reservation_id: resaIdRef.current, status: "en_route", update_status: true, suivi_key: id },
+                      });
+                      setResa((prev) => (prev ? { ...prev, status: "en_route" } : prev));
+                      const pushSent = (result as any)?.client?.sent ?? 0;
+                      toast.success(pushSent > 0 ? "🚗 Notification envoyée au client" : "🚗 Statut mis à jour — aucune souscription client active");
+                    } catch (err) {
+                      console.error(err);
+                      toast.error("Échec de l'envoi au client");
+                    } finally {
+                      setStatusBusy(null);
+                    }
+                  }}
+                  title={
+                    !isDriver
+                      ? "Action réservée au chauffeur"
+                      : !["accepted", "en_route"].includes(effectiveStatus)
+                        ? "⛔ En attente de validation admin"
+                        : ""
+                  }
+                  style={{
+                    width: "100%",
+                    padding: "14px 16px",
+                    borderRadius: 14,
+                    background: ["en_route", "arrived", "completed", "terminee"].includes(effectiveStatus)
+                      ? "rgba(59,130,246,0.18)"
+                      : "rgba(59,130,246,0.12)",
+                    border: "1px solid rgba(59,130,246,0.4)",
+                    color: "#60a5fa",
+                    fontFamily: "'Syne',sans-serif",
+                    fontWeight: 800,
+                    fontSize: 14,
+                    cursor:
+                      isDriver && ["accepted", "en_route"].includes(effectiveStatus) && !["en_route", "arrived", "completed", "terminee"].includes(effectiveStatus)
+                        ? "pointer"
+                        : "not-allowed",
+                    opacity: isDriver && effectiveStatus === "accepted" ? 1 : 0.45,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                  }}
+                >
+                  {statusBusy === "en_route"
+                    ? "Envoi…"
+                    : ["en_route", "arrived", "completed", "terminee"].includes(effectiveStatus)
+                      ? "✅ Chauffeur en route"
+                      : "🚗 Je suis en route"}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={
+                    !isDriver ||
+                    statusBusy !== null ||
                     ["arrived", "completed", "terminee"].includes(effectiveStatus) ||
                     !["en_route", "accepted", "arrived"].includes(effectiveStatus)
                   }
