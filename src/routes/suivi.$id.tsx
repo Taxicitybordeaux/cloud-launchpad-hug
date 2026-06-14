@@ -369,7 +369,8 @@ function knownPlaceCoords(query: string): [number, number] | null {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
-  if (q.includes("aeroport") || q.includes("merignac") || q.includes("hall a")) return [44.8291, -0.7028];
+  if (q.includes("aeroport") || q.includes("bordeaux-merignac") || q.includes("bordeaux merignac") || q.includes("hall a"))
+    return [44.8291, -0.7028];
   if (q.includes("gare saint") || q.includes("saint-jean") || q.includes("charles domercq")) return [44.8265, -0.5569];
   if (q.includes("place de la bourse")) return [44.8415, -0.5704];
   return null;
