@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { getRouteGeoCoords, getDistanceAndDurationKm } from "@/lib/osrm";
-import { geocodeAddress } from "@/lib/geocode";
+import { geocodeAddress, searchAddress } from "@/lib/geocode";
 import { notifyReservationStatus } from "@/lib/push.functions";
 
 const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
@@ -716,22 +716,52 @@ function SuiviPage() {
     animFrame.current = requestAnimationFrame(step);
   };
 
-  // ── Geocode helper avec retry (3 tentatives, délai exponentiel) ─────────
+  // ── Geocode helper — mêmes variantes/fallbacks que /reserver, ne jamais échouer
   const geocode = async (q: string): Promise<[number, number] | null> => {
     const known = knownPlaceCoords(q);
     if (known) return known;
-    const candidates = geocodeCandidates(q).flatMap((candidate) => {
-      const hasCity =
-        /\b(bordeaux|cenon|mérignac|merignac|pessac|talence|bègles|begles|lormont|floirac|villenave|bouliac|carbon|blanquefort|eysines|le bouscat|bruges|gradignan|cestas)\b/i.test(
-          candidate,
-        ) || /\b\d{5}\b/.test(candidate);
-      return hasCity ? [`${candidate}, France`, candidate] : [`${candidate}, Bordeaux, France`, `${candidate}, France`];
-    });
 
-    for (const query of Array.from(new Set(candidates))) {
+    const trimmed = q.trim();
+    const cleaned = trimmed.replace(/[–—]/g, ",").replace(/\s+/g, " ").trim();
+    const withoutParen = cleaned.replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
+    const parts = cleaned.split(",").map((p) => p.trim()).filter(Boolean);
+    const short = parts.slice(0, 2).join(", ");
+    const first = parts[0] ?? cleaned;
+
+    const namedVariants: string[] = [];
+    const lc = cleaned.toLowerCase();
+    if (/aeroport|aéroport|airport/.test(lc)) {
+      namedVariants.push(
+        "Aéroport de Bordeaux-Mérignac",
+        "Bordeaux-Mérignac Airport",
+        "aéroport Bordeaux Mérignac",
+      );
+    }
+    if (/gare/.test(lc)) {
+      namedVariants.push("Gare de Bordeaux-Saint-Jean", "Gare Saint-Jean, Bordeaux");
+    }
+
+    const attempts = [
+      ...namedVariants,
+      trimmed,
+      cleaned,
+      withoutParen,
+      `${cleaned}, France`,
+      short,
+      `${short}, France`,
+      `${first}, France`,
+      `${first}, Bordeaux, France`,
+      `${first}, Gironde, France`,
+    ].filter((v, i, arr) => !!v && v.length > 2 && arr.indexOf(v) === i);
+
+    for (const query of attempts) {
       try {
         const c = await geocodeAddress(query);
         if (c) return [c.lat, c.lng];
+      } catch {}
+      try {
+        const r = await searchAddress(query, 1);
+        if (r[0]) return [r[0].coord[0], r[0].coord[1]];
       } catch {}
     }
     return known;
