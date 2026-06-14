@@ -1,6 +1,6 @@
 // FCM HTTP v1 sender — utilise FIREBASE_SERVICE_ACCOUNT_JSON
 // Cloudflare Workers compatible : signature JWT via Web Crypto API.
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { getTaxiSupabaseAdmin } from "@/lib/taxi-supabase.server";
 
 export type PushPayload = {
   title: string;
@@ -194,6 +194,7 @@ export async function sendPushToAudience(
   payload: PushPayload,
   opts: { reservationId?: string; accountId?: string } = {},
 ): Promise<{ sent: number; removed: number }> {
+  const supabaseAdmin = getTaxiSupabaseAdmin();
   let q = supabaseAdmin
     .from("push_subscriptions")
     .select("id, fcm_token, user_agent, last_seen_at")
