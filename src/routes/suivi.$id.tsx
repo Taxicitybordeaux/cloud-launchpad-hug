@@ -1060,9 +1060,9 @@ function SuiviPage() {
         }).addTo(map);
         // Trait principal en SECOND = au-dessus de l'outline
         tripLayer.current = L.polyline(coords, {
-          color: "#f5c842",
+          color: "#000000",
           weight: 5,
-          opacity: 0.92,
+          opacity: 0.95,
           lineCap: "round",
           lineJoin: "round",
         }).addTo(map);
