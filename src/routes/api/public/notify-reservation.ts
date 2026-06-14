@@ -2,8 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { TEMPLATES } from "@/lib/email-templates/registry";
-// sendPushToAudience supprimé : les pushs admin+chauffeur sont envoyés
-// par notifyNewReservation() dans push.functions.ts — évite les doublons.
+import { sendPushToAudience } from "@/lib/push.server";
 
 const TEMPLATE_NAME = "new-reservation-admin";
 const INTERNAL_NOTIFY_SECRET = "taxi-city-reservation-trigger-v1";
@@ -52,7 +51,9 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
 
         const { data: reservation, error: lookupError } = await supabase
           .from("reservations")
-          .select("id, nom, telephone, email, pickup_datetime, depart, arrivee, passagers, bagages, service_type")
+          .select(
+            "id, nom, client_name, telephone, client_phone, email, pickup_datetime, depart, arrivee, destination, passagers, bagages, service_type",
+          )
           .eq("id", reservationId)
           .maybeSingle();
         if (lookupError) {
@@ -97,8 +98,38 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
         }
 
         console.log("[notify-reservation] email queued ok, reservation:", reservationId);
-        // Les pushs admin+chauffeur sont envoyés par notifyNewReservation()
-        // dans push.functions.ts — ne pas les renvoyer ici pour éviter les doublons.
+
+        // Push admin + chauffeur — envoyé ici (côté serveur, à la création de
+        // la résa) pour ne plus dépendre d'un onglet dashboard ouvert.
+        const clientName = reservation.client_name || reservation.nom || "Client";
+        const trajet = `${reservation.depart} → ${reservation.arrivee || reservation.destination || "—"}`;
+        try {
+          const [adminResult, chauffeurResult] = await Promise.all([
+            sendPushToAudience("admin", {
+              title: "🔔 Nouvelle réservation",
+              body: `${clientName} — ${trajet}`,
+              url: "/admin/dashboard",
+              tag: `new-res-${reservationId}`,
+              requireInteraction: true,
+            }),
+            sendPushToAudience("chauffeur", {
+              title: "🚕 Nouvelle course en attente",
+              body: `${clientName} — ${trajet}`,
+              url: "/admin/dashboard",
+              tag: `chauffeur-res-${reservationId}`,
+              requireInteraction: true,
+            }),
+          ]);
+          console.log(
+            "[notify-reservation] push admin:",
+            JSON.stringify(adminResult),
+            "chauffeur:",
+            JSON.stringify(chauffeurResult),
+          );
+        } catch (pushErr) {
+          console.error("[notify-reservation] push failed", pushErr);
+          // On ne fait pas échouer la requête si le push échoue — l'email est déjà parti.
+        }
 
         return Response.json({ success: true });
       },
