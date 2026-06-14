@@ -226,7 +226,10 @@ export async function sendPushToAudience(
     .not("fcm_token", "is", null)
     .order("last_seen_at", { ascending: false });
   if (audience === "client" && opts.reservationId) {
-    q = q.eq("reservation_id", opts.reservationId);
+    // Cible les abonnements liés à cette réservation OU les abonnements client génériques
+    // (un client qui a activé les notifs depuis la PWA sans contexte de réservation
+    // doit quand même recevoir les mises à jour de course).
+    q = q.or(`reservation_id.eq.${opts.reservationId},reservation_id.is.null`);
   }
   // accountId is accepted for API symmetry with direct chat callers; no
   // column filter today — push_subscriptions has no client_account_id.
