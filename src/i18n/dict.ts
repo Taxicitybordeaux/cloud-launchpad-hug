@@ -2836,6 +2836,8 @@ const ar: Dict = {
   "nav.contact": "اتصل بنا",
   "nav.book": "احجز",
   "nav.book_long": "احجز سيارة أجرة",
+  "nav.account": "حسابي",
+  "nav.account_long": "منطقة العميل",
   "common.available_247": "متاح 24/7",
   "common.lang_label": "اللغة",
 
