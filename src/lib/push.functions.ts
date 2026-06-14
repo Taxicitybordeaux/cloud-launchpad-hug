@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { DICTS, type Lang } from "@/i18n/dict";
 import { z } from "zod";
-import { getTaxiSupabaseAdmin } from "@/lib/taxi-supabase.server";
+import { getTaxiSupabaseAdmin, getTaxiSupabaseConfig } from "@/lib/taxi-supabase.server";
 import { sendPushToAudience } from "@/lib/push.server";
 
 export type PushAudience = "admin" | "chauffeur" | "client";
