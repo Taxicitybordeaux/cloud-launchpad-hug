@@ -37,6 +37,11 @@ export function WhatsAppFloat() {
 
   const barRef = useRef<HTMLDivElement | null>(null);
   const [barHeight, setBarHeight] = useState<number>(0);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const el = barRef.current;
@@ -59,7 +64,7 @@ export function WhatsAppFloat() {
   }, [barHeight]);
 
   // Ne rien rendre côté serveur ni avant hydratation
-  if (typeof document === "undefined" || isHiddenPage) return null;
+  if (!mounted || typeof document === "undefined" || isHiddenPage) return null;
 
   const btnBase: React.CSSProperties = {
     flex: 1,

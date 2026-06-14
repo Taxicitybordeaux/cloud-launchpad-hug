@@ -337,6 +337,33 @@ function closestIndexOnRoute(lat: number, lng: number, coords: [number, number][
   return best;
 }
 
+function isLatLngTuple(value: unknown): value is [number, number] {
+  return (
+    Array.isArray(value) &&
+    value.length >= 2 &&
+    Number.isFinite(Number(value[0])) &&
+    Number.isFinite(Number(value[1]))
+  );
+}
+
+function normalizeLatLngTuple(value: unknown): [number, number] | null {
+  if (!isLatLngTuple(value)) return null;
+  const first = Number(value[0]);
+  const second = Number(value[1]);
+  if (Math.abs(first) <= 10 && second >= 35 && second <= 60) return [second, first];
+  if (first >= 35 && first <= 60 && Math.abs(second) <= 10) return [first, second];
+  if (Math.abs(first) <= 90 && Math.abs(second) <= 180) return [first, second];
+  if (Math.abs(second) <= 90 && Math.abs(first) <= 180) return [second, first];
+  return null;
+}
+
+function normalizeRouteCoords(value: unknown): [number, number][] | null {
+  const raw = Array.isArray((value as any)?.coordinates) ? (value as any).coordinates : value;
+  if (!Array.isArray(raw)) return null;
+  const coords = raw.map(normalizeLatLngTuple).filter((p): p is [number, number] => Boolean(p));
+  return coords.length >= 2 ? coords : null;
+}
+
 function ease(t: number) {
   return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
 }
@@ -707,8 +734,7 @@ function SuiviPage() {
     if (!map || !L) return;
     try {
       const routeApproach = await getRouteGeoCoords([driverLng, driverLat], [pickup[1], pickup[0]]);
-      const route = routeApproach;
-      const coords: [number, number][] = route?.coords ?? [[driverLat, driverLng], pickup];
+      const coords: [number, number][] = normalizeRouteCoords(routeApproach?.coords) ?? [[driverLat, driverLng], pickup];
       approachCoords.current = coords;
       if (approachLayer.current) approachLayer.current.setLatLngs(coords);
       else
@@ -920,7 +946,10 @@ function SuiviPage() {
       const L = (window as any).L;
       if (!map || !L) return;
 
-      const [a, b] = await Promise.all([geocode(depart), geocode(destination)]);
+      const normalizedCachedCoords = normalizeRouteCoords(cachedCoords);
+      const [geoA, geoB] = await Promise.all([geocode(depart), geocode(destination)]);
+      const a = geoA ?? normalizedCachedCoords?.[0] ?? null;
+      const b = geoB ?? normalizedCachedCoords?.[normalizedCachedCoords.length - 1] ?? null;
       if (!a || !b) {
         console.warn("[drawTripRoute] Geocode échoué pour:", !a ? depart : destination);
         return;
@@ -932,10 +961,10 @@ function SuiviPage() {
       pickupCoordsRef.current = a;
 
       try {
-        let coords: [number, number][];
+        let coords: [number, number][] = [a, b];
         let distanceKm: number | undefined;
-        if (cachedCoords && Array.isArray(cachedCoords) && cachedCoords.length > 1) {
-          coords = cachedCoords as [number, number][];
+        if (normalizedCachedCoords) {
+          coords = normalizedCachedCoords;
           let d = 0;
           for (let i = 1; i < coords.length; i++) {
             d += distMeters({ lat: coords[i - 1][0], lng: coords[i - 1][1] }, { lat: coords[i][0], lng: coords[i][1] });
@@ -943,9 +972,10 @@ function SuiviPage() {
           distanceKm = d / 1000;
         } else {
           // getRouteGeoCoords attend [lng, lat] (format GeoJSON/OSRM), pas [lat, lng]
-          const route = await getRouteGeoCoords([a[1], a[0]], [b[1], b[0]]);
-          coords = route.coords.length > 0 ? route.coords : [a, b];
-          distanceKm = route.distanceKm;
+          const route = await getRouteGeoCoords([a[1], a[0]], [b[1], b[0]]).catch(() => null);
+          const routeCoords = normalizeRouteCoords(route?.coords);
+          coords = routeCoords ?? [a, b];
+          distanceKm = route?.distanceKm || distMeters({ lat: a[0], lng: a[1] }, { lat: b[0], lng: b[1] }) / 1000;
         }
         if (distanceKm && distanceKm > 0) setTotalKm(parseFloat(distanceKm.toFixed(1)));
 

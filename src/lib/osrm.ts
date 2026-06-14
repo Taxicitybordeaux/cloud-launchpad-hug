@@ -1,7 +1,7 @@
 /**
  * @/lib/osrm.ts
  *
- * Appel direct à router.project-osrm.org (pas d'Edge Function).
+ * Appel centralisé à l'Edge Function `osrm-route`.
  * Cache mémoire + sessionStorage v3 — rejette km=0 / durée=0.
  *
  * Exports :
@@ -11,25 +11,13 @@
  *  - getRouteGeoCoords(from, to)         → { coords, distanceKm, durationSec }  (from/to en [lng,lat])
  */
 
+import { supabase } from "@/integrations/supabase/client";
+
 export const OSRM_DISTANCE_FACTOR = 1.0;
 
 const CACHE_PREFIX = "osrm:longest:v3:";
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 jours
 const FETCH_TIMEOUT_MS = 8000;
-
-// Rocade A630 — waypoint intermédiaire injecté quand le trajet
-// est entièrement dans la métropole bordelaise et fait > 5 km.
-const ROCADE_WAYPOINT: [number, number] = [44.8066, -0.6297]; // [lat, lng]
-const BORDEAUX_BBOX = { latMin: 44.7, latMax: 45.1, lngMin: -0.9, lngMax: -0.3 };
-
-function inBordeauxBbox(lat: number, lng: number): boolean {
-  return (
-    lat >= BORDEAUX_BBOX.latMin &&
-    lat <= BORDEAUX_BBOX.latMax &&
-    lng >= BORDEAUX_BBOX.lngMin &&
-    lng <= BORDEAUX_BBOX.lngMax
-  );
-}
 
 function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
@@ -126,18 +114,56 @@ function densifyCoords(coords: [number, number][], maxStepMeters = 25): [number,
   return out;
 }
 
-async function fetchWithTimeout(url: string, timeoutMs = FETCH_TIMEOUT_MS): Promise<Response> {
+async function invokeOsrmRoute(from: [number, number], to: [number, number]): Promise<any | null> {
   const ctrl = new AbortController();
-  const id = setTimeout(() => ctrl.abort(), timeoutMs);
+  const id = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+  const body = {
+    from_lat: from[0],
+    from_lng: from[1],
+    to_lat: to[0],
+    to_lng: to[1],
+  };
   try {
-    return await fetch(url, { signal: ctrl.signal });
+    const edgeBase = import.meta.env.VITE_SUPABASE_URL;
+    const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    if (edgeBase && publishableKey) {
+      const res = await fetch(`${edgeBase.replace(/\/+$/, "")}/functions/v1/osrm-route`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${publishableKey}`,
+          apikey: publishableKey,
+        },
+        body: JSON.stringify(body),
+        signal: ctrl.signal,
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    }
+
+    const { data, error } = await supabase.functions.invoke("osrm-route", {
+      body,
+      signal: ctrl.signal,
+    });
+    if (error) return null;
+    return data;
   } finally {
     clearTimeout(id);
   }
 }
 
-// ─── Parse la route la plus longue parmi les alternatives OSRM ───────────────
-function parseLongestRoute(json: any): LongestRoute | null {
+// ─── Parse une réponse normalisée Edge Function ou OSRM brute ───────────────
+function parseRouteResponse(json: any): LongestRoute | null {
+  if (Array.isArray(json?.coords) && json.coords.length >= 2) {
+    const distanceKm = Number(json.distanceKm ?? json.distance_km ?? 0);
+    const durationSec = Number(json.durationSec ?? json.duration_sec ?? 0);
+    const rawCoords = json.coords
+      .map((p: any) => (Array.isArray(p) ? ([Number(p[0]), Number(p[1])] as [number, number]) : null))
+      .filter((p: [number, number] | null): p is [number, number] => !!p && Number.isFinite(p[0]) && Number.isFinite(p[1]));
+    if (distanceKm <= 0 || durationSec <= 0 || rawCoords.length < 2) return null;
+    return { distanceKm, durationSec, coords: densifyCoords(rawCoords, 25) };
+  }
+
   const routes: any[] = Array.isArray(json?.routes) ? json.routes : [];
   if (!routes.length) return null;
 
@@ -153,7 +179,7 @@ function parseLongestRoute(json: any): LongestRoute | null {
   return { distanceKm, durationSec, coords: densifyCoords(rawCoords, 25) };
 }
 
-// ─── Cœur : appel OSRM public direct ─────────────────────────────────────────
+// ─── Cœur : appel OSRM via Edge Function ─────────────────────────────────────
 export async function getLongestRoute(
   from: [number, number], // [lat, lng]
   to: [number, number], // [lat, lng]
@@ -165,22 +191,9 @@ export async function getLongestRoute(
   const cached = readCache(key);
   if (cached) return cached;
 
-  // Waypoint rocade A630 si les deux points sont dans la métropole et > 5 km
-  const distM = haversineMeters(from[0], from[1], to[0], to[1]);
-  const useRocade = distM > 5000 && inBordeauxBbox(from[0], from[1]) && inBordeauxBbox(to[0], to[1]);
-
-  const waypoints = useRocade
-    ? [`${from[1]},${from[0]}`, `${ROCADE_WAYPOINT[1]},${ROCADE_WAYPOINT[0]}`, `${to[1]},${to[0]}`]
-    : [`${from[1]},${from[0]}`, `${to[1]},${to[0]}`];
-
-  const coordsStr = waypoints.join(";");
-  const url = `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson&alternatives=3`;
-
   try {
-    const res = await fetchWithTimeout(url);
-    if (!res.ok) return empty;
-    const json = await res.json();
-    const route = parseLongestRoute(json);
+    const json = await invokeOsrmRoute(from, to);
+    const route = parseRouteResponse(json);
     if (!route) return empty;
     writeCache(key, route);
     return route;
