@@ -65,16 +65,30 @@ export async function getFcmToken(): Promise<string | null> {
     }
 
     // Attendre que le SW Firebase soit actif avant de demander le token
+    // Timeout de 8s pour éviter de bloquer indéfiniment si gstatic.com est lent
     if (swReg.installing || swReg.waiting) {
       await new Promise<void>((resolve) => {
         const sw = swReg!.installing ?? swReg!.waiting!;
+        const timeout = setTimeout(resolve, 8000); // résolution forcée si trop long
         sw.addEventListener("statechange", function handler() {
-          if (sw.state === "activated") {
+          if (sw.state === "activated" || sw.state === "redundant") {
+            clearTimeout(timeout);
             sw.removeEventListener("statechange", handler);
             resolve();
           }
         });
       });
+    }
+
+    // Vérification finale : si le SW est toujours pas actif, on attend navigator.serviceWorker.ready
+    if (!swReg.active) {
+      const readyReg = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<null>((r) => setTimeout(() => r(null), 5000)),
+      ]);
+      if (!readyReg) {
+        console.warn("[FCM] SW not ready after timeout, proceeding anyway");
+      }
     }
 
     const token = await getToken(msg, {
