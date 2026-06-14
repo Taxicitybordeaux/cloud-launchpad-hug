@@ -1133,13 +1133,7 @@ function SuiviPage() {
         await applyDriverPosition(data.latitude, data.longitude);
       }
       if (resaIdRef.current) {
-        const { data: r } = await supabase
-          .from("reservations")
-          .select(
-            "status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,bagages,distance_km,route_coords,route_label",
-          )
-          .eq("id", resaIdRef.current)
-          .maybeSingle();
+        const r = await fetchReservationForSuivi(resaIdRef.current);
         if (r) setResa((prev) => (prev ? { ...prev, ...r } : prev));
       }
     }, 5_000);
@@ -1417,11 +1411,7 @@ function SuiviPage() {
               setLastUpdate(new Date());
               // Si le trajet n'est pas tracé (ex: retour de veille longue), le redessiner
               if (!destCoordsRef.current) {
-                const { data: rData } = await supabase
-                  .from("reservations")
-                  .select("depart,arrivee,destination,route_coords")
-                  .eq("id", resaIdRef.current)
-                  .maybeSingle();
+                const rData = await fetchReservationForSuivi(resaIdRef.current);
                 if (rData?.depart && (rData?.destination || rData?.arrivee)) {
                   await drawTripRoute(
                     rData.depart,
@@ -1534,13 +1524,7 @@ function SuiviPage() {
     try {
       let currentResa: any = null;
       if (resaIdRef.current) {
-        const { data: r } = await supabase
-          .from("reservations")
-          .select(
-            "status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,bagages,distance_km,client_name,nom,route_coords,route_label",
-          )
-          .eq("id", resaIdRef.current)
-          .maybeSingle();
+        const r = await fetchReservationForSuivi(resaIdRef.current);
         if (r) {
           setResa((prev) => {
             currentResa = prev ? { ...prev, ...r } : (r as unknown as Reservation);
