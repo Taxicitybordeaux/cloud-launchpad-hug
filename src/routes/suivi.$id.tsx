@@ -3013,21 +3013,15 @@ function SuiviPage() {
                     }
                     setStatusBusy("arrived");
                     try {
-                      const { error: e } = await supabase
-                        .from("reservations")
-                        .update({ status: "arrived" })
-                        .eq("id", resaIdRef.current);
-                      if (e) throw e;
+                      const result = await notifyStatusFn({
+                        data: { reservation_id: resaIdRef.current, status: "arrived", update_status: true, suivi_key: id },
+                      });
                       setResa((prev) => (prev ? { ...prev, status: "arrived" } : prev));
-                      try {
-                        await notifyStatusFn({ data: { reservation_id: resaIdRef.current, status: "arrived" } });
-                      } catch (err) {
-                        console.warn("[suivi] push arrived failed", err);
-                      }
-                      toast.success("📍 Notification envoyée au client");
+                      const pushSent = (result as any)?.client?.sent ?? 0;
+                      toast.success(pushSent > 0 ? "📍 Notification envoyée au client" : "📍 Statut mis à jour — aucune souscription client active");
                     } catch (err) {
                       console.error(err);
-                      toast.error("Échec de la mise à jour");
+                      toast.error("Échec de l'envoi au client");
                     } finally {
                       setStatusBusy(null);
                     }
@@ -3086,16 +3080,9 @@ function SuiviPage() {
                     if (!window.confirm("Confirmer la fin de la course ?")) return;
                     setStatusBusy("completed");
                     try {
-                      const { error: e } = await supabase
-                        .from("reservations")
-                        .update({ status: "completed" })
-                        .eq("id", resaIdRef.current);
-                      if (e) throw e;
-                      try {
-                        await notifyStatusFn({ data: { reservation_id: resaIdRef.current, status: "completed" } });
-                      } catch (err) {
-                        console.warn("[suivi] push completed failed", err);
-                      }
+                      await notifyStatusFn({
+                        data: { reservation_id: resaIdRef.current, status: "completed", update_status: true, suivi_key: id },
+                      });
                       setCourseTerminee(true);
                       setResa((prev) => (prev ? { ...prev, status: "completed" } : prev));
                       setDriverGpsActive(false);
