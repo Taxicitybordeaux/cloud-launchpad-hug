@@ -202,6 +202,8 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
       .object({
         reservation_id: z.string().uuid(),
         status: z.enum(["accepted", "refused", "en_route", "arrived", "completed", "cancelled"]),
+        update_status: z.boolean().optional(),
+        suivi_key: z.string().min(1).max(120).optional(),
       })
       .parse(input),
   )
@@ -219,6 +221,21 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
       .eq("id", data.reservation_id)
       .maybeSingle();
     if (!r) throw new Error("not_found");
+
+    if (data.update_status) {
+      const suiviKey = data.suivi_key?.trim();
+      const isValidSuiviKey = !!suiviKey && [r.id, r.suivi_id, r.tracking_id].filter(Boolean).includes(suiviKey);
+      if (!isValidSuiviKey) throw new Error("forbidden");
+
+      const { error: updateError } = await supabaseAdmin
+        .from("reservations")
+        .update({ status: data.status, updated_at: new Date().toISOString() })
+        .eq("id", r.id);
+      if (updateError) {
+        console.error("[notifyReservationStatus] status update failed", updateError);
+        throw new Error("status_update_failed");
+      }
+    }
 
     const clientName = r.client_name || r.nom || "Client";
     const trajet = `${r.depart} → ${r.arrivee || r.destination || "—"}`;
@@ -299,6 +316,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
         url: `${APP_URL}${url}`,
         tag: `res-${r.id}`,
         requireInteraction: ["en_route", "arrived"].includes(data.status),
+        data: { reservation_id: r.id, status: data.status },
       },
       { reservationId: r.id },
     );
