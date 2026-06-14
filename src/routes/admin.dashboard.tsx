@@ -2880,30 +2880,9 @@ function Dashboard() {
                 }
                 try {
                   const ua = navigator.userAgent.slice(0, 500);
-                  const now = new Date().toISOString();
                   await Promise.all([
-                    supabase.from("push_subscriptions").upsert(
-                      {
-                        audience: "admin",
-                        endpoint: `fcm://${fcm}`,
-                        fcm_token: fcm,
-                        reservation_id: null,
-                        user_agent: ua,
-                        last_seen_at: now,
-                      },
-                      { onConflict: "endpoint" },
-                    ),
-                    supabase.from("push_subscriptions").upsert(
-                      {
-                        audience: "chauffeur",
-                        endpoint: `fcm://${fcm}-chauffeur`,
-                        fcm_token: fcm,
-                        reservation_id: null,
-                        user_agent: ua,
-                        last_seen_at: now,
-                      },
-                      { onConflict: "endpoint" },
-                    ),
+                    subscribePush({ data: { audience: "admin", fcm_token: fcm, reservation_id: null, user_agent: ua } }),
+                    subscribePush({ data: { audience: "chauffeur", fcm_token: fcm, reservation_id: null, user_agent: ua } }),
                   ]);
                   localStorage.setItem("fcm_token", fcm);
                   toast.success("🔔 Token FCM enregistré — notifications actives");
