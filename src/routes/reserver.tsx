@@ -17,12 +17,22 @@ import { subscribePush, notifyNewReservation } from "@/lib/push.functions";
 import { getFcmToken } from "@/lib/firebase";
 import { DICTS, LANGUAGES, type Lang } from "@/i18n/dict";
 
+const RESERVER_TITLE = "Réserver un taxi à Bordeaux — Taxi City Bordeaux";
+const RESERVER_DESC =
+  "Réservez votre taxi à Bordeaux en ligne en 2 minutes : départ, destination, date — tarif estimé en direct et confirmation immédiate.";
+const RESERVER_URL = "https://taxicitybordeaux.fr/reserver";
+
 export const Route = createFileRoute("/reserver")({
   head: () => ({
     meta: [
-      { title: "Réserver — Taxi City Bordeaux" },
-      { name: "description", content: "Réservez votre taxi en ligne." },
+      { title: RESERVER_TITLE },
+      { name: "description", content: RESERVER_DESC },
+      { property: "og:title", content: RESERVER_TITLE },
+      { property: "og:description", content: RESERVER_DESC },
+      { property: "og:url", content: RESERVER_URL },
+      { property: "og:type", content: "website" },
     ],
+    links: [{ rel: "canonical", href: RESERVER_URL }],
   }),
   component: ReservationPage,
 });
