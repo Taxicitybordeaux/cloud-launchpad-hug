@@ -6,13 +6,18 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 
 function createSupabaseAdminClient() {
-  // TAXI_SERVICE_KEY est utilisé car SUPABASE_* est réservé par Lovable
-  // et peut pointer vers un ancien projet.
+  // SUPABASE_SERVICE_ROLE_KEY est la clé service-role gérée par Lovable Cloud
+  // et toujours alignée avec le projet courant. On la garde en PRIORITÉ.
+  // TAXI_SERVICE_KEY n'est qu'un fallback historique (peut pointer sur un
+  // ancien projet Supabase et provoquer des "not_found" silencieux).
   const SUPABASE_URL = "https://auiagkpdpnfqxfngisfc.supabase.co";
-  const SUPABASE_SERVICE_ROLE_KEY = process.env.TAXI_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const SUPABASE_SERVICE_ROLE_KEY =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SERVICE_ROLE_KEY ||
+    process.env.TAXI_SERVICE_KEY;
 
   if (!SUPABASE_SERVICE_ROLE_KEY) {
-    const message = `Missing service key (TAXI_SERVICE_KEY or SUPABASE_SERVICE_ROLE_KEY).`;
+    const message = `Missing service key (SUPABASE_SERVICE_ROLE_KEY).`;
     console.error(`[Supabase] ${message}`);
     throw new Error(message);
   }
