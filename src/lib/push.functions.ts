@@ -223,7 +223,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
     if (!r) throw new Error("not_found");
 
     if (data.update_status) {
-      if (!["arrived", "completed"].includes(data.status)) throw new Error("forbidden");
+      if (!["en_route", "arrived", "completed"].includes(data.status)) throw new Error("forbidden");
       const suiviKey = data.suivi_key?.trim();
       const isValidSuiviKey = !!suiviKey && [r.id, r.suivi_id, r.tracking_id].filter(Boolean).includes(suiviKey);
       if (!isValidSuiviKey) throw new Error("forbidden");
