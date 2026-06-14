@@ -918,7 +918,11 @@ function ReservationPage() {
           let sepLen = 0;
           for (const sep of [" vers ", " jusqu'à ", " jusqu'a ", " à ", " a "]) {
             const i = lower.lastIndexOf(sep);
-            if (i > 0) { sepIdx = i; sepLen = sep.length; break; }
+            if (i > 0) {
+              sepIdx = i;
+              sepLen = sep.length;
+              break;
+            }
           }
           if (sepIdx > 0) {
             depart = raw.slice(0, sepIdx).trim();
@@ -1152,10 +1156,7 @@ function ReservationPage() {
     const fetchOsrm = async () => {
       try {
         const { getDistanceAndDurationKm } = await import("@/lib/osrm");
-        const r = await getDistanceAndDurationKm(
-          [fromCoord[1], fromCoord[0]],
-          [toCoord[1], toCoord[0]],
-        );
+        const r = await getDistanceAndDurationKm([fromCoord[1], fromCoord[0]], [toCoord[1], toCoord[0]]);
         if (r && r.distanceKm > 0 && r.dureeS > 0) {
           setOrsResult({
             distanceKm: parseFloat(r.distanceKm.toFixed(2)),
@@ -1167,7 +1168,6 @@ function ReservationPage() {
       } catch {
         // fallback vol d'oiseau
       }
-
 
       // Fallback GraphHopper retiré : la clé API ne peut pas être embarquée
       // côté client sans être abusée. OSRM (étapes précédentes) reste primaire.
@@ -1661,10 +1661,18 @@ function ReservationPage() {
       setSending(false);
 
       // ── Notifier l'admin (push FCM + email) ───────────────────────────────
-      // Fire-and-forget : on n'attend pas la réponse pour ne pas bloquer la navigation.
-      notifyNewReservation({ data: { reservation_id: inserted.id } }).catch((e) => {
-        console.warn("[notify] admin notify failed", e);
-      });
+      // On attend la fin avant de naviguer : sinon le navigateur peut tuer
+      // la requête en cours lors du changement de page (notamment sur mobile),
+      // ce qui explique que José ne recevait plus de push ni d'email.
+      // Timeout 8s pour ne pas bloquer en cas d'erreur réseau.
+      try {
+        await Promise.race([
+          notifyNewReservation({ data: { reservation_id: inserted.id } }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("notify timeout")), 8000)),
+        ]);
+      } catch (e) {
+        console.warn("[notify] admin notify failed (non-blocking)", e);
+      }
 
       navigate({ to: "/suivi/$id", params: { id: inserted.suivi_id ?? inserted.id } });
     } catch (err: any) {
