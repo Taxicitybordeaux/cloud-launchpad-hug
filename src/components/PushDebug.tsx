@@ -9,6 +9,7 @@
  */
 import { useState, useCallback } from "react";
 import { getFcmToken } from "@/lib/firebase";
+import { sendTestPush } from "@/lib/push.functions";
 
 type LogLine = { time: string; level: "info" | "error" | "ok"; msg: string };
 
@@ -69,7 +70,16 @@ export function PushDebug() {
       log("error", `getFcmToken threw: ${e?.message ?? String(e)}`);
     }
 
-    // 4. Test notification locale
+    // 4. Test FCM serveur → téléphone
+    try {
+      log("info", "Envoi d'une notification FCM serveur vers admin...");
+      const result = await sendTestPush({ data: { audience: "admin" } });
+      log(result.sent > 0 ? "ok" : "error", `FCM serveur: sent=${result.sent}, removed=${result.removed}`);
+    } catch (e: any) {
+      log("error", `sendTestPush failed: ${e?.message ?? String(e)}`);
+    }
+
+    // 5. Test notification locale
     try {
       const reg = await navigator.serviceWorker.ready;
       log("info", "SW ready ✅ — envoi d'une notif locale de test...");
