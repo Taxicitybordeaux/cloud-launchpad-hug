@@ -1,7 +1,7 @@
 /**
  * @/lib/osrm.ts
  *
- * Appel direct à router.project-osrm.org (pas d'Edge Function).
+ * Appel centralisé à l'Edge Function `osrm-route`.
  * Cache mémoire + sessionStorage v3 — rejette km=0 / durée=0.
  *
  * Exports :
@@ -11,25 +11,13 @@
  *  - getRouteGeoCoords(from, to)         → { coords, distanceKm, durationSec }  (from/to en [lng,lat])
  */
 
+import { supabase } from "@/integrations/supabase/client";
+
 export const OSRM_DISTANCE_FACTOR = 1.0;
 
 const CACHE_PREFIX = "osrm:longest:v3:";
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 jours
 const FETCH_TIMEOUT_MS = 8000;
-
-// Rocade A630 — waypoint intermédiaire injecté quand le trajet
-// est entièrement dans la métropole bordelaise et fait > 5 km.
-const ROCADE_WAYPOINT: [number, number] = [44.8066, -0.6297]; // [lat, lng]
-const BORDEAUX_BBOX = { latMin: 44.7, latMax: 45.1, lngMin: -0.9, lngMax: -0.3 };
-
-function inBordeauxBbox(lat: number, lng: number): boolean {
-  return (
-    lat >= BORDEAUX_BBOX.latMin &&
-    lat <= BORDEAUX_BBOX.latMax &&
-    lng >= BORDEAUX_BBOX.lngMin &&
-    lng <= BORDEAUX_BBOX.lngMax
-  );
-}
 
 function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
