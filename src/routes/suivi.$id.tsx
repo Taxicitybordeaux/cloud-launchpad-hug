@@ -3021,7 +3021,7 @@ function SuiviPage() {
                       toast.success(pushSent > 0 ? "🚗 Notification envoyée au client" : "🚗 Statut mis à jour — aucune souscription client active");
                     } catch (err) {
                       console.error(err);
-                      toast.error("Échec de l'envoi au client");
+                      toast.error("Échec envoi: " + ((err as any)?.message ?? String(err)));
                     } finally {
                       setStatusBusy(null);
                     }
@@ -3087,7 +3087,7 @@ function SuiviPage() {
                       toast.success(pushSent > 0 ? "📍 Notification envoyée au client" : "📍 Statut mis à jour — aucune souscription client active");
                     } catch (err) {
                       console.error(err);
-                      toast.error("Échec de l'envoi au client");
+                      toast.error("Échec envoi: " + ((err as any)?.message ?? String(err)));
                     } finally {
                       setStatusBusy(null);
                     }
