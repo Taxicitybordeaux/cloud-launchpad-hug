@@ -32,7 +32,6 @@ import { useT } from "@/i18n/I18nProvider";
 import { ReviewForm } from "@/components/ReviewForm";
 import { supabase } from "@/integrations/supabase/client";
 
-export const Route = createFileRoute("/")({
 const HOME_TITLE = "Taxi City Bordeaux – Taxi 7j/7 à Bordeaux & en Gironde";
 const HOME_DESC =
   "Réservez votre taxi à Bordeaux : aéroport Mérignac, gare Saint-Jean, vignobles, longues distances. Conventionné CPAM. Service ponctuel et confortable, jour & nuit.";
@@ -65,6 +64,7 @@ const HOME_FAQ = [
   },
 ];
 
+export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: HOME_TITLE },
