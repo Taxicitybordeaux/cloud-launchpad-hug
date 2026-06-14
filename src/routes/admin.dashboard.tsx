@@ -747,7 +747,6 @@ function Dashboard() {
           .select(
             "client_phone, telephone, depart, destination, arrivee, distance_km, prix_estime, pickup_datetime, created_at",
           )
-          .in("status", ["completed", "terminee", "terminée", "done"])
           .order("created_at", { ascending: false });
         if (resas) {
           for (const r of resas) {
@@ -3980,7 +3979,8 @@ function Dashboard() {
                             marginBottom: 4,
                           }}
                         >
-                          Dernière course
+                          Course
+
                         </div>
                         <div style={{ color: "#94a3b8", fontSize: 12 }}>🟢 {c.lastResa.depart}</div>
                         <div style={{ color: "#94a3b8", fontSize: 12, marginTop: 2 }}>
