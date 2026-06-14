@@ -2869,7 +2869,7 @@ function Dashboard() {
                 let fcm: string | null = null;
                 for (let i = 0; i < 3; i++) {
                   try {
-                    fcm = await getFcmToken();
+                    fcm = await getFcmToken({ forceRefresh: true });
                     if (fcm) break;
                   } catch {}
                   if (i < 2) await new Promise((r) => setTimeout(r, 2000));
