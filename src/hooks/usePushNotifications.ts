@@ -80,8 +80,14 @@ export function usePushNotifications(opts: UsePushOptions = {}) {
       }
     };
     run();
+
+    // Rafraîchit last_seen_at toutes les heures pour que le token ne soit pas
+    // considéré comme périmé si le dashboard reste ouvert sans rechargement.
+    const interval = setInterval(run, 60 * 60 * 1000);
+
     return () => {
       cancelled = true;
+      clearInterval(interval);
     };
     // reservationId volontairement exclu : on ne re-subscribe pas si l'id change après le montage
     // eslint-disable-next-line react-hooks/exhaustive-deps
