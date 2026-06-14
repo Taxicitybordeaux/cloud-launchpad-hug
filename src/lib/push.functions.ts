@@ -90,6 +90,11 @@ export const sendTestPush = createServerFn({ method: "POST" })
 // URL de prod hardcodée — process.env.APP_URL est vide en contexte serveur Lovable
 const APP_URL = "https://taxicitybordeaux.fr";
 
+// ⚠️ Non utilisée actuellement : le push admin+chauffeur à la création d'une
+// réservation est envoyé par /api/public/notify-reservation (server-side,
+// appelé depuis le formulaire de réservation client). Si tu réutilises cette
+// fonction, retire l'appel équivalent dans notify-reservation.ts pour éviter
+// les doublons (push ET email).
 export const notifyNewReservation = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ reservation_id: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
