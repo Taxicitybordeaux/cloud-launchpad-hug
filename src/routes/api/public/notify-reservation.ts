@@ -1,8 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { TEMPLATES } from "@/lib/email-templates/registry";
-import { sendPushToAudience } from "@/lib/push.server";
-import { getTaxiSupabaseAdmin, getTaxiSupabaseConfig } from "@/lib/taxi-supabase.server";
 
 const TEMPLATE_NAME = "new-reservation-admin";
 const INTERNAL_NOTIFY_SECRET = "taxi-city-reservation-trigger-v1";
@@ -15,6 +13,10 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const [{ getTaxiSupabaseAdmin, getTaxiSupabaseConfig }, { sendPushToAudience }] = await Promise.all([
+          import("@/lib/taxi-supabase.server"),
+          import("@/lib/push.server"),
+        ]);
         let serviceKey = "";
         try {
           const cfg = getTaxiSupabaseConfig();
