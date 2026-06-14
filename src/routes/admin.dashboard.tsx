@@ -2853,6 +2853,7 @@ function Dashboard() {
           style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}
         >
           {/* Bouton activation notifications push (admin + chauffeur) — toujours visible, 3 états */}
+          {typeof window !== "undefined" &&
             !("Notification" in window) &&
             /iPad|iPhone|iPod/.test(navigator.userAgent) &&
             !((window as any).navigator?.standalone) && (
