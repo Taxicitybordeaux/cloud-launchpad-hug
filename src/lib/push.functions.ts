@@ -22,19 +22,17 @@ export const subscribePush = createServerFn({ method: "POST" })
     const endpoint = `fcm://${data.fcm_token}`;
 
     // 1) Upsert la souscription courante
-    const { error: upErr } = await supabaseAdmin
-      .from("push_subscriptions")
-      .upsert(
-        {
-          audience: data.audience,
-          endpoint,
-          fcm_token: data.fcm_token,
-          reservation_id: data.reservation_id ?? null,
-          user_agent: ua,
-          last_seen_at: new Date().toISOString(),
-        },
-        { onConflict: "endpoint" },
-      );
+    const { error: upErr } = await supabaseAdmin.from("push_subscriptions").upsert(
+      {
+        audience: data.audience,
+        endpoint,
+        fcm_token: data.fcm_token,
+        reservation_id: data.reservation_id ?? null,
+        user_agent: ua,
+        last_seen_at: new Date().toISOString(),
+      },
+      { onConflict: "endpoint" },
+    );
     if (upErr) {
       console.error("[push] subscribe failed", upErr);
       throw new Error("subscribe_failed");
@@ -44,14 +42,28 @@ export const subscribePush = createServerFn({ method: "POST" })
     // iOS Safari/PWA régénère parfois le fcm_token à chaque session ou install,
     // ce qui laissait s'accumuler plusieurs lignes pour le même device →
     // notifications dupliquées (×8 observé sur iPhone).
+    // IMPORTANT : on ne purge que les tokens dont les 8 derniers chars diffèrent
+    // du token actuel — évite de supprimer un autre appareil avec le même user_agent
+    // (ex: 2 iPhone 15 Safari du même modèle).
     if (ua) {
-      const { error: delErr } = await supabaseAdmin
+      // Récupère tous les tokens du même UA + audience (sauf le token actuel)
+      const { data: stale, error: fetchErr } = await supabaseAdmin
         .from("push_subscriptions")
-        .delete()
+        .select("id, fcm_token")
         .eq("audience", data.audience)
         .eq("user_agent", ua)
         .neq("fcm_token", data.fcm_token);
-      if (delErr) console.warn("[push] dedupe stale tokens failed", delErr);
+
+      if (!fetchErr && stale && stale.length > 0) {
+        // Ne purge que les tokens qui partagent les mêmes 8 derniers chars
+        // (variantes du même token régénéré sur le même device)
+        const currentSuffix = data.fcm_token.slice(-8);
+        const toDelete = stale.filter((r) => r.fcm_token && r.fcm_token.slice(-8) === currentSuffix).map((r) => r.id);
+        if (toDelete.length > 0) {
+          const { error: delErr } = await supabaseAdmin.from("push_subscriptions").delete().in("id", toDelete);
+          if (delErr) console.warn("[push] dedupe stale tokens failed", delErr);
+        }
+      }
     }
 
     return { ok: true };
