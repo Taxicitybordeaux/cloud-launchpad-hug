@@ -1886,78 +1886,7 @@ function ReservationPage() {
               </button>
 
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {/* Bouton notifications push — toujours visible, 3 états */}
-                {typeof window !== "undefined" && "Notification" in window && (
-                  <button
-                    onClick={async () => {
-                      if (notifPermission === "denied" || notifPermission === "granted") return;
-                      const perm = await Notification.requestPermission();
-                      setNotifPermission(perm);
-                      if (perm === "granted") {
-                        try {
-                          const token = await getFcmToken();
-                          if (token) {
-                            await subscribePush({
-                              data: {
-                                audience: "client",
-                                fcm_token: token,
-                                user_agent: navigator.userAgent,
-                              },
-                            });
-                            localStorage.setItem("fcm_token", token);
-                          }
-                        } catch {
-                          // silencieux
-                        }
-                      }
-                    }}
-                    disabled={notifPermission === "denied"}
-                    title={
-                      notifPermission === "denied"
-                        ? "Notifications bloquées — autorisez dans les réglages du navigateur"
-                        : notifPermission === "granted"
-                          ? "Notifications activées ✓"
-                          : "Recevoir une confirmation et un suivi par notification"
-                    }
-                    style={{
-                      background:
-                        notifPermission === "denied"
-                          ? "rgba(239,68,68,0.15)"
-                          : notifPermission === "granted"
-                            ? "rgba(34,197,94,0.15)"
-                            : "rgba(245,200,66,0.15)",
-                      border: `1px solid ${
-                        notifPermission === "denied"
-                          ? "rgba(239,68,68,0.4)"
-                          : notifPermission === "granted"
-                            ? "rgba(34,197,94,0.4)"
-                            : "rgba(245,200,66,0.4)"
-                      }`,
-                      color:
-                        notifPermission === "denied"
-                          ? "#f87171"
-                          : notifPermission === "granted"
-                            ? "#86efac"
-                            : "#f5c842",
-                      borderRadius: 99,
-                      padding: "7px 13px",
-                      fontSize: 12,
-                      fontWeight: 700,
-                      cursor: notifPermission === "default" ? "pointer" : "default",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 5,
-                      fontFamily: "'DM Sans', sans-serif",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {notifPermission === "denied"
-                      ? "🔕 Bloquées"
-                      : notifPermission === "granted"
-                        ? "🔔 Activées"
-                        : "🔔 Notifs"}
-                  </button>
-                )}
+
 
                 {/* Sélecteur de langue */}
                 <select
