@@ -803,7 +803,14 @@ function SuiviPage() {
       mapInitializing.current = false;
       return;
     }
-    const map = L.map(mapRef.current, { center: [lat, lng], zoom: 14, zoomControl: false });
+    let map: any;
+    try {
+      map = L.map(mapRef.current, { center: [lat, lng], zoom: 14, zoomControl: false });
+    } catch (err) {
+      console.warn("[suivi] map init failed", err);
+      mapInitializing.current = false;
+      return;
+    }
     initialZoom.current = 14;
     map.on("dragstart", () => setUserPanned(true));
     map.on("zoomstart", (e: any) => {
