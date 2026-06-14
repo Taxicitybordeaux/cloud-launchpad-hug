@@ -936,8 +936,9 @@ function SuiviPage() {
       // Attendre que la carte soit prête (elle peut ne pas l'être encore)
       let map = mapInst.current;
       if (!map) {
-        // Retry pendant 5s max
-        for (let i = 0; i < 10; i++) {
+        // Retry pendant 8s max : en PWA/mobile, le bundle Leaflet peut arriver
+        // après le premier rendu. Ne pas abandonner le tracé trop tôt.
+        for (let i = 0; i < 16; i++) {
           await new Promise((r) => setTimeout(r, 500));
           map = mapInst.current;
           if (map) break;
