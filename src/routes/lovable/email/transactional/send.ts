@@ -1,6 +1,5 @@
 import * as React from "react";
 import { render } from "@react-email/components";
-import { createClient } from "@supabase/supabase-js";
 import { createFileRoute } from "@tanstack/react-router";
 import { TEMPLATES } from "@/lib/email-templates/registry";
 
@@ -27,11 +26,11 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const supabaseUrl = "https://auiagkpdpnfqxfngisfc.supabase.co";
-        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SERVICE_ROLE_KEY || process.env.TAXI_SERVICE_KEY;
+        const { getTaxiSupabaseAdmin, getTaxiSupabaseConfig } = await import("@/lib/taxi-supabase.server");
+        const { serviceKey: supabaseServiceKey } = getTaxiSupabaseConfig();
         const lovableApiKey = process.env.LOVABLE_API_KEY ?? "";
 
-        if (!supabaseUrl || !supabaseServiceKey) {
+        if (!supabaseServiceKey) {
           console.error("Missing required environment variables");
           return Response.json({ error: "Server configuration error" }, { status: 500 });
         }
@@ -57,7 +56,7 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
             authorized = true;
           } else {
             // Path 4 — Supabase user JWT
-            const supabase = createClient(supabaseUrl, supabaseServiceKey);
+            const supabase = getTaxiSupabaseAdmin();
             const {
               data: { user },
               error,
@@ -71,7 +70,7 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
         }
         // ─────────────────────────────────────────────────────────────────────
 
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        const supabase = getTaxiSupabaseAdmin();
 
         let templateName: string;
         let recipientEmail: string;

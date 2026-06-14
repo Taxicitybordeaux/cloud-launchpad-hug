@@ -9,7 +9,7 @@
  */
 import { useState, useCallback } from "react";
 import { getFcmToken } from "@/lib/firebase";
-import { sendTestPush } from "@/lib/push.functions";
+import { sendTestPush, subscribePush } from "@/lib/push.functions";
 
 type LogLine = { time: string; level: "info" | "error" | "ok"; msg: string };
 
@@ -60,9 +60,15 @@ export function PushDebug() {
     // 3. Token FCM
     try {
       log("info", "Demande du token FCM...");
-      const token = await getFcmToken();
+      const token = await getFcmToken({ forceRefresh: true });
       if (token) {
         log("ok", `✅ Token obtenu: ${token.slice(0, 20)}…${token.slice(-10)}`);
+        const ua = navigator.userAgent.slice(0, 500);
+        await Promise.all([
+          subscribePush({ data: { audience: "admin", fcm_token: token, reservation_id: null, user_agent: ua } }),
+          subscribePush({ data: { audience: "chauffeur", fcm_token: token, reservation_id: null, user_agent: ua } }),
+        ]);
+        log("ok", "✅ Token enregistré pour admin + chauffeur sur cet appareil");
       } else {
         log("error", "❌ Token vide (null) — permission refusée ou SW introuvable");
       }

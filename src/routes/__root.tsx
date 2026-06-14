@@ -46,6 +46,14 @@ export const Route = createRootRoute({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  React.useEffect(() => {
+    let cleanup: (() => void) | undefined;
+    import("@/lib/firebase").then(({ setupForegroundNotifications }) => {
+      cleanup = setupForegroundNotifications();
+    });
+    return () => cleanup?.();
+  }, []);
+
   const showHeader =
     !pathname.startsWith("/reserver") &&
     !pathname.startsWith("/admin") &&

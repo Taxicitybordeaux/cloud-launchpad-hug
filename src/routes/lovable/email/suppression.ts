@@ -1,4 +1,3 @@
-import { createClient } from '@supabase/supabase-js'
 import { WebhookError, verifyWebhookRequest } from '@lovable.dev/webhooks-js'
 import { createFileRoute } from '@tanstack/react-router'
 
@@ -56,10 +55,8 @@ export const Route = createFileRoute("/lovable/email/suppression")({
     handlers: {
       POST: async ({ request }) => {
         const apiKey = process.env.LOVABLE_API_KEY
-        const supabaseUrl = 'https://auiagkpdpnfqxfngisfc.supabase.co'
-        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SERVICE_ROLE_KEY || process.env.TAXI_SERVICE_KEY
 
-        if (!apiKey || !supabaseUrl || !supabaseServiceKey) {
+        if (!apiKey) {
           console.error('Missing required environment variables')
           return Response.json({ error: 'Server configuration error' }, { status: 500 })
         }
@@ -98,7 +95,8 @@ export const Route = createFileRoute("/lovable/email/suppression")({
           return Response.json({ error: 'Internal error' }, { status: 500 })
         }
 
-        const supabase = createClient(supabaseUrl, supabaseServiceKey)
+        const { getTaxiSupabaseAdmin } = await import('@/lib/taxi-supabase.server')
+        const supabase = getTaxiSupabaseAdmin()
         const normalizedEmail = payload.email.toLowerCase()
 
         // 1. Upsert to suppressed_emails (idempotent — safe for retries)
@@ -108,7 +106,7 @@ export const Route = createFileRoute("/lovable/email/suppression")({
             {
               email: normalizedEmail,
               reason: payload.reason,
-              metadata: payload.metadata ?? null,
+              metadata: (payload.metadata ?? null) as any,
             },
             { onConflict: 'email' },
           )
@@ -133,7 +131,7 @@ export const Route = createFileRoute("/lovable/email/suppression")({
             recipient_email: normalizedEmail,
             status: sendLogStatus,
             error_message: sendLogMessage,
-            metadata: payload.metadata ?? null,
+            metadata: (payload.metadata ?? null) as any,
           })
 
         if (insertError) {

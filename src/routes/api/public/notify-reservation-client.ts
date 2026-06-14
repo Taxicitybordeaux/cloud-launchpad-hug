@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createClient } from "@supabase/supabase-js";
 import * as React from "react";
 import { render } from "@react-email/components";
 import { z } from "zod";
@@ -35,12 +34,8 @@ export const Route = createFileRoute("/api/public/notify-reservation-client")({
           referer: request.headers.get("referer"),
         });
 
-        const supabaseUrl = "https://auiagkpdpnfqxfngisfc.supabase.co";
-        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SERVICE_ROLE_KEY || process.env.TAXI_SERVICE_KEY;
-        if (!supabaseUrl || !serviceKey) {
-          log("error", { stage: "cfg" });
-          return Response.json({ error: "cfg" }, { status: 500 });
-        }
+        const { getTaxiSupabaseAdmin, getTaxiSupabaseConfig } = await import("@/lib/taxi-supabase.server");
+        const { serviceKey } = getTaxiSupabaseConfig();
 
         let raw: unknown;
         try {
@@ -56,7 +51,7 @@ export const Route = createFileRoute("/api/public/notify-reservation-client")({
         }
         const data = parsed.data;
 
-        const supabase = createClient(supabaseUrl, serviceKey);
+        const supabase = getTaxiSupabaseAdmin();
 
         // Vérifie que la résa existe et que l'email correspond — anti-relay
         const { data: reservation, error: lookupError } = await supabase
