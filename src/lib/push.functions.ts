@@ -20,7 +20,7 @@ export const subscribePush = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const supabaseAdmin = getTaxiSupabaseAdmin();
     const ua = data.user_agent ?? null;
-    const endpoint = `fcm://${data.fcm_token}`;
+    const endpoint = `fcm://${data.fcm_token}-${data.audience}`;
 
     // 1) Upsert la souscription courante
     const { error: upErr } = await supabaseAdmin.from("push_subscriptions").upsert(
