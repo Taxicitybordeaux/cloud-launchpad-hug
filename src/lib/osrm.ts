@@ -11,7 +11,7 @@
  *  - getRouteGeoCoords(from, to)         → { coords, distanceKm, durationSec }  (from/to en [lng,lat])
  */
 
-import { supabase } from "@/integrations/supabase/client";
+
 
 export const OSRM_DISTANCE_FACTOR = 1.0;
 
