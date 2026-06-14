@@ -806,26 +806,29 @@ function SuiviPage() {
     let map: any;
     try {
       map = L.map(mapRef.current, { center: [lat, lng], zoom: 14, zoomControl: false });
+      initialZoom.current = 14;
+      map.on("dragstart", () => setUserPanned(true));
+      map.on("zoomstart", (e: any) => {
+        if (e?.hard !== false) setUserPanned(true);
+      });
+      L.tileLayer(OSM_TILE_URL, OSM_TILE_OPTIONS).addTo(map);
+      L.control.zoom({ position: "bottomright" }).addTo(map);
+      const icon = L.divIcon({
+        className: "",
+        html: `<div style="width:40px;height:40px;border-radius:50%;border:3px solid #f5c842;overflow:hidden;box-shadow:0 0 0 0 rgba(245,200,66,0);animation:driverPulse 2s infinite;background:#1a1a2e;display:flex;align-items:center;justify-content:center;font-size:24px">🚕</div>`,
+        iconSize: [40, 40],
+        iconAnchor: [20, 20],
+      });
+      markerRef.current = L.marker([lat, lng], { icon }).addTo(map);
+      mapInst.current = map;
     } catch (err) {
       console.warn("[suivi] map init failed", err);
+      try {
+        map?.remove?.();
+      } catch {}
       mapInitializing.current = false;
       return;
     }
-    initialZoom.current = 14;
-    map.on("dragstart", () => setUserPanned(true));
-    map.on("zoomstart", (e: any) => {
-      if (e?.hard !== false) setUserPanned(true);
-    });
-    L.tileLayer(OSM_TILE_URL, OSM_TILE_OPTIONS).addTo(map);
-    L.control.zoom({ position: "bottomright" }).addTo(map);
-    const icon = L.divIcon({
-      className: "",
-      html: `<div style="width:40px;height:40px;border-radius:50%;border:3px solid #f5c842;overflow:hidden;box-shadow:0 0 0 0 rgba(245,200,66,0);animation:driverPulse 2s infinite;background:#1a1a2e;display:flex;align-items:center;justify-content:center;font-size:24px">🚕</div>`,
-      iconSize: [40, 40],
-      iconAnchor: [20, 20],
-    });
-    markerRef.current = L.marker([lat, lng], { icon }).addTo(map);
-    mapInst.current = map;
     mapInitializing.current = false;
     setTimeout(() => map.invalidateSize({ animate: false }), 300);
     setTimeout(() => map.invalidateSize({ animate: false }), 500);
