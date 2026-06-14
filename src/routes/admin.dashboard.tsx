@@ -1534,17 +1534,39 @@ function Dashboard() {
     const phone = client.phone;
 
     // 1) Supprimer les courses "completed" de ce client — sinon elles
-    // continuent de compter dans le CA (fetchStats les calcule depuis
-    // `reservations`, indépendamment de la table `clients`).
+    // continuent de compter dans le CA et le nombre de courses
+    // (fetchStats les calcule depuis `reservations`, indépendamment de la
+    // table `clients`).
+    // ⚠️ Les numéros de téléphone ne sont pas stockés au même format partout
+    // (espaces, "0X" vs "+33X"...) → un .eq() strict peut ne matcher aucune
+    // ligne. On normalise (chiffres uniquement, "0" initial → "33") avant de
+    // comparer, côté JS.
     if (phone) {
-      const { error: resaError } = await (supabase as any)
-        .from("reservations")
-        .delete()
-        .in("status", ["completed", "terminee", "terminée", "done"])
-        .or(`client_phone.eq.${phone},telephone.eq.${phone}`);
-      if (resaError) {
-        toast.error("Suppression des courses associées impossible", { description: resaError.message });
-        return;
+      const normalize = (p: string) => p.replace(/[^0-9]/g, "").replace(/^0/, "33");
+      const targetPhone = normalize(phone);
+      if (targetPhone) {
+        const { data: completedResas, error: fetchErr } = await (supabase as any)
+          .from("reservations")
+          .select("id, client_phone, telephone")
+          .in("status", ["completed", "terminee", "terminée", "done"]);
+        if (fetchErr) {
+          toast.error("Suppression des courses associées impossible", { description: fetchErr.message });
+          return;
+        }
+        const idsToDelete = (completedResas ?? [])
+          .filter((r: any) => {
+            const p1 = r.client_phone ? normalize(r.client_phone) : "";
+            const p2 = r.telephone ? normalize(r.telephone) : "";
+            return p1 === targetPhone || p2 === targetPhone;
+          })
+          .map((r: any) => r.id);
+        if (idsToDelete.length > 0) {
+          const { error: delErr } = await (supabase as any).from("reservations").delete().in("id", idsToDelete);
+          if (delErr) {
+            toast.error("Suppression des courses associées impossible", { description: delErr.message });
+            return;
+          }
+        }
       }
     }
 
@@ -1556,8 +1578,9 @@ function Dashboard() {
     }
     toast.success("Client supprimé");
     setClients((prev) => prev.filter((c) => c.id !== client.id));
-    // Le CA (caJ/caM) est calculé depuis `reservations` → on rafraîchit pour
-    // qu'il repasse à 0 si c'était la dernière course comptée.
+    // Le CA (caJ/caM) et le nombre de courses sont calculés depuis
+    // `reservations` → on rafraîchit pour qu'ils repassent à 0 si c'était la
+    // dernière course comptée.
     fetchStats();
   };
 
