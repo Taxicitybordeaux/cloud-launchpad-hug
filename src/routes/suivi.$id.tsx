@@ -498,7 +498,7 @@ function SuiviPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const notifyStatusFn = useServerFn(notifyReservationStatus);
-  const [statusBusy, setStatusBusy] = useState<null | "arrived" | "completed">(null);
+  const [statusBusy, setStatusBusy] = useState<null | "en_route" | "arrived" | "completed">(null);
 
   // ── États ─────────────────────────────────────────────────────────────────
   const [resa, setResa] = useState<Reservation | null>(null);
