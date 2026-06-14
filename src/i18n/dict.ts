@@ -2136,6 +2136,8 @@ const it: Dict = {
   "nav.contact": "Contatti",
   "nav.book": "Prenota",
   "nav.book_long": "Prenota una corsa",
+  "nav.account": "Il mio spazio",
+  "nav.account_long": "La mia area cliente",
   "common.available_247": "Disponibile 24/7",
   "common.lang_label": "Lingua",
 
