@@ -9,6 +9,7 @@ export type PushPayload = {
   tag?: string;
   icon?: string;
   requireInteraction?: boolean;
+  data?: Record<string, string | number | boolean | null | undefined>;
 };
 
 export type PushAudience = "admin" | "chauffeur" | "client";
@@ -22,6 +23,24 @@ type ServiceAccount = {
 
 let cachedAccount: ServiceAccount | null = null;
 let cachedToken: { token: string; exp: number } | null = null;
+
+const APP_URL = "https://taxicitybordeaux.fr";
+
+function toAbsoluteUrl(url: string | undefined): string {
+  try {
+    return new URL(url || "/", APP_URL).toString();
+  } catch {
+    return APP_URL;
+  }
+}
+
+function stringifyData(data: Record<string, string | number | boolean | null | undefined>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(data)
+      .filter(([, value]) => value !== undefined && value !== null)
+      .map(([key, value]) => [key, String(value)]),
+  );
+}
 
 function getServiceAccount(): ServiceAccount {
   if (cachedAccount) return cachedAccount;
@@ -115,9 +134,13 @@ async function sendFcmToToken(
   projectId: string,
   token: string,
   payload: PushPayload,
+  audience: PushAudience,
 ): Promise<{ ok: boolean; status: number; errorCode?: string }> {
   const url = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
-  const clickUrl = payload.url ?? "/";
+  const clickUrl = toAbsoluteUrl(payload.url);
+  const tag = payload.tag || "taxi-fcm";
+  const icon = toAbsoluteUrl(payload.icon || "/favicon.ico");
+  const data = stringifyData({ url: clickUrl, tag, audience, ...(payload.data || {}) });
   // Idempotency key : unique par tentative pour que les retries réseau
   // passent vraiment — un ID stable ferait ignorer les retries par FCM
   // si la 1ère tentative a été reçue côté FCM mais le réseau a timeout.
@@ -125,24 +148,28 @@ async function sendFcmToToken(
   const body = {
     message: {
       token,
-      // NE PAS mettre "notification" ici : si présent, FCM tente d'afficher la notif
-      // lui-même sans passer par le Service Worker → silencieux sur Android background.
-      // On délègue 100% au SW via webpush.notification.
+      // Android/Chrome en PWA installée affiche plus fiablement une notification
+      // racine. Le Service Worker reste présent pour les navigateurs qui livrent
+      // le message via onBackgroundMessage.
+      notification: {
+        title: payload.title,
+        body: payload.body,
+      },
       webpush: {
         headers: payload.requireInteraction ? { Urgency: "high", TTL: "86400" } : { TTL: "3600" },
+        data,
         notification: {
           title: payload.title,
           body: payload.body,
-          icon: payload.icon || "/favicon.ico",
-          badge: "/favicon.ico",
-          tag: payload.tag || "taxi-fcm",
+          icon,
+          badge: icon,
+          tag,
           requireInteraction: !!payload.requireInteraction,
           vibrate: [200, 100, 200],
         },
         fcm_options: { link: clickUrl },
-        data: { url: clickUrl, tag: payload.tag || "taxi-fcm" },
       },
-      data: { url: clickUrl, tag: payload.tag || "taxi-fcm" },
+      data,
     },
   };
 
@@ -250,7 +277,7 @@ export async function sendPushToAudience(
   await Promise.all(
     uniqueSubs.map(async (sub) => {
       if (!sub.fcm_token) return;
-      const r = await sendFcmToToken(accessToken, projectId, sub.fcm_token, payload);
+      const r = await sendFcmToToken(accessToken, projectId, sub.fcm_token, payload, audience);
       if (r.ok) {
         sent++;
       } else if (r.errorCode === "UNREGISTERED" || r.status === 404) {
