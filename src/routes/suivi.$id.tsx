@@ -773,24 +773,34 @@ function SuiviPage() {
 
   // ── Init carte ───────────────────────────────────────────────────────────
   const initMap = async (lat: number, lng: number) => {
-    try {
-      await loadLeaflet();
-    } catch {
-      return;
-    }
-    const L = (window as any).L;
-    if (!L || !mapRef.current) return;
+    if (mapInitializing.current) return;
     if (mapInst.current) {
-      // Carte déjà montée → ne pas la détruire (évite l'écran noir au démarrage GPS)
-      if (!markerRef.current) {
+      const L = (window as any).L;
+      if (L && !markerRef.current) {
         const icon = L.divIcon({
           className: "",
-          html: `<div style="width:32px;height:32px;border-radius:50%;border:2px solid #f5c842;overflow:hidden;box-shadow:0 0 0 0 rgba(245,200,66,0);animation:driverPulse 2s infinite"><img src="${TAXI_ICON_URI}" style="width:100%;height:100%;object-fit:cover" /></div>`,
-          iconSize: [32, 32],
-          iconAnchor: [16, 16],
+          html: `<div style="width:40px;height:40px;border-radius:50%;border:3px solid #f5c842;overflow:hidden;box-shadow:0 0 0 0 rgba(245,200,66,0);animation:driverPulse 2s infinite;background:#1a1a2e;display:flex;align-items:center;justify-content:center;font-size:24px">🚕</div>`,
+          iconSize: [40, 40],
+          iconAnchor: [20, 20],
         });
         markerRef.current = L.marker([lat, lng], { icon }).addTo(mapInst.current);
       }
+      return;
+    }
+    mapInitializing.current = true;
+    try {
+      await loadLeaflet();
+    } catch {
+      mapInitializing.current = false;
+      return;
+    }
+    if (mapInst.current) {
+      mapInitializing.current = false;
+      return;
+    }
+    const L = (window as any).L;
+    if (!L || !mapRef.current) {
+      mapInitializing.current = false;
       return;
     }
     const map = L.map(mapRef.current, { center: [lat, lng], zoom: 14, zoomControl: false });
@@ -803,12 +813,13 @@ function SuiviPage() {
     L.control.zoom({ position: "bottomright" }).addTo(map);
     const icon = L.divIcon({
       className: "",
-      html: `<div style="width:32px;height:32px;border-radius:50%;border:2px solid #f5c842;overflow:hidden;box-shadow:0 0 0 0 rgba(245,200,66,0);animation:driverPulse 2s infinite"><img src="${TAXI_ICON_URI}" style="width:100%;height:100%;object-fit:cover" /></div>`,
-      iconSize: [32, 32],
-      iconAnchor: [16, 16],
+      html: `<div style="width:40px;height:40px;border-radius:50%;border:3px solid #f5c842;overflow:hidden;box-shadow:0 0 0 0 rgba(245,200,66,0);animation:driverPulse 2s infinite;background:#1a1a2e;display:flex;align-items:center;justify-content:center;font-size:24px">🚕</div>`,
+      iconSize: [40, 40],
+      iconAnchor: [20, 20],
     });
     markerRef.current = L.marker([lat, lng], { icon }).addTo(map);
     mapInst.current = map;
+    mapInitializing.current = false;
     setTimeout(() => map.invalidateSize({ animate: false }), 300);
     setTimeout(() => map.invalidateSize({ animate: false }), 500);
   };
