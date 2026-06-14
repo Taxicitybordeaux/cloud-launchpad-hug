@@ -957,10 +957,11 @@ function SuiviPage() {
       pickupCoordsRef.current = a;
 
       try {
-        let coords: [number, number][];
+        let coords: [number, number][] = [a, b];
         let distanceKm: number | undefined;
-        if (cachedCoords && Array.isArray(cachedCoords) && cachedCoords.length > 1) {
-          coords = cachedCoords as [number, number][];
+        const normalizedCachedCoords = normalizeRouteCoords(cachedCoords);
+        if (normalizedCachedCoords) {
+          coords = normalizedCachedCoords;
           let d = 0;
           for (let i = 1; i < coords.length; i++) {
             d += distMeters({ lat: coords[i - 1][0], lng: coords[i - 1][1] }, { lat: coords[i][0], lng: coords[i][1] });
@@ -968,9 +969,10 @@ function SuiviPage() {
           distanceKm = d / 1000;
         } else {
           // getRouteGeoCoords attend [lng, lat] (format GeoJSON/OSRM), pas [lat, lng]
-          const route = await getRouteGeoCoords([a[1], a[0]], [b[1], b[0]]);
-          coords = route.coords.length > 0 ? route.coords : [a, b];
-          distanceKm = route.distanceKm;
+          const route = await getRouteGeoCoords([a[1], a[0]], [b[1], b[0]]).catch(() => null);
+          const routeCoords = normalizeRouteCoords(route?.coords);
+          coords = routeCoords ?? [a, b];
+          distanceKm = route?.distanceKm || distMeters({ lat: a[0], lng: a[1] }, { lat: b[0], lng: b[1] }) / 1000;
         }
         if (distanceKm && distanceKm > 0) setTotalKm(parseFloat(distanceKm.toFixed(1)));
 
