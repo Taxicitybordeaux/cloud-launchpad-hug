@@ -2,16 +2,22 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Phone, Mail, MapPin, MessageCircle, Clock } from "lucide-react";
 import { useT } from "@/i18n/I18nProvider";
 
+const CONTACT_TITLE = "Contact – Taxi City Bordeaux";
+const CONTACT_DESC =
+  "Contactez Taxi City Bordeaux : 06 73 07 23 22, taxi.city033@gmail.com. Interventions à Bordeaux et dans toute la Gironde.";
+const CONTACT_URL = "https://taxicitybordeaux.fr/contact";
+
 export const Route = createFileRoute("/contact")({
   head: () => ({
     meta: [
-      { title: "Contact – Taxi City Bordeaux" },
-      {
-        name: "description",
-        content:
-          "Contactez Taxi City Bordeaux : 06 73 07 23 22, taxi.city033@gmail.com. Interventions à Bordeaux et dans toute la Gironde.",
-      },
+      { title: CONTACT_TITLE },
+      { name: "description", content: CONTACT_DESC },
+      { property: "og:title", content: CONTACT_TITLE },
+      { property: "og:description", content: CONTACT_DESC },
+      { property: "og:url", content: CONTACT_URL },
+      { property: "og:type", content: "website" },
     ],
+    links: [{ rel: "canonical", href: CONTACT_URL }],
   }),
   component: ContactPage,
 });

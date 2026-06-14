@@ -2,16 +2,22 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Award, MapPin, Clock, Heart } from "lucide-react";
 import { useT } from "@/i18n/I18nProvider";
 
+const ABOUT_TITLE = "À propos – Taxi City Bordeaux";
+const ABOUT_DESC =
+  "Taxi City Bordeaux : un service de taxi de proximité, professionnel et premium, basé à Cenon, au service des Bordelais et des Girondins.";
+const ABOUT_URL = "https://taxicitybordeaux.fr/a-propos";
+
 export const Route = createFileRoute("/a-propos")({
   head: () => ({
     meta: [
-      { title: "À propos – Taxi City Bordeaux" },
-      {
-        name: "description",
-        content:
-          "Taxi City Bordeaux : un service de taxi de proximité, professionnel et premium, basé à Cenon, au service des Bordelais et des Girondins.",
-      },
+      { title: ABOUT_TITLE },
+      { name: "description", content: ABOUT_DESC },
+      { property: "og:title", content: ABOUT_TITLE },
+      { property: "og:description", content: ABOUT_DESC },
+      { property: "og:url", content: ABOUT_URL },
+      { property: "og:type", content: "website" },
     ],
+    links: [{ rel: "canonical", href: ABOUT_URL }],
   }),
   component: AboutPage,
 });
