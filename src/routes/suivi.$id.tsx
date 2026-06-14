@@ -946,7 +946,10 @@ function SuiviPage() {
       const L = (window as any).L;
       if (!map || !L) return;
 
-      const [a, b] = await Promise.all([geocode(depart), geocode(destination)]);
+      const normalizedCachedCoords = normalizeRouteCoords(cachedCoords);
+      const [geoA, geoB] = await Promise.all([geocode(depart), geocode(destination)]);
+      const a = geoA ?? normalizedCachedCoords?.[0] ?? null;
+      const b = geoB ?? normalizedCachedCoords?.[normalizedCachedCoords.length - 1] ?? null;
       if (!a || !b) {
         console.warn("[drawTripRoute] Geocode échoué pour:", !a ? depart : destination);
         return;
@@ -960,7 +963,6 @@ function SuiviPage() {
       try {
         let coords: [number, number][] = [a, b];
         let distanceKm: number | undefined;
-        const normalizedCachedCoords = normalizeRouteCoords(cachedCoords);
         if (normalizedCachedCoords) {
           coords = normalizedCachedCoords;
           let d = 0;
