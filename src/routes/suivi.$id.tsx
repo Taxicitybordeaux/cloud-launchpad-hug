@@ -1300,49 +1300,11 @@ function SuiviPage() {
     const toastId = "suivi-load";
 
     const init = async () => {
-      // 1. Résoudre l'ID de suivi.
-      // Compatible anciens liens : suivi_id / tracking_id peuvent être du texte,
-      // tandis que l'id interne de réservation est un UUID.
+      // 1. Résoudre l'ID de suivi via la fonction publique sécurisée.
+      // Compatible suivi_id, tracking_id et UUID interne sans déclencher de 400.
       const trackingKey = id.trim();
-      const parsed = suiviIdSchema.safeParse(trackingKey);
-      let r: Reservation | null = null;
-
       setLoadStep(1);
-      if (trackingKey) {
-        // Chercher d'abord par suivi_id texte
-        const { data: byTracking } = await (supabase as any)
-          .from("reservations")
-          .select(
-            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,bagages,suivi_id,distance_km,created_at,route_coords,route_label,lang",
-          )
-          .eq("suivi_id", trackingKey)
-          .maybeSingle();
-        if (byTracking) r = byTracking;
-
-        // Compatibilité anciens liens tracking_id
-        if (!r) {
-          const { data: byLegacyTracking } = await (supabase as any)
-            .from("reservations")
-            .select(
-              "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,bagages,suivi_id,distance_km,created_at,route_coords,route_label,lang",
-            )
-            .eq("tracking_id", trackingKey)
-            .maybeSingle();
-          if (byLegacyTracking) r = byLegacyTracking;
-        }
-      }
-
-      // Fallback par id direct uniquement si UUID valide (sinon le backend renvoie 400)
-      if (!r && parsed.success) {
-        const { data: byId } = await (supabase as any)
-          .from("reservations")
-          .select(
-            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,bagages,suivi_id,distance_km,created_at,route_coords,route_label,lang",
-          )
-          .eq("id", id)
-          .maybeSingle();
-        r = byId;
-      }
+      const r = trackingKey ? await fetchReservationForSuivi(trackingKey) : null;
 
       if (!r) {
         toast.error("Aucune course trouvée", { id: toastId });
