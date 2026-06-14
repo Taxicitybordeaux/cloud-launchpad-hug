@@ -720,6 +720,7 @@ function SuiviPage() {
   // ── Geocode helper avec retry (3 tentatives, délai exponentiel) ─────────
   const geocode = async (q: string): Promise<[number, number] | null> => {
     const known = knownPlaceCoords(q);
+    if (known) return known;
     const candidates = geocodeCandidates(q).flatMap((candidate) => {
       const hasCity =
         /\b(bordeaux|cenon|mérignac|merignac|pessac|talence|bègles|begles|lormont|floirac|villenave|bouliac|carbon|blanquefort|eysines|le bouscat|bruges|gradignan|cestas)\b/i.test(
