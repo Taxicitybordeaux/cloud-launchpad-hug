@@ -4,7 +4,6 @@ import { Toaster } from "@/components/ui/sonner";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { SiteHeader } from "@/components/SiteHeader";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
-import { setupForegroundNotifications } from "@/lib/firebase";
 import appCss from "@/styles.css?url";
 
 export const Route = createRootRoute({
@@ -47,7 +46,13 @@ export const Route = createRootRoute({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  React.useEffect(() => setupForegroundNotifications(), []);
+  React.useEffect(() => {
+    let cleanup: (() => void) | undefined;
+    import("@/lib/firebase").then(({ setupForegroundNotifications }) => {
+      cleanup = setupForegroundNotifications();
+    });
+    return () => cleanup?.();
+  }, []);
 
   const showHeader =
     !pathname.startsWith("/reserver") &&
