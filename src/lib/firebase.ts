@@ -1,7 +1,7 @@
 // Firebase Cloud Messaging — client integration
 // Les credentials Web Firebase sont publics par design.
 import { initializeApp, type FirebaseApp } from "firebase/app";
-import { getMessaging, getToken, onMessage, isSupported, type Messaging } from "firebase/messaging";
+import { deleteToken, getMessaging, getToken, onMessage, isSupported, type Messaging } from "firebase/messaging";
 
 export const firebaseConfig = {
   apiKey: "AIzaSyB8wYcBq5-KVdPDAnXGcWzcCkTYmftTKdY",
@@ -14,6 +14,7 @@ export const firebaseConfig = {
 
 // Clé VAPID *Web Push* de Firebase (Console → Cloud Messaging → Web configuration)
 export const FCM_VAPID_KEY = "BPCVh_FRLBkhOWLLxdaKnD29L6HRNS44w4wHX_AE2DV0a0-Uc6OoofT8SldZ-V4_yMWInXt4xqbvkhGiFW-_N20";
+const FCM_TOKEN_VERSION = "taxi-city-bordeaux-auiagkpdpnfqxfngisfc-2026-06-14-v3";
 
 let app: FirebaseApp | null = null;
 let messaging: Messaging | null = null;
@@ -35,7 +36,7 @@ export async function initFirebase(): Promise<Messaging | null> {
   }
 }
 
-export async function getFcmToken(): Promise<string | null> {
+export async function getFcmToken(options: { forceRefresh?: boolean } = {}): Promise<string | null> {
   if (typeof window === "undefined") return null;
   if (!("Notification" in window) || !("serviceWorker" in navigator)) return null;
 
@@ -62,6 +63,8 @@ export async function getFcmToken(): Promise<string | null> {
     );
     if (!swReg) {
       swReg = await navigator.serviceWorker.register(SW_URL, { scope: "/" });
+    } else {
+      await swReg.update().catch((err) => console.warn("[FCM] SW update check failed", err));
     }
 
     // Attendre que le SW Firebase soit actif avant de demander le token
@@ -91,6 +94,13 @@ export async function getFcmToken(): Promise<string | null> {
       }
     }
 
+    const mustRefreshToken =
+      options.forceRefresh || window.localStorage.getItem("fcm_token_version") !== FCM_TOKEN_VERSION;
+    if (mustRefreshToken) {
+      await deleteToken(msg).catch((err) => console.warn("[FCM] old token delete skipped", err));
+      window.localStorage.removeItem("fcm_token");
+    }
+
     const token = await getToken(msg, {
       vapidKey: FCM_VAPID_KEY,
       serviceWorkerRegistration: swReg,
@@ -98,6 +108,8 @@ export async function getFcmToken(): Promise<string | null> {
 
     if (token) {
       console.log("[FCM] Token obtenu :", token);
+      window.localStorage.setItem("fcm_token_version", FCM_TOKEN_VERSION);
+      window.localStorage.setItem("fcm_token", token);
     } else {
       console.warn("[FCM] Token vide — vérifier VAPID key et SW");
     }
