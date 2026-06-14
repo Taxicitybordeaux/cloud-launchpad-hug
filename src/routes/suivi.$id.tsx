@@ -718,26 +718,22 @@ function SuiviPage() {
 
   // ── Geocode helper avec retry (3 tentatives, délai exponentiel) ─────────
   const geocode = async (q: string): Promise<[number, number] | null> => {
-    const hasCity =
-      /\b(bordeaux|cenon|mérignac|merignac|pessac|talence|bègles|begles|lormont|floirac|villenave|bouliac|carbon|blanquefort|eysines|le bouscat|bruges|gradignan|cestas)\b/i.test(
-        q,
-      ) || /\b\d{5}\b/.test(q);
-    const query = hasCity ? `${q}, France` : `${q}, Bordeaux, France`;
+    const known = knownPlaceCoords(q);
+    const candidates = geocodeCandidates(q).flatMap((candidate) => {
+      const hasCity =
+        /\b(bordeaux|cenon|mérignac|merignac|pessac|talence|bègles|begles|lormont|floirac|villenave|bouliac|carbon|blanquefort|eysines|le bouscat|bruges|gradignan|cestas)\b/i.test(
+          candidate,
+        ) || /\b\d{5}\b/.test(candidate);
+      return hasCity ? [`${candidate}, France`, candidate] : [`${candidate}, Bordeaux, France`, `${candidate}, France`];
+    });
 
-    // 3 tentatives avec backoff exponentiel (0ms, 800ms, 2000ms)
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (const query of Array.from(new Set(candidates))) {
       try {
-        if (attempt > 0) await new Promise((r) => setTimeout(r, attempt * 800));
         const c = await geocodeAddress(query);
         if (c) return [c.lat, c.lng];
       } catch {}
     }
-    // Dernier recours : essai sans qualificatif de ville
-    try {
-      const c = await geocodeAddress(`${q}, France`);
-      if (c) return [c.lat, c.lng];
-    } catch {}
-    return null;
+    return known;
   };
 
   // ── Tracé ligne bleue chauffeur → prise en charge ────────────────────────
