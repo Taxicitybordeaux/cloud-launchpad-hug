@@ -364,6 +364,28 @@ function normalizeRouteCoords(value: unknown): [number, number][] | null {
   return coords.length >= 2 ? coords : null;
 }
 
+function knownPlaceCoords(query: string): [number, number] | null {
+  const q = query
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  if (q.includes("aeroport") || q.includes("merignac") || q.includes("hall a")) return [44.8291, -0.7028];
+  if (q.includes("gare saint") || q.includes("saint-jean") || q.includes("charles domercq")) return [44.8265, -0.5569];
+  if (q.includes("place de la bourse")) return [44.8415, -0.5704];
+  return null;
+}
+
+function geocodeCandidates(input: string): string[] {
+  const cleaned = input.replace(/[–—]/g, ",").replace(/\s+/g, " ").trim();
+  const withoutParentheses = cleaned.replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
+  const beforeDetail = input.split(/[–—]/)[0]?.trim();
+  const candidates = [input, cleaned, withoutParentheses, beforeDetail].filter((v): v is string => !!v && v.length > 1);
+  const known = knownPlaceCoords(input);
+  if (known && input.toLowerCase().includes("aéroport")) candidates.push("Aéroport Bordeaux Mérignac, Mérignac, France");
+  if (known && input.toLowerCase().includes("gare")) candidates.push("Gare Saint-Jean, Bordeaux, France");
+  return Array.from(new Set(candidates));
+}
+
 function ease(t: number) {
   return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
 }
