@@ -90,71 +90,99 @@ export const sendTestPush = createServerFn({ method: "POST" })
 // URL de prod hardcodée — process.env.APP_URL est vide en contexte serveur Lovable
 const APP_URL = "https://taxicitybordeaux.fr";
 
-// ⚠️ Non utilisée actuellement : le push admin+chauffeur à la création d'une
-// réservation est envoyé par /api/public/notify-reservation (server-side,
-// appelé depuis le formulaire de réservation client). Si tu réutilises cette
-// fonction, retire l'appel équivalent dans notify-reservation.ts pour éviter
-// les doublons (push ET email).
+// Appelée depuis reserver.tsx après l'insert d'une nouvelle réservation.
+// Envoie push FCM à admin + chauffeur ET email à José via le bridge Lovable
+// (même bridge que notify-reservation.ts, qui est prouvé fonctionnel).
 export const notifyNewReservation = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ reservation_id: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
-    const { data: r } = await supabaseAdmin
+    console.log("[notifyNewReservation] start", data.reservation_id);
+
+    const { data: r, error: fetchErr } = await supabaseAdmin
       .from("reservations")
       .select(
-        "id, nom, client_name, client_phone, telephone, client_email, email, depart, arrivee, destination, pickup_datetime, nb_passagers, passagers, bagages",
+        "id, nom, client_name, client_phone, telephone, client_email, email, depart, arrivee, destination, pickup_datetime, nb_passagers, passagers, bagages, service_type",
       )
       .eq("id", data.reservation_id)
       .maybeSingle();
+    if (fetchErr) {
+      console.error("[notifyNewReservation] supabase fetch error", fetchErr);
+      throw new Error("fetch_failed");
+    }
     if (!r) throw new Error("not_found");
 
     const clientName = r.client_name || r.nom || "Client";
     const trajet = `${r.depart} → ${r.arrivee || r.destination || "—"}`;
-    const phone = r.client_phone || r.telephone || "";
-    const email = r.client_email || r.email || "";
 
-    const adminResult = await sendPushToAudience("admin", {
-      title: "🔔 Nouvelle réservation",
-      body: `${clientName} — ${trajet}`,
-      url: "/admin/dashboard",
-      tag: `new-res-${r.id}`,
-      requireInteraction: true,
-    });
+    // ── Push FCM admin + chauffeur ─────────────────────────────────────────
+    const [adminResult, chauffeurResult] = await Promise.all([
+      sendPushToAudience("admin", {
+        title: "🔔 Nouvelle réservation",
+        body: `${clientName} — ${trajet}`,
+        url: "/admin/dashboard",
+        tag: `new-res-${r.id}`,
+        requireInteraction: true,
+      }),
+      sendPushToAudience("chauffeur", {
+        title: "🚕 Nouvelle course en attente",
+        body: `${clientName} — ${trajet}`,
+        url: "/admin/dashboard",
+        tag: `chauffeur-res-${r.id}`,
+        requireInteraction: true,
+      }),
+    ]);
+    console.log(
+      "[notifyNewReservation] push admin:",
+      JSON.stringify(adminResult),
+      "chauffeur:",
+      JSON.stringify(chauffeurResult),
+    );
 
-    const chauffeurResult = await sendPushToAudience("chauffeur", {
-      title: "🚕 Nouvelle course en attente",
-      body: `${clientName} — ${trajet}`,
-      url: "/admin/dashboard",
-      tag: `chauffeur-res-${r.id}`, // ✅ même tag que dans notifyReservationStatus → remplace au lieu d'empiler
-      requireInteraction: true,
-    });
-
+    // ── Email à José via le bridge Lovable (même que notify-reservation.ts) ─
     let emailSent = false;
     try {
-      console.log("[notifyNewReservation] calling send-course-email →", `${APP_URL}/api/admin/send-course-email`);
-      const res = await fetch(`${APP_URL}/api/admin/send-course-email`, {
+      const serviceKey =
+        process.env.TAXI_SERVICE_KEY ||
+        process.env.SUPABASE_SERVICE_ROLE_KEY ||
+        (typeof import.meta !== "undefined" ? (import.meta as any).env?.TAXI_SERVICE_KEY : undefined);
+
+      const emailPayload = {
+        templateName: "new-reservation-admin",
+        recipientEmail: "taxi.city033@gmail.com",
+        idempotencyKey: `new-res-admin-${r.id}`,
+        templateData: {
+          id: r.id,
+          nom: clientName,
+          client_name: clientName,
+          phone: r.client_phone || r.telephone || "",
+          telephone: r.client_phone || r.telephone || "",
+          email: r.client_email || r.email || "",
+          depart: r.depart,
+          arrivee: r.arrivee || r.destination || "—",
+          destination: r.arrivee || r.destination || "—",
+          pickup_datetime: r.pickup_datetime ?? "",
+          passagers: r.nb_passagers || r.passagers || 1,
+          bagages: r.bagages ?? 0,
+          service_type: (r as any).service_type ?? "",
+          admin_url: `${APP_URL}/admin/dashboard`,
+        },
+      };
+
+      console.log("[notifyNewReservation] sending email via bridge →", `${APP_URL}/lovable/email/transactional/send`);
+      const res = await fetch(`${APP_URL}/lovable/email/transactional/send`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Admin-Secret": "admin-pin-call" },
-        body: JSON.stringify({
-          templateName: "new-reservation-admin",
-          recipientEmail: "taxi.city033@gmail.com",
-          idempotencyKey: `new-res-admin-${r.id}`,
-          templateData: {
-            nom: clientName,
-            phone,
-            email,
-            depart: r.depart,
-            arrivee: r.arrivee || r.destination || "—",
-            pickup_datetime: r.pickup_datetime ?? "",
-            passagers: r.nb_passagers || r.passagers || 1,
-            bagages: r.bagages ?? 0,
-            admin_url: `${APP_URL}/admin/dashboard`,
-          },
-        }),
+        headers: {
+          "Content-Type": "application/json",
+          ...(serviceKey ? { Authorization: `Bearer ${serviceKey}` } : {}),
+        },
+        body: JSON.stringify(emailPayload),
       });
       emailSent = res.ok;
       if (!res.ok) {
         const errBody = await res.text().catch(() => "");
-        console.warn("[notifyNewReservation] send-course-email failed", res.status, errBody);
+        console.error("[notifyNewReservation] email bridge failed", res.status, errBody);
+      } else {
+        console.log("[notifyNewReservation] email queued ok");
       }
     } catch (e) {
       console.error("[notifyNewReservation] email fetch threw", e);
