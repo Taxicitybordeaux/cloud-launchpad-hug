@@ -21,7 +21,7 @@ export const Route = createFileRoute("/api/admin/send-course-email")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const serviceKey = process.env.TAXI_SERVICE_KEY || process.env.SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SERVICE_ROLE_KEY || process.env.TAXI_SERVICE_KEY || "";
         const supabaseUrl = "https://auiagkpdpnfqxfngisfc.supabase.co";
 
         if (!serviceKey || !supabaseUrl) {

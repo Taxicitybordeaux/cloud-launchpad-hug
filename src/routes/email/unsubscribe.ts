@@ -13,7 +13,7 @@ export const Route = createFileRoute("/email/unsubscribe")({
     handlers: {
       GET: async ({ request }) => {
         const supabaseUrl = 'https://auiagkpdpnfqxfngisfc.supabase.co'
-        const supabaseServiceKey = process.env.TAXI_SERVICE_KEY || process.env.SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SERVICE_ROLE_KEY || process.env.TAXI_SERVICE_KEY
 
         if (!supabaseUrl || !supabaseServiceKey) {
           return Response.json({ error: 'Server configuration error' }, { status: 500 })
@@ -49,7 +49,7 @@ export const Route = createFileRoute("/email/unsubscribe")({
 
       POST: async ({ request }) => {
         const supabaseUrl = 'https://auiagkpdpnfqxfngisfc.supabase.co'
-        const supabaseServiceKey = process.env.TAXI_SERVICE_KEY || process.env.SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SERVICE_ROLE_KEY || process.env.TAXI_SERVICE_KEY
 
         if (!supabaseUrl || !supabaseServiceKey) {
           return Response.json({ error: 'Server configuration error' }, { status: 500 })
