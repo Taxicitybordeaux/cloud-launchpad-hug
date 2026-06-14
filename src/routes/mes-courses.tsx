@@ -116,10 +116,11 @@ function getStatutLabels(t: (k: string) => string): Record<string, { label: stri
   };
 }
 
-function formatDate(dateStr: string, heureStr?: string): string {
+function formatDate(dateStr: string, heureStr?: string, lang = "fr"): string {
   try {
     const d = new Date(dateStr);
-    const date = d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+    const locale = lang === "ar" ? "ar-SA" : lang === "pt" ? "pt-PT" : `${lang}-${lang.toUpperCase()}`;
+    const date = d.toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" });
     return heureStr ? `${date} · ${heureStr}` : date;
   } catch {
     return dateStr;
@@ -254,7 +255,7 @@ function MapReplay({ depart, destination }: { depart: string; destination: strin
 function CourseCard({ course, onRebook }: { course: Course; onRebook: (c: Course) => void }) {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const STATUT_LABELS = getStatutLabels(t);
   const statut = STATUT_LABELS[course.status] ?? {
     label: course.status,
@@ -294,7 +295,9 @@ function CourseCard({ course, onRebook }: { course: Course; onRebook: (c: Course
           >
             {statut.label}
           </span>
-          <span style={{ fontSize: 12, color: "#475569" }}>{formatDate(course.date_course, course.heure_course)}</span>
+          <span style={{ fontSize: 12, color: "#475569" }}>
+            {formatDate(course.date_course, course.heure_course, lang)}
+          </span>
         </div>
 
         {/* Trajet */}
@@ -394,7 +397,11 @@ function CourseCard({ course, onRebook }: { course: Course; onRebook: (c: Course
                   borderRadius: 8,
                 }}
               >
-                {course.paiement === "cb" ? "💳 CB" : course.paiement === "especes" ? "💵 Espèces" : course.paiement}
+                {course.paiement === "cb"
+                  ? t("fin.payment.cb")
+                  : course.paiement === "especes"
+                    ? t("fin.payment.cash")
+                    : course.paiement}
               </span>
             )}
           </div>
