@@ -2853,10 +2853,9 @@ function Dashboard() {
           style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}
         >
           {/* Bouton activation notifications push (admin + chauffeur) — toujours visible, 3 états */}
-          {typeof window !== "undefined" &&
             !("Notification" in window) &&
             /iPad|iPhone|iPod/.test(navigator.userAgent) &&
-            !(window.navigator as any).standalone && (
+            !((window as any).navigator?.standalone) && (
               <button
                 onClick={() =>
                   toast.info("📲 Sur iPhone : appuyez sur Partager puis « Sur l'écran d'accueil ». Ouvrez ensuite l'app depuis l'icône — les notifications seront disponibles.", { duration: 10000 })
