@@ -462,6 +462,15 @@ async function fetchDriverGps(): Promise<{ data: DriverGpsRecord | null; rlsBloc
   return { data: data ?? null, rlsBlocked: false };
 }
 
+async function fetchReservationForSuivi(key: string): Promise<Reservation | null> {
+  const { data, error } = await (supabase as any).rpc("get_reservation_for_suivi", { p_key: key.trim() });
+  if (error) {
+    console.warn("[suivi] reservation lookup failed", error);
+    return null;
+  }
+  return Array.isArray(data) ? ((data[0] ?? null) as Reservation | null) : ((data ?? null) as Reservation | null);
+}
+
 // ── Composant principal ───────────────────────────────────────────────────────
 function SuiviPage() {
   const { id } = Route.useParams();
