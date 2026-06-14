@@ -1,0 +1,18 @@
+# Taxi City Bordeaux
+
+> Service de taxi 7j/7 à Bordeaux et en Gironde : transferts aéroport Mérignac, gare Saint-Jean, vignobles, mariages, transport conventionné CPAM, longues distances.
+
+Taxi City Bordeaux est une compagnie de taxi basée à Cenon (Gironde) qui propose réservation en ligne, suivi GPS en temps réel, et paiement carte/espèces. Conventionné CPAM pour les transports de santé. Service disponible jour et nuit.
+
+## Pages
+
+- [Accueil](/): Présentation du service, destinations populaires, réservation en 2 minutes.
+- [Services](/services): Détail des prestations — aéroport, gare, business, mariage, CPAM, longues distances.
+- [À propos](/a-propos): Histoire et engagements de Taxi City Bordeaux.
+- [Contact](/contact): Téléphone 06 73 07 23 22, email, WhatsApp.
+- [Réserver](/reserver): Formulaire de réservation avec calcul du tarif en direct.
+
+## Optional
+
+- [Mentions légales](/mentions-legales)
+- [Confidentialité](/confidentialite)

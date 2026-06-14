@@ -3,14 +3,49 @@ import { Plane, Train, Briefcase, Wrench, ShieldCheck, MapPin, Users, Clock, Hel
 import { useT } from "@/i18n/I18nProvider";
 import { BulletedList } from "@/components/BulletedList";
 
+const SERVICES_TITLE = "Services Taxi Bordeaux — Aéroport, Gare, CPAM & Mariages";
+const SERVICES_DESC =
+  "Découvrez nos services taxi à Bordeaux : transferts aéroport Mérignac, gare Saint-Jean, transport conventionné CPAM, mariages, business, longues distances.";
+const SERVICES_URL = "https://taxicitybordeaux.fr/services";
+
+const SERVICES_FAQ = [
+  {
+    q: "Comment fonctionne le suivi en temps réel de mon vol ou de mon train ?",
+    a: "Dès que vous nous communiquez votre numéro de vol ou de train, nous le suivons automatiquement. Si l'arrivée est avancée ou retardée, l'heure de prise en charge est ajustée — vous n'avez rien à faire, le chauffeur sera là quand vous sortirez.",
+  },
+  {
+    q: "Combien de temps le chauffeur attend-il après l'atterrissage ?",
+    a: "Le chauffeur se présente après l'atterrissage réel (et non l'horaire prévu). Le temps nécessaire pour récupérer vos bagages et passer la douane est pris en compte. Au-delà, le temps d'attente supplémentaire est facturé au tarif réglementé en vigueur.",
+  },
+  {
+    q: "Comment se passe la prise en charge CPAM / ALD ?",
+    a: "Munissez-vous de la prescription médicale de transport remise par votre médecin. Sur présentation de ce bon de transport, nous appliquons le tiers payant : la course est directement prise en charge par l'Assurance Maladie. En ALD, la prise en charge est intégrale et valable pour toutes les distances.",
+  },
+];
+
 export const Route = createFileRoute("/services")({
   head: () => ({
     meta: [
-      { title: "Services – Taxi City Bordeaux | Aéroport, Gare, CPAM, Mariages" },
+      { title: SERVICES_TITLE },
+      { name: "description", content: SERVICES_DESC },
+      { property: "og:title", content: SERVICES_TITLE },
+      { property: "og:description", content: SERVICES_DESC },
+      { property: "og:url", content: SERVICES_URL },
+      { property: "og:type", content: "website" },
+    ],
+    links: [{ rel: "canonical", href: SERVICES_URL }],
+    scripts: [
       {
-        name: "description",
-        content:
-          "Découvrez tous nos services taxi à Bordeaux : transferts aéroport de Bordeaux, gare Saint-Jean, transport conventionné CPAM, mariages, business, longues distances.",
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: SERVICES_FAQ.map((f) => ({
+            "@type": "Question",
+            name: f.q,
+            acceptedAnswer: { "@type": "Answer", text: f.a },
+          })),
+        }),
       },
     ],
   }),
