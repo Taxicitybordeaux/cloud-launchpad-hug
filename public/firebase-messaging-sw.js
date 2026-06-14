@@ -24,31 +24,32 @@ messaging.onBackgroundMessage((payload) => {
   // Si un jour le payload contient une notification racine ET que le navigateur
   // l'affiche déjà, onBackgroundMessage n'est pas appelé → pas de doublon.
 
-  const notif = payload.notification || {};
+  const data = payload.data || payload.webpush?.data || {};
+  const notif = payload.notification || payload.webpush?.notification || {};
   const title = notif.title || "🚖 Taxi City Bordeaux";
   const body = notif.body || "";
 
-  const reservationId = payload.data && payload.data.reservation_id;
-  const audience = payload.data && payload.data.audience;
+  const reservationId = data.reservation_id;
+  const audience = data.audience;
   let defaultUrl = "/";
   if (audience === "chauffeur" || audience === "admin") {
     defaultUrl = "/admin/dashboard";
   } else if (reservationId) {
     defaultUrl = "/suivi/" + reservationId;
   }
-  const url = (payload.data && (payload.data.url || payload.data.click_action)) || defaultUrl;
+  const url = data.url || data.click_action || defaultUrl;
 
   // Ferme les éventuelles notifs avec le même tag avant d'en créer une nouvelle
   // pour éviter l'empilement en cas de retry
-  const tag = (payload.data && payload.data.tag) || "taxi-fcm";
+  const tag = data.tag || "taxi-fcm";
   return self.registration.getNotifications({ tag }).then((existing) => {
     existing.forEach((n) => n.close());
     return self.registration.showNotification(title, {
       body,
-      icon: payload.notification?.icon || "/favicon.ico",
+      icon: notif.icon || "/favicon.ico",
       badge: "/favicon.ico",
       tag,
-      data: { url, ...(payload.data || {}) },
+      data: { url, ...data },
       vibrate: [200, 100, 200],
       requireInteraction: true,
     });
