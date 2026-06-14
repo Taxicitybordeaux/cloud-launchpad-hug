@@ -11,7 +11,7 @@
  *  - getRouteGeoCoords(from, to)         → { coords, distanceKm, durationSec }  (from/to en [lng,lat])
  */
 
-import { supabase } from "@/integrations/supabase/client";
+
 
 export const OSRM_DISTANCE_FACTOR = 1.0;
 
@@ -114,39 +114,50 @@ function densifyCoords(coords: [number, number][], maxStepMeters = 25): [number,
   return out;
 }
 
+// Centre rocade Bordeaux — waypoint forcé pour trajets métropolitains > 5km
+const ROCADE_WAYPOINT: [number, number] = [44.8066, -0.6297]; // [lat, lng]
+const BORDEAUX_CENTER: [number, number] = [44.8378, -0.5792];
+const METRO_RADIUS_KM = 20;
+
+function isInMetro(p: [number, number]): boolean {
+  return haversineMeters(p[0], p[1], BORDEAUX_CENTER[0], BORDEAUX_CENTER[1]) / 1000 <= METRO_RADIUS_KM;
+}
+
+function shouldUseRocade(from: [number, number], to: [number, number]): boolean {
+  const distKm = haversineMeters(from[0], from[1], to[0], to[1]) / 1000;
+  return distKm > 5 && isInMetro(from) && isInMetro(to);
+}
+
+async function fetchOsrm(coords: [number, number][], signal: AbortSignal): Promise<any | null> {
+  // OSRM attend lng,lat
+  const path = coords.map(([lat, lng]) => `${lng},${lat}`).join(";");
+  const url = `https://router.project-osrm.org/route/v1/driving/${path}?overview=full&geometries=geojson&alternatives=3`;
+  try {
+    const res = await fetch(url, { signal });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 async function invokeOsrmRoute(from: [number, number], to: [number, number]): Promise<any | null> {
   const ctrl = new AbortController();
   const id = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
-  const body = {
-    from_lat: from[0],
-    from_lng: from[1],
-    to_lat: to[0],
-    to_lng: to[1],
-  };
   try {
-    const edgeBase = import.meta.env.VITE_SUPABASE_URL;
-    const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-    if (edgeBase && publishableKey) {
-      const res = await fetch(`${edgeBase.replace(/\/+$/, "")}/functions/v1/osrm-route`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${publishableKey}`,
-          apikey: publishableKey,
-        },
-        body: JSON.stringify(body),
-        signal: ctrl.signal,
-      });
-      if (!res.ok) return null;
-      return await res.json();
-    }
+    const useRocade = shouldUseRocade(from, to);
+    const waypoints: [number, number][] = useRocade
+      ? [from, ROCADE_WAYPOINT, to]
+      : [from, to];
 
-    const { data, error } = await supabase.functions.invoke("osrm-route", {
-      body,
-      signal: ctrl.signal,
-    });
-    if (error) return null;
-    return data;
+    const json = await fetchOsrm(waypoints, ctrl.signal);
+    if (!json || !Array.isArray(json.routes) || !json.routes.length) return null;
+
+    // Garde la route la plus longue (force passage rocade / voie rapide)
+    const longest = json.routes.reduce((a: any, b: any) =>
+      (b?.distance ?? 0) > (a?.distance ?? 0) ? b : a
+    );
+    return { ...json, routes: [longest] };
   } finally {
     clearTimeout(id);
   }
