@@ -747,7 +747,6 @@ function Dashboard() {
           .select(
             "client_phone, telephone, depart, destination, arrivee, distance_km, prix_estime, pickup_datetime, created_at",
           )
-          .in("status", ["completed", "terminee", "terminée", "done"])
           .order("created_at", { ascending: false });
         if (resas) {
           for (const r of resas) {
