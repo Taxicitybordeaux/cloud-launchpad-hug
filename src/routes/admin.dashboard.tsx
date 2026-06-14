@@ -1530,14 +1530,35 @@ function Dashboard() {
   // =========================
   // CLIENTS
   // =========================
-  const handleDeleteClient = async (id: string) => {
-    const { error } = await (supabase as any).from("clients").delete().eq("id", id);
+  const handleDeleteClient = async (client: { id: string; phone?: string | null }) => {
+    const phone = client.phone;
+
+    // 1) Supprimer les courses "completed" de ce client — sinon elles
+    // continuent de compter dans le CA (fetchStats les calcule depuis
+    // `reservations`, indépendamment de la table `clients`).
+    if (phone) {
+      const { error: resaError } = await (supabase as any)
+        .from("reservations")
+        .delete()
+        .in("status", ["completed", "terminee", "terminée", "done"])
+        .or(`client_phone.eq.${phone},telephone.eq.${phone}`);
+      if (resaError) {
+        toast.error("Suppression des courses associées impossible", { description: resaError.message });
+        return;
+      }
+    }
+
+    // 2) Supprimer le client
+    const { error } = await (supabase as any).from("clients").delete().eq("id", client.id);
     if (error) {
       toast.error("Suppression impossible", { description: error.message });
       return;
     }
     toast.success("Client supprimé");
-    setClients((prev) => prev.filter((c) => c.id !== id));
+    setClients((prev) => prev.filter((c) => c.id !== client.id));
+    // Le CA (caJ/caM) est calculé depuis `reservations` → on rafraîchit pour
+    // qu'il repasse à 0 si c'était la dernière course comptée.
+    fetchStats();
   };
 
   // =========================
@@ -3865,7 +3886,7 @@ function Dashboard() {
           <div>
             <div style={{ color: "#64748b", fontSize: 12, marginBottom: 12 }}>← Swipez pour supprimer un client</div>
             {clients.map((c) => (
-              <SwipeDeleteRow key={c.id} onDelete={() => handleDeleteClient(c.id)} style={{ marginBottom: 12 }}>
+              <SwipeDeleteRow key={c.id} onDelete={() => handleDeleteClient(c)} style={{ marginBottom: 12 }}>
                 <div
                   style={{
                     background: "rgba(255,255,255,0.03)",
