@@ -732,8 +732,7 @@ function SuiviPage() {
     if (!map || !L) return;
     try {
       const routeApproach = await getRouteGeoCoords([driverLng, driverLat], [pickup[1], pickup[0]]);
-      const route = routeApproach;
-      const coords: [number, number][] = route?.coords ?? [[driverLat, driverLng], pickup];
+      const coords: [number, number][] = normalizeRouteCoords(routeApproach?.coords) ?? [[driverLat, driverLng], pickup];
       approachCoords.current = coords;
       if (approachLayer.current) approachLayer.current.setLatLngs(coords);
       else
