@@ -855,11 +855,7 @@ function SuiviPage() {
         setTaxiPos({ lat, lng });
         // Après initMap, redessiner le trajet si pas encore fait
         if (!destCoordsRef.current && resaIdRef.current) {
-          const { data: rData } = await supabase
-            .from("reservations")
-            .select("depart,arrivee,destination,route_coords")
-            .eq("id", resaIdRef.current)
-            .maybeSingle();
+          const rData = await fetchReservationForSuivi(resaIdRef.current);
           if (rData?.depart && (rData?.destination || rData?.arrivee)) {
             await drawTripRoute(
               rData.depart,
@@ -1125,11 +1121,7 @@ function SuiviPage() {
         setLastUpdate(new Date());
         // Si le trajet n'est pas encore tracé, le faire avant d'appliquer la position
         if (!destCoordsRef.current && resaIdRef.current) {
-          const { data: rData } = await supabase
-            .from("reservations")
-            .select("depart,arrivee,destination,route_coords")
-            .eq("id", resaIdRef.current)
-            .maybeSingle();
+          const rData = await fetchReservationForSuivi(resaIdRef.current);
           if (rData?.depart && (rData?.destination || rData?.arrivee)) {
             await drawTripRoute(
               rData.depart,
