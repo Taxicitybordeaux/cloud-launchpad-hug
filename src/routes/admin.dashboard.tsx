@@ -3979,7 +3979,8 @@ function Dashboard() {
                             marginBottom: 4,
                           }}
                         >
-                          Dernière course
+                          Course
+
                         </div>
                         <div style={{ color: "#94a3b8", fontSize: 12 }}>🟢 {c.lastResa.depart}</div>
                         <div style={{ color: "#94a3b8", fontSize: 12, marginTop: 2 }}>
