@@ -267,6 +267,7 @@ interface Reservation {
   created_at?: string | null;
   route_coords?: any;
   route_label?: string | null;
+  lang?: string | null;
 }
 
 // ── Constantes ────────────────────────────────────────────────────────────────
@@ -1274,7 +1275,7 @@ function SuiviPage() {
         const { data: byTracking } = await (supabase as any)
           .from("reservations")
           .select(
-            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,bagages,suivi_id,distance_km,created_at,route_coords,route_label",
+            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,bagages,suivi_id,distance_km,created_at,route_coords,route_label,lang",
           )
           .eq("suivi_id", parsed.data)
           .maybeSingle();
@@ -1286,7 +1287,7 @@ function SuiviPage() {
         const { data: byId } = await (supabase as any)
           .from("reservations")
           .select(
-            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,bagages,suivi_id,distance_km,created_at,route_coords,route_label",
+            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,bagages,suivi_id,distance_km,created_at,route_coords,route_label,lang",
           )
           .eq("id", id)
           .maybeSingle();
@@ -1493,10 +1494,12 @@ function SuiviPage() {
   const pushSubscribedForRef = useRef<string | null>(null);
   useEffect(() => {
     if (!resa) return;
-    if (pushStatus !== "idle" && pushStatus !== "granted") return;
+    // On tente dès que le statut n'est pas définitivement bloqué
+    if (pushStatus === "denied" || pushStatus === "unsupported" || pushStatus === "loading") return;
     if (pushSubscribedForRef.current === resa.id) return;
     pushSubscribedForRef.current = resa.id;
     subscribe("client", resa.id).catch(() => {
+      // Reset pour permettre un retry si pushStatus évolue (ex: "idle" → "granted")
       pushSubscribedForRef.current = null;
     });
   }, [resa, pushStatus, subscribe]);
