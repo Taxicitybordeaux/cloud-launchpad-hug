@@ -117,14 +117,32 @@ function densifyCoords(coords: [number, number][], maxStepMeters = 25): [number,
 async function invokeOsrmRoute(from: [number, number], to: [number, number]): Promise<any | null> {
   const ctrl = new AbortController();
   const id = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+  const body = {
+    from_lat: from[0],
+    from_lng: from[1],
+    to_lat: to[0],
+    to_lng: to[1],
+  };
   try {
+    const edgeBase = import.meta.env.VITE_SUPABASE_URL;
+    const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    if (edgeBase && publishableKey) {
+      const res = await fetch(`${edgeBase.replace(/\/+$/, "")}/functions/v1/osrm-route`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${publishableKey}`,
+          apikey: publishableKey,
+        },
+        body: JSON.stringify(body),
+        signal: ctrl.signal,
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    }
+
     const { data, error } = await supabase.functions.invoke("osrm-route", {
-      body: {
-        from_lat: from[0],
-        from_lng: from[1],
-        to_lat: to[0],
-        to_lng: to[1],
-      },
+      body,
       signal: ctrl.signal,
     });
     if (error) return null;
