@@ -251,13 +251,22 @@ export async function sendPushToAudience(
       const r = await sendFcmToToken(accessToken, projectId, sub.fcm_token, payload);
       if (r.ok) {
         sent++;
-      } else if (
-        r.status === 404 ||
-        r.status === 400 ||
-        r.errorCode === "UNREGISTERED" ||
-        r.errorCode === "INVALID_ARGUMENT"
-      ) {
+      } else if (r.errorCode === "UNREGISTERED" || r.status === 404) {
+        // Token définitivement révoqué par Firebase (app désinstallée ou token
+        // explicitement invalidé) → on supprime.
         toRemove.push(sub.id);
+      } else if (r.status === 400 || r.errorCode === "INVALID_ARGUMENT") {
+        // 400/INVALID_ARGUMENT = device en arrière-plan depuis longtemps ou token
+        // temporairement invalide — PAS une mort définitive. Si on supprime ici,
+        // José perd sa souscription dès qu'il ferme le dashboard → cercle vicieux.
+        // On purge uniquement si le token est inactif depuis plus de 30 jours.
+        const lastSeen = sub.last_seen_at ? new Date(sub.last_seen_at).getTime() : 0;
+        const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+        if (lastSeen < thirtyDaysAgo) {
+          toRemove.push(sub.id);
+        } else {
+          console.warn("[push] FCM 400/INVALID — token conservé, device inactif mais pas révoqué", sub.id);
+        }
       } else {
         console.error("[push] FCM send failed", r.status, r.errorCode);
       }
