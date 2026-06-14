@@ -106,7 +106,7 @@ export const Route = createFileRoute("/lovable/email/suppression")({
             {
               email: normalizedEmail,
               reason: payload.reason,
-              metadata: payload.metadata ?? null,
+              metadata: (payload.metadata ?? null) as any,
             },
             { onConflict: 'email' },
           )
@@ -131,7 +131,7 @@ export const Route = createFileRoute("/lovable/email/suppression")({
             recipient_email: normalizedEmail,
             status: sendLogStatus,
             error_message: sendLogMessage,
-            metadata: payload.metadata ?? null,
+            metadata: (payload.metadata ?? null) as any,
           })
 
         if (insertError) {
