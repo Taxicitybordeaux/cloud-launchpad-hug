@@ -2853,6 +2853,28 @@ function Dashboard() {
           style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}
         >
           {/* Bouton activation notifications push (admin + chauffeur) — toujours visible, 3 états */}
+          {typeof window !== "undefined" &&
+            !("Notification" in window) &&
+            /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+            !((window as any).navigator?.standalone) && (
+              <button
+                onClick={() =>
+                  toast.info("📲 Sur iPhone : appuyez sur Partager puis « Sur l'écran d'accueil ». Ouvrez ensuite l'app depuis l'icône — les notifications seront disponibles.", { duration: 10000 })
+                }
+                style={{
+                  padding: "8px 14px",
+                  background: "rgba(245,200,66,0.15)",
+                  border: "1px solid rgba(245,200,66,0.4)",
+                  color: "#f5c842",
+                  borderRadius: 10,
+                  fontWeight: 600,
+                  fontSize: 13,
+                  cursor: "pointer",
+                }}
+              >
+                📲 Installer l'app (iOS)
+              </button>
+            )}
           {typeof window !== "undefined" && "Notification" in window && (
             <button
               onClick={async () => {

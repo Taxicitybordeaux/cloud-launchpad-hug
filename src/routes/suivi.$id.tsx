@@ -2648,6 +2648,33 @@ function SuiviPage() {
           </div>
 
           {/* ── Notification client (juste après la carte) ── */}
+          {pushStatus === "unsupported" &&
+            typeof window !== "undefined" &&
+            /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+            !((window as any).navigator?.standalone) && (
+              <div style={{ padding: "0 20px 14px" }}>
+                <div
+                  style={{
+                    padding: 14,
+                    borderRadius: 16,
+                    background: "rgba(245,200,66,0.12)",
+                    border: "1px solid rgba(245,200,66,0.35)",
+                    color: "#f5c842",
+                    fontFamily: "'DM Sans', sans-serif",
+                  }}
+                >
+                  <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>
+                    📲 Activer les notifications sur iPhone
+                  </div>
+                  <div style={{ fontSize: 12, color: "#e2e8f0", lineHeight: 1.5 }}>
+                    Apple n'autorise les notifications web que depuis l'app installée. Pour les recevoir :
+                    <br />1. Appuyez sur <b>Partager</b> (l'icône <span style={{ fontWeight: 700 }}>⬆️</span> en bas de Safari)
+                    <br />2. Choisissez <b>« Sur l'écran d'accueil »</b>
+                    <br />3. Ouvrez l'app depuis l'icône, puis revenez ici et cliquez sur « 🔔 Notification client »
+                  </div>
+                </div>
+              </div>
+            )}
           {pushStatus !== "granted" && pushStatus !== "unsupported" && (
             <div style={{ padding: "0 20px 14px" }}>
               <button
@@ -2688,6 +2715,7 @@ function SuiviPage() {
               </p>
             </div>
           )}
+
 
 
           {/* ── STATUT ── */}
