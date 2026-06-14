@@ -10,7 +10,7 @@ function createSupabaseAdminClient() {
   // et toujours alignée avec le projet courant. On la garde en PRIORITÉ.
   // TAXI_SERVICE_KEY n'est qu'un fallback historique (peut pointer sur un
   // ancien projet Supabase et provoquer des "not_found" silencieux).
-  const SUPABASE_URL = "https://auiagkpdpnfqxfngisfc.supabase.co";
+  const SUPABASE_URL = process.env.SUPABASE_URL || "https://yxbbkzugsreztiacnswf.supabase.co";
   const SUPABASE_SERVICE_ROLE_KEY =
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
     process.env.SERVICE_ROLE_KEY ||
