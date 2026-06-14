@@ -1000,12 +1000,29 @@ function SuiviPage() {
         const driverPos = markerRef.current?.getLatLng();
         if (driverPos) drawApproachLine(driverPos.lat, driverPos.lng, a);
 
-        activeMap.invalidateSize();
-        activeMap.fitBounds(L.latLngBounds([...coords, markerRef.current?.getLatLng()].filter(Boolean)).pad(0.2), {
-          animate: true,
-          duration: 0.8,
-        });
-      } catch {}
+        const targetBounds = L.latLngBounds([...coords, markerRef.current?.getLatLng()].filter(Boolean)).pad(0.2);
+        const fit = () => {
+          activeMap.invalidateSize({ animate: false });
+          const size = activeMap.getSize();
+          if (!size || size.x === 0 || size.y === 0) return false;
+          activeMap.fitBounds(targetBounds, { animate: true, duration: 0.8 });
+          return true;
+        };
+        // Si le conteneur est encore masqué (visibility:hidden pendant le
+        // loading), getSize() renvoie 0x0 et fitBounds() ne ferait rien de
+        // correct → on retente jusqu'à ce que le conteneur soit mesurable.
+        if (!fit()) {
+          let tries = 0;
+          const retry = () => {
+            tries++;
+            if (fit() || tries > 20) return;
+            setTimeout(retry, 150);
+          };
+          setTimeout(retry, 150);
+        }
+      } catch (err) {
+        console.error("[drawTripRoute] erreur lors du tracé:", err);
+      }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
@@ -1466,9 +1483,22 @@ function SuiviPage() {
   }, [id, retryNonce, subscribeRealtime, stopPolling, schedulePickupNotification, drawTripRoute]);
 
   // ── Push notifications auto ──────────────────────────────────────────────
+  // Bug fix : sur un appareil ayant déjà accordé la permission (client récurrent),
+  // pushStatus passe directement à "granted" sans jamais appeler subscribe().
+  // La ligne push_subscriptions garde alors le reservation_id de la course
+  // précédente → sendPushToAudience("client", { reservationId }) ne trouve
+  // aucune ligne → 0 notif envoyée (alors que le test debug, sans filtre,
+  // fonctionne). On (re)souscrit donc aussi quand le statut est déjà "granted",
+  // une seule fois par reservation_id.
+  const pushSubscribedForRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!resa || pushStatus !== "idle") return;
-    subscribe("client", resa.id).catch(() => {});
+    if (!resa) return;
+    if (pushStatus !== "idle" && pushStatus !== "granted") return;
+    if (pushSubscribedForRef.current === resa.id) return;
+    pushSubscribedForRef.current = resa.id;
+    subscribe("client", resa.id).catch(() => {
+      pushSubscribedForRef.current = null;
+    });
   }, [resa, pushStatus, subscribe]);
 
   // ── Partager ─────────────────────────────────────────────────────────────
@@ -1975,12 +2005,41 @@ function SuiviPage() {
     };
   }, [addLog, requestDriverWakeLock]);
 
-  // ── invalidateSize dès que le loading se termine ─────────────────────────
+  // ── invalidateSize + refit dès que le loading se termine ─────────────────
+  // Bug fix : pendant `loading=true`, le conteneur de la carte a
+  // `visibility:hidden` → sa taille mesurée par Leaflet peut être 0x0 (ou
+  // incorrecte) au moment où drawTripRoute() a appelé fitBounds(). Le tracé
+  // et les icônes sont bien ajoutés à la carte, mais la vue (zoom/centre)
+  // reste celle calculée sur un conteneur de taille nulle → rien de visible
+  // tant qu'on ne pan/zoom pas manuellement. On corrige la taille ET on
+  // recalcule la vue une fois le conteneur réellement visible.
   useEffect(() => {
-    if (!loading && mapInst.current) {
-      setTimeout(() => mapInst.current?.invalidateSize({ animate: false }), 50);
-      setTimeout(() => mapInst.current?.invalidateSize({ animate: false }), 250);
-    }
+    if (loading || !mapInst.current) return;
+    const L = (window as any).L;
+    const map = mapInst.current;
+    const refit = () => {
+      map.invalidateSize({ animate: false });
+      if (!L) return;
+      const bounds: any[] = [];
+      if (tripOutline.current) bounds.push(tripOutline.current.getBounds());
+      else if (tripLayer.current) bounds.push(tripLayer.current.getBounds());
+      const driverPos = markerRef.current?.getLatLng();
+      if (driverPos) bounds.push(L.latLngBounds([driverPos, driverPos]));
+      if (bounds.length === 0) return;
+      try {
+        let combined = bounds[0];
+        for (let i = 1; i < bounds.length; i++) combined = combined.extend(bounds[i]);
+        map.fitBounds(combined.pad(0.2), { animate: false });
+      } catch {}
+    };
+    const t1 = setTimeout(refit, 50);
+    const t2 = setTimeout(refit, 250);
+    const t3 = setTimeout(refit, 600);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
   }, [loading]);
 
   const statusConfig: Record<string, { label: string; color: string; bg: string; icon: string; pulse: boolean }> = {
