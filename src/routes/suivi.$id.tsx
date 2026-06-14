@@ -3721,6 +3721,34 @@ function SuiviPage() {
                 🆘 Aide
               </button>
             </div>
+            {pushStatus !== "granted" && pushStatus !== "unsupported" && (
+              <button
+                className="sheet-btn typo-title"
+                onClick={async () => {
+                  const ok = await subscribe("client", resa?.id);
+                  if (ok) toast.success("🔔 Notifications activées — vous serez prévenu à chaque étape");
+                  else if (typeof Notification !== "undefined" && Notification.permission === "denied")
+                    toast.error("Notifications bloquées. Autorisez-les dans les réglages du navigateur.");
+                  else toast.error("Impossible d'activer les notifications sur ce navigateur.");
+                }}
+                disabled={pushStatus === "loading"}
+                style={{
+                  marginTop: 10,
+                  padding: 14,
+                  borderRadius: 16,
+                  background: "rgba(245,200,66,0.12)",
+                  border: "1px solid rgba(245,200,66,0.35)",
+                  color: "#f5c842",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  width: "100%",
+                  minHeight: 52,
+                }}
+              >
+                {pushStatus === "loading" ? "⏳ Activation…" : "🔔 Activer les notifications sur cet appareil"}
+              </button>
+            )}
           </div>
         </div>
       )}
