@@ -6,7 +6,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { getRouteGeoCoords, getDistanceAndDurationKm } from "@/lib/osrm";
 import { geocodeAddress } from "@/lib/geocode";
-import { suiviIdSchema } from "@/lib/suivi-id";
 import { notifyReservationStatus } from "@/lib/push.functions";
 
 const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
@@ -364,6 +363,29 @@ function normalizeRouteCoords(value: unknown): [number, number][] | null {
   return coords.length >= 2 ? coords : null;
 }
 
+function knownPlaceCoords(query: string): [number, number] | null {
+  const q = query
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  if (q.includes("aeroport") || q.includes("bordeaux-merignac") || q.includes("bordeaux merignac") || q.includes("hall a"))
+    return [44.8291, -0.7028];
+  if (q.includes("gare saint") || q.includes("saint-jean") || q.includes("charles domercq")) return [44.8265, -0.5569];
+  if (q.includes("place de la bourse")) return [44.8415, -0.5704];
+  return null;
+}
+
+function geocodeCandidates(input: string): string[] {
+  const cleaned = input.replace(/[–—]/g, ",").replace(/\s+/g, " ").trim();
+  const withoutParentheses = cleaned.replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
+  const beforeDetail = input.split(/[–—]/)[0]?.trim();
+  const candidates = [input, cleaned, withoutParentheses, beforeDetail].filter((v): v is string => !!v && v.length > 1);
+  const known = knownPlaceCoords(input);
+  if (known && input.toLowerCase().includes("aéroport")) candidates.push("Aéroport Bordeaux Mérignac, Mérignac, France");
+  if (known && input.toLowerCase().includes("gare")) candidates.push("Gare Saint-Jean, Bordeaux, France");
+  return Array.from(new Set(candidates));
+}
+
 function ease(t: number) {
   return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
 }
@@ -696,26 +718,23 @@ function SuiviPage() {
 
   // ── Geocode helper avec retry (3 tentatives, délai exponentiel) ─────────
   const geocode = async (q: string): Promise<[number, number] | null> => {
-    const hasCity =
-      /\b(bordeaux|cenon|mérignac|merignac|pessac|talence|bègles|begles|lormont|floirac|villenave|bouliac|carbon|blanquefort|eysines|le bouscat|bruges|gradignan|cestas)\b/i.test(
-        q,
-      ) || /\b\d{5}\b/.test(q);
-    const query = hasCity ? `${q}, France` : `${q}, Bordeaux, France`;
+    const known = knownPlaceCoords(q);
+    if (known) return known;
+    const candidates = geocodeCandidates(q).flatMap((candidate) => {
+      const hasCity =
+        /\b(bordeaux|cenon|mérignac|merignac|pessac|talence|bègles|begles|lormont|floirac|villenave|bouliac|carbon|blanquefort|eysines|le bouscat|bruges|gradignan|cestas)\b/i.test(
+          candidate,
+        ) || /\b\d{5}\b/.test(candidate);
+      return hasCity ? [`${candidate}, France`, candidate] : [`${candidate}, Bordeaux, France`, `${candidate}, France`];
+    });
 
-    // 3 tentatives avec backoff exponentiel (0ms, 800ms, 2000ms)
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (const query of Array.from(new Set(candidates))) {
       try {
-        if (attempt > 0) await new Promise((r) => setTimeout(r, attempt * 800));
         const c = await geocodeAddress(query);
         if (c) return [c.lat, c.lng];
       } catch {}
     }
-    // Dernier recours : essai sans qualificatif de ville
-    try {
-      const c = await geocodeAddress(`${q}, France`);
-      if (c) return [c.lat, c.lng];
-    } catch {}
-    return null;
+    return known;
   };
 
   // ── Tracé ligne bleue chauffeur → prise en charge ────────────────────────
