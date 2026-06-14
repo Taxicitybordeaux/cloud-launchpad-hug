@@ -34,13 +34,13 @@ function decodeJwtRef(token: string | undefined): string | null {
 
 function serviceKeyCandidates(): KeyCandidate[] {
   return [
-    { name: "TAXI_SERVICE_KEY", value: process.env.TAXI_SERVICE_KEY || "", ref: decodeJwtRef(process.env.TAXI_SERVICE_KEY) },
     {
       name: "SUPABASE_SERVICE_ROLE_KEY",
       value: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
       ref: decodeJwtRef(process.env.SUPABASE_SERVICE_ROLE_KEY),
     },
     { name: "SERVICE_ROLE_KEY", value: process.env.SERVICE_ROLE_KEY || "", ref: decodeJwtRef(process.env.SERVICE_ROLE_KEY) },
+    { name: "TAXI_SERVICE_KEY", value: process.env.TAXI_SERVICE_KEY || "", ref: decodeJwtRef(process.env.TAXI_SERVICE_KEY) },
   ].filter((candidate) => candidate.value.length > 0);
 }
 
