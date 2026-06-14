@@ -888,17 +888,15 @@ function ReservationPage() {
       let destination = "";
 
       // ── Stratégie 1 : "départ [X] destination [Y]" ou "de [X] à [Y]" ──
-      // Cherche un mot-clé de départ EN DÉBUT de phrase
-      const departPrefixMatch = raw.match(/^(?:de|depuis|du|d'|partir de|départ[:\s]?)\s+(.+)/i);
+      // Cherche un mot-clé de départ EN DÉBUT de phrase (accent optionnel)
+      const departPrefixMatch = raw.match(/^(?:de|depuis|du|d'|partir de|d[ée]part[:\s]?)\s+(.+)/i);
       const cleanedWithDepart = departPrefixMatch ? departPrefixMatch[1] : raw;
 
-      // Séparateurs destination
+      // Séparateurs destination (accent optionnel sur "destination" déjà ok)
       const destSepRegex =
-        /\s+(?:jusqu'?[àa]|jusque?|destination[:\s]?|direction|vers|puis|->|=>|à destination de)\s+/i;
+        /\s+(?:jusqu'?[àa]|jusque?|destination[:\s]?|direction|vers|puis|->|=>|à destination de|arriv[ée]e?[:\s]?)\s+/i;
 
       // Séparateurs départ (quand les deux mots-clés sont dans la phrase)
-      // Ex : "départ rue X destination rue Y" → on cherche d'abord "destination" comme séparateur
-      // Ex : "rue X départ destination rue Y" → cas bizarre, on ignore
       const destParts = cleanedWithDepart.split(destSepRegex);
 
       if (destParts.length >= 2) {
@@ -907,20 +905,24 @@ function ReservationPage() {
         destination = destParts.slice(1).join(" ").trim();
       } else {
         // ── Stratégie 2 : pas de séparateur destination → cherche "départ" au milieu
-        // Ex : "rue Victor Hugo départ, place de la Victoire destination"
         const midDepartMatch = raw.match(
-          /^(.+?)\s+(?:départ|depuis|de chez)\s+(.+?)(?:\s+(?:destination|vers|à|jusqu'?à)\s+(.+))?$/i,
+          /^(.+?)\s+(?:d[ée]part|depuis|de chez)\s+(.+?)(?:\s+(?:destination|vers|à|jusqu'?[àa])\s+(.+))?$/i,
         );
         if (midDepartMatch && midDepartMatch[3]) {
           depart = midDepartMatch[2].trim();
           destination = midDepartMatch[3].trim();
         } else {
-          // ── Stratégie 3 : fallback " à " simple
-          const aIdx = cleanedWithDepart.toLowerCase().lastIndexOf(" à ");
-          if (departPrefixMatch && aIdx > 0) {
-            // On avait un préfixe de départ ET un " à " → split propre
-            depart = cleanedWithDepart.slice(0, aIdx).trim();
-            destination = cleanedWithDepart.slice(aIdx + 3).trim();
+          // ── Stratégie 3 : fallback " à " / " vers " simple (sans préfixe)
+          const lower = raw.toLowerCase();
+          let sepIdx = -1;
+          let sepLen = 0;
+          for (const sep of [" vers ", " jusqu'à ", " jusqu'a ", " à ", " a "]) {
+            const i = lower.lastIndexOf(sep);
+            if (i > 0) { sepIdx = i; sepLen = sep.length; break; }
+          }
+          if (sepIdx > 0) {
+            depart = raw.slice(0, sepIdx).trim();
+            destination = raw.slice(sepIdx + sepLen).trim();
           } else {
             // Aucun séparateur trouvé → tout en destination (comportement original)
             destination = raw;
