@@ -216,6 +216,8 @@ async function loadLogoDataUrl(): Promise<string | null> {
 async function genererRecuPDF(
   resa: Reservation,
   chauffeur: Chauffeur | null,
+  t: (key: string) => string,
+  lang: string,
   fallback?: { distanceKm?: number | null; dureeMin?: number | null },
 ): Promise<void> {
   await loadJsPDF();
@@ -255,21 +257,22 @@ async function genererRecuPDF(
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...dark);
-  doc.text("REÇU DE COURSE", 14, 32);
-  doc.text(`Réf : ${resa.id.slice(0, 8).toUpperCase()}`, W - 14, 28, { align: "right" });
+  doc.text(t("fin.pdf.receipt_title"), 14, 32);
+  doc.text(`${t("fin.pdf.ref")} : ${resa.id.slice(0, 8).toUpperCase()}`, W - 14, 28, { align: "right" });
 
   // ── Date émission ──
   doc.setTextColor(...gray);
   doc.setFontSize(9);
   const now = new Date();
-  const dateEmission = now.toLocaleDateString("fr-FR", {
+  const locale = lang === "ar" ? "ar-SA" : lang === "pt" ? "pt-PT" : `${lang}-${lang.toUpperCase()}`;
+  const dateEmission = now.toLocaleDateString(locale, {
     day: "2-digit",
     month: "long",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   });
-  doc.text(`Émis le ${dateEmission}`, W - 14, 34, { align: "right" });
+  doc.text(`${t("fin.pdf.issued")} ${dateEmission}`, W - 14, 34, { align: "right" });
 
   let y = 52;
 
@@ -282,17 +285,17 @@ async function genererRecuPDF(
   doc.setFontSize(28);
   doc.setTextColor(...gold);
   const prixTotal = resa.prix_final != null ? resa.prix_final : (resa.prix_estime ?? null);
-  doc.text(prixTotal != null ? `${prixTotal.toFixed(2)} EUR` : "Prix non renseigné", 14, y + 16);
+  doc.text(prixTotal != null ? `${prixTotal.toFixed(2)} EUR` : t("fin.pdf.price_unknown"), 14, y + 16);
 
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...gray);
-  doc.text(resa.paiement === "cb" ? "Paiement par carte bancaire" : "Paiement en espèces", 14, y + 24);
+  doc.text(resa.paiement === "cb" ? t("fin.pdf.pay_cb") : t("fin.pdf.pay_cash"), 14, y + 24);
 
   // Stats ligne
   const stats = [
     {
-      label: "Distance",
+      label: t("fin.pdf.stat_distance"),
       value:
         resa.distance_reelle_km != null
           ? `${resa.distance_reelle_km} km`
@@ -303,7 +306,7 @@ async function genererRecuPDF(
               : "—",
     },
     {
-      label: "Durée",
+      label: t("fin.pdf.stat_duration"),
       value:
         resa.duree_reelle_min != null
           ? formatDureePDF(resa.duree_reelle_min)
@@ -311,10 +314,10 @@ async function genererRecuPDF(
             ? formatDureePDF(fallback.dureeMin)
             : "—",
     },
-    { label: "Date", value: resa.date_course ?? now.toLocaleDateString("fr-FR") },
+    { label: t("fin.pdf.stat_date"), value: resa.date_course ?? now.toLocaleDateString(locale) },
     {
-      label: "Heure",
-      value: resa.heure_course ?? now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+      label: t("fin.pdf.stat_time"),
+      value: resa.heure_course ?? now.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }),
     },
   ];
   const colW = (W - 28) / stats.length;
@@ -336,7 +339,7 @@ async function genererRecuPDF(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.setTextColor(...gold);
-  doc.text("TRAJET", 14, y);
+  doc.text(t("fin.pdf.section_trip"), 14, y);
   y += 6;
 
   doc.setFillColor(26, 26, 46);
@@ -354,7 +357,7 @@ async function genererRecuPDF(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...gray);
-  doc.text("Départ", 26, y + 8);
+  doc.text(t("fin.pdf.trip_from"), 26, y + 8);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.setTextColor(...white);
@@ -363,7 +366,7 @@ async function genererRecuPDF(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...gray);
-  doc.text("Arrivée", 26, y + 22);
+  doc.text(t("fin.pdf.trip_to"), 26, y + 22);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.setTextColor(...white);
@@ -376,7 +379,7 @@ async function genererRecuPDF(
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.setTextColor(...gold);
-    doc.text("CHAUFFEUR", 14, y);
+    doc.text(t("fin.pdf.section_driver"), 14, y);
     y += 6;
 
     doc.setFillColor(26, 26, 46);
@@ -390,7 +393,7 @@ async function genererRecuPDF(
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(...gray);
-    doc.text(`${chauffeur.vehicule}  •  Plaque : ${chauffeur.plaque}`, 14, y + 20);
+    doc.text(`${chauffeur.vehicule}  •  ${t("fin.pdf.plate")} : ${chauffeur.plaque}`, 14, y + 20);
 
     const stars = "★".repeat(Math.round(chauffeur.note_moyenne)) + "☆".repeat(5 - Math.round(chauffeur.note_moyenne));
     doc.setFont("helvetica", "bold");
@@ -399,9 +402,14 @@ async function genererRecuPDF(
     doc.text(stars, W - 14, y + 12, { align: "right" });
     doc.setFontSize(8);
     doc.setTextColor(...gray);
-    doc.text(`${chauffeur.note_moyenne.toFixed(1)} / 5  (${chauffeur.nb_avis} avis)`, W - 14, y + 20, {
-      align: "right",
-    });
+    doc.text(
+      `${chauffeur.note_moyenne.toFixed(1)} / 5  (${chauffeur.nb_avis} ${t("fin.pdf.reviews")})`,
+      W - 14,
+      y + 20,
+      {
+        align: "right",
+      },
+    );
 
     y += 40;
   }
@@ -410,7 +418,7 @@ async function genererRecuPDF(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.setTextColor(...gold);
-  doc.text("PASSAGER", 14, y);
+  doc.text(t("fin.pdf.section_passenger"), 14, y);
   y += 6;
 
   doc.setFillColor(26, 26, 46);
@@ -437,9 +445,9 @@ async function genererRecuPDF(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...gray);
-  doc.text("Taxi City Bordeaux — SIRET XXX XXX XXX XXXXX", W / 2, y, { align: "center" });
-  doc.text("Ce document tient lieu de reçu officiel.", W / 2, y + 6, { align: "center" });
-  doc.text("Merci de votre confiance.", W / 2, y + 12, { align: "center" });
+  doc.text(t("fin.pdf.footer1"), W / 2, y, { align: "center" });
+  doc.text(t("fin.pdf.footer2"), W / 2, y + 6, { align: "center" });
+  doc.text(t("fin.pdf.footer3"), W / 2, y + 12, { align: "center" });
 
   // ── Téléchargement ──
   const dateStr = now.toISOString().slice(0, 10);
@@ -456,7 +464,7 @@ function FinPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const fetchReservationForFin = useServerFn(getReservationForFinPublic);
-  const { t } = useLang();
+  const { t, lang } = useLang();
 
   const STAR_LABELS = [
     "",
@@ -659,7 +667,7 @@ function FinPage() {
     setRecuLoading(true);
     setRecuMsg("");
     try {
-      await genererRecuPDF(resa, chauffeur, { distanceKm: fallbackDistanceKm, dureeMin: fallbackDureeMin });
+      await genererRecuPDF(resa, chauffeur, t, lang, { distanceKm: fallbackDistanceKm, dureeMin: fallbackDureeMin });
       setRecuMsg(t("fin.pdf.success"));
     } catch (e) {
       console.error(e);
@@ -706,10 +714,10 @@ function FinPage() {
 
       L.marker(fromCoord, { icon: mkIcon("🟢", "rgba(34,197,94,0.85)") })
         .addTo(map)
-        .bindPopup(`<b>Départ</b><br>${resa.depart}`);
+        .bindPopup(`<b>${t("fin.pdf.trip_from")}</b><br>${resa.depart}`);
       L.marker(toCoord, { icon: mkIcon("📍", "rgba(245,200,66,0.85)") })
         .addTo(map)
-        .bindPopup(`<b>Arrivée</b><br>${resa.destination}`);
+        .bindPopup(`<b>${t("fin.pdf.trip_to")}</b><br>${resa.destination}`);
 
       const coords = await getPolyline(fromCoord, toCoord);
       if (coords.length > 0) {
