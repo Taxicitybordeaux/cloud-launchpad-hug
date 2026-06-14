@@ -25,6 +25,8 @@ const fr: Dict = {
   "nav.contact": "Contact",
   "nav.book": "Réserver",
   "nav.book_long": "Réserver une course",
+  "nav.account": "Mon espace",
+  "nav.account_long": "Mon espace client",
   "common.available_247": "Disponible 7j/7 — 24h/24",
   "common.lang_label": "Langue",
 
