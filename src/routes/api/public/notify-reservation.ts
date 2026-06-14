@@ -79,27 +79,32 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
         const EMAIL_BRIDGE_URL = "https://taxicitybordeaux.fr/lovable/email/transactional/send";
         console.log("[notify-reservation] → bridge:", EMAIL_BRIDGE_URL, "reservation:", reservationId);
 
-        const sendResp = await fetch(EMAIL_BRIDGE_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${serviceKey}`,
-          },
-          body: JSON.stringify({
-            templateName: TEMPLATE_NAME,
-            recipientEmail: recipient,
-            idempotencyKey,
-            templateData: data,
-          }),
-        });
+        let emailQueued = false;
+        try {
+          const sendResp = await fetch(EMAIL_BRIDGE_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${serviceKey}`,
+            },
+            body: JSON.stringify({
+              templateName: TEMPLATE_NAME,
+              recipientEmail: recipient,
+              idempotencyKey,
+              templateData: data,
+            }),
+          });
 
-        if (!sendResp.ok) {
-          const errBody = await sendResp.text().catch(() => "");
-          console.error("[notify-reservation] bridge error", sendResp.status, errBody);
-          return Response.json({ error: "send_failed" }, { status: 500 });
+          emailQueued = sendResp.ok;
+          if (!sendResp.ok) {
+            const errBody = await sendResp.text().catch(() => "");
+            console.error("[notify-reservation] bridge error", sendResp.status, errBody);
+          } else {
+            console.log("[notify-reservation] email queued ok, reservation:", reservationId);
+          }
+        } catch (emailErr) {
+          console.error("[notify-reservation] email bridge threw", emailErr);
         }
-
-        console.log("[notify-reservation] email queued ok, reservation:", reservationId);
 
         // Push admin + chauffeur — envoyé ici (côté serveur, à la création de
         // la résa) pour ne plus dépendre d'un onglet dashboard ouvert.
@@ -133,7 +138,7 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
           // On ne fait pas échouer la requête si le push échoue — l'email est déjà parti.
         }
 
-        return Response.json({ success: true });
+        return Response.json({ success: true, emailQueued });
       },
     },
   },
