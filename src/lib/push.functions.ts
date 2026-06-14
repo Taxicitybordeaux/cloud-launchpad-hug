@@ -213,19 +213,23 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
       import("@/lib/push.server"),
     ]);
     const supabaseAdmin = getTaxiSupabaseAdmin();
-    const { data: r } = await supabaseAdmin
+    const { data: r, error: fetchErr } = await supabaseAdmin
       .from("reservations")
       .select(
-        "id, nom, client_name, client_phone, telephone, depart, arrivee, destination, tracking_id, suivi_id, lang",
+        "id, nom, client_name, client_phone, telephone, depart, arrivee, destination, suivi_id, lang",
       )
       .eq("id", data.reservation_id)
       .maybeSingle();
+    if (fetchErr) {
+      console.error("[notifyReservationStatus] fetch error", fetchErr);
+      throw new Error(`fetch_failed: ${fetchErr.message}`);
+    }
     if (!r) throw new Error("not_found");
 
     if (data.update_status) {
       if (!["en_route", "arrived", "completed"].includes(data.status)) throw new Error("forbidden");
       const suiviKey = data.suivi_key?.trim();
-      const isValidSuiviKey = !!suiviKey && [r.id, r.suivi_id, r.tracking_id].filter(Boolean).includes(suiviKey);
+      const isValidSuiviKey = !!suiviKey && [r.id, r.suivi_id].filter(Boolean).includes(suiviKey);
       if (!isValidSuiviKey) throw new Error("forbidden");
 
       const { error: updateError } = await supabaseAdmin
@@ -242,11 +246,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
     const trajet = `${r.depart} → ${r.arrivee || r.destination || "—"}`;
     const phone = r.client_phone || r.telephone || "";
     const smsPhone = phone.replace(/[^\d]/g, "").replace(/^0/, "+33");
-    const url = r.suivi_id
-      ? `/suivi/${r.suivi_id}`
-      : r.tracking_id
-        ? `/suivi/${r.tracking_id}`
-        : `/reservation/${r.id}`;
+    const url = r.suivi_id ? `/suivi/${r.suivi_id}` : `/reservation/${r.id}`;
 
     const resLang = ((r as any).lang as Lang) || "fr";
 
