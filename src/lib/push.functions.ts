@@ -1,8 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { DICTS, type Lang } from "@/i18n/dict";
 import { z } from "zod";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { sendPushToAudience } from "@/lib/push.server";
 
 export type PushAudience = "admin" | "chauffeur" | "client";
 
@@ -18,8 +16,10 @@ const subSchema = z.object({
 export const subscribePush = createServerFn({ method: "POST" })
   .inputValidator((input) => subSchema.parse(input))
   .handler(async ({ data }) => {
+    const { getTaxiSupabaseAdmin } = await import("@/lib/taxi-supabase.server");
+    const supabaseAdmin = getTaxiSupabaseAdmin();
     const ua = data.user_agent ?? null;
-    const endpoint = `fcm://${data.fcm_token}`;
+    const endpoint = `fcm://${data.fcm_token}-${data.audience}`;
 
     // 1) Upsert la souscription courante
     const { error: upErr } = await supabaseAdmin.from("push_subscriptions").upsert(
@@ -72,6 +72,8 @@ export const subscribePush = createServerFn({ method: "POST" })
 export const unsubscribePush = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ fcm_token: z.string().min(10).max(500) }).parse(input))
   .handler(async ({ data }) => {
+    const { getTaxiSupabaseAdmin } = await import("@/lib/taxi-supabase.server");
+    const supabaseAdmin = getTaxiSupabaseAdmin();
     await supabaseAdmin.from("push_subscriptions").delete().eq("fcm_token", data.fcm_token);
     return { ok: true };
   });
@@ -79,6 +81,7 @@ export const unsubscribePush = createServerFn({ method: "POST" })
 export const sendTestPush = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ audience: z.enum(["admin", "chauffeur", "client"]) }).parse(input))
   .handler(async ({ data }) => {
+    const { sendPushToAudience } = await import("@/lib/push.server");
     return sendPushToAudience(data.audience, {
       title: "🔔 Test notification",
       body: `Notification test envoyée à l'audience « ${data.audience} ».`,
@@ -96,6 +99,11 @@ const APP_URL = "https://taxicitybordeaux.fr";
 export const notifyNewReservation = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ reservation_id: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
+    const [{ getTaxiSupabaseAdmin, getTaxiSupabaseConfig }, { sendPushToAudience }] = await Promise.all([
+      import("@/lib/taxi-supabase.server"),
+      import("@/lib/push.server"),
+    ]);
+    const supabaseAdmin = getTaxiSupabaseAdmin();
     console.log("[notifyNewReservation] start", data.reservation_id);
 
     const { data: r, error: fetchErr } = await supabaseAdmin
@@ -141,11 +149,7 @@ export const notifyNewReservation = createServerFn({ method: "POST" })
     // ── Email à José via le bridge Lovable (même que notify-reservation.ts) ─
     let emailSent = false;
     try {
-      const serviceKey =
-        process.env.SUPABASE_SERVICE_ROLE_KEY ||
-        process.env.SERVICE_ROLE_KEY ||
-        process.env.TAXI_SERVICE_KEY ||
-        (typeof import.meta !== "undefined" ? (import.meta as any).env?.SUPABASE_SERVICE_ROLE_KEY : undefined);
+      const { serviceKey } = getTaxiSupabaseConfig();
 
       const emailPayload = {
         templateName: "new-reservation-admin",
@@ -202,6 +206,11 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data }) => {
+    const [{ getTaxiSupabaseAdmin }, { sendPushToAudience }] = await Promise.all([
+      import("@/lib/taxi-supabase.server"),
+      import("@/lib/push.server"),
+    ]);
+    const supabaseAdmin = getTaxiSupabaseAdmin();
     const { data: r } = await supabaseAdmin
       .from("reservations")
       .select(

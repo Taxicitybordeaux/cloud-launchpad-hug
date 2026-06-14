@@ -1,8 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { TEMPLATES } from "@/lib/email-templates/registry";
-import { sendPushToAudience } from "@/lib/push.server";
 
 const TEMPLATE_NAME = "new-reservation-admin";
 const INTERNAL_NOTIFY_SECRET = "taxi-city-reservation-trigger-v1";
@@ -15,20 +13,18 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const supabaseUrl = "https://auiagkpdpnfqxfngisfc.supabase.co";
-        // SUPABASE_SERVICE_ROLE_KEY (clé Lovable Cloud du projet actuel) en
-        // priorité — TAXI_SERVICE_KEY est une ancienne clé qui peut pointer
-        // sur un autre projet Supabase.
-        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SERVICE_ROLE_KEY || process.env.TAXI_SERVICE_KEY;
-
-        // Décode le ref du JWT pour vérifier qu'on tape bien sur le bon projet
+        const [{ getTaxiSupabaseAdmin, getTaxiSupabaseConfig }, { sendPushToAudience }] = await Promise.all([
+          import("@/lib/taxi-supabase.server"),
+          import("@/lib/push.server"),
+        ]);
+        let serviceKey = "";
         try {
-          const payload = serviceKey?.split(".")[1];
-          if (payload) {
-            const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
-            console.log("[notify-reservation] JWT ref:", decoded?.ref, "role:", decoded?.role);
-          }
-        } catch {}
+          const cfg = getTaxiSupabaseConfig();
+          serviceKey = cfg.serviceKey;
+          console.log("[notify-reservation] backend:", cfg.targetRef, "key:", cfg.selectedKeyName, "keyRef:", cfg.selectedRef);
+        } catch (err) {
+          console.error("[notify-reservation] backend config failed", err);
+        }
 
         if (!serviceKey) {
           return Response.json({ error: "Server config error" }, { status: 500 });
@@ -53,10 +49,7 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
         const reservationId = parsed.data.reservation_id;
         console.log("[notify-reservation] reservationId:", reservationId);
 
-        const supabase = createClient(supabaseUrl, serviceKey, {
-          auth: { persistSession: false, autoRefreshToken: false },
-          global: { headers: { Authorization: `Bearer ${serviceKey}` } },
-        });
+        const supabase = getTaxiSupabaseAdmin();
 
         const { data: reservation, error: lookupError } = await supabase
           .from("reservations")
