@@ -30,12 +30,8 @@ function getServiceAccount(): ServiceAccount {
   const raw =
     process.env.FIREBASE_SERVICE_ACCOUNT_JSON ||
     process.env.FIREBASE_SERVICE_ACCOUNT ||
-    (typeof import.meta !== "undefined"
-      ? (import.meta as any).env?.FIREBASE_SERVICE_ACCOUNT_JSON
-      : undefined) ||
-    (typeof import.meta !== "undefined"
-      ? (import.meta as any).env?.FIREBASE_SERVICE_ACCOUNT
-      : undefined);
+    (typeof import.meta !== "undefined" ? (import.meta as any).env?.FIREBASE_SERVICE_ACCOUNT_JSON : undefined) ||
+    (typeof import.meta !== "undefined" ? (import.meta as any).env?.FIREBASE_SERVICE_ACCOUNT : undefined);
   if (!raw) throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON missing");
   cachedAccount = JSON.parse(raw) as ServiceAccount;
   return cachedAccount;
@@ -94,11 +90,7 @@ async function getAccessToken(): Promise<string> {
     false,
     ["sign"],
   );
-  const sigBuf = await crypto.subtle.sign(
-    "RSASSA-PKCS1-v1_5",
-    cryptoKey,
-    new TextEncoder().encode(data),
-  );
+  const sigBuf = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", cryptoKey, new TextEncoder().encode(data));
   const jwt = `${data}.${base64UrlEncode(sigBuf)}`;
 
   const res = await fetch(tokenUri, {
@@ -126,10 +118,10 @@ async function sendFcmToToken(
 ): Promise<{ ok: boolean; status: number; errorCode?: string }> {
   const url = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
   const clickUrl = payload.url ?? "/";
-  // Idempotency key : FCM dédoublonne déjà via `tag` (collapsing côté
-  // appareil), mais on ajoute un en-tête X-Goog-Request-Id stable par
-  // (token, tag) pour qu'un retry réseau ne crée pas une seconde notif.
-  const idem = `${payload.tag || "taxi-fcm"}:${token.slice(-12)}`;
+  // Idempotency key : unique par tentative pour que les retries réseau
+  // passent vraiment — un ID stable ferait ignorer les retries par FCM
+  // si la 1ère tentative a été reçue côté FCM mais le réseau a timeout.
+  const baseIdem = `${payload.tag || "taxi-fcm"}:${token.slice(-12)}:${Date.now()}`;
   const body = {
     message: {
       token,
@@ -166,7 +158,7 @@ async function sendFcmToToken(
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
-          "X-Goog-Request-Id": idem,
+          "X-Goog-Request-Id": `${baseIdem}:${attempt}`,
         },
         body: JSON.stringify(body),
       });
@@ -174,8 +166,7 @@ async function sendFcmToToken(
       lastStatus = res.status;
       try {
         const j: any = await res.json();
-        lastErrorCode =
-          j?.error?.details?.find?.((d: any) => d?.errorCode)?.errorCode || j?.error?.status;
+        lastErrorCode = j?.error?.details?.find?.((d: any) => d?.errorCode)?.errorCode || j?.error?.status;
       } catch {}
       // erreurs définitives — pas de retry
       if ([400, 401, 403, 404].includes(res.status)) {
@@ -240,9 +231,10 @@ export async function sendPushToAudience(
   const staleIds: string[] = [];
   const uniqueSubs: SubRow[] = [];
   for (const sub of byToken.values()) {
-    const uaKey = sub.user_agent || "";
+    // Clé = user_agent + derniers 8 chars du token pour éviter de confondre
+    // 2 appareils différents ayant le même user_agent (ex: 2 iPhone 15 Safari).
+    const uaKey = sub.user_agent ? `${sub.user_agent}::${sub.fcm_token!.slice(-8)}` : "";
     if (uaKey && seenUa.has(uaKey)) {
-      // doublon device → on l'ignore pour l'envoi ET on le purge de la DB
       staleIds.push(sub.id);
       continue;
     }
