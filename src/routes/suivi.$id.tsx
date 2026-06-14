@@ -369,40 +369,22 @@ function ease(t: number) {
 }
 
 // ── Leaflet loader ────────────────────────────────────────────────────────────
+// La PWA ne doit pas dépendre d'un CDN externe pour afficher le tracé/les icônes.
+// On charge Leaflet depuis le bundle Vite, une seule fois, côté navigateur.
+let leafletLoadPromise: Promise<void> | null = null;
 function loadLeaflet(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if ((window as any).L) {
-      resolve();
-      return;
-    }
-    if (!document.getElementById("leaflet-css")) {
-      const l = document.createElement("link");
-      l.id = "leaflet-css";
-      l.rel = "stylesheet";
-      l.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-      document.head.appendChild(l);
-    }
-    const existing = document.getElementById("leaflet-js") as HTMLScriptElement | null;
-    if (existing) {
-      const poll = setInterval(() => {
-        if ((window as any).L) {
-          clearInterval(poll);
-          resolve();
-        }
-      }, 50);
-      setTimeout(() => {
-        clearInterval(poll);
-        (window as any).L ? resolve() : reject(new Error("Leaflet timeout"));
-      }, 8000);
-      return;
-    }
-    const s = document.createElement("script");
-    s.id = "leaflet-js";
-    s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("Leaflet load error"));
-    document.head.appendChild(s);
-  });
+  if ((window as any).L) return Promise.resolve();
+  if (!leafletLoadPromise) {
+    leafletLoadPromise = (async () => {
+      await import("leaflet/dist/leaflet.css");
+      const mod = await import("leaflet");
+      (window as any).L = (mod as any).default ?? mod;
+    })().catch((err) => {
+      leafletLoadPromise = null;
+      throw err;
+    });
+  }
+  return leafletLoadPromise;
 }
 
 // ── Types GPS ─────────────────────────────────────────────────────────────────
@@ -478,6 +460,15 @@ async function fetchDriverGps(): Promise<{ data: DriverGpsRecord | null; rlsBloc
     return { data: null, rlsBlocked: false };
   }
   return { data: data ?? null, rlsBlocked: false };
+}
+
+async function fetchReservationForSuivi(key: string): Promise<Reservation | null> {
+  const { data, error } = await (supabase as any).rpc("get_reservation_for_suivi", { p_key: key.trim() });
+  if (error) {
+    console.warn("[suivi] reservation lookup failed", error);
+    return null;
+  }
+  return Array.isArray(data) ? ((data[0] ?? null) as Reservation | null) : ((data ?? null) as Reservation | null);
 }
 
 // ── Composant principal ───────────────────────────────────────────────────────
@@ -791,42 +782,63 @@ function SuiviPage() {
 
   // ── Init carte ───────────────────────────────────────────────────────────
   const initMap = async (lat: number, lng: number) => {
-    try {
-      await loadLeaflet();
-    } catch {
-      return;
-    }
-    const L = (window as any).L;
-    if (!L || !mapRef.current) return;
+    if (mapInitializing.current) return;
     if (mapInst.current) {
-      // Carte déjà montée → ne pas la détruire (évite l'écran noir au démarrage GPS)
-      if (!markerRef.current) {
+      const L = (window as any).L;
+      if (L && !markerRef.current) {
         const icon = L.divIcon({
           className: "",
-          html: `<div style="width:32px;height:32px;border-radius:50%;border:2px solid #f5c842;overflow:hidden;box-shadow:0 0 0 0 rgba(245,200,66,0);animation:driverPulse 2s infinite"><img src="${TAXI_ICON_URI}" style="width:100%;height:100%;object-fit:cover" /></div>`,
-          iconSize: [32, 32],
-          iconAnchor: [16, 16],
+          html: `<div style="width:40px;height:40px;border-radius:50%;border:3px solid #f5c842;overflow:hidden;box-shadow:0 0 0 0 rgba(245,200,66,0);animation:driverPulse 2s infinite;background:#1a1a2e;display:flex;align-items:center;justify-content:center;font-size:24px">🚕</div>`,
+          iconSize: [40, 40],
+          iconAnchor: [20, 20],
         });
         markerRef.current = L.marker([lat, lng], { icon }).addTo(mapInst.current);
       }
       return;
     }
-    const map = L.map(mapRef.current, { center: [lat, lng], zoom: 14, zoomControl: false });
-    initialZoom.current = 14;
-    map.on("dragstart", () => setUserPanned(true));
-    map.on("zoomstart", (e: any) => {
-      if (e?.hard !== false) setUserPanned(true);
-    });
-    L.tileLayer(OSM_TILE_URL, OSM_TILE_OPTIONS).addTo(map);
-    L.control.zoom({ position: "bottomright" }).addTo(map);
-    const icon = L.divIcon({
-      className: "",
-      html: `<div style="width:32px;height:32px;border-radius:50%;border:2px solid #f5c842;overflow:hidden;box-shadow:0 0 0 0 rgba(245,200,66,0);animation:driverPulse 2s infinite"><img src="${TAXI_ICON_URI}" style="width:100%;height:100%;object-fit:cover" /></div>`,
-      iconSize: [32, 32],
-      iconAnchor: [16, 16],
-    });
-    markerRef.current = L.marker([lat, lng], { icon }).addTo(map);
-    mapInst.current = map;
+    mapInitializing.current = true;
+    try {
+      await loadLeaflet();
+    } catch {
+      mapInitializing.current = false;
+      return;
+    }
+    if (mapInst.current) {
+      mapInitializing.current = false;
+      return;
+    }
+    const L = (window as any).L;
+    if (!L || !mapRef.current) {
+      mapInitializing.current = false;
+      return;
+    }
+    let map: any;
+    try {
+      map = L.map(mapRef.current, { center: [lat, lng], zoom: 14, zoomControl: false });
+      initialZoom.current = 14;
+      map.on("dragstart", () => setUserPanned(true));
+      map.on("zoomstart", (e: any) => {
+        if (e?.hard !== false) setUserPanned(true);
+      });
+      L.tileLayer(OSM_TILE_URL, OSM_TILE_OPTIONS).addTo(map);
+      L.control.zoom({ position: "bottomright" }).addTo(map);
+      const icon = L.divIcon({
+        className: "",
+        html: `<div style="width:40px;height:40px;border-radius:50%;border:3px solid #f5c842;overflow:hidden;box-shadow:0 0 0 0 rgba(245,200,66,0);animation:driverPulse 2s infinite;background:#1a1a2e;display:flex;align-items:center;justify-content:center;font-size:24px">🚕</div>`,
+        iconSize: [40, 40],
+        iconAnchor: [20, 20],
+      });
+      markerRef.current = L.marker([lat, lng], { icon }).addTo(map);
+      mapInst.current = map;
+    } catch (err) {
+      console.warn("[suivi] map init failed", err);
+      try {
+        map?.remove?.();
+      } catch {}
+      mapInitializing.current = false;
+      return;
+    }
+    mapInitializing.current = false;
     setTimeout(() => map.invalidateSize({ animate: false }), 300);
     setTimeout(() => map.invalidateSize({ animate: false }), 500);
   };
@@ -843,11 +855,7 @@ function SuiviPage() {
         setTaxiPos({ lat, lng });
         // Après initMap, redessiner le trajet si pas encore fait
         if (!destCoordsRef.current && resaIdRef.current) {
-          const { data: rData } = await supabase
-            .from("reservations")
-            .select("depart,arrivee,destination,route_coords")
-            .eq("id", resaIdRef.current)
-            .maybeSingle();
+          const rData = await fetchReservationForSuivi(resaIdRef.current);
           if (rData?.depart && (rData?.destination || rData?.arrivee)) {
             await drawTripRoute(
               rData.depart,
@@ -936,8 +944,9 @@ function SuiviPage() {
       // Attendre que la carte soit prête (elle peut ne pas l'être encore)
       let map = mapInst.current;
       if (!map) {
-        // Retry pendant 5s max
-        for (let i = 0; i < 10; i++) {
+        // Retry pendant 8s max : en PWA/mobile, le bundle Leaflet peut arriver
+        // après le premier rendu. Ne pas abandonner le tracé trop tôt.
+        for (let i = 0; i < 16; i++) {
           await new Promise((r) => setTimeout(r, 500));
           map = mapInst.current;
           if (map) break;
@@ -1112,11 +1121,7 @@ function SuiviPage() {
         setLastUpdate(new Date());
         // Si le trajet n'est pas encore tracé, le faire avant d'appliquer la position
         if (!destCoordsRef.current && resaIdRef.current) {
-          const { data: rData } = await supabase
-            .from("reservations")
-            .select("depart,arrivee,destination,route_coords")
-            .eq("id", resaIdRef.current)
-            .maybeSingle();
+          const rData = await fetchReservationForSuivi(resaIdRef.current);
           if (rData?.depart && (rData?.destination || rData?.arrivee)) {
             await drawTripRoute(
               rData.depart,
@@ -1128,13 +1133,7 @@ function SuiviPage() {
         await applyDriverPosition(data.latitude, data.longitude);
       }
       if (resaIdRef.current) {
-        const { data: r } = await supabase
-          .from("reservations")
-          .select(
-            "status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,bagages,distance_km,route_coords,route_label",
-          )
-          .eq("id", resaIdRef.current)
-          .maybeSingle();
+        const r = await fetchReservationForSuivi(resaIdRef.current);
         if (r) setResa((prev) => (prev ? { ...prev, ...r } : prev));
       }
     }, 5_000);
@@ -1295,34 +1294,11 @@ function SuiviPage() {
     const toastId = "suivi-load";
 
     const init = async () => {
-      // 1. Valider l'ID
-      const parsed = suiviIdSchema.safeParse(id);
-      let r: Reservation | null = null;
-
+      // 1. Résoudre l'ID de suivi via la fonction publique sécurisée.
+      // Compatible suivi_id, tracking_id et UUID interne sans déclencher de 400.
+      const trackingKey = id.trim();
       setLoadStep(1);
-      if (parsed.success) {
-        // Chercher d'abord par suivi_id
-        const { data: byTracking } = await (supabase as any)
-          .from("reservations")
-          .select(
-            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,bagages,suivi_id,distance_km,created_at,route_coords,route_label,lang",
-          )
-          .eq("suivi_id", parsed.data)
-          .maybeSingle();
-        if (byTracking) r = byTracking;
-      }
-
-      // Fallback par id direct
-      if (!r) {
-        const { data: byId } = await (supabase as any)
-          .from("reservations")
-          .select(
-            "id,depart,arrivee,destination,pickup_datetime,date_course,heure_course,status,client_name,nom,client_phone,telephone,prix_estime,nb_passagers,passagers,bagages,suivi_id,distance_km,created_at,route_coords,route_label,lang",
-          )
-          .eq("id", id)
-          .maybeSingle();
-        r = byId;
-      }
+      const r = trackingKey ? await fetchReservationForSuivi(trackingKey) : null;
 
       if (!r) {
         toast.error("Aucune course trouvée", { id: toastId });
@@ -1435,11 +1411,7 @@ function SuiviPage() {
               setLastUpdate(new Date());
               // Si le trajet n'est pas tracé (ex: retour de veille longue), le redessiner
               if (!destCoordsRef.current) {
-                const { data: rData } = await supabase
-                  .from("reservations")
-                  .select("depart,arrivee,destination,route_coords")
-                  .eq("id", resaIdRef.current)
-                  .maybeSingle();
+                const rData = await fetchReservationForSuivi(resaIdRef.current);
                 if (rData?.depart && (rData?.destination || rData?.arrivee)) {
                   await drawTripRoute(
                     rData.depart,
@@ -1552,13 +1524,7 @@ function SuiviPage() {
     try {
       let currentResa: any = null;
       if (resaIdRef.current) {
-        const { data: r } = await supabase
-          .from("reservations")
-          .select(
-            "status,depart,arrivee,destination,prix_estime,pickup_datetime,nb_passagers,passagers,bagages,distance_km,client_name,nom,route_coords,route_label",
-          )
-          .eq("id", resaIdRef.current)
-          .maybeSingle();
+        const r = await fetchReservationForSuivi(resaIdRef.current);
         if (r) {
           setResa((prev) => {
             currentResa = prev ? { ...prev, ...r } : (r as unknown as Reservation);
