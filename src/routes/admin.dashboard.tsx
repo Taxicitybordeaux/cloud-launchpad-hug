@@ -782,34 +782,6 @@ function Dashboard() {
     setClientsLoading(false);
   }, []);
 
-  // ── Sync clients depuis les courses terminées existantes ──────────────────
-  const syncClientsFromCompleted = useCallback(async () => {
-    try {
-      const { data: completedResas } = await (supabase as any)
-        .from("reservations")
-        .select("client_name,nom,client_phone,telephone,client_email,email")
-        .in("status", ["completed", "terminee", "terminée", "done"]);
-      if (!completedResas?.length) return;
-      for (const r of completedResas) {
-        const phone = r.client_phone || r.telephone;
-        const name = r.client_name || r.nom;
-        const email = r.client_email || r.email;
-        if (!phone) continue;
-        const { data: existing } = await (supabase as any)
-          .from("clients")
-          .select("id,total_courses")
-          .eq("phone", phone)
-          .maybeSingle();
-        if (!existing) {
-          await (supabase as any).from("clients").insert({ name, phone, email, total_courses: 1 });
-        }
-      }
-      await fetchClients();
-    } catch (e) {
-      console.warn("[syncClientsFromCompleted]", e);
-    }
-  }, [fetchClients]);
-
   const fetchAll = useCallback(async () => {
     setRefreshing(true);
     setStatsLoading(true);
@@ -837,8 +809,13 @@ function Dashboard() {
   useEffect(() => {
     fetchAllRef.current?.().finally(() => {
       initialLoad.current = false;
-      // Rattraper les clients des courses déjà terminées avant la mise en prod
-      syncClientsFromCompleted();
+      // ⚠️ syncClientsFromCompleted() ne doit PAS tourner automatiquement :
+      // elle réinsère un client dès qu'une course "completed" existe pour son
+      // téléphone et qu'aucune ligne `clients` n'existe — donc un client
+      // supprimé manuellement (swipe) réapparaissait au refresh suivant.
+      // C'était un rattrapage ponctuel avant mise en prod ; si besoin de
+      // refaire ce rattrapage un jour, l'appeler manuellement (ex: bouton
+      // admin dédié), pas ici.
     });
     const ch = supabase
       .channel("dash-courses-" + Date.now())
