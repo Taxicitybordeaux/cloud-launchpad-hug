@@ -337,6 +337,31 @@ function closestIndexOnRoute(lat: number, lng: number, coords: [number, number][
   return best;
 }
 
+function isLatLngTuple(value: unknown): value is [number, number] {
+  return (
+    Array.isArray(value) &&
+    value.length >= 2 &&
+    Number.isFinite(Number(value[0])) &&
+    Number.isFinite(Number(value[1]))
+  );
+}
+
+function normalizeLatLngTuple(value: unknown): [number, number] | null {
+  if (!isLatLngTuple(value)) return null;
+  const first = Number(value[0]);
+  const second = Number(value[1]);
+  if (Math.abs(first) <= 90 && Math.abs(second) <= 180) return [first, second];
+  if (Math.abs(second) <= 90 && Math.abs(first) <= 180) return [second, first];
+  return null;
+}
+
+function normalizeRouteCoords(value: unknown): [number, number][] | null {
+  const raw = Array.isArray((value as any)?.coordinates) ? (value as any).coordinates : value;
+  if (!Array.isArray(raw)) return null;
+  const coords = raw.map(normalizeLatLngTuple).filter((p): p is [number, number] => Boolean(p));
+  return coords.length >= 2 ? coords : null;
+}
+
 function ease(t: number) {
   return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
 }
