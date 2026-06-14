@@ -16,10 +16,19 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
     handlers: {
       POST: async ({ request }) => {
         const supabaseUrl = "https://auiagkpdpnfqxfngisfc.supabase.co";
-        const serviceKey = process.env.TAXI_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+        // SUPABASE_SERVICE_ROLE_KEY (clé Lovable Cloud du projet actuel) en
+        // priorité — TAXI_SERVICE_KEY est une ancienne clé qui peut pointer
+        // sur un autre projet Supabase.
+        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SERVICE_ROLE_KEY || process.env.TAXI_SERVICE_KEY;
 
-        console.log("[notify-reservation] supabaseUrl:", supabaseUrl);
-        console.log("[notify-reservation] serviceKey prefix:", serviceKey?.slice(0, 60));
+        // Décode le ref du JWT pour vérifier qu'on tape bien sur le bon projet
+        try {
+          const payload = serviceKey?.split(".")[1];
+          if (payload) {
+            const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+            console.log("[notify-reservation] JWT ref:", decoded?.ref, "role:", decoded?.role);
+          }
+        } catch {}
 
         if (!serviceKey) {
           return Response.json({ error: "Server config error" }, { status: 500 });

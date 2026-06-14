@@ -23,7 +23,7 @@ export const Route = createFileRoute('/api/public/contact')({
     handlers: {
       POST: async ({ request }) => {
         const supabaseUrl = 'https://auiagkpdpnfqxfngisfc.supabase.co'
-        const serviceKey = process.env.TAXI_SERVICE_KEY || process.env.SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SERVICE_ROLE_KEY || process.env.TAXI_SERVICE_KEY
         if (!supabaseUrl || !serviceKey) {
           return Response.json({ error: 'Server config error' }, { status: 500 })
         }

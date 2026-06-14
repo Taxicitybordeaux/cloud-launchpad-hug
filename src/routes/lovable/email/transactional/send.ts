@@ -28,7 +28,7 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
     handlers: {
       POST: async ({ request }) => {
         const supabaseUrl = "https://auiagkpdpnfqxfngisfc.supabase.co";
-        const supabaseServiceKey = process.env.TAXI_SERVICE_KEY || process.env.SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SERVICE_ROLE_KEY || process.env.TAXI_SERVICE_KEY;
         const lovableApiKey = process.env.LOVABLE_API_KEY ?? "";
 
         if (!supabaseUrl || !supabaseServiceKey) {

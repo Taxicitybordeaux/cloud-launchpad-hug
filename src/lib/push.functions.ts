@@ -142,9 +142,10 @@ export const notifyNewReservation = createServerFn({ method: "POST" })
     let emailSent = false;
     try {
       const serviceKey =
-        process.env.TAXI_SERVICE_KEY ||
         process.env.SUPABASE_SERVICE_ROLE_KEY ||
-        (typeof import.meta !== "undefined" ? (import.meta as any).env?.TAXI_SERVICE_KEY : undefined);
+        process.env.SERVICE_ROLE_KEY ||
+        process.env.TAXI_SERVICE_KEY ||
+        (typeof import.meta !== "undefined" ? (import.meta as any).env?.SUPABASE_SERVICE_ROLE_KEY : undefined);
 
       const emailPayload = {
         templateName: "new-reservation-admin",
