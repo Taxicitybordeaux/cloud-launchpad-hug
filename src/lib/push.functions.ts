@@ -1,8 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { DICTS, type Lang } from "@/i18n/dict";
 import { z } from "zod";
-import { getTaxiSupabaseAdmin, getTaxiSupabaseConfig } from "@/lib/taxi-supabase.server";
-import { sendPushToAudience } from "@/lib/push.server";
 
 export type PushAudience = "admin" | "chauffeur" | "client";
 
@@ -18,6 +16,7 @@ const subSchema = z.object({
 export const subscribePush = createServerFn({ method: "POST" })
   .inputValidator((input) => subSchema.parse(input))
   .handler(async ({ data }) => {
+    const { getTaxiSupabaseAdmin } = await import("@/lib/taxi-supabase.server");
     const supabaseAdmin = getTaxiSupabaseAdmin();
     const ua = data.user_agent ?? null;
     const endpoint = `fcm://${data.fcm_token}-${data.audience}`;
@@ -73,6 +72,7 @@ export const subscribePush = createServerFn({ method: "POST" })
 export const unsubscribePush = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ fcm_token: z.string().min(10).max(500) }).parse(input))
   .handler(async ({ data }) => {
+    const { getTaxiSupabaseAdmin } = await import("@/lib/taxi-supabase.server");
     const supabaseAdmin = getTaxiSupabaseAdmin();
     await supabaseAdmin.from("push_subscriptions").delete().eq("fcm_token", data.fcm_token);
     return { ok: true };
@@ -81,6 +81,7 @@ export const unsubscribePush = createServerFn({ method: "POST" })
 export const sendTestPush = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ audience: z.enum(["admin", "chauffeur", "client"]) }).parse(input))
   .handler(async ({ data }) => {
+    const { sendPushToAudience } = await import("@/lib/push.server");
     return sendPushToAudience(data.audience, {
       title: "🔔 Test notification",
       body: `Notification test envoyée à l'audience « ${data.audience} ».`,
