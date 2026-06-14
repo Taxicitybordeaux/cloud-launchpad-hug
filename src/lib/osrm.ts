@@ -140,10 +140,8 @@ function parseRouteResponse(json: any): LongestRoute | null {
     const distanceKm = Number(json.distanceKm ?? json.distance_km ?? 0);
     const durationSec = Number(json.durationSec ?? json.duration_sec ?? 0);
     const rawCoords = json.coords
-      .map((p: any) => (Array.isArray(p) ? [Number(p[0]), Number(p[1])] : null))
-      .filter((p: [number, number] | null): p is [number, number] =>
-        !!p && Number.isFinite(p[0]) && Number.isFinite(p[1]),
-      );
+      .map((p: any) => (Array.isArray(p) ? ([Number(p[0]), Number(p[1])] as [number, number]) : null))
+      .filter((p: [number, number] | null): p is [number, number] => !!p && Number.isFinite(p[0]) && Number.isFinite(p[1]));
     if (distanceKm <= 0 || durationSec <= 0 || rawCoords.length < 2) return null;
     return { distanceKm, durationSec, coords: densifyCoords(rawCoords, 25) };
   }
