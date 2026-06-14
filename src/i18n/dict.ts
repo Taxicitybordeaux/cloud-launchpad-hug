@@ -749,6 +749,8 @@ const en: Dict = {
   "nav.contact": "Contact",
   "nav.book": "Book",
   "nav.book_long": "Book a ride",
+  "nav.account": "My account",
+  "nav.account_long": "My client area",
   "common.available_247": "Available 24/7",
   "common.lang_label": "Language",
 
