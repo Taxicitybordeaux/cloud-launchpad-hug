@@ -6,7 +6,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { getRouteGeoCoords, getDistanceAndDurationKm } from "@/lib/osrm";
 import { geocodeAddress } from "@/lib/geocode";
-import { suiviIdSchema } from "@/lib/suivi-id";
 import { notifyReservationStatus } from "@/lib/push.functions";
 
 const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
