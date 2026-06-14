@@ -214,6 +214,7 @@ export async function sendPushToAudience(
   try {
     accessToken = await getAccessToken();
     projectId = getServiceAccount().project_id;
+    console.log(`[push] sendToAudience audience=${audience} subs=${data.length} fcm_project=${projectId}`);
   } catch (err) {
     console.error("[push] FCM auth failed", err);
     return { sent: 0, removed: 0 };
