@@ -130,7 +130,7 @@ export function SiteHeader() {
                 onClick={() => setOpen(false)}
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-3 text-base font-semibold"
               >
-                <UserCircle2 className="h-5 w-5 text-primary" /> Mon espace client
+                <UserCircle2 className="h-5 w-5 text-primary" /> {t("nav.account_long")}
               </Link>
               <a
                 href={`tel:${PHONE}`}
