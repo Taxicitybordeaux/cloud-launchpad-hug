@@ -852,9 +852,10 @@ function Dashboard() {
             new Audio("/notification.mp3").play().catch(() => {});
           } catch {}
 
-          // Le push FCM serveur prévient déjà le chauffeur/admin.
-          // Ne pas créer ici de notification native locale : avec plusieurs onglets
-          // ou la PWA ouverte, elle s'empile avec le push et crée des doublons.
+          // Le push FCM admin/chauffeur est envoyé côté serveur par
+          // /api/public/notify-reservation au moment de la création de la
+          // réservation — pas besoin de le refaire ici, et ça évite de
+          // dépendre d'un onglet dashboard ouvert.
         }
         // Insert local uniquement — pas de re-fetch global qui écrase les statuts
         if (n?.id) {
