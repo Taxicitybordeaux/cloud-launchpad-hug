@@ -1,4 +1,3 @@
-import { createClient } from '@supabase/supabase-js'
 import { createFileRoute } from '@tanstack/react-router'
 
 function redactEmail(email: string | null | undefined): string {
@@ -12,12 +11,7 @@ export const Route = createFileRoute("/email/unsubscribe")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const supabaseUrl = 'https://auiagkpdpnfqxfngisfc.supabase.co'
-        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SERVICE_ROLE_KEY || process.env.TAXI_SERVICE_KEY
-
-        if (!supabaseUrl || !supabaseServiceKey) {
-          return Response.json({ error: 'Server configuration error' }, { status: 500 })
-        }
+        const { getTaxiSupabaseAdmin } = await import('@/lib/taxi-supabase.server')
 
         // Extract token from query params
         const url = new URL(request.url)
@@ -27,7 +21,7 @@ export const Route = createFileRoute("/email/unsubscribe")({
           return Response.json({ error: 'Token is required' }, { status: 400 })
         }
 
-        const supabase = createClient(supabaseUrl, supabaseServiceKey)
+        const supabase = getTaxiSupabaseAdmin()
 
         // Look up the token
         const { data: tokenRecord, error: lookupError } = await supabase
@@ -48,12 +42,7 @@ export const Route = createFileRoute("/email/unsubscribe")({
       },
 
       POST: async ({ request }) => {
-        const supabaseUrl = 'https://auiagkpdpnfqxfngisfc.supabase.co'
-        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SERVICE_ROLE_KEY || process.env.TAXI_SERVICE_KEY
-
-        if (!supabaseUrl || !supabaseServiceKey) {
-          return Response.json({ error: 'Server configuration error' }, { status: 500 })
-        }
+        const { getTaxiSupabaseAdmin } = await import('@/lib/taxi-supabase.server')
 
         // Extract token from query params (always present for RFC 8058 one-click)
         const url = new URL(request.url)
@@ -90,7 +79,7 @@ export const Route = createFileRoute("/email/unsubscribe")({
           return Response.json({ error: 'Token is required' }, { status: 400 })
         }
 
-        const supabase = createClient(supabaseUrl, supabaseServiceKey)
+        const supabase = getTaxiSupabaseAdmin()
 
         // Look up the token
         const { data: tokenRecord, error: lookupError } = await supabase
