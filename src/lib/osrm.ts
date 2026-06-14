@@ -1,28 +1,31 @@
 /**
  * @/lib/osrm.ts
  *
- * Point d'entrée unique pour OSRM :
+ * Point d'entrée unique pour OSRM, via Edge Function Supabase `osrm-route`
+ * (résout : rate-limit du serveur public, CORS instable, règle rocade côté serveur).
+ *
+ * Exports compatibles avec le reste du projet :
  *  - getLongestRoute(from, to)           → { distanceKm, durationSec, coords:[lat,lng][] }
- *  - getDistanceAndDurationKm(...)       → wrapper compatible (prix / km)
- *  - fetchRouteCoordinates(...)          → wrapper compatible (carte admin)
- *  - getRouteGeoCoords(...)              → wrapper compatible (suivi)
+ *  - getDistanceAndDurationKm(from, to)  → { distanceKm, dureeS } | null     (from/to en [lng, lat])
+ *  - fetchRouteCoordinates(points)       → objet style OSRM (carte admin)
+ *  - getRouteGeoCoords(from, to)         → { coords, distanceKm, durationSec } (from/to en [lng, lat])
  *
- * Règle métier (Bordeaux) : alternatives=3 + sélection du trajet LE PLUS LONG (km)
- * → correspond le plus souvent à un passage par la rocade.
- *
- * Toutes les pages (réservation, suivi, course, fin, mes-courses, admin)
- * passent par cette même fonction → distance, prix et polyline sont
- * GARANTIS identiques pour un même couple (from, to).
- *
- * Cache : mémoire process + sessionStorage (par onglet). Évite de relancer
- * OSRM lors d'un rechargement / d'une navigation entre pages.
+ * Cache mémoire + sessionStorage (v3) — invalide entries corrompues (km=0 ou durée=0).
  */
 
 export const OSRM_DISTANCE_FACTOR = 1.0;
 
-const OSRM_ROUTE_URL = "https://router.project-osrm.org/route/v1/driving";
-const CACHE_PREFIX = "osrm:longest:v1:";
+const CACHE_PREFIX = "osrm:longest:v3:";
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 jours
+const FETCH_TIMEOUT_MS = 8000;
+
+const SUPABASE_URL =
+  (import.meta.env.VITE_SUPABASE_URL as string) || "https://yxbbkzugsreztiacnswf.supabase.co";
+const SUPABASE_ANON_KEY =
+  (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string) ||
+  (import.meta.env.VITE_SUPABASE_ANON_KEY as string) ||
+  "";
+const OSRM_EDGE_URL = `${SUPABASE_URL}/functions/v1/osrm-route`;
 
 type LongestRoute = {
   distanceKm: number;
@@ -34,20 +37,42 @@ type LongestRoute = {
 const memCache = new Map<string, { at: number; value: LongestRoute }>();
 
 function cacheKey(from: [number, number], to: [number, number]) {
-  // Arrondi à ~11 m pour maximiser les hits sur des coords légèrement bruitées.
   const round = (n: number) => Math.round(n * 1e4) / 1e4;
   return `${CACHE_PREFIX}${round(from[0])},${round(from[1])}->${round(to[0])},${round(to[1])}`;
 }
 
+function isValidRoute(v: any): v is LongestRoute {
+  return (
+    !!v &&
+    typeof v.distanceKm === "number" &&
+    typeof v.durationSec === "number" &&
+    v.distanceKm > 0 &&
+    v.durationSec > 0 &&
+    Array.isArray(v.coords) &&
+    v.coords.length >= 2
+  );
+}
+
 function readCache(key: string): LongestRoute | null {
   const m = memCache.get(key);
-  if (m && Date.now() - m.at < CACHE_TTL_MS) return m.value;
+  if (m && Date.now() - m.at < CACHE_TTL_MS) {
+    if (isValidRoute(m.value)) return m.value;
+    memCache.delete(key);
+    try { sessionStorage?.removeItem(key); } catch {}
+  }
   try {
     if (typeof sessionStorage === "undefined") return null;
     const raw = sessionStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { at: number; value: LongestRoute };
-    if (!parsed?.at || Date.now() - parsed.at > CACHE_TTL_MS) return null;
+    if (!parsed?.at || Date.now() - parsed.at > CACHE_TTL_MS) {
+      sessionStorage.removeItem(key);
+      return null;
+    }
+    if (!isValidRoute(parsed.value)) {
+      sessionStorage.removeItem(key);
+      return null;
+    }
     memCache.set(key, parsed);
     return parsed.value;
   } catch {
@@ -56,29 +81,17 @@ function readCache(key: string): LongestRoute | null {
 }
 
 function writeCache(key: string, value: LongestRoute) {
+  if (!isValidRoute(value)) return;
   const entry = { at: Date.now(), value };
   memCache.set(key, entry);
   try {
     if (typeof sessionStorage !== "undefined") {
       sessionStorage.setItem(key, JSON.stringify(entry));
     }
-  } catch {
-    // quota / disabled storage → on garde le cache mémoire seulement
-  }
+  } catch {}
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-function pickLongestRoute(routes: any[]): any | null {
-  if (!Array.isArray(routes) || routes.length === 0) return null;
-  return routes.reduce(
-    (best, r) => ((r?.distance ?? 0) > (best?.distance ?? -1) ? r : best),
-    routes[0],
-  );
-}
-
-// Densifie une polyline : insère des points intermédiaires quand le segment
-// dépasse `maxStepMeters`. OSRM en overview=full est déjà fin, mais cette
-// passe garantit un rendu lisse type Uber même sur les longs segments droits.
+// ─── Densification (max 10 sous-étapes par segment) ──────────────────────────
 function densifyCoords(coords: [number, number][], maxStepMeters = 25): [number, number][] {
   if (coords.length < 2) return coords;
   const out: [number, number][] = [coords[0]];
@@ -87,7 +100,7 @@ function densifyCoords(coords: [number, number][], maxStepMeters = 25): [number,
     const [lat2, lng2] = coords[i];
     const d = haversineMeters(lat1, lng1, lat2, lng2);
     if (d > maxStepMeters) {
-      const steps = Math.min(20, Math.ceil(d / maxStepMeters));
+      const steps = Math.min(10, Math.ceil(d / maxStepMeters));
       for (let s = 1; s < steps; s++) {
         const t = s / steps;
         out.push([lat1 + (lat2 - lat1) * t, lng1 + (lng2 - lng1) * t]);
@@ -109,23 +122,17 @@ function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number)
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
-function buildOsrmUrl(
-  from: [number, number], // [lng, lat]
-  to: [number, number],   // [lng, lat]
-  overview: "full" | "simplified" | false,
-  alternatives: boolean | number,
-) {
-  const params = new URLSearchParams({
-    overview: overview === false ? "false" : overview,
-    geometries: "geojson",
-    alternatives:
-      typeof alternatives === "number" ? String(alternatives) : alternatives ? "true" : "false",
-  });
-  return `${OSRM_ROUTE_URL}/${from[0]},${from[1]};${to[0]},${to[1]}?${params}`;
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = FETCH_TIMEOUT_MS) {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal });
+  } finally {
+    clearTimeout(id);
+  }
 }
 
-// ─── Cœur : récupère la route la plus longue (cache + alternatives=3) ───────
-// `from` / `to` sont en [lat, lng] (format usuel côté UI).
+// ─── Cœur : Edge Function Supabase osrm-route ────────────────────────────────
 export async function getLongestRoute(
   from: [number, number], // [lat, lng]
   to: [number, number],   // [lat, lng]
@@ -138,25 +145,36 @@ export async function getLongestRoute(
   if (cached) return cached;
 
   try {
-    const url = buildOsrmUrl([from[1], from[0]], [to[1], to[0]], "full", 3);
-    const res = await fetch(url);
+    const res = await fetchWithTimeout(OSRM_EDGE_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(SUPABASE_ANON_KEY ? { Authorization: `Bearer ${SUPABASE_ANON_KEY}`, apikey: SUPABASE_ANON_KEY } : {}),
+      },
+      body: JSON.stringify({
+        from_lat: from[0],
+        from_lng: from[1],
+        to_lat: to[0],
+        to_lng: to[1],
+      }),
+    });
+
     if (!res.ok) return empty;
     const json = await res.json();
     if (json?.error) return empty;
 
-    const route = pickLongestRoute(json.routes ?? []);
-    if (!route) return empty;
+    const distanceKm = Number(json.distanceKm ?? json.distance_km ?? 0);
+    const durationSec = Number(json.durationSec ?? json.duration_sec ?? 0);
+    const rawCoords: [number, number][] = Array.isArray(json.coords)
+      ? json.coords
+      : Array.isArray(json.geometry?.coordinates)
+        ? json.geometry.coordinates.map(([lng, lat]: [number, number]) => [lat, lng] as [number, number])
+        : [];
 
-    const raw: [number, number][] = (route.geometry?.coordinates ?? []).map(
-      ([lng, lat]: [number, number]) => [lat, lng] as [number, number],
-    );
-    const coords = densifyCoords(raw, 25);
+    if (distanceKm <= 0 || durationSec <= 0 || rawCoords.length < 2) return empty;
 
-    const value: LongestRoute = {
-      distanceKm: (route.distance ?? 0) / 1000,
-      durationSec: route.duration ?? 0,
-      coords,
-    };
+    const coords = densifyCoords(rawCoords, 25);
+    const value: LongestRoute = { distanceKm, durationSec, coords };
     writeCache(key, value);
     return value;
   } catch {
@@ -164,8 +182,8 @@ export async function getLongestRoute(
   }
 }
 
-// ─── Wrappers compatibles avec l'existant ───────────────────────────────────
-// Distance/durée (prix) — `from`/`to` en [lng, lat].
+// ─── Wrappers compatibles ────────────────────────────────────────────────────
+// from/to en [lng, lat]
 export async function getDistanceAndDurationKm(
   from: [number, number],
   to: [number, number],
@@ -175,7 +193,6 @@ export async function getDistanceAndDurationKm(
   return { distanceKm: r.distanceKm, dureeS: r.durationSec };
 }
 
-// Carte admin — `points` en [lng, lat][]
 export async function fetchRouteCoordinates(
   points: [number, number][],
   _options: {
@@ -195,7 +212,6 @@ export async function fetchRouteCoordinates(
         duration: r.durationSec,
         geometry: {
           type: "LineString",
-          // GeoJSON en [lng, lat]
           coordinates: r.coords.map(([lat, lng]) => [lng, lat]),
         },
       },
@@ -205,7 +221,6 @@ export async function fetchRouteCoordinates(
   };
 }
 
-// Suivi — `from`/`to` en [lng, lat]
 export async function getRouteGeoCoords(
   from: [number, number],
   to: [number, number],
