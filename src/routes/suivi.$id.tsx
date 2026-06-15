@@ -754,38 +754,6 @@ function SuiviPage() {
     return known;
   };
 
-  // ── Tracé ligne bleue chauffeur → prise en charge ────────────────────────
-  const drawApproachLine = async (driverLat: number, driverLng: number, pickup: [number, number]) => {
-    const map = mapInst.current;
-    const L = (window as any).L;
-    if (!map || !L) return;
-    try {
-      const routeApproach = await getRouteGeoCoords([driverLng, driverLat], [pickup[1], pickup[0]]);
-      const coords: [number, number][] = normalizeRouteCoords(routeApproach?.coords) ?? [[driverLat, driverLng], pickup];
-      approachCoords.current = coords;
-      if (approachLayer.current) approachLayer.current.setLatLngs(coords);
-      else
-        approachLayer.current = L.polyline(coords, {
-          color: "#0ea5e9",
-          weight: 5,
-          opacity: 0.95,
-          lineCap: "round",
-          lineJoin: "round",
-        }).addTo(map);
-    } catch {
-      const fallback: [number, number][] = [[driverLat, driverLng], pickup];
-      approachCoords.current = fallback;
-      if (approachLayer.current) approachLayer.current.setLatLngs(fallback);
-      else
-        approachLayer.current = L.polyline(fallback, {
-          color: "#0ea5e9",
-          weight: 5,
-          opacity: 0.95,
-          lineCap: "round",
-          lineJoin: "round",
-        }).addTo(map);
-    }
-  };
 
   // ── ETA — stocke aussi les km restants (depuis tracking) ────────────────
   const calculateETA = async (lat: number, lng: number, destCoords?: [number, number]) => {
