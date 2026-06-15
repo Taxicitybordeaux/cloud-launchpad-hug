@@ -6,6 +6,7 @@ import {
   calibrationFactor,
   getRouteAlternatives,
   isBordeauxAirportRoute,
+  isBordeauxAirportRouteText,
   labelForAlternative,
 } from "./osrm";
 
@@ -74,6 +75,7 @@ describe("Gare St-Jean ↔ Aéroport Hall A exact route distances", () => {
   it("reconnaît le trajet dans les deux sens", () => {
     expect(isBordeauxAirportRoute(gare, airport)).toBe(true);
     expect(isBordeauxAirportRoute(airport, gare)).toBe(true);
+    expect(isBordeauxAirportRouteText("Rue Charles Domercq, Bordeaux", "Aéroport Bordeaux-Mérignac Hall A")).toBe(true);
   });
 
   it("force exactement 17 / 20 / 24 km même si OSRM renvoie moins", async () => {
@@ -108,6 +110,40 @@ describe("Gare St-Jean ↔ Aéroport Hall A exact route distances", () => {
         BORDEAUX_AIRPORT_EXACT_KM["intermédiaire"],
         BORDEAUX_AIRPORT_EXACT_KM.rocade,
       ]);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("force exactement 17 / 20 / 24 km via détection texte même si les coordonnées géocodées sont approximatives", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () =>
+      new Response(
+        JSON.stringify({
+          routes: [
+            {
+              distance: 13600,
+              duration: 1200,
+              geometry: { coordinates: [[-0.57, 44.84], [-0.7028, 44.8291]] },
+            },
+            {
+              distance: 17500,
+              duration: 1560,
+              geometry: { coordinates: [[-0.57, 44.84], [-0.62, 44.82], [-0.7028, 44.8291]] },
+            },
+            {
+              distance: 20600,
+              duration: 1860,
+              geometry: { coordinates: [[-0.57, 44.84], [-0.63, 44.8066], [-0.7028, 44.8291]] },
+            },
+          ],
+        }),
+      )) as typeof fetch;
+
+    try {
+      const approximateGare: [number, number] = [44.84, -0.57];
+      const alts = await getRouteAlternatives(approximateGare, airport, true);
+      expect(alts.map((a) => a.distanceKm)).toEqual([17, 20, 24]);
     } finally {
       globalThis.fetch = originalFetch;
     }
