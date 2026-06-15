@@ -872,6 +872,7 @@ function SuiviPage() {
               rData.depart,
               rData.destination || rData.arrivee!,
               rData.route_coords as [number, number][] | null,
+              rData.distance_km ?? null,
             );
           }
         }
@@ -947,7 +948,12 @@ function SuiviPage() {
 
   // ── Tracé départ → destination (stocke totalKm) ──────────────────────────
   const drawTripRoute = useCallback(
-    async (depart: string, destination: string, cachedCoords?: [number, number][] | null) => {
+    async (
+      depart: string,
+      destination: string,
+      cachedCoords?: [number, number][] | null,
+      resaDistanceKm?: number | null,
+    ) => {
       // Attendre que la carte soit prête (elle peut ne pas l'être encore)
       let map = mapInst.current;
       if (!map) {
@@ -981,12 +987,21 @@ function SuiviPage() {
         let distanceKm: number | undefined;
         if (normalizedCachedCoords) {
           coords = normalizedCachedCoords;
-          let d = 0;
-          for (let i = 1; i < coords.length; i++) {
-            d += distMeters({ lat: coords[i - 1][0], lng: coords[i - 1][1] }, { lat: coords[i][0], lng: coords[i][1] });
+          // Priorité : distance_km stockée en Supabase (déjà calibrée par l'Edge Function).
+          // Évite la double calibration (l'Edge Function calibre déjà, recalibrer gonfle la distance).
+          if (resaDistanceKm && resaDistanceKm > 0) {
+            distanceKm = resaDistanceKm;
+          } else {
+            // Fallback : mesure brute sur les coords sans recalibrer (coords déjà issues d'OSRM calibré)
+            let d = 0;
+            for (let i = 1; i < coords.length; i++) {
+              d += distMeters(
+                { lat: coords[i - 1][0], lng: coords[i - 1][1] },
+                { lat: coords[i][0], lng: coords[i][1] },
+              );
+            }
+            distanceKm = d / 1000; // pas de calibrateKm ici — coords déjà calibrées
           }
-          // Distance NET (calibrée pour matcher Google Maps), pas brut OSRM
-          distanceKm = calibrateKm(d / 1000);
         } else {
           // getRouteGeoCoords attend [lng, lat] (format GeoJSON/OSRM), pas [lat, lng]
           const route = await getRouteGeoCoords([a[1], a[0]], [b[1], b[0]]).catch(() => null);
@@ -1110,6 +1125,7 @@ function SuiviPage() {
               rData.depart,
               rData.destination || rData.arrivee!,
               rData.route_coords as [number, number][] | null,
+              rData.distance_km ?? null,
             );
           }
         }
@@ -1236,7 +1252,12 @@ function SuiviPage() {
                   JSON.stringify(prev.route_coords) !== JSON.stringify(r.route_coords))
               ) {
                 // Redessiner le tracé puis recalculer l'ETA avec la nouvelle destination
-                drawTripRoute(next.depart, next.destination || next.arrivee!, next.route_coords).then(() => {
+                drawTripRoute(
+                  next.depart,
+                  next.destination || next.arrivee!,
+                  next.route_coords,
+                  next.distance_km ?? null,
+                ).then(() => {
                   const driverPos = lastDriverPos.current;
                   if (driverPos && destCoordsRef.current) {
                     calculateETA(driverPos.lat, driverPos.lng, destCoordsRef.current);
@@ -1357,7 +1378,7 @@ function SuiviPage() {
         setLastUpdate(new Date());
         // drawTripRoute d'abord pour peupler destCoordsRef, PUIS ETA vers la vraie destination
         if (dep && dest) {
-          await drawTripRoute(dep, dest, r.route_coords);
+          await drawTripRoute(dep, dest, r.route_coords, r.distance_km ?? null);
         }
         // destCoordsRef est maintenant peuplé par drawTripRoute
         await calculateETA(gpsLat, gpsLng, destCoordsRef.current ?? undefined);
@@ -1366,7 +1387,7 @@ function SuiviPage() {
         await initMap(BORDEAUX_CENTER[0], BORDEAUX_CENTER[1]);
         if (dep && dest) {
           // drawTripRoute attend que map soit prêt (retry interne), pas besoin d'await ici
-          drawTripRoute(dep, dest, r.route_coords);
+          drawTripRoute(dep, dest, r.route_coords, r.distance_km ?? null);
         }
       }
 
@@ -1400,6 +1421,7 @@ function SuiviPage() {
                     rData.depart,
                     rData.destination || rData.arrivee!,
                     rData.route_coords as [number, number][] | null,
+                    rData.distance_km ?? null,
                   );
                 }
               }
@@ -1498,6 +1520,7 @@ function SuiviPage() {
             currentResa.depart,
             currentResa.destination || currentResa.arrivee!,
             currentResa.route_coords,
+            currentResa.distance_km ?? null,
           );
         }
         await applyDriverPosition(data.latitude, data.longitude);
