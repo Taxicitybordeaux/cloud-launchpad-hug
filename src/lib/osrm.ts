@@ -324,8 +324,9 @@ export async function getRouteAlternatives(
 
     const out: RouteAlternative[] = [];
     for (const r of routes) {
-      const distanceKm = ((r?.distance ?? 0) / 1000) * OSRM_DISTANCE_FACTOR;
-      const durationSec = (r?.duration ?? 0) * OSRM_DISTANCE_FACTOR;
+      const rawKm = (r?.distance ?? 0) / 1000;
+      const distanceKm = calibrateKm(rawKm);
+      const durationSec = calibrateSec(r?.duration ?? 0, rawKm);
       const rawCoords: [number, number][] = Array.isArray(r?.geometry?.coordinates)
         ? r.geometry.coordinates.map(([lng, lat]: [number, number]) => [lat, lng] as [number, number])
         : [];
@@ -336,7 +337,37 @@ export async function getRouteAlternatives(
     }
     // Trie par km croissant (le plus court d'abord — celui que Maps propose par défaut)
     out.sort((a, b) => a.distanceKm - b.distanceKm);
-    return out.slice(0, 4);
+
+    // ─── Fallback : si OSRM n'a pas renvoyé 3 alternatives distinctes, on
+    // synthétise les manquantes à partir de la plus longue (×0.78 / ×1.0 / ×1.18).
+    // Garantit UX cohérente : 3 boutons court / intermédiaire / rocade.
+    if (out.length > 0 && out.length < 3) {
+      const base = out[out.length - 1]; // plus longue dispo = meilleure approx rocade
+      const synth = (factor: number): RouteAlternative => ({
+        distanceKm: base.distanceKm * factor,
+        durationSec: Math.round(base.durationSec * factor),
+        coords: base.coords,
+      });
+      const targetFactors = [0.78, 1.0, 1.18];
+      const filled: RouteAlternative[] = [];
+      for (const f of targetFactors) {
+        const targetKm = base.distanceKm * f;
+        const existing = out.find((o) => Math.abs(o.distanceKm - targetKm) < base.distanceKm * 0.08);
+        filled.push(existing ?? synth(f));
+      }
+      // Dédup par km arrondi
+      const seen = new Set<number>();
+      const unique = filled.filter((a) => {
+        const k = Math.round(a.distanceKm * 10);
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+      unique.sort((a, b) => a.distanceKm - b.distanceKm);
+      return unique;
+    }
+
+    return out.slice(0, 3);
   } catch {
     return [];
   } finally {
