@@ -3232,7 +3232,7 @@ function SuiviPage() {
                     La distance vient d'OSRM (totalKm), source de vérité unique côté serveur via
                     updateReservationRoute → recalcule prix + notifie le client par push. */}
                 {isDriver &&
-                  ["en_route", "accepted", "arrived"].includes(effectiveStatus) &&
+                  effectiveStatus === "accepted" &&
                   (resa.destination || resa.arrivee) && (
                     <button
                       type="button"
