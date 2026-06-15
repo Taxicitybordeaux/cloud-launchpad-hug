@@ -28,6 +28,7 @@ import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe
 import { Route as CourseIdRouteImport } from './routes/course.$id'
 import { Route as ClientLoginRouteImport } from './routes/client.login'
 import { Route as ClientDashboardRouteImport } from './routes/client.dashboard'
+import { Route as AdminPushFailuresRouteImport } from './routes/admin.push-failures'
 import { Route as AdminFlowCheckRouteImport } from './routes/admin.flow-check'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
 import { Route as AdminCoursesRouteImport } from './routes/admin.courses'
@@ -138,6 +139,11 @@ const ClientDashboardRoute = ClientDashboardRouteImport.update({
   path: '/client/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminPushFailuresRoute = AdminPushFailuresRouteImport.update({
+  id: '/push-failures',
+  path: '/push-failures',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminFlowCheckRoute = AdminFlowCheckRouteImport.update({
   id: '/flow-check',
   path: '/flow-check',
@@ -230,6 +236,7 @@ export interface FileRoutesByFullPath {
   '/admin/courses': typeof AdminCoursesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/flow-check': typeof AdminFlowCheckRoute
+  '/admin/push-failures': typeof AdminPushFailuresRoute
   '/client/dashboard': typeof ClientDashboardRoute
   '/client/login': typeof ClientLoginRoute
   '/course/$id': typeof CourseIdRoute
@@ -265,6 +272,7 @@ export interface FileRoutesByTo {
   '/admin/courses': typeof AdminCoursesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/flow-check': typeof AdminFlowCheckRoute
+  '/admin/push-failures': typeof AdminPushFailuresRoute
   '/client/dashboard': typeof ClientDashboardRoute
   '/client/login': typeof ClientLoginRoute
   '/course/$id': typeof CourseIdRoute
@@ -301,6 +309,7 @@ export interface FileRoutesById {
   '/admin/courses': typeof AdminCoursesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/flow-check': typeof AdminFlowCheckRoute
+  '/admin/push-failures': typeof AdminPushFailuresRoute
   '/client/dashboard': typeof ClientDashboardRoute
   '/client/login': typeof ClientLoginRoute
   '/course/$id': typeof CourseIdRoute
@@ -338,6 +347,7 @@ export interface FileRouteTypes {
     | '/admin/courses'
     | '/admin/dashboard'
     | '/admin/flow-check'
+    | '/admin/push-failures'
     | '/client/dashboard'
     | '/client/login'
     | '/course/$id'
@@ -373,6 +383,7 @@ export interface FileRouteTypes {
     | '/admin/courses'
     | '/admin/dashboard'
     | '/admin/flow-check'
+    | '/admin/push-failures'
     | '/client/dashboard'
     | '/client/login'
     | '/course/$id'
@@ -408,6 +419,7 @@ export interface FileRouteTypes {
     | '/admin/courses'
     | '/admin/dashboard'
     | '/admin/flow-check'
+    | '/admin/push-failures'
     | '/client/dashboard'
     | '/client/login'
     | '/course/$id'
@@ -595,6 +607,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClientDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/push-failures': {
+      id: '/admin/push-failures'
+      path: '/push-failures'
+      fullPath: '/admin/push-failures'
+      preLoaderRoute: typeof AdminPushFailuresRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/flow-check': {
       id: '/admin/flow-check'
       path: '/flow-check'
@@ -700,12 +719,14 @@ interface AdminRouteChildren {
   AdminCoursesRoute: typeof AdminCoursesRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminFlowCheckRoute: typeof AdminFlowCheckRoute
+  AdminPushFailuresRoute: typeof AdminPushFailuresRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminCoursesRoute: AdminCoursesRoute,
   AdminDashboardRoute: AdminDashboardRoute,
   AdminFlowCheckRoute: AdminFlowCheckRoute,
+  AdminPushFailuresRoute: AdminPushFailuresRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
