@@ -1538,32 +1538,11 @@ function ReservationPage() {
     check();
   }, []);
 
-  // ── Auto-push client au chargement ──────────────────────────────────────
-  useEffect(() => {
-    // Ne tente l'abonnement automatique QUE si la permission est déjà accordée.
-    // La première demande passe par le bouton 🔔 (geste utilisateur requis par Chrome/Safari).
-    if (
-      typeof window === "undefined" ||
-      !("Notification" in window) ||
-      !("serviceWorker" in navigator) ||
-      !("PushManager" in window)
-    )
-      return;
-    if (Notification.permission !== "granted") return;
+  // ── Push client retirée ──────────────────────────────────────────────────
+  // Le client n'est plus notifié par push. Toutes les étapes sont visibles
+  // en temps réel sur /suivi/$id (bandeau d'étapes + statut). On garde
+  // uniquement les push admin + chauffeur à la création (notifyNewReservation).
 
-    const registerPush = async () => {
-      try {
-        const token = await getFcmToken();
-        if (!token) return;
-        await subscribePush({
-          data: { audience: "client", fcm_token: token, user_agent: navigator.userAgent },
-        });
-      } catch {
-        // silencieux — pas bloquant
-      }
-    };
-    registerPush();
-  }, []);
 
   // ── Soumission ────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
