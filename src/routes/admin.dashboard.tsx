@@ -1539,6 +1539,8 @@ function Dashboard() {
           })
           .map((r: any) => r.id);
         if (idsToDelete.length > 0) {
+          // Supprimer les avis liés avant les réservations (FK avis_reservation_id_fkey)
+          await (supabase as any).from("avis").delete().in("reservation_id", idsToDelete);
           const { error: delErr } = await (supabase as any).from("reservations").delete().in("id", idsToDelete);
           if (delErr) {
             toast.error("Suppression des courses associées impossible", { description: delErr.message });
