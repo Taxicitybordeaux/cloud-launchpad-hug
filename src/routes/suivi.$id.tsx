@@ -4,7 +4,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
-import { getRouteGeoCoords, getDistanceAndDurationKm, getRouteAlternatives, isBordeauxAirportRouteText, labelForAlternative, calibrateKm, type RouteAlternative } from "@/lib/osrm";
+import {
+  getRouteGeoCoords,
+  getDistanceAndDurationKm,
+  getRouteAlternatives,
+  isBordeauxAirportRouteText,
+  labelForAlternative,
+  calibrateKm,
+  type RouteAlternative,
+} from "@/lib/osrm";
 import { geocodeAddress, searchAddress } from "@/lib/geocode";
 import { notifyReservationStatus, updateReservationRoute } from "@/lib/push.functions";
 
@@ -997,7 +1005,8 @@ function SuiviPage() {
           const routeCoords = normalizeRouteCoords(route?.coords);
           coords = routeCoords ?? [a, b];
           // route.distanceKm est déjà calibré ; le fallback à vol d'oiseau aussi
-          distanceKm = route?.distanceKm || calibrateKm(distMeters({ lat: a[0], lng: a[1] }, { lat: b[0], lng: b[1] }) / 1000);
+          distanceKm =
+            route?.distanceKm || calibrateKm(distMeters({ lat: a[0], lng: a[1] }, { lat: b[0], lng: b[1] }) / 1000);
         }
         if (distanceKm && distanceKm > 0) setTotalKm(parseFloat(distanceKm.toFixed(1)));
 
@@ -1005,8 +1014,6 @@ function SuiviPage() {
         getRouteAlternatives(a, b, isBordeauxAirportRouteText(depart, destination))
           .then((alts) => setRouteAlts(alts))
           .catch(() => setRouteAlts([]));
-
-
 
         // Relire la carte après les awaits — l'instance peut avoir changé
         map = mapInst.current ?? map;
@@ -3242,36 +3249,35 @@ function SuiviPage() {
                     Liste des alternatives OSRM (mêmes que Google/Apple Maps).
                     Tap = ouvre Maps + recalcule prix en base + push client.
                     Aucune saisie : la distance vient de l'itinéraire choisi. */}
-                {isDriver &&
-                  effectiveStatus === "accepted" &&
-                  (resa.destination || resa.arrivee) && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      <div
-                        style={{
-                          fontFamily: "'Syne',sans-serif",
-                          fontSize: 11,
-                          fontWeight: 700,
-                          color: "#94a3b8",
-                          letterSpacing: 0.4,
-                          textTransform: "uppercase",
-                          textAlign: "center",
-                        }}
-                      >
-                        Choisir l'itinéraire
-                      </div>
-                      {(() => {
-                        const list = routeAlts.length > 0
+                {isDriver && effectiveStatus === "accepted" && (resa.destination || resa.arrivee) && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div
+                      style={{
+                        fontFamily: "'Syne',sans-serif",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: "#94a3b8",
+                        letterSpacing: 0.4,
+                        textTransform: "uppercase",
+                        textAlign: "center",
+                      }}
+                    >
+                      Choisir l'itinéraire
+                    </div>
+                    {(() => {
+                      const list =
+                        routeAlts.length > 0
                           ? routeAlts
                           : totalKm
                             ? [{ distanceKm: totalKm, durationSec: 0, coords: [] as [number, number][] }]
                             : [];
-                        return list.map((alt, idx) => {
-                          const km = Number(alt.distanceKm.toFixed(1));
-                          const mins = alt.durationSec ? Math.round(alt.durationSec / 60) : null;
-                          const kind = labelForAlternative(idx, list.length);
-                          const kindIcon = kind === "court" ? "🟢" : kind === "rocade" ? "🔴" : "🟡";
-                          const kindLabel = kind === "court" ? "Court" : kind === "rocade" ? "Rocade" : "Intermédiaire";
-                          return (
+                      return list.map((alt, idx) => {
+                        const km = Number(alt.distanceKm.toFixed(1));
+                        const mins = alt.durationSec ? Math.round(alt.durationSec / 60) : null;
+                        const kind = labelForAlternative(idx, list.length);
+                        const kindIcon = kind === "court" ? "🟢" : kind === "rocade" ? "🔴" : "🟡";
+                        const kindLabel = kind === "court" ? "Court" : kind === "rocade" ? "Rocade" : "Intermédiaire";
+                        return (
                           <button
                             key={`alt-${idx}-${km}`}
                             type="button"
@@ -3281,36 +3287,6 @@ function SuiviPage() {
                                 toast.error("Itinéraire pas encore calculé");
                                 return;
                               }
-                              // Ouvre Maps (geste utilisateur requis iOS) avec waypoints
-                              // du tracé choisi → Google/Apple Maps suivra ce chemin précis.
-                              const dest = encodeURIComponent(resa.destination || resa.arrivee || "");
-                              // Sélectionne ~3 waypoints intermédiaires régulièrement espacés
-                              // sur le tracé (Google Maps accepte jusqu'à 9 waypoints).
-                              const coords = alt.coords || [];
-                              const waypoints: string[] = [];
-                              if (coords.length >= 5) {
-                                const steps = 3;
-                                for (let i = 1; i <= steps; i++) {
-                                  const idx2 = Math.floor((coords.length * i) / (steps + 1));
-                                  const [lat, lng] = coords[idx2];
-                                  waypoints.push(`${lat.toFixed(5)},${lng.toFixed(5)}`);
-                                }
-                              }
-                              const isIOS =
-                                /iP(hone|ad|od)/.test(navigator.userAgent) ||
-                                (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-                              let mapsUrl: string;
-                              if (isIOS) {
-                                // Apple Plans : pas de support waypoints fiable → on garde dest seul
-                                mapsUrl = `maps://maps.apple.com/?daddr=${dest}&dirflg=d`;
-                              } else {
-                                const wp = waypoints.length
-                                  ? `&waypoints=${encodeURIComponent(waypoints.join("|"))}`
-                                  : "";
-                                mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${dest}${wp}&travelmode=driving`;
-                              }
-                              window.open(mapsUrl, "_blank");
-
                               setRouteEditBusy(true);
                               try {
                                 const res = await updateRouteFn({
@@ -3323,9 +3299,7 @@ function SuiviPage() {
                                 const newPrice = (res as any)?.prix_estime;
                                 const sent = (res as any)?.push?.sent ?? 0;
                                 setResa((prev) =>
-                                  prev
-                                    ? { ...prev, distance_km: km as any, prix_estime: newPrice as any }
-                                    : prev,
+                                  prev ? { ...prev, distance_km: km as any, prix_estime: newPrice as any } : prev,
                                 );
                                 toast.success(
                                   sent > 0
@@ -3361,13 +3335,11 @@ function SuiviPage() {
                               ? "⏳ Mise à jour…"
                               : `${kindIcon} ${kindLabel} — ${km} km${mins ? ` · ${mins} min` : ""}`}
                           </button>
-                          );
-                        });
-                      })()}
-                    </div>
-                  )}
-
-
+                        );
+                      });
+                    })()}
+                  </div>
+                )}
 
                 {!isDriver && (
                   <div
