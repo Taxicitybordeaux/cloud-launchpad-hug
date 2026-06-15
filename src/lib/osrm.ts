@@ -86,7 +86,7 @@ export function labelForAlternative(
   return "intermédiaire";
 }
 
-const CACHE_PREFIX = "osrm:longest:v4:";
+const CACHE_PREFIX = "osrm:longest:v5:";
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 jours
 const FETCH_TIMEOUT_MS = 8000;
 
