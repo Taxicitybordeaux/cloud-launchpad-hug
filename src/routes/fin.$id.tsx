@@ -640,6 +640,9 @@ function FinPage() {
         reservation_id: id,
         note,
         commentaire: commentaire.trim() || null,
+        message: commentaire.trim() || null,
+        author_name: resa ? `${resa.prenom || ""} ${resa.nom || ""}`.trim() || "Anonyme" : "Anonyme",
+        status: "pending",
       });
 
       if (chauffeur) {
