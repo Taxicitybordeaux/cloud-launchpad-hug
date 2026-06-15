@@ -1511,27 +1511,21 @@ function Dashboard() {
   const handleDeleteClient = async (client: { id: string; phone?: string | null }) => {
     const phone = client.phone;
 
-    // 1) Supprimer les courses "completed" de ce client — sinon elles
-    // continuent de compter dans le CA et le nombre de courses
-    // (fetchStats les calcule depuis `reservations`, indépendamment de la
-    // table `clients`).
+    // 1) Récupérer TOUTES les réservations du client (tous statuts)
     // ⚠️ Les numéros de téléphone ne sont pas stockés au même format partout
-    // (espaces, "0X" vs "+33X"...) → un .eq() strict peut ne matcher aucune
-    // ligne. On normalise (chiffres uniquement, "0" initial → "33") avant de
-    // comparer, côté JS.
+    // (espaces, "0X" vs "+33X"...) → normalisation côté JS.
     if (phone) {
       const normalize = (p: string) => p.replace(/[^0-9]/g, "").replace(/^0/, "33");
       const targetPhone = normalize(phone);
       if (targetPhone) {
-        const { data: completedResas, error: fetchErr } = await (supabase as any)
+        const { data: allResas, error: fetchErr } = await (supabase as any)
           .from("reservations")
-          .select("id, client_phone, telephone")
-          .in("status", ["completed", "terminee", "terminée", "done"]);
+          .select("id, client_phone, telephone");
         if (fetchErr) {
           toast.error("Suppression des courses associées impossible", { description: fetchErr.message });
           return;
         }
-        const idsToDelete = (completedResas ?? [])
+        const idsToDelete = (allResas ?? [])
           .filter((r: any) => {
             const p1 = r.client_phone ? normalize(r.client_phone) : "";
             const p2 = r.telephone ? normalize(r.telephone) : "";
@@ -1539,8 +1533,10 @@ function Dashboard() {
           })
           .map((r: any) => r.id);
         if (idsToDelete.length > 0) {
-          // Supprimer les avis liés avant les réservations (FK avis_reservation_id_fkey)
-          await (supabase as any).from("avis").delete().in("reservation_id", idsToDelete);
+          // Supprimer les avis liés EN PREMIER (FK avis_reservation_id_fkey)
+          const { error: avisErr } = await (supabase as any).from("avis").delete().in("reservation_id", idsToDelete);
+          if (avisErr) console.warn("[admin] avis delete warning", avisErr.message);
+          // Puis supprimer les réservations
           const { error: delErr } = await (supabase as any).from("reservations").delete().in("id", idsToDelete);
           if (delErr) {
             toast.error("Suppression des courses associées impossible", { description: delErr.message });
