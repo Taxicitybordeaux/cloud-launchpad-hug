@@ -1249,9 +1249,20 @@ function ReservationPage() {
           }
           await applyPosition(cached.coords.latitude, cached.coords.longitude);
         } catch (secondErr) {
+          // Dernier recours : géoloc par IP (approximative — ville)
+          const ip = await ipGeolocate();
+          if (ip) {
+            const distanceFromBordeaux = distanceKmBetween(BORDEAUX_CENTER, [ip.lat, ip.lng]);
+            if (distanceFromBordeaux <= MAX_AUTO_GEO_DISTANCE_FROM_BORDEAUX_KM) {
+              toast.info("Position GPS indisponible — position approximative via IP.");
+              await applyPosition(ip.lat, ip.lng);
+              return;
+            }
+          }
           const err = (secondErr || firstErr) as GeolocationPositionError;
           rejectAutoPosition(geoErrorMessage(err));
         }
+
       }
     })();
   }, []);
