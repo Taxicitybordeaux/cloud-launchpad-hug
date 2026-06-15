@@ -240,7 +240,6 @@ export const sendDirectChauffeurMessage = createServerFn({ method: "POST" })
   .inputValidator((input) => directSendSchema.parse(input))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { sendPushToAudience } = await import("@/lib/push.server");
     const { data: row, error } = await supabaseAdmin
       .from("direct_messages")
       .insert({
@@ -253,17 +252,9 @@ export const sendDirectChauffeurMessage = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error) throw new Error(error.message);
-    const body = data.content.length > 80 ? data.content.slice(0, 77) + "…" : data.content;
-    try {
-      await sendPushToAudience(
-        "client",
-        { title: "💬 José vous répond", body, url: "/client/dashboard", tag: `direct-${data.client_account_id}` },
-        { accountId: data.client_account_id },
-      );
-    } catch (e) {
-      console.warn("[direct-chat] push failed", e);
-    }
+    // ⚠️ Plus de push au CLIENT — message visible en realtime dans le chat.
     return row as DirectMessage;
+
   });
 
 export const listDirectMessages = createServerFn({ method: "POST" })
