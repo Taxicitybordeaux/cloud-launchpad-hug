@@ -26,8 +26,8 @@ describe("calibrationFactor (per-bucket)", () => {
   });
 });
 
-describe("calibrateKm — référence Gare St-Jean ↔ Aéroport (Google source of truth)", () => {
-  // Tolérance ±0.5 km : OSRM peut renvoyer 14.5–14.9 / 17.2–17.6 / 21.8–22.2
+describe("calibrateKm — calibration générique avant override exact", () => {
+  // Les trajets métier connus sont corrigés ensuite par BORDEAUX_AIRPORT_EXACT_KM.
   it("court 14.7 → ~16 km (Google)", () => {
     expect(calibrateKm(14.7)).toBeCloseTo(16.02, 1);
   });
