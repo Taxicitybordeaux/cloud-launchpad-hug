@@ -579,13 +579,23 @@ function Testimonials() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data } = await supabase
-        .from("reviews")
-        .select("id,name,rating,text,created_at")
-        .eq("approved", true)
+      const { data } = await (supabase as any)
+        .from("avis")
+        .select("id,author_name,note,commentaire,created_at")
+        .eq("status", "approved")
         .order("created_at", { ascending: false })
         .limit(9);
-      if (!cancelled && data) setReviews(data as Review[]);
+      if (!cancelled && data) {
+        setReviews(
+          (data as any[]).map((a) => ({
+            id: a.id,
+            name: a.author_name || "Anonyme",
+            rating: a.note ?? 5,
+            text: a.commentaire || "",
+            created_at: a.created_at,
+          })),
+        );
+      }
     })();
     return () => {
       cancelled = true;
