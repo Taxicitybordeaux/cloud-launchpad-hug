@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
-import { getRouteGeoCoords, getDistanceAndDurationKm, getRouteAlternatives, type RouteAlternative } from "@/lib/osrm";
+import { getRouteGeoCoords, getDistanceAndDurationKm, getRouteAlternatives, labelForAlternative, type RouteAlternative } from "@/lib/osrm";
 import { geocodeAddress, searchAddress } from "@/lib/geocode";
 import { notifyReservationStatus, updateReservationRoute } from "@/lib/push.functions";
 
