@@ -632,16 +632,9 @@ function SuiviPage() {
   const mapInst = useRef<any>(null);
   const mapInitializing = useRef(false);
   const markerRef = useRef<any>(null);
-  const routeLayer = useRef<any>(null);
-  const routeOutline = useRef<any>(null);
-  const tripLayer = useRef<any>(null);
-  const tripOutline = useRef<any>(null);
-  const approachLayer = useRef<any>(null);
   const fromMarker = useRef<any>(null);
   const toMarker = useRef<any>(null);
-  const approachCoords = useRef<[number, number][]>([]);
   const lastAppliedPos = useRef<{ lat: number; lng: number; t: number } | null>(null);
-  const lastApproachAt = useRef<number>(0);
   const animFrame = useRef<number | null>(null);
   const lastDriverPos = useRef<{ lat: number; lng: number } | null>(null);
   const initialZoom = useRef<number | null>(null);
