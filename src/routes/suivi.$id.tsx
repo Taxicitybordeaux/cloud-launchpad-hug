@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
-import { getRouteGeoCoords, getDistanceAndDurationKm, getRouteAlternatives, isBordeauxAirportRouteText, labelForAlternative, type RouteAlternative } from "@/lib/osrm";
+import { getRouteGeoCoords, getDistanceAndDurationKm, getRouteAlternatives, isBordeauxAirportRouteText, labelForAlternative, calibrateKm, type RouteAlternative } from "@/lib/osrm";
 import { geocodeAddress, searchAddress } from "@/lib/geocode";
 import { notifyReservationStatus, updateReservationRoute } from "@/lib/push.functions";
 
@@ -989,13 +989,15 @@ function SuiviPage() {
           for (let i = 1; i < coords.length; i++) {
             d += distMeters({ lat: coords[i - 1][0], lng: coords[i - 1][1] }, { lat: coords[i][0], lng: coords[i][1] });
           }
-          distanceKm = d / 1000;
+          // Distance NET (calibrée pour matcher Google Maps), pas brut OSRM
+          distanceKm = calibrateKm(d / 1000);
         } else {
           // getRouteGeoCoords attend [lng, lat] (format GeoJSON/OSRM), pas [lat, lng]
           const route = await getRouteGeoCoords([a[1], a[0]], [b[1], b[0]]).catch(() => null);
           const routeCoords = normalizeRouteCoords(route?.coords);
           coords = routeCoords ?? [a, b];
-          distanceKm = route?.distanceKm || distMeters({ lat: a[0], lng: a[1] }, { lat: b[0], lng: b[1] }) / 1000;
+          // route.distanceKm est déjà calibré ; le fallback à vol d'oiseau aussi
+          distanceKm = route?.distanceKm || calibrateKm(distMeters({ lat: a[0], lng: a[1] }, { lat: b[0], lng: b[1] }) / 1000);
         }
         if (distanceKm && distanceKm > 0) setTotalKm(parseFloat(distanceKm.toFixed(1)));
 
