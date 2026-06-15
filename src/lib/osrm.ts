@@ -168,8 +168,8 @@ async function invokeOsrmRoute(from: [number, number], to: [number, number]): Pr
 // ─── Parse une réponse normalisée Edge Function ou OSRM brute ───────────────
 function parseRouteResponse(json: any): LongestRoute | null {
   if (Array.isArray(json?.coords) && json.coords.length >= 2) {
-    const distanceKm = Number(json.distanceKm ?? json.distance_km ?? 0);
-    const durationSec = Number(json.durationSec ?? json.duration_sec ?? 0);
+    const distanceKm = Number(json.distanceKm ?? json.distance_km ?? 0) * OSRM_DISTANCE_FACTOR;
+    const durationSec = Number(json.durationSec ?? json.duration_sec ?? 0) * OSRM_DISTANCE_FACTOR;
     const rawCoords = json.coords
       .map((p: any) => (Array.isArray(p) ? ([Number(p[0]), Number(p[1])] as [number, number]) : null))
       .filter((p: [number, number] | null): p is [number, number] => !!p && Number.isFinite(p[0]) && Number.isFinite(p[1]));
@@ -181,8 +181,8 @@ function parseRouteResponse(json: any): LongestRoute | null {
   if (!routes.length) return null;
 
   const best = routes.reduce((a, b) => ((b?.distance ?? 0) > (a?.distance ?? 0) ? b : a));
-  const distanceKm = (best?.distance ?? 0) / 1000;
-  const durationSec = best?.duration ?? 0;
+  const distanceKm = ((best?.distance ?? 0) / 1000) * OSRM_DISTANCE_FACTOR;
+  const durationSec = (best?.duration ?? 0) * OSRM_DISTANCE_FACTOR;
 
   const rawCoords: [number, number][] = Array.isArray(best?.geometry?.coordinates)
     ? best.geometry.coordinates.map(([lng, lat]: [number, number]) => [lat, lng] as [number, number])
