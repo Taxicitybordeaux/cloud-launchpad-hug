@@ -15,8 +15,7 @@
 
 // Calibration OSRM → Google Maps par bucket de distance.
 // OSRM sous-estime systématiquement les distances routières vs Google Maps.
-// Calibré empiriquement sur l'agglo bordelaise (Gare St-Jean ↔ Aéroport :
-// court 14.7→16, intermédiaire 17.4→19, rocade 22→24).
+// Pour les trajets connus, on applique ensuite une distance exacte métier.
 export function calibrationFactor(rawKm: number): number {
   if (rawKm < 10) return 1.08; // urbain court
   if (rawKm < 20) return 1.09; // mixte
@@ -33,6 +32,27 @@ export const OSRM_DISTANCE_FACTOR = 1.09;
 
 // Catégorise une alternative parmi un set (court / intermédiaire / rocade).
 export type AlternativeKind = "court" | "intermédiaire" | "rocade";
+export const BORDEAUX_AIRPORT_EXACT_KM: Record<AlternativeKind, number> = {
+  court: 17,
+  intermédiaire: 20,
+  rocade: 24,
+};
+
+const GARE_ST_JEAN_COORD: [number, number] = [44.8265, -0.5569];
+const AIRPORT_HALL_A_COORD: [number, number] = [44.8291, -0.7028];
+const KNOWN_ROUTE_RADIUS_M = 1600;
+
+function isNearPoint(p: [number, number], target: [number, number]): boolean {
+  return haversineMeters(p[0], p[1], target[0], target[1]) <= KNOWN_ROUTE_RADIUS_M;
+}
+
+export function isBordeauxAirportRoute(from: [number, number], to: [number, number]): boolean {
+  return (
+    (isNearPoint(from, GARE_ST_JEAN_COORD) && isNearPoint(to, AIRPORT_HALL_A_COORD)) ||
+    (isNearPoint(from, AIRPORT_HALL_A_COORD) && isNearPoint(to, GARE_ST_JEAN_COORD))
+  );
+}
+
 export function labelForAlternative(
   index: number,
   total: number,
@@ -45,7 +65,7 @@ export function labelForAlternative(
   return "intermédiaire";
 }
 
-const CACHE_PREFIX = "osrm:longest:v3:";
+const CACHE_PREFIX = "osrm:longest:v4:";
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 jours
 const FETCH_TIMEOUT_MS = 8000;
 
