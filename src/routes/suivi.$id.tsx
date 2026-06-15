@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
-import { getRouteGeoCoords, getDistanceAndDurationKm, getRouteAlternatives, type RouteAlternative } from "@/lib/osrm";
+import { getRouteGeoCoords, getDistanceAndDurationKm, getRouteAlternatives, labelForAlternative, type RouteAlternative } from "@/lib/osrm";
 import { geocodeAddress, searchAddress } from "@/lib/geocode";
 import { notifyReservationStatus, updateReservationRoute } from "@/lib/push.functions";
 
@@ -3257,15 +3257,19 @@ function SuiviPage() {
                       >
                         Choisir l'itinéraire
                       </div>
-                      {(routeAlts.length > 0
-                        ? routeAlts
-                        : totalKm
-                          ? [{ distanceKm: totalKm, durationSec: 0, coords: [] as [number, number][] }]
-                          : []
-                      ).map((alt, idx) => {
-                        const km = Number(alt.distanceKm.toFixed(1));
-                        const mins = alt.durationSec ? Math.round(alt.durationSec / 60) : null;
-                        return (
+                      {(() => {
+                        const list = routeAlts.length > 0
+                          ? routeAlts
+                          : totalKm
+                            ? [{ distanceKm: totalKm, durationSec: 0, coords: [] as [number, number][] }]
+                            : [];
+                        return list.map((alt, idx) => {
+                          const km = Number(alt.distanceKm.toFixed(1));
+                          const mins = alt.durationSec ? Math.round(alt.durationSec / 60) : null;
+                          const kind = labelForAlternative(idx, list.length);
+                          const kindIcon = kind === "court" ? "🟢" : kind === "rocade" ? "🔴" : "🟡";
+                          const kindLabel = kind === "court" ? "Court" : kind === "rocade" ? "Rocade" : "Intermédiaire";
+                          return (
                           <button
                             key={`alt-${idx}-${km}`}
                             type="button"
@@ -3275,14 +3279,34 @@ function SuiviPage() {
                                 toast.error("Itinéraire pas encore calculé");
                                 return;
                               }
-                              // Ouvre Maps (geste utilisateur requis iOS)
+                              // Ouvre Maps (geste utilisateur requis iOS) avec waypoints
+                              // du tracé choisi → Google/Apple Maps suivra ce chemin précis.
                               const dest = encodeURIComponent(resa.destination || resa.arrivee || "");
+                              // Sélectionne ~3 waypoints intermédiaires régulièrement espacés
+                              // sur le tracé (Google Maps accepte jusqu'à 9 waypoints).
+                              const coords = alt.coords || [];
+                              const waypoints: string[] = [];
+                              if (coords.length >= 5) {
+                                const steps = 3;
+                                for (let i = 1; i <= steps; i++) {
+                                  const idx2 = Math.floor((coords.length * i) / (steps + 1));
+                                  const [lat, lng] = coords[idx2];
+                                  waypoints.push(`${lat.toFixed(5)},${lng.toFixed(5)}`);
+                                }
+                              }
                               const isIOS =
                                 /iP(hone|ad|od)/.test(navigator.userAgent) ||
                                 (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-                              const mapsUrl = isIOS
-                                ? `maps://maps.apple.com/?daddr=${dest}&dirflg=d`
-                                : `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`;
+                              let mapsUrl: string;
+                              if (isIOS) {
+                                // Apple Plans : pas de support waypoints fiable → on garde dest seul
+                                mapsUrl = `maps://maps.apple.com/?daddr=${dest}&dirflg=d`;
+                              } else {
+                                const wp = waypoints.length
+                                  ? `&waypoints=${encodeURIComponent(waypoints.join("|"))}`
+                                  : "";
+                                mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${dest}${wp}&travelmode=driving`;
+                              }
                               window.open(mapsUrl, "_blank");
 
                               setRouteEditBusy(true);
@@ -3303,8 +3327,8 @@ function SuiviPage() {
                                 );
                                 toast.success(
                                   sent > 0
-                                    ? `✅ Trajet validé (${km} km · ${newPrice?.toFixed?.(2)} €) — client notifié`
-                                    : `✅ Trajet validé (${km} km · ${newPrice?.toFixed?.(2)} €) — pas de souscription client`,
+                                    ? `✅ ${kindLabel} validé (${km} km · ${newPrice?.toFixed?.(2)} €) — client notifié`
+                                    : `✅ ${kindLabel} validé (${km} km · ${newPrice?.toFixed?.(2)} €) — pas de souscription client`,
                                 );
                               } catch (e) {
                                 console.error("[updateRoute]", e);
@@ -3333,10 +3357,11 @@ function SuiviPage() {
                           >
                             {routeEditBusy
                               ? "⏳ Mise à jour…"
-                              : `🗺️ Itinéraire ${idx + 1} — ${km} km${mins ? ` · ${mins} min` : ""}`}
+                              : `${kindIcon} ${kindLabel} — ${km} km${mins ? ` · ${mins} min` : ""}`}
                           </button>
-                        );
-                      })}
+                          );
+                        });
+                      })()}
                     </div>
                   )}
 

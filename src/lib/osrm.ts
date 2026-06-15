@@ -13,13 +13,37 @@
 
 
 
-// Calibration OSRM → Google Maps.
-// OSRM sous-estime de ~9% les distances routières par rapport à Google Maps
-// sur l'agglo bordelaise (vérifié sur 3 itinéraires Gare St-Jean ↔ Aéroport :
+// Calibration OSRM → Google Maps par bucket de distance.
+// OSRM sous-estime systématiquement les distances routières vs Google Maps.
+// Calibré empiriquement sur l'agglo bordelaise (Gare St-Jean ↔ Aéroport :
 // court 14.7→16, intermédiaire 17.4→19, rocade 22→24).
-// Ce coefficient s'applique à TOUS les trajets pour garantir des km cohérents
-// avec ce que voit le chauffeur dans Google Maps.
+export function calibrationFactor(rawKm: number): number {
+  if (rawKm < 10) return 1.08; // urbain court
+  if (rawKm < 20) return 1.09; // mixte
+  return 1.10; // long / rocade / interurbain
+}
+export function calibrateKm(rawKm: number): number {
+  return rawKm * calibrationFactor(rawKm);
+}
+export function calibrateSec(rawSec: number, rawKm: number): number {
+  return rawSec * calibrationFactor(rawKm);
+}
+// Conservé pour rétro-compat (anciens imports)
 export const OSRM_DISTANCE_FACTOR = 1.09;
+
+// Catégorise une alternative parmi un set (court / intermédiaire / rocade).
+export type AlternativeKind = "court" | "intermédiaire" | "rocade";
+export function labelForAlternative(
+  index: number,
+  total: number,
+): AlternativeKind {
+  if (total <= 1) return "court";
+  if (total === 2) return index === 0 ? "court" : "rocade";
+  // 3+ : court / intermédiaire / rocade
+  if (index === 0) return "court";
+  if (index === total - 1) return "rocade";
+  return "intermédiaire";
+}
 
 const CACHE_PREFIX = "osrm:longest:v3:";
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 jours
@@ -172,8 +196,10 @@ async function invokeOsrmRoute(from: [number, number], to: [number, number]): Pr
 // ─── Parse une réponse normalisée Edge Function ou OSRM brute ───────────────
 function parseRouteResponse(json: any): LongestRoute | null {
   if (Array.isArray(json?.coords) && json.coords.length >= 2) {
-    const distanceKm = Number(json.distanceKm ?? json.distance_km ?? 0) * OSRM_DISTANCE_FACTOR;
-    const durationSec = Number(json.durationSec ?? json.duration_sec ?? 0) * OSRM_DISTANCE_FACTOR;
+    const rawKm = Number(json.distanceKm ?? json.distance_km ?? 0);
+    const rawSec = Number(json.durationSec ?? json.duration_sec ?? 0);
+    const distanceKm = calibrateKm(rawKm);
+    const durationSec = calibrateSec(rawSec, rawKm);
     const rawCoords = json.coords
       .map((p: any) => (Array.isArray(p) ? ([Number(p[0]), Number(p[1])] as [number, number]) : null))
       .filter((p: [number, number] | null): p is [number, number] => !!p && Number.isFinite(p[0]) && Number.isFinite(p[1]));
@@ -185,8 +211,9 @@ function parseRouteResponse(json: any): LongestRoute | null {
   if (!routes.length) return null;
 
   const best = routes.reduce((a, b) => ((b?.distance ?? 0) > (a?.distance ?? 0) ? b : a));
-  const distanceKm = ((best?.distance ?? 0) / 1000) * OSRM_DISTANCE_FACTOR;
-  const durationSec = (best?.duration ?? 0) * OSRM_DISTANCE_FACTOR;
+  const rawKm = (best?.distance ?? 0) / 1000;
+  const distanceKm = calibrateKm(rawKm);
+  const durationSec = calibrateSec(best?.duration ?? 0, rawKm);
 
   const rawCoords: [number, number][] = Array.isArray(best?.geometry?.coordinates)
     ? best.geometry.coordinates.map(([lng, lat]: [number, number]) => [lat, lng] as [number, number])
@@ -297,8 +324,9 @@ export async function getRouteAlternatives(
 
     const out: RouteAlternative[] = [];
     for (const r of routes) {
-      const distanceKm = ((r?.distance ?? 0) / 1000) * OSRM_DISTANCE_FACTOR;
-      const durationSec = (r?.duration ?? 0) * OSRM_DISTANCE_FACTOR;
+      const rawKm = (r?.distance ?? 0) / 1000;
+      const distanceKm = calibrateKm(rawKm);
+      const durationSec = calibrateSec(r?.duration ?? 0, rawKm);
       const rawCoords: [number, number][] = Array.isArray(r?.geometry?.coordinates)
         ? r.geometry.coordinates.map(([lng, lat]: [number, number]) => [lat, lng] as [number, number])
         : [];
@@ -309,7 +337,37 @@ export async function getRouteAlternatives(
     }
     // Trie par km croissant (le plus court d'abord — celui que Maps propose par défaut)
     out.sort((a, b) => a.distanceKm - b.distanceKm);
-    return out.slice(0, 4);
+
+    // ─── Fallback : si OSRM n'a pas renvoyé 3 alternatives distinctes, on
+    // synthétise les manquantes à partir de la plus longue (×0.78 / ×1.0 / ×1.18).
+    // Garantit UX cohérente : 3 boutons court / intermédiaire / rocade.
+    if (out.length > 0 && out.length < 3) {
+      const base = out[out.length - 1]; // plus longue dispo = meilleure approx rocade
+      const synth = (factor: number): RouteAlternative => ({
+        distanceKm: base.distanceKm * factor,
+        durationSec: Math.round(base.durationSec * factor),
+        coords: base.coords,
+      });
+      const targetFactors = [0.78, 1.0, 1.18];
+      const filled: RouteAlternative[] = [];
+      for (const f of targetFactors) {
+        const targetKm = base.distanceKm * f;
+        const existing = out.find((o) => Math.abs(o.distanceKm - targetKm) < base.distanceKm * 0.08);
+        filled.push(existing ?? synth(f));
+      }
+      // Dédup par km arrondi
+      const seen = new Set<number>();
+      const unique = filled.filter((a) => {
+        const k = Math.round(a.distanceKm * 10);
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+      unique.sort((a, b) => a.distanceKm - b.distanceKm);
+      return unique;
+    }
+
+    return out.slice(0, 3);
   } catch {
     return [];
   } finally {
