@@ -10,29 +10,36 @@ import {
 } from "./osrm";
 
 describe("calibrationFactor (per-bucket)", () => {
-  it("urbain court < 10 km → 1.08", () => {
-    expect(calibrationFactor(3)).toBe(1.08);
-    expect(calibrationFactor(9.99)).toBe(1.08);
+  it("centre-ville < 5 km → 1.06", () => {
+    expect(calibrationFactor(1)).toBe(1.06);
+    expect(calibrationFactor(4.99)).toBe(1.06);
   });
-  it("mixte 10–20 km → 1.09", () => {
-    expect(calibrationFactor(10)).toBe(1.09);
-    expect(calibrationFactor(17.4)).toBe(1.09);
-    expect(calibrationFactor(19.99)).toBe(1.09);
+  it("urbain élargi 5–12 km → 1.08", () => {
+    expect(calibrationFactor(5)).toBe(1.08);
+    expect(calibrationFactor(11.99)).toBe(1.08);
   });
-  it("long / rocade ≥ 20 km → 1.10", () => {
-    expect(calibrationFactor(20)).toBe(1.10);
-    expect(calibrationFactor(22)).toBe(1.10);
-    expect(calibrationFactor(80)).toBe(1.10);
+  it("mixte rocade 12–25 km → 1.10", () => {
+    expect(calibrationFactor(12)).toBe(1.10);
+    expect(calibrationFactor(17.4)).toBe(1.10);
+    expect(calibrationFactor(24.99)).toBe(1.10);
+  });
+  it("interurbain 25–60 km → 1.11", () => {
+    expect(calibrationFactor(25)).toBe(1.11);
+    expect(calibrationFactor(59.99)).toBe(1.11);
+  });
+  it("longue distance ≥ 60 km → 1.08", () => {
+    expect(calibrationFactor(60)).toBe(1.08);
+    expect(calibrationFactor(200)).toBe(1.08);
   });
 });
 
 describe("calibrateKm — calibration générique avant override exact", () => {
   // Les trajets métier connus sont corrigés ensuite par BORDEAUX_AIRPORT_EXACT_KM.
   it("court 14.7 → ~16 km (Google)", () => {
-    expect(calibrateKm(14.7)).toBeCloseTo(16.02, 1);
+    expect(calibrateKm(14.7)).toBeCloseTo(16.17, 1);
   });
   it("intermédiaire 17.4 → ~19 km (Google)", () => {
-    expect(calibrateKm(17.4)).toBeCloseTo(18.97, 1);
+    expect(calibrateKm(17.4)).toBeCloseTo(19.14, 1);
   });
   it("rocade 22 → ~24 km (Google)", () => {
     expect(calibrateKm(22)).toBeCloseTo(24.2, 1);

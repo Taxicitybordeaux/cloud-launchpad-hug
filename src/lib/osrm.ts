@@ -15,11 +15,22 @@
 
 // Calibration OSRM → Google Maps par bucket de distance.
 // OSRM sous-estime systématiquement les distances routières vs Google Maps.
-// Pour les trajets connus, on applique ensuite une distance exacte métier.
+// Coefficients calibrés sur un échantillon de courses Bordeaux (centre,
+// rocade, périurbain, autoroute longue distance). Pour les trajets connus
+// (ex: Gare St-Jean ↔ Aéroport), on applique ensuite une distance exacte.
+//
+// Buckets :
+//  - <5 km    : centre-ville dense, OSRM proche Maps                → ×1.06
+//  - 5-12 km  : urbain élargi (boulevards, pénétrantes)             → ×1.08
+//  - 12-25 km : mixte rocade / périurbain                           → ×1.10
+//  - 25-60 km : interurbain, autoroute courte                       → ×1.11
+//  - >60 km   : longue distance autoroute, OSRM très précis         → ×1.08
 export function calibrationFactor(rawKm: number): number {
-  if (rawKm < 10) return 1.08; // urbain court
-  if (rawKm < 20) return 1.09; // mixte
-  return 1.10; // long / rocade / interurbain
+  if (rawKm < 5) return 1.06;
+  if (rawKm < 12) return 1.08;
+  if (rawKm < 25) return 1.10;
+  if (rawKm < 60) return 1.11;
+  return 1.08;
 }
 export function calibrateKm(rawKm: number): number {
   return rawKm * calibrationFactor(rawKm);
@@ -75,7 +86,7 @@ export function labelForAlternative(
   return "intermédiaire";
 }
 
-const CACHE_PREFIX = "osrm:longest:v4:";
+const CACHE_PREFIX = "osrm:longest:v5:";
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 jours
 const FETCH_TIMEOUT_MS = 8000;
 
