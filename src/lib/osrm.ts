@@ -374,14 +374,14 @@ export async function getRouteAlternatives(
         const fallback: RouteAlternative = { distanceKm: 0, durationSec: 0, coords: [from, to] };
         return [
           forceExactKm(fallback, BORDEAUX_AIRPORT_EXACT_KM.court),
-          forceExactKm(fallback, BORDEAUX_AIRPORT_EXACT_KM.intermédiaire),
+        forceExactKm(fallback, BORDEAUX_AIRPORT_EXACT_KM["intermédiaire"]),
           forceExactKm(fallback, BORDEAUX_AIRPORT_EXACT_KM.rocade),
         ];
       }
       const pick = (index: number) => out[Math.min(index, out.length - 1)];
       return [
         forceExactKm(pick(0), BORDEAUX_AIRPORT_EXACT_KM.court),
-        forceExactKm(pick(Math.floor(out.length / 2)), BORDEAUX_AIRPORT_EXACT_KM.intermédiaire),
+        forceExactKm(pick(Math.floor(out.length / 2)), BORDEAUX_AIRPORT_EXACT_KM["intermédiaire"]),
         forceExactKm(pick(out.length - 1), BORDEAUX_AIRPORT_EXACT_KM.rocade),
       ];
     }
