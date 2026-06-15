@@ -13,7 +13,7 @@ import {
   Navigation,
 } from "lucide-react";
 import { buildReservationMessage, whatsappLink } from "@/lib/whatsapp";
-import { usePushNotifications } from "@/hooks/usePushNotifications";
+// Push client retiré — le client est notifié visuellement sur /suivi/$id (bandeau étapes).
 import { useT, useI18n } from "@/i18n/I18nProvider";
 import { getReservationPublic, cancelReservationPublic } from "@/lib/reservation.functions";
 
