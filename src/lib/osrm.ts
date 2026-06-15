@@ -260,3 +260,43 @@ export async function getRouteGeoCoords(
   const r = await getLongestRoute([from[1], from[0]], [to[1], to[0]]);
   return { coords: r.coords, distanceKm: r.distanceKm, durationSec: r.durationSec };
 }
+
+// ─── Alternatives (pour sélecteur d'itinéraire chauffeur) ───────────────────
+export type RouteAlternative = {
+  distanceKm: number;
+  durationSec: number;
+  coords: [number, number][]; // [lat, lng]
+};
+
+/** Renvoie jusqu'à 3 itinéraires entre from/to (en [lat,lng]), dédupliqués par km. */
+export async function getRouteAlternatives(
+  from: [number, number],
+  to: [number, number],
+): Promise<RouteAlternative[]> {
+  if (!from || !to) return [];
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const json = await fetchOsrm([from, to], ctrl.signal);
+    const routes: any[] = Array.isArray(json?.routes) ? json.routes : [];
+    const out: RouteAlternative[] = [];
+    for (const r of routes) {
+      const distanceKm = (r?.distance ?? 0) / 1000;
+      const durationSec = r?.duration ?? 0;
+      const rawCoords: [number, number][] = Array.isArray(r?.geometry?.coordinates)
+        ? r.geometry.coordinates.map(([lng, lat]: [number, number]) => [lat, lng] as [number, number])
+        : [];
+      if (distanceKm <= 0 || durationSec <= 0 || rawCoords.length < 2) continue;
+      // Dédup : ignore si déjà une route à <0.3km
+      if (out.some((o) => Math.abs(o.distanceKm - distanceKm) < 0.3)) continue;
+      out.push({ distanceKm, durationSec, coords: rawCoords });
+    }
+    // Trie par km croissant (le plus court d'abord — celui que Maps propose par défaut)
+    out.sort((a, b) => a.distanceKm - b.distanceKm);
+    return out.slice(0, 3);
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(id);
+  }
+}
