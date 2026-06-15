@@ -1012,7 +1012,7 @@ function SuiviPage() {
         toMarker.current = L.marker(b, { icon: destIcon }).addTo(activeMap).bindPopup("🏁 Destination");
 
         const driverPos = markerRef.current?.getLatLng();
-        if (driverPos) drawApproachLine(driverPos.lat, driverPos.lng, a);
+        
 
         const targetBounds = L.latLngBounds([...coords, markerRef.current?.getLatLng()].filter(Boolean)).pad(0.2);
         const fit = () => {
