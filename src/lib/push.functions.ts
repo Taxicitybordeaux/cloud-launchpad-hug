@@ -347,3 +347,97 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
 
     return { client: result, chauffeur: chauffeurResult, smsPhone: smsPhone || null, smsBody };
   });
+
+// ── Mise à jour du trajet (km + prix) par le chauffeur depuis la page suivi ──
+// Le chauffeur choisit dans Maps son itinéraire (option C : longueur/voie rapide
+// laissée à son jugement), revient sur /suivi/$id et saisit le nouveau km.
+// On recalcule le prix et on notifie le client par push.
+export const updateReservationRoute = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z
+      .object({
+        reservation_id: z.string().uuid(),
+        suivi_key: z.string().min(1).max(120),
+        distance_km: z.number().positive().max(2000),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const [{ getTaxiSupabaseAdmin }, { sendPushToAudience }, { calculerPrixMixte }] = await Promise.all([
+      import("@/lib/taxi-supabase.server"),
+      import("@/lib/push.server"),
+      import("@/lib/tarif"),
+    ]);
+    const supabaseAdmin = getTaxiSupabaseAdmin();
+
+    const { data: r, error: fetchErr } = await supabaseAdmin
+      .from("reservations")
+      .select(
+        "id, suivi_id, pickup_datetime, prix_estime, distance_km, nom, client_name, lang",
+      )
+      .eq("id", data.reservation_id)
+      .maybeSingle();
+    if (fetchErr) throw new Error(`fetch_failed: ${fetchErr.message}`);
+    if (!r) throw new Error("not_found");
+
+    // Autorisation : la suivi_key doit correspondre à la réservation
+    const key = data.suivi_key.trim();
+    const validKey = [r.id, (r as any).suivi_id].filter(Boolean).includes(key);
+    if (!validKey) throw new Error("forbidden");
+
+    const pickupIso = (r as any).pickup_datetime || new Date().toISOString();
+    const newPrice = calculerPrixMixte(data.distance_km, pickupIso);
+    const oldPrice = Number((r as any).prix_estime ?? 0);
+
+    const { error: updErr } = await supabaseAdmin
+      .from("reservations")
+      .update({
+        distance_km: data.distance_km,
+        prix_estime: newPrice,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", r.id);
+    if (updErr) throw new Error(`update_failed: ${updErr.message}`);
+
+    const clientName = (r as any).client_name || (r as any).nom || "Client";
+    const url = (r as any).suivi_id ? `/suivi/${(r as any).suivi_id}` : `/reservation/${r.id}`;
+    const resLang = (((r as any).lang as Lang) || "fr");
+
+    const TITLES: Record<Lang, string> = {
+      fr: "💶 Prix mis à jour",
+      en: "💶 Price updated",
+      es: "💶 Precio actualizado",
+      pt: "💶 Preço atualizado",
+      it: "💶 Prezzo aggiornato",
+      ar: "💶 تم تحديث السعر",
+    };
+    const BODIES: Record<Lang, string> = {
+      fr: `Bonjour ${clientName}, votre course est estimée à ${newPrice.toFixed(2)} € (${data.distance_km.toFixed(1)} km).`,
+      en: `Hello ${clientName}, your ride is now estimated at €${newPrice.toFixed(2)} (${data.distance_km.toFixed(1)} km).`,
+      es: `Hola ${clientName}, su carrera se estima en ${newPrice.toFixed(2)} € (${data.distance_km.toFixed(1)} km).`,
+      pt: `Olá ${clientName}, a sua corrida está estimada em ${newPrice.toFixed(2)} € (${data.distance_km.toFixed(1)} km).`,
+      it: `Salve ${clientName}, la sua corsa è stimata a ${newPrice.toFixed(2)} € (${data.distance_km.toFixed(1)} km).`,
+      ar: `مرحباً ${clientName}، السعر التقديري لرحلتك ${newPrice.toFixed(2)} € (${data.distance_km.toFixed(1)} كم).`,
+    };
+
+    const push = await sendPushToAudience(
+      "client",
+      {
+        title: TITLES[resLang] ?? TITLES.fr,
+        body: BODIES[resLang] ?? BODIES.fr,
+        url: `${APP_URL}${url}`,
+        tag: `res-${r.id}-price`,
+        requireInteraction: false,
+        data: { reservation_id: r.id, prix_estime: newPrice, distance_km: data.distance_km },
+      },
+      { reservationId: r.id },
+    );
+
+    return {
+      ok: true,
+      prix_estime: newPrice,
+      distance_km: data.distance_km,
+      old_prix_estime: oldPrice,
+      push,
+    };
+  });
