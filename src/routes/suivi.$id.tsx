@@ -1442,8 +1442,6 @@ function SuiviPage() {
       depGeoRef.current = null;
       lastAppliedPos.current = null;
       lastDriverPos.current = null;
-      lastApproachAt.current = 0;
-      approachCoords.current = [];
     };
   }, [id, retryNonce, subscribeRealtime, stopPolling, schedulePickupNotification, drawTripRoute]);
 
