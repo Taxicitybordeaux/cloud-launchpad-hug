@@ -3512,92 +3512,107 @@ function Dashboard() {
             {avis
               .filter((a) => !a.status || a.status === "pending")
               .map((a) => (
-                <SwipeDeleteRow key={a.id} onDelete={() => handleDeleteAvis(a.id)} style={{ marginBottom: 12 }}>
-                  <div style={{ ...card, border: "1px solid rgba(251,191,36,0.2)" }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 10,
-                        flexWrap: "wrap",
-                        marginBottom: 8,
-                      }}
-                    >
-                      <div>
-                        <span style={{ color: "#f8fafc", fontWeight: 700, fontSize: 15 }}>
-                          {a.author_name || a.nom || "Anonyme"}
-                        </span>
-                        {a.note && (
-                          <span style={{ marginLeft: 10, color: "#fbbf24", fontSize: 14 }}>
-                            {"★".repeat(Math.min(5, Math.max(1, Number(a.note))))}
+                <div key={a.id} style={{ marginBottom: 12 }}>
+                  <SwipeDeleteRow onDelete={() => handleDeleteAvis(a.id)}>
+                    <div style={{ ...card, border: "1px solid rgba(251,191,36,0.2)", borderRadius: "20px 20px 0 0" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 10,
+                          flexWrap: "wrap",
+                          marginBottom: 8,
+                        }}
+                      >
+                        <div>
+                          <span style={{ color: "#f8fafc", fontWeight: 700, fontSize: 15 }}>
+                            {a.author_name || a.nom || "Anonyme"}
                           </span>
-                        )}
+                          {a.note && (
+                            <span style={{ marginLeft: 10, color: "#fbbf24", fontSize: 14 }}>
+                              {"★".repeat(Math.min(5, Math.max(1, Number(a.note))))}
+                            </span>
+                          )}
+                        </div>
+                        <span style={{ color: "#64748b", fontSize: 12 }}>
+                          {new Date(a.created_at).toLocaleDateString("fr-FR")}
+                        </span>
                       </div>
-                      <span style={{ color: "#64748b", fontSize: 12 }}>
-                        {new Date(a.created_at).toLocaleDateString("fr-FR")}
-                      </span>
+                      <p
+                        style={{
+                          color: "#cbd5e1",
+                          fontSize: 14,
+                          margin: 0,
+                          lineHeight: 1.6,
+                          whiteSpace: "pre-line",
+                        }}
+                      >
+                        {a.message || a.content || a.texte || <em style={{ color: "#475569" }}>Aucun commentaire</em>}
+                      </p>
                     </div>
-                    <p
+                  </SwipeDeleteRow>
+                  {/* Boutons HORS du SwipeDeleteRow pour ne pas être bloqués par le touch */}
+                  <div
+                    className="avis-actions"
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      flexWrap: "wrap",
+                      background: "rgba(255,255,255,0.03)",
+                      border: "1px solid rgba(251,191,36,0.2)",
+                      borderTop: "none",
+                      borderRadius: "0 0 20px 20px",
+                      padding: "10px 16px",
+                    }}
+                  >
+                    <button
+                      onClick={() => handleAvisAction(a.id, "approved")}
                       style={{
-                        color: "#cbd5e1",
-                        fontSize: 14,
-                        margin: "0 0 14px",
-                        lineHeight: 1.6,
-                        whiteSpace: "pre-line",
+                        background: "#22c55e",
+                        color: "#fff",
+                        border: 0,
+                        padding: "9px 16px",
+                        borderRadius: 10,
+                        cursor: "pointer",
+                        fontWeight: 700,
+                        fontSize: 13,
                       }}
                     >
-                      {a.message || a.content || a.texte}
-                    </p>
-                    <div className="avis-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <button
-                        onClick={() => handleAvisAction(a.id, "approved")}
-                        style={{
-                          background: "#22c55e",
-                          color: "#fff",
-                          border: 0,
-                          padding: "9px 16px",
-                          borderRadius: 10,
-                          cursor: "pointer",
-                          fontWeight: 700,
-                          fontSize: 13,
-                        }}
-                      >
-                        ✓ Publier
-                      </button>
-                      <button
-                        onClick={() => handleAvisAction(a.id, "refused")}
-                        style={{
-                          background: "rgba(239,68,68,0.15)",
-                          border: "1px solid rgba(239,68,68,0.3)",
-                          color: "#f87171",
-                          padding: "9px 16px",
-                          borderRadius: 10,
-                          cursor: "pointer",
-                          fontWeight: 700,
-                          fontSize: 13,
-                        }}
-                      >
-                        ✗ Refuser
-                      </button>
-                      <button
-                        onClick={() => handleDeleteAvis(a.id)}
-                        style={{
-                          marginLeft: "auto",
-                          background: "rgba(239,68,68,0.06)",
-                          border: "1px solid rgba(239,68,68,0.15)",
-                          color: "#f87171",
-                          padding: "9px 14px",
-                          borderRadius: 10,
-                          cursor: "pointer",
-                          fontWeight: 700,
-                          fontSize: 12,
-                        }}
-                      >
-                        🗑
-                      </button>
-                    </div>
+                      ✓ Publier
+                    </button>
+                    <button
+                      onClick={() => handleAvisAction(a.id, "refused")}
+                      style={{
+                        background: "rgba(239,68,68,0.15)",
+                        border: "1px solid rgba(239,68,68,0.3)",
+                        color: "#f87171",
+                        padding: "9px 16px",
+                        borderRadius: 10,
+                        cursor: "pointer",
+                        fontWeight: 700,
+                        fontSize: 13,
+                      }}
+                    >
+                      ✗ Refuser
+                    </button>
+                    <button
+                      onClick={() => handleDeleteAvis(a.id)}
+                      style={{
+                        marginLeft: "auto",
+                        background: "rgba(239,68,68,0.06)",
+                        border: "1px solid rgba(239,68,68,0.15)",
+                        color: "#f87171",
+                        padding: "9px 14px",
+                        borderRadius: 10,
+                        cursor: "pointer",
+                        fontWeight: 700,
+                        fontSize: 12,
+                      }}
+                    >
+                      🗑
+                    </button>
                   </div>
-                </SwipeDeleteRow>
+                </div>
               ))}
           </div>
         )}
