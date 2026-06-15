@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { usePushNotifications } from "@/hooks/usePushNotifications";
+// Push client retiré — bandeau d'étapes visuel à la place (voir composant ci-dessous).
 import {
   getRouteGeoCoords,
   getDistanceAndDurationKm,
@@ -643,7 +643,7 @@ function SuiviPage() {
     } catch {}
   }, [autoResume]);
 
-  const { status: pushStatus, subscribe } = usePushNotifications();
+  // (notifications push client supprimées — bandeau d'étapes plus bas)
 
   // ── Refs carte ─────────────────────────────────────────────────────────────
   const mapRef = useRef<HTMLDivElement>(null);
@@ -1471,26 +1471,11 @@ function SuiviPage() {
     };
   }, [id, retryNonce, subscribeRealtime, stopPolling, schedulePickupNotification, drawTripRoute]);
 
-  // ── Push notifications auto ──────────────────────────────────────────────
-  // Bug fix : sur un appareil ayant déjà accordé la permission (client récurrent),
-  // pushStatus passe directement à "granted" sans jamais appeler subscribe().
-  // La ligne push_subscriptions garde alors le reservation_id de la course
-  // précédente → sendPushToAudience("client", { reservationId }) ne trouve
-  // aucune ligne → 0 notif envoyée (alors que le test debug, sans filtre,
-  // fonctionne). On (re)souscrit donc aussi quand le statut est déjà "granted",
-  // une seule fois par reservation_id.
-  const pushSubscribedForRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!resa) return;
-    // On tente dès que le statut n'est pas définitivement bloqué
-    if (pushStatus === "denied" || pushStatus === "unsupported" || pushStatus === "loading") return;
-    if (pushSubscribedForRef.current === resa.id) return;
-    pushSubscribedForRef.current = resa.id;
-    subscribe("client", resa.id).catch(() => {
-      // Reset pour permettre un retry si pushStatus évolue (ex: "idle" → "granted")
-      pushSubscribedForRef.current = null;
-    });
-  }, [resa, pushStatus, subscribe]);
+  // ── Push notifications client supprimées ─────────────────────────────────
+  // Le client n'est plus abonné aux push. Toutes les étapes de la course
+  // s'affichent visuellement via le bandeau d'étapes ci-dessous (realtime
+  // Supabase met à jour `resa.status` automatiquement).
+
 
   // ── Partager ─────────────────────────────────────────────────────────────
   const partager = async () => {
@@ -2584,78 +2569,112 @@ function SuiviPage() {
             <div style={{ width: 40, height: 4, background: "rgba(255,255,255,0.1)", borderRadius: 9 }} />
           </div>
 
-          {/* ── Notification client (juste après la carte) ── */}
-          {pushStatus === "unsupported" &&
-            typeof window !== "undefined" &&
-            /iPad|iPhone|iPod/.test(navigator.userAgent) &&
-            !(window as any).navigator?.standalone && (
-              <div style={{ padding: "0 20px 14px" }}>
+          {/* ── BANDEAU D'ÉTAPES (remplace les notifs push client) ── */}
+          {(() => {
+            const STEPS: { key: string; label: string; icon: string }[] = [
+              { key: "pending", label: "Réservée", icon: "📝" },
+              { key: "accepted", label: "Confirmée", icon: "✅" },
+              { key: "en_route", label: "En route", icon: "🚕" },
+              { key: "arrived", label: "Sur place", icon: "📍" },
+              { key: "completed", label: "Terminée", icon: "🏁" },
+            ];
+            const norm = (s: string) =>
+              s === "nouvelle" ? "pending" : s === "terminee" ? "completed" : s;
+            const current = norm(effectiveStatus);
+            const cancelled = ["cancelled", "refused"].includes(current);
+            const currentIdx = cancelled ? -1 : Math.max(0, STEPS.findIndex((s) => s.key === current));
+            return (
+              <div style={{ padding: "0 16px 14px" }}>
                 <div
                   style={{
-                    padding: 14,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 4,
+                    padding: "12px 10px",
+                    background: cancelled ? "rgba(239,68,68,0.08)" : "rgba(245,200,66,0.06)",
+                    border: `1px solid ${cancelled ? "rgba(239,68,68,0.25)" : "rgba(245,200,66,0.20)"}`,
                     borderRadius: 16,
-                    background: "rgba(245,200,66,0.12)",
-                    border: "1px solid rgba(245,200,66,0.35)",
-                    color: "#f5c842",
                     fontFamily: "'DM Sans', sans-serif",
                   }}
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={STEPS.length - 1}
+                  aria-valuenow={currentIdx}
+                  aria-label="Étape de la course"
                 >
-                  <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>
-                    📲 Activer les notifications sur iPhone
-                  </div>
-                  <div style={{ fontSize: 12, color: "#e2e8f0", lineHeight: 1.5 }}>
-                    Apple n'autorise les notifications web que depuis l'app installée. Pour les recevoir :
-                    <br />
-                    1. Appuyez sur <b>Partager</b> (l'icône <span style={{ fontWeight: 700 }}>⬆️</span> en bas de
-                    Safari)
-                    <br />
-                    2. Choisissez <b>« Sur l'écran d'accueil »</b>
-                    <br />
-                    3. Ouvrez l'app depuis l'icône, puis revenez ici et cliquez sur « 🔔 Notification client »
-                  </div>
+                  {cancelled ? (
+                    <div
+                      style={{
+                        width: "100%",
+                        textAlign: "center",
+                        color: "#ef4444",
+                        fontSize: 13,
+                        fontWeight: 700,
+                      }}
+                    >
+                      ❌ Course {current === "refused" ? "refusée" : "annulée"}
+                    </div>
+                  ) : (
+                    STEPS.map((s, i) => {
+                      const done = i < currentIdx;
+                      const active = i === currentIdx;
+                      const color = done ? "#22c55e" : active ? "#f5c842" : "#475569";
+                      return (
+                        <div key={s.key} style={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
+                            <div
+                              style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: "50%",
+                                background: active ? "rgba(245,200,66,0.18)" : done ? "rgba(34,197,94,0.18)" : "rgba(71,85,105,0.18)",
+                                border: `1.5px solid ${color}`,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: 13,
+                                color,
+                                fontWeight: 700,
+                                animation: active ? "pulse 2s ease-in-out infinite" : "none",
+                              }}
+                            >
+                              {done ? "✓" : s.icon}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: 10,
+                                color,
+                                marginTop: 4,
+                                fontWeight: active ? 700 : 500,
+                                textAlign: "center",
+                                lineHeight: 1.1,
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {s.label}
+                            </div>
+                          </div>
+                          {i < STEPS.length - 1 && (
+                            <div
+                              style={{
+                                flex: "0 0 14px",
+                                height: 2,
+                                background: i < currentIdx ? "#22c55e" : "#334155",
+                                marginTop: -14,
+                                borderRadius: 2,
+                              }}
+                            />
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
-            )}
-          {pushStatus !== "granted" && pushStatus !== "unsupported" && (
-            <div style={{ padding: "0 20px 14px" }}>
-              <button
-                onClick={async () => {
-                  const ok = await subscribe("client", resa?.id);
-                  if (ok) toast.success("🔔 Notifications activées — vous serez prévenu à chaque étape");
-                  else if (typeof Notification !== "undefined" && Notification.permission === "denied")
-                    toast.error("Notifications bloquées. Autorisez-les dans les réglages du navigateur.");
-                  else toast.error("Impossible d'activer les notifications sur ce navigateur.");
-                }}
-                disabled={pushStatus === "loading"}
-                style={{
-                  width: "100%",
-                  padding: 14,
-                  borderRadius: 16,
-                  background: "rgba(245,200,66,0.12)",
-                  border: "1px solid rgba(245,200,66,0.35)",
-                  color: "#f5c842",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  minHeight: 52,
-                  fontFamily: "'DM Sans', sans-serif",
-                }}
-              >
-                {pushStatus === "loading" ? "⏳ Activation…" : "🔔 Notification client *"}
-              </button>
-              <p
-                style={{
-                  margin: "8px 4px 0",
-                  fontSize: 12,
-                  color: "#94a3b8",
-                  fontFamily: "'DM Sans', sans-serif",
-                  textAlign: "center",
-                }}
-              >
-                * Pour recevoir les notifs, veuillez cliquer sur ce bouton
-              </p>
-            </div>
-          )}
+            );
+          })()}
+
 
           {/* ── STATUT ── */}
           <div style={{ padding: "0 20px 12px" }}>

@@ -73,28 +73,9 @@ export const sendChauffeurMessage = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
 
-    const now = Date.now();
-    const last = lastChauffeurPushAt.get(data.reservation_id) ?? 0;
-    const shouldPush = !data.skip_push && now - last >= PUSH_THROTTLE_MS;
+    // ⚠️ Plus de push au CLIENT — la réponse du chauffeur apparaît en temps
+    // réel dans le panneau chat (Supabase realtime). Bandeau visuel suffisant.
 
-    if (shouldPush) {
-      const body = data.content.length > 80 ? data.content.slice(0, 77) + "…" : data.content;
-      lastChauffeurPushAt.set(data.reservation_id, now);
-      try {
-        await sendPushToAudience(
-          "client",
-          {
-            title: "💬 José vous répond",
-            body,
-            url: "/client/dashboard",
-            tag: `chat-${data.reservation_id}`,
-          },
-          { reservationId: data.reservation_id },
-        );
-      } catch (e) {
-        console.error("[chat] push to client failed", e);
-      }
-    }
     return row as ChatMessage;
   });
 
@@ -259,7 +240,6 @@ export const sendDirectChauffeurMessage = createServerFn({ method: "POST" })
   .inputValidator((input) => directSendSchema.parse(input))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { sendPushToAudience } = await import("@/lib/push.server");
     const { data: row, error } = await supabaseAdmin
       .from("direct_messages")
       .insert({
@@ -272,17 +252,9 @@ export const sendDirectChauffeurMessage = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error) throw new Error(error.message);
-    const body = data.content.length > 80 ? data.content.slice(0, 77) + "…" : data.content;
-    try {
-      await sendPushToAudience(
-        "client",
-        { title: "💬 José vous répond", body, url: "/client/dashboard", tag: `direct-${data.client_account_id}` },
-        { accountId: data.client_account_id },
-      );
-    } catch (e) {
-      console.warn("[direct-chat] push failed", e);
-    }
+    // ⚠️ Plus de push au CLIENT — message visible en realtime dans le chat.
     return row as DirectMessage;
+
   });
 
 export const listDirectMessages = createServerFn({ method: "POST" })

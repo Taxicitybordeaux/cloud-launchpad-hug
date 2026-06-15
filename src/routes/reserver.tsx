@@ -13,8 +13,8 @@ import {
 import { reverseGeocode, searchAddress } from "@/lib/geocode";
 import { getDistanceAndDurationKm } from "@/lib/osrm";
 import { newSuiviId } from "@/lib/suivi-id";
-import { subscribePush, notifyNewReservation } from "@/lib/push.functions";
-import { getFcmToken } from "@/lib/firebase";
+import { notifyNewReservation } from "@/lib/push.functions";
+
 import { DICTS, LANGUAGES, type Lang } from "@/i18n/dict";
 
 const RESERVER_TITLE = "Réserver un taxi à Bordeaux — Taxi City Bordeaux";
@@ -1538,32 +1538,11 @@ function ReservationPage() {
     check();
   }, []);
 
-  // ── Auto-push client au chargement ──────────────────────────────────────
-  useEffect(() => {
-    // Ne tente l'abonnement automatique QUE si la permission est déjà accordée.
-    // La première demande passe par le bouton 🔔 (geste utilisateur requis par Chrome/Safari).
-    if (
-      typeof window === "undefined" ||
-      !("Notification" in window) ||
-      !("serviceWorker" in navigator) ||
-      !("PushManager" in window)
-    )
-      return;
-    if (Notification.permission !== "granted") return;
+  // ── Push client retirée ──────────────────────────────────────────────────
+  // Le client n'est plus notifié par push. Toutes les étapes sont visibles
+  // en temps réel sur /suivi/$id (bandeau d'étapes + statut). On garde
+  // uniquement les push admin + chauffeur à la création (notifyNewReservation).
 
-    const registerPush = async () => {
-      try {
-        const token = await getFcmToken();
-        if (!token) return;
-        await subscribePush({
-          data: { audience: "client", fcm_token: token, user_agent: navigator.userAgent },
-        });
-      } catch {
-        // silencieux — pas bloquant
-      }
-    };
-    registerPush();
-  }, []);
 
   // ── Soumission ────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1645,33 +1624,8 @@ function ReservationPage() {
 
       if (error) throw error;
 
-      // ── Abonnement push client avec le vrai reservation_id ─────────────────
-      // On n'appelle JAMAIS requestPermission() ici : le geste utilisateur est
-      // consommé par le submit et les navigateurs mobiles bloquent la popup.
-      // La permission doit être accordée via le bouton 🔔 avant la soumission.
-      try {
-        if (
-          typeof window !== "undefined" &&
-          "Notification" in window &&
-          Notification.permission === "granted" &&
-          "serviceWorker" in navigator &&
-          "PushManager" in window
-        ) {
-          const token = await getFcmToken();
-          if (token) {
-            await subscribePush({
-              data: {
-                audience: "client",
-                fcm_token: token,
-                reservation_id: inserted.id,
-                user_agent: navigator.userAgent.slice(0, 500),
-              },
-            });
-          }
-        }
-      } catch (pushErr) {
-        console.warn("[push] client subscribe failed", pushErr);
-      }
+      // ⚠️ Push client retirée — le client est notifié visuellement sur /suivi/$id.
+
 
       toast.success(`${t("conf.ok.title")} ${f.prenom}`);
       setSending(false);
