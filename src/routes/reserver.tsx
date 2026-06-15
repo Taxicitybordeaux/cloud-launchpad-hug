@@ -832,6 +832,10 @@ function ReservationPage() {
   const voiceBothRecogRef = useRef<any>(null);
   const resolveDestinationAddressRef = useRef<(() => void) | null>(null);
   const resolveDepartAddressRef = useRef<(() => void) | null>(null);
+  // Quand la géoloc (ou un choix de liste) pose directement label+coord,
+  // on veut empêcher le prochain onBlur/debounce de relancer resolveDepartAddress
+  // et de reset fromCoord à null. Ce flag neutralise un seul appel.
+  const skipNextDepartResolveRef = useRef(false);
 
   const startVoiceRecognition = useCallback(() => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -1198,8 +1202,13 @@ function ReservationPage() {
         const fallback = await searchAddress(`${lat}, ${lng}`, 1).catch(() => []);
         adresse = fallback[0]?.label ?? null;
       }
+      // Annuler tout debounce en cours et marquer pour ignorer le prochain resolve
+      // (évite que onBlur/debounce relance resolveDepartAddress et reset fromCoord)
+      if (departDebounceRef.current) clearTimeout(departDebounceRef.current);
+      skipNextDepartResolveRef.current = true;
       set("depart", adresse ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
       setFromCoord([lat, lng]);
+      setDepartChoices([]);
       setErrors((prev) => {
         const next = { ...prev };
         delete next.depart;
@@ -1269,6 +1278,11 @@ function ReservationPage() {
 
   // ── Résoudre adresse départ (saisie manuelle) ────────────────────────────
   const resolveDepartAddress = useCallback(async () => {
+    // Géoloc vient de poser l'adresse directement — on saute ce resolve
+    if (skipNextDepartResolveRef.current) {
+      skipNextDepartResolveRef.current = false;
+      return;
+    }
     const value = f.depart.trim();
     if (!value) return;
     setCalcLoading(true);
@@ -1328,7 +1342,7 @@ function ReservationPage() {
     const result = await geocodeFullAddress(value);
     if (result) {
       const distOk = distanceKmBetween(origin, result.coord) <= DESTINATION_SEARCH_RADIUS_KM;
-      if (distOk || !fromCoord) {
+      if (distOk) {
         setCalcLoading(false);
         setSearchingDepart(false);
         setDepartChoices([]);
@@ -1565,16 +1579,20 @@ function ReservationPage() {
       return;
     }
 
-    // Distance via OSRM (rocade) — obligatoire pour un prix fiable.
-    // On ne génère jamais de distance vol d'oiseau : si l'Edge Function est injoignable,
-    // on bloque la soumission et on invite le client à réessayer.
-    if (!orsResult) {
-      toast.error("Calcul de l'itinéraire indisponible — veuillez réessayer dans quelques secondes.");
-      setSending(false);
-      return;
+    // Fallback distance si OSRM indisponible : haversine × 1.3 (évite de bloquer la résa)
+    let distanceKm = orsResult?.distanceKm ?? 0;
+    let dureeS = orsResult?.dureeS ?? 0;
+    if (!orsResult && fromCoord && toCoord) {
+      const R = 6371;
+      const dLat = ((toCoord[0] - fromCoord[0]) * Math.PI) / 180;
+      const dLng = ((toCoord[1] - fromCoord[1]) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos((fromCoord[0] * Math.PI) / 180) * Math.cos((toCoord[0] * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+      distanceKm = parseFloat((R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.3).toFixed(2));
+      dureeS = Math.round((distanceKm / 30) * 3600); // ~30 km/h en ville
+      toast.warning("Distance estimée (GPS indisponible) — le prix peut être ajusté par le chauffeur.");
     }
-    const distanceKm = orsResult.distanceKm;
-    const dureeS = orsResult.dureeS;
 
     setSending(true);
 
@@ -2205,6 +2223,8 @@ function ReservationPage() {
                         type="button"
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => {
+                          if (departDebounceRef.current) clearTimeout(departDebounceRef.current);
+                          skipNextDepartResolveRef.current = true;
                           set("depart", choice.label);
                           setFromCoord(choice.coord);
                           setDepartChoices([]);
