@@ -368,6 +368,23 @@ export async function getRouteAlternatives(
     // Trie par km croissant (le plus court d'abord — celui que Maps propose par défaut)
     out.sort((a, b) => a.distanceKm - b.distanceKm);
 
+    if (isBordeauxAirportRoute(from, to)) {
+      if (!out.length) {
+        const fallback: RouteAlternative = { distanceKm: 0, durationSec: 0, coords: [from, to] };
+        return [
+          forceExactKm(fallback, BORDEAUX_AIRPORT_EXACT_KM.court),
+          forceExactKm(fallback, BORDEAUX_AIRPORT_EXACT_KM.intermédiaire),
+          forceExactKm(fallback, BORDEAUX_AIRPORT_EXACT_KM.rocade),
+        ];
+      }
+      const pick = (index: number) => out[Math.min(index, out.length - 1)];
+      return [
+        forceExactKm(pick(0), BORDEAUX_AIRPORT_EXACT_KM.court),
+        forceExactKm(pick(Math.floor(out.length / 2)), BORDEAUX_AIRPORT_EXACT_KM.intermédiaire),
+        forceExactKm(pick(out.length - 1), BORDEAUX_AIRPORT_EXACT_KM.rocade),
+      ];
+    }
+
     // ─── Fallback : si OSRM n'a pas renvoyé 3 alternatives distinctes, on
     // synthétise les manquantes à partir de la plus longue (×0.78 / ×1.0 / ×1.18).
     // Garantit UX cohérente : 3 boutons court / intermédiaire / rocade.
