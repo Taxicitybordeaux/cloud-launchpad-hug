@@ -1533,9 +1533,14 @@ function Dashboard() {
           })
           .map((r: any) => r.id);
         if (idsToDelete.length > 0) {
-          // Supprimer les avis liés EN PREMIER (FK avis_reservation_id_fkey)
-          const { error: avisErr } = await (supabase as any).from("avis").delete().in("reservation_id", idsToDelete);
-          if (avisErr) console.warn("[admin] avis delete warning", avisErr.message);
+          // Détacher les avis liés (FK avis_reservation_id_fkey) au lieu de les
+          // supprimer : on met reservation_id à NULL pour conserver les avis
+          // déjà publiés tout en débloquant la suppression des réservations.
+          const { error: avisErr } = await (supabase as any)
+            .from("avis")
+            .update({ reservation_id: null })
+            .in("reservation_id", idsToDelete);
+          if (avisErr) console.warn("[admin] avis detach warning", avisErr.message);
           // Puis supprimer les réservations
           const { error: delErr } = await (supabase as any).from("reservations").delete().in("id", idsToDelete);
           if (delErr) {
