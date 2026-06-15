@@ -55,10 +55,11 @@ export function isBordeauxAirportRoute(from: [number, number], to: [number, numb
 
 function forceExactKm<T extends { distanceKm: number; durationSec: number }>(route: T, exactKm: number): T {
   const durationFactor = route.distanceKm > 0 ? exactKm / route.distanceKm : 1;
+  const baseDurationSec = route.durationSec > 0 ? route.durationSec : exactKm * 90;
   return {
     ...route,
     distanceKm: exactKm,
-    durationSec: Math.max(60, Math.round(route.durationSec * durationFactor)),
+    durationSec: Math.max(60, Math.round(baseDurationSec * durationFactor)),
   };
 }
 
