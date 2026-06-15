@@ -643,7 +643,7 @@ function SuiviPage() {
     } catch {}
   }, [autoResume]);
 
-  const { status: pushStatus, subscribe } = usePushNotifications();
+  // (notifications push client supprimées — bandeau d'étapes plus bas)
 
   // ── Refs carte ─────────────────────────────────────────────────────────────
   const mapRef = useRef<HTMLDivElement>(null);
