@@ -19,11 +19,11 @@ export function ReviewForm({ onSubmitted }: { onSubmitted?: () => void }) {
       return;
     }
     setLoading(true);
-    // Table "avis" — colonnes réelles : id, note, commentaire, reservation_id, chauffeur_id, created_at
-    // On stocke name dans commentaire (préfixé) et rating dans note
+    // Table "avis" — colonnes réelles : id, note, commentaire, author_name, reservation_id, chauffeur_id, created_at, status
     const { error } = await (supabase as any).from("avis").insert({
+      author_name: name.trim().slice(0, 80),
       note: rating,
-      commentaire: `[${name.trim().slice(0, 80)}] ${text.trim().slice(0, 900)}`,
+      commentaire: text.trim().slice(0, 900),
     });
     setLoading(false);
     if (error) {
