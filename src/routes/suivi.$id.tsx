@@ -1422,18 +1422,6 @@ function SuiviPage() {
         cancelAnimationFrame(animFrame.current);
         animFrame.current = null;
       }
-      if (approachLayer.current) {
-        approachLayer.current.remove();
-        approachLayer.current = null;
-      }
-      if (tripLayer.current) {
-        tripLayer.current.remove();
-        tripLayer.current = null;
-      }
-      if (tripOutline.current) {
-        tripOutline.current.remove();
-        tripOutline.current = null;
-      }
       if (fromMarker.current) {
         fromMarker.current.remove();
         fromMarker.current = null;
