@@ -710,10 +710,26 @@ function getAutoGeoRejectionReason(pos: GeolocationPosition): string | null {
   return null;
 }
 
-// ─── OSRM : passe par l'Edge Function Supabase (évite les blocages CORS) ─────
-const SUPABASE_URL = "https://auiagkpdpnfqxfngisfc.supabase.co";
-const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1aWFna3BkcG5mcXhmbmdpc2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0MzU2NzUsImV4cCI6MjA5NDAxMTY3NX0.MkW2KzCYHvQ0GEjjP3_puf3PkCHWaYcvW2bI1ctTuJU";
+// ─── OSRM : passe par l'Edge Function Supabase `osrm-route` (cf. @/lib/osrm) ─
+
+// ─── Fallback géolocalisation IP (si le GPS du navigateur échoue) ───────────
+async function ipGeolocate(): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 5000);
+    const res = await fetch("https://ipapi.co/json/", { signal: ctrl.signal });
+    clearTimeout(tid);
+    if (!res.ok) return null;
+    const j = await res.json();
+    const lat = Number(j?.latitude);
+    const lng = Number(j?.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    return { lat, lng };
+  } catch {
+    return null;
+  }
+}
+
 
 
 function loadLeaflet(): Promise<void> {
@@ -1233,9 +1249,20 @@ function ReservationPage() {
           }
           await applyPosition(cached.coords.latitude, cached.coords.longitude);
         } catch (secondErr) {
+          // Dernier recours : géoloc par IP (approximative — ville)
+          const ip = await ipGeolocate();
+          if (ip) {
+            const distanceFromBordeaux = distanceKmBetween(BORDEAUX_CENTER, [ip.lat, ip.lng]);
+            if (distanceFromBordeaux <= MAX_AUTO_GEO_DISTANCE_FROM_BORDEAUX_KM) {
+              toast.info("Position GPS indisponible — position approximative via IP.");
+              await applyPosition(ip.lat, ip.lng);
+              return;
+            }
+          }
           const err = (secondErr || firstErr) as GeolocationPositionError;
           rejectAutoPosition(geoErrorMessage(err));
         }
+
       }
     })();
   }, []);
