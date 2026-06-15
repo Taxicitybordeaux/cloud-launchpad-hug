@@ -992,32 +992,6 @@ function SuiviPage() {
         map = mapInst.current ?? map;
         if (!map) return;
 
-        if (tripLayer.current) {
-          tripLayer.current.remove();
-          tripLayer.current = null;
-        }
-        if (tripOutline.current) {
-          tripOutline.current.remove();
-          tripOutline.current = null;
-        }
-
-        // Outline (contour sombre) en PREMIER = en dessous
-        tripOutline.current = L.polyline(coords, {
-          color: "#000000",
-          weight: 11,
-          opacity: 0.55,
-          lineCap: "round",
-          lineJoin: "round",
-        }).addTo(map);
-        // Trait principal en SECOND = au-dessus de l'outline
-        tripLayer.current = L.polyline(coords, {
-          color: "#000000",
-          weight: 5,
-          opacity: 0.95,
-          lineCap: "round",
-          lineJoin: "round",
-        }).addTo(map);
-
         const depIcon = L.divIcon({
           className: "",
           html: `<div style="position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center"><span style="position:absolute;inset:0;border-radius:50%;background:rgba(34,197,94,0.35);animation:gpsRing 1.6s ease-out infinite"></span><span style="position:absolute;inset:6px;border-radius:50%;background:rgba(34,197,94,0.5);animation:gpsRing 1.6s ease-out infinite;animation-delay:.4s"></span><div style="position:relative;width:30px;height:30px;background:#22c55e;border-radius:50%;border:3px solid white;box-shadow:0 4px 14px rgba(34,197,94,0.7);display:flex;align-items:center;justify-content:center;font-size:15px">📍</div></div>`,
