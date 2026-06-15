@@ -1964,8 +1964,8 @@ function SuiviPage() {
       map.invalidateSize({ animate: false });
       if (!L) return;
       const bounds: any[] = [];
-      if (tripOutline.current) bounds.push(tripOutline.current.getBounds());
-      else if (tripLayer.current) bounds.push(tripLayer.current.getBounds());
+      if (fromMarker.current) bounds.push(fromMarker.current.getLatLng());
+      if (toMarker.current) bounds.push(toMarker.current.getLatLng());
       const driverPos = markerRef.current?.getLatLng();
       if (driverPos) bounds.push(L.latLngBounds([driverPos, driverPos]));
       if (bounds.length === 0) return;
