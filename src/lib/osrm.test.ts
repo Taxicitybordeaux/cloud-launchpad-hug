@@ -1,3 +1,4 @@
+// @ts-expect-error - bun:test types not installed (test-only)
 import { describe, expect, it } from "bun:test";
 import { calibrateKm, calibrationFactor, labelForAlternative } from "./osrm";
 
