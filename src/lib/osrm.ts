@@ -368,6 +368,7 @@ export type RouteAlternative = {
 export async function getRouteAlternatives(
   from: [number, number],
   to: [number, number],
+  forceBordeauxAirportExact = false,
 ): Promise<RouteAlternative[]> {
   if (!from || !to) return [];
   const ctrl = new AbortController();
@@ -401,7 +402,7 @@ export async function getRouteAlternatives(
     // Trie par km croissant (le plus court d'abord — celui que Maps propose par défaut)
     out.sort((a, b) => a.distanceKm - b.distanceKm);
 
-    if (isBordeauxAirportRoute(from, to)) {
+    if (forceBordeauxAirportExact || isBordeauxAirportRoute(from, to)) {
       if (!out.length) {
         const fallback: RouteAlternative = { distanceKm: 0, durationSec: 0, coords: [from, to] };
         return [
