@@ -53,6 +53,23 @@ const GARE_ST_JEAN_COORD: [number, number] = [44.8265, -0.5569];
 const AIRPORT_HALL_A_COORD: [number, number] = [44.8291, -0.7028];
 const KNOWN_ROUTE_RADIUS_M = 1600;
 
+function normalizeKnownRouteText(value: string | null | undefined): string {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function isGareStJeanText(value: string | null | undefined): boolean {
+  const q = normalizeKnownRouteText(value);
+  return q.includes("charles domercq") || q.includes("gare st jean") || q.includes("gare saint jean") || q.includes("bordeaux saint jean");
+}
+
+function isAirportHallAText(value: string | null | undefined): boolean {
+  const q = normalizeKnownRouteText(value);
+  return (q.includes("aeroport") || q.includes("airport") || q.includes("hall a")) && (q.includes("bordeaux") || q.includes("merignac") || q.includes("hall a"));
+}
+
 function isNearPoint(p: [number, number], target: [number, number]): boolean {
   return haversineMeters(p[0], p[1], target[0], target[1]) <= KNOWN_ROUTE_RADIUS_M;
 }
@@ -62,6 +79,10 @@ export function isBordeauxAirportRoute(from: [number, number], to: [number, numb
     (isNearPoint(from, GARE_ST_JEAN_COORD) && isNearPoint(to, AIRPORT_HALL_A_COORD)) ||
     (isNearPoint(from, AIRPORT_HALL_A_COORD) && isNearPoint(to, GARE_ST_JEAN_COORD))
   );
+}
+
+export function isBordeauxAirportRouteText(from: string | null | undefined, to: string | null | undefined): boolean {
+  return (isGareStJeanText(from) && isAirportHallAText(to)) || (isAirportHallAText(from) && isGareStJeanText(to));
 }
 
 function forceExactKm<T extends { distanceKm: number; durationSec: number }>(route: T, exactKm: number): T {
@@ -86,7 +107,7 @@ export function labelForAlternative(
   return "intermédiaire";
 }
 
-const CACHE_PREFIX = "osrm:longest:v5:";
+const CACHE_PREFIX = "osrm:longest:v6:";
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 jours
 const FETCH_TIMEOUT_MS = 8000;
 
@@ -347,6 +368,7 @@ export type RouteAlternative = {
 export async function getRouteAlternatives(
   from: [number, number],
   to: [number, number],
+  forceBordeauxAirportExact = false,
 ): Promise<RouteAlternative[]> {
   if (!from || !to) return [];
   const ctrl = new AbortController();
@@ -380,7 +402,7 @@ export async function getRouteAlternatives(
     // Trie par km croissant (le plus court d'abord — celui que Maps propose par défaut)
     out.sort((a, b) => a.distanceKm - b.distanceKm);
 
-    if (isBordeauxAirportRoute(from, to)) {
+    if (forceBordeauxAirportExact || isBordeauxAirportRoute(from, to)) {
       if (!out.length) {
         const fallback: RouteAlternative = { distanceKm: 0, durationSec: 0, coords: [from, to] };
         return [
