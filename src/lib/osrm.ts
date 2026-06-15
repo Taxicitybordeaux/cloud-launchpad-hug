@@ -340,6 +340,46 @@ export async function getRouteAlternatives(
     }
     // Trie par km croissant (le plus court d'abord — celui que Maps propose par défaut)
     out.sort((a, b) => a.distanceKm - b.distanceKm);
+
+    // Override km pour trajets connus (Google Maps source of truth)
+    const override = matchKnownRoute(from, to);
+    if (override) {
+      const targets = [override.short, override.mid, override.long];
+      // Garde jusqu'à 3 itinéraires (court / intermédiaire / long via rocade)
+      // et force exactement les km demandés (16 / 19 / 24).
+      const picked: RouteAlternative[] = [];
+      // Pour chaque cible, on prend la route OSRM la plus proche dispo, sinon on
+      // duplique la plus longue (pour avoir un tracé à afficher).
+      const pool = [...out];
+      for (const km of targets) {
+        if (!pool.length) break;
+        const best = pool.reduce((a, b) =>
+          Math.abs(b.distanceKm - km) < Math.abs(a.distanceKm - km) ? b : a,
+        );
+        pool.splice(pool.indexOf(best), 1);
+        // Recalcule la durée proportionnellement au ratio km cible / km OSRM
+        const ratio = best.distanceKm > 0 ? km / best.distanceKm : 1;
+        picked.push({
+          distanceKm: km,
+          durationSec: Math.round(best.durationSec * ratio),
+          coords: best.coords,
+        });
+      }
+      // Complète si OSRM a renvoyé moins d'itinéraires que la liste cible
+      while (picked.length < targets.length && out.length > 0) {
+        const fallback = out[out.length - 1];
+        const km = targets[picked.length];
+        const ratio = fallback.distanceKm > 0 ? km / fallback.distanceKm : 1;
+        picked.push({
+          distanceKm: km,
+          durationSec: Math.round(fallback.durationSec * ratio),
+          coords: fallback.coords,
+        });
+      }
+      picked.sort((a, b) => a.distanceKm - b.distanceKm);
+      return picked;
+    }
+
     return out.slice(0, 4);
   } catch {
     return [];
