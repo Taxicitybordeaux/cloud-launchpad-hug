@@ -63,11 +63,8 @@ function ConfirmationPage() {
     }
   }, [reservation, navigate]);
 
-  useEffect(() => {
-    if (reservation && reservation.status !== "annulee" && pushStatus === "idle") {
-      subscribe("client", reservation.id).catch(() => {});
-    }
-  }, [reservation, pushStatus, subscribe]);
+  // Notifications push client supprimées — bandeau d'étapes sur /suivi/$id à la place.
+
 
   useEffect(() => {
     let cancelled = false;
