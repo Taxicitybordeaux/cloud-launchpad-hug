@@ -884,10 +884,6 @@ function SuiviPage() {
       lastDriverPos.current = { lat, lng };
       setTaxiPos({ lat, lng });
 
-      if (pickupCoordsRef.current && now - lastApproachAt.current > 15000) {
-        lastApproachAt.current = now;
-        drawApproachLine(lat, lng, pickupCoordsRef.current);
-      }
       animateMarkerTo(lat, lng);
 
       if (userPannedRef.current) {
