@@ -53,6 +53,15 @@ export function isBordeauxAirportRoute(from: [number, number], to: [number, numb
   );
 }
 
+function forceExactKm<T extends { distanceKm: number; durationSec: number }>(route: T, exactKm: number): T {
+  const durationFactor = route.distanceKm > 0 ? exactKm / route.distanceKm : 1;
+  return {
+    ...route,
+    distanceKm: exactKm,
+    durationSec: Math.max(60, Math.round(route.durationSec * durationFactor)),
+  };
+}
+
 export function labelForAlternative(
   index: number,
   total: number,
@@ -259,8 +268,9 @@ export async function getLongestRoute(
     const json = await invokeOsrmRoute(from, to);
     const route = parseRouteResponse(json);
     if (!route) return empty;
-    writeCache(key, route);
-    return route;
+    const finalRoute = isBordeauxAirportRoute(from, to) ? forceExactKm(route, BORDEAUX_AIRPORT_EXACT_KM.rocade) : route;
+    writeCache(key, finalRoute);
+    return finalRoute;
   } catch {
     return empty;
   }
