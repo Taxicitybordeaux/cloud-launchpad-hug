@@ -1624,33 +1624,8 @@ function ReservationPage() {
 
       if (error) throw error;
 
-      // ── Abonnement push client avec le vrai reservation_id ─────────────────
-      // On n'appelle JAMAIS requestPermission() ici : le geste utilisateur est
-      // consommé par le submit et les navigateurs mobiles bloquent la popup.
-      // La permission doit être accordée via le bouton 🔔 avant la soumission.
-      try {
-        if (
-          typeof window !== "undefined" &&
-          "Notification" in window &&
-          Notification.permission === "granted" &&
-          "serviceWorker" in navigator &&
-          "PushManager" in window
-        ) {
-          const token = await getFcmToken();
-          if (token) {
-            await subscribePush({
-              data: {
-                audience: "client",
-                fcm_token: token,
-                reservation_id: inserted.id,
-                user_agent: navigator.userAgent.slice(0, 500),
-              },
-            });
-          }
-        }
-      } catch (pushErr) {
-        console.warn("[push] client subscribe failed", pushErr);
-      }
+      // ⚠️ Push client retirée — le client est notifié visuellement sur /suivi/$id.
+
 
       toast.success(`${t("conf.ok.title")} ${f.prenom}`);
       setSending(false);
