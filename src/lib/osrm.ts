@@ -13,13 +13,37 @@
 
 
 
-// Calibration OSRM → Google Maps.
-// OSRM sous-estime de ~9% les distances routières par rapport à Google Maps
-// sur l'agglo bordelaise (vérifié sur 3 itinéraires Gare St-Jean ↔ Aéroport :
+// Calibration OSRM → Google Maps par bucket de distance.
+// OSRM sous-estime systématiquement les distances routières vs Google Maps.
+// Calibré empiriquement sur l'agglo bordelaise (Gare St-Jean ↔ Aéroport :
 // court 14.7→16, intermédiaire 17.4→19, rocade 22→24).
-// Ce coefficient s'applique à TOUS les trajets pour garantir des km cohérents
-// avec ce que voit le chauffeur dans Google Maps.
+export function calibrationFactor(rawKm: number): number {
+  if (rawKm < 10) return 1.08; // urbain court
+  if (rawKm < 20) return 1.09; // mixte
+  return 1.10; // long / rocade / interurbain
+}
+export function calibrateKm(rawKm: number): number {
+  return rawKm * calibrationFactor(rawKm);
+}
+export function calibrateSec(rawSec: number, rawKm: number): number {
+  return rawSec * calibrationFactor(rawKm);
+}
+// Conservé pour rétro-compat (anciens imports)
 export const OSRM_DISTANCE_FACTOR = 1.09;
+
+// Catégorise une alternative parmi un set (court / intermédiaire / rocade).
+export type AlternativeKind = "court" | "intermédiaire" | "rocade";
+export function labelForAlternative(
+  index: number,
+  total: number,
+): AlternativeKind {
+  if (total <= 1) return "court";
+  if (total === 2) return index === 0 ? "court" : "rocade";
+  // 3+ : court / intermédiaire / rocade
+  if (index === 0) return "court";
+  if (index === total - 1) return "rocade";
+  return "intermédiaire";
+}
 
 const CACHE_PREFIX = "osrm:longest:v3:";
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 jours
