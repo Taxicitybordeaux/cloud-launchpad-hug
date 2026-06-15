@@ -3552,7 +3552,7 @@ function Dashboard() {
                           whiteSpace: "pre-line",
                         }}
                       >
-                        {a.message || a.content || a.texte || <em style={{ color: "#475569" }}>Aucun commentaire</em>}
+                        {a.commentaire || <em style={{ color: "#475569" }}>Aucun commentaire</em>}
                       </p>
                     </div>
                   </SwipeDeleteRow>
@@ -3734,7 +3734,7 @@ function Dashboard() {
                         whiteSpace: "pre-line",
                       }}
                     >
-                      {a.message || a.content || a.texte}
+                      {a.commentaire || <em style={{ color: "#475569" }}>Aucun commentaire</em>}
                     </p>
                   </div>
                 </SwipeDeleteRow>
@@ -3858,7 +3858,7 @@ function Dashboard() {
                         whiteSpace: "pre-line",
                       }}
                     >
-                      {a.message || a.content || a.texte}
+                      {a.commentaire || <em style={{ color: "#475569" }}>Aucun commentaire</em>}
                     </p>
                   </div>
                 </SwipeDeleteRow>
