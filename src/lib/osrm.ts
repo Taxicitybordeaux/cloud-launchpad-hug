@@ -17,6 +17,41 @@
 // Ex. Gare St-Jean → Aéroport Hall A par rocade : OSRM ~22 km → affiché 24 km.
 export const OSRM_DISTANCE_FACTOR = 1.09;
 
+// ─── Overrides km exacts pour trajets connus (Google Maps source of truth) ───
+// Pour ces paires origin↔destination, les km affichés sont figés (pas d'OSRM).
+type KmOverride = { short: number; mid: number; long: number };
+const KNOWN_ROUTES: Array<{
+  a: [number, number]; // [lat,lng]
+  b: [number, number];
+  radiusKm: number;
+  km: KmOverride;
+  label: string;
+}> = [
+  {
+    // Gare Bordeaux St-Jean ↔ Aéroport Bordeaux-Mérignac (Hall A)
+    a: [44.8260, -0.5560],
+    b: [44.8283, -0.7156],
+    radiusKm: 1.2,
+    km: { short: 16, mid: 19, long: 24 },
+    label: "St-Jean ↔ Aéroport",
+  },
+];
+
+function matchKnownRoute(
+  from: [number, number],
+  to: [number, number],
+): KmOverride | null {
+  for (const r of KNOWN_ROUTES) {
+    const d1 = haversineMeters(from[0], from[1], r.a[0], r.a[1]) / 1000;
+    const d2 = haversineMeters(to[0], to[1], r.b[0], r.b[1]) / 1000;
+    if (d1 <= r.radiusKm && d2 <= r.radiusKm) return r.km;
+    const d3 = haversineMeters(from[0], from[1], r.b[0], r.b[1]) / 1000;
+    const d4 = haversineMeters(to[0], to[1], r.a[0], r.a[1]) / 1000;
+    if (d3 <= r.radiusKm && d4 <= r.radiusKm) return r.km;
+  }
+  return null;
+}
+
 const CACHE_PREFIX = "osrm:longest:v3:";
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 jours
 const FETCH_TIMEOUT_MS = 8000;
