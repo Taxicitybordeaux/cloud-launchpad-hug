@@ -375,17 +375,28 @@ export const updateReservationRoute = createServerFn({ method: "POST" })
     const { data: r, error: fetchErr } = await supabaseAdmin
       .from("reservations")
       .select(
-        "id, suivi_id, pickup_datetime, prix_estime, distance_km, nom, client_name, lang",
+        "id, suivi_id, pickup_datetime, prix_estime, distance_km, nom, client_name, lang, status",
       )
       .eq("id", data.reservation_id)
       .maybeSingle();
     if (fetchErr) throw new Error(`fetch_failed: ${fetchErr.message}`);
     if (!r) throw new Error("not_found");
 
-    // Autorisation : la suivi_key doit correspondre à la réservation
+    // Autorisation 1/2 : la suivi_key doit correspondre à la réservation
     const key = data.suivi_key.trim();
     const validKey = [r.id, (r as any).suivi_id].filter(Boolean).includes(key);
     if (!validKey) throw new Error("forbidden");
+
+    // Autorisation 2/2 (gating serveur) : la course DOIT être acceptée par l'admin.
+    // Tant que le statut n'est pas 'accepted' (ou en cours après acceptation),
+    // José ne peut pas modifier le trajet/prix — même si l'UI a un bug.
+    const allowedStatuses = ["accepted", "en_route", "arrived"];
+    const currentStatus = String((r as any).status ?? "").toLowerCase();
+    if (!allowedStatuses.includes(currentStatus)) {
+      throw new Error(`forbidden_status:${currentStatus || "unknown"}`);
+    }
+
+
 
     const pickupIso = (r as any).pickup_datetime || new Date().toISOString();
     const newPrice = calculerPrixMixte(data.distance_km, pickupIso);
