@@ -4,15 +4,16 @@
  * Appel centralisé à l'Edge Function Supabase `osrm-route`.
  * L'Edge Function gère : rocade, calibration, timeout, CORS.
  * Ce fichier ne fait JAMAIS d'appel OSRM direct — tout passe par l'Edge Function.
+ * Il ne génère JAMAIS de distance à vol d'oiseau — si l'Edge Function échoue, on retourne null/0.
  *
- * Cache mémoire + sessionStorage v7 — rejette km=0 / durée=0.
+ * Cache mémoire + sessionStorage v8 — rejette km=0 / durée=0.
  *
  * Exports :
  *  - getLongestRoute(from, to)           → { distanceKm, durationSec, coords:[lat,lng][] }
  *  - getDistanceAndDurationKm(from, to)  → { distanceKm, dureeS } | null   (from/to en [lng,lat])
  *  - fetchRouteCoordinates(points)       → objet style OSRM (carte admin)
  *  - getRouteGeoCoords(from, to)         → { coords, distanceKm, durationSec }  (from/to en [lng,lat])
- *  - getRouteAlternatives(from, to)      → RouteAlternative[]  (from/to en [lat,lng])
+ *  - calibrateKm(rawKm)                  → number  (calibration locale, utilisée en fallback)
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -37,6 +38,8 @@ export function calibrateSec(rawSec: number, rawKm: number): number {
 export const OSRM_DISTANCE_FACTOR = 1.09;
 
 // ─── Trajets connus (Gare ↔ Aéroport) ────────────────────────────────────────
+// Ces distances EXACTES sont imposées quand l'itinéraire Gare ↔ Aéroport est détecté.
+// Elles reflètent la réalité terrain (rocade) validée par José.
 export type AlternativeKind = "court" | "intermédiaire" | "rocade";
 export const BORDEAUX_AIRPORT_EXACT_KM: Record<AlternativeKind, number> = {
   court: 17,
@@ -97,22 +100,18 @@ export function isBordeauxAirportRouteText(from: string | null | undefined, to: 
   return (isGareStJeanText(from) && isAirportHallAText(to)) || (isAirportHallAText(from) && isGareStJeanText(to));
 }
 
+// labelForAlternative conservé pour rétro-compat (suivi__id.tsx peut encore l'importer)
+export type RouteAlternative = {
+  distanceKm: number;
+  durationSec: number;
+  coords: [number, number][];
+};
 export function labelForAlternative(index: number, total: number): AlternativeKind {
   if (total <= 1) return "court";
   if (total === 2) return index === 0 ? "court" : "rocade";
   if (index === 0) return "court";
   if (index === total - 1) return "rocade";
   return "intermédiaire";
-}
-
-function forceExactKm<T extends { distanceKm: number; durationSec: number }>(route: T, exactKm: number): T {
-  const durationFactor = route.distanceKm > 0 ? exactKm / route.distanceKm : 1;
-  const baseDurationSec = route.durationSec > 0 ? route.durationSec : exactKm * 90;
-  return {
-    ...route,
-    distanceKm: exactKm,
-    durationSec: Math.max(60, Math.round(baseDurationSec * durationFactor)),
-  };
 }
 
 // ─── Types & Cache ────────────────────────────────────────────────────────────
@@ -122,13 +121,7 @@ export type LongestRoute = {
   coords: [number, number][]; // [lat, lng] prêt pour Leaflet
 };
 
-export type RouteAlternative = {
-  distanceKm: number;
-  durationSec: number;
-  coords: [number, number][]; // [lat, lng]
-};
-
-const CACHE_PREFIX = "osrm:v7:";
+const CACHE_PREFIX = "osrm:v8:";
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 jours
 const memCache = new Map<string, { at: number; value: LongestRoute }>();
 
@@ -212,9 +205,11 @@ function densifyCoords(coords: [number, number][], maxStepMeters = 25): [number,
 // ─── Appel Edge Function Supabase `osrm-route` ───────────────────────────────
 // C'est le seul endroit où on fait un appel réseau pour le routage.
 // La logique rocade est déléguée à l'Edge Function.
+// En cas d'échec : on retourne null — JAMAIS de vol d'oiseau ici.
 async function callEdgeFunction(
   from: [number, number], // [lat, lng]
   to: [number, number], // [lat, lng]
+  attempt = 1,
 ): Promise<LongestRoute | null> {
   try {
     const { data, error } = await supabase.functions.invoke("osrm-route", {
@@ -227,15 +222,22 @@ async function callEdgeFunction(
     });
 
     if (error || !data || data.error) {
-      console.warn("[osrm] Edge Function error:", error ?? data?.message);
+      console.warn(`[osrm] Edge Function error (attempt ${attempt}):`, error ?? data?.message);
+      // Retry une fois en cas d'erreur réseau transitoire
+      if (attempt === 1) {
+        await new Promise((r) => setTimeout(r, 800));
+        return callEdgeFunction(from, to, 2);
+      }
       return null;
     }
 
-    // L'Edge Function renvoie déjà des km calibrés
     const distanceKm = Number(data.distanceKm ?? 0);
     const durationSec = Number(data.durationSec ?? 0);
 
-    if (distanceKm <= 0 || durationSec <= 0) return null;
+    if (distanceKm <= 0 || durationSec <= 0) {
+      console.warn("[osrm] Edge Function renvoyé km=0 ou durée=0 — rejeté.");
+      return null;
+    }
 
     const rawCoords: [number, number][] = Array.isArray(data.coords)
       ? data.coords
@@ -246,7 +248,10 @@ async function callEdgeFunction(
           )
       : [];
 
-    if (rawCoords.length < 2) return null;
+    if (rawCoords.length < 2) {
+      console.warn("[osrm] Coordonnées insuffisantes dans la réponse Edge Function.");
+      return null;
+    }
 
     return {
       distanceKm,
@@ -254,12 +259,19 @@ async function callEdgeFunction(
       coords: densifyCoords(rawCoords, 25),
     };
   } catch (err) {
-    console.error("[osrm] callEdgeFunction exception:", err);
+    console.error(`[osrm] callEdgeFunction exception (attempt ${attempt}):`, err);
+    if (attempt === 1) {
+      await new Promise((r) => setTimeout(r, 800));
+      return callEdgeFunction(from, to, 2);
+    }
     return null;
   }
 }
 
 // ─── Cœur : getLongestRoute ───────────────────────────────────────────────────
+// Toujours via rocade (déléguée à l'Edge Function).
+// Retourne distanceKm=0/durationSec=0/coords=[] si l'Edge Function est injoignable.
+// Ne génère JAMAIS de distance à vol d'oiseau.
 export async function getLongestRoute(
   from: [number, number], // [lat, lng]
   to: [number, number], // [lat, lng]
@@ -271,30 +283,36 @@ export async function getLongestRoute(
   const cached = readCache(key);
   if (cached) return cached;
 
-  try {
-    const route = await callEdgeFunction(from, to);
-    if (!route) return empty;
+  const route = await callEdgeFunction(from, to);
+  if (!route) return empty;
 
-    // Trajet connu : force les km exacts Gare ↔ Aéroport
-    const finalRoute = isBordeauxAirportRoute(from, to) ? forceExactKm(route, BORDEAUX_AIRPORT_EXACT_KM.rocade) : route;
-
+  // Trajet connu Gare ↔ Aéroport : on force les km exacts rocade validés terrain
+  if (isBordeauxAirportRoute(from, to)) {
+    const exactKm = BORDEAUX_AIRPORT_EXACT_KM.rocade;
+    const durationFactor = route.distanceKm > 0 ? exactKm / route.distanceKm : 1;
+    const finalRoute: LongestRoute = {
+      distanceKm: exactKm,
+      durationSec: Math.max(60, Math.round(route.durationSec * durationFactor)),
+      coords: route.coords,
+    };
     writeCache(key, finalRoute);
     return finalRoute;
-  } catch {
-    return empty;
   }
+
+  writeCache(key, route);
+  return route;
 }
 
 // ─── Wrappers compatibles ─────────────────────────────────────────────────────
 
-/** from/to en [lng, lat] — wrapper pour l'API existante */
+/** from/to en [lng, lat] — wrapper pour l'API existante.
+ *  Retourne null si l'Edge Function est injoignable (ne jamais utiliser vol d'oiseau). */
 export async function getDistanceAndDurationKm(
   from: [number, number], // [lng, lat]
   to: [number, number], // [lng, lat]
 ): Promise<{ distanceKm: number; dureeS: number } | null> {
-  // On inverse pour getLongestRoute qui attend [lat, lng]
   const r = await getLongestRoute([from[1], from[0]], [to[1], to[0]]);
-  if (!r.coords.length && r.distanceKm === 0) return null;
+  if (r.distanceKm === 0 || r.durationSec === 0) return null;
   return { distanceKm: r.distanceKm, dureeS: r.durationSec };
 }
 
@@ -310,7 +328,7 @@ export async function fetchRouteCoordinates(
   const [from, to] = [points[0], points[points.length - 1]];
   // points sont en [lng, lat] → on inverse
   const r = await getLongestRoute([from[1], from[0]], [to[1], to[0]]);
-  if (!r.coords.length) return null;
+  if (r.distanceKm === 0 || !r.coords.length) return null;
   return {
     routes: [
       {
@@ -335,47 +353,16 @@ export async function getRouteGeoCoords(
   return { coords: r.coords, distanceKm: r.distanceKm, durationSec: r.durationSec };
 }
 
-// ─── Alternatives (pour sélecteur d'itinéraire chauffeur) ───────────────────
-// Désormais on ne propose qu'une seule route (via l'Edge Function qui fait rocade).
-// On simule 2 alternatives synthétiques si le chauffeur a besoin d'un choix :
-// court (−15%) et rocade (via Edge Function = valeur nominale).
+// ─── getRouteAlternatives — conservé pour rétro-compat ───────────────────────
+// Plus utilisé par suivi__id.tsx (supprimé). Conservé si d'autres fichiers l'importent.
+// Retourne toujours [route_rocade] — une seule route, pas de synthétique à vol d'oiseau.
 export async function getRouteAlternatives(
   from: [number, number], // [lat, lng]
   to: [number, number], // [lat, lng]
-  forceBordeauxAirportExact = false,
+  _forceBordeauxAirportExact = false,
 ): Promise<RouteAlternative[]> {
   if (!from || !to) return [];
-
-  try {
-    const route = await getLongestRoute(from, to);
-    if (!route || route.distanceKm === 0) return [];
-
-    if (forceBordeauxAirportExact || isBordeauxAirportRoute(from, to)) {
-      const base: RouteAlternative = { ...route };
-      return [
-        forceExactKm({ ...base }, BORDEAUX_AIRPORT_EXACT_KM.court),
-        forceExactKm({ ...base }, BORDEAUX_AIRPORT_EXACT_KM["intermédiaire"]),
-        forceExactKm({ ...base }, BORDEAUX_AIRPORT_EXACT_KM.rocade),
-      ];
-    }
-
-    // On génère 2 alternatives synthétiques autour de la route rocade :
-    // - court   : estimation sans rocade (~15% de moins)
-    // - rocade  : la vraie route calculée (via Edge Function avec waypoints rocade)
-    const rocade: RouteAlternative = { ...route };
-    const court: RouteAlternative = {
-      distanceKm: parseFloat((route.distanceKm * 0.85).toFixed(2)),
-      durationSec: Math.round(route.durationSec * 0.85),
-      coords: route.coords,
-    };
-
-    // Dédup : si court et rocade sont trop proches (<0.5 km), on ne propose qu'une route
-    if (Math.abs(rocade.distanceKm - court.distanceKm) < 0.5) {
-      return [rocade];
-    }
-
-    return [court, rocade];
-  } catch {
-    return [];
-  }
+  const route = await getLongestRoute(from, to);
+  if (!route || route.distanceKm === 0) return [];
+  return [{ distanceKm: route.distanceKm, durationSec: route.durationSec, coords: route.coords }];
 }
