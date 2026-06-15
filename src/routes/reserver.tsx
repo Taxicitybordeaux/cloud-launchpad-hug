@@ -730,8 +730,6 @@ async function ipGeolocate(): Promise<{ lat: number; lng: number } | null> {
   }
 }
 
-
-
 function loadLeaflet(): Promise<void> {
   return new Promise((resolve, reject) => {
     if ((window as any).L) {
@@ -1142,7 +1140,10 @@ function ReservationPage() {
 
     if (fromCoord && toCoord) {
       mapInst.current.fitBounds(
-        L.latLngBounds([[fromCoord[0], fromCoord[1]], [toCoord[0], toCoord[1]]]),
+        L.latLngBounds([
+          [fromCoord[0], fromCoord[1]],
+          [toCoord[0], toCoord[1]],
+        ]),
         { padding: [60, 60], maxZoom: 16, animate: true },
       );
     } else if (fromCoord) {
@@ -1262,7 +1263,6 @@ function ReservationPage() {
           const err = (secondErr || firstErr) as GeolocationPositionError;
           rejectAutoPosition(geoErrorMessage(err));
         }
-
       }
     })();
   }, []);
@@ -1543,7 +1543,6 @@ function ReservationPage() {
   // en temps réel sur /suivi/$id (bandeau d'étapes + statut). On garde
   // uniquement les push admin + chauffeur à la création (notifyNewReservation).
 
-
   // ── Soumission ────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1566,20 +1565,16 @@ function ReservationPage() {
       return;
     }
 
-    // Fallback distance si OSRM indisponible : haversine × 1.3 (évite de bloquer la résa)
-    let distanceKm = orsResult?.distanceKm ?? 0;
-    let dureeS = orsResult?.dureeS ?? 0;
-    if (!orsResult && fromCoord && toCoord) {
-      const R = 6371;
-      const dLat = ((toCoord[0] - fromCoord[0]) * Math.PI) / 180;
-      const dLng = ((toCoord[1] - fromCoord[1]) * Math.PI) / 180;
-      const a =
-        Math.sin(dLat / 2) ** 2 +
-        Math.cos((fromCoord[0] * Math.PI) / 180) * Math.cos((toCoord[0] * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-      distanceKm = parseFloat((R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.3).toFixed(2));
-      dureeS = Math.round((distanceKm / 30) * 3600); // ~30 km/h en ville
-      toast.warning("Distance estimée (GPS indisponible) — le prix peut être ajusté par le chauffeur.");
+    // Distance via OSRM (rocade) — obligatoire pour un prix fiable.
+    // On ne génère jamais de distance vol d'oiseau : si l'Edge Function est injoignable,
+    // on bloque la soumission et on invite le client à réessayer.
+    if (!orsResult) {
+      toast.error("Calcul de l'itinéraire indisponible — veuillez réessayer dans quelques secondes.");
+      setSending(false);
+      return;
     }
+    const distanceKm = orsResult.distanceKm;
+    const dureeS = orsResult.dureeS;
 
     setSending(true);
 
@@ -1625,7 +1620,6 @@ function ReservationPage() {
       if (error) throw error;
 
       // ⚠️ Push client retirée — le client est notifié visuellement sur /suivi/$id.
-
 
       toast.success(`${t("conf.ok.title")} ${f.prenom}`);
       setSending(false);
@@ -1846,8 +1840,6 @@ function ReservationPage() {
               </button>
 
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-
-
                 {/* Sélecteur de langue */}
                 <select
                   value={lang}
