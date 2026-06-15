@@ -473,6 +473,27 @@ function Dashboard() {
     };
   }, [refreshChatThreads]);
 
+  // ── Direct messages (client → admin) ──
+  const refreshDirectThreads = useCallback(async () => {
+    try {
+      const threads = await listAdminDirectThreads();
+      setDirectThreads(threads);
+    } catch (e) {
+      console.error("[admin] direct threads", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshDirectThreads();
+    const channel = supabase
+      .channel("admin-direct-threads-" + Date.now())
+      .on("postgres_changes", { event: "*", schema: "public", table: "direct_messages" }, () => refreshDirectThreads())
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refreshDirectThreads]);
+
   // ── Actions ──
   const [cardKm, setCardKm] = useState<Record<string, number>>({});
   const [cardKmLoading, setCardKmLoading] = useState<Record<string, boolean>>({});
@@ -2856,10 +2877,13 @@ function Dashboard() {
           {typeof window !== "undefined" &&
             !("Notification" in window) &&
             /iPad|iPhone|iPod/.test(navigator.userAgent) &&
-            !((window as any).navigator?.standalone) && (
+            !(window as any).navigator?.standalone && (
               <button
                 onClick={() =>
-                  toast.info("📲 Sur iPhone : appuyez sur Partager puis « Sur l'écran d'accueil ». Ouvrez ensuite l'app depuis l'icône — les notifications seront disponibles.", { duration: 10000 })
+                  toast.info(
+                    "📲 Sur iPhone : appuyez sur Partager puis « Sur l'écran d'accueil ». Ouvrez ensuite l'app depuis l'icône — les notifications seront disponibles.",
+                    { duration: 10000 },
+                  )
                 }
                 style={{
                   padding: "8px 14px",
@@ -2902,8 +2926,12 @@ function Dashboard() {
                 try {
                   const ua = navigator.userAgent.slice(0, 500);
                   await Promise.all([
-                    subscribePush({ data: { audience: "admin", fcm_token: fcm, reservation_id: null, user_agent: ua } }),
-                    subscribePush({ data: { audience: "chauffeur", fcm_token: fcm, reservation_id: null, user_agent: ua } }),
+                    subscribePush({
+                      data: { audience: "admin", fcm_token: fcm, reservation_id: null, user_agent: ua },
+                    }),
+                    subscribePush({
+                      data: { audience: "chauffeur", fcm_token: fcm, reservation_id: null, user_agent: ua },
+                    }),
                   ]);
                   localStorage.setItem("fcm_token", fcm);
                   toast.success("🔔 Token FCM enregistré — notifications actives");
@@ -4002,7 +4030,6 @@ function Dashboard() {
                           }}
                         >
                           Course
-
                         </div>
                         <div style={{ color: "#94a3b8", fontSize: 12 }}>🟢 {c.lastResa.depart}</div>
                         <div style={{ color: "#94a3b8", fontSize: 12, marginTop: 2 }}>
