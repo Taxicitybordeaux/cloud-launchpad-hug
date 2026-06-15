@@ -338,10 +338,7 @@ function closestIndexOnRoute(lat: number, lng: number, coords: [number, number][
 
 function isLatLngTuple(value: unknown): value is [number, number] {
   return (
-    Array.isArray(value) &&
-    value.length >= 2 &&
-    Number.isFinite(Number(value[0])) &&
-    Number.isFinite(Number(value[1]))
+    Array.isArray(value) && value.length >= 2 && Number.isFinite(Number(value[0])) && Number.isFinite(Number(value[1]))
   );
 }
 
@@ -368,7 +365,12 @@ function knownPlaceCoords(query: string): [number, number] | null {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
-  if (q.includes("aeroport") || q.includes("bordeaux-merignac") || q.includes("bordeaux merignac") || q.includes("hall a"))
+  if (
+    q.includes("aeroport") ||
+    q.includes("bordeaux-merignac") ||
+    q.includes("bordeaux merignac") ||
+    q.includes("hall a")
+  )
     return [44.8291, -0.7028];
   if (q.includes("gare saint") || q.includes("saint-jean") || q.includes("charles domercq")) return [44.8265, -0.5569];
   if (q.includes("place de la bourse")) return [44.8415, -0.5704];
@@ -377,11 +379,15 @@ function knownPlaceCoords(query: string): [number, number] | null {
 
 function geocodeCandidates(input: string): string[] {
   const cleaned = input.replace(/[–—]/g, ",").replace(/\s+/g, " ").trim();
-  const withoutParentheses = cleaned.replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
+  const withoutParentheses = cleaned
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   const beforeDetail = input.split(/[–—]/)[0]?.trim();
   const candidates = [input, cleaned, withoutParentheses, beforeDetail].filter((v): v is string => !!v && v.length > 1);
   const known = knownPlaceCoords(input);
-  if (known && input.toLowerCase().includes("aéroport")) candidates.push("Aéroport Bordeaux Mérignac, Mérignac, France");
+  if (known && input.toLowerCase().includes("aéroport"))
+    candidates.push("Aéroport Bordeaux Mérignac, Mérignac, France");
   if (known && input.toLowerCase().includes("gare")) candidates.push("Gare Saint-Jean, Bordeaux, France");
   return Array.from(new Set(candidates));
 }
@@ -710,19 +716,21 @@ function SuiviPage() {
 
     const trimmed = q.trim();
     const cleaned = trimmed.replace(/[–—]/g, ",").replace(/\s+/g, " ").trim();
-    const withoutParen = cleaned.replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
-    const parts = cleaned.split(",").map((p) => p.trim()).filter(Boolean);
+    const withoutParen = cleaned
+      .replace(/\([^)]*\)/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    const parts = cleaned
+      .split(",")
+      .map((p) => p.trim())
+      .filter(Boolean);
     const short = parts.slice(0, 2).join(", ");
     const first = parts[0] ?? cleaned;
 
     const namedVariants: string[] = [];
     const lc = cleaned.toLowerCase();
     if (/aeroport|aéroport|airport/.test(lc)) {
-      namedVariants.push(
-        "Aéroport de Bordeaux-Mérignac",
-        "Bordeaux-Mérignac Airport",
-        "aéroport Bordeaux Mérignac",
-      );
+      namedVariants.push("Aéroport de Bordeaux-Mérignac", "Bordeaux-Mérignac Airport", "aéroport Bordeaux Mérignac");
     }
     if (/gare/.test(lc)) {
       namedVariants.push("Gare de Bordeaux-Saint-Jean", "Gare Saint-Jean, Bordeaux");
@@ -753,7 +761,6 @@ function SuiviPage() {
     }
     return known;
   };
-
 
   // ── ETA — stocke aussi les km restants (depuis tracking) ────────────────
   const calculateETA = async (lat: number, lng: number, destCoords?: [number, number]) => {
@@ -1012,7 +1019,6 @@ function SuiviPage() {
         toMarker.current = L.marker(b, { icon: destIcon }).addTo(activeMap).bindPopup("🏁 Destination");
 
         const driverPos = markerRef.current?.getLatLng();
-        
 
         const targetBounds = L.latLngBounds([...coords, markerRef.current?.getLatLng()].filter(Boolean)).pad(0.2);
         const fit = () => {
@@ -2562,7 +2568,7 @@ function SuiviPage() {
           {pushStatus === "unsupported" &&
             typeof window !== "undefined" &&
             /iPad|iPhone|iPod/.test(navigator.userAgent) &&
-            !((window as any).navigator?.standalone) && (
+            !(window as any).navigator?.standalone && (
               <div style={{ padding: "0 20px 14px" }}>
                 <div
                   style={{
@@ -2579,9 +2585,13 @@ function SuiviPage() {
                   </div>
                   <div style={{ fontSize: 12, color: "#e2e8f0", lineHeight: 1.5 }}>
                     Apple n'autorise les notifications web que depuis l'app installée. Pour les recevoir :
-                    <br />1. Appuyez sur <b>Partager</b> (l'icône <span style={{ fontWeight: 700 }}>⬆️</span> en bas de Safari)
-                    <br />2. Choisissez <b>« Sur l'écran d'accueil »</b>
-                    <br />3. Ouvrez l'app depuis l'icône, puis revenez ici et cliquez sur « 🔔 Notification client »
+                    <br />
+                    1. Appuyez sur <b>Partager</b> (l'icône <span style={{ fontWeight: 700 }}>⬆️</span> en bas de
+                    Safari)
+                    <br />
+                    2. Choisissez <b>« Sur l'écran d'accueil »</b>
+                    <br />
+                    3. Ouvrez l'app depuis l'icône, puis revenez ici et cliquez sur « 🔔 Notification client »
                   </div>
                 </div>
               </div>
@@ -2626,8 +2636,6 @@ function SuiviPage() {
               </p>
             </div>
           )}
-
-
 
           {/* ── STATUT ── */}
           <div style={{ padding: "0 20px 12px" }}>
@@ -2996,11 +3004,20 @@ function SuiviPage() {
                     setStatusBusy("en_route");
                     try {
                       const result = await notifyStatusFn({
-                        data: { reservation_id: resaIdRef.current, status: "en_route", update_status: true, suivi_key: id },
+                        data: {
+                          reservation_id: resaIdRef.current,
+                          status: "en_route",
+                          update_status: true,
+                          suivi_key: id,
+                        },
                       });
                       setResa((prev) => (prev ? { ...prev, status: "en_route" } : prev));
                       const pushSent = (result as any)?.client?.sent ?? 0;
-                      toast.success(pushSent > 0 ? "🚗 Notification envoyée au client" : "🚗 Statut mis à jour — aucune souscription client active");
+                      toast.success(
+                        pushSent > 0
+                          ? "🚗 Notification envoyée au client"
+                          : "🚗 Statut mis à jour — aucune souscription client active",
+                      );
                     } catch (err) {
                       console.error(err);
                       toast.error("Échec envoi: " + ((err as any)?.message ?? String(err)));
@@ -3028,7 +3045,9 @@ function SuiviPage() {
                     fontWeight: 800,
                     fontSize: 14,
                     cursor:
-                      isDriver && ["accepted", "en_route"].includes(effectiveStatus) && !["en_route", "arrived", "completed", "terminee"].includes(effectiveStatus)
+                      isDriver &&
+                      ["accepted", "en_route"].includes(effectiveStatus) &&
+                      !["en_route", "arrived", "completed", "terminee"].includes(effectiveStatus)
                         ? "pointer"
                         : "not-allowed",
                     opacity: isDriver && effectiveStatus === "accepted" ? 1 : 0.45,
@@ -3062,11 +3081,20 @@ function SuiviPage() {
                     setStatusBusy("arrived");
                     try {
                       const result = await notifyStatusFn({
-                        data: { reservation_id: resaIdRef.current, status: "arrived", update_status: true, suivi_key: id },
+                        data: {
+                          reservation_id: resaIdRef.current,
+                          status: "arrived",
+                          update_status: true,
+                          suivi_key: id,
+                        },
                       });
                       setResa((prev) => (prev ? { ...prev, status: "arrived" } : prev));
                       const pushSent = (result as any)?.client?.sent ?? 0;
-                      toast.success(pushSent > 0 ? "📍 Notification envoyée au client" : "📍 Statut mis à jour — aucune souscription client active");
+                      toast.success(
+                        pushSent > 0
+                          ? "📍 Notification envoyée au client"
+                          : "📍 Statut mis à jour — aucune souscription client active",
+                      );
                     } catch (err) {
                       console.error(err);
                       toast.error("Échec envoi: " + ((err as any)?.message ?? String(err)));
@@ -3129,7 +3157,12 @@ function SuiviPage() {
                     setStatusBusy("completed");
                     try {
                       await notifyStatusFn({
-                        data: { reservation_id: resaIdRef.current, status: "completed", update_status: true, suivi_key: id },
+                        data: {
+                          reservation_id: resaIdRef.current,
+                          status: "completed",
+                          update_status: true,
+                          suivi_key: id,
+                        },
                       });
                       setCourseTerminee(true);
                       setResa((prev) => (prev ? { ...prev, status: "completed" } : prev));
@@ -3191,6 +3224,42 @@ function SuiviPage() {
                 >
                   {statusBusy === "completed" ? "Envoi…" : "🏁 Course terminée"}
                 </button>
+
+                {/* ── Bouton navigation GPS (chauffeur uniquement) ── */}
+                {isDriver &&
+                  ["en_route", "accepted", "arrived"].includes(effectiveStatus) &&
+                  (resa.destination || resa.arrivee) && (
+                    <button
+                      onClick={() => {
+                        const dest = encodeURIComponent(resa.destination || resa.arrivee || "");
+                        const isIOS =
+                          /iP(hone|ad|od)/.test(navigator.userAgent) ||
+                          (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+                        const url = isIOS
+                          ? `maps://maps.apple.com/?daddr=${dest}&dirflg=d`
+                          : `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`;
+                        window.open(url, "_blank");
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "14px 16px",
+                        borderRadius: 14,
+                        background: "rgba(59,130,246,0.12)",
+                        border: "1px solid rgba(59,130,246,0.4)",
+                        color: "#60a5fa",
+                        fontFamily: "'Syne',sans-serif",
+                        fontWeight: 800,
+                        fontSize: 14,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 8,
+                      }}
+                    >
+                      🗺️ Ouvrir l'itinéraire
+                    </button>
+                  )}
 
                 {!isDriver && (
                   <div
@@ -3703,7 +3772,6 @@ function SuiviPage() {
                 🆘 Aide
               </button>
             </div>
-
           </div>
         </div>
       )}
