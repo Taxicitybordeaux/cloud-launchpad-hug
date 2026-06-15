@@ -715,11 +715,6 @@ const SUPABASE_URL = "https://auiagkpdpnfqxfngisfc.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1aWFna3BkcG5mcXhmbmdpc2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0MzU2NzUsImV4cCI6MjA5NDAxMTY3NX0.MkW2KzCYHvQ0GEjjP3_puf3PkCHWaYcvW2bI1ctTuJU";
 
-// ─── OSRM polyline : utilise getLongestRoute (cache + alternatives=3 partagé)
-async function getOsrmPolylineLongest(from: [number, number], to: [number, number]): Promise<[number, number][]> {
-  const r = await getLongestRoute(from, to);
-  return r.coords;
-}
 
 function loadLeaflet(): Promise<void> {
   return new Promise((resolve, reject) => {
