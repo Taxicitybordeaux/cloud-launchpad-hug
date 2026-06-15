@@ -517,6 +517,8 @@ function SuiviPage() {
   const [eta, setEta] = useState<number | null>(null);
   // [FUSION] totalKm depuis tracking — pour la barre de progression départ→destination
   const [totalKm, setTotalKm] = useState<number | null>(null);
+  // [DRIVER] Alternatives d'itinéraire OSRM — pour sélecteur José
+  const [routeAlts, setRouteAlts] = useState<RouteAlternative[]>([]);
   // [FUSION] km restants (string) depuis tracking — affiché sous l'ETA
   const [etaKm, setEtaKm] = useState<string | null>(null);
   const [shareMsg, setShareMsg] = useState("");
