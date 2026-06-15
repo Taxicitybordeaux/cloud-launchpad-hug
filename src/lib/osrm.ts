@@ -13,7 +13,9 @@
 
 
 
-export const OSRM_DISTANCE_FACTOR = 1.0;
+// Calibration OSRM → Google Maps (OSRM sous-estime ~9% sur l'agglo bordelaise via rocade).
+// Ex. Gare St-Jean → Aéroport Hall A par rocade : OSRM ~22 km → affiché 24 km.
+export const OSRM_DISTANCE_FACTOR = 1.09;
 
 const CACHE_PREFIX = "osrm:longest:v3:";
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 jours
