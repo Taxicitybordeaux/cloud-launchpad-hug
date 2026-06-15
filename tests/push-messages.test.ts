@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { buildPriceUpdatePush } from "./push-messages";
+import { buildPriceUpdatePush } from "../src/lib/push-messages";
 
 describe("buildPriceUpdatePush — multilingual price update copy", () => {
   const CLIENT = "Marie";
