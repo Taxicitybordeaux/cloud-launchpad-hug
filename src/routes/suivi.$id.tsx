@@ -3236,98 +3236,109 @@ function SuiviPage() {
                   {statusBusy === "completed" ? "Envoi…" : "🏁 Course terminée"}
                 </button>
 
-                {/* ── Bouton chauffeur : ouvre Maps ET valide trajet+prix automatiquement ──
-                    Réservé à José après acceptation admin (status ∈ accepted/en_route/arrived).
-                    La distance vient d'OSRM (totalKm), source de vérité unique côté serveur via
-                    updateReservationRoute → recalcule prix + notifie le client par push. */}
+                {/* ── Sélecteur d'itinéraire chauffeur ─────────────────────
+                    Liste des alternatives OSRM (mêmes que Google/Apple Maps).
+                    Tap = ouvre Maps + recalcule prix en base + push client.
+                    Aucune saisie : la distance vient de l'itinéraire choisi. */}
                 {isDriver &&
                   effectiveStatus === "accepted" &&
                   (resa.destination || resa.arrivee) && (
-                    <button
-                      type="button"
-                      disabled={routeEditBusy || !resaIdRef.current || !totalKm || totalKm <= 0}
-                      onClick={async () => {
-                        if (!resaIdRef.current || !totalKm || totalKm <= 0) {
-                          toast.error("Itinéraire pas encore calculé");
-                          return;
-                        }
-                        // Ouvre Maps immédiatement (geste utilisateur requis sur iOS)
-                        const dest = encodeURIComponent(resa.destination || resa.arrivee || "");
-                        const isIOS =
-                          /iP(hone|ad|od)/.test(navigator.userAgent) ||
-                          (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-                        const mapsUrl = isIOS
-                          ? `maps://maps.apple.com/?daddr=${dest}&dirflg=d`
-                          : `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`;
-                        window.open(mapsUrl, "_blank");
-
-                        // Demande la distance réellement affichée par Maps (préremplie avec OSRM)
-                        const raw = window.prompt(
-                          "Kilomètres affichés par Maps pour l'itinéraire choisi ?",
-                          totalKm.toFixed(1),
-                        );
-                        if (raw == null) return; // annulé
-                        const kmChosen = Number(String(raw).replace(",", ".").trim());
-                        if (!Number.isFinite(kmChosen) || kmChosen <= 0 || kmChosen > 2000) {
-                          toast.error("Distance invalide");
-                          return;
-                        }
-                        setRouteEditBusy(true);
-                        try {
-                          const res = await updateRouteFn({
-                            data: {
-                              reservation_id: resaIdRef.current,
-                              suivi_key: id,
-                              distance_km: Number(kmChosen.toFixed(1)),
-                            },
-                          });
-                          const newPrice = (res as any)?.prix_estime;
-                          const sent = (res as any)?.push?.sent ?? 0;
-                          setResa((prev) =>
-                            prev
-                              ? {
-                                  ...prev,
-                                  distance_km: Number(kmChosen.toFixed(1)) as any,
-                                  prix_estime: newPrice as any,
-                                }
-                              : prev,
-                          );
-                          toast.success(
-                            sent > 0
-                              ? `✅ Trajet validé (${kmChosen.toFixed(1)} km · ${newPrice?.toFixed?.(2)} €) — client notifié`
-                              : `✅ Trajet validé (${kmChosen.toFixed(1)} km · ${newPrice?.toFixed?.(2)} €) — pas de souscription client`,
-                          );
-                        } catch (e) {
-                          console.error("[updateRoute]", e);
-                          toast.error("Mise à jour du prix impossible");
-                        } finally {
-                          setRouteEditBusy(false);
-                        }
-                      }}
-                      style={{
-                        width: "100%",
-                        padding: "14px 16px",
-                        borderRadius: 14,
-                        background: "rgba(59,130,246,0.12)",
-                        border: "1px solid rgba(59,130,246,0.4)",
-                        color: "#60a5fa",
-                        fontFamily: "'Syne',sans-serif",
-                        fontWeight: 800,
-                        fontSize: 14,
-                        cursor: routeEditBusy ? "wait" : "pointer",
-                        opacity: routeEditBusy || !totalKm ? 0.6 : 1,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: 8,
-                      }}
-                    >
-                      {routeEditBusy
-                        ? "⏳ Mise à jour du prix…"
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div
+                        style={{
+                          fontFamily: "'Syne',sans-serif",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: "#94a3b8",
+                          letterSpacing: 0.4,
+                          textTransform: "uppercase",
+                          textAlign: "center",
+                        }}
+                      >
+                        Choisir l'itinéraire
+                      </div>
+                      {(routeAlts.length > 0
+                        ? routeAlts
                         : totalKm
-                          ? `🗺️ Ouvrir Maps & valider (${totalKm.toFixed(1)} km)`
-                          : "🗺️ Ouvrir l'itinéraire"}
-                    </button>
+                          ? [{ distanceKm: totalKm, durationSec: 0, coords: [] as [number, number][] }]
+                          : []
+                      ).map((alt, idx) => {
+                        const km = Number(alt.distanceKm.toFixed(1));
+                        const mins = alt.durationSec ? Math.round(alt.durationSec / 60) : null;
+                        return (
+                          <button
+                            key={`alt-${idx}-${km}`}
+                            type="button"
+                            disabled={routeEditBusy || !resaIdRef.current || km <= 0}
+                            onClick={async () => {
+                              if (!resaIdRef.current || km <= 0) {
+                                toast.error("Itinéraire pas encore calculé");
+                                return;
+                              }
+                              // Ouvre Maps (geste utilisateur requis iOS)
+                              const dest = encodeURIComponent(resa.destination || resa.arrivee || "");
+                              const isIOS =
+                                /iP(hone|ad|od)/.test(navigator.userAgent) ||
+                                (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+                              const mapsUrl = isIOS
+                                ? `maps://maps.apple.com/?daddr=${dest}&dirflg=d`
+                                : `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`;
+                              window.open(mapsUrl, "_blank");
+
+                              setRouteEditBusy(true);
+                              try {
+                                const res = await updateRouteFn({
+                                  data: {
+                                    reservation_id: resaIdRef.current,
+                                    suivi_key: id,
+                                    distance_km: km,
+                                  },
+                                });
+                                const newPrice = (res as any)?.prix_estime;
+                                const sent = (res as any)?.push?.sent ?? 0;
+                                setResa((prev) =>
+                                  prev
+                                    ? { ...prev, distance_km: km as any, prix_estime: newPrice as any }
+                                    : prev,
+                                );
+                                toast.success(
+                                  sent > 0
+                                    ? `✅ Trajet validé (${km} km · ${newPrice?.toFixed?.(2)} €) — client notifié`
+                                    : `✅ Trajet validé (${km} km · ${newPrice?.toFixed?.(2)} €) — pas de souscription client`,
+                                );
+                              } catch (e) {
+                                console.error("[updateRoute]", e);
+                                toast.error("Mise à jour du prix impossible");
+                              } finally {
+                                setRouteEditBusy(false);
+                              }
+                            }}
+                            style={{
+                              width: "100%",
+                              padding: "12px 14px",
+                              borderRadius: 12,
+                              background: "rgba(59,130,246,0.12)",
+                              border: "1px solid rgba(59,130,246,0.4)",
+                              color: "#60a5fa",
+                              fontFamily: "'Syne',sans-serif",
+                              fontWeight: 800,
+                              fontSize: 13,
+                              cursor: routeEditBusy ? "wait" : "pointer",
+                              opacity: routeEditBusy ? 0.6 : 1,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: 8,
+                            }}
+                          >
+                            {routeEditBusy
+                              ? "⏳ Mise à jour…"
+                              : `🗺️ Itinéraire ${idx + 1} — ${km} km${mins ? ` · ${mins} min` : ""}`}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                   )}
 
 
