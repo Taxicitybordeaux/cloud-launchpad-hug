@@ -443,6 +443,15 @@ function Dashboard() {
   const [directThreads, setDirectThreads] = useState<AdminDirectThread[]>([]);
   const [openDirectId, setOpenDirectId] = useState<string | null>(null);
 
+  const handleDeleteDirectThread = async (accountId: string) => {
+    try {
+      await supabase.from("direct_messages").delete().eq("client_account_id", accountId);
+      setDirectThreads((prev) => prev.filter((t) => t.client_account_id !== accountId));
+    } catch (e) {
+      console.error("[admin] delete direct thread", e);
+    }
+  };
+
   // ── Direct messages (client → admin) ──
   const refreshDirectThreads = useCallback(async () => {
     try {
@@ -4088,62 +4097,72 @@ function Dashboard() {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {directThreads.map((t) => (
-              <button
+              <SwipeDeleteRow
                 key={t.client_account_id}
-                onClick={() => setOpenDirectId(t.client_account_id)}
-                style={{
-                  textAlign: "left",
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  borderRadius: 14,
-                  padding: 14,
-                  color: "#fff",
-                  cursor: "pointer",
-                  display: "flex",
-                  gap: 12,
-                  alignItems: "center",
-                  width: "100%",
-                }}
+                onDelete={() => handleDeleteDirectThread(t.client_account_id)}
+                style={{ marginBottom: 0 }}
               >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                    <span style={{ fontWeight: 700, fontSize: 14 }}>{t.client_name || t.client_email || "Client"}</span>
-                    <span style={{ color: "#64748b", fontSize: 11 }}>
-                      {new Date(t.last_message_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
+                <button
+                  onClick={() => setOpenDirectId(t.client_account_id)}
+                  style={{
+                    textAlign: "left",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: 14,
+                    padding: 14,
+                    color: "#fff",
+                    cursor: "pointer",
+                    display: "flex",
+                    gap: 12,
+                    alignItems: "center",
+                    width: "100%",
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontWeight: 700, fontSize: 14 }}>
+                        {t.client_name || t.client_email || "Client"}
+                      </span>
+                      <span style={{ color: "#64748b", fontSize: 11 }}>
+                        {new Date(t.last_message_at).toLocaleString("fr-FR", {
+                          dateStyle: "short",
+                          timeStyle: "short",
+                        })}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        color: "#94a3b8",
+                        fontSize: 12,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {t.last_message_content}
+                    </div>
+                  </div>
+                  {t.unread_chauffeur > 0 && (
+                    <span
+                      style={{
+                        background: "#ef4444",
+                        color: "#fff",
+                        borderRadius: 999,
+                        minWidth: 22,
+                        height: 22,
+                        padding: "0 7px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      {t.unread_chauffeur}
                     </span>
-                  </div>
-                  <div
-                    style={{
-                      color: "#94a3b8",
-                      fontSize: 12,
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    {t.last_message_content}
-                  </div>
-                </div>
-                {t.unread_chauffeur > 0 && (
-                  <span
-                    style={{
-                      background: "#ef4444",
-                      color: "#fff",
-                      borderRadius: 999,
-                      minWidth: 22,
-                      height: 22,
-                      padding: "0 7px",
-                      fontSize: 12,
-                      fontWeight: 700,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    {t.unread_chauffeur}
-                  </span>
-                )}
-              </button>
+                  )}
+                </button>
+              </SwipeDeleteRow>
             ))}
           </div>
         )}
