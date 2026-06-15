@@ -505,8 +505,6 @@ function SuiviPage() {
   const navigate = useNavigate();
   const notifyStatusFn = useServerFn(notifyReservationStatus);
   const updateRouteFn = useServerFn(updateReservationRoute);
-  const [routeEditOpen, setRouteEditOpen] = useState(false);
-  const [routeEditKm, setRouteEditKm] = useState("");
   const [routeEditBusy, setRouteEditBusy] = useState(false);
   const [statusBusy, setStatusBusy] = useState<null | "en_route" | "arrived" | "completed">(null);
 
@@ -3229,20 +3227,69 @@ function SuiviPage() {
                   {statusBusy === "completed" ? "Envoi…" : "🏁 Course terminée"}
                 </button>
 
-                {/* ── Bouton navigation GPS (chauffeur uniquement) ── */}
+                {/* ── Bouton chauffeur : ouvre Maps ET valide trajet+prix automatiquement ──
+                    Réservé à José après acceptation admin (status ∈ accepted/en_route/arrived).
+                    La distance vient d'OSRM (totalKm), source de vérité unique côté serveur via
+                    updateReservationRoute → recalcule prix + notifie le client par push. */}
                 {isDriver &&
                   ["en_route", "accepted", "arrived"].includes(effectiveStatus) &&
                   (resa.destination || resa.arrivee) && (
                     <button
-                      onClick={() => {
+                      type="button"
+                      disabled={routeEditBusy || !resaIdRef.current || !totalKm || totalKm <= 0}
+                      onClick={async () => {
+                        if (!resaIdRef.current || !totalKm || totalKm <= 0) {
+                          toast.error("Itinéraire pas encore calculé");
+                          return;
+                        }
+                        // Ouvre Maps immédiatement (geste utilisateur requis sur iOS)
                         const dest = encodeURIComponent(resa.destination || resa.arrivee || "");
                         const isIOS =
                           /iP(hone|ad|od)/.test(navigator.userAgent) ||
                           (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-                        const url = isIOS
+                        const mapsUrl = isIOS
                           ? `maps://maps.apple.com/?daddr=${dest}&dirflg=d`
                           : `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`;
-                        window.open(url, "_blank");
+                        window.open(mapsUrl, "_blank");
+
+                        // Puis met à jour automatiquement le prix avec la distance OSRM
+                        // et déclenche la push client multilingue.
+                        const previousKm = resa?.distance_km ?? null;
+                        if (previousKm != null && Math.abs(Number(previousKm) - totalKm) < 0.05) {
+                          // Pas de changement significatif, on n'envoie pas de notif inutile
+                          return;
+                        }
+                        setRouteEditBusy(true);
+                        try {
+                          const res = await updateRouteFn({
+                            data: {
+                              reservation_id: resaIdRef.current,
+                              suivi_key: id,
+                              distance_km: Number(totalKm.toFixed(1)),
+                            },
+                          });
+                          const newPrice = (res as any)?.prix_estime;
+                          const sent = (res as any)?.push?.sent ?? 0;
+                          setResa((prev) =>
+                            prev
+                              ? {
+                                  ...prev,
+                                  distance_km: Number(totalKm.toFixed(1)) as any,
+                                  prix_estime: newPrice as any,
+                                }
+                              : prev,
+                          );
+                          toast.success(
+                            sent > 0
+                              ? `✅ Trajet validé (${totalKm.toFixed(1)} km · ${newPrice?.toFixed?.(2)} €) — client notifié`
+                              : `✅ Trajet validé (${totalKm.toFixed(1)} km · ${newPrice?.toFixed?.(2)} €) — pas de souscription client`,
+                          );
+                        } catch (e) {
+                          console.error("[updateRoute]", e);
+                          toast.error("Mise à jour du prix impossible");
+                        } finally {
+                          setRouteEditBusy(false);
+                        }
                       }}
                       style={{
                         width: "100%",
@@ -3254,175 +3301,23 @@ function SuiviPage() {
                         fontFamily: "'Syne',sans-serif",
                         fontWeight: 800,
                         fontSize: 14,
-                        cursor: "pointer",
+                        cursor: routeEditBusy ? "wait" : "pointer",
+                        opacity: routeEditBusy || !totalKm ? 0.6 : 1,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                         gap: 8,
                       }}
                     >
-                      🗺️ Ouvrir l'itinéraire
+                      {routeEditBusy
+                        ? "⏳ Mise à jour du prix…"
+                        : totalKm
+                          ? `🗺️ Ouvrir Maps & valider (${totalKm.toFixed(1)} km)`
+                          : "🗺️ Ouvrir l'itinéraire"}
                     </button>
                   )}
 
-                {/* ── Mise à jour trajet + prix (chauffeur, après choix dans Maps) ── */}
-                {isDriver && ["en_route", "accepted", "arrived"].includes(effectiveStatus) && (
-                  <div
-                    style={{
-                      width: "100%",
-                      borderRadius: 14,
-                      background: "rgba(34,197,94,0.08)",
-                      border: "1px solid rgba(34,197,94,0.35)",
-                      padding: 12,
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 8,
-                    }}
-                  >
-                    {!routeEditOpen ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRouteEditKm(
-                            resa?.distance_km != null ? String(Number(resa.distance_km).toFixed(1)) : "",
-                          );
-                          setRouteEditOpen(true);
-                        }}
-                        style={{
-                          width: "100%",
-                          padding: "10px 12px",
-                          borderRadius: 10,
-                          background: "transparent",
-                          border: "none",
-                          color: "#4ade80",
-                          fontFamily: "'Syne',sans-serif",
-                          fontWeight: 800,
-                          fontSize: 13,
-                          cursor: "pointer",
-                          textAlign: "center",
-                        }}
-                      >
-                        ✏️ Mettre à jour trajet & prix
-                      </button>
-                    ) : (
-                      <>
-                        <div
-                          style={{
-                            fontFamily: "'DM Sans',sans-serif",
-                            fontSize: 11,
-                            color: "#86efac",
-                            lineHeight: 1.4,
-                          }}
-                        >
-                          Saisis les km affichés par Maps pour l'itinéraire choisi. Le prix est recalculé
-                          et le client reçoit une notification.
-                        </div>
-                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                          <input
-                            type="number"
-                            inputMode="decimal"
-                            step="0.1"
-                            min="0.1"
-                            placeholder="km"
-                            value={routeEditKm}
-                            onChange={(e) => setRouteEditKm(e.target.value)}
-                            disabled={routeEditBusy}
-                            style={{
-                              flex: 1,
-                              padding: "10px 12px",
-                              borderRadius: 10,
-                              background: "rgba(0,0,0,0.35)",
-                              border: "1px solid rgba(255,255,255,0.12)",
-                              color: "#fff",
-                              fontFamily: "'DM Sans',sans-serif",
-                              fontSize: 14,
-                            }}
-                          />
-                          <span style={{ color: "#94a3b8", fontSize: 12 }}>km</span>
-                        </div>
-                        <div style={{ display: "flex", gap: 8 }}>
-                          <button
-                            type="button"
-                            disabled={routeEditBusy}
-                            onClick={() => {
-                              setRouteEditOpen(false);
-                              setRouteEditKm("");
-                            }}
-                            style={{
-                              flex: 1,
-                              padding: "10px 12px",
-                              borderRadius: 10,
-                              background: "rgba(148,163,184,0.12)",
-                              border: "1px solid rgba(148,163,184,0.3)",
-                              color: "#cbd5e1",
-                              fontFamily: "'Syne',sans-serif",
-                              fontWeight: 700,
-                              fontSize: 13,
-                              cursor: "pointer",
-                            }}
-                          >
-                            Annuler
-                          </button>
-                          <button
-                            type="button"
-                            disabled={routeEditBusy || !resaIdRef.current}
-                            onClick={async () => {
-                              const km = parseFloat(routeEditKm.replace(",", "."));
-                              if (!Number.isFinite(km) || km <= 0) {
-                                toast.error("Distance invalide");
-                                return;
-                              }
-                              if (!resaIdRef.current) return;
-                              setRouteEditBusy(true);
-                              try {
-                                const res = await updateRouteFn({
-                                  data: {
-                                    reservation_id: resaIdRef.current,
-                                    suivi_key: id,
-                                    distance_km: km,
-                                  },
-                                });
-                                const newPrice = (res as any)?.prix_estime;
-                                const sent = (res as any)?.push?.sent ?? 0;
-                                setResa((prev) =>
-                                  prev
-                                    ? { ...prev, distance_km: km as any, prix_estime: newPrice as any }
-                                    : prev,
-                                );
-                                toast.success(
-                                  sent > 0
-                                    ? `✅ Prix mis à jour (${newPrice?.toFixed?.(2)} €) — client notifié`
-                                    : `✅ Prix mis à jour (${newPrice?.toFixed?.(2)} €) — aucune souscription client`,
-                                );
-                                setRouteEditOpen(false);
-                              } catch (e: any) {
-                                console.error("[updateRoute]", e);
-                                toast.error("Mise à jour impossible");
-                              } finally {
-                                setRouteEditBusy(false);
-                              }
-                            }}
-                            style={{
-                              flex: 2,
-                              padding: "10px 12px",
-                              borderRadius: 10,
-                              background: "rgba(34,197,94,0.2)",
-                              border: "1px solid rgba(34,197,94,0.5)",
-                              color: "#4ade80",
-                              fontFamily: "'Syne',sans-serif",
-                              fontWeight: 800,
-                              fontSize: 13,
-                              cursor: routeEditBusy ? "wait" : "pointer",
-                              opacity: routeEditBusy ? 0.6 : 1,
-                            }}
-                          >
-                            {routeEditBusy ? "Envoi…" : "✅ Confirmer & notifier"}
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
+
 
                 {!isDriver && (
                   <div

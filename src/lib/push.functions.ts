@@ -363,11 +363,13 @@ export const updateReservationRoute = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const [{ getTaxiSupabaseAdmin }, { sendPushToAudience }, { calculerPrixMixte }] = await Promise.all([
-      import("@/lib/taxi-supabase.server"),
-      import("@/lib/push.server"),
-      import("@/lib/tarif"),
-    ]);
+    const [{ getTaxiSupabaseAdmin }, { sendPushToAudience }, { calculerPrixMixte }, { buildPriceUpdatePush }] =
+      await Promise.all([
+        import("@/lib/taxi-supabase.server"),
+        import("@/lib/push.server"),
+        import("@/lib/tarif"),
+        import("@/lib/push-messages"),
+      ]);
     const supabaseAdmin = getTaxiSupabaseAdmin();
 
     const { data: r, error: fetchErr } = await supabaseAdmin
@@ -403,28 +405,13 @@ export const updateReservationRoute = createServerFn({ method: "POST" })
     const url = (r as any).suivi_id ? `/suivi/${(r as any).suivi_id}` : `/reservation/${r.id}`;
     const resLang = (((r as any).lang as Lang) || "fr");
 
-    const TITLES: Record<Lang, string> = {
-      fr: "💶 Prix mis à jour",
-      en: "💶 Price updated",
-      es: "💶 Precio actualizado",
-      pt: "💶 Preço atualizado",
-      it: "💶 Prezzo aggiornato",
-      ar: "💶 تم تحديث السعر",
-    };
-    const BODIES: Record<Lang, string> = {
-      fr: `Bonjour ${clientName}, votre course est estimée à ${newPrice.toFixed(2)} € (${data.distance_km.toFixed(1)} km).`,
-      en: `Hello ${clientName}, your ride is now estimated at €${newPrice.toFixed(2)} (${data.distance_km.toFixed(1)} km).`,
-      es: `Hola ${clientName}, su carrera se estima en ${newPrice.toFixed(2)} € (${data.distance_km.toFixed(1)} km).`,
-      pt: `Olá ${clientName}, a sua corrida está estimada em ${newPrice.toFixed(2)} € (${data.distance_km.toFixed(1)} km).`,
-      it: `Salve ${clientName}, la sua corsa è stimata a ${newPrice.toFixed(2)} € (${data.distance_km.toFixed(1)} km).`,
-      ar: `مرحباً ${clientName}، السعر التقديري لرحلتك ${newPrice.toFixed(2)} € (${data.distance_km.toFixed(1)} كم).`,
-    };
+    const msg = buildPriceUpdatePush(resLang, clientName, newPrice, data.distance_km);
 
     const push = await sendPushToAudience(
       "client",
       {
-        title: TITLES[resLang] ?? TITLES.fr,
-        body: BODIES[resLang] ?? BODIES.fr,
+        title: msg.title,
+        body: msg.body,
         url: `${APP_URL}${url}`,
         tag: `res-${r.id}-price`,
         requireInteraction: false,
