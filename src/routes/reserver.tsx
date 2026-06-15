@@ -1126,25 +1126,10 @@ function ReservationPage() {
     }
 
     if (fromCoord && toCoord) {
-      // Toujours le chemin le plus long
-      getOsrmPolylineLongest(fromCoord, toCoord).then((coords) => {
-        if (!mapInst.current || !L) return;
-        if (routeLayer.current) {
-          routeLayer.current.remove();
-          routeLayer.current = null;
-        }
-        if (coords.length > 1) {
-          // Casing noir façon Uber + tracé fin par-dessus pour un rendu net
-          routeLayer.current = L.layerGroup([
-            L.polyline(coords, { color: "#000000", weight: 8, opacity: 1, lineCap: "round", lineJoin: "round" }),
-            L.polyline(coords, { color: "#111111", weight: 5, opacity: 1, lineCap: "round", lineJoin: "round" }),
-          ]).addTo(mapInst.current);
-          mapInst.current.fitBounds(
-            L.latLngBounds([[fromCoord[0], fromCoord[1]], [toCoord[0], toCoord[1]], ...coords]),
-            { padding: [60, 60], maxZoom: 16, animate: true },
-          );
-        }
-      });
+      mapInst.current.fitBounds(
+        L.latLngBounds([[fromCoord[0], fromCoord[1]], [toCoord[0], toCoord[1]]]),
+        { padding: [60, 60], maxZoom: 16, animate: true },
+      );
     } else if (fromCoord) {
       map.setView([fromCoord[0], fromCoord[1]], 14);
     }
