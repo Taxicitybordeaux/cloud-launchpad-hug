@@ -11,7 +11,7 @@ import {
   partsParis,
 } from "@/lib/tarif";
 import { reverseGeocode, searchAddress } from "@/lib/geocode";
-import { getDistanceAndDurationKm, getLongestRoute } from "@/lib/osrm";
+import { getDistanceAndDurationKm } from "@/lib/osrm";
 import { newSuiviId } from "@/lib/suivi-id";
 import { subscribePush, notifyNewReservation } from "@/lib/push.functions";
 import { getFcmToken } from "@/lib/firebase";
