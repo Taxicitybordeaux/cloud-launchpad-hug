@@ -13,8 +13,8 @@ import {
 import { reverseGeocode, searchAddress } from "@/lib/geocode";
 import { getDistanceAndDurationKm } from "@/lib/osrm";
 import { newSuiviId } from "@/lib/suivi-id";
-import { subscribePush, notifyNewReservation } from "@/lib/push.functions";
-import { getFcmToken } from "@/lib/firebase";
+import { notifyNewReservation } from "@/lib/push.functions";
+
 import { DICTS, LANGUAGES, type Lang } from "@/i18n/dict";
 
 const RESERVER_TITLE = "Réserver un taxi à Bordeaux — Taxi City Bordeaux";
