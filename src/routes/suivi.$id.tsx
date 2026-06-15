@@ -632,16 +632,9 @@ function SuiviPage() {
   const mapInst = useRef<any>(null);
   const mapInitializing = useRef(false);
   const markerRef = useRef<any>(null);
-  const routeLayer = useRef<any>(null);
-  const routeOutline = useRef<any>(null);
-  const tripLayer = useRef<any>(null);
-  const tripOutline = useRef<any>(null);
-  const approachLayer = useRef<any>(null);
   const fromMarker = useRef<any>(null);
   const toMarker = useRef<any>(null);
-  const approachCoords = useRef<[number, number][]>([]);
   const lastAppliedPos = useRef<{ lat: number; lng: number; t: number } | null>(null);
-  const lastApproachAt = useRef<number>(0);
   const animFrame = useRef<number | null>(null);
   const lastDriverPos = useRef<{ lat: number; lng: number } | null>(null);
   const initialZoom = useRef<number | null>(null);
@@ -704,12 +697,6 @@ function SuiviPage() {
       const lat = fromLat + (toLat - fromLat) * k;
       const lng = fromLng + (toLng - fromLng) * k;
       marker.setLatLng([lat, lng]);
-      const route = approachCoords.current;
-      if (route.length > 1 && approachLayer.current) {
-        const idx = closestIndexOnRoute(lat, lng, route);
-        const tail: [number, number][] = [[lat, lng], ...route.slice(idx + 1)];
-        if (tail.length >= 2) approachLayer.current.setLatLngs(tail);
-      }
       if (t < 1) animFrame.current = requestAnimationFrame(step);
       else animFrame.current = null;
     };
@@ -767,38 +754,6 @@ function SuiviPage() {
     return known;
   };
 
-  // ── Tracé ligne bleue chauffeur → prise en charge ────────────────────────
-  const drawApproachLine = async (driverLat: number, driverLng: number, pickup: [number, number]) => {
-    const map = mapInst.current;
-    const L = (window as any).L;
-    if (!map || !L) return;
-    try {
-      const routeApproach = await getRouteGeoCoords([driverLng, driverLat], [pickup[1], pickup[0]]);
-      const coords: [number, number][] = normalizeRouteCoords(routeApproach?.coords) ?? [[driverLat, driverLng], pickup];
-      approachCoords.current = coords;
-      if (approachLayer.current) approachLayer.current.setLatLngs(coords);
-      else
-        approachLayer.current = L.polyline(coords, {
-          color: "#0ea5e9",
-          weight: 5,
-          opacity: 0.95,
-          lineCap: "round",
-          lineJoin: "round",
-        }).addTo(map);
-    } catch {
-      const fallback: [number, number][] = [[driverLat, driverLng], pickup];
-      approachCoords.current = fallback;
-      if (approachLayer.current) approachLayer.current.setLatLngs(fallback);
-      else
-        approachLayer.current = L.polyline(fallback, {
-          color: "#0ea5e9",
-          weight: 5,
-          opacity: 0.95,
-          lineCap: "round",
-          lineJoin: "round",
-        }).addTo(map);
-    }
-  };
 
   // ── ETA — stocke aussi les km restants (depuis tracking) ────────────────
   const calculateETA = async (lat: number, lng: number, destCoords?: [number, number]) => {
@@ -929,10 +884,6 @@ function SuiviPage() {
       lastDriverPos.current = { lat, lng };
       setTaxiPos({ lat, lng });
 
-      if (pickupCoordsRef.current && now - lastApproachAt.current > 15000) {
-        lastApproachAt.current = now;
-        drawApproachLine(lat, lng, pickupCoordsRef.current);
-      }
       animateMarkerTo(lat, lng);
 
       if (userPannedRef.current) {
@@ -1041,32 +992,6 @@ function SuiviPage() {
         map = mapInst.current ?? map;
         if (!map) return;
 
-        if (tripLayer.current) {
-          tripLayer.current.remove();
-          tripLayer.current = null;
-        }
-        if (tripOutline.current) {
-          tripOutline.current.remove();
-          tripOutline.current = null;
-        }
-
-        // Outline (contour sombre) en PREMIER = en dessous
-        tripOutline.current = L.polyline(coords, {
-          color: "#000000",
-          weight: 11,
-          opacity: 0.55,
-          lineCap: "round",
-          lineJoin: "round",
-        }).addTo(map);
-        // Trait principal en SECOND = au-dessus de l'outline
-        tripLayer.current = L.polyline(coords, {
-          color: "#000000",
-          weight: 5,
-          opacity: 0.95,
-          lineCap: "round",
-          lineJoin: "round",
-        }).addTo(map);
-
         const depIcon = L.divIcon({
           className: "",
           html: `<div style="position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center"><span style="position:absolute;inset:0;border-radius:50%;background:rgba(34,197,94,0.35);animation:gpsRing 1.6s ease-out infinite"></span><span style="position:absolute;inset:6px;border-radius:50%;background:rgba(34,197,94,0.5);animation:gpsRing 1.6s ease-out infinite;animation-delay:.4s"></span><div style="position:relative;width:30px;height:30px;background:#22c55e;border-radius:50%;border:3px solid white;box-shadow:0 4px 14px rgba(34,197,94,0.7);display:flex;align-items:center;justify-content:center;font-size:15px">📍</div></div>`,
@@ -1087,7 +1012,7 @@ function SuiviPage() {
         toMarker.current = L.marker(b, { icon: destIcon }).addTo(activeMap).bindPopup("🏁 Destination");
 
         const driverPos = markerRef.current?.getLatLng();
-        if (driverPos) drawApproachLine(driverPos.lat, driverPos.lng, a);
+        
 
         const targetBounds = L.latLngBounds([...coords, markerRef.current?.getLatLng()].filter(Boolean)).pad(0.2);
         const fit = () => {
@@ -1497,18 +1422,6 @@ function SuiviPage() {
         cancelAnimationFrame(animFrame.current);
         animFrame.current = null;
       }
-      if (approachLayer.current) {
-        approachLayer.current.remove();
-        approachLayer.current = null;
-      }
-      if (tripLayer.current) {
-        tripLayer.current.remove();
-        tripLayer.current = null;
-      }
-      if (tripOutline.current) {
-        tripOutline.current.remove();
-        tripOutline.current = null;
-      }
       if (fromMarker.current) {
         fromMarker.current.remove();
         fromMarker.current = null;
@@ -1529,8 +1442,6 @@ function SuiviPage() {
       depGeoRef.current = null;
       lastAppliedPos.current = null;
       lastDriverPos.current = null;
-      lastApproachAt.current = 0;
-      approachCoords.current = [];
     };
   }, [id, retryNonce, subscribeRealtime, stopPolling, schedulePickupNotification, drawTripRoute]);
 
@@ -2053,8 +1964,8 @@ function SuiviPage() {
       map.invalidateSize({ animate: false });
       if (!L) return;
       const bounds: any[] = [];
-      if (tripOutline.current) bounds.push(tripOutline.current.getBounds());
-      else if (tripLayer.current) bounds.push(tripLayer.current.getBounds());
+      if (fromMarker.current) bounds.push(fromMarker.current.getLatLng());
+      if (toMarker.current) bounds.push(toMarker.current.getLatLng());
       const driverPos = markerRef.current?.getLatLng();
       if (driverPos) bounds.push(L.latLngBounds([driverPos, driverPos]));
       if (bounds.length === 0) return;

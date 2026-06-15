@@ -11,7 +11,7 @@ import {
   partsParis,
 } from "@/lib/tarif";
 import { reverseGeocode, searchAddress } from "@/lib/geocode";
-import { getDistanceAndDurationKm, getLongestRoute } from "@/lib/osrm";
+import { getDistanceAndDurationKm } from "@/lib/osrm";
 import { newSuiviId } from "@/lib/suivi-id";
 import { subscribePush, notifyNewReservation } from "@/lib/push.functions";
 import { getFcmToken } from "@/lib/firebase";
@@ -715,11 +715,6 @@ const SUPABASE_URL = "https://auiagkpdpnfqxfngisfc.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1aWFna3BkcG5mcXhmbmdpc2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0MzU2NzUsImV4cCI6MjA5NDAxMTY3NX0.MkW2KzCYHvQ0GEjjP3_puf3PkCHWaYcvW2bI1ctTuJU";
 
-// ─── OSRM polyline : utilise getLongestRoute (cache + alternatives=3 partagé)
-async function getOsrmPolylineLongest(from: [number, number], to: [number, number]): Promise<[number, number][]> {
-  const r = await getLongestRoute(from, to);
-  return r.coords;
-}
 
 function loadLeaflet(): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -992,7 +987,6 @@ function ReservationPage() {
 
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInst = useRef<any>(null);
-  const routeLayer = useRef<any>(null);
   const fromMarker = useRef<any>(null);
   const toMarker = useRef<any>(null);
 
@@ -1131,25 +1125,10 @@ function ReservationPage() {
     }
 
     if (fromCoord && toCoord) {
-      // Toujours le chemin le plus long
-      getOsrmPolylineLongest(fromCoord, toCoord).then((coords) => {
-        if (!mapInst.current || !L) return;
-        if (routeLayer.current) {
-          routeLayer.current.remove();
-          routeLayer.current = null;
-        }
-        if (coords.length > 1) {
-          // Casing noir façon Uber + tracé fin par-dessus pour un rendu net
-          routeLayer.current = L.layerGroup([
-            L.polyline(coords, { color: "#000000", weight: 8, opacity: 1, lineCap: "round", lineJoin: "round" }),
-            L.polyline(coords, { color: "#111111", weight: 5, opacity: 1, lineCap: "round", lineJoin: "round" }),
-          ]).addTo(mapInst.current);
-          mapInst.current.fitBounds(
-            L.latLngBounds([[fromCoord[0], fromCoord[1]], [toCoord[0], toCoord[1]], ...coords]),
-            { padding: [60, 60], maxZoom: 16, animate: true },
-          );
-        }
-      });
+      mapInst.current.fitBounds(
+        L.latLngBounds([[fromCoord[0], fromCoord[1]], [toCoord[0], toCoord[1]]]),
+        { padding: [60, 60], maxZoom: 16, animate: true },
+      );
     } else if (fromCoord) {
       map.setView([fromCoord[0], fromCoord[1]], 14);
     }
