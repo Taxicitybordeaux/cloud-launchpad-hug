@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { usePushNotifications } from "@/hooks/usePushNotifications";
+// Push client retiré — bandeau d'étapes visuel à la place (voir composant ci-dessous).
 import {
   getRouteGeoCoords,
   getDistanceAndDurationKm,
