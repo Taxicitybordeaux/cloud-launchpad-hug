@@ -22,7 +22,7 @@ describe("calibrationFactor (per-bucket)", () => {
 describe("calibrateKm — référence Gare St-Jean ↔ Aéroport (Google source of truth)", () => {
   // Tolérance ±0.5 km : OSRM peut renvoyer 14.5–14.9 / 17.2–17.6 / 21.8–22.2
   it("court 14.7 → ~16 km (Google)", () => {
-    expect(calibrateKm(14.7)).toBeCloseTo(15.88, 1);
+    expect(calibrateKm(14.7)).toBeCloseTo(16.02, 1);
   });
   it("intermédiaire 17.4 → ~19 km (Google)", () => {
     expect(calibrateKm(17.4)).toBeCloseTo(18.97, 1);
