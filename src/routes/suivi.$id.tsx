@@ -697,12 +697,6 @@ function SuiviPage() {
       const lat = fromLat + (toLat - fromLat) * k;
       const lng = fromLng + (toLng - fromLng) * k;
       marker.setLatLng([lat, lng]);
-      const route = approachCoords.current;
-      if (route.length > 1 && approachLayer.current) {
-        const idx = closestIndexOnRoute(lat, lng, route);
-        const tail: [number, number][] = [[lat, lng], ...route.slice(idx + 1)];
-        if (tail.length >= 2) approachLayer.current.setLatLngs(tail);
-      }
       if (t < 1) animFrame.current = requestAnimationFrame(step);
       else animFrame.current = null;
     };
