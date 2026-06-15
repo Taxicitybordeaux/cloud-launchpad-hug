@@ -379,6 +379,48 @@ export type Database = {
         }
         Relationships: []
       }
+      push_send_failures: {
+        Row: {
+          audience: string
+          body: string | null
+          created_at: string
+          error_code: string | null
+          fcm_token_suffix: string | null
+          http_status: number | null
+          id: string
+          reservation_id: string | null
+          tag: string | null
+          title: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          audience: string
+          body?: string | null
+          created_at?: string
+          error_code?: string | null
+          fcm_token_suffix?: string | null
+          http_status?: number | null
+          id?: string
+          reservation_id?: string | null
+          tag?: string | null
+          title?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          audience?: string
+          body?: string | null
+          created_at?: string
+          error_code?: string | null
+          fcm_token_suffix?: string | null
+          http_status?: number | null
+          id?: string
+          reservation_id?: string | null
+          tag?: string | null
+          title?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           audience: string

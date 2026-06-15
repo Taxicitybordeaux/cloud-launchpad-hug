@@ -273,6 +273,17 @@ export async function sendPushToAudience(
 
   let sent = 0;
   const toRemove: string[] = [];
+  const failures: Array<{
+    audience: PushAudience;
+    tag: string | null;
+    reservation_id: string | null;
+    fcm_token_suffix: string | null;
+    http_status: number | null;
+    error_code: string | null;
+    title: string;
+    body: string;
+    user_agent: string | null;
+  }> = [];
 
   await Promise.all(
     uniqueSubs.map(async (sub) => {
@@ -280,7 +291,22 @@ export async function sendPushToAudience(
       const r = await sendFcmToToken(accessToken, projectId, sub.fcm_token, payload, audience);
       if (r.ok) {
         sent++;
-      } else if (r.errorCode === "UNREGISTERED" || r.status === 404) {
+        return;
+      }
+      // Log every non-OK send for the admin failures dashboard
+      failures.push({
+        audience,
+        tag: payload.tag ?? null,
+        reservation_id: opts.reservationId ?? null,
+        fcm_token_suffix: sub.fcm_token.slice(-12),
+        http_status: r.status || null,
+        error_code: r.errorCode ?? null,
+        title: payload.title,
+        body: payload.body,
+        user_agent: sub.user_agent ?? null,
+      });
+
+      if (r.errorCode === "UNREGISTERED" || r.status === 404) {
         // Token définitivement révoqué par Firebase (app désinstallée ou token
         // explicitement invalidé) → on supprime.
         toRemove.push(sub.id);
@@ -305,6 +331,15 @@ export async function sendPushToAudience(
   const allToRemove = Array.from(new Set([...toRemove, ...staleIds]));
   if (allToRemove.length > 0) {
     await supabaseAdmin.from("push_subscriptions").delete().in("id", allToRemove);
+  }
+
+  // Persist failures (best-effort — never block on a logging error)
+  if (failures.length > 0) {
+    try {
+      await supabaseAdmin.from("push_send_failures").insert(failures);
+    } catch (e) {
+      console.warn("[push] failed to log push failures", e);
+    }
   }
 
   return { sent, removed: allToRemove.length };

@@ -375,17 +375,28 @@ export const updateReservationRoute = createServerFn({ method: "POST" })
     const { data: r, error: fetchErr } = await supabaseAdmin
       .from("reservations")
       .select(
-        "id, suivi_id, pickup_datetime, prix_estime, distance_km, nom, client_name, lang",
+        "id, suivi_id, pickup_datetime, prix_estime, distance_km, nom, client_name, lang, status",
       )
       .eq("id", data.reservation_id)
       .maybeSingle();
     if (fetchErr) throw new Error(`fetch_failed: ${fetchErr.message}`);
     if (!r) throw new Error("not_found");
 
-    // Autorisation : la suivi_key doit correspondre à la réservation
+    // Autorisation 1/2 : la suivi_key doit correspondre à la réservation
     const key = data.suivi_key.trim();
     const validKey = [r.id, (r as any).suivi_id].filter(Boolean).includes(key);
     if (!validKey) throw new Error("forbidden");
+
+    // Autorisation 2/2 (gating serveur) : la course DOIT être acceptée par l'admin.
+    // Tant que le statut n'est pas 'accepted' (ou en cours après acceptation),
+    // José ne peut pas modifier le trajet/prix — même si l'UI a un bug.
+    const allowedStatuses = ["accepted", "en_route", "arrived"];
+    const currentStatus = String((r as any).status ?? "").toLowerCase();
+    if (!allowedStatuses.includes(currentStatus)) {
+      throw new Error(`forbidden_status:${currentStatus || "unknown"}`);
+    }
+
+
 
     const pickupIso = (r as any).pickup_datetime || new Date().toISOString();
     const newPrice = calculerPrixMixte(data.distance_km, pickupIso);
@@ -427,4 +438,53 @@ export const updateReservationRoute = createServerFn({ method: "POST" })
       old_prix_estime: oldPrice,
       push,
     };
+  });
+
+// ── Liste des échecs d'envoi push (admin) ─────────────────────────────────────
+// L'admin saisit son PIN courant ; on le compare au mot de passe stocké côté
+// client (pas de table dédiée aujourd'hui), donc on utilise un secret env
+// ADMIN_PIN. Fallback "DSF234" pour rester aligné avec le PIN par défaut.
+const ADMIN_PIN_DEFAULT = "DSF234";
+
+function checkAdminPin(pin: string): boolean {
+  const expected =
+    process.env.ADMIN_PIN ||
+    (typeof import.meta !== "undefined" ? (import.meta as any).env?.ADMIN_PIN : undefined) ||
+    ADMIN_PIN_DEFAULT;
+  if (!expected) return false;
+  // comparaison constante-temps simple
+  if (pin.length !== expected.length) return false;
+  let diff = 0;
+  for (let i = 0; i < pin.length; i++) diff |= pin.charCodeAt(i) ^ expected.charCodeAt(i);
+  return diff === 0;
+}
+
+export const listPushFailures = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z
+      .object({
+        pin: z.string().min(1).max(128),
+        only_price_update: z.boolean().optional(),
+        limit: z.number().int().min(1).max(500).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    if (!checkAdminPin(data.pin)) {
+      throw new Error("forbidden");
+    }
+    const { getTaxiSupabaseAdmin } = await import("@/lib/taxi-supabase.server");
+    const supabaseAdmin = getTaxiSupabaseAdmin();
+    let q = supabaseAdmin
+      .from("push_send_failures")
+      .select("id, created_at, audience, tag, reservation_id, fcm_token_suffix, http_status, error_code, title, body, user_agent")
+      .order("created_at", { ascending: false })
+      .limit(data.limit ?? 200);
+    if (data.only_price_update) {
+      // Le tag des push "Prix mis à jour" est `res-<id>-price`
+      q = q.like("tag", "%-price");
+    }
+    const { data: rows, error } = await q;
+    if (error) throw new Error(`fetch_failed: ${error.message}`);
+    return { failures: rows ?? [] };
   });
