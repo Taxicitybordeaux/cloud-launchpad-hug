@@ -1,6 +1,13 @@
 // @ts-expect-error - bun:test types not installed (test-only)
 import { describe, expect, it } from "bun:test";
-import { calibrateKm, calibrationFactor, labelForAlternative } from "./osrm";
+import {
+  BORDEAUX_AIRPORT_EXACT_KM,
+  calibrateKm,
+  calibrationFactor,
+  getRouteAlternatives,
+  isBordeauxAirportRoute,
+  labelForAlternative,
+} from "./osrm";
 
 describe("calibrationFactor (per-bucket)", () => {
   it("urbain court < 10 km → 1.08", () => {
@@ -19,8 +26,8 @@ describe("calibrationFactor (per-bucket)", () => {
   });
 });
 
-describe("calibrateKm — référence Gare St-Jean ↔ Aéroport (Google source of truth)", () => {
-  // Tolérance ±0.5 km : OSRM peut renvoyer 14.5–14.9 / 17.2–17.6 / 21.8–22.2
+describe("calibrateKm — calibration générique avant override exact", () => {
+  // Les trajets métier connus sont corrigés ensuite par BORDEAUX_AIRPORT_EXACT_KM.
   it("court 14.7 → ~16 km (Google)", () => {
     expect(calibrateKm(14.7)).toBeCloseTo(16.02, 1);
   });
@@ -50,5 +57,52 @@ describe("labelForAlternative", () => {
     expect(labelForAlternative(1, 4)).toBe("intermédiaire");
     expect(labelForAlternative(2, 4)).toBe("intermédiaire");
     expect(labelForAlternative(3, 4)).toBe("rocade");
+  });
+});
+
+describe("Gare St-Jean ↔ Aéroport Hall A exact route distances", () => {
+  const gare: [number, number] = [44.8265, -0.5569];
+  const airport: [number, number] = [44.8291, -0.7028];
+
+  it("reconnaît le trajet dans les deux sens", () => {
+    expect(isBordeauxAirportRoute(gare, airport)).toBe(true);
+    expect(isBordeauxAirportRoute(airport, gare)).toBe(true);
+  });
+
+  it("force exactement 17 / 20 / 24 km même si OSRM renvoie moins", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () =>
+      new Response(
+        JSON.stringify({
+          routes: [
+            {
+              distance: 13600,
+              duration: 1200,
+              geometry: { coordinates: [[-0.5569, 44.8265], [-0.7028, 44.8291]] },
+            },
+            {
+              distance: 17500,
+              duration: 1560,
+              geometry: { coordinates: [[-0.5569, 44.8265], [-0.62, 44.82], [-0.7028, 44.8291]] },
+            },
+            {
+              distance: 20600,
+              duration: 1860,
+              geometry: { coordinates: [[-0.5569, 44.8265], [-0.63, 44.8066], [-0.7028, 44.8291]] },
+            },
+          ],
+        }),
+      )) as typeof fetch;
+
+    try {
+      const alts = await getRouteAlternatives(gare, airport);
+      expect(alts.map((a) => a.distanceKm)).toEqual([
+        BORDEAUX_AIRPORT_EXACT_KM.court,
+        BORDEAUX_AIRPORT_EXACT_KM["intermédiaire"],
+        BORDEAUX_AIRPORT_EXACT_KM.rocade,
+      ]);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });

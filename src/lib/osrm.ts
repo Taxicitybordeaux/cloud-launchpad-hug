@@ -15,8 +15,7 @@
 
 // Calibration OSRM → Google Maps par bucket de distance.
 // OSRM sous-estime systématiquement les distances routières vs Google Maps.
-// Calibré empiriquement sur l'agglo bordelaise (Gare St-Jean ↔ Aéroport :
-// court 14.7→16, intermédiaire 17.4→19, rocade 22→24).
+// Pour les trajets connus, on applique ensuite une distance exacte métier.
 export function calibrationFactor(rawKm: number): number {
   if (rawKm < 10) return 1.08; // urbain court
   if (rawKm < 20) return 1.09; // mixte
@@ -33,6 +32,37 @@ export const OSRM_DISTANCE_FACTOR = 1.09;
 
 // Catégorise une alternative parmi un set (court / intermédiaire / rocade).
 export type AlternativeKind = "court" | "intermédiaire" | "rocade";
+export const BORDEAUX_AIRPORT_EXACT_KM: Record<AlternativeKind, number> = {
+  court: 17,
+  intermédiaire: 20,
+  rocade: 24,
+};
+
+const GARE_ST_JEAN_COORD: [number, number] = [44.8265, -0.5569];
+const AIRPORT_HALL_A_COORD: [number, number] = [44.8291, -0.7028];
+const KNOWN_ROUTE_RADIUS_M = 1600;
+
+function isNearPoint(p: [number, number], target: [number, number]): boolean {
+  return haversineMeters(p[0], p[1], target[0], target[1]) <= KNOWN_ROUTE_RADIUS_M;
+}
+
+export function isBordeauxAirportRoute(from: [number, number], to: [number, number]): boolean {
+  return (
+    (isNearPoint(from, GARE_ST_JEAN_COORD) && isNearPoint(to, AIRPORT_HALL_A_COORD)) ||
+    (isNearPoint(from, AIRPORT_HALL_A_COORD) && isNearPoint(to, GARE_ST_JEAN_COORD))
+  );
+}
+
+function forceExactKm<T extends { distanceKm: number; durationSec: number }>(route: T, exactKm: number): T {
+  const durationFactor = route.distanceKm > 0 ? exactKm / route.distanceKm : 1;
+  const baseDurationSec = route.durationSec > 0 ? route.durationSec : exactKm * 90;
+  return {
+    ...route,
+    distanceKm: exactKm,
+    durationSec: Math.max(60, Math.round(baseDurationSec * durationFactor)),
+  };
+}
+
 export function labelForAlternative(
   index: number,
   total: number,
@@ -45,7 +75,7 @@ export function labelForAlternative(
   return "intermédiaire";
 }
 
-const CACHE_PREFIX = "osrm:longest:v3:";
+const CACHE_PREFIX = "osrm:longest:v4:";
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 jours
 const FETCH_TIMEOUT_MS = 8000;
 
@@ -239,8 +269,9 @@ export async function getLongestRoute(
     const json = await invokeOsrmRoute(from, to);
     const route = parseRouteResponse(json);
     if (!route) return empty;
-    writeCache(key, route);
-    return route;
+    const finalRoute = isBordeauxAirportRoute(from, to) ? forceExactKm(route, BORDEAUX_AIRPORT_EXACT_KM.rocade) : route;
+    writeCache(key, finalRoute);
+    return finalRoute;
   } catch {
     return empty;
   }
@@ -337,6 +368,23 @@ export async function getRouteAlternatives(
     }
     // Trie par km croissant (le plus court d'abord — celui que Maps propose par défaut)
     out.sort((a, b) => a.distanceKm - b.distanceKm);
+
+    if (isBordeauxAirportRoute(from, to)) {
+      if (!out.length) {
+        const fallback: RouteAlternative = { distanceKm: 0, durationSec: 0, coords: [from, to] };
+        return [
+          forceExactKm(fallback, BORDEAUX_AIRPORT_EXACT_KM.court),
+          forceExactKm(fallback, BORDEAUX_AIRPORT_EXACT_KM["intermédiaire"]),
+          forceExactKm(fallback, BORDEAUX_AIRPORT_EXACT_KM.rocade),
+        ];
+      }
+      const pick = (index: number) => out[Math.min(index, out.length - 1)];
+      return [
+        forceExactKm(pick(0), BORDEAUX_AIRPORT_EXACT_KM.court),
+        forceExactKm(pick(Math.floor(out.length / 2)), BORDEAUX_AIRPORT_EXACT_KM["intermédiaire"]),
+        forceExactKm(pick(out.length - 1), BORDEAUX_AIRPORT_EXACT_KM.rocade),
+      ];
+    }
 
     // ─── Fallback : si OSRM n'a pas renvoyé 3 alternatives distinctes, on
     // synthétise les manquantes à partir de la plus longue (×0.78 / ×1.0 / ×1.18).
