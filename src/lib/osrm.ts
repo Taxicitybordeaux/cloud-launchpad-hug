@@ -279,12 +279,22 @@ export async function getRouteAlternatives(
   const ctrl = new AbortController();
   const id = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
   try {
-    const json = await fetchOsrm([from, to], ctrl.signal);
-    const routes: any[] = Array.isArray(json?.routes) ? json.routes : [];
+    // 1) Alternatives OSRM directes
+    const jsonDirect = await fetchOsrm([from, to], ctrl.signal);
+    const routes: any[] = Array.isArray(jsonDirect?.routes) ? jsonDirect.routes : [];
+
+    // 2) Si trajet métropolitain, on ajoute une alternative forcée via rocade
+    if (shouldUseRocade(from, to)) {
+      const jsonRocade = await fetchOsrm([from, ROCADE_WAYPOINT, to], ctrl.signal);
+      if (Array.isArray(jsonRocade?.routes)) {
+        routes.push(...jsonRocade.routes);
+      }
+    }
+
     const out: RouteAlternative[] = [];
     for (const r of routes) {
-      const distanceKm = (r?.distance ?? 0) / 1000;
-      const durationSec = r?.duration ?? 0;
+      const distanceKm = ((r?.distance ?? 0) / 1000) * OSRM_DISTANCE_FACTOR;
+      const durationSec = (r?.duration ?? 0) * OSRM_DISTANCE_FACTOR;
       const rawCoords: [number, number][] = Array.isArray(r?.geometry?.coordinates)
         ? r.geometry.coordinates.map(([lng, lat]: [number, number]) => [lat, lng] as [number, number])
         : [];
@@ -295,7 +305,7 @@ export async function getRouteAlternatives(
     }
     // Trie par km croissant (le plus court d'abord — celui que Maps propose par défaut)
     out.sort((a, b) => a.distanceKm - b.distanceKm);
-    return out.slice(0, 3);
+    return out.slice(0, 4);
   } catch {
     return [];
   } finally {
