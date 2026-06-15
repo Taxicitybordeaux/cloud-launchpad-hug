@@ -1471,26 +1471,11 @@ function SuiviPage() {
     };
   }, [id, retryNonce, subscribeRealtime, stopPolling, schedulePickupNotification, drawTripRoute]);
 
-  // ── Push notifications auto ──────────────────────────────────────────────
-  // Bug fix : sur un appareil ayant déjà accordé la permission (client récurrent),
-  // pushStatus passe directement à "granted" sans jamais appeler subscribe().
-  // La ligne push_subscriptions garde alors le reservation_id de la course
-  // précédente → sendPushToAudience("client", { reservationId }) ne trouve
-  // aucune ligne → 0 notif envoyée (alors que le test debug, sans filtre,
-  // fonctionne). On (re)souscrit donc aussi quand le statut est déjà "granted",
-  // une seule fois par reservation_id.
-  const pushSubscribedForRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!resa) return;
-    // On tente dès que le statut n'est pas définitivement bloqué
-    if (pushStatus === "denied" || pushStatus === "unsupported" || pushStatus === "loading") return;
-    if (pushSubscribedForRef.current === resa.id) return;
-    pushSubscribedForRef.current = resa.id;
-    subscribe("client", resa.id).catch(() => {
-      // Reset pour permettre un retry si pushStatus évolue (ex: "idle" → "granted")
-      pushSubscribedForRef.current = null;
-    });
-  }, [resa, pushStatus, subscribe]);
+  // ── Push notifications client supprimées ─────────────────────────────────
+  // Le client n'est plus abonné aux push. Toutes les étapes de la course
+  // s'affichent visuellement via le bandeau d'étapes ci-dessous (realtime
+  // Supabase met à jour `resa.status` automatiquement).
+
 
   // ── Partager ─────────────────────────────────────────────────────────────
   const partager = async () => {
