@@ -343,33 +343,17 @@ export const updateReservationRoute = createServerFn({ method: "POST" })
       .eq("id", r.id);
     if (updErr) throw new Error(`update_failed: ${updErr.message}`);
 
-    const clientName = (r as any).client_name || (r as any).nom || "Client";
-    const url = (r as any).suivi_id ? `/suivi/${(r as any).suivi_id}` : `/reservation/${r.id}`;
-    const resLang = (((r as any).lang as Lang) || "fr");
-
-    const msg = buildPriceUpdatePush(resLang, clientName, newPrice, data.distance_km);
-
-    const push = await sendPushToAudience(
-      "client",
-      {
-        title: msg.title,
-        body: msg.body,
-        url: `${APP_URL}${url}`,
-        tag: `res-${r.id}-price`,
-        requireInteraction: false,
-        data: { reservation_id: r.id, prix_estime: newPrice, distance_km: data.distance_km },
-      },
-      { reservationId: r.id },
-    );
-
+    // ⚠️ Plus de push au CLIENT — la mise à jour du prix est visible en
+    // temps réel sur /suivi/$id (le client voit le nouveau montant + km).
     return {
       ok: true,
       prix_estime: newPrice,
       distance_km: data.distance_km,
       old_prix_estime: oldPrice,
-      push,
+      push: { sent: 0, removed: 0 },
     };
   });
+
 
 // ── Liste des échecs d'envoi push (admin) ─────────────────────────────────────
 // L'admin saisit son PIN courant ; on le compare au mot de passe stocké côté
