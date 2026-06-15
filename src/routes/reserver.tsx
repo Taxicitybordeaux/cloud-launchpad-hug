@@ -987,7 +987,6 @@ function ReservationPage() {
 
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInst = useRef<any>(null);
-  const routeLayer = useRef<any>(null);
   const fromMarker = useRef<any>(null);
   const toMarker = useRef<any>(null);
 
