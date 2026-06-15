@@ -4,17 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 // Push client retiré — bandeau d'étapes visuel à la place (voir composant ci-dessous).
-import {
-  getRouteGeoCoords,
-  getDistanceAndDurationKm,
-  getRouteAlternatives,
-  isBordeauxAirportRouteText,
-  labelForAlternative,
-  calibrateKm,
-  type RouteAlternative,
-} from "@/lib/osrm";
+import { getRouteGeoCoords, getDistanceAndDurationKm, calibrateKm } from "@/lib/osrm";
 import { geocodeAddress, searchAddress } from "@/lib/geocode";
-import { notifyReservationStatus, updateReservationRoute } from "@/lib/push.functions";
+import { notifyReservationStatus } from "@/lib/push.functions";
 
 const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_TILE_OPTIONS = { attribution: "© OpenStreetMap contributors", maxZoom: 19 };
@@ -512,8 +504,6 @@ function SuiviPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const notifyStatusFn = useServerFn(notifyReservationStatus);
-  const updateRouteFn = useServerFn(updateReservationRoute);
-  const [routeEditBusy, setRouteEditBusy] = useState(false);
   const [statusBusy, setStatusBusy] = useState<null | "en_route" | "arrived" | "completed">(null);
 
   // ── États ─────────────────────────────────────────────────────────────────
@@ -525,8 +515,6 @@ function SuiviPage() {
   const [eta, setEta] = useState<number | null>(null);
   // [FUSION] totalKm depuis tracking — pour la barre de progression départ→destination
   const [totalKm, setTotalKm] = useState<number | null>(null);
-  // [DRIVER] Alternatives d'itinéraire OSRM — pour sélecteur José
-  const [routeAlts, setRouteAlts] = useState<RouteAlternative[]>([]);
   // [FUSION] km restants (string) depuis tracking — affiché sous l'ETA
   const [etaKm, setEtaKm] = useState<string | null>(null);
   const [shareMsg, setShareMsg] = useState("");
@@ -1010,11 +998,6 @@ function SuiviPage() {
         }
         if (distanceKm && distanceKm > 0) setTotalKm(parseFloat(distanceKm.toFixed(1)));
 
-        // Récupère jusqu'à 3 alternatives OSRM pour le sélecteur chauffeur
-        getRouteAlternatives(a, b, isBordeauxAirportRouteText(depart, destination))
-          .then((alts) => setRouteAlts(alts))
-          .catch(() => setRouteAlts([]));
-
         // Relire la carte après les awaits — l'instance peut avoir changé
         map = mapInst.current ?? map;
         if (!map) return;
@@ -1475,7 +1458,6 @@ function SuiviPage() {
   // Le client n'est plus abonné aux push. Toutes les étapes de la course
   // s'affichent visuellement via le bandeau d'étapes ci-dessous (realtime
   // Supabase met à jour `resa.status` automatiquement).
-
 
   // ── Partager ─────────────────────────────────────────────────────────────
   const partager = async () => {
@@ -2578,11 +2560,15 @@ function SuiviPage() {
               { key: "arrived", label: "Sur place", icon: "📍" },
               { key: "completed", label: "Terminée", icon: "🏁" },
             ];
-            const norm = (s: string) =>
-              s === "nouvelle" ? "pending" : s === "terminee" ? "completed" : s;
+            const norm = (s: string) => (s === "nouvelle" ? "pending" : s === "terminee" ? "completed" : s);
             const current = norm(effectiveStatus);
             const cancelled = ["cancelled", "refused"].includes(current);
-            const currentIdx = cancelled ? -1 : Math.max(0, STEPS.findIndex((s) => s.key === current));
+            const currentIdx = cancelled
+              ? -1
+              : Math.max(
+                  0,
+                  STEPS.findIndex((s) => s.key === current),
+                );
             return (
               <div style={{ padding: "0 16px 14px" }}>
                 <div
@@ -2628,7 +2614,11 @@ function SuiviPage() {
                                 width: 28,
                                 height: 28,
                                 borderRadius: "50%",
-                                background: active ? "rgba(245,200,66,0.18)" : done ? "rgba(34,197,94,0.18)" : "rgba(71,85,105,0.18)",
+                                background: active
+                                  ? "rgba(245,200,66,0.18)"
+                                  : done
+                                    ? "rgba(34,197,94,0.18)"
+                                    : "rgba(71,85,105,0.18)",
                                 border: `1.5px solid ${color}`,
                                 display: "flex",
                                 alignItems: "center",
@@ -2674,7 +2664,6 @@ function SuiviPage() {
               </div>
             );
           })()}
-
 
           {/* ── STATUT ── */}
           <div style={{ padding: "0 20px 12px" }}>
@@ -3263,102 +3252,6 @@ function SuiviPage() {
                 >
                   {statusBusy === "completed" ? "Envoi…" : "🏁 Course terminée"}
                 </button>
-
-                {/* ── Sélecteur d'itinéraire chauffeur ─────────────────────
-                    Liste des alternatives OSRM (mêmes que Google/Apple Maps).
-                    Tap = ouvre Maps + recalcule prix en base + push client.
-                    Aucune saisie : la distance vient de l'itinéraire choisi. */}
-                {isDriver && effectiveStatus === "accepted" && (resa.destination || resa.arrivee) && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    <div
-                      style={{
-                        fontFamily: "'Syne',sans-serif",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: "#94a3b8",
-                        letterSpacing: 0.4,
-                        textTransform: "uppercase",
-                        textAlign: "center",
-                      }}
-                    >
-                      Choisir l'itinéraire
-                    </div>
-                    {(() => {
-                      const list =
-                        routeAlts.length > 0
-                          ? routeAlts
-                          : totalKm
-                            ? [{ distanceKm: totalKm, durationSec: 0, coords: [] as [number, number][] }]
-                            : [];
-                      return list.map((alt, idx) => {
-                        const km = Number(alt.distanceKm.toFixed(1));
-                        const mins = alt.durationSec ? Math.round(alt.durationSec / 60) : null;
-                        const kind = labelForAlternative(idx, list.length);
-                        const kindIcon = kind === "court" ? "🟢" : kind === "rocade" ? "🔴" : "🟡";
-                        const kindLabel = kind === "court" ? "Court" : kind === "rocade" ? "Rocade" : "Intermédiaire";
-                        return (
-                          <button
-                            key={`alt-${idx}-${km}`}
-                            type="button"
-                            disabled={routeEditBusy || !resaIdRef.current || km <= 0}
-                            onClick={async () => {
-                              if (!resaIdRef.current || km <= 0) {
-                                toast.error("Itinéraire pas encore calculé");
-                                return;
-                              }
-                              setRouteEditBusy(true);
-                              try {
-                                const res = await updateRouteFn({
-                                  data: {
-                                    reservation_id: resaIdRef.current,
-                                    suivi_key: id,
-                                    distance_km: km,
-                                  },
-                                });
-                                const newPrice = (res as any)?.prix_estime;
-                                const sent = (res as any)?.push?.sent ?? 0;
-                                setResa((prev) =>
-                                  prev ? { ...prev, distance_km: km as any, prix_estime: newPrice as any } : prev,
-                                );
-                                toast.success(
-                                  sent > 0
-                                    ? `✅ ${kindLabel} validé (${km} km · ${newPrice?.toFixed?.(2)} €) — client notifié`
-                                    : `✅ ${kindLabel} validé (${km} km · ${newPrice?.toFixed?.(2)} €) — pas de souscription client`,
-                                );
-                              } catch (e) {
-                                console.error("[updateRoute]", e);
-                                toast.error("Mise à jour du prix impossible");
-                              } finally {
-                                setRouteEditBusy(false);
-                              }
-                            }}
-                            style={{
-                              width: "100%",
-                              padding: "12px 14px",
-                              borderRadius: 12,
-                              background: "rgba(59,130,246,0.12)",
-                              border: "1px solid rgba(59,130,246,0.4)",
-                              color: "#60a5fa",
-                              fontFamily: "'Syne',sans-serif",
-                              fontWeight: 800,
-                              fontSize: 13,
-                              cursor: routeEditBusy ? "wait" : "pointer",
-                              opacity: routeEditBusy ? 0.6 : 1,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              gap: 8,
-                            }}
-                          >
-                            {routeEditBusy
-                              ? "⏳ Mise à jour…"
-                              : `${kindIcon} ${kindLabel} — ${km} km${mins ? ` · ${mins} min` : ""}`}
-                          </button>
-                        );
-                      });
-                    })()}
-                  </div>
-                )}
 
                 {!isDriver && (
                   <div
