@@ -374,7 +374,7 @@ export async function getRouteAlternatives(
         const fallback: RouteAlternative = { distanceKm: 0, durationSec: 0, coords: [from, to] };
         return [
           forceExactKm(fallback, BORDEAUX_AIRPORT_EXACT_KM.court),
-        forceExactKm(fallback, BORDEAUX_AIRPORT_EXACT_KM["intermédiaire"]),
+          forceExactKm(fallback, BORDEAUX_AIRPORT_EXACT_KM["intermédiaire"]),
           forceExactKm(fallback, BORDEAUX_AIRPORT_EXACT_KM.rocade),
         ];
       }
