@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { getRouteGeoCoords, getDistanceAndDurationKm } from "@/lib/osrm";
 import { geocodeAddress, searchAddress } from "@/lib/geocode";
-import { notifyReservationStatus } from "@/lib/push.functions";
+import { notifyReservationStatus, updateReservationRoute } from "@/lib/push.functions";
 
 const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_TILE_OPTIONS = { attribution: "© OpenStreetMap contributors", maxZoom: 19 };
