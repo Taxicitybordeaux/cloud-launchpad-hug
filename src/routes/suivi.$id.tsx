@@ -3252,11 +3252,15 @@ function SuiviPage() {
                           : `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`;
                         window.open(mapsUrl, "_blank");
 
-                        // Puis met à jour automatiquement le prix avec la distance OSRM
-                        // et déclenche la push client multilingue.
-                        const previousKm = resa?.distance_km ?? null;
-                        if (previousKm != null && Math.abs(Number(previousKm) - totalKm) < 0.05) {
-                          // Pas de changement significatif, on n'envoie pas de notif inutile
+                        // Demande la distance réellement affichée par Maps (préremplie avec OSRM)
+                        const raw = window.prompt(
+                          "Kilomètres affichés par Maps pour l'itinéraire choisi ?",
+                          totalKm.toFixed(1),
+                        );
+                        if (raw == null) return; // annulé
+                        const kmChosen = Number(String(raw).replace(",", ".").trim());
+                        if (!Number.isFinite(kmChosen) || kmChosen <= 0 || kmChosen > 2000) {
+                          toast.error("Distance invalide");
                           return;
                         }
                         setRouteEditBusy(true);
@@ -3265,7 +3269,7 @@ function SuiviPage() {
                             data: {
                               reservation_id: resaIdRef.current,
                               suivi_key: id,
-                              distance_km: Number(totalKm.toFixed(1)),
+                              distance_km: Number(kmChosen.toFixed(1)),
                             },
                           });
                           const newPrice = (res as any)?.prix_estime;
@@ -3274,15 +3278,15 @@ function SuiviPage() {
                             prev
                               ? {
                                   ...prev,
-                                  distance_km: Number(totalKm.toFixed(1)) as any,
+                                  distance_km: Number(kmChosen.toFixed(1)) as any,
                                   prix_estime: newPrice as any,
                                 }
                               : prev,
                           );
                           toast.success(
                             sent > 0
-                              ? `✅ Trajet validé (${totalKm.toFixed(1)} km · ${newPrice?.toFixed?.(2)} €) — client notifié`
-                              : `✅ Trajet validé (${totalKm.toFixed(1)} km · ${newPrice?.toFixed?.(2)} €) — pas de souscription client`,
+                              ? `✅ Trajet validé (${kmChosen.toFixed(1)} km · ${newPrice?.toFixed?.(2)} €) — client notifié`
+                              : `✅ Trajet validé (${kmChosen.toFixed(1)} km · ${newPrice?.toFixed?.(2)} €) — pas de souscription client`,
                           );
                         } catch (e) {
                           console.error("[updateRoute]", e);
