@@ -999,6 +999,13 @@ function SuiviPage() {
         }
         if (distanceKm && distanceKm > 0) setTotalKm(parseFloat(distanceKm.toFixed(1)));
 
+        // Récupère jusqu'à 3 alternatives OSRM pour le sélecteur chauffeur
+        getRouteAlternatives(a, b)
+          .then((alts) => setRouteAlts(alts))
+          .catch(() => setRouteAlts([]));
+
+
+
         // Relire la carte après les awaits — l'instance peut avoir changé
         map = mapInst.current ?? map;
         if (!map) return;
