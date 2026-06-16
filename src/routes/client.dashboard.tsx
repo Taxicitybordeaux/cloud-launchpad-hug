@@ -165,6 +165,25 @@ function ClientDashboard() {
     return () => clearInterval(it);
   }, [rows, loadUnread]);
 
+  // Realtime : rafraîchit la liste dès que le statut change (ex: pending → completed)
+  useEffect(() => {
+    if (!session || !rows || rows.length === 0) return;
+    const ids = rows.map((r) => r.id);
+    const channel = supabase
+      .channel("client-dashboard-status")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "reservations", filter: `id=in.(${ids.join(",")})` },
+        () => {
+          refresh();
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [session, rows, refresh]);
+
   function logout() {
     clearClientSession();
     navigate({ to: "/" });
@@ -188,9 +207,7 @@ function ClientDashboard() {
       setEditTime("");
       refresh();
     } catch (e: any) {
-      toast.error(
-        e?.message === "STATUS_LOCKED" ? t("cd_toast_locked_edit") : t("cd_toast_edit_failed"),
-      );
+      toast.error(e?.message === "STATUS_LOCKED" ? t("cd_toast_locked_edit") : t("cd_toast_edit_failed"));
     } finally {
       setBusy(null);
     }
