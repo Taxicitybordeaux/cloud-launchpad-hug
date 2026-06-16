@@ -6,7 +6,7 @@
  * Ce fichier ne fait JAMAIS d'appel OSRM direct — tout passe par l'Edge Function.
  * Il ne génère JAMAIS de distance à vol d'oiseau — si l'Edge Function échoue, on retourne null/0.
  *
- * Cache mémoire + sessionStorage v8 — rejette km=0 / durée=0.
+ * Cache mémoire + sessionStorage v9 — rejette km=0 / durée=0.
  *
  * Exports :
  *  - getLongestRoute(from, to)           → { distanceKm, durationSec, coords:[lat,lng][] }
@@ -121,7 +121,7 @@ export type LongestRoute = {
   coords: [number, number][]; // [lat, lng] prêt pour Leaflet
 };
 
-const CACHE_PREFIX = "osrm:v8:";
+const CACHE_PREFIX = "osrm:v9:";
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 jours
 const memCache = new Map<string, { at: number; value: LongestRoute }>();
 
