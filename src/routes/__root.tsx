@@ -33,6 +33,12 @@ export const Route = createRootRoute({
       { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
       { rel: "icon", type: "image/png", sizes: "192x192", href: "/icon-192.png" },
       { rel: "icon", type: "image/png", sizes: "512x512", href: "/icon-512.png" },
+      // Perf mobile : preconnect aux origines critiques (Supabase, tuiles carte, géocoder)
+      { rel: "preconnect", href: "https://yxbbkzugsreztiacnswf.supabase.co", crossOrigin: "" },
+      { rel: "dns-prefetch", href: "https://yxbbkzugsreztiacnswf.supabase.co" },
+      { rel: "preconnect", href: "https://a.tile.openstreetmap.org", crossOrigin: "" },
+      { rel: "preconnect", href: "https://nominatim.openstreetmap.org", crossOrigin: "" },
+      { rel: "dns-prefetch", href: "https://router.project-osrm.org" },
     ],
   }),
   shellComponent: RootDocument,
