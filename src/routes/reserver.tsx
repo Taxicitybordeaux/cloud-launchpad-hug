@@ -1011,7 +1011,12 @@ function ReservationPage() {
       }, 200);
     };
     voiceBothRecogRef.current = recog;
-    recog.start();
+    try {
+      recog.start();
+    } catch {
+      setVoiceBothListening(false);
+      voiceBothRecogRef.current = null;
+    }
   }, []);
 
   const [f, setF] = useState<FormState>(() => {
