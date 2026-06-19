@@ -14,6 +14,8 @@ import { reverseGeocode, searchAddress } from "@/lib/geocode";
 import { getDistanceAndDurationKm } from "@/lib/osrm";
 import { newSuiviId } from "@/lib/suivi-id";
 import { notifyNewReservation } from "@/lib/push.functions";
+import { ensureMicAccess, describeGeoError } from "@/lib/permissions";
+import { ListeningOverlay } from "@/components/ListeningOverlay";
 
 import { DICTS, LANGUAGES, type Lang } from "@/i18n/dict";
 
