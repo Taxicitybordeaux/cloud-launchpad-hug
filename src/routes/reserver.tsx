@@ -14,6 +14,8 @@ import { reverseGeocode, searchAddress } from "@/lib/geocode";
 import { getDistanceAndDurationKm } from "@/lib/osrm";
 import { newSuiviId } from "@/lib/suivi-id";
 import { notifyNewReservation } from "@/lib/push.functions";
+import { ensureMicAccess, describeGeoError } from "@/lib/permissions";
+import { ListeningOverlay } from "@/components/ListeningOverlay";
 
 import { DICTS, LANGUAGES, type Lang } from "@/i18n/dict";
 
@@ -837,18 +839,23 @@ function ReservationPage() {
   // et de reset fromCoord à null. Ce flag neutralise un seul appel.
   const skipNextDepartResolveRef = useRef(false);
 
-  const startVoiceRecognition = useCallback(() => {
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) {
-      alert("La reconnaissance vocale n'est pas supportée par ce navigateur.");
-      return;
-    }
+  const startVoiceRecognition = useCallback(async () => {
     if (voiceRecogRef.current) {
-      voiceRecogRef.current.stop();
+      try {
+        voiceRecogRef.current.stop();
+      } catch {
+        /* noop */
+      }
       voiceRecogRef.current = null;
       setVoiceListening(false);
       return;
     }
+    const access = await ensureMicAccess();
+    if (!access.ok) {
+      toast.error(access.reason, { duration: 7000 });
+      return;
+    }
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     const recog = new SR();
     recog.lang = "fr-FR";
     recog.continuous = false;
@@ -859,9 +866,19 @@ function ReservationPage() {
       setVoiceListening(false);
       voiceRecogRef.current = null;
     };
-    recog.onerror = () => {
+    recog.onerror = (e: any) => {
       setVoiceListening(false);
       voiceRecogRef.current = null;
+      const code = e?.error as string | undefined;
+      if (code === "not-allowed" || code === "service-not-allowed") {
+        toast.error("Accès au micro refusé. Autorisez-le dans les réglages du navigateur.", { duration: 6000 });
+      } else if (code === "no-speech") {
+        toast.info("Aucune voix détectée. Réessayez en parlant plus fort.");
+      } else if (code === "audio-capture") {
+        toast.error("Aucun micro détecté sur cet appareil.");
+      } else if (code === "network") {
+        toast.error("Réseau indisponible pour la dictée. Vérifiez votre connexion.");
+      }
     };
     recog.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
@@ -872,24 +889,34 @@ function ReservationPage() {
       setTimeout(() => resolveDestinationAddressRef.current?.(), 300);
     };
     voiceRecogRef.current = recog;
-    recog.start();
+    try {
+      recog.start();
+    } catch {
+      setVoiceListening(false);
+      voiceRecogRef.current = null;
+    }
   }, []);
 
   // Reconnaissance vocale "départ + destination" en une seule phrase.
   // Détecte des séparateurs courants : "à", "vers", "jusqu'à", "destination",
   // "direction", "puis", "et", "->".
-  const startVoiceRecognitionBoth = useCallback(() => {
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) {
-      alert("La reconnaissance vocale n'est pas supportée par ce navigateur.");
-      return;
-    }
+  const startVoiceRecognitionBoth = useCallback(async () => {
     if (voiceBothRecogRef.current) {
-      voiceBothRecogRef.current.stop();
+      try {
+        voiceBothRecogRef.current.stop();
+      } catch {
+        /* noop */
+      }
       voiceBothRecogRef.current = null;
       setVoiceBothListening(false);
       return;
     }
+    const access = await ensureMicAccess();
+    if (!access.ok) {
+      toast.error(access.reason, { duration: 7000 });
+      return;
+    }
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     const recog = new SR();
     recog.lang = "fr-FR";
     recog.continuous = false;
@@ -900,9 +927,19 @@ function ReservationPage() {
       setVoiceBothListening(false);
       voiceBothRecogRef.current = null;
     };
-    recog.onerror = () => {
+    recog.onerror = (e: any) => {
       setVoiceBothListening(false);
       voiceBothRecogRef.current = null;
+      const code = e?.error as string | undefined;
+      if (code === "not-allowed" || code === "service-not-allowed") {
+        toast.error("Accès au micro refusé. Autorisez-le dans les réglages du navigateur.", { duration: 6000 });
+      } else if (code === "no-speech") {
+        toast.info("Aucune voix détectée. Réessayez en parlant plus fort.");
+      } else if (code === "audio-capture") {
+        toast.error("Aucun micro détecté sur cet appareil.");
+      } else if (code === "network") {
+        toast.error("Réseau indisponible pour la dictée. Vérifiez votre connexion.");
+      }
     };
     recog.onresult = (event: any) => {
       const transcript: string = event.results[0][0].transcript;
@@ -974,7 +1011,12 @@ function ReservationPage() {
       }, 200);
     };
     voiceBothRecogRef.current = recog;
-    recog.start();
+    try {
+      recog.start();
+    } catch {
+      setVoiceBothListening(false);
+      voiceBothRecogRef.current = null;
+    }
   }, []);
 
   const [f, setF] = useState<FormState>(() => {
@@ -1225,12 +1267,12 @@ function ReservationPage() {
       toast.error(message);
     };
 
-    const geoErrorMessage = (err?: GeolocationPositionError) =>
-      err?.code === 1
-        ? "Autorisation GPS refusée par le téléphone ou le navigateur. Activez la localisation pour ce site, ou saisissez l’adresse exacte."
-        : err?.code === 2
-          ? "Signal GPS indisponible. Saisissez l’adresse exacte de départ."
-          : "GPS trop long à répondre. Saisissez l’adresse exacte de départ.";
+    const geoErrorMessage = (err?: GeolocationPositionError) => {
+      if (!err) {
+        return "GPS trop long à répondre. Saisissez l'adresse exacte de départ.";
+      }
+      return describeGeoError(err);
+    };
 
     (async () => {
       try {
@@ -1660,6 +1702,20 @@ function ReservationPage() {
     } catch (err: any) {
       setSending(false);
       toast.error(t("res.err.global"), { description: err?.message });
+    }
+  };
+
+  const anyListening = voiceListening || voiceBothListening;
+  const stopAllListening = () => {
+    try {
+      voiceRecogRef.current?.stop?.();
+    } catch {
+      /* noop */
+    }
+    try {
+      voiceBothRecogRef.current?.stop?.();
+    } catch {
+      /* noop */
     }
   };
 
@@ -2737,6 +2793,16 @@ function ReservationPage() {
           <div style={{ height: 20 }} />
         </div>
       </div>
+      <ListeningOverlay
+        open={anyListening}
+        label={voiceBothListening ? "Je vous écoute…" : "Dictez la destination"}
+        hint={
+          voiceBothListening
+            ? "Dites votre trajet, ex : « 12 rue de la République à aéroport de Bordeaux »"
+            : "Dites uniquement votre destination. Touchez « Arrêter » pour valider."
+        }
+        onCancel={stopAllListening}
+      />
     </div>
   );
 }
