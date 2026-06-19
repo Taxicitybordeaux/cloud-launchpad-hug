@@ -55,6 +55,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     import("@/lib/firebase").then(({ setupForegroundNotifications }) => {
       cleanup = setupForegroundNotifications();
     });
+    // Register the offline-capable service worker (guarded against
+    // preview / iframe / dev / ?sw=off).
+    import("@/lib/pwa").then(({ registerPWA }) => registerPWA());
     return () => cleanup?.();
   }, []);
 
