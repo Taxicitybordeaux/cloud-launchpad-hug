@@ -10,7 +10,11 @@ export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      {
+        name: "viewport",
+        content:
+          "width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover",
+      },
       { title: "Taxi City Bordeaux" },
       // PWA — iOS Safari (obligatoire pour activer les push notifications sur iPhone)
       { name: "apple-mobile-web-app-capable", content: "yes" },
