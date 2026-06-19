@@ -1267,12 +1267,12 @@ function ReservationPage() {
       toast.error(message);
     };
 
-    const geoErrorMessage = (err?: GeolocationPositionError) =>
-      err?.code === 1
-        ? "Autorisation GPS refusée par le téléphone ou le navigateur. Activez la localisation pour ce site, ou saisissez l’adresse exacte."
-        : err?.code === 2
-          ? "Signal GPS indisponible. Saisissez l’adresse exacte de départ."
-          : "GPS trop long à répondre. Saisissez l’adresse exacte de départ.";
+    const geoErrorMessage = (err?: GeolocationPositionError) => {
+      if (!err) {
+        return "GPS trop long à répondre. Saisissez l'adresse exacte de départ.";
+      }
+      return describeGeoError(err);
+    };
 
     (async () => {
       try {
