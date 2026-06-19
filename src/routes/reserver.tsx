@@ -2793,6 +2793,16 @@ function ReservationPage() {
           <div style={{ height: 20 }} />
         </div>
       </div>
+      <ListeningOverlay
+        open={anyListening}
+        label={voiceBothListening ? "Je vous écoute…" : "Dictez la destination"}
+        hint={
+          voiceBothListening
+            ? "Dites votre trajet, ex : « 12 rue de la République à aéroport de Bordeaux »"
+            : "Dites uniquement votre destination. Touchez « Arrêter » pour valider."
+        }
+        onCancel={stopAllListening}
+      />
     </div>
   );
 }
