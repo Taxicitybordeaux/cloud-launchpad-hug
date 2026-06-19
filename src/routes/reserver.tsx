@@ -10,8 +10,8 @@ import {
   estJourFerieFR,
   partsParis,
 } from "@/lib/tarif";
-import { reverseGeocode, searchAddress } from "@/lib/geocode";
-import { getDistanceAndDurationKm } from "@/lib/osrm";
+import { reverseGeocode, searchAddress } from "@/lib/googleGeocode";
+import { getDistanceAndDurationKm } from "@/lib/googleRoute";
 import { newSuiviId } from "@/lib/suivi-id";
 import { notifyNewReservation } from "@/lib/push.functions";
 import { ensureMicAccess, describeGeoError } from "@/lib/permissions";
@@ -1207,7 +1207,7 @@ function ReservationPage() {
 
     const fetchOsrm = async () => {
       try {
-        const { getDistanceAndDurationKm } = await import("@/lib/osrm");
+        const { getDistanceAndDurationKm } = await import("@/lib/googleRoute");
         const r = await getDistanceAndDurationKm([fromCoord[1], fromCoord[0]], [toCoord[1], toCoord[0]]);
         if (r && r.distanceKm > 0 && r.dureeS > 0) {
           setOrsResult({
@@ -2102,8 +2102,7 @@ function ReservationPage() {
                       : 'Dictez le trajet complet en une phrase, ex : "12 rue de la République à aéroport de Bordeaux"'
                   }
                   style={{
-                    background:
-                      voiceBothListening || voiceListening ? "rgba(239,68,68,0.15)" : "rgba(245,200,66,0.12)",
+                    background: voiceBothListening || voiceListening ? "rgba(239,68,68,0.15)" : "rgba(245,200,66,0.12)",
                     border: `1px solid ${
                       voiceBothListening || voiceListening ? "rgba(239,68,68,0.4)" : "rgba(245,200,66,0.4)"
                     }`,
@@ -2116,8 +2115,7 @@ function ReservationPage() {
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 6,
-                    animation:
-                      voiceBothListening || voiceListening ? "pulse 1s ease-in-out infinite" : "none",
+                    animation: voiceBothListening || voiceListening ? "pulse 1s ease-in-out infinite" : "none",
                   }}
                 >
                   {voiceBothListening || voiceListening
