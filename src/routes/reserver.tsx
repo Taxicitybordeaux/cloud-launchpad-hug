@@ -12,6 +12,7 @@ import {
 } from "@/lib/tarif";
 import { reverseGeocode, searchAddress } from "@/lib/googleGeocode";
 import { getDistanceAndDurationKm } from "@/lib/googleRoute";
+import { loadGoogleMaps } from "@/lib/googleMaps";
 import { newSuiviId } from "@/lib/suivi-id";
 import { notifyNewReservation } from "@/lib/push.functions";
 import { ensureMicAccess, describeGeoError } from "@/lib/permissions";
@@ -732,28 +733,6 @@ async function ipGeolocate(): Promise<{ lat: number; lng: number } | null> {
   }
 }
 
-function loadLeaflet(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if ((window as any).L) {
-      resolve();
-      return;
-    }
-    if (!document.getElementById("leaflet-css")) {
-      const l = document.createElement("link");
-      l.id = "leaflet-css";
-      l.rel = "stylesheet";
-      l.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-      document.head.appendChild(l);
-    }
-    const s = document.createElement("script");
-    s.id = "leaflet-js";
-    s.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-    s.onload = () => resolve();
-    s.onerror = () => reject();
-    document.head.appendChild(s);
-  });
-}
-
 const inputStyle = (hasError?: boolean): React.CSSProperties => ({
   width: "100%",
   padding: "14px 14px",
@@ -1046,9 +1025,9 @@ function ReservationPage() {
   const dir = lang === "ar" ? "rtl" : "ltr";
 
   const mapRef = useRef<HTMLDivElement>(null);
-  const mapInst = useRef<any>(null);
-  const fromMarker = useRef<any>(null);
-  const toMarker = useRef<any>(null);
+  const mapInst = useRef<google.maps.Map | null>(null);
+  const fromMarker = useRef<google.maps.Marker | null>(null);
+  const toMarker = useRef<google.maps.Marker | null>(null);
 
   const pickupIso = f.date && f.heure ? toParisIso(f.date, f.heure) : null;
 
@@ -1126,74 +1105,85 @@ function ReservationPage() {
     let mounted = true;
     const initMap = async () => {
       try {
-        await loadLeaflet();
+        await loadGoogleMaps();
       } catch {
         return;
       }
       if (!mounted || !mapRef.current) return;
-      const L = (window as any).L;
-      if (mapInst.current) {
-        mapInst.current.remove();
-        mapInst.current = null;
-      }
-      const map = L.map(mapRef.current, { center: BORDEAUX_CENTER, zoom: 12, zoomControl: false });
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "© OpenStreetMap contributors",
-        maxZoom: 19,
-      }).addTo(map);
-      L.control.zoom({ position: "bottomright" }).addTo(map);
+      if (mapInst.current) return; // déjà initialisée (évite double création en StrictMode)
+      const map = new google.maps.Map(mapRef.current, {
+        center: { lat: BORDEAUX_CENTER[0], lng: BORDEAUX_CENTER[1] },
+        zoom: 12,
+        disableDefaultUI: true,
+        zoomControl: true,
+        zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_BOTTOM },
+        clickableIcons: false,
+      });
       mapInst.current = map;
-      setTimeout(() => map.invalidateSize(), 100);
-      setTimeout(() => map.invalidateSize(), 400);
+      setTimeout(() => google.maps.event.trigger(map, "resize"), 100);
+      setTimeout(() => google.maps.event.trigger(map, "resize"), 400);
     };
     initMap();
     return () => {
       mounted = false;
-      if (mapInst.current) {
-        mapInst.current.remove();
-        mapInst.current = null;
-      }
+      fromMarker.current?.setMap(null);
+      fromMarker.current = null;
+      toMarker.current?.setMap(null);
+      toMarker.current = null;
+      mapInst.current = null;
     };
   }, []);
 
   // ── Marqueurs + tracé (chemin le plus long) ───────────────────────────────
   useEffect(() => {
     const map = mapInst.current;
-    const L = (window as any).L;
-    if (!map || !L) return;
+    if (!map || typeof google === "undefined") return;
 
     if (fromCoord) {
-      const icon = L.divIcon({
-        className: "",
-        html: `<div style="width:16px;height:16px;background:#22c55e;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 4px rgba(34,197,94,0.3)"></div>`,
-        iconSize: [16, 16],
-        iconAnchor: [8, 8],
+      fromMarker.current?.setMap(null);
+      fromMarker.current = new google.maps.Marker({
+        position: { lat: fromCoord[0], lng: fromCoord[1] },
+        map,
+        zIndex: 10,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 8,
+          fillColor: "#22c55e",
+          fillOpacity: 1,
+          strokeColor: "#ffffff",
+          strokeWeight: 3,
+        },
       });
-      if (fromMarker.current) fromMarker.current.remove();
-      fromMarker.current = L.marker([fromCoord[0], fromCoord[1]], { icon }).addTo(map);
     }
 
     if (toCoord) {
-      const icon = L.divIcon({
-        className: "",
-        html: `<div style="width:16px;height:16px;background:#f5c842;border-radius:50%;border:3px solid #1a1a2e;box-shadow:0 0 0 4px rgba(245,200,66,0.3)"></div>`,
-        iconSize: [16, 16],
-        iconAnchor: [8, 8],
+      toMarker.current?.setMap(null);
+      toMarker.current = new google.maps.Marker({
+        position: { lat: toCoord[0], lng: toCoord[1] },
+        map,
+        zIndex: 10,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 8,
+          fillColor: "#f5c842",
+          fillOpacity: 1,
+          strokeColor: "#1a1a2e",
+          strokeWeight: 3,
+        },
       });
-      if (toMarker.current) toMarker.current.remove();
-      toMarker.current = L.marker([toCoord[0], toCoord[1]], { icon }).addTo(map);
     }
 
     if (fromCoord && toCoord) {
-      mapInst.current.fitBounds(
-        L.latLngBounds([
-          [fromCoord[0], fromCoord[1]],
-          [toCoord[0], toCoord[1]],
-        ]),
-        { padding: [60, 60], maxZoom: 16, animate: true },
-      );
+      const bounds = new google.maps.LatLngBounds();
+      bounds.extend({ lat: fromCoord[0], lng: fromCoord[1] });
+      bounds.extend({ lat: toCoord[0], lng: toCoord[1] });
+      map.fitBounds(bounds, 60);
+      google.maps.event.addListenerOnce(map, "bounds_changed", () => {
+        if ((map.getZoom() ?? 0) > 16) map.setZoom(16);
+      });
     } else if (fromCoord) {
-      map.setView([fromCoord[0], fromCoord[1]], 14);
+      map.setCenter({ lat: fromCoord[0], lng: fromCoord[1] });
+      map.setZoom(14);
     }
   }, [fromCoord, toCoord]);
 
@@ -1741,7 +1731,6 @@ function ReservationPage() {
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
         @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-        .leaflet-container { width: 100% !important; height: 100% !important; }
       `}</style>
 
       {/* ── Map ── */}
