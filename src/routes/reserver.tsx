@@ -2039,24 +2039,36 @@ function ReservationPage() {
                 <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5" }}>{t("res.loc.ride_section")}</div>
                 <button
                   type="button"
-                  onClick={startVoiceRecognitionBoth}
-                  title='Dictez le trajet complet en une phrase, ex : "12 rue de la République à aéroport de Bordeaux"'
+                  onClick={fromCoord ? startVoiceRecognition : startVoiceRecognitionBoth}
+                  title={
+                    fromCoord
+                      ? "Départ déjà connu (géoloc) — dictez uniquement la destination"
+                      : 'Dictez le trajet complet en une phrase, ex : "12 rue de la République à aéroport de Bordeaux"'
+                  }
                   style={{
-                    background: voiceBothListening ? "rgba(239,68,68,0.15)" : "rgba(245,200,66,0.12)",
-                    border: `1px solid ${voiceBothListening ? "rgba(239,68,68,0.4)" : "rgba(245,200,66,0.4)"}`,
+                    background:
+                      voiceBothListening || voiceListening ? "rgba(239,68,68,0.15)" : "rgba(245,200,66,0.12)",
+                    border: `1px solid ${
+                      voiceBothListening || voiceListening ? "rgba(239,68,68,0.4)" : "rgba(245,200,66,0.4)"
+                    }`,
                     borderRadius: 8,
                     padding: "6px 10px",
                     cursor: "pointer",
                     fontSize: 12,
                     fontWeight: 700,
-                    color: voiceBothListening ? "#f87171" : "#f5c842",
+                    color: voiceBothListening || voiceListening ? "#f87171" : "#f5c842",
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 6,
-                    animation: voiceBothListening ? "pulse 1s ease-in-out infinite" : "none",
+                    animation:
+                      voiceBothListening || voiceListening ? "pulse 1s ease-in-out infinite" : "none",
                   }}
                 >
-                  {voiceBothListening ? "⏹ J'écoute…" : "🎤 Dicter départ + destination"}
+                  {voiceBothListening || voiceListening
+                    ? "⏹ J'écoute…"
+                    : fromCoord
+                      ? "🎤 Dicter la destination"
+                      : "🎤 Dicter départ + destination"}
                 </button>
               </div>
 
