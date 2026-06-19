@@ -59,6 +59,9 @@ export const getRouter = () => {
     routeTree,
     context: {},
     scrollRestoration: true,
+    // Préchargement des routes au hover/focus (desktop) ou au touchstart (mobile).
+    // Gain perceptible sur la navigation Android/iOS.
+    defaultPreload: "intent",
     defaultPreloadStaleTime: 0,
     defaultErrorComponent: DefaultErrorComponent,
   });
