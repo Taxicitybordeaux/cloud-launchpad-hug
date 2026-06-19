@@ -839,18 +839,23 @@ function ReservationPage() {
   // et de reset fromCoord à null. Ce flag neutralise un seul appel.
   const skipNextDepartResolveRef = useRef(false);
 
-  const startVoiceRecognition = useCallback(() => {
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) {
-      alert("La reconnaissance vocale n'est pas supportée par ce navigateur.");
-      return;
-    }
+  const startVoiceRecognition = useCallback(async () => {
     if (voiceRecogRef.current) {
-      voiceRecogRef.current.stop();
+      try {
+        voiceRecogRef.current.stop();
+      } catch {
+        /* noop */
+      }
       voiceRecogRef.current = null;
       setVoiceListening(false);
       return;
     }
+    const access = await ensureMicAccess();
+    if (!access.ok) {
+      toast.error(access.reason, { duration: 7000 });
+      return;
+    }
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     const recog = new SR();
     recog.lang = "fr-FR";
     recog.continuous = false;
@@ -861,9 +866,19 @@ function ReservationPage() {
       setVoiceListening(false);
       voiceRecogRef.current = null;
     };
-    recog.onerror = () => {
+    recog.onerror = (e: any) => {
       setVoiceListening(false);
       voiceRecogRef.current = null;
+      const code = e?.error as string | undefined;
+      if (code === "not-allowed" || code === "service-not-allowed") {
+        toast.error("Accès au micro refusé. Autorisez-le dans les réglages du navigateur.", { duration: 6000 });
+      } else if (code === "no-speech") {
+        toast.info("Aucune voix détectée. Réessayez en parlant plus fort.");
+      } else if (code === "audio-capture") {
+        toast.error("Aucun micro détecté sur cet appareil.");
+      } else if (code === "network") {
+        toast.error("Réseau indisponible pour la dictée. Vérifiez votre connexion.");
+      }
     };
     recog.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
@@ -874,7 +889,12 @@ function ReservationPage() {
       setTimeout(() => resolveDestinationAddressRef.current?.(), 300);
     };
     voiceRecogRef.current = recog;
-    recog.start();
+    try {
+      recog.start();
+    } catch {
+      setVoiceListening(false);
+      voiceRecogRef.current = null;
+    }
   }, []);
 
   // Reconnaissance vocale "départ + destination" en une seule phrase.
