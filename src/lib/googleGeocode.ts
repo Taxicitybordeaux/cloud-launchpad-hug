@@ -94,6 +94,31 @@ export async function searchAddress(query: string, limit = 5): Promise<SearchRes
   }
 }
 
+/**
+ * Reverse geocoding : coordonnées → adresse formatée la plus proche.
+ * Retourne null si rien trouvé.
+ * Utilisé pour : pré-remplir l'adresse de départ après géolocalisation
+ * navigateur, et enrichir le label des POIs sans rue connue (supermarchés…).
+ */
+export async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
+  try {
+    const g = await getGeocoder();
+    const results = await new Promise<google.maps.GeocoderResult[] | null>((resolve) => {
+      g.geocode({ location: { lat, lng } }, (res, status) => {
+        if (status !== google.maps.GeocoderStatus.OK || !res?.length) {
+          resolve(null);
+          return;
+        }
+        resolve(res);
+      });
+    });
+    if (!results?.[0]) return null;
+    return results[0].formatted_address;
+  } catch {
+    return null;
+  }
+}
+
 // ── Autocomplete temps réel (saisie utilisateur) ────────────────────────────
 
 let autocompleteService: google.maps.places.AutocompleteService | null = null;
