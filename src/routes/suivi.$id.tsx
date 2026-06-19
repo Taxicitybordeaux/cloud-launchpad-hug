@@ -4,8 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 // Push client retiré — bandeau d'étapes visuel à la place (voir composant ci-dessous).
-import { getRouteGeoCoords, getDistanceAndDurationKm, calibrateKm } from "@/lib/osrm";
-import { geocodeAddress, searchAddress } from "@/lib/geocode";
+import { getRouteGeoCoords, getDistanceAndDurationKm, calibrateKm } from "@/lib/googleRoute";
+import { geocodeAddress, searchAddress } from "@/lib/googleGeocode";
 import { notifyReservationStatus } from "@/lib/push.functions";
 
 const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
