@@ -1705,6 +1705,20 @@ function ReservationPage() {
     }
   };
 
+  const anyListening = voiceListening || voiceBothListening;
+  const stopAllListening = () => {
+    try {
+      voiceRecogRef.current?.stop?.();
+    } catch {
+      /* noop */
+    }
+    try {
+      voiceBothRecogRef.current?.stop?.();
+    } catch {
+      /* noop */
+    }
+  };
+
   return (
     <div
       style={{
