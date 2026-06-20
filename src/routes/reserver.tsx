@@ -2348,6 +2348,7 @@ function ReservationPage() {
                     }}
                   >
                     <span>
+                      {geolocStatus === "hint" && "📍"}
                       {geolocStatus === "loading" && "⏳"}
                       {geolocStatus === "success" && "✓"}
                       {geolocStatus === "ip" && "🌐"}
