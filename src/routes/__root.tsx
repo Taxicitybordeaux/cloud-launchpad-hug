@@ -64,8 +64,13 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     // Register the offline-capable service worker (guarded against
     // preview / iframe / dev / ?sw=off).
     import("@/lib/pwa").then(({ registerPWA }) => registerPWA());
+    // Vérification au démarrage de la clé Google Maps (warning dev si absente).
+    import("@/lib/googleConfig").then(({ assertGoogleConfigOnStartup }) =>
+      assertGoogleConfigOnStartup(),
+    );
     return () => cleanup?.();
   }, []);
+
 
   const showHeader =
     !pathname.startsWith("/reserver") &&
