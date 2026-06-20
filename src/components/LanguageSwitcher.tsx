@@ -47,8 +47,8 @@ export function LanguageSwitcher({ className = "" }: { className?: string }) {
                   l.code === lang ? "text-primary font-semibold" : ""
                 }`}
               >
-                <span className="flex items-center gap-2">
-                  <span>{l.flag}</span> {l.label}
+              <span className="flex items-center gap-2">
+                  <FlagIcon code={l.code} /> {l.label}
                 </span>
                 {l.code === lang && <Check className="h-4 w-4" />}
               </button>
