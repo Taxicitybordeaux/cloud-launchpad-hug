@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 // Push client retiré — bandeau d'étapes visuel à la place (voir composant ci-dessous).
 import { getRouteGeoCoords, getDistanceAndDurationKm, calibrateKm } from "@/lib/googleRoute";
 import { geocodeAddress, searchAddress } from "@/lib/googleGeocode";
-import { loadGoogleMaps, loadGoogleMapsWhenVisible } from "@/lib/googleMaps";
+import { loadGoogleMapsWhenVisible } from "@/lib/googleMaps";
 import { notifyReservationStatus } from "@/lib/push.functions";
 
 

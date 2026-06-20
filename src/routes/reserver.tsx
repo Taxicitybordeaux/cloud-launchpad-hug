@@ -12,7 +12,7 @@ import {
 } from "@/lib/tarif";
 import { reverseGeocode, searchAddress } from "@/lib/googleGeocode";
 import { getDistanceAndDurationKm } from "@/lib/googleRoute";
-import { loadGoogleMaps, loadGoogleMapsWhenVisible } from "@/lib/googleMaps";
+import { loadGoogleMapsWhenVisible } from "@/lib/googleMaps";
 import { newSuiviId } from "@/lib/suivi-id";
 import { notifyNewReservation } from "@/lib/push.functions";
 import { ensureMicAccess, describeGeoError } from "@/lib/permissions";
