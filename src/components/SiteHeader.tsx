@@ -31,22 +31,17 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-3 sm:h-16 sm:px-4">
-        <Link to="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
+        <Link to="/" className="flex min-w-0 items-center gap-2" onClick={() => setOpen(false)}>
           <img
             src={logo}
             alt="Taxi City Bordeaux"
             width={40}
             height={40}
             decoding="async"
-            className="h-10 w-auto rounded-md object-contain sm:h-12"
+            className="h-9 w-auto max-w-[140px] rounded-md object-contain sm:h-12 sm:max-w-none"
           />
-          {/* Show brand name on mobile so users know where they are */}
-          <span className="text-sm font-semibold leading-tight sm:hidden">
-            Taxi City
-            <br />
-            Bordeaux
-          </span>
-          <span className="sr-only sm:not-sr-only sm:text-sm sm:font-semibold">Taxi City Bordeaux</span>
+          {/* Logo already contains the brand name — keep a screen-reader-only label to avoid mobile overlap */}
+          <span className="sr-only">Taxi City Bordeaux</span>
         </Link>
 
         <nav className="hidden items-center gap-7 md:flex">
