@@ -2053,20 +2053,29 @@ function SuiviPage() {
     const refit = () => {
       mapsApi.maps.event.trigger(map, "resize");
       const bounds = new mapsApi.maps.LatLngBounds();
-      let count = 0;
+      const seen = new Set<string>();
       const pushPos = (p: any) => {
         if (!p) return;
-        bounds.extend({ lat: p.lat(), lng: p.lng() });
-        count++;
+        const lat = p.lat(), lng = p.lng();
+        const k = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+        if (seen.has(k)) return;
+        seen.add(k);
+        bounds.extend({ lat, lng });
       };
       pushPos(fromMarker.current?.getPosition?.());
       pushPos(toMarker.current?.getPosition?.());
       pushPos(markerRef.current?.getPosition?.());
-      if (count === 0) return;
+      if (seen.size === 0) return;
       try {
-        map.fitBounds(bounds, 60);
+        if (seen.size === 1) {
+          map.setCenter(bounds.getCenter());
+          map.setZoom(followZoomRef.current ?? initialZoom.current ?? 15);
+        } else {
+          map.fitBounds(bounds, 60);
+        }
       } catch {}
     };
+
     const t1 = setTimeout(refit, 50);
     const t2 = setTimeout(refit, 250);
     const t3 = setTimeout(refit, 600);
