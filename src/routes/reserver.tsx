@@ -1025,9 +1025,9 @@ function ReservationPage() {
   const dir = lang === "ar" ? "rtl" : "ltr";
 
   const mapRef = useRef<HTMLDivElement>(null);
-  const mapInst = useRef<google.maps.Map | null>(null);
-  const fromMarker = useRef<google.maps.Marker | null>(null);
-  const toMarker = useRef<google.maps.Marker | null>(null);
+  const mapInst = useRef<any | null>(null);
+  const fromMarker = useRef<any | null>(null);
+  const toMarker = useRef<any | null>(null);
 
   const pickupIso = f.date && f.heure ? toParisIso(f.date, f.heure) : null;
 
@@ -1104,24 +1104,25 @@ function ReservationPage() {
   useEffect(() => {
     let mounted = true;
     const initMap = async () => {
+      let mapsApi: any;
       try {
-        await loadGoogleMaps();
+        mapsApi = await loadGoogleMaps();
       } catch {
         return;
       }
       if (!mounted || !mapRef.current) return;
       if (mapInst.current) return; // déjà initialisée (évite double création en StrictMode)
-      const map = new google.maps.Map(mapRef.current, {
+      const map = new mapsApi.maps.Map(mapRef.current, {
         center: { lat: BORDEAUX_CENTER[0], lng: BORDEAUX_CENTER[1] },
         zoom: 12,
         disableDefaultUI: true,
         zoomControl: true,
-        zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_BOTTOM },
+        zoomControlOptions: { position: mapsApi.maps.ControlPosition.RIGHT_BOTTOM },
         clickableIcons: false,
       });
       mapInst.current = map;
-      setTimeout(() => google.maps.event.trigger(map, "resize"), 100);
-      setTimeout(() => google.maps.event.trigger(map, "resize"), 400);
+      setTimeout(() => mapsApi.maps.event.trigger(map, "resize"), 100);
+      setTimeout(() => mapsApi.maps.event.trigger(map, "resize"), 400);
     };
     initMap();
     return () => {
@@ -1137,16 +1138,17 @@ function ReservationPage() {
   // ── Marqueurs + tracé (chemin le plus long) ───────────────────────────────
   useEffect(() => {
     const map = mapInst.current;
-    if (!map || typeof google === "undefined") return;
+    const mapsApi = (window as Window & { google?: any }).google;
+    if (!map || !mapsApi?.maps) return;
 
     if (fromCoord) {
       fromMarker.current?.setMap(null);
-      fromMarker.current = new google.maps.Marker({
+      fromMarker.current = new mapsApi.maps.Marker({
         position: { lat: fromCoord[0], lng: fromCoord[1] },
         map,
         zIndex: 10,
         icon: {
-          path: google.maps.SymbolPath.CIRCLE,
+          path: mapsApi.maps.SymbolPath.CIRCLE,
           scale: 8,
           fillColor: "#22c55e",
           fillOpacity: 1,
@@ -1158,12 +1160,12 @@ function ReservationPage() {
 
     if (toCoord) {
       toMarker.current?.setMap(null);
-      toMarker.current = new google.maps.Marker({
+      toMarker.current = new mapsApi.maps.Marker({
         position: { lat: toCoord[0], lng: toCoord[1] },
         map,
         zIndex: 10,
         icon: {
-          path: google.maps.SymbolPath.CIRCLE,
+          path: mapsApi.maps.SymbolPath.CIRCLE,
           scale: 8,
           fillColor: "#f5c842",
           fillOpacity: 1,
@@ -1174,11 +1176,11 @@ function ReservationPage() {
     }
 
     if (fromCoord && toCoord) {
-      const bounds = new google.maps.LatLngBounds();
+      const bounds = new mapsApi.maps.LatLngBounds();
       bounds.extend({ lat: fromCoord[0], lng: fromCoord[1] });
       bounds.extend({ lat: toCoord[0], lng: toCoord[1] });
       map.fitBounds(bounds, 60);
-      google.maps.event.addListenerOnce(map, "bounds_changed", () => {
+      mapsApi.maps.event.addListenerOnce(map, "bounds_changed", () => {
         if ((map.getZoom() ?? 0) > 16) map.setZoom(16);
       });
     } else if (fromCoord) {
