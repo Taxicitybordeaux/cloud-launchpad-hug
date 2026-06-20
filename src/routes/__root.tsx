@@ -67,6 +67,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     });
     // Nettoie l'ancien cache PWA en production sans casser la preview.
     import("@/lib/pwa").then(({ registerPWA }) => registerPWA());
+    // Surveille les nouvelles versions et propose un rechargement.
+    import("@/lib/versionWatcher").then(({ startVersionWatcher }) =>
+      startVersionWatcher(),
+    );
     // Vérification au démarrage de la clé Google Maps (warning dev si absente).
     import("@/lib/googleConfig").then(({ assertGoogleConfigOnStartup }) =>
       assertGoogleConfigOnStartup(),
