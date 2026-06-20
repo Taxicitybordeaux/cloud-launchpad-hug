@@ -5,6 +5,8 @@
 import { loadGoogleMaps } from "./googleMaps";
 
 type LngLat = [number, number]; // [lng, lat] — même convention que l'ancien OSRM
+type GoogleDirectionsService = any;
+type GoogleDirectionsResult = any;
 
 export type RouteResult = {
   distanceKm: number;
@@ -16,12 +18,13 @@ export type DurationResult = {
   distanceKm: number;
 };
 
-let directionsService: google.maps.DirectionsService | null = null;
+let directionsService: GoogleDirectionsService | null = null;
 async function getDirectionsService() {
   if (directionsService) return directionsService;
   const g = await loadGoogleMaps();
-  directionsService = new g.maps.DirectionsService();
-  return directionsService;
+  const nextDirectionsService = new g.maps.DirectionsService();
+  directionsService = nextDirectionsService;
+  return nextDirectionsService;
 }
 
 function decodePolyline(encoded: string): [number, number][] {
@@ -62,6 +65,7 @@ function decodePolyline(encoded: string): [number, number][] {
  * origin/dest en [lng, lat], retour coords en [lat, lng][].
  */
 export async function getRouteGeoCoords(origin: LngLat, dest: LngLat): Promise<RouteResult> {
+  const api = await loadGoogleMaps();
   const service = await getDirectionsService();
   const [oLng, oLat] = origin;
   const [dLng, dLat] = dest;
@@ -71,11 +75,11 @@ export async function getRouteGeoCoords(origin: LngLat, dest: LngLat): Promise<R
       {
         origin: { lat: oLat, lng: oLng },
         destination: { lat: dLat, lng: dLng },
-        travelMode: google.maps.TravelMode.DRIVING,
+          travelMode: api.maps.TravelMode.DRIVING,
         region: "fr",
       },
-      (result, status) => {
-        if (status !== google.maps.DirectionsStatus.OK || !result?.routes?.[0]) {
+      (result: GoogleDirectionsResult | null, status: string) => {
+        if (status !== api.maps.DirectionsStatus.OK || !result?.routes?.[0]) {
           reject(new Error(`Directions API: ${status}`));
           return;
         }
@@ -97,23 +101,24 @@ export async function getRouteGeoCoords(origin: LngLat, dest: LngLat): Promise<R
  */
 export async function getDistanceAndDurationKm(origin: LngLat, dest: LngLat): Promise<DurationResult | null> {
   try {
+    const api = await loadGoogleMaps();
     const service = await getDirectionsService();
     const [oLng, oLat] = origin;
     const [dLng, dLat] = dest;
-    const result = await new Promise<google.maps.DirectionsResult>((resolve, reject) => {
+    const result = await new Promise<GoogleDirectionsResult>((resolve, reject) => {
       service.route(
         {
           origin: { lat: oLat, lng: oLng },
           destination: { lat: dLat, lng: dLng },
-          travelMode: google.maps.TravelMode.DRIVING,
+          travelMode: api.maps.TravelMode.DRIVING,
           region: "fr",
           drivingOptions: {
             departureTime: new Date(),
-            trafficModel: google.maps.TrafficModel.BEST_GUESS,
+            trafficModel: api.maps.TrafficModel.BEST_GUESS,
           },
         },
-        (res, status) => {
-          if (status !== google.maps.DirectionsStatus.OK || !res) {
+        (res: GoogleDirectionsResult | null, status: string) => {
+          if (status !== api.maps.DirectionsStatus.OK || !res) {
             reject(new Error(`Directions API: ${status}`));
             return;
           }
