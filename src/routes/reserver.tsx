@@ -1900,7 +1900,9 @@ function ReservationPage() {
           background: "linear-gradient(180deg, #0f4bbf 0%, #0a3aa1 100%)",
           borderRadius: "24px 24px 0 0",
           boxShadow: "0 -8px 40px rgba(0,0,0,0.3)",
-          maxHeight: "70vh",
+          // 70% de la hauteur visible (dvh), avec un minimum confortable et un plafond clavier
+          maxHeight: "min(70dvh, calc(100dvh - 220px))",
+          minHeight: "260px",
           display: "flex",
           flexDirection: "column",
           overflowX: "hidden",
