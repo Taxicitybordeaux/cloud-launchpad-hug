@@ -61,6 +61,40 @@ export function loadGoogleMaps(): Promise<GoogleMapsApi> {
   return mapsLoadPromise;
 }
 
+/**
+ * Attend qu'un élément DOM devienne visible dans le viewport, puis charge le SDK Google Maps.
+ * Lazy-loading : aucune requête vers maps.googleapis.com tant que la carte n'est pas visible,
+ * ce qui réduit l'impact sur le rendu initial et le CLS.
+ */
+export function loadGoogleMapsWhenVisible(
+  element: Element | null | undefined,
+  options: { rootMargin?: string; threshold?: number } = {},
+): Promise<GoogleMapsApi> {
+  if (typeof window === "undefined") {
+    return Promise.reject(new Error("loadGoogleMapsWhenVisible: appelé côté serveur"));
+  }
+  if (!element || typeof IntersectionObserver === "undefined") {
+    return loadGoogleMaps();
+  }
+  return new Promise<GoogleMapsApi>((resolve, reject) => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            observer.disconnect();
+            loadGoogleMaps().then(resolve, reject);
+            return;
+          }
+        }
+      },
+      { rootMargin: options.rootMargin ?? "200px", threshold: options.threshold ?? 0 },
+    );
+    observer.observe(element);
+  });
+}
+
+
+
 
 // ── Géolocalisation directe (navigateur → centre la carte) ─────────────────
 
