@@ -3,7 +3,9 @@
 // + helper de géolocalisation directe navigateur.
 // Remplace le loadLeaflet() + tuiles OSM utilisés jusqu'ici.
 
-let mapsLoadPromise: Promise<typeof google> | null = null;
+export type GoogleMapsApi = any;
+
+let mapsLoadPromise: Promise<GoogleMapsApi> | null = null;
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
 
@@ -11,12 +13,13 @@ const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string |
  * Charge le SDK Google Maps une seule fois (Maps JS + Places + Geometry).
  * Retourne l'objet global `google` une fois prêt.
  */
-export function loadGoogleMaps(): Promise<typeof google> {
+export function loadGoogleMaps(): Promise<GoogleMapsApi> {
   if (typeof window === "undefined") {
     return Promise.reject(new Error("loadGoogleMaps: appelé côté serveur"));
   }
-  if ((window as any).google?.maps) {
-    return Promise.resolve((window as any).google);
+  const win = window as Window & { google?: GoogleMapsApi };
+  if (win.google?.maps) {
+    return Promise.resolve(win.google);
   }
   if (!mapsLoadPromise) {
     if (!GOOGLE_MAPS_API_KEY) {
@@ -25,10 +28,10 @@ export function loadGoogleMaps(): Promise<typeof google> {
         new Error("VITE_GOOGLE_MAPS_API_KEY manquant — vérifie ton fichier .env"),
       );
     }
-    mapsLoadPromise = new Promise<typeof google>((resolve, reject) => {
+    mapsLoadPromise = new Promise<GoogleMapsApi>((resolve, reject) => {
       const existing = document.getElementById("google-maps-sdk");
       if (existing) {
-        existing.addEventListener("load", () => resolve((window as any).google));
+        existing.addEventListener("load", () => resolve(win.google));
         existing.addEventListener("error", () => reject(new Error("Échec chargement Google Maps SDK")));
         return;
       }
@@ -37,7 +40,7 @@ export function loadGoogleMaps(): Promise<typeof google> {
       script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places,geometry&loading=async&language=fr&region=FR`;
       script.async = true;
       script.defer = true;
-      script.onload = () => resolve((window as any).google);
+      script.onload = () => resolve(win.google);
       script.onerror = () => {
         mapsLoadPromise = null;
         reject(new Error("Échec chargement Google Maps SDK"));
