@@ -132,22 +132,24 @@ export async function reverseGeocode(lat: number, lng: number): Promise<string |
 
 // ── Autocomplete temps réel (saisie utilisateur) ────────────────────────────
 
-let autocompleteService: google.maps.places.AutocompleteService | null = null;
-let placesService: google.maps.places.PlacesService | null = null;
+let autocompleteService: GoogleAutocompleteService | null = null;
+let placesService: GooglePlacesService | null = null;
 
 async function getAutocompleteService() {
   if (autocompleteService) return autocompleteService;
   const g = await loadGoogleMaps();
-  autocompleteService = new g.maps.places.AutocompleteService();
-  return autocompleteService;
+  const nextAutocompleteService = new g.maps.places.AutocompleteService();
+  autocompleteService = nextAutocompleteService;
+  return nextAutocompleteService;
 }
 
 async function getPlacesService() {
   if (placesService) return placesService;
-  await loadGoogleMaps();
+  const api = await loadGoogleMaps();
   const div = document.createElement("div");
-  placesService = new google.maps.places.PlacesService(div);
-  return placesService;
+  const nextPlacesService = new api.maps.places.PlacesService(div);
+  placesService = nextPlacesService;
+  return nextPlacesService;
 }
 
 export type PlaceSuggestion = { placeId: string; description: string };
@@ -159,17 +161,18 @@ export type PlaceSuggestion = { placeId: string; description: string };
 export async function getAddressSuggestions(input: string): Promise<PlaceSuggestion[]> {
   if (!input || input.trim().length < 3) return [];
   try {
+    const api = await loadGoogleMaps();
     const service = await getAutocompleteService();
-    const predictions = await new Promise<google.maps.places.AutocompletePrediction[] | null>((resolve) => {
+    const predictions = await new Promise<GoogleAutocompletePrediction[] | null>((resolve) => {
       service.getPlacePredictions(
         {
           input,
           componentRestrictions: { country: "fr" },
-          location: new google.maps.LatLng(44.8378, -0.5792),
+          location: new api.maps.LatLng(44.8378, -0.5792),
           radius: 80_000,
         },
-        (preds, status) => {
-          if (status !== google.maps.places.PlacesServiceStatus.OK || !preds) {
+        (preds: GoogleAutocompletePrediction[] | null, status: string) => {
+          if (status !== api.maps.places.PlacesServiceStatus.OK || !preds) {
             resolve(null);
             return;
           }
@@ -189,10 +192,11 @@ export async function getAddressSuggestions(input: string): Promise<PlaceSuggest
  */
 export async function resolvePlaceId(placeId: string): Promise<GeoCoord | null> {
   try {
+    const api = await loadGoogleMaps();
     const service = await getPlacesService();
-    const place = await new Promise<google.maps.places.PlaceResult | null>((resolve) => {
-      service.getDetails({ placeId, fields: ["geometry"] }, (result, status) => {
-        if (status !== google.maps.places.PlacesServiceStatus.OK || !result?.geometry?.location) {
+    const place = await new Promise<GooglePlaceResult | null>((resolve) => {
+      service.getDetails({ placeId, fields: ["geometry"] }, (result: GooglePlaceResult | null, status: string) => {
+        if (status !== api.maps.places.PlacesServiceStatus.OK || !result?.geometry?.location) {
           resolve(null);
           return;
         }
