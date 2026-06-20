@@ -1760,12 +1760,19 @@ function ReservationPage() {
         display: "flex",
         flexDirection: "column",
         overflowX: "hidden",
+        // Safe-area : respecte notch / barre dynamique / home indicator (iOS, Android PWA)
+        paddingTop: "env(safe-area-inset-top, 0px)",
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        paddingLeft: "env(safe-area-inset-left, 0px)",
+        paddingRight: "env(safe-area-inset-right, 0px)",
+        // Hauteur dynamique (dvh) pour suivre la barre d'URL mobile + clavier
+        height: "100dvh",
+        minHeight: "100svh",
       }}
     >
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Clash+Display:wght@700&family=DM+Sans:wght@400;500;600;700&display=swap');
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        html, body { overflow-x: hidden; max-width: 100vw; }
+        html, body { overflow-x: hidden; max-width: 100vw; overscroll-behavior-y: contain; }
         input, select, button { font-family: 'DM Sans', sans-serif; }
         input[type=date], input[type=time] { color-scheme: light; }
         input[type=text], input[type=tel], input[type=email] { font-size: 16px !important; }
@@ -1773,6 +1780,7 @@ function ReservationPage() {
         @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
         @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
       `}</style>
+
 
       {/* ── Map ── */}
       <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
