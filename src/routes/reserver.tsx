@@ -1238,18 +1238,13 @@ function ReservationPage() {
   }, [fromCoord, toCoord]);
 
   // ── Géolocalisation départ (navigateur client) ───────────────────────────
-  const handleGeolocate = useCallback(() => {
-    if (!navigator.geolocation) {
-      setGeolocStatus("error");
-      setGeolocStatusMsg("Géolocalisation non disponible sur cet appareil");
-      toast.error("Géolocalisation non disponible");
-      return;
-    }
+  const handleGeolocate = useCallback((options?: { automatic?: boolean }) => {
+    const automatic = options?.automatic === true;
     setGeolocLoading(true);
     setGeolocStatus("loading");
-    setGeolocStatusMsg("Localisation en cours…");
+    setGeolocStatusMsg(automatic ? "Détection automatique du départ…" : "Localisation en cours…");
 
-    const applyPosition = async (lat: number, lng: number, source: "gps" | "ip" = "gps") => {
+    const applyPosition = async (lat: number, lng: number, source: "gps" | "approx" | "ip" = "gps") => {
       let adresse = await reverseGeocode(lat, lng).catch(() => null);
       if (!adresse) {
         const fallback = await searchAddress(`${lat}, ${lng}`, 1).catch(() => []);
@@ -1265,14 +1260,18 @@ function ReservationPage() {
         delete next.depart;
         return next;
       });
-      if (source === "ip") {
+      if (source === "ip" || source === "approx") {
         setGeolocStatus("ip");
-        setGeolocStatusMsg("Position approximative (via IP) — vous pouvez préciser l'adresse");
+        setGeolocStatusMsg(
+          source === "ip"
+            ? "Position approximative (via IP) — vous pouvez préciser l'adresse"
+            : "Position approximative détectée — vérifiez l'adresse de départ",
+        );
       } else {
         setGeolocStatus("success");
         setGeolocStatusMsg("Position GPS détectée — modifiable si besoin");
       }
-      toast.success(t("res.geo.btn") + " ✓");
+      if (!automatic || source === "gps") toast.success(t("res.geo.btn") + " ✓");
       setGeolocLoading(false);
     };
 
@@ -1285,6 +1284,29 @@ function ReservationPage() {
       setGeolocStatusMsg(message);
       toast.error(message);
     };
+
+    const tryIpFallback = async (fallbackMessage: string, fallbackKind: GeolocStatus = "error") => {
+      const ip = await ipGeolocate();
+      if (ip) {
+        const distanceFromBordeaux = distanceKmBetween(BORDEAUX_CENTER, [ip.lat, ip.lng]);
+        if (distanceFromBordeaux <= MAX_AUTO_GEO_DISTANCE_FROM_BORDEAUX_KM) {
+          if (!automatic) toast.info("Position GPS indisponible — position approximative via IP.");
+          await applyPosition(ip.lat, ip.lng, "ip");
+          return;
+        }
+      }
+      rejectAutoPosition(fallbackMessage, fallbackKind);
+    };
+
+    if (typeof window !== "undefined" && !window.isSecureContext && window.location.hostname !== "localhost") {
+      void tryIpFallback("La géolocalisation GPS nécessite HTTPS. Saisissez l’adresse exacte de départ.");
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      void tryIpFallback("Géolocalisation non disponible sur cet appareil");
+      return;
+    }
 
     const geoErrorMessage = (err?: GeolocationPositionError) => {
       if (!err) {
@@ -1300,38 +1322,35 @@ function ReservationPage() {
     // n'apparaît jamais et le call timeout silencieusement. On ouvre donc la requête GPS ici,
     // puis on chaîne les fallbacks via callbacks (pas d'await avant getCurrentPosition).
     const onFirstSuccess = (precise: GeolocationPosition) => {
-      const reason = getAutoGeoRejectionReason(precise);
+      const reason = getAutoGeoRejectionReason(precise, true);
       if (reason) {
-        rejectAutoPosition(reason);
+        void tryIpFallback(reason);
         return;
       }
-      void applyPosition(precise.coords.latitude, precise.coords.longitude, "gps");
+      const source = precise.coords.accuracy > MAX_AUTO_GEO_ACCURACY_M ? "approx" : "gps";
+      void applyPosition(precise.coords.latitude, precise.coords.longitude, source);
     };
 
     const onFirstError = (firstErr: GeolocationPositionError) => {
+      if (isDenied(firstErr)) {
+        void tryIpFallback(geoErrorMessage(firstErr), "denied");
+        return;
+      }
       // Retry rapide avec cache autorisé — ré-invoqué dans le même tick, gesture toujours valide via la permission accordée précédemment.
       navigator.geolocation.getCurrentPosition(
         (cached) => {
           const reason = getAutoGeoRejectionReason(cached, true);
           if (reason) {
-            rejectAutoPosition(reason);
+            void tryIpFallback(reason);
             return;
           }
-          toast.info("Position approximative détectée — vous pouvez préciser l'adresse.");
-          void applyPosition(cached.coords.latitude, cached.coords.longitude, "ip");
+          if (!automatic) toast.info("Position approximative détectée — vous pouvez préciser l'adresse.");
+          const source = cached.coords.accuracy > MAX_AUTO_GEO_ACCURACY_M ? "approx" : "gps";
+          void applyPosition(cached.coords.latitude, cached.coords.longitude, source);
         },
-        async (secondErr) => {
-          const ip = await ipGeolocate();
-          if (ip) {
-            const distanceFromBordeaux = distanceKmBetween(BORDEAUX_CENTER, [ip.lat, ip.lng]);
-            if (distanceFromBordeaux <= MAX_AUTO_GEO_DISTANCE_FROM_BORDEAUX_KM) {
-              toast.info("Position GPS indisponible — position approximative via IP.");
-              void applyPosition(ip.lat, ip.lng, "ip");
-              return;
-            }
-          }
+        (secondErr) => {
           const err = (secondErr || firstErr) as GeolocationPositionError;
-          rejectAutoPosition(geoErrorMessage(err), isDenied(err) ? "denied" : "error");
+          void tryIpFallback(geoErrorMessage(err), isDenied(err) ? "denied" : "error");
         },
         { enableHighAccuracy: false, maximumAge: 120000, timeout: 8000 },
       );
@@ -1345,9 +1364,8 @@ function ReservationPage() {
   }, []);
 
   // ── Auto-géoloc au chargement (départ vide, une seule fois par montage) ──
-  // Si l'utilisateur arrive sans `?depart=...` dans l'URL et n'a pas encore
-  // de départ saisi, on tente la géoloc navigateur silencieusement. Le toast
-  // success/error de handleGeolocate informe le client du résultat.
+  // Pas de table ni d'Edge Function nécessaire : la position vient du navigateur,
+  // puis fallback IP si le GPS est refusé/indisponible.
   const autoGeolocTriedRef = useRef(false);
   useEffect(() => {
     if (autoGeolocTriedRef.current) return;
@@ -1355,18 +1373,9 @@ function ReservationPage() {
     if (f.depart.trim().length > 0) return; // déjà rempli (query param ou autre)
     if (geolocLoading) return;
     autoGeolocTriedRef.current = true;
-    setGeolocStatus("hint");
-    setGeolocStatusMsg("Touchez 📍 pour détecter automatiquement votre départ");
-    if (navigator.permissions?.query) {
-      navigator.permissions
-        .query({ name: "geolocation" as PermissionName })
-        .then((permission) => {
-          if (permission.state === "granted" && !f.depart.trim()) handleGeolocate();
-        })
-        .catch(() => {});
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const timer = window.setTimeout(() => handleGeolocate({ automatic: true }), 350);
+    return () => window.clearTimeout(timer);
+  }, [f.depart, geolocLoading, handleGeolocate]);
 
   // ── Résoudre adresse départ (saisie manuelle) ────────────────────────────
   const resolveDepartAddress = useCallback(async () => {
