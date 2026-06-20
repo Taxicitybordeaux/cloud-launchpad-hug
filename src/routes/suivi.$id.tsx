@@ -6,10 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 // Push client retiré — bandeau d'étapes visuel à la place (voir composant ci-dessous).
 import { getRouteGeoCoords, getDistanceAndDurationKm, calibrateKm } from "@/lib/googleRoute";
 import { geocodeAddress, searchAddress } from "@/lib/googleGeocode";
+import { loadGoogleMaps } from "@/lib/googleMaps";
 import { notifyReservationStatus } from "@/lib/push.functions";
 
-const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-const OSM_TILE_OPTIONS = { attribution: "© OpenStreetMap contributors", maxZoom: 19 };
 
 export const Route = createFileRoute("/suivi/$id")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -396,24 +395,20 @@ function ease(t: number) {
   return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
 }
 
-// ── Leaflet loader ────────────────────────────────────────────────────────────
-// La PWA ne doit pas dépendre d'un CDN externe pour afficher le tracé/les icônes.
-// On charge Leaflet depuis le bundle Vite, une seule fois, côté navigateur.
-let leafletLoadPromise: Promise<void> | null = null;
-function loadLeaflet(): Promise<void> {
-  if ((window as any).L) return Promise.resolve();
-  if (!leafletLoadPromise) {
-    leafletLoadPromise = (async () => {
-      await import("leaflet/dist/leaflet.css");
-      const mod = await import("leaflet");
-      (window as any).L = (mod as any).default ?? mod;
-    })().catch((err) => {
-      leafletLoadPromise = null;
-      throw err;
-    });
-  }
-  return leafletLoadPromise;
+// ── Google Maps icon helpers ─────────────────────────────────────────────────
+// Icônes SVG data-URI : autonomes, sans dépendance externe, compatibles Google
+// Maps Marker.icon. Pas d'animation pulse (limitation Maps JS sans OverlayView).
+function emojiMarkerIcon(mapsApi: any, opts: { emoji: string; bg: string; border: string; size?: number }) {
+  const size = opts.size ?? 40;
+  const r = size / 2 - 3;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="${opts.bg}" stroke="${opts.border}" stroke-width="3"/><text x="${size / 2}" y="${size / 2 + 7}" font-size="${Math.round(size * 0.55)}" text-anchor="middle" font-family="Apple Color Emoji,Segoe UI Emoji,sans-serif">${opts.emoji}</text></svg>`;
+  return {
+    url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg),
+    scaledSize: new mapsApi.maps.Size(size, size),
+    anchor: new mapsApi.maps.Point(size / 2, size / 2),
+  };
 }
+
 
 // ── Types GPS ─────────────────────────────────────────────────────────────────
 type DriverGpsRecord = {
@@ -690,10 +685,13 @@ function SuiviPage() {
       cancelAnimationFrame(animFrame.current);
       animFrame.current = null;
     }
-    const from = marker.getLatLng();
-    const fromLat = from.lat,
-      fromLng = from.lng;
-    // [FUSION] durée adaptative selon distance (700ms–2200ms) au lieu de 1200ms fixe
+    const fromPos = marker.getPosition?.();
+    if (!fromPos) {
+      marker.setPosition({ lat: toLat, lng: toLng });
+      return;
+    }
+    const fromLat = fromPos.lat();
+    const fromLng = fromPos.lng();
     const dist = distMeters({ lat: fromLat, lng: fromLng }, { lat: toLat, lng: toLng });
     const duration = Math.min(2200, Math.max(700, dist * 25));
     const startT = performance.now();
@@ -702,12 +700,13 @@ function SuiviPage() {
       const k = ease(t);
       const lat = fromLat + (toLat - fromLat) * k;
       const lng = fromLng + (toLng - fromLng) * k;
-      marker.setLatLng([lat, lng]);
+      marker.setPosition({ lat, lng });
       if (t < 1) animFrame.current = requestAnimationFrame(step);
       else animFrame.current = null;
     };
     animFrame.current = requestAnimationFrame(step);
   };
+
 
   // ── Geocode helper — mêmes variantes/fallbacks que /reserver, ne jamais échouer
   const geocode = async (q: string): Promise<[number, number] | null> => {
@@ -794,22 +793,22 @@ function SuiviPage() {
   // ── Init carte ───────────────────────────────────────────────────────────
   const initMap = async (lat: number, lng: number) => {
     if (mapInitializing.current) return;
+    let mapsApi: any = null;
     if (mapInst.current) {
-      const L = (window as any).L;
-      if (L && !markerRef.current) {
-        const icon = L.divIcon({
-          className: "",
-          html: `<div style="width:40px;height:40px;border-radius:50%;border:3px solid #f5c842;overflow:hidden;box-shadow:0 0 0 0 rgba(245,200,66,0);animation:driverPulse 2s infinite;background:#1a1a2e;display:flex;align-items:center;justify-content:center;font-size:24px">🚕</div>`,
-          iconSize: [40, 40],
-          iconAnchor: [20, 20],
+      mapsApi = (window as any).google;
+      if (mapsApi?.maps && !markerRef.current) {
+        markerRef.current = new mapsApi.maps.Marker({
+          position: { lat, lng },
+          map: mapInst.current,
+          zIndex: 20,
+          icon: emojiMarkerIcon(mapsApi, { emoji: "🚕", bg: "#1a1a2e", border: "#f5c842" }),
         });
-        markerRef.current = L.marker([lat, lng], { icon }).addTo(mapInst.current);
       }
       return;
     }
     mapInitializing.current = true;
     try {
-      await loadLeaflet();
+      mapsApi = await loadGoogleMaps();
     } catch {
       mapInitializing.current = false;
       return;
@@ -818,41 +817,42 @@ function SuiviPage() {
       mapInitializing.current = false;
       return;
     }
-    const L = (window as any).L;
-    if (!L || !mapRef.current) {
+    if (!mapsApi?.maps || !mapRef.current) {
       mapInitializing.current = false;
       return;
     }
     let map: any;
     try {
-      map = L.map(mapRef.current, { center: [lat, lng], zoom: 14, zoomControl: false });
+      map = new mapsApi.maps.Map(mapRef.current, {
+        center: { lat, lng },
+        zoom: 14,
+        disableDefaultUI: true,
+        zoomControl: true,
+        zoomControlOptions: { position: mapsApi.maps.ControlPosition.RIGHT_BOTTOM },
+        clickableIcons: false,
+        gestureHandling: "greedy",
+        backgroundColor: "#0d1117",
+      });
       initialZoom.current = 14;
-      map.on("dragstart", () => setUserPanned(true));
-      map.on("zoomstart", (e: any) => {
-        if (e?.hard !== false) setUserPanned(true);
+      map.addListener("dragstart", () => setUserPanned(true));
+      map.addListener("zoom_changed", () => setUserPanned(true));
+      markerRef.current = new mapsApi.maps.Marker({
+        position: { lat, lng },
+        map,
+        zIndex: 20,
+        icon: emojiMarkerIcon(mapsApi, { emoji: "🚕", bg: "#1a1a2e", border: "#f5c842" }),
       });
-      L.tileLayer(OSM_TILE_URL, OSM_TILE_OPTIONS).addTo(map);
-      L.control.zoom({ position: "bottomright" }).addTo(map);
-      const icon = L.divIcon({
-        className: "",
-        html: `<div style="width:40px;height:40px;border-radius:50%;border:3px solid #f5c842;overflow:hidden;box-shadow:0 0 0 0 rgba(245,200,66,0);animation:driverPulse 2s infinite;background:#1a1a2e;display:flex;align-items:center;justify-content:center;font-size:24px">🚕</div>`,
-        iconSize: [40, 40],
-        iconAnchor: [20, 20],
-      });
-      markerRef.current = L.marker([lat, lng], { icon }).addTo(map);
       mapInst.current = map;
     } catch (err) {
       console.warn("[suivi] map init failed", err);
-      try {
-        map?.remove?.();
-      } catch {}
       mapInitializing.current = false;
       return;
     }
     mapInitializing.current = false;
-    setTimeout(() => map.invalidateSize({ animate: false }), 300);
-    setTimeout(() => map.invalidateSize({ animate: false }), 500);
+    setTimeout(() => mapsApi.maps.event.trigger(map, "resize"), 300);
+    setTimeout(() => mapsApi.maps.event.trigger(map, "resize"), 500);
   };
+
 
   // ── Appliquer position chauffeur ────────────────────────────────────────
   const applyDriverPosition = useCallback(
