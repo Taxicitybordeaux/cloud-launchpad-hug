@@ -32,8 +32,8 @@ messaging.onBackgroundMessage((payload) => {
   const reservationId = data.reservation_id;
   const audience = data.audience;
   let defaultUrl = "/";
-  if (audience === "chauffeur" || audience === "admin") {
-    defaultUrl = "/admin/dashboard";
+  if (audience === "chauffeur") {
+    defaultUrl = "/driver?token=DSF234";
   } else if (reservationId) {
     defaultUrl = "/suivi/" + reservationId;
   }
@@ -59,8 +59,8 @@ messaging.onBackgroundMessage((payload) => {
 self.addEventListener("notificationclick", (event) => {
   const notifData = event.notification.data || {};
   let clickDefault = "/";
-  if (notifData.audience === "chauffeur" || notifData.audience === "admin") {
-    clickDefault = "/admin/dashboard";
+  if (notifData.audience === "chauffeur") {
+    clickDefault = "/driver?token=DSF234";
   } else if (notifData.reservation_id) {
     clickDefault = "/suivi/" + notifData.reservation_id;
   }
