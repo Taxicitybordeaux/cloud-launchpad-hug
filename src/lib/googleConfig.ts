@@ -19,36 +19,28 @@ export const GOOGLE_MAPS_API_KEYS: string[] = Array.from(
 export const GOOGLE_MAPS_API_KEY: string | undefined = GOOGLE_MAPS_API_KEYS[0];
 
 export function getGoogleMapsApiKeysForCurrentHost(): string[] {
-  const host = typeof window !== "undefined" ? window.location.hostname : "";
-  const isPreviewHost =
-    host === "localhost" ||
-    host === "127.0.0.1" ||
-    host.endsWith(".lovable.app") ||
-    host.endsWith(".lovableproject.com");
-  const ordered = isPreviewHost
-    ? [PROJECT_BROWSER_KEY, CONNECTOR_BROWSER_KEY]
-    : [CONNECTOR_BROWSER_KEY, PROJECT_BROWSER_KEY];
+  // La clé .env du projet (VITE_GOOGLE_MAPS_API_KEY) est toujours prioritaire :
+  // c'est elle qui porte les restrictions HTTP referrer pour taxicitybordeaux.fr.
+  // La clé du connecteur Lovable (limitée à *.lovable.app / *.lovableproject.com)
+  // ne sert que de filet de secours sur les domaines de preview.
+  const ordered = [PROJECT_BROWSER_KEY, CONNECTOR_BROWSER_KEY];
   return Array.from(new Set(ordered.filter(Boolean) as string[]));
 }
 
 export const GOOGLE_MAPS_TRACKING_ID: string | undefined =
-  (import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING_ID as string | undefined) ||
-  undefined;
+  (import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING_ID as string | undefined) || undefined;
 
 export const GOOGLE_MAPS_LIBRARIES = "places,geometry" as const;
 export const GOOGLE_MAPS_LANGUAGE = "fr" as const;
 export const GOOGLE_MAPS_REGION = "FR" as const;
 
-export type GoogleConfigStatus =
-  | { ok: true; key: string }
-  | { ok: false; reason: string };
+export type GoogleConfigStatus = { ok: true; key: string } | { ok: false; reason: string };
 
 export function getGoogleConfigStatus(): GoogleConfigStatus {
   if (GOOGLE_MAPS_API_KEYS.length === 0) {
     return {
       ok: false,
-      reason:
-        "Clé Google Maps manquante — reconnecte Google Maps Platform en mode custom puis republie l'application.",
+      reason: "Clé Google Maps manquante — reconnecte Google Maps Platform en mode custom puis republie l'application.",
     };
   }
   return { ok: true, key: GOOGLE_MAPS_API_KEYS[0] };
