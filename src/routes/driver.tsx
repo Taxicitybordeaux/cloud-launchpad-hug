@@ -1,0 +1,823 @@
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { calculerPrixMixte, estTarifJourParis } from "@/lib/tarif";
+import { loadGoogleMapsWhenVisible } from "@/lib/googleMaps";
+import { geocodeAddress } from "@/lib/googleGeocode";
+
+// ── Token guard ────────────────────────────────────────────────────────────
+const DRIVER_TOKEN = "DSF234";
+
+// ── Types ─────────────────────────────────────────────────────────────────
+type Tab = "courses" | "planning" | "avis" | "stats";
+
+interface Resa {
+  id: string;
+  depart: string;
+  destination: string;
+  date_heure: string;
+  status: string;
+  prix?: number | null;
+  distance_km?: number | null;
+  client_name?: string | null;
+  client_phone?: string | null;
+}
+
+interface Avis {
+  id: string;
+  author_name: string;
+  note: number;
+  commentaire: string;
+  created_at: string;
+  status: string;
+}
+
+interface RouteOption {
+  index: number;
+  summary: string;
+  distanceKm: number;
+  dureeMin: number;
+  prix: number;
+  tarifLabel: string;
+  legs: google.maps.DirectionsLeg[];
+  overview_polyline: string;
+  dirResult: google.maps.DirectionsResult;
+}
+
+// ── Route definition ───────────────────────────────────────────────────────
+export const Route = createFileRoute("/driver")({
+  validateSearch: (s: Record<string, unknown>) => ({ token: String(s.token ?? "") }),
+  head: () => ({ meta: [{ title: "Espace chauffeur" }, { name: "robots", content: "noindex" }] }),
+  component: DriverPage,
+});
+
+// ── Styles globaux ─────────────────────────────────────────────────────────
+const css = `
+  * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+  body { margin: 0; background: #f8fafc; font-family: 'DM Sans', sans-serif; }
+  .drv-root { max-width: 480px; margin: 0 auto; min-height: 100dvh; display: flex; flex-direction: column; background: #fff; }
+  .drv-header { background: #0f172a; color: #fff; padding: 14px 16px 10px; display: flex; align-items: center; gap: 10px; }
+  .drv-header h1 { margin: 0; font-size: 17px; font-weight: 700; flex: 1; }
+  .drv-tabs { display: flex; border-bottom: 1px solid #e2e8f0; background: #fff; position: sticky; top: 0; z-index: 10; }
+  .drv-tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 4px 8px; border: none; background: none; color: #94a3b8; font-size: 10px; font-family: 'DM Sans', sans-serif; cursor: pointer; border-bottom: 2px solid transparent; transition: color 0.15s; }
+  .drv-tab.active { color: #0f172a; border-bottom-color: #0f172a; }
+  .drv-tab svg { width: 22px; height: 22px; }
+  .drv-badge { background: #ef4444; color: #fff; border-radius: 99px; font-size: 10px; font-weight: 700; padding: 1px 5px; position: absolute; top: -3px; right: -5px; }
+  .drv-body { flex: 1; padding: 16px; overflow-y: auto; }
+  .drv-section { font-size: 10px; font-weight: 700; color: #94a3b8; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 10px; }
+  .drv-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 14px; margin-bottom: 10px; }
+  .drv-card.pending { border-color: #f59e0b; }
+  .drv-card.new { border-color: #3b82f6; box-shadow: 0 0 0 3px #3b82f620; }
+  .drv-card.done { opacity: 0.5; }
+  .drv-card.accepted { border-color: #22c55e; }
+  .drv-card.refused { border-color: #ef4444; opacity: 0.6; }
+  .drv-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .drv-time { font-size: 22px; font-weight: 800; color: #0f172a; }
+  .drv-name { font-size: 14px; font-weight: 600; color: #0f172a; }
+  .drv-sub { font-size: 12px; color: #64748b; }
+  .drv-route { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
+  .drv-route span { display: flex; align-items: flex-start; gap: 6px; font-size: 13px; color: #334155; line-height: 1.4; }
+  .drv-meta { display: flex; gap: 12px; font-size: 12px; color: #64748b; margin: 8px 0 12px; flex-wrap: wrap; }
+  .drv-meta span { display: flex; align-items: center; gap: 4px; }
+  .drv-btns { display: flex; gap: 8px; }
+  .drv-btn-primary { flex: 1; background: #0f172a; color: #fff; border: none; border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 700; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .drv-btn-secondary { flex: 1; background: #f1f5f9; color: #0f172a; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .drv-btn-danger { flex: 1; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .drv-badge-pill { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 99px; }
+  .drv-badge-blue { background: #eff6ff; color: #1d4ed8; }
+  .drv-badge-green { background: #f0fdf4; color: #15803d; }
+  .drv-badge-amber { background: #fffbeb; color: #92400e; }
+  .drv-badge-red { background: #fef2f2; color: #b91c1c; }
+  .drv-badge-gray { background: #f1f5f9; color: #475569; }
+  .drv-stars { color: #f59e0b; font-size: 15px; letter-spacing: 1px; }
+  .drv-stars-empty { color: #cbd5e1; font-size: 15px; }
+  .drv-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .drv-stat { background: #f8fafc; border-radius: 14px; padding: 14px; }
+  .drv-stat-lbl { font-size: 11px; color: #64748b; margin-bottom: 4px; }
+  .drv-stat-val { font-size: 24px; font-weight: 800; color: #0f172a; }
+  .drv-stat-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+  .drv-empty { text-align: center; padding: 50px 20px; color: #94a3b8; }
+  .drv-empty svg { width: 40px; height: 40px; margin-bottom: 10px; opacity: 0.4; }
+  .drv-route-opt { border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; cursor: pointer; transition: border-color 0.15s; }
+  .drv-route-opt.selected { border-color: #0f172a; background: #f8fafc; }
+  .drv-route-opt-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .drv-route-label { font-size: 13px; font-weight: 700; color: #0f172a; }
+  .drv-route-price { font-size: 16px; font-weight: 800; color: #0f172a; }
+  .drv-route-meta { display: flex; gap: 10px; font-size: 12px; color: #64748b; }
+  .drv-map { width: 100%; height: 200px; border-radius: 12px; overflow: hidden; margin-bottom: 14px; border: 1px solid #e2e8f0; }
+  .drv-divider { border: none; border-top: 1px solid #f1f5f9; margin: 16px 0; }
+  .drv-planning-slot { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 12px; }
+  .drv-planning-time { font-size: 12px; color: #64748b; min-width: 40px; padding-top: 3px; }
+  .drv-planning-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+  .drv-planning-card { flex: 1; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px; }
+  @media (max-width: 380px) {
+    .drv-time { font-size: 18px; }
+    .drv-stat-val { font-size: 20px; }
+  }
+`;
+
+// ── Icons ──────────────────────────────────────────────────────────────────
+const IconBell = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+  </svg>
+);
+const IconCalendar = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+  </svg>
+);
+const IconStar = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+  </svg>
+);
+const IconChart = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+  </svg>
+);
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function Stars({ n }: { n: number }) {
+  return (
+    <span>
+      {[1,2,3,4,5].map(i => (
+        <span key={i} className={i <= n ? "drv-stars" : "drv-stars-empty"}>★</span>
+      ))}
+    </span>
+  );
+}
+
+function formatHeure(iso: string) {
+  return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+}
+
+function isToday(iso: string) {
+  const d = new Date(iso);
+  const n = new Date();
+  return d.getDate() === n.getDate() && d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear();
+}
+
+// ── Main component ─────────────────────────────────────────────────────────
+function DriverPage() {
+  const { token } = Route.useSearch();
+  const navigate = useNavigate();
+
+  // Token guard
+  if (token !== DRIVER_TOKEN) {
+    return (
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100dvh", fontFamily:"DM Sans,sans-serif", color:"#64748b" }}>
+        <div style={{ textAlign:"center" }}>
+          <div style={{ fontSize:48, marginBottom:16 }}>🔒</div>
+          <div style={{ fontSize:16, fontWeight:600 }}>Accès non autorisé</div>
+        </div>
+      </div>
+    );
+  }
+
+  return <DriverApp />;
+}
+
+function DriverApp() {
+  const [tab, setTab] = useState<Tab>("courses");
+  const [newCount, setNewCount] = useState(0);
+  const [pendingAvis, setPendingAvis] = useState(0);
+
+  // Rafraîchissement badge courses
+  useEffect(() => {
+    const load = async () => {
+      const { count } = await (supabase as any)
+        .from("reservations")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "nouvelle");
+      setNewCount(count ?? 0);
+    };
+    load();
+    const ch = (supabase as any)
+      .channel("drv-badge")
+      .on("postgres_changes", { event: "*", schema: "public", table: "reservations" }, load)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  // Badge avis en attente
+  useEffect(() => {
+    const load = async () => {
+      const { count } = await (supabase as any)
+        .from("avis")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending");
+      setPendingAvis(count ?? 0);
+    };
+    load();
+  }, []);
+
+  return (
+    <>
+      <style>{css}</style>
+      <div className="drv-root">
+        <div className="drv-header">
+          <span style={{ fontSize: 26 }}>🚕</span>
+          <h1>Espace José</h1>
+          <span style={{ fontSize: 12, color: "#94a3b8" }}>{new Date().toLocaleDateString("fr-FR", { weekday:"short", day:"numeric", month:"short" })}</span>
+        </div>
+
+        {/* Tabs */}
+        <div className="drv-tabs">
+          {(["courses","planning","avis","stats"] as Tab[]).map(t => (
+            <button key={t} className={`drv-tab${tab === t ? " active" : ""}`} onClick={() => setTab(t)}>
+              <div style={{ position:"relative", display:"inline-block" }}>
+                {t === "courses" && <><IconBell />{newCount > 0 && <span className="drv-badge">{newCount}</span>}</>}
+                {t === "planning" && <IconCalendar />}
+                {t === "avis" && <><IconStar />{pendingAvis > 0 && <span className="drv-badge">{pendingAvis}</span>}</>}
+                {t === "stats" && <IconChart />}
+              </div>
+              <span>{{courses:"Courses",planning:"Planning",avis:"Avis",stats:"Stats"}[t]}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="drv-body">
+          {tab === "courses" && <CoursesTab onBadgeChange={setNewCount} />}
+          {tab === "planning" && <PlanningTab />}
+          {tab === "avis" && <AvisTab onBadgeChange={setPendingAvis} />}
+          {tab === "stats" && <StatsTab />}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── Onglet Courses ─────────────────────────────────────────────────────────
+function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
+  const [courses, setCourses] = useState<Resa[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const { data } = await (supabase as any)
+      .from("reservations")
+      .select("id,depart,destination,date_heure,status,prix,distance_km,client_name,client_phone")
+      .in("status", ["nouvelle", "acceptee", "en_route", "arrivee"])
+      .order("date_heure", { ascending: true });
+    const list: Resa[] = data ?? [];
+    setCourses(list);
+    setLoading(false);
+    onBadgeChange(list.filter(r => r.status === "nouvelle").length);
+  }, [onBadgeChange]);
+
+  useEffect(() => {
+    load();
+    const ch = (supabase as any)
+      .channel("drv-courses")
+      .on("postgres_changes", { event: "*", schema: "public", table: "reservations" }, load)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [load]);
+
+  if (loading) return <div className="drv-empty"><div style={{fontSize:14}}>Chargement…</div></div>;
+
+  const nouvelles = courses.filter(r => r.status === "nouvelle");
+  const encours = courses.filter(r => r.status !== "nouvelle");
+
+  if (courses.length === 0) return (
+    <div className="drv-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      <div style={{ fontSize:14, fontWeight:600 }}>Aucune course en attente</div>
+      <div style={{ fontSize:12, marginTop:4 }}>Tout est à jour ✓</div>
+    </div>
+  );
+
+  return (
+    <>
+      {nouvelles.length > 0 && (
+        <>
+          <p className="drv-section">Nouvelles demandes</p>
+          {nouvelles.map(r => (
+            <CourseCard key={r.id} resa={r} onRefresh={load}
+              expanded={selected === r.id} onToggle={() => setSelected(s => s === r.id ? null : r.id)} />
+          ))}
+          <hr className="drv-divider" />
+        </>
+      )}
+      {encours.length > 0 && (
+        <>
+          <p className="drv-section">En cours</p>
+          {encours.map(r => (
+            <CourseCard key={r.id} resa={r} onRefresh={load}
+              expanded={selected === r.id} onToggle={() => setSelected(s => s === r.id ? null : r.id)} />
+          ))}
+        </>
+      )}
+    </>
+  );
+}
+
+// ── Course Card avec itinéraires Google Maps ───────────────────────────────
+function CourseCard({ resa, onRefresh, expanded, onToggle }: {
+  resa: Resa; onRefresh: () => void; expanded: boolean; onToggle: () => void;
+}) {
+  const [routes, setRoutes] = useState<RouteOption[]>([]);
+  const [selectedRoute, setSelectedRoute] = useState(0);
+  const [loadingRoutes, setLoadingRoutes] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInst = useRef<google.maps.Map | null>(null);
+  const rendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
+
+  // Charger les itinéraires quand on ouvre la carte
+  useEffect(() => {
+    if (!expanded || routes.length > 0) return;
+    setLoadingRoutes(true);
+
+    (async () => {
+      try {
+        const mapsApi = await loadGoogleMapsWhenVisible(mapRef.current!);
+        const [geoA, geoB] = await Promise.all([
+          geocodeAddress(resa.depart),
+          geocodeAddress(resa.destination),
+        ]);
+        if (!geoA || !geoB) { setLoadingRoutes(false); return; }
+
+        const svc = new mapsApi.maps.DirectionsService();
+        const result: google.maps.DirectionsResult = await new Promise((res, rej) =>
+          svc.route({
+            origin: { lat: geoA[0], lng: geoA[1] },
+            destination: { lat: geoB[0], lng: geoB[1] },
+            travelMode: mapsApi.maps.TravelMode.DRIVING,
+            provideRouteAlternatives: true,
+          }, (r: google.maps.DirectionsResult | null, s: google.maps.DirectionsStatus) =>
+            s === "OK" && r ? res(r) : rej(s))
+        );
+
+        const tarifJour = estTarifJourParis(resa.date_heure);
+        const opts: RouteOption[] = result.routes.slice(0, 3).map((route, i) => {
+          const leg = route.legs[0];
+          const distKm = (leg.distance?.value ?? 0) / 1000;
+          const dureeMin = Math.round((leg.duration?.value ?? 0) / 60);
+          const prix = calculerPrixMixte(distKm, resa.date_heure);
+          return {
+            index: i,
+            summary: route.summary || `Itinéraire ${i + 1}`,
+            distanceKm: parseFloat(distKm.toFixed(1)),
+            dureeMin,
+            prix,
+            tarifLabel: tarifJour ? "Tarif jour" : "Tarif nuit",
+            legs: route.legs,
+            overview_polyline: route.overview_polyline?.points ?? "",
+            dirResult: { ...result, routes: [route] },
+          };
+        });
+        setRoutes(opts);
+        setLoadingRoutes(false);
+      } catch (e) {
+        console.error("[CourseCard] routes:", e);
+        setLoadingRoutes(false);
+      }
+    })();
+  }, [expanded, resa]);
+
+  // Afficher la route sélectionnée sur la carte
+  useEffect(() => {
+    if (!expanded || routes.length === 0) return;
+    (async () => {
+      try {
+        const mapsApi = await loadGoogleMapsWhenVisible(mapRef.current!);
+        if (!mapInst.current) {
+          mapInst.current = new mapsApi.maps.Map(mapRef.current!, {
+            zoom: 13,
+            disableDefaultUI: true,
+            gestureHandling: "cooperative",
+            styles: [{ featureType:"poi", stylers:[{visibility:"off"}] }],
+          });
+        }
+        if (!rendererRef.current) {
+          rendererRef.current = new mapsApi.maps.DirectionsRenderer({
+            suppressMarkers: false,
+            polylineOptions: { strokeColor: "#0f172a", strokeWeight: 5 },
+          });
+          rendererRef.current.setMap(mapInst.current);
+        }
+        const chosen = routes[selectedRoute];
+        if (chosen) rendererRef.current.setDirections(chosen.dirResult);
+      } catch {}
+    })();
+  }, [expanded, routes, selectedRoute]);
+
+  const statusLabel: Record<string, { label: string; cls: string }> = {
+    nouvelle: { label: "Nouveau", cls: "drv-badge-blue" },
+    acceptee: { label: "Acceptée", cls: "drv-badge-green" },
+    en_route: { label: "En route", cls: "drv-badge-amber" },
+    arrivee: { label: "Arrivé", cls: "drv-badge-amber" },
+  };
+  const st = statusLabel[resa.status] ?? { label: resa.status, cls: "drv-badge-gray" };
+
+  const handleAccept = async () => {
+    setBusy(true);
+    try {
+      const chosen = routes[selectedRoute];
+      const updates: any = { status: "acceptee" };
+      if (chosen) {
+        updates.distance_km = chosen.distanceKm;
+        updates.prix = chosen.prix;
+      }
+      const { error } = await (supabase as any).from("reservations").update(updates).eq("id", resa.id);
+      if (error) throw error;
+      toast.success("Course acceptée ✓");
+      onRefresh();
+    } catch (e: any) {
+      toast.error("Erreur : " + (e.message ?? e));
+    } finally { setBusy(false); }
+  };
+
+  const handleRefuse = async () => {
+    if (!confirm("Refuser cette course ?")) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).from("reservations").update({ status: "annulee" }).eq("id", resa.id);
+      if (error) throw error;
+      toast("Course refusée");
+      onRefresh();
+    } catch (e: any) {
+      toast.error("Erreur : " + (e.message ?? e));
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className={`drv-card${resa.status === "nouvelle" ? " new" : ""}`}>
+      {/* En-tête */}
+      <div className="drv-row" style={{ cursor:"pointer" }} onClick={onToggle}>
+        <span className="drv-time">{formatHeure(resa.date_heure)}</span>
+        <span className={`drv-badge-pill ${st.cls}`}>{st.label}</span>
+      </div>
+      {resa.client_name && <div className="drv-name">{resa.client_name}</div>}
+      <div className="drv-route">
+        <span>📍 {resa.depart}</span>
+        <span>🏁 {resa.destination}</span>
+      </div>
+
+      {/* Résumé km/prix si déjà calculé */}
+      {(resa.distance_km || resa.prix) && (
+        <div className="drv-meta">
+          {resa.distance_km && <span>🛣 {resa.distance_km} km</span>}
+          {resa.prix && <span>💶 {resa.prix.toFixed(2)} €</span>}
+        </div>
+      )}
+
+      {/* Détail expandable */}
+      {expanded && (
+        <>
+          <hr className="drv-divider" />
+
+          {/* Carte Google Maps */}
+          <div className="drv-map" ref={mapRef} />
+
+          {/* Itinéraires */}
+          {loadingRoutes && (
+            <div style={{ textAlign:"center", fontSize:13, color:"#64748b", padding:"10px 0" }}>
+              Calcul des itinéraires…
+            </div>
+          )}
+
+          {routes.length > 0 && (
+            <>
+              <p className="drv-section">Choisir un itinéraire</p>
+              {routes.map((r, i) => (
+                <div key={i} className={`drv-route-opt${selectedRoute === i ? " selected" : ""}`}
+                  onClick={() => setSelectedRoute(i)}>
+                  <div className="drv-route-opt-head">
+                    <span className="drv-route-label">
+                      {i === 0 ? "🏆 Recommandé" : i === 1 ? "🔀 Alternatif" : "⏱ Rapide"} — {r.summary}
+                    </span>
+                    <span className="drv-route-price">{r.prix.toFixed(2)} €</span>
+                  </div>
+                  <div className="drv-route-meta">
+                    <span>🛣 {r.distanceKm} km</span>
+                    <span>⏱ {r.dureeMin} min</span>
+                    <span style={{ color: r.tarifLabel === "Tarif jour" ? "#15803d" : "#1d4ed8" }}>
+                      {r.tarifLabel}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+
+          {/* Contact */}
+          {resa.client_phone && (
+            <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+              <a href={`tel:${resa.client_phone}`}
+                style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+                  background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:12, padding:"10px",
+                  color:"#15803d", fontWeight:700, fontSize:13, textDecoration:"none" }}>
+                📞 Appeler
+              </a>
+              <a href={`sms:${resa.client_phone}`}
+                style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+                  background:"#eff6ff", border:"1px solid #bfdbfe", borderRadius:12, padding:"10px",
+                  color:"#1d4ed8", fontWeight:700, fontSize:13, textDecoration:"none" }}>
+                💬 SMS
+              </a>
+            </div>
+          )}
+
+          {/* Actions */}
+          {resa.status === "nouvelle" && (
+            <div className="drv-btns">
+              <button className="drv-btn-danger" onClick={handleRefuse} disabled={busy}>Refuser</button>
+              <button className="drv-btn-primary" onClick={handleAccept} disabled={busy}>
+                {busy ? "…" : "Accepter"}
+              </button>
+            </div>
+          )}
+          {resa.status === "acceptee" && (
+            <a href={`/suivi/${resa.id}?gps=1`}
+              style={{ display:"block", textAlign:"center", background:"#0f172a", color:"#fff",
+                borderRadius:12, padding:"12px", fontSize:14, fontWeight:700, textDecoration:"none" }}>
+              🚗 Démarrer la course
+            </a>
+          )}
+        </>
+      )}
+
+      {/* Toggle */}
+      <button onClick={onToggle}
+        style={{ width:"100%", marginTop:8, background:"none", border:"none", color:"#94a3b8",
+          fontSize:12, cursor:"pointer", padding:"4px 0" }}>
+        {expanded ? "▲ Réduire" : "▼ Voir détails & itinéraires"}
+      </button>
+    </div>
+  );
+}
+
+// ── Onglet Planning ────────────────────────────────────────────────────────
+function PlanningTab() {
+  const [courses, setCourses] = useState<Resa[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const { data } = await (supabase as any)
+        .from("reservations")
+        .select("id,depart,destination,date_heure,status,prix,distance_km")
+        .gte("date_heure", today.toISOString())
+        .lt("date_heure", tomorrow.toISOString())
+        .not("status", "eq", "annulee")
+        .order("date_heure", { ascending: true });
+      setCourses(data ?? []);
+      setLoading(false);
+    })();
+  }, []);
+
+  if (loading) return <div className="drv-empty"><div style={{fontSize:14}}>Chargement…</div></div>;
+
+  const dotColor: Record<string, string> = {
+    terminee: "#94a3b8", completed: "#94a3b8",
+    nouvelle: "#f59e0b", acceptee: "#22c55e",
+    en_route: "#3b82f6", arrivee: "#3b82f6",
+  };
+
+  return (
+    <>
+      <p className="drv-section">Aujourd'hui — {new Date().toLocaleDateString("fr-FR", { weekday:"long", day:"numeric", month:"long" })}</p>
+      {courses.length === 0 ? (
+        <div className="drv-empty">
+          <div style={{ fontSize:14, fontWeight:600 }}>Aucune course aujourd'hui</div>
+        </div>
+      ) : (
+        courses.map(r => (
+          <div key={r.id} className="drv-planning-slot">
+            <span className="drv-planning-time">{formatHeure(r.date_heure)}</span>
+            <div className="drv-planning-dot" style={{ background: dotColor[r.status] ?? "#94a3b8" }} />
+            <div className={`drv-planning-card${["terminee","completed"].includes(r.status) ? " done" : ""}`}
+              style={{ opacity: ["terminee","completed"].includes(r.status) ? 0.5 : 1 }}>
+              <div style={{ fontSize:13, fontWeight:600, color:"#0f172a" }}>
+                {r.depart} → {r.destination}
+              </div>
+              <div style={{ fontSize:12, color:"#64748b", marginTop:2 }}>
+                {r.distance_km ? `${r.distance_km} km · ` : ""}
+                {r.prix ? `${r.prix.toFixed(2)} €` : ""}
+                {["terminee","completed"].includes(r.status) ? " · Terminée" : ""}
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+    </>
+  );
+}
+
+// ── Onglet Avis ────────────────────────────────────────────────────────────
+function AvisTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
+  const [pending, setPending] = useState<Avis[]>([]);
+  const [published, setPublished] = useState<Avis[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const [{ data: p }, { data: pub }] = await Promise.all([
+      (supabase as any).from("avis").select("*").eq("status", "pending").order("created_at", { ascending: false }),
+      (supabase as any).from("avis").select("*").eq("status", "approved").order("created_at", { ascending: false }).limit(5),
+    ]);
+    setPending(p ?? []);
+    setPublished(pub ?? []);
+    onBadgeChange((p ?? []).length);
+  }, [onBadgeChange]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const moderate = async (id: string, action: "approved" | "refused") => {
+    setBusy(id);
+    try {
+      const { error } = await (supabase as any).from("avis").update({ status: action }).eq("id", id);
+      if (error) throw error;
+      toast.success(action === "approved" ? "Avis publié ✓" : "Avis refusé");
+      load();
+    } catch (e: any) {
+      toast.error("Erreur : " + (e.message ?? e));
+    } finally { setBusy(null); }
+  };
+
+  const avgNote = published.length > 0
+    ? (published.reduce((s, a) => s + a.note, 0) / published.length).toFixed(1)
+    : null;
+
+  return (
+    <>
+      {pending.length > 0 && (
+        <>
+          <p className="drv-section">À modérer ({pending.length})</p>
+          {pending.map(a => (
+            <div key={a.id} className="drv-card pending">
+              <div className="drv-row">
+                <span className="drv-name">{a.author_name || "Anonyme"}</span>
+                <span className="drv-badge-pill drv-badge-amber">En attente</span>
+              </div>
+              <div style={{ marginBottom: 6 }}><Stars n={a.note} /></div>
+              <p style={{ fontSize:13, color:"#334155", margin:"0 0 12px", lineHeight:1.5 }}>
+                "{a.commentaire}"
+              </p>
+              <div className="drv-btns">
+                <button className="drv-btn-danger" disabled={!!busy}
+                  onClick={() => moderate(a.id, "refused")}>
+                  {busy === a.id ? "…" : "Refuser"}
+                </button>
+                <button className="drv-btn-primary" disabled={!!busy}
+                  onClick={() => moderate(a.id, "approved")}>
+                  {busy === a.id ? "…" : "Publier sur le site"}
+                </button>
+              </div>
+            </div>
+          ))}
+          <hr className="drv-divider" />
+        </>
+      )}
+
+      <p className="drv-section">Avis publiés</p>
+      {published.length === 0 ? (
+        <div className="drv-empty"><div style={{fontSize:13}}>Aucun avis publié</div></div>
+      ) : (
+        <>
+          {published.map(a => (
+            <div key={a.id} className="drv-card" style={{ opacity:0.75 }}>
+              <div className="drv-row">
+                <span className="drv-name">{a.author_name || "Anonyme"}</span>
+                <span className="drv-badge-pill drv-badge-green">Publié</span>
+              </div>
+              <div style={{ marginBottom:4 }}><Stars n={a.note} /></div>
+              <p style={{ fontSize:13, color:"#475569", margin:0, lineHeight:1.5 }}>"{a.commentaire}"</p>
+            </div>
+          ))}
+          {avgNote && (
+            <div style={{ textAlign:"center", marginTop:20, padding:"16px 0", borderTop:"1px solid #f1f5f9" }}>
+              <div style={{ fontSize:12, color:"#94a3b8", marginBottom:4 }}>Note moyenne publiée</div>
+              <div style={{ fontSize:36, fontWeight:800, color:"#0f172a" }}>{avgNote}</div>
+              <div style={{ fontSize:22, color:"#f59e0b" }}>★★★★★</div>
+            </div>
+          )}
+        </>
+      )}
+    </>
+  );
+}
+
+// ── Onglet Stats ────────────────────────────────────────────────────────────
+function StatsTab() {
+  const [stats, setStats] = useState({ revenus: 0, courses: 0, km: 0, note: 0, semCourses: 0, semRevenus: 0 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const monday = new Date();
+      monday.setDate(monday.getDate() - monday.getDay() + 1);
+      monday.setHours(0, 0, 0, 0);
+
+      const [{ data: semData }, { data: avisData }] = await Promise.all([
+        (supabase as any)
+          .from("reservations")
+          .select("prix,distance_km,date_heure")
+          .gte("date_heure", monday.toISOString())
+          .in("status", ["terminee", "completed"]),
+        (supabase as any)
+          .from("avis")
+          .select("note")
+          .eq("status", "approved"),
+      ]);
+
+      const sem: any[] = semData ?? [];
+      const revenus = sem.reduce((s: number, r: any) => s + (r.prix ?? 0), 0);
+      const km = sem.reduce((s: number, r: any) => s + (r.distance_km ?? 0), 0);
+      const note = avisData?.length
+        ? avisData.reduce((s: number, a: any) => s + a.note, 0) / avisData.length
+        : 0;
+
+      setStats({
+        revenus: Math.round(revenus),
+        courses: sem.length,
+        km: Math.round(km),
+        note: Math.round(note * 10) / 10,
+        semCourses: sem.length,
+        semRevenus: Math.round(revenus),
+      });
+      setLoading(false);
+    })();
+  }, []);
+
+  if (loading) return <div className="drv-empty"><div style={{fontSize:14}}>Chargement…</div></div>;
+
+  const days = ["L","M","M","J","V","S","D"];
+  const today = new Date().getDay();
+  const todayIdx = today === 0 ? 6 : today - 1;
+
+  return (
+    <>
+      <p className="drv-section">Cette semaine</p>
+      <div className="drv-stat-grid">
+        <div className="drv-stat">
+          <div className="drv-stat-lbl">Revenus</div>
+          <div className="drv-stat-val">{stats.revenus} €</div>
+          <div className="drv-stat-sub">semaine en cours</div>
+        </div>
+        <div className="drv-stat">
+          <div className="drv-stat-lbl">Courses</div>
+          <div className="drv-stat-val">{stats.courses}</div>
+          <div className="drv-stat-sub">cette semaine</div>
+        </div>
+        <div className="drv-stat">
+          <div className="drv-stat-lbl">Km parcourus</div>
+          <div className="drv-stat-val">{stats.km}</div>
+          <div className="drv-stat-sub">km cette semaine</div>
+        </div>
+        <div className="drv-stat">
+          <div className="drv-stat-lbl">Note moyenne</div>
+          <div className="drv-stat-val">{stats.note > 0 ? stats.note : "—"}</div>
+          <div className="drv-stat-sub" style={{ color:"#f59e0b" }}>{stats.note > 0 ? "★ sur 5" : "Pas encore d'avis"}</div>
+        </div>
+      </div>
+
+      {/* Barre jours de la semaine */}
+      <p className="drv-section">Jours de la semaine</p>
+      <div className="drv-card">
+        <div style={{ display:"flex", alignItems:"flex-end", gap:6, height:60, marginBottom:6 }}>
+          {days.map((d, i) => (
+            <div key={i} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+              <div style={{
+                flex:1, width:"100%", borderRadius:"4px 4px 0 0",
+                background: i === todayIdx ? "#0f172a" : "#e2e8f0",
+                minHeight: i === todayIdx ? 40 : 20,
+                alignSelf:"flex-end",
+              }} />
+            </div>
+          ))}
+        </div>
+        <div style={{ display:"flex", gap:6 }}>
+          {days.map((d, i) => (
+            <div key={i} style={{ flex:1, textAlign:"center", fontSize:11,
+              color: i === todayIdx ? "#0f172a" : "#94a3b8",
+              fontWeight: i === todayIdx ? 700 : 400 }}>
+              {d}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Lien suivi */}
+      <div style={{ marginTop:16, textAlign:"center" }}>
+        <a href="/admin/dashboard"
+          style={{ fontSize:13, color:"#94a3b8", textDecoration:"none" }}>
+          Accéder au tableau de bord complet →
+        </a>
+      </div>
+    </>
+  );
+}
