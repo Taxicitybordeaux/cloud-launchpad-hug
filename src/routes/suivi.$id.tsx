@@ -654,6 +654,20 @@ function SuiviPage() {
       }
     })(),
   );
+  // Throttle autopan : max N rafraîchissements par seconde pendant l'animation.
+  // Configurable via localStorage tcb_tracking_pan_hz (1..30, défaut 8 Hz).
+  const panThrottleMsRef = useRef<number>(
+    (() => {
+      try {
+        const v = window.localStorage.getItem("tcb_tracking_pan_hz");
+        const n = v ? Number(v) : NaN;
+        const hz = Number.isFinite(n) && n >= 1 && n <= 30 ? n : 8;
+        return Math.round(1000 / hz);
+      } catch {
+        return 125;
+      }
+    })(),
+  );
 
 
   // Refs data
