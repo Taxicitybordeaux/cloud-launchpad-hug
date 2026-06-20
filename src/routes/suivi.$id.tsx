@@ -2584,6 +2584,29 @@ function SuiviPage() {
       <div style={{ flex: 1, position: "relative", minHeight: 0, visibility: loading || error ? "hidden" : "visible" }}>
         <div ref={mapRef} style={{ position: "absolute", inset: 0 }} />
 
+        {mapLoadError && (
+          <div
+            role="alert"
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 999,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
+              padding: 24,
+              background: "#0d1117",
+              color: "#e2e8f0",
+              fontFamily: "'DM Sans',sans-serif",
+              fontSize: 13,
+              lineHeight: 1.45,
+            }}
+          >
+            {mapLoadError}
+          </div>
+        )}
+
         {/* Bouton recentrer */}
         {userPanned && taxiPos && (
           <button
