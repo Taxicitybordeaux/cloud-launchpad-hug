@@ -43,9 +43,11 @@ export function SiteHeader() {
             width={512}
             height={343}
             decoding="async"
-            className="site-header-logo-img rounded-md object-contain"
-            style={{ width: "clamp(58px, 18vw, 96px)", maxWidth: "96px", maxHeight: "42px", height: "auto" }}
+            loading="eager"
+            fetchPriority="high"
+            className="site-header-logo-img rounded-md"
           />
+
           <span className="sr-only">Taxi City Bordeaux</span>
         </Link>
 
