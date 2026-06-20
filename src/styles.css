@@ -102,15 +102,21 @@
 }
 
 @layer components {
+  /* Header logo — reserve exact box to eliminate CLS during load */
   .site-header-logo {
+    display: inline-flex;
+    align-items: center;
     inline-size: clamp(58px, 18vw, 96px);
     block-size: 42px;
+    contain: layout size;
   }
 
   .site-header-logo-img {
     inline-size: 100% !important;
-    block-size: auto !important;
+    block-size: 42px !important;
     max-block-size: 42px !important;
+    aspect-ratio: 512 / 343;
+    object-fit: contain;
   }
 
   @media (max-width: 390px) {
