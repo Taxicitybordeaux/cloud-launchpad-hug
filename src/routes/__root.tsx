@@ -5,9 +5,11 @@ import { I18nProvider } from "@/i18n/I18nProvider";
 import { SiteHeader } from "@/components/SiteHeader";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import appCss from "@/styles.css?url";
+import logoUrl from "@/assets/logo.jpeg?url";
 import { APP_VERSION } from "@/lib/version";
 
 const v = `?v=${encodeURIComponent(APP_VERSION)}`;
+
 
 export const Route = createRootRoute({
   head: () => ({
