@@ -6,10 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 // Push client retiré — bandeau d'étapes visuel à la place (voir composant ci-dessous).
 import { getRouteGeoCoords, getDistanceAndDurationKm, calibrateKm } from "@/lib/googleRoute";
 import { geocodeAddress, searchAddress } from "@/lib/googleGeocode";
+import { loadGoogleMaps } from "@/lib/googleMaps";
 import { notifyReservationStatus } from "@/lib/push.functions";
 
-const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-const OSM_TILE_OPTIONS = { attribution: "© OpenStreetMap contributors", maxZoom: 19 };
 
 export const Route = createFileRoute("/suivi/$id")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -396,24 +395,20 @@ function ease(t: number) {
   return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
 }
 
-// ── Leaflet loader ────────────────────────────────────────────────────────────
-// La PWA ne doit pas dépendre d'un CDN externe pour afficher le tracé/les icônes.
-// On charge Leaflet depuis le bundle Vite, une seule fois, côté navigateur.
-let leafletLoadPromise: Promise<void> | null = null;
-function loadLeaflet(): Promise<void> {
-  if ((window as any).L) return Promise.resolve();
-  if (!leafletLoadPromise) {
-    leafletLoadPromise = (async () => {
-      await import("leaflet/dist/leaflet.css");
-      const mod = await import("leaflet");
-      (window as any).L = (mod as any).default ?? mod;
-    })().catch((err) => {
-      leafletLoadPromise = null;
-      throw err;
-    });
-  }
-  return leafletLoadPromise;
+// ── Google Maps icon helpers ─────────────────────────────────────────────────
+// Icônes SVG data-URI : autonomes, sans dépendance externe, compatibles Google
+// Maps Marker.icon. Pas d'animation pulse (limitation Maps JS sans OverlayView).
+function emojiMarkerIcon(mapsApi: any, opts: { emoji: string; bg: string; border: string; size?: number }) {
+  const size = opts.size ?? 40;
+  const r = size / 2 - 3;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="${opts.bg}" stroke="${opts.border}" stroke-width="3"/><text x="${size / 2}" y="${size / 2 + 7}" font-size="${Math.round(size * 0.55)}" text-anchor="middle" font-family="Apple Color Emoji,Segoe UI Emoji,sans-serif">${opts.emoji}</text></svg>`;
+  return {
+    url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg),
+    scaledSize: new mapsApi.maps.Size(size, size),
+    anchor: new mapsApi.maps.Point(size / 2, size / 2),
+  };
 }
+
 
 // ── Types GPS ─────────────────────────────────────────────────────────────────
 type DriverGpsRecord = {
@@ -690,10 +685,13 @@ function SuiviPage() {
       cancelAnimationFrame(animFrame.current);
       animFrame.current = null;
     }
-    const from = marker.getLatLng();
-    const fromLat = from.lat,
-      fromLng = from.lng;
-    // [FUSION] durée adaptative selon distance (700ms–2200ms) au lieu de 1200ms fixe
+    const fromPos = marker.getPosition?.();
+    if (!fromPos) {
+      marker.setPosition({ lat: toLat, lng: toLng });
+      return;
+    }
+    const fromLat = fromPos.lat();
+    const fromLng = fromPos.lng();
     const dist = distMeters({ lat: fromLat, lng: fromLng }, { lat: toLat, lng: toLng });
     const duration = Math.min(2200, Math.max(700, dist * 25));
     const startT = performance.now();
@@ -702,12 +700,13 @@ function SuiviPage() {
       const k = ease(t);
       const lat = fromLat + (toLat - fromLat) * k;
       const lng = fromLng + (toLng - fromLng) * k;
-      marker.setLatLng([lat, lng]);
+      marker.setPosition({ lat, lng });
       if (t < 1) animFrame.current = requestAnimationFrame(step);
       else animFrame.current = null;
     };
     animFrame.current = requestAnimationFrame(step);
   };
+
 
   // ── Geocode helper — mêmes variantes/fallbacks que /reserver, ne jamais échouer
   const geocode = async (q: string): Promise<[number, number] | null> => {
@@ -794,22 +793,22 @@ function SuiviPage() {
   // ── Init carte ───────────────────────────────────────────────────────────
   const initMap = async (lat: number, lng: number) => {
     if (mapInitializing.current) return;
+    let mapsApi: any = null;
     if (mapInst.current) {
-      const L = (window as any).L;
-      if (L && !markerRef.current) {
-        const icon = L.divIcon({
-          className: "",
-          html: `<div style="width:40px;height:40px;border-radius:50%;border:3px solid #f5c842;overflow:hidden;box-shadow:0 0 0 0 rgba(245,200,66,0);animation:driverPulse 2s infinite;background:#1a1a2e;display:flex;align-items:center;justify-content:center;font-size:24px">🚕</div>`,
-          iconSize: [40, 40],
-          iconAnchor: [20, 20],
+      mapsApi = (window as any).google;
+      if (mapsApi?.maps && !markerRef.current) {
+        markerRef.current = new mapsApi.maps.Marker({
+          position: { lat, lng },
+          map: mapInst.current,
+          zIndex: 20,
+          icon: emojiMarkerIcon(mapsApi, { emoji: "🚕", bg: "#1a1a2e", border: "#f5c842" }),
         });
-        markerRef.current = L.marker([lat, lng], { icon }).addTo(mapInst.current);
       }
       return;
     }
     mapInitializing.current = true;
     try {
-      await loadLeaflet();
+      mapsApi = await loadGoogleMaps();
     } catch {
       mapInitializing.current = false;
       return;
@@ -818,41 +817,42 @@ function SuiviPage() {
       mapInitializing.current = false;
       return;
     }
-    const L = (window as any).L;
-    if (!L || !mapRef.current) {
+    if (!mapsApi?.maps || !mapRef.current) {
       mapInitializing.current = false;
       return;
     }
     let map: any;
     try {
-      map = L.map(mapRef.current, { center: [lat, lng], zoom: 14, zoomControl: false });
+      map = new mapsApi.maps.Map(mapRef.current, {
+        center: { lat, lng },
+        zoom: 14,
+        disableDefaultUI: true,
+        zoomControl: true,
+        zoomControlOptions: { position: mapsApi.maps.ControlPosition.RIGHT_BOTTOM },
+        clickableIcons: false,
+        gestureHandling: "greedy",
+        backgroundColor: "#0d1117",
+      });
       initialZoom.current = 14;
-      map.on("dragstart", () => setUserPanned(true));
-      map.on("zoomstart", (e: any) => {
-        if (e?.hard !== false) setUserPanned(true);
+      map.addListener("dragstart", () => setUserPanned(true));
+      map.addListener("zoom_changed", () => setUserPanned(true));
+      markerRef.current = new mapsApi.maps.Marker({
+        position: { lat, lng },
+        map,
+        zIndex: 20,
+        icon: emojiMarkerIcon(mapsApi, { emoji: "🚕", bg: "#1a1a2e", border: "#f5c842" }),
       });
-      L.tileLayer(OSM_TILE_URL, OSM_TILE_OPTIONS).addTo(map);
-      L.control.zoom({ position: "bottomright" }).addTo(map);
-      const icon = L.divIcon({
-        className: "",
-        html: `<div style="width:40px;height:40px;border-radius:50%;border:3px solid #f5c842;overflow:hidden;box-shadow:0 0 0 0 rgba(245,200,66,0);animation:driverPulse 2s infinite;background:#1a1a2e;display:flex;align-items:center;justify-content:center;font-size:24px">🚕</div>`,
-        iconSize: [40, 40],
-        iconAnchor: [20, 20],
-      });
-      markerRef.current = L.marker([lat, lng], { icon }).addTo(map);
       mapInst.current = map;
     } catch (err) {
       console.warn("[suivi] map init failed", err);
-      try {
-        map?.remove?.();
-      } catch {}
       mapInitializing.current = false;
       return;
     }
     mapInitializing.current = false;
-    setTimeout(() => map.invalidateSize({ animate: false }), 300);
-    setTimeout(() => map.invalidateSize({ animate: false }), 500);
+    setTimeout(() => mapsApi.maps.event.trigger(map, "resize"), 300);
+    setTimeout(() => mapsApi.maps.event.trigger(map, "resize"), 500);
   };
+
 
   // ── Appliquer position chauffeur ────────────────────────────────────────
   const applyDriverPosition = useCallback(
@@ -900,38 +900,39 @@ function SuiviPage() {
             const bounds = map.getBounds();
             const sw = bounds.getSouthWest(),
               ne = bounds.getNorthEast();
+            const swLat = sw.lat(), swLng = sw.lng(), neLat = ne.lat(), neLng = ne.lng();
             const margin = (1 - deadZonePct / 100) / 2;
             const inside =
-              lat >= sw.lat + (ne.lat - sw.lat) * margin &&
-              lat <= ne.lat - (ne.lat - sw.lat) * margin &&
-              lng >= sw.lng + (ne.lng - sw.lng) * margin &&
-              lng <= ne.lng - (ne.lng - sw.lng) * margin;
+              lat >= swLat + (neLat - swLat) * margin &&
+              lat <= neLat - (neLat - swLat) * margin &&
+              lng >= swLng + (neLng - swLng) * margin &&
+              lng <= neLng - (neLng - swLng) * margin;
             if (inside) {
               setUserPanned(false);
               userPannedRef.current = false;
             }
           } catch {}
         }
-        // Toujours passer destCoordsRef.current (valeur fraîche, pas closure)
         await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
         return;
       }
       try {
         const c = map.getCenter();
-        if (distMeters({ lat: c.lat, lng: c.lng }, { lat, lng }) < 15) {
+        if (distMeters({ lat: c.lat(), lng: c.lng() }, { lat, lng }) < 15) {
           await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
           return;
         }
         const bounds = map.getBounds();
         const sw = bounds.getSouthWest(),
           ne = bounds.getNorthEast();
+        const swLat = sw.lat(), swLng = sw.lng(), neLat = ne.lat(), neLng = ne.lng();
         const margin = (1 - deadZonePct / 100) / 2;
         const outside =
-          lat < sw.lat + (ne.lat - sw.lat) * margin ||
-          lat > ne.lat - (ne.lat - sw.lat) * margin ||
-          lng < sw.lng + (ne.lng - sw.lng) * margin ||
-          lng > ne.lng - (ne.lng - sw.lng) * margin;
-        if (outside) map.panTo([lat, lng], { animate: true, duration: 1.4, easeLinearity: 0.25, noMoveStart: true });
+          lat < swLat + (neLat - swLat) * margin ||
+          lat > neLat - (neLat - swLat) * margin ||
+          lng < swLng + (neLng - swLng) * margin ||
+          lng > neLng - (neLng - swLng) * margin;
+        if (outside) map.panTo({ lat, lng });
       } catch {}
       await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
     },
@@ -942,9 +943,11 @@ function SuiviPage() {
     const map = mapInst.current,
       pos = lastDriverPos.current;
     if (!map || !pos) return;
-    map.setView([pos.lat, pos.lng], initialZoom.current ?? map.getZoom(), { animate: true, duration: 0.8 });
+    map.panTo({ lat: pos.lat, lng: pos.lng });
+    map.setZoom(initialZoom.current ?? map.getZoom() ?? 14);
     setUserPanned(false);
   }, []);
+
 
   // ── Tracé départ → destination (stocke totalKm) ──────────────────────────
   const drawTripRoute = useCallback(
@@ -965,8 +968,8 @@ function SuiviPage() {
           if (map) break;
         }
       }
-      const L = (window as any).L;
-      if (!map || !L) return;
+      const mapsApi = (window as any).google;
+      if (!map || !mapsApi?.maps) return;
 
       const normalizedCachedCoords = normalizeRouteCoords(cachedCoords);
       const [geoA, geoB] = await Promise.all([geocode(depart), geocode(destination)]);
@@ -987,12 +990,9 @@ function SuiviPage() {
         let distanceKm: number | undefined;
         if (normalizedCachedCoords) {
           coords = normalizedCachedCoords;
-          // Priorité : distance_km stockée en Supabase (déjà calibrée par l'Edge Function).
-          // Évite la double calibration (l'Edge Function calibre déjà, recalibrer gonfle la distance).
           if (resaDistanceKm && resaDistanceKm > 0) {
             distanceKm = resaDistanceKm;
           } else {
-            // Fallback : mesure brute sur les coords sans recalibrer (coords déjà issues d'OSRM calibré)
             let d = 0;
             for (let i = 1; i < coords.length; i++) {
               d += distMeters(
@@ -1000,55 +1000,50 @@ function SuiviPage() {
                 { lat: coords[i][0], lng: coords[i][1] },
               );
             }
-            distanceKm = d / 1000; // pas de calibrateKm ici — coords déjà calibrées
+            distanceKm = d / 1000;
           }
         } else {
-          // getRouteGeoCoords attend [lng, lat] (format GeoJSON/OSRM), pas [lat, lng]
           const route = await getRouteGeoCoords([a[1], a[0]], [b[1], b[0]]).catch(() => null);
           const routeCoords = normalizeRouteCoords(route?.coords);
           coords = routeCoords ?? [a, b];
-          // route.distanceKm est déjà calibré ; le fallback à vol d'oiseau aussi
           distanceKm =
             route?.distanceKm || calibrateKm(distMeters({ lat: a[0], lng: a[1] }, { lat: b[0], lng: b[1] }) / 1000);
         }
         if (distanceKm && distanceKm > 0) setTotalKm(parseFloat(distanceKm.toFixed(1)));
 
-        // Relire la carte après les awaits — l'instance peut avoir changé
         map = mapInst.current ?? map;
         if (!map) return;
 
-        const depIcon = L.divIcon({
-          className: "",
-          html: `<div style="position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center"><span style="position:absolute;inset:0;border-radius:50%;background:rgba(34,197,94,0.35);animation:gpsRing 1.6s ease-out infinite"></span><span style="position:absolute;inset:6px;border-radius:50%;background:rgba(34,197,94,0.5);animation:gpsRing 1.6s ease-out infinite;animation-delay:.4s"></span><div style="position:relative;width:30px;height:30px;background:#22c55e;border-radius:50%;border:3px solid white;box-shadow:0 4px 14px rgba(34,197,94,0.7);display:flex;align-items:center;justify-content:center;font-size:15px">📍</div></div>`,
-          iconSize: [44, 44],
-          iconAnchor: [22, 22],
-        });
-        const destIcon = L.divIcon({
-          className: "",
-          html: `<div style="width:34px;height:34px;background:#ef4444;border-radius:50%;border:3px solid white;box-shadow:0 2px 10px rgba(239,68,68,0.6);display:flex;align-items:center;justify-content:center;font-size:16px">🏁</div>`,
-          iconSize: [34, 34],
-          iconAnchor: [17, 17],
-        });
-        if (fromMarker.current) fromMarker.current.remove();
-        if (toMarker.current) toMarker.current.remove();
-        // Relire une dernière fois — les awaits geocode/OSRM peuvent avoir duré plusieurs secondes
+        if (fromMarker.current) fromMarker.current.setMap(null);
+        if (toMarker.current) toMarker.current.setMap(null);
         const activeMap = mapInst.current ?? map;
-        fromMarker.current = L.marker(a, { icon: depIcon }).addTo(activeMap).bindPopup("📍 Prise en charge");
-        toMarker.current = L.marker(b, { icon: destIcon }).addTo(activeMap).bindPopup("🏁 Destination");
+        fromMarker.current = new mapsApi.maps.Marker({
+          position: { lat: a[0], lng: a[1] },
+          map: activeMap,
+          zIndex: 10,
+          title: "📍 Prise en charge",
+          icon: emojiMarkerIcon(mapsApi, { emoji: "📍", bg: "#22c55e", border: "#ffffff", size: 38 }),
+        });
+        toMarker.current = new mapsApi.maps.Marker({
+          position: { lat: b[0], lng: b[1] },
+          map: activeMap,
+          zIndex: 10,
+          title: "🏁 Destination",
+          icon: emojiMarkerIcon(mapsApi, { emoji: "🏁", bg: "#ef4444", border: "#ffffff", size: 34 }),
+        });
 
-        const driverPos = markerRef.current?.getLatLng();
+        const targetBounds = new mapsApi.maps.LatLngBounds();
+        for (const [lat, lng] of coords) targetBounds.extend({ lat, lng });
+        const driverPos = markerRef.current?.getPosition?.();
+        if (driverPos) targetBounds.extend({ lat: driverPos.lat(), lng: driverPos.lng() });
 
-        const targetBounds = L.latLngBounds([...coords, markerRef.current?.getLatLng()].filter(Boolean)).pad(0.2);
         const fit = () => {
-          activeMap.invalidateSize({ animate: false });
-          const size = activeMap.getSize();
-          if (!size || size.x === 0 || size.y === 0) return false;
-          activeMap.fitBounds(targetBounds, { animate: true, duration: 0.8 });
+          mapsApi.maps.event.trigger(activeMap, "resize");
+          const div = activeMap.getDiv?.() as HTMLElement | undefined;
+          if (!div || div.clientWidth === 0 || div.clientHeight === 0) return false;
+          activeMap.fitBounds(targetBounds, 60);
           return true;
         };
-        // Si le conteneur est encore masqué (visibility:hidden pendant le
-        // loading), getSize() renvoie 0x0 et fitBounds() ne ferait rien de
-        // correct → on retente jusqu'à ce que le conteneur soit mesurable.
         if (!fit()) {
           let tries = 0;
           const retry = () => {
@@ -1062,6 +1057,7 @@ function SuiviPage() {
         console.error("[drawTripRoute] erreur lors du tracé:", err);
       }
     },
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
@@ -1454,18 +1450,21 @@ function SuiviPage() {
         animFrame.current = null;
       }
       if (fromMarker.current) {
-        fromMarker.current.remove();
+        fromMarker.current.setMap(null);
         fromMarker.current = null;
       }
       if (toMarker.current) {
-        toMarker.current.remove();
+        toMarker.current.setMap(null);
         toMarker.current = null;
       }
-      if (mapInst.current) {
-        mapInst.current.remove();
-        mapInst.current = null;
+      if (markerRef.current) {
+        markerRef.current.setMap(null);
         markerRef.current = null;
       }
+      // Google Maps Map n'a pas de .remove() : on lâche juste la ref ; le GC
+      // collectera l'instance une fois le DOM réutilisé.
+      mapInst.current = null;
+
       // Remettre à zéro toutes les refs GPS pour éviter les états fantômes après reconnexion
       destCoordsRef.current = null;
       pickupCoordsRef.current = null;
@@ -1525,7 +1524,11 @@ function SuiviPage() {
         }
         await applyDriverPosition(data.latitude, data.longitude);
       }
-      if (mapInst.current) setTimeout(() => mapInst.current?.invalidateSize({ animate: false }), 100);
+      if (mapInst.current) {
+        const mapsApi = (window as any).google;
+        if (mapsApi?.maps) setTimeout(() => mapsApi.maps.event.trigger(mapInst.current, "resize"), 100);
+      }
+
       toast.success("✅ Informations mises à jour");
     } catch {
       toast.error("Échec du rafraîchissement");
@@ -1964,31 +1967,31 @@ function SuiviPage() {
     };
   }, [addLog, requestDriverWakeLock]);
 
-  // ── invalidateSize + refit dès que le loading se termine ─────────────────
-  // Bug fix : pendant `loading=true`, le conteneur de la carte a
-  // `visibility:hidden` → sa taille mesurée par Leaflet peut être 0x0 (ou
-  // incorrecte) au moment où drawTripRoute() a appelé fitBounds(). Le tracé
-  // et les icônes sont bien ajoutés à la carte, mais la vue (zoom/centre)
-  // reste celle calculée sur un conteneur de taille nulle → rien de visible
-  // tant qu'on ne pan/zoom pas manuellement. On corrige la taille ET on
-  // recalcule la vue une fois le conteneur réellement visible.
+  // ── resize + refit dès que le loading se termine ─────────────────────────
+  // Bug fix : pendant `loading=true`, le conteneur a `visibility:hidden` →
+  // Google Maps mesure une taille 0x0 au moment où drawTripRoute a appelé
+  // fitBounds(). On déclenche un resize + on recalcule la vue dès que le
+  // conteneur devient visible.
   useEffect(() => {
     if (loading || !mapInst.current) return;
-    const L = (window as any).L;
+    const mapsApi = (window as any).google;
+    if (!mapsApi?.maps) return;
     const map = mapInst.current;
     const refit = () => {
-      map.invalidateSize({ animate: false });
-      if (!L) return;
-      const bounds: any[] = [];
-      if (fromMarker.current) bounds.push(fromMarker.current.getLatLng());
-      if (toMarker.current) bounds.push(toMarker.current.getLatLng());
-      const driverPos = markerRef.current?.getLatLng();
-      if (driverPos) bounds.push(L.latLngBounds([driverPos, driverPos]));
-      if (bounds.length === 0) return;
+      mapsApi.maps.event.trigger(map, "resize");
+      const bounds = new mapsApi.maps.LatLngBounds();
+      let count = 0;
+      const pushPos = (p: any) => {
+        if (!p) return;
+        bounds.extend({ lat: p.lat(), lng: p.lng() });
+        count++;
+      };
+      pushPos(fromMarker.current?.getPosition?.());
+      pushPos(toMarker.current?.getPosition?.());
+      pushPos(markerRef.current?.getPosition?.());
+      if (count === 0) return;
       try {
-        let combined = bounds[0];
-        for (let i = 1; i < bounds.length; i++) combined = combined.extend(bounds[i]);
-        map.fitBounds(combined.pad(0.2), { animate: false });
+        map.fitBounds(bounds, 60);
       } catch {}
     };
     const t1 = setTimeout(refit, 50);
@@ -2000,6 +2003,7 @@ function SuiviPage() {
       clearTimeout(t3);
     };
   }, [loading]);
+
 
   const statusConfig: Record<string, { label: string; color: string; bg: string; icon: string; pulse: boolean }> = {
     nouvelle: {
@@ -2457,8 +2461,7 @@ function SuiviPage() {
         @keyframes liveDot  { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
         @keyframes spin { to{transform:rotate(360deg)} }
         .sheet-btn:active { transform:scale(0.96); }
-        .leaflet-container { background:#0d1117 !important; width:100%!important; height:100%!important; }
-        .leaflet-tooltip { background:rgba(10,10,20,0.9)!important; border:1px solid rgba(245,200,66,0.3)!important; color:#f5c842!important; font-weight:700!important; border-radius:8px!important; }
+        .gm-style, .gm-style > div:first-child { background:#0d1117 !important; }
         .bottom-sheet { max-height: 58vh; }
         @media (max-height: 700px) { .bottom-sheet { max-height: 42vh; } }
         @media (max-height: 600px) { .bottom-sheet { max-height: 38vh; } }
@@ -2467,8 +2470,7 @@ function SuiviPage() {
         details summary::-webkit-details-marker { display: none; }
         /* iOS momentum scroll */
         .bottom-sheet { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
-        /* Empêcher zoom Leaflet sur double-tap iOS */
-        .leaflet-container { touch-action: pan-x pan-y; }
+
         /* safe-area bottom */
         .safe-bottom { padding-bottom: max(20px, env(safe-area-inset-bottom, 20px)); }
       `}</style>
