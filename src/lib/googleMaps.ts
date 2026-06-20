@@ -7,6 +7,7 @@ import {
   GOOGLE_MAPS_LANGUAGE,
   GOOGLE_MAPS_LIBRARIES,
   GOOGLE_MAPS_REGION,
+  GOOGLE_MAPS_TRACKING_ID,
   getGoogleConfigStatus,
 } from "./googleConfig";
 
@@ -42,7 +43,8 @@ export function loadGoogleMaps(): Promise<GoogleMapsApi> {
       }
       const script = document.createElement("script");
       script.id = "google-maps-sdk";
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=${GOOGLE_MAPS_LIBRARIES}&loading=async&language=${GOOGLE_MAPS_LANGUAGE}&region=${GOOGLE_MAPS_REGION}`;
+      const channel = GOOGLE_MAPS_TRACKING_ID ? `&channel=${encodeURIComponent(GOOGLE_MAPS_TRACKING_ID)}` : "";
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=${GOOGLE_MAPS_LIBRARIES}&loading=async&language=${GOOGLE_MAPS_LANGUAGE}&region=${GOOGLE_MAPS_REGION}${channel}`;
       script.async = true;
       script.defer = true;
       script.onload = () => resolve(win.google);
