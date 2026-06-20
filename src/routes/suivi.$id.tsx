@@ -740,8 +740,8 @@ function SuiviPage() {
       const lat = fromLat + (toLat - fromLat) * k;
       const lng = fromLng + (toLng - fromLng) * k;
       marker.setPosition({ lat, lng });
-      // Autopan throttle (≤ 8×/s) : ne pan que si le marker sort de la deadzone.
-      if (shouldFollow && now - lastPanT > 120) {
+      // Autopan throttle configurable (cf. panThrottleMsRef) : pan uniquement si le marker sort de la deadzone.
+      if (shouldFollow && now - lastPanT > panThrottleMsRef.current) {
         lastPanT = now;
         try {
           const bounds = map.getBounds?.();
