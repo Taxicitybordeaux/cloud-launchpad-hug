@@ -1450,18 +1450,21 @@ function SuiviPage() {
         animFrame.current = null;
       }
       if (fromMarker.current) {
-        fromMarker.current.remove();
+        fromMarker.current.setMap(null);
         fromMarker.current = null;
       }
       if (toMarker.current) {
-        toMarker.current.remove();
+        toMarker.current.setMap(null);
         toMarker.current = null;
       }
-      if (mapInst.current) {
-        mapInst.current.remove();
-        mapInst.current = null;
+      if (markerRef.current) {
+        markerRef.current.setMap(null);
         markerRef.current = null;
       }
+      // Google Maps Map n'a pas de .remove() : on lâche juste la ref ; le GC
+      // collectera l'instance une fois le DOM réutilisé.
+      mapInst.current = null;
+
       // Remettre à zéro toutes les refs GPS pour éviter les états fantômes après reconnexion
       destCoordsRef.current = null;
       pickupCoordsRef.current = null;
