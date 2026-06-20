@@ -9,7 +9,6 @@ import { geocodeAddress, searchAddress } from "@/lib/googleGeocode";
 import { loadGoogleMapsWhenVisible } from "@/lib/googleMaps";
 import { notifyReservationStatus } from "@/lib/push.functions";
 
-
 export const Route = createFileRoute("/suivi/$id")({
   validateSearch: (search: Record<string, unknown>) => ({
     gps: search.gps === "1" ? "1" : undefined,
@@ -409,7 +408,6 @@ function emojiMarkerIcon(mapsApi: any, opts: { emoji: string; bg: string; border
   };
 }
 
-
 // ── Types GPS ─────────────────────────────────────────────────────────────────
 type DriverGpsRecord = {
   latitude?: number | null;
@@ -670,7 +668,6 @@ function SuiviPage() {
     })(),
   );
 
-
   // Refs data
   const depGeoRef = useRef<{ lat: number; lng: number } | null>(null);
   const arrGeoRef = useRef<{ lat: number; lng: number } | null>(null);
@@ -732,7 +729,9 @@ function SuiviPage() {
     // Si on suit (pas pan utilisateur), précharge le zoom cible une seule fois
     const shouldFollow = !!map && !userPannedRef.current;
     if (shouldFollow && followZoomRef.current && map.getZoom?.() !== followZoomRef.current) {
-      try { map.setZoom(followZoomRef.current); } catch {}
+      try {
+        map.setZoom(followZoomRef.current);
+      } catch {}
     }
     let lastPanT = 0;
     const step = (now: number) => {
@@ -747,8 +746,12 @@ function SuiviPage() {
         try {
           const bounds = map.getBounds?.();
           if (bounds) {
-            const sw = bounds.getSouthWest(), ne = bounds.getNorthEast();
-            const swLat = sw.lat(), swLng = sw.lng(), neLat = ne.lat(), neLng = ne.lng();
+            const sw = bounds.getSouthWest(),
+              ne = bounds.getNorthEast();
+            const swLat = sw.lat(),
+              swLng = sw.lng(),
+              neLat = ne.lat(),
+              neLng = ne.lng();
             const margin = (1 - deadZonePct / 100) / 2;
             const outside =
               lat < swLat + (neLat - swLat) * margin ||
@@ -764,8 +767,6 @@ function SuiviPage() {
     };
     animFrame.current = requestAnimationFrame(step);
   };
-
-
 
   // ── Geocode helper — mêmes variantes/fallbacks que /reserver, ne jamais échouer
   const geocode = async (q: string): Promise<[number, number] | null> => {
@@ -914,7 +915,6 @@ function SuiviPage() {
     setTimeout(() => mapsApi.maps.event.trigger(map, "resize"), 500);
   };
 
-
   // ── Appliquer position chauffeur ────────────────────────────────────────
   const applyDriverPosition = useCallback(
     async (lat: number, lng: number) => {
@@ -961,7 +961,10 @@ function SuiviPage() {
             const bounds = map.getBounds();
             const sw = bounds.getSouthWest(),
               ne = bounds.getNorthEast();
-            const swLat = sw.lat(), swLng = sw.lng(), neLat = ne.lat(), neLng = ne.lng();
+            const swLat = sw.lat(),
+              swLng = sw.lng(),
+              neLat = ne.lat(),
+              neLng = ne.lng();
             const margin = (1 - deadZonePct / 100) / 2;
             const inside =
               lat >= swLat + (neLat - swLat) * margin &&
@@ -986,7 +989,10 @@ function SuiviPage() {
         const bounds = map.getBounds();
         const sw = bounds.getSouthWest(),
           ne = bounds.getNorthEast();
-        const swLat = sw.lat(), swLng = sw.lng(), neLat = ne.lat(), neLng = ne.lng();
+        const swLat = sw.lat(),
+          swLng = sw.lng(),
+          neLat = ne.lat(),
+          neLng = ne.lng();
         const margin = (1 - deadZonePct / 100) / 2;
         const outside =
           lat < swLat + (neLat - swLat) * margin ||
@@ -1008,7 +1014,6 @@ function SuiviPage() {
     map.setZoom(initialZoom.current ?? map.getZoom() ?? 14);
     setUserPanned(false);
   }, []);
-
 
   // ── Tracé départ → destination (stocke totalKm) ──────────────────────────
   const drawTripRoute = useCallback(
@@ -1064,11 +1069,16 @@ function SuiviPage() {
             distanceKm = d / 1000;
           }
         } else {
-          const route = await getRouteGeoCoords([a[1], a[0]], [b[1], b[0]]).catch(() => null);
+          const [route, dist] = await Promise.all([
+            getRouteGeoCoords([a[1], a[0]], [b[1], b[0]]).catch(() => null),
+            getDistanceAndDurationKm([a[1], a[0]], [b[1], b[0]]).catch(() => null),
+          ]);
           const routeCoords = normalizeRouteCoords(route?.coords);
           coords = routeCoords ?? [a, b];
           distanceKm =
-            route?.distanceKm || calibrateKm(distMeters({ lat: a[0], lng: a[1] }, { lat: b[0], lng: b[1] }) / 1000);
+            (dist?.distanceKm && dist.distanceKm > 0 ? dist.distanceKm : null) ??
+            route?.distanceKm ??
+            calibrateKm(distMeters({ lat: a[0], lng: a[1] }, { lat: b[0], lng: b[1] }) / 1000);
         }
         if (distanceKm && distanceKm > 0) setTotalKm(parseFloat(distanceKm.toFixed(1)));
 
@@ -1142,7 +1152,6 @@ function SuiviPage() {
           };
           setTimeout(retry, 150);
         }
-
       } catch (err) {
         console.error("[drawTripRoute] erreur lors du tracé:", err);
       }
@@ -2073,7 +2082,8 @@ function SuiviPage() {
       const seen = new Set<string>();
       const pushPos = (p: any) => {
         if (!p) return;
-        const lat = p.lat(), lng = p.lng();
+        const lat = p.lat(),
+          lng = p.lng();
         const k = `${lat.toFixed(6)},${lng.toFixed(6)}`;
         if (seen.has(k)) return;
         seen.add(k);
@@ -2102,7 +2112,6 @@ function SuiviPage() {
       clearTimeout(t3);
     };
   }, [loading]);
-
 
   const statusConfig: Record<string, { label: string; color: string; bg: string; icon: string; pulse: boolean }> = {
     nouvelle: {
