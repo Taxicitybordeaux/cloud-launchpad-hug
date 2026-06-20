@@ -4,12 +4,12 @@
 // Remplace le loadLeaflet() + tuiles OSM utilisés jusqu'ici.
 
 import {
-  GOOGLE_MAPS_API_KEYS,
   GOOGLE_MAPS_LANGUAGE,
   GOOGLE_MAPS_LIBRARIES,
   GOOGLE_MAPS_REGION,
   GOOGLE_MAPS_TRACKING_ID,
   getGoogleConfigStatus,
+  getGoogleMapsApiKeysForCurrentHost,
 } from "./googleConfig";
 
 export type GoogleMapsApi = any;
@@ -35,6 +35,7 @@ export function loadGoogleMaps(): Promise<GoogleMapsApi> {
       mapsLoadPromise = null;
       return Promise.reject(new Error(status.reason));
     }
+    const apiKeys = getGoogleMapsApiKeysForCurrentHost();
     mapsLoadPromise = new Promise<GoogleMapsApi>((resolve, reject) => {
       const cleanupFailedScript = () => {
         document.getElementById("google-maps-sdk")?.remove();
@@ -48,7 +49,7 @@ export function loadGoogleMaps(): Promise<GoogleMapsApi> {
       };
 
       const tryKey = (index: number) => {
-        const apiKey = GOOGLE_MAPS_API_KEYS[index];
+        const apiKey = apiKeys[index];
         if (!apiKey) {
           cleanupFailedScript();
           reject(new Error("Impossible de charger Google Maps avec les clés configurées."));
@@ -72,7 +73,7 @@ export function loadGoogleMaps(): Promise<GoogleMapsApi> {
             (win as any)[callbackName] = undefined;
             (win as any).gm_authFailure = undefined;
           }
-          if (index + 1 < GOOGLE_MAPS_API_KEYS.length) {
+          if (index + 1 < apiKeys.length) {
             tryKey(index + 1);
           } else {
             reject(new Error(message));
