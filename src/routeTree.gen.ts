@@ -16,6 +16,7 @@ import { Route as ReservationRouteImport } from './routes/reservation'
 import { Route as MesCoursesRouteImport } from './routes/mes-courses'
 import { Route as MentionsLegalesRouteImport } from './routes/mentions-legales'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as DriverRouteImport } from './routes/driver'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as ConfidentialiteRouteImport } from './routes/confidentialite'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -77,6 +78,11 @@ const MentionsLegalesRoute = MentionsLegalesRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DriverRoute = DriverRouteImport.update({
+  id: '/driver',
+  path: '/driver',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactRoute = ContactRouteImport.update({
@@ -226,6 +232,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/confidentialite': typeof ConfidentialiteRoute
   '/contact': typeof ContactRoute
+  '/driver': typeof DriverRoute
   '/login': typeof LoginRoute
   '/mentions-legales': typeof MentionsLegalesRoute
   '/mes-courses': typeof MesCoursesRoute
@@ -262,6 +269,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRouteWithChildren
   '/confidentialite': typeof ConfidentialiteRoute
   '/contact': typeof ContactRoute
+  '/driver': typeof DriverRoute
   '/login': typeof LoginRoute
   '/mentions-legales': typeof MentionsLegalesRoute
   '/mes-courses': typeof MesCoursesRoute
@@ -299,6 +307,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/confidentialite': typeof ConfidentialiteRoute
   '/contact': typeof ContactRoute
+  '/driver': typeof DriverRoute
   '/login': typeof LoginRoute
   '/mentions-legales': typeof MentionsLegalesRoute
   '/mes-courses': typeof MesCoursesRoute
@@ -337,6 +346,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/confidentialite'
     | '/contact'
+    | '/driver'
     | '/login'
     | '/mentions-legales'
     | '/mes-courses'
@@ -373,6 +383,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/confidentialite'
     | '/contact'
+    | '/driver'
     | '/login'
     | '/mentions-legales'
     | '/mes-courses'
@@ -409,6 +420,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/confidentialite'
     | '/contact'
+    | '/driver'
     | '/login'
     | '/mentions-legales'
     | '/mes-courses'
@@ -446,6 +458,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   ConfidentialiteRoute: typeof ConfidentialiteRoute
   ContactRoute: typeof ContactRoute
+  DriverRoute: typeof DriverRoute
   LoginRoute: typeof LoginRoute
   MentionsLegalesRoute: typeof MentionsLegalesRoute
   MesCoursesRoute: typeof MesCoursesRoute
@@ -521,6 +534,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/driver': {
+      id: '/driver'
+      path: '/driver'
+      fullPath: '/driver'
+      preLoaderRoute: typeof DriverRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contact': {
@@ -749,6 +769,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   ConfidentialiteRoute: ConfidentialiteRoute,
   ContactRoute: ContactRoute,
+  DriverRoute: DriverRoute,
   LoginRoute: LoginRoute,
   MentionsLegalesRoute: MentionsLegalesRoute,
   MesCoursesRoute: MesCoursesRoute,
@@ -777,13 +798,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
