@@ -12,7 +12,7 @@ import {
 } from "@/lib/tarif";
 import { reverseGeocode, searchAddress } from "@/lib/googleGeocode";
 import { getDistanceAndDurationKm } from "@/lib/googleRoute";
-import { loadGoogleMapsWhenVisible } from "@/lib/googleMaps";
+import { loadGoogleMaps } from "@/lib/googleMaps";
 import { newSuiviId } from "@/lib/suivi-id";
 import { notifyNewReservation } from "@/lib/push.functions";
 import { ensureMicAccess, describeGeoError } from "@/lib/permissions";
@@ -1032,6 +1032,7 @@ function ReservationPage() {
   const mapInst = useRef<any | null>(null);
   const fromMarker = useRef<any | null>(null);
   const toMarker = useRef<any | null>(null);
+  const [mapLoadError, setMapLoadError] = useState<string | null>(null);
 
   const pickupIso = f.date && f.heure ? toParisIso(f.date, f.heure) : null;
 
@@ -1110,8 +1111,14 @@ function ReservationPage() {
     const initMap = async () => {
       let mapsApi: any;
       try {
-        mapsApi = await loadGoogleMapsWhenVisible(mapRef.current);
-      } catch {
+        mapsApi = await loadGoogleMaps();
+      } catch (err) {
+        console.error("[reserver] Échec du chargement de Google Maps:", err);
+        if (mounted) {
+          setMapLoadError(
+            "Impossible de charger la carte (clé Google Maps manquante/invalide ou requête bloquée). Vous pouvez réserver sans la carte.",
+          );
+        }
         return;
       }
       if (!mounted || !mapRef.current) return;
@@ -1281,8 +1288,7 @@ function ReservationPage() {
       return describeGeoError(err);
     };
 
-    const isDenied = (err: any) =>
-      err && typeof err === "object" && "code" in err && err.code === 1; // PERMISSION_DENIED
+    const isDenied = (err: any) => err && typeof err === "object" && "code" in err && err.code === 1; // PERMISSION_DENIED
 
     (async () => {
       try {
@@ -1327,7 +1333,7 @@ function ReservationPage() {
     })();
   }, []);
 
-  // ── Auto-géoloc au chargement (départ vide, une seule fois par session) ──
+  // ── Auto-géoloc au chargement (départ vide, une seule fois par montage) ──
   // Si l'utilisateur arrive sans `?depart=...` dans l'URL et n'a pas encore
   // de départ saisi, on tente la géoloc navigateur silencieusement. Le toast
   // success/error de handleGeolocate informe le client du résultat.
@@ -1337,17 +1343,10 @@ function ReservationPage() {
     if (typeof window === "undefined") return;
     if (f.depart.trim().length > 0) return; // déjà rempli (query param ou autre)
     if (geolocLoading) return;
-    // Évite de redéclencher si l'utilisateur a déjà essayé dans cette session.
-    try {
-      if (window.sessionStorage.getItem("tcb_auto_geoloc_done") === "1") return;
-      window.sessionStorage.setItem("tcb_auto_geoloc_done", "1");
-    } catch {}
     autoGeolocTriedRef.current = true;
     handleGeolocate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-
 
   // ── Résoudre adresse départ (saisie manuelle) ────────────────────────────
   const resolveDepartAddress = useCallback(async () => {
@@ -1782,10 +1781,28 @@ function ReservationPage() {
         @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
       `}</style>
 
-
       {/* ── Map ── */}
       <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
         <div ref={mapRef} style={{ position: "absolute", inset: 0 }} />
+
+        {mapLoadError && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
+              padding: 24,
+              background: "#11182a",
+              color: "#cbd5e1",
+              fontSize: 13,
+            }}
+          >
+            {mapLoadError}
+          </div>
+        )}
 
         {/* Badge disponibilité */}
         <div
@@ -2292,15 +2309,21 @@ function ReservationPage() {
                       fontSize: 12,
                       fontWeight: 600,
                       background:
-                        geolocStatus === "success" ? "rgba(34,197,94,0.12)"
-                        : geolocStatus === "loading" ? "rgba(253,224,71,0.12)"
-                        : geolocStatus === "ip" ? "rgba(59,130,246,0.12)"
-                        : "rgba(239,68,68,0.12)",
+                        geolocStatus === "success"
+                          ? "rgba(34,197,94,0.12)"
+                          : geolocStatus === "loading"
+                            ? "rgba(253,224,71,0.12)"
+                            : geolocStatus === "ip"
+                              ? "rgba(59,130,246,0.12)"
+                              : "rgba(239,68,68,0.12)",
                       color:
-                        geolocStatus === "success" ? "#86efac"
-                        : geolocStatus === "loading" ? "#fde68a"
-                        : geolocStatus === "ip" ? "#93c5fd"
-                        : "#fecaca",
+                        geolocStatus === "success"
+                          ? "#86efac"
+                          : geolocStatus === "loading"
+                            ? "#fde68a"
+                            : geolocStatus === "ip"
+                              ? "#93c5fd"
+                              : "#fecaca",
                       border: "1px solid currentColor",
                     }}
                   >
