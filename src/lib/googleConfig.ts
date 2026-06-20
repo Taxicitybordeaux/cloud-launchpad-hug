@@ -2,8 +2,16 @@
 // Configuration centralisée de la clé Google Maps + vérification au démarrage.
 // Importé par googleMaps.ts (chargement SDK) et par le root route (warning dev).
 
+// Priorité : clé custom du projet (autorisée sur le domaine personnalisé taxicitybordeaux.fr),
+// sinon clé browser du connecteur Lovable Google Maps Platform (*.lovable.app uniquement).
 export const GOOGLE_MAPS_API_KEY: string | undefined =
-  (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined) || undefined;
+  (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined) ||
+  (import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY as string | undefined) ||
+  undefined;
+
+export const GOOGLE_MAPS_TRACKING_ID: string | undefined =
+  (import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING_ID as string | undefined) ||
+  undefined;
 
 export const GOOGLE_MAPS_LIBRARIES = "places,geometry" as const;
 export const GOOGLE_MAPS_LANGUAGE = "fr" as const;
