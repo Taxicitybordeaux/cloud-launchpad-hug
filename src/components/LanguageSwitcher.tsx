@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Globe, Check } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { LANGUAGES, type Lang } from "@/i18n/dict";
+import { FlagIcon } from "@/components/FlagIcon";
 
 export function LanguageSwitcher({ className = "" }: { className?: string }) {
   const { lang, setLang } = useI18n();
@@ -26,7 +27,7 @@ export function LanguageSwitcher({ className = "" }: { className?: string }) {
         className="inline-flex h-9 items-center justify-center gap-1 rounded-md border border-border px-2 text-sm font-medium transition hover:border-primary sm:h-10 sm:gap-1.5 sm:px-2.5"
       >
         <Globe className="h-4 w-4 text-primary" />
-        <span className="text-base leading-none">{current.flag}</span>
+        <FlagIcon code={current.code} />
         <span className="hidden sm:inline uppercase text-xs">{current.code}</span>
       </button>
       {open && (
@@ -46,8 +47,8 @@ export function LanguageSwitcher({ className = "" }: { className?: string }) {
                   l.code === lang ? "text-primary font-semibold" : ""
                 }`}
               >
-                <span className="flex items-center gap-2">
-                  <span>{l.flag}</span> {l.label}
+              <span className="flex items-center gap-2">
+                  <FlagIcon code={l.code} /> {l.label}
                 </span>
                 {l.code === lang && <Check className="h-4 w-4" />}
               </button>
