@@ -12,7 +12,7 @@ import {
 } from "@/lib/tarif";
 import { reverseGeocode, searchAddress } from "@/lib/googleGeocode";
 import { getDistanceAndDurationKm } from "@/lib/googleRoute";
-import { loadGoogleMaps } from "@/lib/googleMaps";
+import { loadGoogleMapsWhenVisible } from "@/lib/googleMaps";
 import { newSuiviId } from "@/lib/suivi-id";
 import { notifyNewReservation } from "@/lib/push.functions";
 import { ensureMicAccess, describeGeoError } from "@/lib/permissions";
@@ -1111,18 +1111,21 @@ function ReservationPage() {
     const initMap = async () => {
       let mapsApi: any;
       try {
-        mapsApi = await loadGoogleMaps();
+        mapsApi = await loadGoogleMapsWhenVisible(mapRef.current);
       } catch (err) {
         console.error("[reserver] Échec du chargement de Google Maps:", err);
         if (mounted) {
           setMapLoadError(
-            "Impossible de charger la carte (clé Google Maps manquante/invalide ou requête bloquée). Vous pouvez réserver sans la carte.",
+            err instanceof Error
+              ? err.message
+              : "Impossible de charger la carte Google Maps. Vous pouvez réserver sans la carte.",
           );
         }
         return;
       }
       if (!mounted || !mapRef.current) return;
       if (mapInst.current) return; // déjà initialisée (évite double création en StrictMode)
+      setMapLoadError(null);
       const map = new mapsApi.maps.Map(mapRef.current, {
         center: { lat: BORDEAUX_CENTER[0], lng: BORDEAUX_CENTER[1] },
         zoom: 12,
@@ -1130,6 +1133,7 @@ function ReservationPage() {
         zoomControl: true,
         zoomControlOptions: { position: mapsApi.maps.ControlPosition.RIGHT_BOTTOM },
         clickableIcons: false,
+        backgroundColor: "#0d1117",
       });
       mapInst.current = map;
       setTimeout(() => mapsApi.maps.event.trigger(map, "resize"), 100);
