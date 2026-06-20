@@ -504,6 +504,7 @@ function SuiviPage() {
   // ── États ─────────────────────────────────────────────────────────────────
   const [resa, setResa] = useState<Reservation | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mapLoadError, setMapLoadError] = useState<string | null>(null);
   const [loadStep, setLoadStep] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [taxiPos, setTaxiPos] = useState<{ lat: number; lng: number } | null>(null);
@@ -867,7 +868,8 @@ function SuiviPage() {
     mapInitializing.current = true;
     try {
       mapsApi = await loadGoogleMapsWhenVisible(mapRef.current);
-    } catch {
+    } catch (err) {
+      setMapLoadError(err instanceof Error ? err.message : "Impossible de charger la carte Google Maps.");
       mapInitializing.current = false;
       return;
     }
@@ -881,6 +883,7 @@ function SuiviPage() {
     }
     let map: any;
     try {
+      setMapLoadError(null);
       map = new mapsApi.maps.Map(mapRef.current, {
         center: { lat, lng },
         zoom: 14,
