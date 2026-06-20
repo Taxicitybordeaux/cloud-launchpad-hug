@@ -696,14 +696,14 @@ function requestBrowserPosition(options: PositionOptions): Promise<GeolocationPo
   });
 }
 
-function getAutoGeoRejectionReason(pos: GeolocationPosition): string | null {
+function getAutoGeoRejectionReason(pos: GeolocationPosition, allowApproximate = false): string | null {
   const lat = pos.coords.latitude;
   const lng = pos.coords.longitude;
   const accuracy = pos.coords.accuracy;
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(accuracy)) {
     return "Position invalide. Saisissez l’adresse de départ manuellement.";
   }
-  if (accuracy > MAX_AUTO_GEO_ACCURACY_M) {
+  if (!allowApproximate && accuracy > MAX_AUTO_GEO_ACCURACY_M) {
     return `Signal GPS trop imprécis (${Math.round(accuracy)} m). Saisissez l’adresse exacte pour éviter une mauvaise prise en charge.`;
   }
   const distanceFromBordeaux = distanceKmBetween(BORDEAUX_CENTER, [lat, lng]);
