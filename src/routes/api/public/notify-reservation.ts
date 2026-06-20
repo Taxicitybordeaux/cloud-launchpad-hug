@@ -21,7 +21,14 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
         try {
           const cfg = getTaxiSupabaseConfig();
           serviceKey = cfg.serviceKey;
-          console.log("[notify-reservation] backend:", cfg.targetRef, "key:", cfg.selectedKeyName, "keyRef:", cfg.selectedRef);
+          console.log(
+            "[notify-reservation] backend:",
+            cfg.targetRef,
+            "key:",
+            cfg.selectedKeyName,
+            "keyRef:",
+            cfg.selectedRef,
+          );
         } catch (err) {
           console.error("[notify-reservation] backend config failed", err);
         }
@@ -111,28 +118,14 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
         const clientName = reservation.client_name || reservation.nom || "Client";
         const trajet = `${reservation.depart} → ${reservation.arrivee || reservation.destination || "—"}`;
         try {
-          const [adminResult, chauffeurResult] = await Promise.all([
-            sendPushToAudience("admin", {
-              title: "🔔 Nouvelle réservation",
-              body: `${clientName} — ${trajet}`,
-              url: "/admin/dashboard",
-              tag: `new-res-${reservationId}`,
-              requireInteraction: true,
-            }),
-            sendPushToAudience("chauffeur", {
-              title: "🚕 Nouvelle course en attente",
-              body: `${clientName} — ${trajet}`,
-              url: "/admin/dashboard",
-              tag: `chauffeur-res-${reservationId}`,
-              requireInteraction: true,
-            }),
-          ]);
-          console.log(
-            "[notify-reservation] push admin:",
-            JSON.stringify(adminResult),
-            "chauffeur:",
-            JSON.stringify(chauffeurResult),
-          );
+          const chauffeurResult = await sendPushToAudience("chauffeur", {
+            title: "🚕 Nouvelle course en attente",
+            body: `${clientName} — ${trajet}`,
+            url: "/driver?token=DSF234",
+            tag: `chauffeur-res-${reservationId}`,
+            requireInteraction: true,
+          });
+          console.log("[notify-reservation] push chauffeur:", JSON.stringify(chauffeurResult));
         } catch (pushErr) {
           console.error("[notify-reservation] push failed", pushErr);
           // On ne fait pas échouer la requête si le push échoue — l'email est déjà parti.
