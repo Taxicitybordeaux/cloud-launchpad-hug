@@ -18,6 +18,19 @@ export const GOOGLE_MAPS_API_KEYS: string[] = Array.from(
 
 export const GOOGLE_MAPS_API_KEY: string | undefined = GOOGLE_MAPS_API_KEYS[0];
 
+export function getGoogleMapsApiKeysForCurrentHost(): string[] {
+  const host = typeof window !== "undefined" ? window.location.hostname : "";
+  const isPreviewHost =
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host.endsWith(".lovable.app") ||
+    host.endsWith(".lovableproject.com");
+  const ordered = isPreviewHost
+    ? [PROJECT_BROWSER_KEY, CONNECTOR_BROWSER_KEY]
+    : [CONNECTOR_BROWSER_KEY, PROJECT_BROWSER_KEY];
+  return Array.from(new Set(ordered.filter(Boolean) as string[]));
+}
+
 export const GOOGLE_MAPS_TRACKING_ID: string | undefined =
   (import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING_ID as string | undefined) ||
   undefined;
