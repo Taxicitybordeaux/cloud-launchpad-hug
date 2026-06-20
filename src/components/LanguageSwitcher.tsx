@@ -27,7 +27,7 @@ export function LanguageSwitcher({ className = "" }: { className?: string }) {
         className="inline-flex h-9 items-center justify-center gap-1 rounded-md border border-border px-2 text-sm font-medium transition hover:border-primary sm:h-10 sm:gap-1.5 sm:px-2.5"
       >
         <Globe className="h-4 w-4 text-primary" />
-        <span className="text-base leading-none">{current.flag}</span>
+        <FlagIcon code={current.code} />
         <span className="hidden sm:inline uppercase text-xs">{current.code}</span>
       </button>
       {open && (
