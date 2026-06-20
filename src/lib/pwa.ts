@@ -1,5 +1,5 @@
-// PWA registration wrapper — registers /sw.js only in production,
-// outside Lovable preview/iframe, and respects ?sw=off kill-switch.
+// PWA cleanup wrapper — keeps the installable manifest but removes the old
+// app-shell service worker that could serve stale layouts after publication.
 const APP_SW_PATH = "/sw.js";
 
 function isLovablePreviewHost(hostname: string): boolean {
@@ -40,7 +40,11 @@ export async function registerPWA(): Promise<void> {
   }
 
   try {
-    await navigator.serviceWorker.register(APP_SW_PATH, { scope: "/" });
+    const reg = await navigator.serviceWorker.register(APP_SW_PATH, {
+      scope: "/",
+      updateViaCache: "none",
+    });
+    await reg.update();
   } catch {
     /* noop */
   }

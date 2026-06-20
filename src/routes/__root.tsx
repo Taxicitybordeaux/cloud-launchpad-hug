@@ -61,8 +61,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     import("@/lib/firebase").then(({ setupForegroundNotifications }) => {
       cleanup = setupForegroundNotifications();
     });
-    // Register the offline-capable service worker (guarded against
-    // preview / iframe / dev / ?sw=off).
+    // Nettoie l'ancien cache PWA en production sans casser la preview.
     import("@/lib/pwa").then(({ registerPWA }) => registerPWA());
     // Vérification au démarrage de la clé Google Maps (warning dev si absente).
     import("@/lib/googleConfig").then(({ assertGoogleConfigOnStartup }) =>
