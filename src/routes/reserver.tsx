@@ -798,6 +798,10 @@ function ReservationPage() {
   const [orsResult, setOrsResult] = useState<OrsResult | null>(null);
   const [calcLoading, setCalcLoading] = useState(false);
   const [geolocLoading, setGeolocLoading] = useState(false);
+  // Indicateur visible du statut géoloc client : idle | loading | success | denied | ip | error
+  type GeolocStatus = "idle" | "loading" | "success" | "denied" | "ip" | "error";
+  const [geolocStatus, setGeolocStatus] = useState<GeolocStatus>("idle");
+  const [geolocStatusMsg, setGeolocStatusMsg] = useState<string>("");
   const [taxiAvailable, setTaxiAvailable] = useState<boolean | null>(null);
   const [destinationChoices, setDestinationChoices] = useState<AddressChoice[]>([]);
   const [departChoices, setDepartChoices] = useState<AddressChoice[]>([]);
@@ -1225,19 +1229,21 @@ function ReservationPage() {
   // ── Géolocalisation départ (navigateur client) ───────────────────────────
   const handleGeolocate = useCallback(() => {
     if (!navigator.geolocation) {
+      setGeolocStatus("error");
+      setGeolocStatusMsg("Géolocalisation non disponible sur cet appareil");
       toast.error("Géolocalisation non disponible");
       return;
     }
     setGeolocLoading(true);
+    setGeolocStatus("loading");
+    setGeolocStatusMsg("Localisation en cours…");
 
-    const applyPosition = async (lat: number, lng: number) => {
+    const applyPosition = async (lat: number, lng: number, source: "gps" | "ip" = "gps") => {
       let adresse = await reverseGeocode(lat, lng).catch(() => null);
       if (!adresse) {
         const fallback = await searchAddress(`${lat}, ${lng}`, 1).catch(() => []);
         adresse = fallback[0]?.label ?? null;
       }
-      // Annuler tout debounce en cours et marquer pour ignorer le prochain resolve
-      // (évite que onBlur/debounce relance resolveDepartAddress et reset fromCoord)
       if (departDebounceRef.current) clearTimeout(departDebounceRef.current);
       skipNextDepartResolveRef.current = true;
       set("depart", adresse ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
@@ -1248,14 +1254,23 @@ function ReservationPage() {
         delete next.depart;
         return next;
       });
+      if (source === "ip") {
+        setGeolocStatus("ip");
+        setGeolocStatusMsg("Position approximative (via IP) — vous pouvez préciser l'adresse");
+      } else {
+        setGeolocStatus("success");
+        setGeolocStatusMsg("Position GPS détectée — modifiable si besoin");
+      }
       toast.success(t("res.geo.btn") + " ✓");
       setGeolocLoading(false);
     };
 
-    const rejectAutoPosition = (message: string) => {
+    const rejectAutoPosition = (message: string, kind: GeolocStatus = "error") => {
       setGeolocLoading(false);
       setFromCoord(null);
       setErrors((prev) => ({ ...prev, depart: message }));
+      setGeolocStatus(kind);
+      setGeolocStatusMsg(message);
       toast.error(message);
     };
 
@@ -1265,6 +1280,9 @@ function ReservationPage() {
       }
       return describeGeoError(err);
     };
+
+    const isDenied = (err: any) =>
+      err && typeof err === "object" && "code" in err && err.code === 1; // PERMISSION_DENIED
 
     (async () => {
       try {
@@ -1278,7 +1296,7 @@ function ReservationPage() {
           rejectAutoPosition(reason);
           return;
         }
-        await applyPosition(precise.coords.latitude, precise.coords.longitude);
+        await applyPosition(precise.coords.latitude, precise.coords.longitude, "gps");
       } catch (firstErr) {
         try {
           const cached = await requestBrowserPosition({
@@ -1291,20 +1309,19 @@ function ReservationPage() {
             rejectAutoPosition(reason);
             return;
           }
-          await applyPosition(cached.coords.latitude, cached.coords.longitude);
+          await applyPosition(cached.coords.latitude, cached.coords.longitude, "gps");
         } catch (secondErr) {
-          // Dernier recours : géoloc par IP (approximative — ville)
           const ip = await ipGeolocate();
           if (ip) {
             const distanceFromBordeaux = distanceKmBetween(BORDEAUX_CENTER, [ip.lat, ip.lng]);
             if (distanceFromBordeaux <= MAX_AUTO_GEO_DISTANCE_FROM_BORDEAUX_KM) {
               toast.info("Position GPS indisponible — position approximative via IP.");
-              await applyPosition(ip.lat, ip.lng);
+              await applyPosition(ip.lat, ip.lng, "ip");
               return;
             }
           }
           const err = (secondErr || firstErr) as GeolocationPositionError;
-          rejectAutoPosition(geoErrorMessage(err));
+          rejectAutoPosition(geoErrorMessage(err), isDenied(err) ? "denied" : "error");
         }
       }
     })();
@@ -2248,6 +2265,62 @@ function ReservationPage() {
                     {geolocLoading ? "⏳" : "📍"}
                   </button>
                 </div>
+                {/* Indicateur clair du statut de la géolocalisation */}
+                {geolocStatus !== "idle" && (
+                  <div
+                    role="status"
+                    aria-live="polite"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      marginTop: 6,
+                      padding: "6px 10px",
+                      borderRadius: 8,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      background:
+                        geolocStatus === "success" ? "rgba(34,197,94,0.12)"
+                        : geolocStatus === "loading" ? "rgba(253,224,71,0.12)"
+                        : geolocStatus === "ip" ? "rgba(59,130,246,0.12)"
+                        : "rgba(239,68,68,0.12)",
+                      color:
+                        geolocStatus === "success" ? "#86efac"
+                        : geolocStatus === "loading" ? "#fde68a"
+                        : geolocStatus === "ip" ? "#93c5fd"
+                        : "#fecaca",
+                      border: "1px solid currentColor",
+                    }}
+                  >
+                    <span>
+                      {geolocStatus === "loading" && "⏳"}
+                      {geolocStatus === "success" && "✓"}
+                      {geolocStatus === "ip" && "🌐"}
+                      {geolocStatus === "denied" && "🚫"}
+                      {geolocStatus === "error" && "⚠️"}
+                    </span>
+                    <span style={{ flex: 1 }}>{geolocStatusMsg}</span>
+                    {(geolocStatus === "success" || geolocStatus === "ip") && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setGeolocStatus("idle");
+                          setGeolocStatusMsg("");
+                        }}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: "inherit",
+                          cursor: "pointer",
+                          fontSize: 11,
+                          textDecoration: "underline",
+                        }}
+                      >
+                        Modifier
+                      </button>
+                    )}
+                  </div>
+                )}
                 {errors.depart && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.depart}</div>}
                 {fromCoord && !errors.depart && (
                   <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>✓ {t("res.geo.btn")}</div>

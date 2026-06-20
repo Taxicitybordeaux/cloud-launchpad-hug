@@ -654,6 +654,20 @@ function SuiviPage() {
       }
     })(),
   );
+  // Throttle autopan : max N rafraîchissements par seconde pendant l'animation.
+  // Configurable via localStorage tcb_tracking_pan_hz (1..30, défaut 8 Hz).
+  const panThrottleMsRef = useRef<number>(
+    (() => {
+      try {
+        const v = window.localStorage.getItem("tcb_tracking_pan_hz");
+        const n = v ? Number(v) : NaN;
+        const hz = Number.isFinite(n) && n >= 1 && n <= 30 ? n : 8;
+        return Math.round(1000 / hz);
+      } catch {
+        return 125;
+      }
+    })(),
+  );
 
 
   // Refs data
@@ -726,8 +740,8 @@ function SuiviPage() {
       const lat = fromLat + (toLat - fromLat) * k;
       const lng = fromLng + (toLng - fromLng) * k;
       marker.setPosition({ lat, lng });
-      // Autopan throttle (≤ 8×/s) : ne pan que si le marker sort de la deadzone.
-      if (shouldFollow && now - lastPanT > 120) {
+      // Autopan throttle configurable (cf. panThrottleMsRef) : pan uniquement si le marker sort de la deadzone.
+      if (shouldFollow && now - lastPanT > panThrottleMsRef.current) {
         lastPanT = now;
         try {
           const bounds = map.getBounds?.();
