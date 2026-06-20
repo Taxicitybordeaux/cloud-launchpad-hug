@@ -504,6 +504,7 @@ function SuiviPage() {
   // ── États ─────────────────────────────────────────────────────────────────
   const [resa, setResa] = useState<Reservation | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mapLoadError, setMapLoadError] = useState<string | null>(null);
   const [loadStep, setLoadStep] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [taxiPos, setTaxiPos] = useState<{ lat: number; lng: number } | null>(null);
@@ -867,7 +868,8 @@ function SuiviPage() {
     mapInitializing.current = true;
     try {
       mapsApi = await loadGoogleMapsWhenVisible(mapRef.current);
-    } catch {
+    } catch (err) {
+      setMapLoadError(err instanceof Error ? err.message : "Impossible de charger la carte Google Maps.");
       mapInitializing.current = false;
       return;
     }
@@ -881,6 +883,7 @@ function SuiviPage() {
     }
     let map: any;
     try {
+      setMapLoadError(null);
       map = new mapsApi.maps.Map(mapRef.current, {
         center: { lat, lng },
         zoom: 14,
@@ -2580,6 +2583,29 @@ function SuiviPage() {
       {/* ── MAP — toujours dans le DOM pour que Leaflet puisse mesurer le conteneur ── */}
       <div style={{ flex: 1, position: "relative", minHeight: 0, visibility: loading || error ? "hidden" : "visible" }}>
         <div ref={mapRef} style={{ position: "absolute", inset: 0 }} />
+
+        {mapLoadError && (
+          <div
+            role="alert"
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 999,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
+              padding: 24,
+              background: "#0d1117",
+              color: "#e2e8f0",
+              fontFamily: "'DM Sans',sans-serif",
+              fontSize: 13,
+              lineHeight: 1.45,
+            }}
+          >
+            {mapLoadError}
+          </div>
+        )}
 
         {/* Bouton recentrer */}
         {userPanned && taxiPos && (

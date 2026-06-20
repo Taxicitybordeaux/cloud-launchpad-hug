@@ -2,12 +2,34 @@
 // Configuration centralisée de la clé Google Maps + vérification au démarrage.
 // Importé par googleMaps.ts (chargement SDK) et par le root route (warning dev).
 
-// Priorité : clé custom du projet (autorisée sur le domaine personnalisé taxicitybordeaux.fr),
-// sinon clé browser du connecteur Lovable Google Maps Platform (*.lovable.app uniquement).
-export const GOOGLE_MAPS_API_KEY: string | undefined =
-  (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined) ||
-  (import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY as string | undefined) ||
-  undefined;
+const cleanEnv = (value: unknown): string | undefined =>
+  typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+
+// Priorité au connecteur Google Maps Platform : en mode custom, c'est cette
+// variable qui contient la clé autorisée pour taxicitybordeaux.fr. L'ancienne
+// VITE_GOOGLE_MAPS_API_KEY reste en fallback pour éviter un écran noir si elle
+// est la seule présente.
+const CONNECTOR_BROWSER_KEY = cleanEnv(import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY);
+const PROJECT_BROWSER_KEY = cleanEnv(import.meta.env.VITE_GOOGLE_MAPS_API_KEY);
+
+export const GOOGLE_MAPS_API_KEYS: string[] = Array.from(
+  new Set([CONNECTOR_BROWSER_KEY, PROJECT_BROWSER_KEY].filter(Boolean) as string[]),
+);
+
+export const GOOGLE_MAPS_API_KEY: string | undefined = GOOGLE_MAPS_API_KEYS[0];
+
+export function getGoogleMapsApiKeysForCurrentHost(): string[] {
+  const host = typeof window !== "undefined" ? window.location.hostname : "";
+  const isPreviewHost =
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host.endsWith(".lovable.app") ||
+    host.endsWith(".lovableproject.com");
+  const ordered = isPreviewHost
+    ? [PROJECT_BROWSER_KEY, CONNECTOR_BROWSER_KEY]
+    : [CONNECTOR_BROWSER_KEY, PROJECT_BROWSER_KEY];
+  return Array.from(new Set(ordered.filter(Boolean) as string[]));
+}
 
 export const GOOGLE_MAPS_TRACKING_ID: string | undefined =
   (import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING_ID as string | undefined) ||
@@ -22,14 +44,14 @@ export type GoogleConfigStatus =
   | { ok: false; reason: string };
 
 export function getGoogleConfigStatus(): GoogleConfigStatus {
-  if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY.trim().length === 0) {
+  if (GOOGLE_MAPS_API_KEYS.length === 0) {
     return {
       ok: false,
       reason:
-        "VITE_GOOGLE_MAPS_API_KEY manquant — ajoute la clé dans le fichier .env puis redémarre le serveur.",
+        "Clé Google Maps manquante — reconnecte Google Maps Platform en mode custom puis republie l'application.",
     };
   }
-  return { ok: true, key: GOOGLE_MAPS_API_KEY };
+  return { ok: true, key: GOOGLE_MAPS_API_KEYS[0] };
 }
 
 let warned = false;

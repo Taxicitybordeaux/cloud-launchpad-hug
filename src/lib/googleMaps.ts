@@ -9,11 +9,13 @@ import {
   GOOGLE_MAPS_REGION,
   GOOGLE_MAPS_TRACKING_ID,
   getGoogleConfigStatus,
+  getGoogleMapsApiKeysForCurrentHost,
 } from "./googleConfig";
 
 export type GoogleMapsApi = any;
 
 let mapsLoadPromise: Promise<GoogleMapsApi> | null = null;
+let mapsScriptAttempt = 0;
 
 /**
  * Charge le SDK Google Maps une seule fois (Maps JS + Places + Geometry).
@@ -33,26 +35,85 @@ export function loadGoogleMaps(): Promise<GoogleMapsApi> {
       mapsLoadPromise = null;
       return Promise.reject(new Error(status.reason));
     }
-    const apiKey = status.key;
+    const apiKeys = getGoogleMapsApiKeysForCurrentHost();
     mapsLoadPromise = new Promise<GoogleMapsApi>((resolve, reject) => {
-      const existing = document.getElementById("google-maps-sdk");
-      if (existing) {
-        existing.addEventListener("load", () => resolve(win.google));
-        existing.addEventListener("error", () => reject(new Error("Échec chargement Google Maps SDK")));
-        return;
-      }
+      const cleanupFailedScript = () => {
+        document.getElementById("google-maps-sdk")?.remove();
+        try {
+          delete (win as any).googleMapsInit;
+          delete (win as any).gm_authFailure;
+        } catch {
+          (win as any).googleMapsInit = undefined;
+          (win as any).gm_authFailure = undefined;
+        }
+      };
+
+      const tryKey = (index: number) => {
+        const apiKey = apiKeys[index];
+        if (!apiKey) {
+          cleanupFailedScript();
+          reject(new Error("Impossible de charger Google Maps avec les clés configurées."));
+          return;
+        }
+        const existing = document.getElementById("google-maps-sdk");
+        if (existing) existing.remove();
+        const callbackName = `googleMapsInit_${Date.now()}_${mapsScriptAttempt++}`;
+        let settled = false;
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+        const fail = (message: string) => {
+          if (settled) return;
+          settled = true;
+          if (timeoutId) clearTimeout(timeoutId);
+          document.getElementById("google-maps-sdk")?.remove();
+          try {
+            delete (win as any)[callbackName];
+            delete (win as any).gm_authFailure;
+          } catch {
+            (win as any)[callbackName] = undefined;
+            (win as any).gm_authFailure = undefined;
+          }
+          if (index + 1 < apiKeys.length) {
+            tryKey(index + 1);
+          } else {
+            reject(new Error(message));
+          }
+        };
+
+        (win as any)[callbackName] = () => {
+          if (settled) return;
+          setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            if (timeoutId) clearTimeout(timeoutId);
+            try {
+              delete (win as any)[callbackName];
+              delete (win as any).gm_authFailure;
+            } catch {
+              (win as any)[callbackName] = undefined;
+              (win as any).gm_authFailure = undefined;
+            }
+            resolve(win.google);
+          }, 500);
+        };
+        (win as any).gm_authFailure = () => {
+          fail(
+            "Google Maps refuse la clé sur ce domaine. Vérifie les restrictions HTTP taxicitybordeaux.fr/* et *.taxicitybordeaux.fr/*.",
+          );
+        };
+
       const script = document.createElement("script");
       script.id = "google-maps-sdk";
       const channel = GOOGLE_MAPS_TRACKING_ID ? `&channel=${encodeURIComponent(GOOGLE_MAPS_TRACKING_ID)}` : "";
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=${GOOGLE_MAPS_LIBRARIES}&loading=async&language=${GOOGLE_MAPS_LANGUAGE}&region=${GOOGLE_MAPS_REGION}${channel}`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=${GOOGLE_MAPS_LIBRARIES}&loading=async&callback=${encodeURIComponent(callbackName)}&language=${GOOGLE_MAPS_LANGUAGE}&region=${GOOGLE_MAPS_REGION}${channel}`;
       script.async = true;
       script.defer = true;
-      script.onload = () => resolve(win.google);
-      script.onerror = () => {
-        mapsLoadPromise = null;
-        reject(new Error("Échec chargement Google Maps SDK"));
-      };
+      script.onerror = () => fail("Échec chargement Google Maps SDK");
       document.head.appendChild(script);
+        timeoutId = setTimeout(() => fail("Google Maps met trop longtemps à répondre."), 15000);
+      };
+
+      tryKey(0);
     }).catch((err) => {
       mapsLoadPromise = null;
       throw err;

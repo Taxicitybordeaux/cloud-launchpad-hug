@@ -12,7 +12,7 @@ import {
 } from "@/lib/tarif";
 import { reverseGeocode, searchAddress } from "@/lib/googleGeocode";
 import { getDistanceAndDurationKm } from "@/lib/googleRoute";
-import { loadGoogleMaps } from "@/lib/googleMaps";
+import { loadGoogleMapsWhenVisible } from "@/lib/googleMaps";
 import { newSuiviId } from "@/lib/suivi-id";
 import { notifyNewReservation } from "@/lib/push.functions";
 import { ensureMicAccess, describeGeoError } from "@/lib/permissions";
@@ -696,14 +696,14 @@ function requestBrowserPosition(options: PositionOptions): Promise<GeolocationPo
   });
 }
 
-function getAutoGeoRejectionReason(pos: GeolocationPosition): string | null {
+function getAutoGeoRejectionReason(pos: GeolocationPosition, allowApproximate = false): string | null {
   const lat = pos.coords.latitude;
   const lng = pos.coords.longitude;
   const accuracy = pos.coords.accuracy;
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(accuracy)) {
     return "Position invalide. Saisissez l’adresse de départ manuellement.";
   }
-  if (accuracy > MAX_AUTO_GEO_ACCURACY_M) {
+  if (!allowApproximate && accuracy > MAX_AUTO_GEO_ACCURACY_M) {
     return `Signal GPS trop imprécis (${Math.round(accuracy)} m). Saisissez l’adresse exacte pour éviter une mauvaise prise en charge.`;
   }
   const distanceFromBordeaux = distanceKmBetween(BORDEAUX_CENTER, [lat, lng]);
@@ -798,8 +798,8 @@ function ReservationPage() {
   const [orsResult, setOrsResult] = useState<OrsResult | null>(null);
   const [calcLoading, setCalcLoading] = useState(false);
   const [geolocLoading, setGeolocLoading] = useState(false);
-  // Indicateur visible du statut géoloc client : idle | loading | success | denied | ip | error
-  type GeolocStatus = "idle" | "loading" | "success" | "denied" | "ip" | "error";
+  // Indicateur visible du statut géoloc client : idle | hint | loading | success | denied | ip | error
+  type GeolocStatus = "idle" | "hint" | "loading" | "success" | "denied" | "ip" | "error";
   const [geolocStatus, setGeolocStatus] = useState<GeolocStatus>("idle");
   const [geolocStatusMsg, setGeolocStatusMsg] = useState<string>("");
   const [taxiAvailable, setTaxiAvailable] = useState<boolean | null>(null);
@@ -1111,18 +1111,21 @@ function ReservationPage() {
     const initMap = async () => {
       let mapsApi: any;
       try {
-        mapsApi = await loadGoogleMaps();
+        mapsApi = await loadGoogleMapsWhenVisible(mapRef.current);
       } catch (err) {
         console.error("[reserver] Échec du chargement de Google Maps:", err);
         if (mounted) {
           setMapLoadError(
-            "Impossible de charger la carte (clé Google Maps manquante/invalide ou requête bloquée). Vous pouvez réserver sans la carte.",
+            err instanceof Error
+              ? err.message
+              : "Impossible de charger la carte Google Maps. Vous pouvez réserver sans la carte.",
           );
         }
         return;
       }
       if (!mounted || !mapRef.current) return;
       if (mapInst.current) return; // déjà initialisée (évite double création en StrictMode)
+      setMapLoadError(null);
       const map = new mapsApi.maps.Map(mapRef.current, {
         center: { lat: BORDEAUX_CENTER[0], lng: BORDEAUX_CENTER[1] },
         zoom: 12,
@@ -1130,6 +1133,7 @@ function ReservationPage() {
         zoomControl: true,
         zoomControlOptions: { position: mapsApi.maps.ControlPosition.RIGHT_BOTTOM },
         clickableIcons: false,
+        backgroundColor: "#0d1117",
       });
       mapInst.current = map;
       setTimeout(() => mapsApi.maps.event.trigger(map, "resize"), 100);
@@ -1274,7 +1278,8 @@ function ReservationPage() {
 
     const rejectAutoPosition = (message: string, kind: GeolocStatus = "error") => {
       setGeolocLoading(false);
-      setFromCoord(null);
+      // Ne pas effacer une coordonnée déjà fiable : l'utilisateur peut corriger
+      // l'adresse texte sans perdre le centrage carte/la réservation.
       setErrors((prev) => ({ ...prev, depart: message }));
       setGeolocStatus(kind);
       setGeolocStatusMsg(message);
@@ -1307,12 +1312,13 @@ function ReservationPage() {
       // Retry rapide avec cache autorisé — ré-invoqué dans le même tick, gesture toujours valide via la permission accordée précédemment.
       navigator.geolocation.getCurrentPosition(
         (cached) => {
-          const reason = getAutoGeoRejectionReason(cached);
+          const reason = getAutoGeoRejectionReason(cached, true);
           if (reason) {
             rejectAutoPosition(reason);
             return;
           }
-          void applyPosition(cached.coords.latitude, cached.coords.longitude, "gps");
+          toast.info("Position approximative détectée — vous pouvez préciser l'adresse.");
+          void applyPosition(cached.coords.latitude, cached.coords.longitude, "ip");
         },
         async (secondErr) => {
           const ip = await ipGeolocate();
@@ -1349,7 +1355,16 @@ function ReservationPage() {
     if (f.depart.trim().length > 0) return; // déjà rempli (query param ou autre)
     if (geolocLoading) return;
     autoGeolocTriedRef.current = true;
-    handleGeolocate();
+    setGeolocStatus("hint");
+    setGeolocStatusMsg("Touchez 📍 pour détecter automatiquement votre départ");
+    if (navigator.permissions?.query) {
+      navigator.permissions
+        .query({ name: "geolocation" as PermissionName })
+        .then((permission) => {
+          if (permission.state === "granted" && !f.depart.trim()) handleGeolocate();
+        })
+        .catch(() => {});
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -2318,7 +2333,9 @@ function ReservationPage() {
                           ? "rgba(34,197,94,0.12)"
                           : geolocStatus === "loading"
                             ? "rgba(253,224,71,0.12)"
-                            : geolocStatus === "ip"
+                            : geolocStatus === "hint"
+                              ? "rgba(59,130,246,0.12)"
+                              : geolocStatus === "ip"
                               ? "rgba(59,130,246,0.12)"
                               : "rgba(239,68,68,0.12)",
                       color:
@@ -2326,13 +2343,16 @@ function ReservationPage() {
                           ? "#86efac"
                           : geolocStatus === "loading"
                             ? "#fde68a"
-                            : geolocStatus === "ip"
+                              : geolocStatus === "hint"
+                                ? "#93c5fd"
+                                : geolocStatus === "ip"
                               ? "#93c5fd"
                               : "#fecaca",
                       border: "1px solid currentColor",
                     }}
                   >
                     <span>
+                      {geolocStatus === "hint" && "📍"}
                       {geolocStatus === "loading" && "⏳"}
                       {geolocStatus === "success" && "✓"}
                       {geolocStatus === "ip" && "🌐"}
