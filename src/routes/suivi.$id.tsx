@@ -968,8 +968,8 @@ function SuiviPage() {
           if (map) break;
         }
       }
-      const L = (window as any).L;
-      if (!map || !L) return;
+      const mapsApi = (window as any).google;
+      if (!map || !mapsApi?.maps) return;
 
       const normalizedCachedCoords = normalizeRouteCoords(cachedCoords);
       const [geoA, geoB] = await Promise.all([geocode(depart), geocode(destination)]);
@@ -990,12 +990,9 @@ function SuiviPage() {
         let distanceKm: number | undefined;
         if (normalizedCachedCoords) {
           coords = normalizedCachedCoords;
-          // Priorité : distance_km stockée en Supabase (déjà calibrée par l'Edge Function).
-          // Évite la double calibration (l'Edge Function calibre déjà, recalibrer gonfle la distance).
           if (resaDistanceKm && resaDistanceKm > 0) {
             distanceKm = resaDistanceKm;
           } else {
-            // Fallback : mesure brute sur les coords sans recalibrer (coords déjà issues d'OSRM calibré)
             let d = 0;
             for (let i = 1; i < coords.length; i++) {
               d += distMeters(
@@ -1003,55 +1000,50 @@ function SuiviPage() {
                 { lat: coords[i][0], lng: coords[i][1] },
               );
             }
-            distanceKm = d / 1000; // pas de calibrateKm ici — coords déjà calibrées
+            distanceKm = d / 1000;
           }
         } else {
-          // getRouteGeoCoords attend [lng, lat] (format GeoJSON/OSRM), pas [lat, lng]
           const route = await getRouteGeoCoords([a[1], a[0]], [b[1], b[0]]).catch(() => null);
           const routeCoords = normalizeRouteCoords(route?.coords);
           coords = routeCoords ?? [a, b];
-          // route.distanceKm est déjà calibré ; le fallback à vol d'oiseau aussi
           distanceKm =
             route?.distanceKm || calibrateKm(distMeters({ lat: a[0], lng: a[1] }, { lat: b[0], lng: b[1] }) / 1000);
         }
         if (distanceKm && distanceKm > 0) setTotalKm(parseFloat(distanceKm.toFixed(1)));
 
-        // Relire la carte après les awaits — l'instance peut avoir changé
         map = mapInst.current ?? map;
         if (!map) return;
 
-        const depIcon = L.divIcon({
-          className: "",
-          html: `<div style="position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center"><span style="position:absolute;inset:0;border-radius:50%;background:rgba(34,197,94,0.35);animation:gpsRing 1.6s ease-out infinite"></span><span style="position:absolute;inset:6px;border-radius:50%;background:rgba(34,197,94,0.5);animation:gpsRing 1.6s ease-out infinite;animation-delay:.4s"></span><div style="position:relative;width:30px;height:30px;background:#22c55e;border-radius:50%;border:3px solid white;box-shadow:0 4px 14px rgba(34,197,94,0.7);display:flex;align-items:center;justify-content:center;font-size:15px">📍</div></div>`,
-          iconSize: [44, 44],
-          iconAnchor: [22, 22],
-        });
-        const destIcon = L.divIcon({
-          className: "",
-          html: `<div style="width:34px;height:34px;background:#ef4444;border-radius:50%;border:3px solid white;box-shadow:0 2px 10px rgba(239,68,68,0.6);display:flex;align-items:center;justify-content:center;font-size:16px">🏁</div>`,
-          iconSize: [34, 34],
-          iconAnchor: [17, 17],
-        });
-        if (fromMarker.current) fromMarker.current.remove();
-        if (toMarker.current) toMarker.current.remove();
-        // Relire une dernière fois — les awaits geocode/OSRM peuvent avoir duré plusieurs secondes
+        if (fromMarker.current) fromMarker.current.setMap(null);
+        if (toMarker.current) toMarker.current.setMap(null);
         const activeMap = mapInst.current ?? map;
-        fromMarker.current = L.marker(a, { icon: depIcon }).addTo(activeMap).bindPopup("📍 Prise en charge");
-        toMarker.current = L.marker(b, { icon: destIcon }).addTo(activeMap).bindPopup("🏁 Destination");
+        fromMarker.current = new mapsApi.maps.Marker({
+          position: { lat: a[0], lng: a[1] },
+          map: activeMap,
+          zIndex: 10,
+          title: "📍 Prise en charge",
+          icon: emojiMarkerIcon(mapsApi, { emoji: "📍", bg: "#22c55e", border: "#ffffff", size: 38 }),
+        });
+        toMarker.current = new mapsApi.maps.Marker({
+          position: { lat: b[0], lng: b[1] },
+          map: activeMap,
+          zIndex: 10,
+          title: "🏁 Destination",
+          icon: emojiMarkerIcon(mapsApi, { emoji: "🏁", bg: "#ef4444", border: "#ffffff", size: 34 }),
+        });
 
-        const driverPos = markerRef.current?.getLatLng();
+        const targetBounds = new mapsApi.maps.LatLngBounds();
+        for (const [lat, lng] of coords) targetBounds.extend({ lat, lng });
+        const driverPos = markerRef.current?.getPosition?.();
+        if (driverPos) targetBounds.extend({ lat: driverPos.lat(), lng: driverPos.lng() });
 
-        const targetBounds = L.latLngBounds([...coords, markerRef.current?.getLatLng()].filter(Boolean)).pad(0.2);
         const fit = () => {
-          activeMap.invalidateSize({ animate: false });
-          const size = activeMap.getSize();
-          if (!size || size.x === 0 || size.y === 0) return false;
-          activeMap.fitBounds(targetBounds, { animate: true, duration: 0.8 });
+          mapsApi.maps.event.trigger(activeMap, "resize");
+          const div = activeMap.getDiv?.() as HTMLElement | undefined;
+          if (!div || div.clientWidth === 0 || div.clientHeight === 0) return false;
+          activeMap.fitBounds(targetBounds, 60);
           return true;
         };
-        // Si le conteneur est encore masqué (visibility:hidden pendant le
-        // loading), getSize() renvoie 0x0 et fitBounds() ne ferait rien de
-        // correct → on retente jusqu'à ce que le conteneur soit mesurable.
         if (!fit()) {
           let tries = 0;
           const retry = () => {
@@ -1065,6 +1057,7 @@ function SuiviPage() {
         console.error("[drawTripRoute] erreur lors du tracé:", err);
       }
     },
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
