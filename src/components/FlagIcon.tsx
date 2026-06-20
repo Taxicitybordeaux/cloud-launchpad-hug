@@ -1,4 +1,6 @@
-const FLAGS: Record<string, JSX.Element> = {
+import type { ReactNode } from "react";
+
+const FLAGS: Record<string, ReactNode> = {
   fr: (
     <svg viewBox="0 0 36 24" className="h-4 w-6 rounded-sm" aria-hidden="true">
       <rect x="0" y="0" width="12" height="24" fill="#0055A4" />
