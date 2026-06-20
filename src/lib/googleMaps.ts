@@ -82,16 +82,19 @@ export function loadGoogleMaps(): Promise<GoogleMapsApi> {
 
         (win as any)[callbackName] = () => {
           if (settled) return;
-          settled = true;
-          if (timeoutId) clearTimeout(timeoutId);
-          try {
-            delete (win as any)[callbackName];
-            delete (win as any).gm_authFailure;
-          } catch {
-            (win as any)[callbackName] = undefined;
-            (win as any).gm_authFailure = undefined;
-          }
-          resolve(win.google);
+          setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            if (timeoutId) clearTimeout(timeoutId);
+            try {
+              delete (win as any)[callbackName];
+              delete (win as any).gm_authFailure;
+            } catch {
+              (win as any)[callbackName] = undefined;
+              (win as any).gm_authFailure = undefined;
+            }
+            resolve(win.google);
+          }, 500);
         };
         (win as any).gm_authFailure = () => {
           fail(
