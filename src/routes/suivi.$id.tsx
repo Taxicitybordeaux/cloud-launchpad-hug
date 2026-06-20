@@ -8,6 +8,7 @@ import { getRouteGeoCoords, getDistanceAndDurationKm, calibrateKm } from "@/lib/
 import { geocodeAddress, searchAddress } from "@/lib/googleGeocode";
 import { loadGoogleMapsWhenVisible } from "@/lib/googleMaps";
 import { notifyReservationStatus } from "@/lib/push.functions";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 export const Route = createFileRoute("/suivi/$id")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -526,6 +527,12 @@ function SuiviPage() {
   // sinon le client est pris pour le chauffeur et ne part pas vers /fin/$id.
   const { gps: gpsParam, rid: ridParam } = Route.useSearch();
   const isDriver = gpsParam === "1" || (!!ridParam && (!resa || ridParam === resa.id));
+
+  // Garde l'abonnement push "chauffeur" vivant une fois sur /suivi/$id : sans ça,
+  // l'auto-souscription de /driver ne se relance jamais ici et le token FCM
+  // n'est plus rafraîchi tant que José reste sur cette page (course en cours).
+  usePushNotifications({ autoAudience: isDriver ? "chauffeur" : undefined });
+
   const [driverGpsActive, setDriverGpsActive] = useState(gpsParam === "1");
   const [driverGpsStatus, setDriverGpsStatus] = useState<
     "idle" | "starting" | "active" | "weak" | "denied" | "background" | "error"
@@ -1323,12 +1330,14 @@ function SuiviPage() {
               }
 
               // Client → page de fin (on passe le vrai UUID, pas le suivi_id)
-              // Chauffeur → retour au dashboard admin (fallback si le bouton n'a pas redirigé)
+              // Chauffeur → retour à l'espace driver (fallback si le bouton n'a pas redirigé)
               if (!isDriver) {
                 const resaRealId = (payload.new as any)?.id ?? id;
                 setTimeout(() => navigate({ to: "/fin/$id", params: { id: resaRealId } }), 1200);
               } else {
-                setTimeout(() => navigate({ to: "/admin/dashboard" }), 1500);
+                setTimeout(() => {
+                  window.location.href = "/driver?token=DSF234";
+                }, 1500);
               }
               return;
             }
