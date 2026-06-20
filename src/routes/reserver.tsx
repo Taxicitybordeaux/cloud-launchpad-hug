@@ -1916,7 +1916,8 @@ function ReservationPage() {
           style={{
             flex: 1,
             overflowY: "auto",
-            padding: "16px 20px",
+            padding: "16px 20px max(20px, env(safe-area-inset-bottom, 0px))",
+            WebkitOverflowScrolling: "touch",
             display: "flex",
             flexDirection: "column",
             gap: 20,
