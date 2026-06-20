@@ -1163,12 +1163,16 @@ function ReservationPage() {
         map,
         zIndex: 10,
         icon: {
-          path: mapsApi.maps.SymbolPath.CIRCLE,
-          scale: 8,
-          fillColor: "#22c55e",
-          fillOpacity: 1,
-          strokeColor: "#ffffff",
-          strokeWeight: 3,
+          url:
+            "data:image/svg+xml;charset=UTF-8," +
+            encodeURIComponent(`
+              <svg xmlns="http://www.w3.org/2000/svg" width="36" height="48" viewBox="0 0 36 48">
+                <path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 30 18 30s18-16.5 18-30C36 8.06 27.94 0 18 0z" fill="#22c55e" stroke="#ffffff" stroke-width="2"/>
+                <circle cx="18" cy="18" r="7" fill="#ffffff"/>
+              </svg>
+            `),
+          scaledSize: new mapsApi.maps.Size(36, 48),
+          anchor: new mapsApi.maps.Point(18, 48),
         },
       });
     }
@@ -1180,12 +1184,16 @@ function ReservationPage() {
         map,
         zIndex: 10,
         icon: {
-          path: mapsApi.maps.SymbolPath.CIRCLE,
-          scale: 8,
-          fillColor: "#f5c842",
-          fillOpacity: 1,
-          strokeColor: "#1a1a2e",
-          strokeWeight: 3,
+          url:
+            "data:image/svg+xml;charset=UTF-8," +
+            encodeURIComponent(`
+              <svg xmlns="http://www.w3.org/2000/svg" width="36" height="48" viewBox="0 0 36 48">
+                <path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 30 18 30s18-16.5 18-30C36 8.06 27.94 0 18 0z" fill="#f5c842" stroke="#1a1a2e" stroke-width="2"/>
+                <circle cx="18" cy="18" r="7" fill="#1a1a2e"/>
+              </svg>
+            `),
+          scaledSize: new mapsApi.maps.Size(36, 48),
+          anchor: new mapsApi.maps.Point(18, 48),
         },
       });
     }
@@ -1833,78 +1841,6 @@ function ReservationPage() {
           </div>
         )}
 
-        {/* Badge disponibilité */}
-        <div
-          style={{
-            position: "absolute",
-            top: 16,
-            left: 16,
-            background:
-              taxiAvailable === false
-                ? "rgba(239,68,68,0.15)"
-                : taxiAvailable === true
-                  ? "rgba(34,197,94,0.15)"
-                  : "rgba(10,10,20,0.85)",
-            backdropFilter: "blur(12px)",
-            borderRadius: 99,
-            padding: "7px 14px",
-            display: "flex",
-            alignItems: "center",
-            gap: 7,
-            border:
-              taxiAvailable === false
-                ? "1px solid rgba(239,68,68,0.5)"
-                : taxiAvailable === true
-                  ? "1px solid rgba(34,197,94,0.5)"
-                  : "1px solid rgba(245,200,66,0.2)",
-            zIndex: 100,
-            boxShadow:
-              taxiAvailable === false
-                ? "0 0 12px rgba(239,68,68,0.25)"
-                : taxiAvailable === true
-                  ? "0 0 12px rgba(34,197,94,0.2)"
-                  : "none",
-          }}
-        >
-          {/* Point clignotant */}
-          <div style={{ position: "relative", width: 9, height: 9, flexShrink: 0 }}>
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                borderRadius: "50%",
-                background: taxiAvailable === false ? "#ef4444" : taxiAvailable === true ? "#22c55e" : "#94a3b8",
-                animation: taxiAvailable !== null ? "pulse 1.8s ease-in-out infinite" : "none",
-              }}
-            />
-            {taxiAvailable !== null && (
-              <div
-                style={{
-                  position: "absolute",
-                  inset: -3,
-                  borderRadius: "50%",
-                  background: taxiAvailable === false ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)",
-                  animation: "pulse 1.8s ease-in-out infinite",
-                }}
-              />
-            )}
-          </div>
-          <span
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              color: taxiAvailable === false ? "#fca5a5" : taxiAvailable === true ? "#86efac" : "#94a3b8",
-              letterSpacing: 0.2,
-            }}
-          >
-            {taxiAvailable === null
-              ? t("res.geo.loading")
-              : taxiAvailable
-                ? t("taxi.badge.available")
-                : t("taxi.badge.busy")}
-          </span>
-        </div>
-
         {/* Badge calcul */}
         {calcLoading && (
           <div
@@ -2345,18 +2281,18 @@ function ReservationPage() {
                             : geolocStatus === "hint"
                               ? "rgba(59,130,246,0.12)"
                               : geolocStatus === "ip"
-                              ? "rgba(59,130,246,0.12)"
-                              : "rgba(239,68,68,0.12)",
+                                ? "rgba(59,130,246,0.12)"
+                                : "rgba(239,68,68,0.12)",
                       color:
                         geolocStatus === "success"
                           ? "#86efac"
                           : geolocStatus === "loading"
                             ? "#fde68a"
-                              : geolocStatus === "hint"
-                                ? "#93c5fd"
-                                : geolocStatus === "ip"
+                            : geolocStatus === "hint"
                               ? "#93c5fd"
-                              : "#fecaca",
+                              : geolocStatus === "ip"
+                                ? "#93c5fd"
+                                : "#fecaca",
                       border: "1px solid currentColor",
                     }}
                   >
