@@ -1229,19 +1229,21 @@ function ReservationPage() {
   // ── Géolocalisation départ (navigateur client) ───────────────────────────
   const handleGeolocate = useCallback(() => {
     if (!navigator.geolocation) {
+      setGeolocStatus("error");
+      setGeolocStatusMsg("Géolocalisation non disponible sur cet appareil");
       toast.error("Géolocalisation non disponible");
       return;
     }
     setGeolocLoading(true);
+    setGeolocStatus("loading");
+    setGeolocStatusMsg("Localisation en cours…");
 
-    const applyPosition = async (lat: number, lng: number) => {
+    const applyPosition = async (lat: number, lng: number, source: "gps" | "ip" = "gps") => {
       let adresse = await reverseGeocode(lat, lng).catch(() => null);
       if (!adresse) {
         const fallback = await searchAddress(`${lat}, ${lng}`, 1).catch(() => []);
         adresse = fallback[0]?.label ?? null;
       }
-      // Annuler tout debounce en cours et marquer pour ignorer le prochain resolve
-      // (évite que onBlur/debounce relance resolveDepartAddress et reset fromCoord)
       if (departDebounceRef.current) clearTimeout(departDebounceRef.current);
       skipNextDepartResolveRef.current = true;
       set("depart", adresse ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
@@ -1252,14 +1254,23 @@ function ReservationPage() {
         delete next.depart;
         return next;
       });
+      if (source === "ip") {
+        setGeolocStatus("ip");
+        setGeolocStatusMsg("Position approximative (via IP) — vous pouvez préciser l'adresse");
+      } else {
+        setGeolocStatus("success");
+        setGeolocStatusMsg("Position GPS détectée — modifiable si besoin");
+      }
       toast.success(t("res.geo.btn") + " ✓");
       setGeolocLoading(false);
     };
 
-    const rejectAutoPosition = (message: string) => {
+    const rejectAutoPosition = (message: string, kind: GeolocStatus = "error") => {
       setGeolocLoading(false);
       setFromCoord(null);
       setErrors((prev) => ({ ...prev, depart: message }));
+      setGeolocStatus(kind);
+      setGeolocStatusMsg(message);
       toast.error(message);
     };
 
@@ -1269,6 +1280,9 @@ function ReservationPage() {
       }
       return describeGeoError(err);
     };
+
+    const isDenied = (err: any) =>
+      err && typeof err === "object" && "code" in err && err.code === 1; // PERMISSION_DENIED
 
     (async () => {
       try {
@@ -1282,7 +1296,7 @@ function ReservationPage() {
           rejectAutoPosition(reason);
           return;
         }
-        await applyPosition(precise.coords.latitude, precise.coords.longitude);
+        await applyPosition(precise.coords.latitude, precise.coords.longitude, "gps");
       } catch (firstErr) {
         try {
           const cached = await requestBrowserPosition({
@@ -1295,20 +1309,19 @@ function ReservationPage() {
             rejectAutoPosition(reason);
             return;
           }
-          await applyPosition(cached.coords.latitude, cached.coords.longitude);
+          await applyPosition(cached.coords.latitude, cached.coords.longitude, "gps");
         } catch (secondErr) {
-          // Dernier recours : géoloc par IP (approximative — ville)
           const ip = await ipGeolocate();
           if (ip) {
             const distanceFromBordeaux = distanceKmBetween(BORDEAUX_CENTER, [ip.lat, ip.lng]);
             if (distanceFromBordeaux <= MAX_AUTO_GEO_DISTANCE_FROM_BORDEAUX_KM) {
               toast.info("Position GPS indisponible — position approximative via IP.");
-              await applyPosition(ip.lat, ip.lng);
+              await applyPosition(ip.lat, ip.lng, "ip");
               return;
             }
           }
           const err = (secondErr || firstErr) as GeolocationPositionError;
-          rejectAutoPosition(geoErrorMessage(err));
+          rejectAutoPosition(geoErrorMessage(err), isDenied(err) ? "denied" : "error");
         }
       }
     })();
