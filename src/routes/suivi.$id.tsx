@@ -900,38 +900,39 @@ function SuiviPage() {
             const bounds = map.getBounds();
             const sw = bounds.getSouthWest(),
               ne = bounds.getNorthEast();
+            const swLat = sw.lat(), swLng = sw.lng(), neLat = ne.lat(), neLng = ne.lng();
             const margin = (1 - deadZonePct / 100) / 2;
             const inside =
-              lat >= sw.lat + (ne.lat - sw.lat) * margin &&
-              lat <= ne.lat - (ne.lat - sw.lat) * margin &&
-              lng >= sw.lng + (ne.lng - sw.lng) * margin &&
-              lng <= ne.lng - (ne.lng - sw.lng) * margin;
+              lat >= swLat + (neLat - swLat) * margin &&
+              lat <= neLat - (neLat - swLat) * margin &&
+              lng >= swLng + (neLng - swLng) * margin &&
+              lng <= neLng - (neLng - swLng) * margin;
             if (inside) {
               setUserPanned(false);
               userPannedRef.current = false;
             }
           } catch {}
         }
-        // Toujours passer destCoordsRef.current (valeur fraîche, pas closure)
         await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
         return;
       }
       try {
         const c = map.getCenter();
-        if (distMeters({ lat: c.lat, lng: c.lng }, { lat, lng }) < 15) {
+        if (distMeters({ lat: c.lat(), lng: c.lng() }, { lat, lng }) < 15) {
           await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
           return;
         }
         const bounds = map.getBounds();
         const sw = bounds.getSouthWest(),
           ne = bounds.getNorthEast();
+        const swLat = sw.lat(), swLng = sw.lng(), neLat = ne.lat(), neLng = ne.lng();
         const margin = (1 - deadZonePct / 100) / 2;
         const outside =
-          lat < sw.lat + (ne.lat - sw.lat) * margin ||
-          lat > ne.lat - (ne.lat - sw.lat) * margin ||
-          lng < sw.lng + (ne.lng - sw.lng) * margin ||
-          lng > ne.lng - (ne.lng - sw.lng) * margin;
-        if (outside) map.panTo([lat, lng], { animate: true, duration: 1.4, easeLinearity: 0.25, noMoveStart: true });
+          lat < swLat + (neLat - swLat) * margin ||
+          lat > neLat - (neLat - swLat) * margin ||
+          lng < swLng + (neLng - swLng) * margin ||
+          lng > neLng - (neLng - swLng) * margin;
+        if (outside) map.panTo({ lat, lng });
       } catch {}
       await calculateETA(lat, lng, destCoordsRef.current ?? undefined);
     },
@@ -942,9 +943,11 @@ function SuiviPage() {
     const map = mapInst.current,
       pos = lastDriverPos.current;
     if (!map || !pos) return;
-    map.setView([pos.lat, pos.lng], initialZoom.current ?? map.getZoom(), { animate: true, duration: 0.8 });
+    map.panTo({ lat: pos.lat, lng: pos.lng });
+    map.setZoom(initialZoom.current ?? map.getZoom() ?? 14);
     setUserPanned(false);
   }, []);
+
 
   // ── Tracé départ → destination (stocke totalKm) ──────────────────────────
   const drawTripRoute = useCallback(
