@@ -1312,7 +1312,7 @@ function ReservationPage() {
       // Retry rapide avec cache autorisé — ré-invoqué dans le même tick, gesture toujours valide via la permission accordée précédemment.
       navigator.geolocation.getCurrentPosition(
         (cached) => {
-            const reason = getAutoGeoRejectionReason(cached, true);
+          const reason = getAutoGeoRejectionReason(cached, true);
           if (reason) {
             rejectAutoPosition(reason);
             return;
@@ -2333,7 +2333,9 @@ function ReservationPage() {
                           ? "rgba(34,197,94,0.12)"
                           : geolocStatus === "loading"
                             ? "rgba(253,224,71,0.12)"
-                            : geolocStatus === "ip"
+                            : geolocStatus === "hint"
+                              ? "rgba(59,130,246,0.12)"
+                              : geolocStatus === "ip"
                               ? "rgba(59,130,246,0.12)"
                               : "rgba(239,68,68,0.12)",
                       color:
@@ -2341,7 +2343,9 @@ function ReservationPage() {
                           ? "#86efac"
                           : geolocStatus === "loading"
                             ? "#fde68a"
-                            : geolocStatus === "ip"
+                              : geolocStatus === "hint"
+                                ? "#93c5fd"
+                                : geolocStatus === "ip"
                               ? "#93c5fd"
                               : "#fecaca",
                       border: "1px solid currentColor",
