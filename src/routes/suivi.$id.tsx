@@ -2461,8 +2461,7 @@ function SuiviPage() {
         @keyframes liveDot  { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
         @keyframes spin { to{transform:rotate(360deg)} }
         .sheet-btn:active { transform:scale(0.96); }
-        .leaflet-container { background:#0d1117 !important; width:100%!important; height:100%!important; }
-        .leaflet-tooltip { background:rgba(10,10,20,0.9)!important; border:1px solid rgba(245,200,66,0.3)!important; color:#f5c842!important; font-weight:700!important; border-radius:8px!important; }
+        .gm-style, .gm-style > div:first-child { background:#0d1117 !important; }
         .bottom-sheet { max-height: 58vh; }
         @media (max-height: 700px) { .bottom-sheet { max-height: 42vh; } }
         @media (max-height: 600px) { .bottom-sheet { max-height: 38vh; } }
@@ -2471,8 +2470,7 @@ function SuiviPage() {
         details summary::-webkit-details-marker { display: none; }
         /* iOS momentum scroll */
         .bottom-sheet { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
-        /* Empêcher zoom Leaflet sur double-tap iOS */
-        .leaflet-container { touch-action: pan-x pan-y; }
+
         /* safe-area bottom */
         .safe-bottom { padding-bottom: max(20px, env(safe-area-inset-bottom, 20px)); }
       `}</style>
