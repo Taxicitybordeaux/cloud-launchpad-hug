@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Globe, Check } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { LANGUAGES, type Lang } from "@/i18n/dict";
+import { FlagIcon } from "@/components/FlagIcon";
 
 export function LanguageSwitcher({ className = "" }: { className?: string }) {
   const { lang, setLang } = useI18n();
