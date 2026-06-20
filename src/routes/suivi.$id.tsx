@@ -1524,7 +1524,11 @@ function SuiviPage() {
         }
         await applyDriverPosition(data.latitude, data.longitude);
       }
-      if (mapInst.current) setTimeout(() => mapInst.current?.invalidateSize({ animate: false }), 100);
+      if (mapInst.current) {
+        const mapsApi = (window as any).google;
+        if (mapsApi?.maps) setTimeout(() => mapsApi.maps.event.trigger(mapInst.current, "resize"), 100);
+      }
+
       toast.success("✅ Informations mises à jour");
     } catch {
       toast.error("Échec du rafraîchissement");
