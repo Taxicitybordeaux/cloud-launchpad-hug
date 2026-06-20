@@ -1290,47 +1290,52 @@ function ReservationPage() {
 
     const isDenied = (err: any) => err && typeof err === "object" && "code" in err && err.code === 1; // PERMISSION_DENIED
 
-    (async () => {
-      try {
-        const precise = await requestBrowserPosition({
-          enableHighAccuracy: true,
-          maximumAge: 0,
-          timeout: 18000,
-        });
-        const reason = getAutoGeoRejectionReason(precise);
-        if (reason) {
-          rejectAutoPosition(reason);
-          return;
-        }
-        await applyPosition(precise.coords.latitude, precise.coords.longitude, "gps");
-      } catch (firstErr) {
-        try {
-          const cached = await requestBrowserPosition({
-            enableHighAccuracy: false,
-            maximumAge: 120000,
-            timeout: 8000,
-          });
+    // IMPORTANT iOS/Safari : `navigator.geolocation.getCurrentPosition` DOIT être appelé
+    // synchroniquement dans le contexte du geste utilisateur, sinon le prompt de permission
+    // n'apparaît jamais et le call timeout silencieusement. On ouvre donc la requête GPS ici,
+    // puis on chaîne les fallbacks via callbacks (pas d'await avant getCurrentPosition).
+    const onFirstSuccess = (precise: GeolocationPosition) => {
+      const reason = getAutoGeoRejectionReason(precise);
+      if (reason) {
+        rejectAutoPosition(reason);
+        return;
+      }
+      void applyPosition(precise.coords.latitude, precise.coords.longitude, "gps");
+    };
+
+    const onFirstError = (firstErr: GeolocationPositionError) => {
+      // Retry rapide avec cache autorisé — ré-invoqué dans le même tick, gesture toujours valide via la permission accordée précédemment.
+      navigator.geolocation.getCurrentPosition(
+        (cached) => {
           const reason = getAutoGeoRejectionReason(cached);
           if (reason) {
             rejectAutoPosition(reason);
             return;
           }
-          await applyPosition(cached.coords.latitude, cached.coords.longitude, "gps");
-        } catch (secondErr) {
+          void applyPosition(cached.coords.latitude, cached.coords.longitude, "gps");
+        },
+        async (secondErr) => {
           const ip = await ipGeolocate();
           if (ip) {
             const distanceFromBordeaux = distanceKmBetween(BORDEAUX_CENTER, [ip.lat, ip.lng]);
             if (distanceFromBordeaux <= MAX_AUTO_GEO_DISTANCE_FROM_BORDEAUX_KM) {
               toast.info("Position GPS indisponible — position approximative via IP.");
-              await applyPosition(ip.lat, ip.lng, "ip");
+              void applyPosition(ip.lat, ip.lng, "ip");
               return;
             }
           }
           const err = (secondErr || firstErr) as GeolocationPositionError;
           rejectAutoPosition(geoErrorMessage(err), isDenied(err) ? "denied" : "error");
-        }
-      }
-    })();
+        },
+        { enableHighAccuracy: false, maximumAge: 120000, timeout: 8000 },
+      );
+    };
+
+    navigator.geolocation.getCurrentPosition(onFirstSuccess, onFirstError, {
+      enableHighAccuracy: true,
+      maximumAge: 0,
+      timeout: 18000,
+    });
   }, []);
 
   // ── Auto-géoloc au chargement (départ vide, une seule fois par montage) ──
