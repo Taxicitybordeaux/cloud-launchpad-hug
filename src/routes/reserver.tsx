@@ -2302,7 +2302,7 @@ function ReservationPage() {
                   />
                   <button
                     type="button"
-                    onClick={handleGeolocate}
+                    onClick={() => handleGeolocate()}
                     disabled={geolocLoading}
                     style={{
                       position: "absolute",
