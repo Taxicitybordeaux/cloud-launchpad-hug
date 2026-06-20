@@ -3,11 +3,16 @@
 // + helper de géolocalisation directe navigateur.
 // Remplace le loadLeaflet() + tuiles OSM utilisés jusqu'ici.
 
+import {
+  GOOGLE_MAPS_LANGUAGE,
+  GOOGLE_MAPS_LIBRARIES,
+  GOOGLE_MAPS_REGION,
+  getGoogleConfigStatus,
+} from "./googleConfig";
+
 export type GoogleMapsApi = any;
 
 let mapsLoadPromise: Promise<GoogleMapsApi> | null = null;
-
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
 
 /**
  * Charge le SDK Google Maps une seule fois (Maps JS + Places + Geometry).
@@ -22,12 +27,12 @@ export function loadGoogleMaps(): Promise<GoogleMapsApi> {
     return Promise.resolve(win.google);
   }
   if (!mapsLoadPromise) {
-    if (!GOOGLE_MAPS_API_KEY) {
+    const status = getGoogleConfigStatus();
+    if (!status.ok) {
       mapsLoadPromise = null;
-      return Promise.reject(
-        new Error("VITE_GOOGLE_MAPS_API_KEY manquant — vérifie ton fichier .env"),
-      );
+      return Promise.reject(new Error(status.reason));
     }
+    const apiKey = status.key;
     mapsLoadPromise = new Promise<GoogleMapsApi>((resolve, reject) => {
       const existing = document.getElementById("google-maps-sdk");
       if (existing) {
@@ -37,7 +42,7 @@ export function loadGoogleMaps(): Promise<GoogleMapsApi> {
       }
       const script = document.createElement("script");
       script.id = "google-maps-sdk";
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places,geometry&loading=async&language=fr&region=FR`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=${GOOGLE_MAPS_LIBRARIES}&loading=async&language=${GOOGLE_MAPS_LANGUAGE}&region=${GOOGLE_MAPS_REGION}`;
       script.async = true;
       script.defer = true;
       script.onload = () => resolve(win.google);
@@ -53,6 +58,7 @@ export function loadGoogleMaps(): Promise<GoogleMapsApi> {
   }
   return mapsLoadPromise;
 }
+
 
 // ── Géolocalisation directe (navigateur → centre la carte) ─────────────────
 
