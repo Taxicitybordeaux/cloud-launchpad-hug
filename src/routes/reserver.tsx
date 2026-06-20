@@ -1771,6 +1771,7 @@ function ReservationPage() {
       }}
     >
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Clash+Display:wght@700&family=DM+Sans:wght@400;500;600;700&display=swap');
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         html, body { overflow-x: hidden; max-width: 100vw; overscroll-behavior-y: contain; }
         input, select, button { font-family: 'DM Sans', sans-serif; }
