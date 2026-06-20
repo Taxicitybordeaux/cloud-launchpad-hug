@@ -1058,45 +1058,74 @@ function SuiviPage() {
         map = mapInst.current ?? map;
         if (!map) return;
 
-        if (fromMarker.current) fromMarker.current.setMap(null);
-        if (toMarker.current) toMarker.current.setMap(null);
         const activeMap = mapInst.current ?? map;
-        fromMarker.current = new mapsApi.maps.Marker({
-          position: { lat: a[0], lng: a[1] },
-          map: activeMap,
-          zIndex: 10,
-          title: "📍 Prise en charge",
-          icon: emojiMarkerIcon(mapsApi, { emoji: "📍", bg: "#22c55e", border: "#ffffff", size: 38 }),
-        });
-        toMarker.current = new mapsApi.maps.Marker({
-          position: { lat: b[0], lng: b[1] },
-          map: activeMap,
-          zIndex: 10,
-          title: "🏁 Destination",
-          icon: emojiMarkerIcon(mapsApi, { emoji: "🏁", bg: "#ef4444", border: "#ffffff", size: 34 }),
-        });
+        // Réutilise les marqueurs s'ils existent (évite la recréation à chaque
+        // update — moins de churn DOM / GC, pas de "flash" sur la carte).
+        const depPos = { lat: a[0], lng: a[1] };
+        const destPos = { lat: b[0], lng: b[1] };
+        if (fromMarker.current && fromMarker.current.getMap?.() === activeMap) {
+          fromMarker.current.setPosition(depPos);
+        } else {
+          if (fromMarker.current) fromMarker.current.setMap(null);
+          fromMarker.current = new mapsApi.maps.Marker({
+            position: depPos,
+            map: activeMap,
+            zIndex: 10,
+            title: "📍 Prise en charge",
+            icon: emojiMarkerIcon(mapsApi, { emoji: "📍", bg: "#22c55e", border: "#ffffff", size: 38 }),
+          });
+        }
+        if (toMarker.current && toMarker.current.getMap?.() === activeMap) {
+          toMarker.current.setPosition(destPos);
+        } else {
+          if (toMarker.current) toMarker.current.setMap(null);
+          toMarker.current = new mapsApi.maps.Marker({
+            position: destPos,
+            map: activeMap,
+            zIndex: 10,
+            title: "🏁 Destination",
+            icon: emojiMarkerIcon(mapsApi, { emoji: "🏁", bg: "#ef4444", border: "#ffffff", size: 34 }),
+          });
+        }
 
+        // Bounds robustes : compte les points uniques pour éviter fitBounds(0)
         const targetBounds = new mapsApi.maps.LatLngBounds();
-        for (const [lat, lng] of coords) targetBounds.extend({ lat, lng });
+        const seen = new Set<string>();
+        const pushUnique = (lat: number, lng: number) => {
+          const k = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+          if (seen.has(k)) return;
+          seen.add(k);
+          targetBounds.extend({ lat, lng });
+        };
+        for (const [lat, lng] of coords) pushUnique(lat, lng);
         const driverPos = markerRef.current?.getPosition?.();
-        if (driverPos) targetBounds.extend({ lat: driverPos.lat(), lng: driverPos.lng() });
+        if (driverPos) pushUnique(driverPos.lat(), driverPos.lng());
+        const uniqueCount = seen.size;
 
-        const fit = () => {
+        const applyView = () => {
           mapsApi.maps.event.trigger(activeMap, "resize");
           const div = activeMap.getDiv?.() as HTMLElement | undefined;
           if (!div || div.clientWidth === 0 || div.clientHeight === 0) return false;
+          if (uniqueCount === 0) return true;
+          if (uniqueCount === 1) {
+            // Un seul point : pas de fitBounds (qui zoom à 21), on centre.
+            activeMap.setCenter(targetBounds.getCenter());
+            activeMap.setZoom(15);
+            return true;
+          }
           activeMap.fitBounds(targetBounds, 60);
           return true;
         };
-        if (!fit()) {
+        if (!applyView()) {
           let tries = 0;
           const retry = () => {
             tries++;
-            if (fit() || tries > 20) return;
+            if (applyView() || tries > 20) return;
             setTimeout(retry, 150);
           };
           setTimeout(retry, 150);
         }
+
       } catch (err) {
         console.error("[drawTripRoute] erreur lors du tracé:", err);
       }
