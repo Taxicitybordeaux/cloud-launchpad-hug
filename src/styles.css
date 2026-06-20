@@ -101,6 +101,38 @@
   h1, h2, h3, h4 { font-family: var(--font-display); }
 }
 
+@layer components {
+  .site-header-logo {
+    inline-size: clamp(58px, 18vw, 96px);
+    block-size: 42px;
+  }
+
+  .site-header-logo-img {
+    inline-size: 100% !important;
+    block-size: auto !important;
+    max-block-size: 42px !important;
+  }
+
+  @media (max-width: 390px) {
+    .site-header-logo {
+      inline-size: 56px;
+    }
+
+    .site-header-mobile-actions {
+      gap: 0.375rem;
+    }
+
+    .site-header-language button {
+      inline-size: 40px;
+      padding-inline: 0;
+    }
+
+    .site-header-language button span {
+      display: none;
+    }
+  }
+}
+
 /* RTL support */
 [dir="rtl"] body { font-family: "Noto Naskh Arabic", "Segoe UI", var(--font-sans), system-ui, sans-serif; }
 [dir="rtl"] .ml-1, [dir="rtl"] .ml-2, [dir="rtl"] .ml-3, [dir="rtl"] .ml-4 { margin-left: 0; }
