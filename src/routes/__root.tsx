@@ -32,7 +32,10 @@ export const Route = createRootRoute({
     ],
     links: [
       { rel: "stylesheet", href: appCss },
+      // Preload du logo header pour éviter le CLS au premier rendu
+      { rel: "preload", as: "image", href: logoUrl, fetchpriority: "high" },
       // Manifest PWA — requis pour push iOS + "Ajouter à l'écran d'accueil"
+
       // Cache-busting versionné sur les fichiers statiques non hashés.
       { rel: "manifest", href: `/manifest.json${v}` },
       { rel: "apple-touch-icon", href: `/apple-touch-icon.png${v}` },
