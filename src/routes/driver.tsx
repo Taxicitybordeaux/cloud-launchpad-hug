@@ -5,6 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { calculerPrixMixte, estTarifJourParis } from "@/lib/tarif";
 import { loadGoogleMapsWhenVisible } from "@/lib/googleMaps";
 import { geocodeAddress } from "@/lib/googleGeocode";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useServerFn } from "@tanstack/react-start";
+import { listPushFailures } from "@/lib/push.functions";
 
 // ── Token guard ────────────────────────────────────────────────────────────
 const DRIVER_TOKEN = "DSF234";
@@ -22,6 +25,9 @@ interface Resa {
   distance_km?: number | null;
   client_name?: string | null;
   client_phone?: string | null;
+  client_email?: string | null;
+  email?: string | null;
+  suivi_id?: string | null;
 }
 
 interface Avis {
@@ -257,6 +263,7 @@ function DriverApp() {
   const [tab, setTab] = useState<Tab>("courses");
   const [newCount, setNewCount] = useState(0);
   const [pendingAvis, setPendingAvis] = useState(0);
+  const { status: pushStatus, subscribe: subscribePush } = usePushNotifications({ autoAudience: "chauffeur" });
 
   // Rafraîchissement badge courses
   useEffect(() => {
@@ -296,10 +303,68 @@ function DriverApp() {
         <div className="drv-header">
           <span style={{ fontSize: 26 }}>🚕</span>
           <h1>Espace José</h1>
+          <a
+            href="/"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              color: "#cbd5e1",
+              fontSize: 11,
+              textDecoration: "none",
+              border: "1px solid #334155",
+              borderRadius: 8,
+              padding: "4px 8px",
+              flexShrink: 0,
+            }}
+          >
+            ↩ Site
+          </a>
           <span style={{ fontSize: 12, color: "#94a3b8" }}>
             {new Date().toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}
           </span>
         </div>
+
+        {/* Bandeau activation notifications */}
+        {(pushStatus === "idle" || pushStatus === "denied") && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10,
+              background: pushStatus === "denied" ? "#fef2f2" : "#eff6ff",
+              borderBottom: "1px solid #e2e8f0",
+              padding: "10px 16px",
+              fontSize: 12.5,
+              color: pushStatus === "denied" ? "#b91c1c" : "#1d4ed8",
+            }}
+          >
+            <span>
+              {pushStatus === "denied"
+                ? "🔕 Notifications bloquées — active-les dans les réglages du téléphone."
+                : "🔔 Active les notifications pour ne rater aucune nouvelle course."}
+            </span>
+            {pushStatus === "idle" && (
+              <button
+                onClick={() => subscribePush("chauffeur")}
+                style={{
+                  flexShrink: 0,
+                  background: "#0f172a",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Activer
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="drv-tabs">
@@ -350,7 +415,9 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
   const load = useCallback(async () => {
     const { data } = await (supabase as any)
       .from("reservations")
-      .select("id,depart,destination,date_heure,status,prix,distance_km,client_name,client_phone")
+      .select(
+        "id,depart,destination,date_heure,status,prix,distance_km,client_name,client_phone,client_email,email,suivi_id",
+      )
       .in("status", ["nouvelle", "acceptee", "en_route", "arrivee"])
       .order("date_heure", { ascending: true });
     const list: Resa[] = data ?? [];
@@ -633,51 +700,73 @@ function CourseCard({
             </>
           )}
 
-          {/* Contact */}
-          {resa.client_phone && (
-            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              <a
-                href={`tel:${resa.client_phone}`}
-                style={{
-                  flex: 1,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                  background: "#f0fdf4",
-                  border: "1px solid #bbf7d0",
-                  borderRadius: 12,
-                  padding: "10px",
-                  color: "#15803d",
-                  fontWeight: 700,
-                  fontSize: 13,
-                  textDecoration: "none",
-                }}
-              >
-                📞 Appeler
-              </a>
-              <a
-                href={`sms:${resa.client_phone}`}
-                style={{
-                  flex: 1,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                  background: "#eff6ff",
-                  border: "1px solid #bfdbfe",
-                  borderRadius: 12,
-                  padding: "10px",
-                  color: "#1d4ed8",
-                  fontWeight: 700,
-                  fontSize: 13,
-                  textDecoration: "none",
-                }}
-              >
-                💬 SMS
-              </a>
-            </div>
-          )}
+          {/* Contact — tel / SMS / WhatsApp / Email, identique à l'admin */}
+          {(resa.status === "acceptee" || resa.status === "en_route" || resa.status === "arrivee") &&
+            (() => {
+              const phone = resa.client_phone;
+              const mail = resa.client_email || resa.email;
+              const trackUrl =
+                resa.suivi_id && typeof window !== "undefined"
+                  ? `${window.location.origin}/suivi/${resa.suivi_id}`
+                  : "";
+              const greet = `Bonjour ${resa.client_name || ""}, votre taxi Taxi City Bordeaux.`;
+              const body = trackUrl ? `${greet}\nRetrouvez votre course ici : ${trackUrl}` : greet;
+              const mailBody = trackUrl
+                ? `Bonjour ${resa.client_name || ""},\n\nVoici le lien pour retrouver et suivre votre course en temps réel :\n${trackUrl}\n\nTaxi City Bordeaux`
+                : `Bonjour ${resa.client_name || ""},\n\nTaxi City Bordeaux`;
+              if (!phone && !mail) return null;
+              const contactBtn: React.CSSProperties = {
+                flex: "1 1 auto",
+                minWidth: 78,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                border: "1px solid #e2e8f0",
+                borderRadius: 12,
+                padding: "10px",
+                fontWeight: 700,
+                fontSize: 12.5,
+                textDecoration: "none",
+                color: "#0f172a",
+              };
+              return (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                  {phone && (
+                    <>
+                      <a
+                        href={`tel:${phone}`}
+                        style={{ ...contactBtn, background: "#eff6ff", borderColor: "#bfdbfe", color: "#0369a1" }}
+                      >
+                        📞 Appeler
+                      </a>
+                      <a
+                        href={`sms:${phone}?body=${encodeURIComponent(body)}`}
+                        style={{ ...contactBtn, background: "#faf5ff", borderColor: "#e9d5ff", color: "#7e22ce" }}
+                      >
+                        💬 SMS
+                      </a>
+                      <a
+                        href={`https://wa.me/${phone.replace(/[^0-9]/g, "").replace(/^0/, "33")}?text=${encodeURIComponent(body)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ ...contactBtn, background: "#f0fdf4", borderColor: "#bbf7d0", color: "#15803d" }}
+                      >
+                        🟢 WhatsApp
+                      </a>
+                    </>
+                  )}
+                  {mail && (
+                    <a
+                      href={`mailto:${mail}?subject=${encodeURIComponent("Votre course Taxi City Bordeaux")}&body=${encodeURIComponent(mailBody)}`}
+                      style={{ ...contactBtn, background: "#fffbeb", borderColor: "#fde68a", color: "#92400e" }}
+                    >
+                      ✉️ Email
+                    </a>
+                  )}
+                </div>
+              );
+            })()}
 
           {/* Actions */}
           {resa.status === "nouvelle" && (
@@ -1071,6 +1160,28 @@ function ClientsTab() {
               >
                 💬 SMS
               </a>
+              <a
+                href={`https://wa.me/${c.phone.replace(/[^0-9]/g, "").replace(/^0/, "33")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  background: "#f0fdf4",
+                  border: "1px solid #bbf7d0",
+                  borderRadius: 12,
+                  padding: "10px",
+                  color: "#15803d",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  textDecoration: "none",
+                }}
+              >
+                🟢 WhatsApp
+              </a>
             </div>
           </div>
         ))
@@ -1192,12 +1303,98 @@ function StatsTab() {
         </div>
       </div>
 
-      {/* Lien suivi */}
-      <div style={{ marginTop: 16, textAlign: "center" }}>
-        <a href="/admin/dashboard" style={{ fontSize: 13, color: "#94a3b8", textDecoration: "none" }}>
-          Accéder au tableau de bord complet →
-        </a>
-      </div>
+      {/* Diagnostic push */}
+      <PushDiagnostic />
     </>
+  );
+}
+
+// ── Mini diagnostic des échecs push (remplace l'ancien lien /admin/dashboard) ──
+function PushDiagnostic() {
+  const fetchFailures = useServerFn(listPushFailures);
+  const [open, setOpen] = useState(false);
+  const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await fetchFailures({ data: { pin: DRIVER_TOKEN, only_price_update: false, limit: 30 } });
+      setRows((res as any)?.failures ?? []);
+    } catch {
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ marginTop: 16 }}>
+      <button
+        onClick={() => {
+          const next = !open;
+          setOpen(next);
+          if (next && rows.length === 0) load();
+        }}
+        style={{
+          width: "100%",
+          textAlign: "center",
+          background: "none",
+          border: "none",
+          color: "#94a3b8",
+          fontSize: 12,
+          cursor: "pointer",
+          padding: "8px 0",
+        }}
+      >
+        {open ? "▲ Masquer le diagnostic push" : "▼ Diagnostic notifications push"}
+      </button>
+      {open && (
+        <div className="drv-card">
+          {loading ? (
+            <div style={{ fontSize: 13, color: "#64748b", textAlign: "center" }}>Chargement…</div>
+          ) : rows.length === 0 ? (
+            <div style={{ fontSize: 13, color: "#64748b", textAlign: "center" }}>Aucun échec récent ✨</div>
+          ) : (
+            rows.map((r: any) => (
+              <div key={r.id} style={{ fontSize: 11.5, padding: "6px 0", borderBottom: "1px solid #f1f5f9" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", color: "#0f172a", fontWeight: 600 }}>
+                  <span>
+                    {r.audience} · {r.http_status ?? "—"} {r.error_code ?? ""}
+                  </span>
+                  <span style={{ color: "#94a3b8" }}>
+                    {new Date(r.created_at).toLocaleString("fr-FR", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+                <div style={{ color: "#64748b" }}>{r.title ?? ""}</div>
+              </div>
+            ))
+          )}
+          <button
+            onClick={load}
+            disabled={loading}
+            style={{
+              marginTop: 10,
+              width: "100%",
+              background: "#f1f5f9",
+              border: "1px solid #e2e8f0",
+              borderRadius: 10,
+              padding: "8px",
+              fontSize: 12,
+              fontWeight: 700,
+              color: "#0f172a",
+              cursor: "pointer",
+            }}
+          >
+            🔄 Rafraîchir
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
