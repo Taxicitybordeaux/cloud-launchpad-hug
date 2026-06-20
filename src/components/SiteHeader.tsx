@@ -35,12 +35,11 @@ export function SiteHeader() {
           <img
             src={logo}
             alt="Taxi City Bordeaux"
-            width={40}
-            height={40}
+            width={32}
+            height={32}
             decoding="async"
-            className="h-9 w-auto max-w-[140px] rounded-md object-contain sm:h-12 sm:max-w-none"
+            className="h-8 w-auto max-w-[110px] rounded-md object-contain sm:h-9 sm:max-w-[130px]"
           />
-          {/* Logo already contains the brand name — keep a screen-reader-only label to avoid mobile overlap */}
           <span className="sr-only">Taxi City Bordeaux</span>
         </Link>
 
