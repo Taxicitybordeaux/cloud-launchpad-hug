@@ -1967,31 +1967,31 @@ function SuiviPage() {
     };
   }, [addLog, requestDriverWakeLock]);
 
-  // ── invalidateSize + refit dès que le loading se termine ─────────────────
-  // Bug fix : pendant `loading=true`, le conteneur de la carte a
-  // `visibility:hidden` → sa taille mesurée par Leaflet peut être 0x0 (ou
-  // incorrecte) au moment où drawTripRoute() a appelé fitBounds(). Le tracé
-  // et les icônes sont bien ajoutés à la carte, mais la vue (zoom/centre)
-  // reste celle calculée sur un conteneur de taille nulle → rien de visible
-  // tant qu'on ne pan/zoom pas manuellement. On corrige la taille ET on
-  // recalcule la vue une fois le conteneur réellement visible.
+  // ── resize + refit dès que le loading se termine ─────────────────────────
+  // Bug fix : pendant `loading=true`, le conteneur a `visibility:hidden` →
+  // Google Maps mesure une taille 0x0 au moment où drawTripRoute a appelé
+  // fitBounds(). On déclenche un resize + on recalcule la vue dès que le
+  // conteneur devient visible.
   useEffect(() => {
     if (loading || !mapInst.current) return;
-    const L = (window as any).L;
+    const mapsApi = (window as any).google;
+    if (!mapsApi?.maps) return;
     const map = mapInst.current;
     const refit = () => {
-      map.invalidateSize({ animate: false });
-      if (!L) return;
-      const bounds: any[] = [];
-      if (fromMarker.current) bounds.push(fromMarker.current.getLatLng());
-      if (toMarker.current) bounds.push(toMarker.current.getLatLng());
-      const driverPos = markerRef.current?.getLatLng();
-      if (driverPos) bounds.push(L.latLngBounds([driverPos, driverPos]));
-      if (bounds.length === 0) return;
+      mapsApi.maps.event.trigger(map, "resize");
+      const bounds = new mapsApi.maps.LatLngBounds();
+      let count = 0;
+      const pushPos = (p: any) => {
+        if (!p) return;
+        bounds.extend({ lat: p.lat(), lng: p.lng() });
+        count++;
+      };
+      pushPos(fromMarker.current?.getPosition?.());
+      pushPos(toMarker.current?.getPosition?.());
+      pushPos(markerRef.current?.getPosition?.());
+      if (count === 0) return;
       try {
-        let combined = bounds[0];
-        for (let i = 1; i < bounds.length; i++) combined = combined.extend(bounds[i]);
-        map.fitBounds(combined.pad(0.2), { animate: false });
+        map.fitBounds(bounds, 60);
       } catch {}
     };
     const t1 = setTimeout(refit, 50);
@@ -2003,6 +2003,7 @@ function SuiviPage() {
       clearTimeout(t3);
     };
   }, [loading]);
+
 
   const statusConfig: Record<string, { label: string; color: string; bg: string; icon: string; pulse: boolean }> = {
     nouvelle: {
