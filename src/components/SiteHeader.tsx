@@ -29,16 +29,22 @@ export function SiteHeader() {
   ] as const;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-md">
-      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-3 sm:h-16 sm:px-4">
-        <Link to="/" className="flex min-w-0 items-center gap-2" onClick={() => setOpen(false)}>
+    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/90 backdrop-blur-md">
+      <div className="mx-auto grid h-14 max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 sm:h-16 sm:px-4 md:flex md:justify-between">
+        <Link
+          to="/"
+          className="site-header-logo flex min-w-0 shrink-0 items-center overflow-hidden"
+          onClick={() => setOpen(false)}
+          aria-label="Taxi City Bordeaux"
+        >
           <img
             src={logo}
             alt="Taxi City Bordeaux"
-            width={32}
-            height={32}
+            width={512}
+            height={343}
             decoding="async"
-            className="h-8 w-auto max-w-[110px] rounded-md object-contain sm:h-9 sm:max-w-[130px]"
+            className="site-header-logo-img rounded-md object-contain"
+            style={{ width: "clamp(58px, 18vw, 96px)", maxWidth: "96px", maxHeight: "42px", height: "auto" }}
           />
           <span className="sr-only">Taxi City Bordeaux</span>
         </Link>
@@ -81,22 +87,22 @@ export function SiteHeader() {
         </div>
 
         {/* Mobile right side: phone shortcut + theme + burger */}
-        <div className="flex items-center gap-1.5 md:hidden">
+        <div className="site-header-mobile-actions flex min-w-0 shrink-0 items-center gap-1.5 md:hidden">
           {/* Quick-call button always visible on mobile — most important action */}
           <a
             href={`tel:${PHONE}`}
             aria-label="Appeler"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground"
           >
             <Phone className="h-4 w-4" />
           </a>
-          <ThemeToggle />
-          <LanguageSwitcher />
+          <ThemeToggle className="h-10 w-10 shrink-0" />
+          <LanguageSwitcher className="site-header-language shrink-0" />
           <button
             type="button"
             aria-label="Menu"
             onClick={() => setOpen((v) => !v)}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border"
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
