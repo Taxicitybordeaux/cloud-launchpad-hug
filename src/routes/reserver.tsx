@@ -798,6 +798,10 @@ function ReservationPage() {
   const [orsResult, setOrsResult] = useState<OrsResult | null>(null);
   const [calcLoading, setCalcLoading] = useState(false);
   const [geolocLoading, setGeolocLoading] = useState(false);
+  // Indicateur visible du statut géoloc client : idle | loading | success | denied | ip | error
+  type GeolocStatus = "idle" | "loading" | "success" | "denied" | "ip" | "error";
+  const [geolocStatus, setGeolocStatus] = useState<GeolocStatus>("idle");
+  const [geolocStatusMsg, setGeolocStatusMsg] = useState<string>("");
   const [taxiAvailable, setTaxiAvailable] = useState<boolean | null>(null);
   const [destinationChoices, setDestinationChoices] = useState<AddressChoice[]>([]);
   const [departChoices, setDepartChoices] = useState<AddressChoice[]>([]);
