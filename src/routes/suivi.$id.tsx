@@ -641,6 +641,20 @@ function SuiviPage() {
   const initialZoom = useRef<number | null>(null);
   const userPannedRef = useRef(false);
   const autoResumeRef = useRef(true);
+  // Zoom cible lorsqu'on suit le chauffeur (null = on garde le zoom courant).
+  // Configurable via localStorage tcb_tracking_follow_zoom.
+  const followZoomRef = useRef<number | null>(
+    (() => {
+      try {
+        const v = window.localStorage.getItem("tcb_tracking_follow_zoom");
+        const n = v ? Number(v) : NaN;
+        return Number.isFinite(n) && n >= 10 && n <= 19 ? n : null;
+      } catch {
+        return null;
+      }
+    })(),
+  );
+
 
   // Refs data
   const depGeoRef = useRef<{ lat: number; lng: number } | null>(null);
@@ -677,7 +691,11 @@ function SuiviPage() {
     };
   }, []);
 
-  // ── Animation fluide marqueur — durée adaptative (depuis tracking) ───────
+  // ── Animation fluide marqueur + autopan caméra ──────────────────────────
+  // Pendant l'animation du marker (700–2200ms), on suit aussi la caméra
+  // tant que l'utilisateur n'a pas pan manuellement (userPannedRef=false).
+  // Le pan ne s'applique qu'à partir d'un seuil (deadZonePct) pour éviter
+  // le jitter quand le chauffeur bouge à peine.
   const animateMarkerTo = (toLat: number, toLng: number) => {
     const marker = markerRef.current;
     if (!marker) return;
@@ -695,17 +713,43 @@ function SuiviPage() {
     const dist = distMeters({ lat: fromLat, lng: fromLng }, { lat: toLat, lng: toLng });
     const duration = Math.min(2200, Math.max(700, dist * 25));
     const startT = performance.now();
+    const map = mapInst.current;
+    // Si on suit (pas pan utilisateur), précharge le zoom cible une seule fois
+    const shouldFollow = !!map && !userPannedRef.current;
+    if (shouldFollow && followZoomRef.current && map.getZoom?.() !== followZoomRef.current) {
+      try { map.setZoom(followZoomRef.current); } catch {}
+    }
+    let lastPanT = 0;
     const step = (now: number) => {
-      const t = Math.min(1, (now - startT) / duration);
-      const k = ease(t);
+      const tt = Math.min(1, (now - startT) / duration);
+      const k = ease(tt);
       const lat = fromLat + (toLat - fromLat) * k;
       const lng = fromLng + (toLng - fromLng) * k;
       marker.setPosition({ lat, lng });
-      if (t < 1) animFrame.current = requestAnimationFrame(step);
+      // Autopan throttle (≤ 8×/s) : ne pan que si le marker sort de la deadzone.
+      if (shouldFollow && now - lastPanT > 120) {
+        lastPanT = now;
+        try {
+          const bounds = map.getBounds?.();
+          if (bounds) {
+            const sw = bounds.getSouthWest(), ne = bounds.getNorthEast();
+            const swLat = sw.lat(), swLng = sw.lng(), neLat = ne.lat(), neLng = ne.lng();
+            const margin = (1 - deadZonePct / 100) / 2;
+            const outside =
+              lat < swLat + (neLat - swLat) * margin ||
+              lat > neLat - (neLat - swLat) * margin ||
+              lng < swLng + (neLng - swLng) * margin ||
+              lng > neLng - (neLng - swLng) * margin;
+            if (outside) map.panTo({ lat, lng });
+          }
+        } catch {}
+      }
+      if (tt < 1) animFrame.current = requestAnimationFrame(step);
       else animFrame.current = null;
     };
     animFrame.current = requestAnimationFrame(step);
   };
+
 
 
   // ── Geocode helper — mêmes variantes/fallbacks que /reserver, ne jamais échouer
@@ -1014,45 +1058,74 @@ function SuiviPage() {
         map = mapInst.current ?? map;
         if (!map) return;
 
-        if (fromMarker.current) fromMarker.current.setMap(null);
-        if (toMarker.current) toMarker.current.setMap(null);
         const activeMap = mapInst.current ?? map;
-        fromMarker.current = new mapsApi.maps.Marker({
-          position: { lat: a[0], lng: a[1] },
-          map: activeMap,
-          zIndex: 10,
-          title: "📍 Prise en charge",
-          icon: emojiMarkerIcon(mapsApi, { emoji: "📍", bg: "#22c55e", border: "#ffffff", size: 38 }),
-        });
-        toMarker.current = new mapsApi.maps.Marker({
-          position: { lat: b[0], lng: b[1] },
-          map: activeMap,
-          zIndex: 10,
-          title: "🏁 Destination",
-          icon: emojiMarkerIcon(mapsApi, { emoji: "🏁", bg: "#ef4444", border: "#ffffff", size: 34 }),
-        });
+        // Réutilise les marqueurs s'ils existent (évite la recréation à chaque
+        // update — moins de churn DOM / GC, pas de "flash" sur la carte).
+        const depPos = { lat: a[0], lng: a[1] };
+        const destPos = { lat: b[0], lng: b[1] };
+        if (fromMarker.current && fromMarker.current.getMap?.() === activeMap) {
+          fromMarker.current.setPosition(depPos);
+        } else {
+          if (fromMarker.current) fromMarker.current.setMap(null);
+          fromMarker.current = new mapsApi.maps.Marker({
+            position: depPos,
+            map: activeMap,
+            zIndex: 10,
+            title: "📍 Prise en charge",
+            icon: emojiMarkerIcon(mapsApi, { emoji: "📍", bg: "#22c55e", border: "#ffffff", size: 38 }),
+          });
+        }
+        if (toMarker.current && toMarker.current.getMap?.() === activeMap) {
+          toMarker.current.setPosition(destPos);
+        } else {
+          if (toMarker.current) toMarker.current.setMap(null);
+          toMarker.current = new mapsApi.maps.Marker({
+            position: destPos,
+            map: activeMap,
+            zIndex: 10,
+            title: "🏁 Destination",
+            icon: emojiMarkerIcon(mapsApi, { emoji: "🏁", bg: "#ef4444", border: "#ffffff", size: 34 }),
+          });
+        }
 
+        // Bounds robustes : compte les points uniques pour éviter fitBounds(0)
         const targetBounds = new mapsApi.maps.LatLngBounds();
-        for (const [lat, lng] of coords) targetBounds.extend({ lat, lng });
+        const seen = new Set<string>();
+        const pushUnique = (lat: number, lng: number) => {
+          const k = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+          if (seen.has(k)) return;
+          seen.add(k);
+          targetBounds.extend({ lat, lng });
+        };
+        for (const [lat, lng] of coords) pushUnique(lat, lng);
         const driverPos = markerRef.current?.getPosition?.();
-        if (driverPos) targetBounds.extend({ lat: driverPos.lat(), lng: driverPos.lng() });
+        if (driverPos) pushUnique(driverPos.lat(), driverPos.lng());
+        const uniqueCount = seen.size;
 
-        const fit = () => {
+        const applyView = () => {
           mapsApi.maps.event.trigger(activeMap, "resize");
           const div = activeMap.getDiv?.() as HTMLElement | undefined;
           if (!div || div.clientWidth === 0 || div.clientHeight === 0) return false;
+          if (uniqueCount === 0) return true;
+          if (uniqueCount === 1) {
+            // Un seul point : pas de fitBounds (qui zoom à 21), on centre.
+            activeMap.setCenter(targetBounds.getCenter());
+            activeMap.setZoom(15);
+            return true;
+          }
           activeMap.fitBounds(targetBounds, 60);
           return true;
         };
-        if (!fit()) {
+        if (!applyView()) {
           let tries = 0;
           const retry = () => {
             tries++;
-            if (fit() || tries > 20) return;
+            if (applyView() || tries > 20) return;
             setTimeout(retry, 150);
           };
           setTimeout(retry, 150);
         }
+
       } catch (err) {
         console.error("[drawTripRoute] erreur lors du tracé:", err);
       }
@@ -1980,20 +2053,29 @@ function SuiviPage() {
     const refit = () => {
       mapsApi.maps.event.trigger(map, "resize");
       const bounds = new mapsApi.maps.LatLngBounds();
-      let count = 0;
+      const seen = new Set<string>();
       const pushPos = (p: any) => {
         if (!p) return;
-        bounds.extend({ lat: p.lat(), lng: p.lng() });
-        count++;
+        const lat = p.lat(), lng = p.lng();
+        const k = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+        if (seen.has(k)) return;
+        seen.add(k);
+        bounds.extend({ lat, lng });
       };
       pushPos(fromMarker.current?.getPosition?.());
       pushPos(toMarker.current?.getPosition?.());
       pushPos(markerRef.current?.getPosition?.());
-      if (count === 0) return;
+      if (seen.size === 0) return;
       try {
-        map.fitBounds(bounds, 60);
+        if (seen.size === 1) {
+          map.setCenter(bounds.getCenter());
+          map.setZoom(followZoomRef.current ?? initialZoom.current ?? 15);
+        } else {
+          map.fitBounds(bounds, 60);
+        }
       } catch {}
     };
+
     const t1 = setTimeout(refit, 50);
     const t2 = setTimeout(refit, 250);
     const t3 = setTimeout(refit, 600);

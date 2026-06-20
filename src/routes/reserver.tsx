@@ -1310,6 +1310,28 @@ function ReservationPage() {
     })();
   }, []);
 
+  // ── Auto-géoloc au chargement (départ vide, une seule fois par session) ──
+  // Si l'utilisateur arrive sans `?depart=...` dans l'URL et n'a pas encore
+  // de départ saisi, on tente la géoloc navigateur silencieusement. Le toast
+  // success/error de handleGeolocate informe le client du résultat.
+  const autoGeolocTriedRef = useRef(false);
+  useEffect(() => {
+    if (autoGeolocTriedRef.current) return;
+    if (typeof window === "undefined") return;
+    if (f.depart.trim().length > 0) return; // déjà rempli (query param ou autre)
+    if (geolocLoading) return;
+    // Évite de redéclencher si l'utilisateur a déjà essayé dans cette session.
+    try {
+      if (window.sessionStorage.getItem("tcb_auto_geoloc_done") === "1") return;
+      window.sessionStorage.setItem("tcb_auto_geoloc_done", "1");
+    } catch {}
+    autoGeolocTriedRef.current = true;
+    handleGeolocate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+
+
   // ── Résoudre adresse départ (saisie manuelle) ────────────────────────────
   const resolveDepartAddress = useCallback(async () => {
     // Géoloc vient de poser l'adresse directement — on saute ce resolve
