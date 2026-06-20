@@ -7,12 +7,20 @@ import { loadGoogleMaps } from "./googleMaps";
 export type GeoCoord = { lat: number; lng: number };
 export type SearchResult = { coord: [number, number]; label: string };
 
-let geocoder: google.maps.Geocoder | null = null;
+type GoogleGeocoder = any;
+type GoogleGeocoderResult = any;
+type GoogleAutocompleteService = any;
+type GooglePlacesService = any;
+type GoogleAutocompletePrediction = any;
+type GooglePlaceResult = any;
+
+let geocoder: GoogleGeocoder | null = null;
 async function getGeocoder() {
   if (geocoder) return geocoder;
   const g = await loadGoogleMaps();
-  geocoder = new g.maps.Geocoder();
-  return geocoder;
+  const nextGeocoder = new g.maps.Geocoder();
+  geocoder = nextGeocoder;
+  return nextGeocoder;
 }
 
 // Bordeaux — biais de zone pour préférer les résultats locaux (comme l'ancien
@@ -30,19 +38,20 @@ const BORDEAUX_BOUNDS = {
  */
 export async function geocodeAddress(query: string): Promise<GeoCoord | null> {
   try {
+    const api = await loadGoogleMaps();
     const g = await getGeocoder();
-    const result = await new Promise<google.maps.GeocoderResult[] | null>((resolve) => {
+    const result = await new Promise<GoogleGeocoderResult[] | null>((resolve) => {
       g.geocode(
         {
           address: query,
           region: "fr",
-          bounds: new google.maps.LatLngBounds(
+          bounds: new api.maps.LatLngBounds(
             { lat: BORDEAUX_BOUNDS.south, lng: BORDEAUX_BOUNDS.west },
             { lat: BORDEAUX_BOUNDS.north, lng: BORDEAUX_BOUNDS.east },
           ),
         },
-        (results, status) => {
-          if (status !== google.maps.GeocoderStatus.OK || !results?.length) {
+        (results: GoogleGeocoderResult[] | null, status: string) => {
+          if (status !== api.maps.GeocoderStatus.OK || !results?.length) {
             resolve(null);
             return;
           }
@@ -64,19 +73,20 @@ export async function geocodeAddress(query: string): Promise<GeoCoord | null> {
  */
 export async function searchAddress(query: string, limit = 5): Promise<SearchResult[]> {
   try {
+    const api = await loadGoogleMaps();
     const g = await getGeocoder();
-    const results = await new Promise<google.maps.GeocoderResult[] | null>((resolve) => {
+    const results = await new Promise<GoogleGeocoderResult[] | null>((resolve) => {
       g.geocode(
         {
           address: query,
           region: "fr",
-          bounds: new google.maps.LatLngBounds(
+          bounds: new api.maps.LatLngBounds(
             { lat: BORDEAUX_BOUNDS.south, lng: BORDEAUX_BOUNDS.west },
             { lat: BORDEAUX_BOUNDS.north, lng: BORDEAUX_BOUNDS.east },
           ),
         },
-        (res, status) => {
-          if (status !== google.maps.GeocoderStatus.OK || !res?.length) {
+        (res: GoogleGeocoderResult[] | null, status: string) => {
+          if (status !== api.maps.GeocoderStatus.OK || !res?.length) {
             resolve(null);
             return;
           }
@@ -102,10 +112,11 @@ export async function searchAddress(query: string, limit = 5): Promise<SearchRes
  */
 export async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
   try {
+    const api = await loadGoogleMaps();
     const g = await getGeocoder();
-    const results = await new Promise<google.maps.GeocoderResult[] | null>((resolve) => {
-      g.geocode({ location: { lat, lng } }, (res, status) => {
-        if (status !== google.maps.GeocoderStatus.OK || !res?.length) {
+    const results = await new Promise<GoogleGeocoderResult[] | null>((resolve) => {
+      g.geocode({ location: { lat, lng } }, (res: GoogleGeocoderResult[] | null, status: string) => {
+        if (status !== api.maps.GeocoderStatus.OK || !res?.length) {
           resolve(null);
           return;
         }
