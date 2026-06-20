@@ -18,7 +18,28 @@ export type DurationResult = {
   distanceKm: number;
 };
 
-let directionsService: GoogleDirectionsService | null = null;
+// Point de passage forcé sur la rocade bordelaise (A630, échangeur 12 — Pessac/Sud).
+// Sert de waypoint pour forcer Google Directions à router via la rocade plutôt
+// que par le centre-ville, et donne en général le trajet le plus long en km.
+const ROCADE_WAYPOINT: { lat: number; lng: number } = { lat: 44.8052, lng: -0.6128 };
+
+/**
+ * Choisit, parmi les routes retournées par Google Directions, celle dont la
+ * distance totale (somme des legs) est la plus grande — cohérent avec
+ * l'ancien comportement OSRM (alternatives=3 + sélection du trajet le plus long).
+ */
+function pickLongestRoute(routes: GoogleDirectionsResult[]): GoogleDirectionsResult {
+  let best = routes[0];
+  let bestKm = -Infinity;
+  for (const route of routes) {
+    const km = (route.legs ?? []).reduce((sum: number, leg: any) => sum + (leg?.distance?.value ?? 0), 0);
+    if (km > bestKm) {
+      bestKm = km;
+      best = route;
+    }
+  }
+  return best;
+}
 async function getDirectionsService() {
   if (directionsService) return directionsService;
   const g = await loadGoogleMaps();
@@ -75,20 +96,20 @@ export async function getRouteGeoCoords(origin: LngLat, dest: LngLat): Promise<R
       {
         origin: { lat: oLat, lng: oLng },
         destination: { lat: dLat, lng: dLng },
-          travelMode: api.maps.TravelMode.DRIVING,
+        waypoints: [{ location: ROCADE_WAYPOINT, stopover: false }],
+        provideRouteAlternatives: true,
+        travelMode: api.maps.TravelMode.DRIVING,
         region: "fr",
       },
       (result: GoogleDirectionsResult | null, status: string) => {
-        if (status !== api.maps.DirectionsStatus.OK || !result?.routes?.[0]) {
+        if (status !== api.maps.DirectionsStatus.OK || !result?.routes?.length) {
           reject(new Error(`Directions API: ${status}`));
           return;
         }
-        const route = result.routes[0];
-        const leg = route.legs[0];
-        const distanceKm = (leg?.distance?.value ?? 0) / 1000;
-        const coords = route.overview_polyline
-          ? decodePolyline(route.overview_polyline as unknown as string)
-          : [];
+        const route = pickLongestRoute(result.routes);
+        const distanceKm =
+          (route.legs ?? []).reduce((sum: number, l: any) => sum + (l?.distance?.value ?? 0), 0) / 1000;
+        const coords = route.overview_polyline ? decodePolyline(route.overview_polyline as unknown as string) : [];
         resolve({ distanceKm, coords });
       },
     );
@@ -110,6 +131,8 @@ export async function getDistanceAndDurationKm(origin: LngLat, dest: LngLat): Pr
         {
           origin: { lat: oLat, lng: oLng },
           destination: { lat: dLat, lng: dLng },
+          waypoints: [{ location: ROCADE_WAYPOINT, stopover: false }],
+          provideRouteAlternatives: true,
           travelMode: api.maps.TravelMode.DRIVING,
           region: "fr",
           drivingOptions: {
@@ -118,7 +141,7 @@ export async function getDistanceAndDurationKm(origin: LngLat, dest: LngLat): Pr
           },
         },
         (res: GoogleDirectionsResult | null, status: string) => {
-          if (status !== api.maps.DirectionsStatus.OK || !res) {
+          if (status !== api.maps.DirectionsStatus.OK || !res?.routes?.length) {
             reject(new Error(`Directions API: ${status}`));
             return;
           }
@@ -126,10 +149,14 @@ export async function getDistanceAndDurationKm(origin: LngLat, dest: LngLat): Pr
         },
       );
     });
-    const leg = result.routes[0]?.legs[0];
-    if (!leg) return null;
-    const dureeS = leg.duration_in_traffic?.value ?? leg.duration?.value ?? 0;
-    const distanceKm = (leg.distance?.value ?? 0) / 1000;
+    const route = pickLongestRoute(result.routes);
+    const legs = route.legs ?? [];
+    if (!legs.length) return null;
+    const dureeS = legs.reduce(
+      (sum: number, l: any) => sum + (l.duration_in_traffic?.value ?? l.duration?.value ?? 0),
+      0,
+    );
+    const distanceKm = legs.reduce((sum: number, l: any) => sum + (l?.distance?.value ?? 0), 0) / 1000;
     return { dureeS, distanceKm };
   } catch {
     return null;
