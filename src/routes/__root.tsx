@@ -5,6 +5,9 @@ import { I18nProvider } from "@/i18n/I18nProvider";
 import { SiteHeader } from "@/components/SiteHeader";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import appCss from "@/styles.css?url";
+import { APP_VERSION } from "@/lib/version";
+
+const v = `?v=${encodeURIComponent(APP_VERSION)}`;
 
 export const Route = createRootRoute({
   head: () => ({
@@ -16,6 +19,7 @@ export const Route = createRootRoute({
           "width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover",
       },
       { title: "Taxi City Bordeaux" },
+      { name: "app-version", content: APP_VERSION },
       // PWA — iOS Safari (obligatoire pour activer les push notifications sur iPhone)
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "default" },
@@ -27,12 +31,12 @@ export const Route = createRootRoute({
     links: [
       { rel: "stylesheet", href: appCss },
       // Manifest PWA — requis pour push iOS + "Ajouter à l'écran d'accueil"
-      { rel: "manifest", href: "/manifest.json" },
-      // Icône iOS — PNG 180×180 (rendu home screen)
-      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
-      { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
-      { rel: "icon", type: "image/png", sizes: "192x192", href: "/icon-192.png" },
-      { rel: "icon", type: "image/png", sizes: "512x512", href: "/icon-512.png" },
+      // Cache-busting versionné sur les fichiers statiques non hashés.
+      { rel: "manifest", href: `/manifest.json${v}` },
+      { rel: "apple-touch-icon", href: `/apple-touch-icon.png${v}` },
+      { rel: "apple-touch-icon", sizes: "180x180", href: `/apple-touch-icon.png${v}` },
+      { rel: "icon", type: "image/png", sizes: "192x192", href: `/icon-192.png${v}` },
+      { rel: "icon", type: "image/png", sizes: "512x512", href: `/icon-512.png${v}` },
       // Perf mobile : preconnect aux origines critiques (Supabase, tuiles carte, géocoder)
       { rel: "preconnect", href: "https://yxbbkzugsreztiacnswf.supabase.co", crossOrigin: "" },
       { rel: "dns-prefetch", href: "https://yxbbkzugsreztiacnswf.supabase.co" },
