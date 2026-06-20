@@ -2265,6 +2265,62 @@ function ReservationPage() {
                     {geolocLoading ? "⏳" : "📍"}
                   </button>
                 </div>
+                {/* Indicateur clair du statut de la géolocalisation */}
+                {geolocStatus !== "idle" && (
+                  <div
+                    role="status"
+                    aria-live="polite"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      marginTop: 6,
+                      padding: "6px 10px",
+                      borderRadius: 8,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      background:
+                        geolocStatus === "success" ? "rgba(34,197,94,0.12)"
+                        : geolocStatus === "loading" ? "rgba(253,224,71,0.12)"
+                        : geolocStatus === "ip" ? "rgba(59,130,246,0.12)"
+                        : "rgba(239,68,68,0.12)",
+                      color:
+                        geolocStatus === "success" ? "#86efac"
+                        : geolocStatus === "loading" ? "#fde68a"
+                        : geolocStatus === "ip" ? "#93c5fd"
+                        : "#fecaca",
+                      border: "1px solid currentColor",
+                    }}
+                  >
+                    <span>
+                      {geolocStatus === "loading" && "⏳"}
+                      {geolocStatus === "success" && "✓"}
+                      {geolocStatus === "ip" && "🌐"}
+                      {geolocStatus === "denied" && "🚫"}
+                      {geolocStatus === "error" && "⚠️"}
+                    </span>
+                    <span style={{ flex: 1 }}>{geolocStatusMsg}</span>
+                    {(geolocStatus === "success" || geolocStatus === "ip") && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setGeolocStatus("idle");
+                          setGeolocStatusMsg("");
+                        }}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: "inherit",
+                          cursor: "pointer",
+                          fontSize: 11,
+                          textDecoration: "underline",
+                        }}
+                      >
+                        Modifier
+                      </button>
+                    )}
+                  </div>
+                )}
                 {errors.depart && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.depart}</div>}
                 {fromCoord && !errors.depart && (
                   <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>✓ {t("res.geo.btn")}</div>
