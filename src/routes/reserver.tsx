@@ -1278,7 +1278,8 @@ function ReservationPage() {
 
     const rejectAutoPosition = (message: string, kind: GeolocStatus = "error") => {
       setGeolocLoading(false);
-      setFromCoord(null);
+      // Ne pas effacer une coordonnée déjà fiable : l'utilisateur peut corriger
+      // l'adresse texte sans perdre le centrage carte/la réservation.
       setErrors((prev) => ({ ...prev, depart: message }));
       setGeolocStatus(kind);
       setGeolocStatusMsg(message);
@@ -1311,12 +1312,13 @@ function ReservationPage() {
       // Retry rapide avec cache autorisé — ré-invoqué dans le même tick, gesture toujours valide via la permission accordée précédemment.
       navigator.geolocation.getCurrentPosition(
         (cached) => {
-          const reason = getAutoGeoRejectionReason(cached);
+            const reason = getAutoGeoRejectionReason(cached, true);
           if (reason) {
             rejectAutoPosition(reason);
             return;
           }
-          void applyPosition(cached.coords.latitude, cached.coords.longitude, "gps");
+          toast.info("Position approximative détectée — vous pouvez préciser l'adresse.");
+          void applyPosition(cached.coords.latitude, cached.coords.longitude, "ip");
         },
         async (secondErr) => {
           const ip = await ipGeolocate();
@@ -1353,7 +1355,8 @@ function ReservationPage() {
     if (f.depart.trim().length > 0) return; // déjà rempli (query param ou autre)
     if (geolocLoading) return;
     autoGeolocTriedRef.current = true;
-    handleGeolocate();
+    setGeolocStatus("idle");
+    setGeolocStatusMsg("Touchez 📍 pour détecter automatiquement votre départ");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
