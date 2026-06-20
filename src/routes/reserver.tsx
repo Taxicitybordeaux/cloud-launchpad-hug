@@ -798,8 +798,8 @@ function ReservationPage() {
   const [orsResult, setOrsResult] = useState<OrsResult | null>(null);
   const [calcLoading, setCalcLoading] = useState(false);
   const [geolocLoading, setGeolocLoading] = useState(false);
-  // Indicateur visible du statut géoloc client : idle | loading | success | denied | ip | error
-  type GeolocStatus = "idle" | "loading" | "success" | "denied" | "ip" | "error";
+  // Indicateur visible du statut géoloc client : idle | hint | loading | success | denied | ip | error
+  type GeolocStatus = "idle" | "hint" | "loading" | "success" | "denied" | "ip" | "error";
   const [geolocStatus, setGeolocStatus] = useState<GeolocStatus>("idle");
   const [geolocStatusMsg, setGeolocStatusMsg] = useState<string>("");
   const [taxiAvailable, setTaxiAvailable] = useState<boolean | null>(null);
@@ -1355,8 +1355,16 @@ function ReservationPage() {
     if (f.depart.trim().length > 0) return; // déjà rempli (query param ou autre)
     if (geolocLoading) return;
     autoGeolocTriedRef.current = true;
-    setGeolocStatus("idle");
+    setGeolocStatus("hint");
     setGeolocStatusMsg("Touchez 📍 pour détecter automatiquement votre départ");
+    if (navigator.permissions?.query) {
+      navigator.permissions
+        .query({ name: "geolocation" as PermissionName })
+        .then((permission) => {
+          if (permission.state === "granted" && !f.depart.trim()) handleGeolocate();
+        })
+        .catch(() => {});
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
