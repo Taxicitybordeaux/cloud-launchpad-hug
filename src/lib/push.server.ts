@@ -153,7 +153,7 @@ async function sendFcmToToken(
       // PWA en background (comportement observé). On délègue 100% au SW via
       // webpush.notification — c'est la version qui fonctionne en production.
       webpush: {
-        headers: payload.requireInteraction ? { Urgency: "high", TTL: "86400" } : { TTL: "3600" },
+        headers: { Urgency: "high", TTL: "86400" },
         data,
         notification: {
           title: payload.title,
@@ -316,7 +316,7 @@ export async function sendPushToAudience(
         // José perd sa souscription dès qu'il ferme le dashboard → cercle vicieux.
         // On purge uniquement si le token est inactif depuis plus de 30 jours.
         const lastSeen = sub.last_seen_at ? new Date(sub.last_seen_at).getTime() : 0;
-        const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+        const thirtyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
         if (lastSeen < thirtyDaysAgo) {
           toRemove.push(sub.id);
         } else {
