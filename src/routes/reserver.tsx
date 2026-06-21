@@ -645,6 +645,7 @@ function ReservationPage() {
   const [searchingDepart, setSearchingDepart] = useState(false);
   const [searchingDestination, setSearchingDestination] = useState(false);
   const departDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const destinationDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [voiceListening, setVoiceListening] = useState(false);
   const [voiceBothListening, setVoiceBothListening] = useState(false);
   const voiceRecogRef = useRef<any>(null);
@@ -1429,8 +1430,6 @@ function ReservationPage() {
     if (!f.email.trim()) newErrors.email = t("res.err.required");
     if (!f.depart.trim()) newErrors.depart = t("res.err.required");
     if (!f.destination.trim()) newErrors.destination = t("res.err.required");
-    if (!fromCoord) newErrors.depart = t("res.geo.err.unavailable");
-    if (!toCoord) newErrors.destination = t("res.geo.err.unavailable");
     if (!f.date.trim()) newErrors.date = t("res.err.required");
     if (!f.heure.trim()) newErrors.heure = t("res.err.required");
     if (Object.keys(newErrors).length > 0) {
@@ -1439,16 +1438,65 @@ function ReservationPage() {
       return;
     }
 
+    // ── Résolution tardive des coordonnées ────────────────────────────────────
+    // Si le user a cliqué "Réserver" sans quitter le champ (onBlur pas encore
+    // déclenché, ou résolution async encore en cours), on géocode ici avant
+    // de valider. geocodeFullAddress court-circuite sur CANONICAL_PLACES
+    // (aéroport, gare…) donc c'est quasi-instantané pour les lieux connus.
+    let resolvedFrom = fromCoord;
+    let resolvedTo = toCoord;
+
+    if (f.depart.trim() && !resolvedFrom) {
+      const r = await geocodeFullAddress(f.depart.trim());
+      if (r) {
+        resolvedFrom = r.coord;
+        setFromCoord(r.coord);
+        set("depart", r.label);
+        setErrors((prev) => {
+          const next = { ...prev };
+          delete next.depart;
+          return next;
+        });
+      }
+    }
+
+    if (f.destination.trim() && !resolvedTo) {
+      const r = await geocodeFullAddress(f.destination.trim());
+      if (r) {
+        resolvedTo = r.coord;
+        setToCoord(r.coord);
+        set("destination", r.label);
+        setErrors((prev) => {
+          const next = { ...prev };
+          delete next.destination;
+          return next;
+        });
+      }
+    }
+
+    if (!resolvedFrom) {
+      setErrors((prev) => ({ ...prev, depart: t("res.geo.err.unavailable") }));
+      toast.error(t("res.geo.err.unavailable"));
+      return;
+    }
+    if (!resolvedTo) {
+      setErrors((prev) => ({ ...prev, destination: t("res.geo.err.unavailable") }));
+      toast.error(t("res.geo.err.unavailable"));
+      return;
+    }
+
     // Fallback distance si OSRM indisponible : haversine × 1.3 (évite de bloquer la résa)
     let distanceKm = orsResult?.distanceKm ?? 0;
     let dureeS = orsResult?.dureeS ?? 0;
-    if (!orsResult && fromCoord && toCoord) {
+    if (!orsResult && resolvedFrom && resolvedTo) {
       const R = 6371;
-      const dLat = ((toCoord[0] - fromCoord[0]) * Math.PI) / 180;
-      const dLng = ((toCoord[1] - fromCoord[1]) * Math.PI) / 180;
+      const dLat = ((resolvedTo[0] - resolvedFrom[0]) * Math.PI) / 180;
+      const dLng = ((resolvedTo[1] - resolvedFrom[1]) * Math.PI) / 180;
       const a =
         Math.sin(dLat / 2) ** 2 +
-        Math.cos((fromCoord[0] * Math.PI) / 180) * Math.cos((toCoord[0] * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+        Math.cos((resolvedFrom[0] * Math.PI) / 180) *
+          Math.cos((resolvedTo[0] * Math.PI) / 180) *
+          Math.sin(dLng / 2) ** 2;
       distanceKm = parseFloat((R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.3).toFixed(2));
       dureeS = Math.round((distanceKm / 30) * 3600); // ~30 km/h en ville
       toast.warning("Distance estimée (GPS indisponible) — le prix peut être ajusté par le chauffeur.");
@@ -2136,6 +2184,12 @@ function ReservationPage() {
                     const v = e.target.value;
                     set("destination", v);
                     setToCoord(null);
+                    if (destinationDebounceRef.current) clearTimeout(destinationDebounceRef.current);
+                    if (v.trim().length >= 3) {
+                      destinationDebounceRef.current = setTimeout(() => {
+                        resolveDestinationAddressRef.current?.();
+                      }, 500);
+                    }
                   }}
                   onBlur={resolveDestinationAddress}
                   placeholder={t("res.f.to.ph")}
