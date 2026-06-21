@@ -1,4 +1,3 @@
-/// <reference types="google.maps" />
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -41,6 +40,7 @@ interface Avis {
 }
 
 interface ClientAgg {
+  id?: string;
   phone: string;
   name: string;
   nbCourses: number;
@@ -56,9 +56,9 @@ interface RouteOption {
   dureeMin: number;
   prix: number;
   tarifLabel: string;
-  legs: google.maps.DirectionsLeg[];
+  legs: any[];
   overview_polyline: string;
-  dirResult: google.maps.DirectionsResult;
+  dirResult: any;
 }
 
 // ── Route definition ───────────────────────────────────────────────────────
@@ -576,13 +576,12 @@ function CourseCard({
               travelMode: mapsApi.maps.TravelMode.DRIVING,
               provideRouteAlternatives: true,
             },
-            (r: any, s: any) =>
-              s === "OK" && r ? res(r) : rej(s),
+            (r: any, s: any) => (s === "OK" && r ? res(r) : rej(s)),
           ),
         );
 
         const tarifJour = estTarifJourParis(resa.date_heure);
-        const opts: RouteOption[] = result.routes.slice(0, 3).map((route: any, i: number) => {
+        const opts: RouteOption[] = result.routes.slice(0, 3).map((route, i) => {
           const leg = route.legs[0];
           const distKm = (leg.distance?.value ?? 0) / 1000;
           const dureeMin = Math.round((leg.duration?.value ?? 0) / 60);
@@ -675,6 +674,165 @@ function CourseCard({
       toast.error("Erreur : " + (e.message ?? e));
     } finally {
       setBusy(false);
+    }
+  };
+
+  // ── Mettre à jour l'itinéraire d'une course déjà acceptée ──
+  const [itinSaving, setItinSaving] = useState(false);
+  const handleUpdateItineraire = async () => {
+    const chosen = routes[selectedRoute];
+    if (!chosen) {
+      toast.error("Sélectionne d'abord un itinéraire ci-dessus");
+      return;
+    }
+    setItinSaving(true);
+    try {
+      const { error } = await (supabase as any)
+        .from("reservations")
+        .update({ distance_km: chosen.distanceKm, prix: chosen.prix })
+        .eq("id", resa.id);
+      if (error) throw error;
+      toast.success(`Itinéraire mis à jour — ${chosen.distanceKm} km · ${chosen.prix.toFixed(2)} €`);
+      onRefresh();
+    } catch (e: any) {
+      toast.error("Erreur : " + (e.message ?? e));
+    } finally {
+      setItinSaving(false);
+    }
+  };
+
+  // ── Prix custom — SMS / WhatsApp / Email ──
+  const [customPrix, setCustomPrix] = useState("");
+  const [customPrixOpen, setCustomPrixOpen] = useState(false);
+  const [customPrixSending, setCustomPrixSending] = useState(false);
+  const handleSendCustomPrix = async (canal: "sms" | "whatsapp" | "email") => {
+    const val = parseFloat((customPrix || "").trim().replace(",", "."));
+    if (!customPrix || isNaN(val) || val <= 0) {
+      toast.error("Prix invalide", { description: "Entrez un montant valide (ex: 18.50)" });
+      return;
+    }
+    const name = resa.client_name || "Client";
+    const phone = (resa.client_phone || "").replace(/\s/g, "");
+    const email = resa.client_email || resa.email || "";
+    const trajet = `${resa.depart} → ${resa.destination || "—"}`;
+    const trackUrl =
+      resa.suivi_id && typeof window !== "undefined" ? `${window.location.origin}/suivi/${resa.suivi_id}` : "";
+    const trackingLine = trackUrl ? `\nRetrouvez votre course ici : ${trackUrl}` : "";
+    const msg = `Bonjour ${name}, le prix de votre course Taxi City Bordeaux (${trajet}) est de ${val.toFixed(2)} €. Merci.${trackingLine}`;
+
+    if (canal === "sms") {
+      if (!phone) {
+        toast.error("Pas de téléphone");
+        return;
+      }
+      window.open(`sms:${phone}?body=${encodeURIComponent(msg)}`, "_blank");
+    } else if (canal === "whatsapp") {
+      if (!phone) {
+        toast.error("Pas de téléphone");
+        return;
+      }
+      window.open(`https://wa.me/${phone.replace(/^0/, "33")}?text=${encodeURIComponent(msg)}`, "_blank");
+    } else {
+      if (!email) {
+        toast.error("Pas d'email");
+        return;
+      }
+      setCustomPrixSending(true);
+      try {
+        const res = await fetch("/api/admin/send-course-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Admin-Secret": "admin-pin-call" },
+          body: JSON.stringify({
+            templateName: "custom-price",
+            recipientEmail: email,
+            idempotencyKey: `custom-price-${resa.id}-${Date.now()}`,
+            templateData: {
+              nom: name,
+              depart: resa.depart,
+              arrivee: resa.destination || "—",
+              prix: `${val.toFixed(2)} €`,
+              distance_km: resa.distance_km ? `${resa.distance_km} km` : undefined,
+            },
+          }),
+        });
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          toast.error(errBody?.error || "Échec envoi email");
+        } else {
+          toast.success(`✉️ Email envoyé à ${email}`);
+        }
+      } catch (e: any) {
+        toast.error("Erreur réseau", { description: e?.message ?? "" });
+      } finally {
+        setCustomPrixSending(false);
+      }
+    }
+    await (supabase as any).from("reservations").update({ prix: val }).eq("id", resa.id);
+    onRefresh();
+  };
+
+  // ── Reprogrammer l'heure ──
+  const [newDatetime, setNewDatetime] = useState("");
+  const [changeHeureOpen, setChangeHeureOpen] = useState(false);
+  const [changeHeureSending, setChangeHeureSending] = useState(false);
+  const handleChangeHeure = async () => {
+    if (!newDatetime) return;
+    setChangeHeureSending(true);
+    try {
+      const { error } = await (supabase as any)
+        .from("reservations")
+        .update({ date_heure: newDatetime })
+        .eq("id", resa.id);
+      if (error) throw error;
+      const email = resa.client_email || resa.email;
+      const name = resa.client_name || "Client";
+      if (email) {
+        try {
+          await fetch("/api/admin/send-course-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Admin-Secret": "admin-pin-call" },
+            body: JSON.stringify({
+              templateName: "reschedule",
+              recipientEmail: email,
+              idempotencyKey: `reschedule-${resa.id}-${Date.now()}`,
+              templateData: {
+                nom: name,
+                depart: resa.depart,
+                arrivee: resa.destination || "—",
+                old_datetime: formatDate(resa.date_heure) + " " + formatHeure(resa.date_heure),
+                new_datetime: formatDate(newDatetime) + " " + formatHeure(newDatetime),
+              },
+            }),
+          });
+          toast.success("🕐 Heure modifiée · ✉️ Email envoyé");
+        } catch {
+          toast.success("🕐 Heure modifiée · ⚠️ Email non envoyé");
+        }
+      } else {
+        toast.success("🕐 Heure modifiée");
+      }
+      onRefresh();
+    } catch (e: any) {
+      toast.error("Erreur : " + (e.message ?? e));
+    } finally {
+      setChangeHeureSending(false);
+    }
+  };
+
+  // ── Supprimer la course ──
+  const [deleting, setDeleting] = useState(false);
+  const handleDeleteResa = async () => {
+    if (!confirm("Supprimer définitivement cette course ? Action irréversible.")) return;
+    setDeleting(true);
+    try {
+      const { error } = await (supabase as any).from("reservations").delete().eq("id", resa.id);
+      if (error) throw error;
+      toast.success("Course supprimée");
+      onRefresh();
+    } catch (e: any) {
+      toast.error("Suppression impossible : " + (e.message ?? e));
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -807,6 +965,163 @@ function CourseCard({
               );
             })()}
 
+          {/* Gestion avancée — visible une fois la course acceptée */}
+          {(resa.status === "acceptee" || resa.status === "en_route" || resa.status === "arrivee") && (
+            <>
+              {routes.length > 0 && (
+                <button
+                  className="drv-btn-secondary"
+                  style={{ width: "100%", marginBottom: 10 }}
+                  onClick={handleUpdateItineraire}
+                  disabled={itinSaving}
+                >
+                  {itinSaving ? "…" : "🔄 Appliquer cet itinéraire à la course"}
+                </button>
+              )}
+
+              {/* Prix custom */}
+              <button
+                onClick={() => setCustomPrixOpen((o) => !o)}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 12,
+                  padding: "10px 14px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#0f172a",
+                  cursor: "pointer",
+                  marginBottom: customPrixOpen ? 8 : 10,
+                }}
+              >
+                💶 {customPrixOpen ? "▲" : "▼"} Envoyer un prix personnalisé
+              </button>
+              {customPrixOpen && (
+                <div style={{ marginBottom: 12 }}>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="Ex: 18.50"
+                    value={customPrix}
+                    onChange={(e) => setCustomPrix(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #e2e8f0",
+                      fontSize: 16,
+                      marginBottom: 8,
+                      fontFamily: "'DM Sans', sans-serif",
+                    }}
+                  />
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button
+                      onClick={() => handleSendCustomPrix("sms")}
+                      disabled={customPrixSending}
+                      style={{
+                        flex: 1,
+                        minWidth: 70,
+                        background: "#faf5ff",
+                        border: "1px solid #e9d5ff",
+                        color: "#7e22ce",
+                        borderRadius: 10,
+                        padding: "8px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      💬 SMS
+                    </button>
+                    <button
+                      onClick={() => handleSendCustomPrix("whatsapp")}
+                      disabled={customPrixSending}
+                      style={{
+                        flex: 1,
+                        minWidth: 70,
+                        background: "#f0fdf4",
+                        border: "1px solid #bbf7d0",
+                        color: "#15803d",
+                        borderRadius: 10,
+                        padding: "8px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      🟢 WhatsApp
+                    </button>
+                    <button
+                      onClick={() => handleSendCustomPrix("email")}
+                      disabled={customPrixSending}
+                      style={{
+                        flex: 1,
+                        minWidth: 70,
+                        background: "#fffbeb",
+                        border: "1px solid #fde68a",
+                        color: "#92400e",
+                        borderRadius: 10,
+                        padding: "8px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {customPrixSending ? "…" : "✉️ Email"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Reprogrammer l'heure */}
+              <button
+                onClick={() => setChangeHeureOpen((o) => !o)}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 12,
+                  padding: "10px 14px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#0f172a",
+                  cursor: "pointer",
+                  marginBottom: changeHeureOpen ? 8 : 10,
+                }}
+              >
+                🕐 {changeHeureOpen ? "▲" : "▼"} Reprogrammer l'heure
+              </button>
+              {changeHeureOpen && (
+                <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
+                  <input
+                    type="datetime-local"
+                    value={newDatetime}
+                    onChange={(e) => setNewDatetime(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #e2e8f0",
+                      fontSize: 16,
+                      fontFamily: "'DM Sans', sans-serif",
+                    }}
+                  />
+                  <button
+                    onClick={handleChangeHeure}
+                    disabled={changeHeureSending || !newDatetime}
+                    className="drv-btn-primary"
+                    style={{ flex: "0 0 auto", padding: "10px 16px" }}
+                  >
+                    {changeHeureSending ? "…" : "OK"}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
           {/* Actions */}
           {resa.status === "nouvelle" && (
             <div className="drv-btns">
@@ -831,11 +1146,31 @@ function CourseCard({
                 fontSize: 14,
                 fontWeight: 700,
                 textDecoration: "none",
+                marginBottom: 10,
               }}
             >
               🚗 Démarrer la course
             </a>
           )}
+
+          {/* Supprimer définitivement */}
+          <button
+            onClick={handleDeleteResa}
+            disabled={deleting}
+            style={{
+              width: "100%",
+              marginTop: 4,
+              background: "none",
+              border: "none",
+              color: "#b91c1c",
+              fontSize: 11.5,
+              fontWeight: 600,
+              cursor: "pointer",
+              padding: "6px 0",
+            }}
+          >
+            {deleting ? "Suppression…" : "🗑 Supprimer cette course"}
+          </button>
         </>
       )}
 
@@ -988,6 +1323,21 @@ function AvisTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
     }
   };
 
+  const removeAvis = async (id: string) => {
+    if (!confirm("Supprimer définitivement cet avis ?")) return;
+    setBusy(id);
+    try {
+      const { error } = await (supabase as any).from("avis").delete().eq("id", id);
+      if (error) throw error;
+      toast.success("Avis supprimé");
+      load();
+    } catch (e: any) {
+      toast.error("Erreur : " + (e.message ?? e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const avgNote =
     published.length > 0 ? (published.reduce((s, a) => s + a.note, 0) / published.length).toFixed(1) : null;
 
@@ -1036,7 +1386,22 @@ function AvisTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
               <div style={{ marginBottom: 4 }}>
                 <Stars n={a.note} />
               </div>
-              <p style={{ fontSize: 13, color: "#475569", margin: 0, lineHeight: 1.5 }}>"{a.commentaire}"</p>
+              <p style={{ fontSize: 13, color: "#475569", margin: "0 0 8px", lineHeight: 1.5 }}>"{a.commentaire}"</p>
+              <button
+                onClick={() => removeAvis(a.id)}
+                disabled={busy === a.id}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#b91c1c",
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  padding: 0,
+                }}
+              >
+                {busy === a.id ? "…" : "🗑 Supprimer"}
+              </button>
             </div>
           ))}
           {avgNote && (
@@ -1059,11 +1424,20 @@ function ClientsTab() {
   const [query, setQuery] = useState("");
 
   const load = useCallback(async () => {
-    const { data } = await (supabase as any)
-      .from("reservations")
-      .select("client_name,client_phone,destination,prix,date_heure,status")
-      .not("client_phone", "is", null)
-      .order("date_heure", { ascending: false });
+    const [{ data }, { data: clientsRows }] = await Promise.all([
+      (supabase as any)
+        .from("reservations")
+        .select("client_name,client_phone,destination,prix,date_heure,status")
+        .not("client_phone", "is", null)
+        .order("date_heure", { ascending: false }),
+      (supabase as any).from("clients").select("id,phone"),
+    ]);
+
+    const normalize = (p: string) => p.replace(/[^0-9]/g, "").replace(/^0/, "33");
+    const idByPhone = new Map<string, string>();
+    for (const c of (clientsRows ?? []) as any[]) {
+      if (c.phone) idByPhone.set(normalize(c.phone), c.id);
+    }
 
     const rows: any[] = data ?? [];
     const byPhone = new Map<string, ClientAgg>();
@@ -1074,6 +1448,7 @@ function ClientsTab() {
       const isCompleted = ["terminee", "completed"].includes(r.status);
       if (!existing) {
         byPhone.set(phone, {
+          id: idByPhone.get(normalize(phone)),
           phone,
           name: r.client_name || "Client",
           nbCourses: isCompleted ? 1 : 0,
@@ -1103,11 +1478,45 @@ function ClientsTab() {
     const ch = (supabase as any)
       .channel("drv-clients")
       .on("postgres_changes", { event: "*", schema: "public", table: "reservations" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "clients" }, load)
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
     };
   }, [load]);
+
+  const [deletingPhone, setDeletingPhone] = useState<string | null>(null);
+  const removeClient = async (c: ClientAgg) => {
+    if (!confirm(`Supprimer ${c.name} et toutes ses courses ? Action irréversible.`)) return;
+    setDeletingPhone(c.phone);
+    try {
+      const normalize = (p: string) => p.replace(/[^0-9]/g, "").replace(/^0/, "33");
+      const target = normalize(c.phone);
+      const { data: allResas } = await (supabase as any).from("reservations").select("id,client_phone,telephone");
+      const idsToDelete = (allResas ?? [])
+        .filter((r: any) => {
+          const p1 = r.client_phone ? normalize(r.client_phone) : "";
+          const p2 = r.telephone ? normalize(r.telephone) : "";
+          return p1 === target || p2 === target;
+        })
+        .map((r: any) => r.id);
+      if (idsToDelete.length > 0) {
+        await (supabase as any).from("avis").update({ reservation_id: null }).in("reservation_id", idsToDelete);
+        const { error: delErr } = await (supabase as any).from("reservations").delete().in("id", idsToDelete);
+        if (delErr) throw delErr;
+      }
+      if (c.id) {
+        const { error } = await (supabase as any).from("clients").delete().eq("id", c.id);
+        if (error) throw error;
+      }
+      toast.success("Client supprimé");
+      load();
+    } catch (e: any) {
+      toast.error("Suppression impossible : " + (e.message ?? e));
+    } finally {
+      setDeletingPhone(null);
+    }
+  };
 
   if (loading)
     return (
@@ -1222,6 +1631,23 @@ function ClientsTab() {
                 🟢 WhatsApp
               </a>
             </div>
+            <button
+              onClick={() => removeClient(c)}
+              disabled={deletingPhone === c.phone}
+              style={{
+                width: "100%",
+                marginTop: 8,
+                background: "none",
+                border: "none",
+                color: "#b91c1c",
+                fontSize: 11.5,
+                fontWeight: 600,
+                cursor: "pointer",
+                padding: "4px 0",
+              }}
+            >
+              {deletingPhone === c.phone ? "Suppression…" : "🗑 Supprimer ce client"}
+            </button>
           </div>
         ))
       )}
