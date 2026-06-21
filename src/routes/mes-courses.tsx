@@ -51,7 +51,6 @@ function loadLeaflet(): Promise<void> {
   });
 }
 
-
 const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_TILE_OPTIONS = { attribution: "© OpenStreetMap contributors", maxZoom: 19 };
 
