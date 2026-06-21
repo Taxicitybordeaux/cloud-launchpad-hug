@@ -1,9 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getRouteGeoCoords } from "@/lib/googleRoute";
+import { searchAddress } from "@/lib/googleGeocode";
 const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_TILE_OPTIONS = { attribution: "© OpenStreetMap contributors", maxZoom: 19 };
-import { getRouteGeoCoords } from "@/lib/googleRoute";
 
 export const Route = createFileRoute("/course/$id")({
   head: () => ({ meta: [{ title: "Course en cours — Taxi City Bordeaux" }] }),
@@ -61,8 +62,6 @@ async function getRoute(from: [number, number], to: [number, number]) {
     return null;
   }
 }
-
-import { searchAddress } from "@/lib/googleGeocode";
 
 // Géocode une adresse → coordonnées via geocode helper (retourne [lat, lng])
 async function geocode(adresse: string): Promise<[number, number] | null> {
