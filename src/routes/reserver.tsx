@@ -641,7 +641,6 @@ function ReservationPage() {
   const [geolocStatus, setGeolocStatus] = useState<GeolocStatus>("idle");
   const [geolocStatusMsg, setGeolocStatusMsg] = useState<string>("");
   const [taxiAvailable, setTaxiAvailable] = useState<boolean | null>(null);
-  const [destinationChoices, setDestinationChoices] = useState<AddressChoice[]>([]);
   const [departChoices, setDepartChoices] = useState<AddressChoice[]>([]);
   const [searchingDepart, setSearchingDepart] = useState(false);
   const [searchingDestination, setSearchingDestination] = useState(false);
@@ -703,7 +702,6 @@ function ReservationPage() {
       const transcript = event.results[0][0].transcript;
       set("destination", transcript);
       setToCoord(null);
-      setDestinationChoices([]);
       // Déclencher la résolution d'adresse après un court délai
       setTimeout(() => resolveDestinationAddressRef.current?.(), 300);
     };
@@ -821,7 +819,6 @@ function ReservationPage() {
       if (destination) {
         set("destination", destination);
         setToCoord(null);
-        setDestinationChoices([]);
       }
       // Résolution séquentielle : départ d'abord (sert d'origine), puis destination.
       setTimeout(() => {
@@ -1352,25 +1349,10 @@ function ReservationPage() {
     }
 
     const origin = resolvedFromCoord ?? BORDEAUX_CENTER;
-    const namedPlace = isNamedPlaceQuery(value);
 
+    // Lieu canonique connu (coordonnées vérifiées) en priorité.
     const canonical = findCanonicalPlace(value, origin);
     if (canonical) {
-      const subs = findCanonicalSubPlaces(value, origin);
-      setCalcLoading(false);
-      setSearchingDestination(false);
-      if (subs && subs.length > 0) {
-        // POI connu avec sous-adresses : on demande à l'utilisateur de préciser.
-        setDestinationChoices(subs);
-        setToCoord(null);
-        set("destination", canonical.label);
-        setErrors((prev) => ({
-          ...prev,
-          destination: "Précisez le point d'arrivée pour ce lieu",
-        }));
-        return;
-      }
-      setDestinationChoices([]);
       setToCoord(canonical.coord);
       set("destination", canonical.label);
       setErrors((prev) => {
@@ -1378,91 +1360,25 @@ function ReservationPage() {
         delete next.destination;
         return next;
       });
+      setCalcLoading(false);
+      setSearchingDestination(false);
       return;
     }
 
-    // Pour les lieux nommés (aéroport, gare, supermarché, monument…) ou
-    // si le mode « lieu » est actif, on cherche d'abord parmi les POI
-    // proches du départ pour éviter les mauvaises correspondances Nominatim.
-    if (namedPlace) {
-      const nearby = await searchNearbyAddressChoicesStreaming(
-        value,
-        origin,
-        DESTINATION_SEARCH_RADIUS_KM,
-        (partial) => {
-          const close = partial.filter((c) => c.distanceKm <= DESTINATION_SEARCH_RADIUS_KM).slice(0, 4);
-          if (close.length) setDestinationChoices(close);
-        },
-      );
-      const close = nearby.filter((c) => c.distanceKm <= DESTINATION_SEARCH_RADIUS_KM);
-      // Auto-pick si le 1er est nettement plus proche que le 2e (≤5 km, ou seul résultat)
-      if (close.length === 1 || (close.length > 1 && close[0].distanceKm + 5 < close[1].distanceKm)) {
-        setCalcLoading(false);
-        setSearchingDestination(false);
-        setDestinationChoices([]);
-        setToCoord(close[0].coord);
-        set("destination", close[0].label);
-        setErrors((prev) => {
-          const next = { ...prev };
-          delete next.destination;
-          return next;
-        });
-        return;
-      }
-      if (close.length > 1) {
-        setCalcLoading(false);
-        setSearchingDestination(false);
-        setDestinationChoices(close.slice(0, 4));
-        setToCoord(null);
-        setErrors((prev) => ({ ...prev, destination: "Plusieurs lieux trouvés — choisissez le bon" }));
-        return;
-      }
-      // sinon on bascule sur Nominatim plein texte ci-dessous
-    }
-
-    // 1) Recherche Nominatim classique
+    // Géocodage direct de l'adresse saisie (texte ou dictée à l'oral) — pas de liste de choix.
     const result = await geocodeFullAddress(value);
-    if (result) {
-      const distOk = distanceKmBetween(origin, result.coord) <= DESTINATION_SEARCH_RADIUS_KM;
-      if (distOk) {
-        setCalcLoading(false);
-        setSearchingDestination(false);
-        setDestinationChoices([]);
-        setToCoord(result.coord);
-        set("destination", result.label);
-        setErrors((prev) => {
-          const next = { ...prev };
-          delete next.destination;
-          return next;
-        });
-        return;
-      }
-      // Résultat trouvé mais trop loin → on propose des alternatives proches
-    }
-
-    // 2) Fallback : recherche élargie (Google, variantes de requête) dans 50 km
-    const nearbyChoices = await searchNearbyAddressChoicesStreaming(
-      value,
-      origin,
-      DESTINATION_SEARCH_RADIUS_KM,
-      (partial) => {
-        const close = partial.filter((c) => c.distanceKm <= DESTINATION_SEARCH_RADIUS_KM).slice(0, 4);
-        if (close.length) setDestinationChoices(close);
-      },
-    );
-    const closeChoices = nearbyChoices.filter((c) => c.distanceKm <= DESTINATION_SEARCH_RADIUS_KM).slice(0, 4);
     setCalcLoading(false);
     setSearchingDestination(false);
 
-    if (closeChoices.length) {
-      setDestinationChoices(closeChoices);
-      setToCoord(null);
-      setErrors((prev) => ({
-        ...prev,
-        destination: "Sélectionnez une adresse dans la liste (≤ 50 km)",
-      }));
+    if (result) {
+      setToCoord(result.coord);
+      set("destination", result.label);
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.destination;
+        return next;
+      });
     } else {
-      setDestinationChoices([]);
       setToCoord(null);
       setErrors((prev) => ({
         ...prev,
@@ -2221,7 +2137,6 @@ function ReservationPage() {
                     const v = e.target.value;
                     set("destination", v);
                     setToCoord(null);
-                    setDestinationChoices([]);
                     if (destinationDebounceRef.current) clearTimeout(destinationDebounceRef.current);
                     if (v.trim().length >= 3) {
                       destinationDebounceRef.current = setTimeout(() => {
@@ -2264,59 +2179,6 @@ function ReservationPage() {
                       }}
                     />
                     Recherche en cours…
-                  </div>
-                )}
-                {searchingDestination && destinationChoices.length === 0 && (
-                  <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
-                    {[0, 1, 2].map((i) => (
-                      <div
-                        key={i}
-                        style={{
-                          height: 44,
-                          borderRadius: 10,
-                          background:
-                            "linear-gradient(90deg, rgba(245,200,66,0.05), rgba(245,200,66,0.15), rgba(245,200,66,0.05))",
-                          backgroundSize: "200% 100%",
-                          animation: "shimmer 1.4s ease-in-out infinite",
-                        }}
-                      />
-                    ))}
-                  </div>
-                )}
-                {destinationChoices.length > 0 && (
-                  <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
-                    {destinationChoices.map((choice) => (
-                      <button
-                        key={`${choice.label}-${choice.coord[0]}-${choice.coord[1]}`}
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          set("destination", choice.label);
-                          setToCoord(choice.coord);
-                          setDestinationChoices([]);
-                          setErrors((prev) => {
-                            const next = { ...prev };
-                            delete next.destination;
-                            return next;
-                          });
-                        }}
-                        style={{
-                          width: "100%",
-                          textAlign: "left",
-                          padding: "10px 12px",
-                          borderRadius: 10,
-                          border: "1px solid rgba(245,200,66,0.35)",
-                          background: "rgba(245,200,66,0.1)",
-                          color: "#f8fafc",
-                          cursor: "pointer",
-                        }}
-                      >
-                        <span style={{ display: "block", fontSize: 13, fontWeight: 700 }}>{choice.label}</span>
-                        <span style={{ display: "block", fontSize: 11, color: "#fde68a", marginTop: 2 }}>
-                          à {choice.distanceKm.toFixed(1)} km du départ
-                        </span>
-                      </button>
-                    ))}
                   </div>
                 )}
                 {toCoord && !errors.destination && (
