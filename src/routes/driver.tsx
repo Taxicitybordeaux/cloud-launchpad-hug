@@ -581,7 +581,7 @@ function CourseCard({
         );
 
         const tarifJour = estTarifJourParis(resa.date_heure);
-        const opts: RouteOption[] = result.routes.slice(0, 3).map((route, i) => {
+        const opts: RouteOption[] = result.routes.slice(0, 3).map((route: google.maps.DirectionsRoute, i: number) => {
           const leg = route.legs[0];
           const distKm = (leg.distance?.value ?? 0) / 1000;
           const dureeMin = Math.round((leg.duration?.value ?? 0) / 60);
