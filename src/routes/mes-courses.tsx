@@ -5,7 +5,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useLang } from "@/hooks/useLang";
+import { useI18n } from "@/i18n/I18nProvider";
 import { searchAddress } from "@/lib/googleGeocode";
 import { fetchRouteCoordinates } from "@/lib/googleRoute";
 
@@ -136,7 +136,7 @@ function MapReplay({ depart, destination }: { depart: string; destination: strin
   const mapInst = useRef<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const { t } = useLang();
+  const { t } = useI18n();
 
   useEffect(() => {
     let mounted = true;
@@ -254,7 +254,7 @@ function MapReplay({ depart, destination }: { depart: string; destination: strin
 function CourseCard({ course, onRebook }: { course: Course; onRebook: (c: Course) => void }) {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
-  const { t, lang } = useLang();
+  const { t, lang } = useI18n();
   const STATUT_LABELS = getStatutLabels(t);
   const statut = STATUT_LABELS[course.status] ?? {
     label: course.status,
@@ -515,7 +515,7 @@ function RebookModal({ course, onClose }: { course: Course; onClose: () => void 
   const [heure, setHeure] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
-  const { t } = useLang();
+  const { t } = useI18n();
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -710,7 +710,7 @@ function EmailGate({ onFound }: { onFound: (courses: Course[]) => void }) {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
-  const { t } = useLang();
+  const { t } = useI18n();
 
   const search = async () => {
     if (!email.includes("@")) {
@@ -803,7 +803,7 @@ function MesCourses() {
   const [loading, setLoading] = useState(true);
   const [showGate, setShowGate] = useState(false);
   const [rebookTarget, setRebookTarget] = useState<Course | null>(null);
-  const { t } = useLang();
+  const { t } = useI18n();
 
   useEffect(() => {
     const load = async () => {
