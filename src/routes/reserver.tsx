@@ -1416,7 +1416,7 @@ function ReservationPage() {
   // ── Push client retirée ──────────────────────────────────────────────────
   // Le client n'est plus notifié par push. Toutes les étapes sont visibles
   // en temps réel sur /suivi/$id (bandeau d'étapes + statut). On garde
-  // uniquement les push admin + chauffeur à la création (notifyNewReservation).
+  // uniquement la push chauffeur (José) à la création (notifyNewReservation).
 
   // ── Soumission ────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1503,7 +1503,7 @@ function ReservationPage() {
       toast.success(`${t("conf.ok.title")} ${f.prenom}`);
       setSending(false);
 
-      // ── Notifier l'admin (push FCM + email) ───────────────────────────────
+      // ── Notifier le chauffeur José (push FCM + email) ─────────────────────
       // On attend la fin avant de naviguer : sinon le navigateur peut tuer
       // la requête en cours lors du changement de page (notamment sur mobile),
       // ce qui explique que José ne recevait plus de push ni d'email.
@@ -1514,7 +1514,7 @@ function ReservationPage() {
           new Promise((_, reject) => setTimeout(() => reject(new Error("notify timeout")), 8000)),
         ]);
       } catch (e) {
-        console.warn("[notify] admin notify failed (non-blocking)", e);
+        console.warn("[notify] chauffeur notify failed (non-blocking)", e);
       }
 
       navigate({ to: "/suivi/$id", params: { id: inserted.suivi_id ?? inserted.id } });
