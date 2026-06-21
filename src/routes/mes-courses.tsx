@@ -49,17 +49,17 @@ function loadLeaflet(): Promise<void> {
   });
 }
 
-import { geocodeAddress } from "@/lib/geocode";
-import { fetchRouteCoordinates } from "@/lib/osrm";
+import { searchAddress } from "@/lib/googleGeocode";
+import { fetchRouteCoordinates } from "@/lib/googleRoute";
 
 const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_TILE_OPTIONS = { attribution: "© OpenStreetMap contributors", maxZoom: 19 };
 
 async function geocode(adresse: string): Promise<[number, number] | null> {
   try {
-    const c = await geocodeAddress(adresse);
-    if (!c) return null;
-    return [c.lat, c.lng];
+    const results = await searchAddress(adresse, 1);
+    if (!results.length) return null;
+    return [results[0].coord[0], results[0].coord[1]];
   } catch {
     return null;
   }
