@@ -55,9 +55,9 @@ interface RouteOption {
   dureeMin: number;
   prix: number;
   tarifLabel: string;
-  legs: google.maps.DirectionsLeg[];
+  legs: any[];
   overview_polyline: string;
-  dirResult: google.maps.DirectionsResult;
+  dirResult: any;
 }
 
 // ── Route definition ───────────────────────────────────────────────────────
@@ -549,8 +549,8 @@ function CourseCard({
   const [loadingRoutes, setLoadingRoutes] = useState(false);
   const [busy, setBusy] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
-  const mapInst = useRef<google.maps.Map | null>(null);
-  const rendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
+  const mapInst = useRef<any>(null);
+  const rendererRef = useRef<any>(null);
 
   // Charger les itinéraires quand on ouvre la carte
   useEffect(() => {
@@ -567,21 +567,21 @@ function CourseCard({
         }
 
         const svc = new mapsApi.maps.DirectionsService();
-        const result: google.maps.DirectionsResult = await new Promise((res, rej) =>
+        const result: any = await new Promise((res, rej) =>
           svc.route(
             {
-              origin: { lat: geoA[0], lng: geoA[1] },
-              destination: { lat: geoB[0], lng: geoB[1] },
+              origin: { lat: geoA.lat, lng: geoA.lng },
+              destination: { lat: geoB.lat, lng: geoB.lng },
               travelMode: mapsApi.maps.TravelMode.DRIVING,
               provideRouteAlternatives: true,
             },
-            (r: google.maps.DirectionsResult | null, s: google.maps.DirectionsStatus) =>
+            (r: any, s: any) =>
               s === "OK" && r ? res(r) : rej(s),
           ),
         );
 
         const tarifJour = estTarifJourParis(resa.date_heure);
-        const opts: RouteOption[] = result.routes.slice(0, 3).map((route, i) => {
+        const opts: RouteOption[] = result.routes.slice(0, 3).map((route: any, i: number) => {
           const leg = route.legs[0];
           const distKm = (leg.distance?.value ?? 0) / 1000;
           const dureeMin = Math.round((leg.duration?.value ?? 0) / 60);
