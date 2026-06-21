@@ -1,3 +1,4 @@
+/// <reference types="google.maps" />
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
