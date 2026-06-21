@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_TILE_OPTIONS = { attribution: "© OpenStreetMap contributors", maxZoom: 19 };
-import { getRouteGeoCoords } from "@/lib/osrm";
+import { getRouteGeoCoords } from "@/lib/googleRoute";
 
 export const Route = createFileRoute("/course/$id")({
   head: () => ({ meta: [{ title: "Course en cours — Taxi City Bordeaux" }] }),
@@ -62,14 +62,14 @@ async function getRoute(from: [number, number], to: [number, number]) {
   }
 }
 
-import { geocodeAddress } from "@/lib/geocode";
+import { searchAddress } from "@/lib/googleGeocode";
 
 // Géocode une adresse → coordonnées via geocode helper (retourne [lat, lng])
 async function geocode(adresse: string): Promise<[number, number] | null> {
   try {
-    const c = await geocodeAddress(adresse);
-    if (!c) return null;
-    return [c.lat, c.lng];
+    const results = await searchAddress(adresse, 1);
+    if (!results.length) return null;
+    return [results[0].coord[0], results[0].coord[1]];
   } catch {
     return null;
   }
