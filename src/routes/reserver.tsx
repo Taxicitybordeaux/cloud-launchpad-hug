@@ -259,34 +259,6 @@ function dedupeAddressChoices(choices: AddressChoice[]): AddressChoice[] {
   });
 }
 
-async function searchPhotonAddress(query: string, origin: [number, number]): Promise<AddressChoice[]> {
-  try {
-    const url = new URL("https://photon.komoot.io/api/");
-    url.searchParams.set("q", query);
-    url.searchParams.set("limit", "8");
-    url.searchParams.set("lang", "fr");
-    url.searchParams.set("lat", String(origin[0]));
-    url.searchParams.set("lon", String(origin[1]));
-    const res = await fetch(url.toString());
-    if (!res.ok) return [];
-    const data = await res.json();
-    if (!Array.isArray(data?.features)) return [];
-    return data.features
-      .map((feature: any) => {
-        const coords = feature?.geometry?.coordinates;
-        if (!Array.isArray(coords) || coords.length < 2) return null;
-        const props = feature.properties ?? {};
-        const label = [props.name, props.street, props.postcode, props.city || props.county].filter(Boolean).join(", ");
-        const coord: [number, number] = [Number(coords[1]), Number(coords[0])];
-        if (!label || !Number.isFinite(coord[0]) || !Number.isFinite(coord[1])) return null;
-        return { label: shortLabel(label), coord, distanceKm: distanceKmBetween(origin, coord) };
-      })
-      .filter(Boolean) as AddressChoice[];
-  } catch {
-    return [];
-  }
-}
-
 // ─── Configuration des résultats ────────────────────────────────────────────
 // Nombre max de suggestions affichées (top N). Configurable selon contexte.
 const MAX_CHOICES_DEFAULT = 4;
@@ -294,7 +266,7 @@ const MAX_CHOICES_SUPERMARKET = 5; // un peu plus pour comparer plusieurs magasi
 const SUPERMARKET_RADIUS_KM = 15; // on resserre pour éviter les magasins trop loin
 const SUPERMARKET_MAX_DISTANCE_KM = 25;
 
-// Marques de supermarchés courantes — utilisées pour filtrer Overpass par catégorie
+// Marques de supermarchés courantes — utilisées pour filtrer les résultats Google par catégorie
 // (shop=supermarket) et éliminer les POIs sans rapport (école qui contient « lidl » dans un texte, etc.)
 const SUPERMARKET_BRANDS = [
   "aldi",
@@ -330,119 +302,8 @@ function detectSupermarketBrand(query: string): string | null {
   return null;
 }
 
-async function searchOverpassPois(query: string, origin: [number, number], radiusKm: number): Promise<AddressChoice[]> {
-  const token = usefulSearchTokens(query)[0];
-  if (!token) return [];
-  const safeToken = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const brand = detectSupermarketBrand(query);
-  // Pour les supermarchés, on resserre le rayon pour éviter les magasins trop éloignés
-  const effectiveRadiusKm = brand ? Math.min(radiusKm, SUPERMARKET_RADIUS_KM) : radiusKm;
-  const radiusM = Math.round(effectiveRadiusKm * 1000);
-  // Pour les supermarchés, on filtre strictement par catégorie shop=supermarket
-  // ET par brand/name correspondant au mot-clé → résultats vraiment pertinents.
-  const safeBrand = brand ? brand.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") : null;
-  const body = brand
-    ? `[out:json][timeout:6];(
-node(around:${radiusM},${origin[0]},${origin[1]})["shop"="supermarket"]["brand"~"${safeBrand}",i];
-node(around:${radiusM},${origin[0]},${origin[1]})["shop"="supermarket"]["name"~"${safeBrand}",i];
-way(around:${radiusM},${origin[0]},${origin[1]})["shop"="supermarket"]["brand"~"${safeBrand}",i];
-way(around:${radiusM},${origin[0]},${origin[1]})["shop"="supermarket"]["name"~"${safeBrand}",i];
-);out center tags 15;`
-    : `[out:json][timeout:6];(
-node(around:${radiusM},${origin[0]},${origin[1]})["name"~"${safeToken}",i];
-way(around:${radiusM},${origin[0]},${origin[1]})["name"~"${safeToken}",i];
-);out center tags 15;`;
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 6000);
-    const res = await fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      body,
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
-    if (!res.ok) return [];
-    const data = await res.json();
-    if (!Array.isArray(data?.elements)) return [];
-    type Raw = {
-      name: string;
-      brand: string;
-      shop: string;
-      street: string;
-      lat: number;
-      lng: number;
-      distanceKm: number;
-    };
-    const raws: Raw[] = data.elements
-      .map((item: any): Raw | null => {
-        const lat = Number(item.lat ?? item.center?.lat);
-        const lng = Number(item.lon ?? item.center?.lon);
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-        const tags = item.tags ?? {};
-        const rawBrand = String(tags.brand ?? "").trim();
-        const rawName = String(tags.name ?? rawBrand).trim();
-        const shop = String(tags.shop ?? "").trim();
-        if (!rawName) return null;
-        const streetParts = [
-          tags["addr:housenumber"] && tags["addr:street"]
-            ? `${tags["addr:housenumber"]} ${tags["addr:street"]}`
-            : tags["addr:street"],
-          tags["addr:postcode"],
-          tags["addr:city"],
-        ].filter(Boolean);
-        const street = streetParts.join(", ");
-        const coord: [number, number] = [lat, lng];
-        return { name: rawName, brand: rawBrand, shop, street, lat, lng, distanceKm: distanceKmBetween(origin, coord) };
-      })
-      .filter(Boolean) as Raw[];
-
-    // Filtrage strict supermarchés : exige shop=supermarket ET (brand OU name) matchant la marque,
-    // limite stricte de distance pour éviter les résultats hors zone pertinente.
-    let filtered = raws;
-    if (brand) {
-      const nb = brand;
-      filtered = raws.filter((r) => {
-        if (r.shop !== "supermarket") return false;
-        if (r.distanceKm > SUPERMARKET_MAX_DISTANCE_KM) return false;
-        const matchBrand = normalizeAddressText(r.brand).includes(nb);
-        const matchName = normalizeAddressText(r.name).includes(nb);
-        return matchBrand || matchName;
-      });
-    }
-
-    // Tri par distance, top N strict (5 pour supermarchés, 6 sinon pour permettre dedupe ensuite)
-    filtered.sort((a, b) => a.distanceKm - b.distanceKm);
-    const topN = brand ? MAX_CHOICES_SUPERMARKET : 6;
-    const top = filtered.slice(0, topN);
-
-    // Enrichissement parallèle : pour les POIs sans rue, on récupère l'adresse via reverse geocoding
-    const enriched = await Promise.all(
-      top.map(async (r) => {
-        let address = r.street;
-        if (!address) {
-          const rev = await reverseGeocode(r.lat, r.lng).catch(() => null);
-          if (rev) address = rev;
-        }
-        // Nom propre : on préfère brand (« Aldi ») au name technique (« Aldi 9 »),
-        // sinon on retire un suffixe purement numérique trompeur.
-        const cleanName = (r.brand || r.name.replace(/\s+\d+\s*$/, "")).trim() || r.name;
-        const label = address ? `${cleanName} — ${address}` : cleanName;
-        return {
-          label: shortLabel(label),
-          coord: [r.lat, r.lng] as [number, number],
-          distanceKm: r.distanceKm,
-        } as AddressChoice;
-      }),
-    );
-    // On filtre les POIs sans aucune adresse identifiable (trop ambigus)
-    return enriched.filter((c) => c.label.includes("—") || c.label.includes(","));
-  } catch {
-    return [];
-  }
-}
-
 // Lieux canoniques (coordonnées vérifiées) — utilisés en priorité absolue
-// quand la requête correspond, pour éviter les mauvaises adresses Nominatim/Overpass.
+// quand la requête correspond, pour éviter les mauvaises adresses (cas ambigus de géocodage).
 const CANONICAL_PLACES: Array<{
   match: RegExp;
   label: string;
@@ -567,7 +428,7 @@ function rankAndTrim(
   if (brand) {
     // Filtrage strict supermarchés : on ne garde que les libellés dont le NOM (avant " — ")
     // commence par la marque. Cela écarte les rues/lieux contenant le mot par hasard
-    // (« Rue Aldi », école « Lidl Center », etc.) renvoyés par Nominatim/Photon.
+    // (« Rue Aldi », école « Lidl Center », etc.) renvoyés par le géocodage.
     const nb = brand;
     pool = pool.filter((choice) => {
       const head = normalizeAddressText(choice.label.split("—")[0] ?? choice.label);
@@ -613,24 +474,19 @@ async function searchNearbyAddressChoices(
     extraVariants.push("Gare de Bordeaux-Saint-Jean", "Gare Saint Jean Bordeaux", "Bordeaux Saint-Jean");
   }
   const variants = [...new Set([query, `${query}, Gironde`, ...extraVariants])];
-  const [nominatimGroups, photonChoices, overpassChoices] = await Promise.all([
-    Promise.all(variants.map((v) => searchAddress(v, 6).catch(() => []))),
-    searchPhotonAddress(query, origin),
-    searchOverpassPois(query, origin, radiusKm),
-  ]);
-  const nominatimChoices = nominatimGroups.flat().map((item) => ({
+  const groups = await Promise.all(variants.map((v) => searchAddress(v, 6).catch(() => [])));
+  const googleChoices = groups.flat().map((item) => ({
     label: shortLabel(item.label),
     coord: item.coord,
     distanceKm: distanceKmBetween(origin, item.coord),
   }));
   const canonical = findCanonicalPlace(query, origin);
-  const result = rankAndTrim(query, origin, [...nominatimChoices, ...photonChoices, ...overpassChoices], canonical);
+  const result = rankAndTrim(query, origin, googleChoices, canonical);
   writeCache(key, result);
   return result;
 }
 
-// Version streaming : appelle onPartial dès qu'une source répond (canonical → photon → overpass → nominatim),
-// pour afficher les premiers matches sans attendre que tout soit terminé.
+// Version streaming : émet le résultat canonique immédiatement, puis les résultats Google dès qu'ils arrivent.
 async function searchNearbyAddressChoicesStreaming(
   query: string,
   origin: [number, number],
@@ -645,16 +501,9 @@ async function searchNearbyAddressChoicesStreaming(
   }
 
   const canonical = findCanonicalPlace(query, origin);
-  let nominatim: AddressChoice[] = [];
-  let photon: AddressChoice[] = [];
-  let overpass: AddressChoice[] = [];
-
-  const emit = (done: boolean) => {
-    onPartial(rankAndTrim(query, origin, [...nominatim, ...photon, ...overpass], canonical), done);
-  };
 
   // 0) Canonical immédiat
-  if (canonical) emit(false);
+  if (canonical) onPartial(rankAndTrim(query, origin, [], canonical), false);
 
   const normalizedQ = normalizeAddressText(query);
   const extraVariants: string[] = [];
@@ -666,25 +515,14 @@ async function searchNearbyAddressChoicesStreaming(
   }
   const variants = [...new Set([query, `${query}, Gironde`, ...extraVariants])];
 
-  const pPhoton = searchPhotonAddress(query, origin).then((r) => {
-    photon = r;
-    emit(false);
-  });
-  const pOverpass = searchOverpassPois(query, origin, radiusKm).then((r) => {
-    overpass = r;
-    emit(false);
-  });
-  const pNominatim = Promise.all(variants.map((v) => searchAddress(v, 6).catch(() => []))).then((groups) => {
-    nominatim = groups.flat().map((item) => ({
-      label: shortLabel(item.label),
-      coord: item.coord,
-      distanceKm: distanceKmBetween(origin, item.coord),
-    }));
-    emit(false);
-  });
+  const groups = await Promise.all(variants.map((v) => searchAddress(v, 6).catch(() => [])));
+  const googleChoices = groups.flat().map((item) => ({
+    label: shortLabel(item.label),
+    coord: item.coord,
+    distanceKm: distanceKmBetween(origin, item.coord),
+  }));
 
-  await Promise.allSettled([pPhoton, pOverpass, pNominatim]);
-  const result = rankAndTrim(query, origin, [...nominatim, ...photon, ...overpass], canonical);
+  const result = rankAndTrim(query, origin, googleChoices, canonical);
   writeCache(key, result);
   onPartial(result, true);
   return result;
@@ -809,8 +647,6 @@ function ReservationPage() {
   const [searchingDestination, setSearchingDestination] = useState(false);
   const departDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const destinationDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [searchMode, setSearchMode] = useState<"address" | "poi">("address");
-  const [departSearchMode, setDepartSearchMode] = useState<"address" | "poi">("address");
   const [voiceListening, setVoiceListening] = useState(false);
   const [voiceBothListening, setVoiceBothListening] = useState(false);
   const voiceRecogRef = useRef<any>(null);
@@ -1397,7 +1233,7 @@ function ReservationPage() {
     setCalcLoading(true);
     setSearchingDepart(true);
     const origin = fromCoord ?? BORDEAUX_CENTER;
-    const namedPlace = departSearchMode === "poi" || isNamedPlaceQuery(value);
+    const namedPlace = isNamedPlaceQuery(value);
 
     const canonical = findCanonicalPlace(value, origin);
     if (canonical) {
@@ -1488,7 +1324,7 @@ function ReservationPage() {
       setFromCoord(null);
       setErrors((prev) => ({ ...prev, depart: "Adresse introuvable — précisez la ville ou le lieu" }));
     }
-  }, [f.depart, fromCoord, departSearchMode]);
+  }, [f.depart, fromCoord]);
 
   // ── Résoudre adresse destination ─────────────────────────────────────────
   const resolveDestinationAddress = useCallback(async () => {
@@ -1516,7 +1352,7 @@ function ReservationPage() {
     }
 
     const origin = resolvedFromCoord ?? BORDEAUX_CENTER;
-    const namedPlace = searchMode === "poi" || isNamedPlaceQuery(value);
+    const namedPlace = isNamedPlaceQuery(value);
 
     const canonical = findCanonicalPlace(value, origin);
     if (canonical) {
@@ -1604,7 +1440,7 @@ function ReservationPage() {
       // Résultat trouvé mais trop loin → on propose des alternatives proches
     }
 
-    // 2) Fallback : recherche élargie (Photon + Overpass + variantes Nominatim) dans 50 km
+    // 2) Fallback : recherche élargie (Google, variantes de requête) dans 50 km
     const nearbyChoices = await searchNearbyAddressChoicesStreaming(
       value,
       origin,
@@ -1633,7 +1469,7 @@ function ReservationPage() {
         destination: "Adresse introuvable — précisez la ville ou le lieu",
       }));
     }
-  }, [f.destination, f.depart, fromCoord, searchMode]);
+  }, [f.destination, f.depart, fromCoord]);
 
   useEffect(() => {
     resolveDestinationAddressRef.current = resolveDestinationAddress;
@@ -2163,54 +1999,6 @@ function ReservationPage() {
                 >
                   {t("res.loc.from")}
                 </label>
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 6,
-                    marginBottom: 6,
-                    padding: 3,
-                    background: "rgba(15,23,42,0.5)",
-                    border: "1px solid rgba(245,200,66,0.25)",
-                    borderRadius: 10,
-                    width: "fit-content",
-                  }}
-                  role="tablist"
-                  aria-label="Mode de recherche départ"
-                >
-                  {(
-                    [
-                      { key: "address", label: "🏠 Adresse" },
-                      { key: "poi", label: "📍 Lieu / POI" },
-                    ] as const
-                  ).map((opt) => {
-                    const active = departSearchMode === opt.key;
-                    return (
-                      <button
-                        key={opt.key}
-                        type="button"
-                        role="tab"
-                        aria-selected={active}
-                        onClick={() => {
-                          setDepartSearchMode(opt.key);
-                          setDepartChoices([]);
-                          setFromCoord(null);
-                        }}
-                        style={{
-                          padding: "4px 10px",
-                          borderRadius: 8,
-                          border: "none",
-                          background: active ? "#f5c842" : "transparent",
-                          color: active ? "#0f172a" : "#cbd5e1",
-                          fontSize: 11,
-                          fontWeight: 700,
-                          cursor: "pointer",
-                        }}
-                      >
-                        {opt.label}
-                      </button>
-                    );
-                  })}
-                </div>
                 <div style={{ position: "relative" }}>
                   <input
                     type="text"
@@ -2425,78 +2213,6 @@ function ReservationPage() {
                   >
                     {t("res.loc.to")}
                   </label>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 6,
-                      padding: 3,
-                      background: "rgba(15,23,42,0.5)",
-                      border: "1px solid rgba(245,200,66,0.25)",
-                      borderRadius: 10,
-                    }}
-                    role="tablist"
-                    aria-label="Mode de recherche destination"
-                  >
-                    {(
-                      [
-                        { key: "address", label: "🏠 Adresse" },
-                        { key: "poi", label: "📍 Lieu / POI" },
-                      ] as const
-                    ).map((opt) => {
-                      const autoPoi = opt.key === "poi" && searchMode === "address" && isNamedPlaceQuery(f.destination);
-                      const active = searchMode === opt.key || autoPoi;
-                      return (
-                        <button
-                          key={opt.key}
-                          type="button"
-                          role="tab"
-                          aria-selected={active}
-                          title={
-                            opt.key === "poi"
-                              ? "Mode Lieu/POI : cherche gares, aéroports, supermarchés, monuments… dans un rayon de 50 km autour du départ. Cliquez sur « Adresse » pour revenir à la saisie d'une adresse postale."
-                              : "Mode Adresse : géocode une adresse postale (rue, numéro, ville). Cliquez sur « Lieu / POI » pour rechercher un point d'intérêt."
-                          }
-                          onClick={() => {
-                            setSearchMode(opt.key);
-                            setDestinationChoices([]);
-                            setToCoord(null);
-                          }}
-                          style={{
-                            padding: "4px 10px",
-                            borderRadius: 8,
-                            border: "none",
-                            background: active ? "#f5c842" : "transparent",
-                            color: active ? "#0f172a" : "#cbd5e1",
-                            fontSize: 11,
-                            fontWeight: 700,
-                            cursor: "pointer",
-                            opacity: autoPoi ? 0.85 : 1,
-                          }}
-                        >
-                          {opt.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {searchMode === "address" && isNamedPlaceQuery(f.destination) && (
-                    <span
-                      title="Le texte saisi ressemble à un lieu connu (gare, aéroport, supermarché, monument…). La recherche POI s'applique automatiquement. Pour rester en mode adresse postale, cliquez sur « 🏠 Adresse »."
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 700,
-                        color: "#fde68a",
-                        background: "rgba(245,200,66,0.12)",
-                        border: "1px solid rgba(245,200,66,0.35)",
-                        borderRadius: 999,
-                        padding: "3px 8px",
-                        cursor: "help",
-                      }}
-                    >
-                      ✨ Lieu détecté — POI auto · cliquez 🏠 Adresse pour repasser
-                    </span>
-                  )}
                 </div>
                 <input
                   type="text"

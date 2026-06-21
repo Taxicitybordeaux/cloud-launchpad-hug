@@ -15,7 +15,6 @@ import { Route as ReserverRouteImport } from './routes/reserver'
 import { Route as ReservationRouteImport } from './routes/reservation'
 import { Route as MesCoursesRouteImport } from './routes/mes-courses'
 import { Route as MentionsLegalesRouteImport } from './routes/mentions-legales'
-import { Route as LoginRouteImport } from './routes/login'
 import { Route as DriverRouteImport } from './routes/driver'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as ConfidentialiteRouteImport } from './routes/confidentialite'
@@ -69,11 +68,6 @@ const MesCoursesRoute = MesCoursesRouteImport.update({
 const MentionsLegalesRoute = MentionsLegalesRouteImport.update({
   id: '/mentions-legales',
   path: '/mentions-legales',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DriverRoute = DriverRouteImport.update({
@@ -208,7 +202,6 @@ export interface FileRoutesByFullPath {
   '/confidentialite': typeof ConfidentialiteRoute
   '/contact': typeof ContactRoute
   '/driver': typeof DriverRoute
-  '/login': typeof LoginRoute
   '/mentions-legales': typeof MentionsLegalesRoute
   '/mes-courses': typeof MesCoursesRoute
   '/reservation': typeof ReservationRouteWithChildren
@@ -241,7 +234,6 @@ export interface FileRoutesByTo {
   '/confidentialite': typeof ConfidentialiteRoute
   '/contact': typeof ContactRoute
   '/driver': typeof DriverRoute
-  '/login': typeof LoginRoute
   '/mentions-legales': typeof MentionsLegalesRoute
   '/mes-courses': typeof MesCoursesRoute
   '/reservation': typeof ReservationRouteWithChildren
@@ -275,7 +267,6 @@ export interface FileRoutesById {
   '/confidentialite': typeof ConfidentialiteRoute
   '/contact': typeof ContactRoute
   '/driver': typeof DriverRoute
-  '/login': typeof LoginRoute
   '/mentions-legales': typeof MentionsLegalesRoute
   '/mes-courses': typeof MesCoursesRoute
   '/reservation': typeof ReservationRouteWithChildren
@@ -310,7 +301,6 @@ export interface FileRouteTypes {
     | '/confidentialite'
     | '/contact'
     | '/driver'
-    | '/login'
     | '/mentions-legales'
     | '/mes-courses'
     | '/reservation'
@@ -343,7 +333,6 @@ export interface FileRouteTypes {
     | '/confidentialite'
     | '/contact'
     | '/driver'
-    | '/login'
     | '/mentions-legales'
     | '/mes-courses'
     | '/reservation'
@@ -376,7 +365,6 @@ export interface FileRouteTypes {
     | '/confidentialite'
     | '/contact'
     | '/driver'
-    | '/login'
     | '/mentions-legales'
     | '/mes-courses'
     | '/reservation'
@@ -410,7 +398,6 @@ export interface RootRouteChildren {
   ConfidentialiteRoute: typeof ConfidentialiteRoute
   ContactRoute: typeof ContactRoute
   DriverRoute: typeof DriverRoute
-  LoginRoute: typeof LoginRoute
   MentionsLegalesRoute: typeof MentionsLegalesRoute
   MesCoursesRoute: typeof MesCoursesRoute
   ReservationRoute: typeof ReservationRouteWithChildren
@@ -481,13 +468,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MentionsLegalesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/driver': {
       id: '/driver'
       path: '/driver'
@@ -507,8 +487,6 @@ declare module '@tanstack/react-router' {
       path: '/confidentialite'
       fullPath: '/confidentialite'
       preLoaderRoute: typeof ConfidentialiteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
       parentRoute: typeof rootRouteImport
     }
     '/a-propos': {
@@ -580,14 +558,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/manifest'
       preLoaderRoute: typeof ApiManifestRouteImport
       parentRoute: typeof rootRouteImport
-    }
-      path: '/push-failures'
-    }
-      path: '/flow-check'
-    }
-      path: '/dashboard'
-    }
-      path: '/courses'
     }
     '/lovable/email/suppression': {
       id: '/lovable/email/suppression'
@@ -669,11 +639,6 @@ declare module '@tanstack/react-router' {
   }
 }
 
-}
-
-}
-
-
 interface ReservationRouteChildren {
   ReservationIdRoute: typeof ReservationIdRoute
 }
@@ -692,7 +657,6 @@ const rootRouteChildren: RootRouteChildren = {
   ConfidentialiteRoute: ConfidentialiteRoute,
   ContactRoute: ContactRoute,
   DriverRoute: DriverRoute,
-  LoginRoute: LoginRoute,
   MentionsLegalesRoute: MentionsLegalesRoute,
   MesCoursesRoute: MesCoursesRoute,
   ReservationRoute: ReservationRouteWithChildren,
