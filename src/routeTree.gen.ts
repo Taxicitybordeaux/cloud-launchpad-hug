@@ -19,7 +19,6 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as DriverRouteImport } from './routes/driver'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as ConfidentialiteRouteImport } from './routes/confidentialite'
-import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AProposRouteImport } from './routes/a-propos'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SuiviIdRouteImport } from './routes/suivi.$id'
@@ -30,10 +29,6 @@ import { Route as CourseIdRouteImport } from './routes/course.$id'
 import { Route as ClientLoginRouteImport } from './routes/client.login'
 import { Route as ClientDashboardRouteImport } from './routes/client.dashboard'
 import { Route as ApiManifestRouteImport } from './routes/api/manifest'
-import { Route as AdminPushFailuresRouteImport } from './routes/admin.push-failures'
-import { Route as AdminFlowCheckRouteImport } from './routes/admin.flow-check'
-import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
-import { Route as AdminCoursesRouteImport } from './routes/admin.courses'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as ApiPublicNotifyReservationClientRouteImport } from './routes/api/public/notify-reservation-client'
 import { Route as ApiPublicNotifyReservationRouteImport } from './routes/api/public/notify-reservation'
@@ -96,11 +91,6 @@ const ConfidentialiteRoute = ConfidentialiteRouteImport.update({
   path: '/confidentialite',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AProposRoute = AProposRouteImport.update({
   id: '/a-propos',
   path: '/a-propos',
@@ -150,26 +140,6 @@ const ApiManifestRoute = ApiManifestRouteImport.update({
   id: '/api/manifest',
   path: '/api/manifest',
   getParentRoute: () => rootRouteImport,
-} as any)
-const AdminPushFailuresRoute = AdminPushFailuresRouteImport.update({
-  id: '/push-failures',
-  path: '/push-failures',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminFlowCheckRoute = AdminFlowCheckRouteImport.update({
-  id: '/flow-check',
-  path: '/flow-check',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminDashboardRoute = AdminDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminCoursesRoute = AdminCoursesRouteImport.update({
-  id: '/courses',
-  path: '/courses',
-  getParentRoute: () => AdminRoute,
 } as any)
 const LovableEmailSuppressionRoute = LovableEmailSuppressionRouteImport.update({
   id: '/lovable/email/suppression',
@@ -235,7 +205,6 @@ const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/a-propos': typeof AProposRoute
-  '/admin': typeof AdminRouteWithChildren
   '/confidentialite': typeof ConfidentialiteRoute
   '/contact': typeof ContactRoute
   '/driver': typeof DriverRoute
@@ -246,10 +215,6 @@ export interface FileRoutesByFullPath {
   '/reserver': typeof ReserverRoute
   '/services': typeof ServicesRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/admin/courses': typeof AdminCoursesRoute
-  '/admin/dashboard': typeof AdminDashboardRoute
-  '/admin/flow-check': typeof AdminFlowCheckRoute
-  '/admin/push-failures': typeof AdminPushFailuresRoute
   '/api/manifest': typeof ApiManifestRoute
   '/client/dashboard': typeof ClientDashboardRoute
   '/client/login': typeof ClientLoginRoute
@@ -273,7 +238,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/a-propos': typeof AProposRoute
-  '/admin': typeof AdminRouteWithChildren
   '/confidentialite': typeof ConfidentialiteRoute
   '/contact': typeof ContactRoute
   '/driver': typeof DriverRoute
@@ -284,10 +248,6 @@ export interface FileRoutesByTo {
   '/reserver': typeof ReserverRoute
   '/services': typeof ServicesRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/admin/courses': typeof AdminCoursesRoute
-  '/admin/dashboard': typeof AdminDashboardRoute
-  '/admin/flow-check': typeof AdminFlowCheckRoute
-  '/admin/push-failures': typeof AdminPushFailuresRoute
   '/api/manifest': typeof ApiManifestRoute
   '/client/dashboard': typeof ClientDashboardRoute
   '/client/login': typeof ClientLoginRoute
@@ -312,7 +272,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/a-propos': typeof AProposRoute
-  '/admin': typeof AdminRouteWithChildren
   '/confidentialite': typeof ConfidentialiteRoute
   '/contact': typeof ContactRoute
   '/driver': typeof DriverRoute
@@ -323,10 +282,6 @@ export interface FileRoutesById {
   '/reserver': typeof ReserverRoute
   '/services': typeof ServicesRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/admin/courses': typeof AdminCoursesRoute
-  '/admin/dashboard': typeof AdminDashboardRoute
-  '/admin/flow-check': typeof AdminFlowCheckRoute
-  '/admin/push-failures': typeof AdminPushFailuresRoute
   '/api/manifest': typeof ApiManifestRoute
   '/client/dashboard': typeof ClientDashboardRoute
   '/client/login': typeof ClientLoginRoute
@@ -352,7 +307,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/a-propos'
-    | '/admin'
     | '/confidentialite'
     | '/contact'
     | '/driver'
@@ -363,10 +317,6 @@ export interface FileRouteTypes {
     | '/reserver'
     | '/services'
     | '/sitemap.xml'
-    | '/admin/courses'
-    | '/admin/dashboard'
-    | '/admin/flow-check'
-    | '/admin/push-failures'
     | '/api/manifest'
     | '/client/dashboard'
     | '/client/login'
@@ -390,7 +340,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/a-propos'
-    | '/admin'
     | '/confidentialite'
     | '/contact'
     | '/driver'
@@ -401,10 +350,6 @@ export interface FileRouteTypes {
     | '/reserver'
     | '/services'
     | '/sitemap.xml'
-    | '/admin/courses'
-    | '/admin/dashboard'
-    | '/admin/flow-check'
-    | '/admin/push-failures'
     | '/api/manifest'
     | '/client/dashboard'
     | '/client/login'
@@ -428,7 +373,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/a-propos'
-    | '/admin'
     | '/confidentialite'
     | '/contact'
     | '/driver'
@@ -439,10 +383,6 @@ export interface FileRouteTypes {
     | '/reserver'
     | '/services'
     | '/sitemap.xml'
-    | '/admin/courses'
-    | '/admin/dashboard'
-    | '/admin/flow-check'
-    | '/admin/push-failures'
     | '/api/manifest'
     | '/client/dashboard'
     | '/client/login'
@@ -467,7 +407,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AProposRoute: typeof AProposRoute
-  AdminRoute: typeof AdminRouteWithChildren
   ConfidentialiteRoute: typeof ConfidentialiteRoute
   ContactRoute: typeof ContactRoute
   DriverRoute: typeof DriverRoute
@@ -570,11 +509,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConfidentialiteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/a-propos': {
@@ -647,33 +581,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiManifestRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/push-failures': {
-      id: '/admin/push-failures'
       path: '/push-failures'
-      fullPath: '/admin/push-failures'
-      preLoaderRoute: typeof AdminPushFailuresRouteImport
-      parentRoute: typeof AdminRoute
     }
-    '/admin/flow-check': {
-      id: '/admin/flow-check'
       path: '/flow-check'
-      fullPath: '/admin/flow-check'
-      preLoaderRoute: typeof AdminFlowCheckRouteImport
-      parentRoute: typeof AdminRoute
     }
-    '/admin/dashboard': {
-      id: '/admin/dashboard'
       path: '/dashboard'
-      fullPath: '/admin/dashboard'
-      preLoaderRoute: typeof AdminDashboardRouteImport
-      parentRoute: typeof AdminRoute
     }
-    '/admin/courses': {
-      id: '/admin/courses'
       path: '/courses'
-      fullPath: '/admin/courses'
-      preLoaderRoute: typeof AdminCoursesRouteImport
-      parentRoute: typeof AdminRoute
     }
     '/lovable/email/suppression': {
       id: '/lovable/email/suppression'
@@ -755,21 +669,10 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface AdminRouteChildren {
-  AdminCoursesRoute: typeof AdminCoursesRoute
-  AdminDashboardRoute: typeof AdminDashboardRoute
-  AdminFlowCheckRoute: typeof AdminFlowCheckRoute
-  AdminPushFailuresRoute: typeof AdminPushFailuresRoute
 }
 
-const AdminRouteChildren: AdminRouteChildren = {
-  AdminCoursesRoute: AdminCoursesRoute,
-  AdminDashboardRoute: AdminDashboardRoute,
-  AdminFlowCheckRoute: AdminFlowCheckRoute,
-  AdminPushFailuresRoute: AdminPushFailuresRoute,
 }
 
-const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface ReservationRouteChildren {
   ReservationIdRoute: typeof ReservationIdRoute
@@ -786,7 +689,6 @@ const ReservationRouteWithChildren = ReservationRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AProposRoute: AProposRoute,
-  AdminRoute: AdminRouteWithChildren,
   ConfidentialiteRoute: ConfidentialiteRoute,
   ContactRoute: ContactRoute,
   DriverRoute: DriverRoute,
