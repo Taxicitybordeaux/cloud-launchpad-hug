@@ -581,7 +581,7 @@ function CourseCard({
         );
 
         const tarifJour = estTarifJourParis(resa.date_heure);
-        const opts: RouteOption[] = result.routes.slice(0, 3).map((route, i) => {
+        const opts: RouteOption[] = result.routes.slice(0, 3).map((route: google.maps.DirectionsRoute, i: number) => {
           const leg = route.legs[0];
           const distKm = (leg.distance?.value ?? 0) / 1000;
           const dureeMin = Math.round((leg.duration?.value ?? 0) / 60);
@@ -594,7 +594,7 @@ function CourseCard({
             prix,
             tarifLabel: tarifJour ? "Tarif jour" : "Tarif nuit",
             legs: route.legs,
-            overview_polyline: route.overview_polyline?.points ?? "",
+            overview_polyline: (route.overview_polyline as unknown as { points?: string })?.points ?? (route.overview_polyline as unknown as string) ?? "",
             dirResult: { ...result, routes: [route] },
           };
         });
