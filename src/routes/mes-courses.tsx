@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/i18n/I18nProvider";
 import { searchAddress } from "@/lib/googleGeocode";
-import { fetchRouteCoordinates } from "@/lib/googleRoute";
+import { getRouteGeoCoords } from "@/lib/googleRoute";
 
 export const Route = createFileRoute("/mes-courses")({
   head: () => ({ meta: [{ title: "Mes courses — Taxi City Bordeaux" }] }),
@@ -66,17 +66,10 @@ async function geocode(adresse: string): Promise<[number, number] | null> {
 
 async function getPolyline(from: [number, number], to: [number, number]): Promise<[number, number][]> {
   try {
-    // from/to sont en [lat, lng], OSRM attend [lng, lat]
-    const result = await fetchRouteCoordinates(
-      [
-        [from[1], from[0]],
-        [to[1], to[0]],
-      ],
-      { overview: "full", geometries: "geojson" },
-    );
-    const coords: [number, number][] = result?.routes?.[0]?.geometry?.coordinates ?? [];
-    // OSRM renvoie [lng, lat], Leaflet attend [lat, lng]
-    return coords.map(([lng, lat]) => [lat, lng]);
+    // from/to sont en [lat, lng], getRouteGeoCoords attend [lng, lat]
+    const result = await getRouteGeoCoords([from[1], from[0]], [to[1], to[0]]);
+    // getRouteGeoCoords retourne coords en [lat, lng][] directement
+    return result?.coords ?? [];
   } catch {
     return [];
   }
