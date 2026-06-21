@@ -309,7 +309,7 @@ function DriverApp() {
       const { count } = await (supabase as any)
         .from("reservations")
         .select("id", { count: "exact", head: true })
-        .eq("status", "nouvelle");
+        .eq("status", "pending");
       setNewCount(count ?? 0);
     };
     load();
@@ -459,12 +459,12 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
       .select(
         "id,depart,destination,date_heure,status,prix,distance_km,client_name,client_phone,client_email,email,suivi_id",
       )
-      .in("status", ["nouvelle", "acceptee", "en_route", "arrivee"])
+      .in("status", ["pending", "accepted"])
       .order("date_heure", { ascending: true });
     const list: Resa[] = data ?? [];
     setCourses(list);
     setLoading(false);
-    onBadgeChange(list.filter((r) => r.status === "nouvelle").length);
+    onBadgeChange(list.filter((r) => r.status === "pending").length);
   }, [onBadgeChange]);
 
   useEffect(() => {
@@ -485,8 +485,8 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
       </div>
     );
 
-  const nouvelles = courses.filter((r) => r.status === "nouvelle");
-  const encours = courses.filter((r) => r.status !== "nouvelle");
+  const nouvelles = courses.filter((r) => r.status === "pending");
+  const encours = courses.filter((r) => r.status === "accepted");
 
   if (courses.length === 0)
     return (
@@ -640,10 +640,10 @@ function CourseCard({
   }, [expanded, routes, selectedRoute]);
 
   const statusLabel: Record<string, { label: string; cls: string }> = {
-    nouvelle: { label: "Nouveau", cls: "drv-badge-blue" },
-    acceptee: { label: "Acceptée", cls: "drv-badge-green" },
+    pending: { label: "En attente", cls: "drv-badge-blue" },
+    accepted: { label: "Acceptée", cls: "drv-badge-green" },
     en_route: { label: "En route", cls: "drv-badge-amber" },
-    arrivee: { label: "Arrivé", cls: "drv-badge-amber" },
+    arrived: { label: "Arrivé", cls: "drv-badge-amber" },
   };
   const st = statusLabel[resa.status] ?? { label: resa.status, cls: "drv-badge-gray" };
 
@@ -651,7 +651,7 @@ function CourseCard({
     setBusy(true);
     try {
       const chosen = routes[selectedRoute];
-      const updates: any = { status: "acceptee" };
+      const updates: any = { status: "accepted" };
       if (chosen) {
         updates.distance_km = chosen.distanceKm;
         updates.prix = chosen.prix;
@@ -671,7 +671,7 @@ function CourseCard({
     if (!confirm("Refuser cette course ?")) return;
     setBusy(true);
     try {
-      const { error } = await (supabase as any).from("reservations").update({ status: "annulee" }).eq("id", resa.id);
+      const { error } = await (supabase as any).from("reservations").update({ status: "cancelled" }).eq("id", resa.id);
       if (error) throw error;
       toast("Course refusée");
       onRefresh();
@@ -842,7 +842,7 @@ function CourseCard({
   };
 
   return (
-    <div className={`drv-card${resa.status === "nouvelle" ? " new" : ""}`}>
+    <div className={`drv-card${resa.status === "pending" ? " new" : ""}`}>
       {/* En-tête */}
       <div className="drv-row" style={{ cursor: "pointer" }} onClick={onToggle}>
         <span className="drv-time">{formatHeure(resa.date_heure)}</span>
@@ -903,7 +903,7 @@ function CourseCard({
           )}
 
           {/* Contact — tel / SMS / WhatsApp / Email, identique à l'admin */}
-          {(resa.status === "acceptee" || resa.status === "en_route" || resa.status === "arrivee") &&
+          {(resa.status === "accepted" || resa.status === "en_route" || resa.status === "arrived") &&
             (() => {
               const phone = resa.client_phone;
               const mail = resa.client_email || resa.email;
@@ -971,7 +971,7 @@ function CourseCard({
             })()}
 
           {/* Gestion avancée — visible une fois la course acceptée */}
-          {(resa.status === "acceptee" || resa.status === "en_route" || resa.status === "arrivee") && (
+          {(resa.status === "accepted" || resa.status === "en_route" || resa.status === "arrived") && (
             <>
               {routes.length > 0 && (
                 <button
@@ -1128,7 +1128,7 @@ function CourseCard({
           )}
 
           {/* Actions */}
-          {resa.status === "nouvelle" && (
+          {resa.status === "pending" && (
             <div className="drv-btns">
               <button className="drv-btn-danger" onClick={handleRefuse} disabled={busy}>
                 Refuser
@@ -1138,7 +1138,7 @@ function CourseCard({
               </button>
             </div>
           )}
-          {resa.status === "acceptee" && (
+          {resa.status === "accepted" && (
             <a
               href={`/suivi/${resa.id}?gps=1`}
               style={{
@@ -1215,7 +1215,7 @@ function PlanningTab() {
       .select("id,depart,destination,date_heure,status,prix,distance_km")
       .gte("date_heure", today.toISOString())
       .lt("date_heure", tomorrow.toISOString())
-      .not("status", "eq", "annulee")
+      .not("status", "eq", "cancelled")
       .order("date_heure", { ascending: true });
     setCourses(data ?? []);
     setLoading(false);
@@ -1242,10 +1242,10 @@ function PlanningTab() {
   const dotColor: Record<string, string> = {
     terminee: "#94a3b8",
     completed: "#94a3b8",
-    nouvelle: "#f59e0b",
-    acceptee: "#22c55e",
+    pending: "#f59e0b",
+    accepted: "#22c55e",
     en_route: "#3b82f6",
-    arrivee: "#3b82f6",
+    arrived: "#3b82f6",
   };
 
   return (
