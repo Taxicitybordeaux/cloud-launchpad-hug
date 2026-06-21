@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { Phone, Menu, X, UserCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import logo from "@/assets/logo.jpeg";
@@ -12,7 +12,9 @@ const PHONE_DISPLAY = "06 73 07 23 22";
 
 export function SiteHeader() {
   const t = useT();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
+  if (location.pathname === "/driver") return null;
   // Session-aware "Mon espace" — si déjà connecté on saute /client/login.
   // Hydraté côté client uniquement pour rester SSR-safe.
   const [hasSession, setHasSession] = useState(false);
