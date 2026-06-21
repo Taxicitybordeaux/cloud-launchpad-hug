@@ -594,7 +594,7 @@ function CourseCard({
             prix,
             tarifLabel: tarifJour ? "Tarif jour" : "Tarif nuit",
             legs: route.legs,
-            overview_polyline: route.overview_polyline?.points ?? "",
+            overview_polyline: (route.overview_polyline as unknown as { points?: string })?.points ?? (route.overview_polyline as unknown as string) ?? "",
             dirResult: { ...result, routes: [route] },
           };
         });
