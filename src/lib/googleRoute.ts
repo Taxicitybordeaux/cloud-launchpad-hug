@@ -40,12 +40,12 @@ function pickLongestRoute(routes: GoogleDirectionsResult[]): GoogleDirectionsRes
   }
   return best;
 }
+let directionsService: GoogleDirectionsService | null = null;
 async function getDirectionsService() {
   if (directionsService) return directionsService;
   const g = await loadGoogleMaps();
-  const nextDirectionsService = new g.maps.DirectionsService();
-  directionsService = nextDirectionsService;
-  return nextDirectionsService;
+  directionsService = new g.maps.DirectionsService();
+  return directionsService;
 }
 
 function decodePolyline(encoded: string): [number, number][] {
