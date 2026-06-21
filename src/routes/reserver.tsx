@@ -41,7 +41,6 @@ export const Route = createFileRoute("/reserver")({
 });
 
 const BORDEAUX_CENTER: [number, number] = [44.8378, -0.5792];
-const DESTINATION_SEARCH_RADIUS_KM = 50;
 const NAMED_PLACE_REGEX =
   /aeroport|airport|gare|station|hopital|clinique|universite|fac|campus|centre commercial|centre|stade|mairie|hotel de ville|prefecture|sous prefecture|eglise|cathedrale|basilique|chateau|lycee|college|ecole|musee|theatre|opera|cinema|parc|jardin|plage|port|marina|zoo|monument|lieu dit|lieu-dit|supermarche|hypermarche|supermarket|magasin|commerce|marche|carrefour|leclerc|lidl|aldi|auchan|intermarche|super u|hyper u|casino|monoprix|franprix|biocoop|grand frais|picard|decathlon|ikea|fnac|darty|leroy merlin|castorama|brico|mcdo|mcdonald|kfc|burger king|quick|subway|starbucks|pizza/i;
 function isNamedPlaceQuery(value: string): boolean {
@@ -1243,16 +1242,11 @@ function ReservationPage() {
     }
 
     if (namedPlace) {
-      const nearby = await searchNearbyAddressChoicesStreaming(
-        value,
-        origin,
-        DESTINATION_SEARCH_RADIUS_KM,
-        (partial) => {
-          const close = partial.filter((c) => c.distanceKm <= DESTINATION_SEARCH_RADIUS_KM).slice(0, 4);
-          if (close.length) setDepartChoices(close);
-        },
-      );
-      const close = nearby.filter((c) => c.distanceKm <= DESTINATION_SEARCH_RADIUS_KM);
+      const nearby = await searchNearbyAddressChoicesStreaming(value, origin, 200, (partial) => {
+        const close = partial.slice(0, 4);
+        if (close.length) setDepartChoices(close);
+      });
+      const close = nearby;
       if (close.length === 1 || (close.length > 1 && close[0].distanceKm + 5 < close[1].distanceKm)) {
         setCalcLoading(false);
         setSearchingDepart(false);
@@ -1278,8 +1272,7 @@ function ReservationPage() {
 
     const result = await geocodeFullAddress(value);
     if (result) {
-      const distOk = distanceKmBetween(origin, result.coord) <= DESTINATION_SEARCH_RADIUS_KM;
-      if (distOk) {
+      if (result.coord) {
         setCalcLoading(false);
         setSearchingDepart(false);
         setDepartChoices([]);
@@ -1294,23 +1287,18 @@ function ReservationPage() {
       }
     }
 
-    const nearbyChoices = await searchNearbyAddressChoicesStreaming(
-      value,
-      origin,
-      DESTINATION_SEARCH_RADIUS_KM,
-      (partial) => {
-        const close = partial.filter((c) => c.distanceKm <= DESTINATION_SEARCH_RADIUS_KM).slice(0, 4);
-        if (close.length) setDepartChoices(close);
-      },
-    );
-    const closeChoices = nearbyChoices.filter((c) => c.distanceKm <= DESTINATION_SEARCH_RADIUS_KM).slice(0, 4);
+    const nearbyChoices = await searchNearbyAddressChoicesStreaming(value, origin, 200, (partial) => {
+      const close = partial.slice(0, 4);
+      if (close.length) setDepartChoices(close);
+    });
+    const closeChoices = nearbyChoices.slice(0, 4);
     setCalcLoading(false);
     setSearchingDepart(false);
 
     if (closeChoices.length) {
       setDepartChoices(closeChoices);
       setFromCoord(null);
-      setErrors((prev) => ({ ...prev, depart: "Sélectionnez une adresse dans la liste (≤ 50 km)" }));
+      setErrors((prev) => ({ ...prev, depart: "Sélectionnez une adresse dans la liste" }));
     } else {
       setDepartChoices([]);
       setFromCoord(null);
@@ -1971,11 +1959,6 @@ function ReservationPage() {
                       setFromCoord(null);
                       setDepartChoices([]);
                       if (departDebounceRef.current) clearTimeout(departDebounceRef.current);
-                      if (v.trim().length >= 3) {
-                        departDebounceRef.current = setTimeout(() => {
-                          resolveDepartAddressRef.current?.();
-                        }, 500);
-                      }
                     }}
                     onBlur={resolveDepartAddress}
                     placeholder="Adresse ou cliquez 📍"
@@ -2184,11 +2167,6 @@ function ReservationPage() {
                     set("destination", v);
                     setToCoord(null);
                     if (destinationDebounceRef.current) clearTimeout(destinationDebounceRef.current);
-                    if (v.trim().length >= 3) {
-                      destinationDebounceRef.current = setTimeout(() => {
-                        resolveDestinationAddressRef.current?.();
-                      }, 500);
-                    }
                   }}
                   onFocus={() => {
                     destinationFocusedRef.current = true;
