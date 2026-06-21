@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Calculator, Phone, ArrowRight, Info, MapPin, Loader2, Clock } from "lucide-react";
 import { useT } from "@/i18n/I18nProvider";
 import { getDistanceAndDurationKm } from "@/lib/googleRoute";
+import { getCurrentPosition } from "@/lib/geocode";
 
 // ─── Config tarifs ────────────────────────────────────────────
 const PHONE = "0673072322";
