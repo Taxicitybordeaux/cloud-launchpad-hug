@@ -83,7 +83,7 @@ export function usePushNotifications(opts: UsePushOptions = {}) {
 
     // Rafraîchit last_seen_at toutes les heures pour que le token ne soit pas
     // considéré comme périmé si le dashboard reste ouvert sans rechargement.
-    const interval = setInterval(run, 60 * 60 * 1000);
+    const interval = setInterval(run, 30 * 60 * 1000);
 
     return () => {
       cancelled = true;
