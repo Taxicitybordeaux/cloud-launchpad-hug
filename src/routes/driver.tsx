@@ -55,9 +55,9 @@ interface RouteOption {
   dureeMin: number;
   prix: number;
   tarifLabel: string;
-  legs: google.maps.DirectionsLeg[];
+  legs: any[];
   overview_polyline: string;
-  dirResult: google.maps.DirectionsResult;
+  dirResult: any;
 }
 
 // ── Route definition ───────────────────────────────────────────────────────
