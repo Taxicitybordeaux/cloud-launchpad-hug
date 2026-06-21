@@ -551,8 +551,6 @@ function getAutoGeoRejectionReason(pos: GeolocationPosition, allowApproximate = 
   return null;
 }
 
-// ─── OSRM : passe par l'Edge Function Supabase `osrm-route` (cf. @/lib/osrm) ─
-
 // ─── Fallback géolocalisation IP (si le GPS du navigateur échoue) ───────────
 async function ipGeolocate(): Promise<{ lat: number; lng: number } | null> {
   try {
@@ -656,6 +654,8 @@ function ReservationPage() {
   // on veut empêcher le prochain onBlur/debounce de relancer resolveDepartAddress
   // et de reset fromCoord à null. Ce flag neutralise un seul appel.
   const skipNextDepartResolveRef = useRef(false);
+  // true quand le champ destination est en focus — empêche d'écraser le texte en cours de saisie
+  const destinationFocusedRef = useRef(false);
 
   const startVoiceRecognition = useCallback(async () => {
     if (voiceRecogRef.current) {
@@ -1045,7 +1045,7 @@ function ReservationPage() {
     }
   }, [fromCoord, toCoord]);
 
-  // ── OSRM : recalcul distance/prix ────────────────────────────────────────
+  // ── Google Directions : recalcul distance/prix ─────────────────────────────
   useEffect(() => {
     if (!fromCoord || !toCoord) {
       setOrsResult(null);
@@ -1053,9 +1053,8 @@ function ReservationPage() {
     }
     setCalcLoading(true);
 
-    const fetchOsrm = async () => {
+    const fetchRoute = async () => {
       try {
-        const { getDistanceAndDurationKm } = await import("@/lib/googleRoute");
         const r = await getDistanceAndDurationKm([fromCoord[1], fromCoord[0]], [toCoord[1], toCoord[0]]);
         if (r && r.distanceKm > 0 && r.dureeS > 0) {
           setOrsResult({
@@ -1066,16 +1065,12 @@ function ReservationPage() {
           return;
         }
       } catch {
-        // fallback vol d'oiseau
+        // ignore, setCalcLoading(false) ci-dessous
       }
-
-      // Fallback GraphHopper retiré : la clé API ne peut pas être embarquée
-      // côté client sans être abusée. OSRM (étapes précédentes) reste primaire.
-
       setCalcLoading(false);
     };
 
-    fetchOsrm();
+    fetchRoute();
   }, [fromCoord, toCoord]);
 
   // ── Géolocalisation départ (navigateur client) ───────────────────────────
@@ -1372,7 +1367,11 @@ function ReservationPage() {
 
     if (result) {
       setToCoord(result.coord);
-      set("destination", result.label);
+      // N'écrase le texte que si le champ n'est plus en focus
+      // (évite de remplacer ce que l'utilisateur tape encore pendant le debounce)
+      if (!destinationFocusedRef.current) {
+        set("destination", result.label);
+      }
       setErrors((prev) => {
         const next = { ...prev };
         delete next.destination;
@@ -1485,7 +1484,7 @@ function ReservationPage() {
       return;
     }
 
-    // Fallback distance si OSRM indisponible : haversine × 1.3 (évite de bloquer la résa)
+    // Fallback distance si Google Directions indisponible : haversine × 1.3 (évite de bloquer la résa)
     let distanceKm = orsResult?.distanceKm ?? 0;
     let dureeS = orsResult?.dureeS ?? 0;
     if (!orsResult && resolvedFrom && resolvedTo) {
@@ -2191,7 +2190,13 @@ function ReservationPage() {
                       }, 500);
                     }
                   }}
-                  onBlur={resolveDestinationAddress}
+                  onFocus={() => {
+                    destinationFocusedRef.current = true;
+                  }}
+                  onBlur={() => {
+                    destinationFocusedRef.current = false;
+                    resolveDestinationAddress();
+                  }}
                   placeholder={t("res.f.to.ph")}
                   autoComplete="off"
                   autoCorrect="off"
