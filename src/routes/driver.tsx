@@ -241,94 +241,6 @@ const IconUsers = () => (
   </svg>
 );
 
-// ── SwipeDeleteRow ─────────────────────────────────────────────────────────
-function SwipeDeleteRow({
-  onDelete,
-  disabled,
-  children,
-  style,
-}: {
-  onDelete: () => void;
-  disabled?: boolean;
-  children: React.ReactNode;
-  style?: React.CSSProperties;
-}) {
-  const startX = useRef(0);
-  const startY = useRef(0);
-  const [offset, setOffset] = useState(0);
-  const [deleting, setDeleting] = useState(false);
-  const THRESHOLD = 200;
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    if (disabled) return;
-    startX.current = e.touches[0].clientX;
-    startY.current = e.touches[0].clientY;
-  };
-  const onTouchMove = (e: React.TouchEvent) => {
-    if (disabled || deleting) return;
-    const dx = e.touches[0].clientX - startX.current;
-    const dy = Math.abs(e.touches[0].clientY - startY.current);
-    if (dy > 10 && Math.abs(dx) < dy) return;
-    if (dx >= 0) {
-      setOffset(0);
-      return;
-    }
-    e.preventDefault();
-    setOffset(Math.max(dx, -window.innerWidth));
-  };
-  const onTouchEnd = () => {
-    if (offset < -THRESHOLD) {
-      setDeleting(true);
-      setOffset(-window.innerWidth);
-      setTimeout(() => onDelete(), 280);
-    } else {
-      setOffset(0);
-    }
-  };
-
-  return (
-    <div style={{ position: "relative", overflow: "hidden", borderRadius: 20, ...style }}>
-      <div style={{ position: "absolute", inset: 0, background: "#0f172a", borderRadius: 20 }}>
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            right: 0,
-            bottom: 0,
-            width: "100%",
-            background: "linear-gradient(90deg, transparent 0%, #7f1d1d 60%, #991b1b 100%)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "flex-end",
-            paddingRight: 32,
-            opacity: Math.min(Math.abs(offset) / 150, 1),
-          }}
-        >
-          <span style={{ fontSize: 28 }}>🗑️</span>
-        </div>
-      </div>
-      <div
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        style={{
-          transform: `translateX(${offset}px)`,
-          transition: deleting
-            ? "transform 0.28s ease-in"
-            : offset === 0
-              ? "transform 0.3s cubic-bezier(0.25,1,0.5,1)"
-              : "none",
-          willChange: "transform",
-          position: "relative",
-          zIndex: 1,
-        }}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
 // ── Helpers ────────────────────────────────────────────────────────────────
 function Stars({ n }: { n: number }) {
   return (
@@ -453,26 +365,28 @@ function DriverApp() {
         </div>
 
         {/* Bandeau activation notifications */}
-        {(pushStatus === "idle" || pushStatus === "denied") && (
+        {(pushStatus === "idle" || pushStatus === "denied" || pushStatus === "subscribed") && (
           <div
             style={{
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
               gap: 10,
-              background: pushStatus === "denied" ? "#fef2f2" : "#eff6ff",
+              background: pushStatus === "denied" ? "#fef2f2" : pushStatus === "subscribed" ? "#f0fdf4" : "#eff6ff",
               borderBottom: "1px solid #e2e8f0",
               padding: "10px 16px",
               fontSize: 12.5,
-              color: pushStatus === "denied" ? "#b91c1c" : "#1d4ed8",
+              color: pushStatus === "denied" ? "#b91c1c" : pushStatus === "subscribed" ? "#15803d" : "#1d4ed8",
             }}
           >
             <span>
               {pushStatus === "denied"
-                ? "🔕 Notifications bloquées — active-les dans les réglages du téléphone."
-                : "🔔 Active les notifications pour ne rater aucune nouvelle course."}
+                ? "🔕 Notifications bloquées — active-les dans les réglages."
+                : pushStatus === "subscribed"
+                  ? "🔔 Notifications actives"
+                  : "🔔 Active les notifications pour ne rater aucune nouvelle course."}
             </span>
-            {pushStatus === "idle" && (
+            {pushStatus !== "denied" && (
               <button
                 onClick={() => subscribePush("chauffeur")}
                 style={{
@@ -487,7 +401,7 @@ function DriverApp() {
                   cursor: "pointer",
                 }}
               >
-                Activer
+                {pushStatus === "subscribed" ? "🔄 Ré-activer" : "Activer"}
               </button>
             )}
           </div>
@@ -910,7 +824,11 @@ function CourseCard({
     }
   };
 
+  // ── Supprimer la course ──
+  const [deleting, setDeleting] = useState(false);
   const handleDeleteResa = async () => {
+    if (!confirm("Supprimer définitivement cette course ? Action irréversible.")) return;
+    setDeleting(true);
     try {
       const { error } = await (supabase as any).from("reservations").delete().eq("id", resa.id);
       if (error) throw error;
@@ -918,349 +836,366 @@ function CourseCard({
       onRefresh();
     } catch (e: any) {
       toast.error("Suppression impossible : " + (e.message ?? e));
+    } finally {
+      setDeleting(false);
     }
   };
 
   return (
-    <SwipeDeleteRow onDelete={handleDeleteResa} style={{ marginBottom: 14 }}>
-      <div className={`drv-card${resa.status === "nouvelle" ? " new" : ""}`}>
-        {/* En-tête */}
-        <div className="drv-row" style={{ cursor: "pointer" }} onClick={onToggle}>
-          <span className="drv-time">{formatHeure(resa.date_heure)}</span>
-          <span className={`drv-badge-pill ${st.cls}`}>{st.label}</span>
+    <div className={`drv-card${resa.status === "nouvelle" ? " new" : ""}`}>
+      {/* En-tête */}
+      <div className="drv-row" style={{ cursor: "pointer" }} onClick={onToggle}>
+        <span className="drv-time">{formatHeure(resa.date_heure)}</span>
+        <span className={`drv-badge-pill ${st.cls}`}>{st.label}</span>
+      </div>
+      {resa.client_name && <div className="drv-name">{resa.client_name}</div>}
+      <div className="drv-route">
+        <span>📍 {resa.depart}</span>
+        <span>🏁 {resa.destination}</span>
+      </div>
+
+      {/* Résumé km/prix si déjà calculé */}
+      {(resa.distance_km || resa.prix) && (
+        <div className="drv-meta">
+          {resa.distance_km && <span>🛣 {resa.distance_km} km</span>}
+          {resa.prix && <span>💶 {resa.prix.toFixed(2)} €</span>}
         </div>
-        {resa.client_name && <div className="drv-name">{resa.client_name}</div>}
-        <div className="drv-route">
-          <span>📍 {resa.depart}</span>
-          <span>🏁 {resa.destination}</span>
-        </div>
+      )}
 
-        {/* Résumé km/prix si déjà calculé */}
-        {(resa.distance_km || resa.prix) && (
-          <div className="drv-meta">
-            {resa.distance_km && <span>🛣 {resa.distance_km} km</span>}
-            {resa.prix && <span>💶 {resa.prix.toFixed(2)} €</span>}
-          </div>
-        )}
+      {/* Détail expandable */}
+      {expanded && (
+        <>
+          <hr className="drv-divider" />
 
-        {/* Détail expandable */}
-        {expanded && (
-          <>
-            <hr className="drv-divider" />
+          {/* Carte Google Maps */}
+          <div className="drv-map" ref={mapRef} />
 
-            {/* Carte Google Maps */}
-            <div className="drv-map" ref={mapRef} />
+          {/* Itinéraires */}
+          {loadingRoutes && (
+            <div style={{ textAlign: "center", fontSize: 13, color: "#64748b", padding: "10px 0" }}>
+              Calcul des itinéraires…
+            </div>
+          )}
 
-            {/* Itinéraires */}
-            {loadingRoutes && (
-              <div style={{ textAlign: "center", fontSize: 13, color: "#64748b", padding: "10px 0" }}>
-                Calcul des itinéraires…
-              </div>
-            )}
-
-            {routes.length > 0 && (
-              <>
-                <p className="drv-section">Choisir un itinéraire</p>
-                {routes.map((r, i) => (
-                  <div
-                    key={i}
-                    className={`drv-route-opt${selectedRoute === i ? " selected" : ""}`}
-                    onClick={() => setSelectedRoute(i)}
-                  >
-                    <div className="drv-route-opt-head">
-                      <span className="drv-route-label">
-                        {i === 0 ? "🏆 Recommandé" : i === 1 ? "🔀 Alternatif" : "⏱ Rapide"} — {r.summary}
-                      </span>
-                      <span className="drv-route-price">{r.prix.toFixed(2)} €</span>
-                    </div>
-                    <div className="drv-route-meta">
-                      <span>🛣 {r.distanceKm} km</span>
-                      <span>⏱ {r.dureeMin} min</span>
-                      <span style={{ color: r.tarifLabel === "Tarif jour" ? "#15803d" : "#1d4ed8" }}>
-                        {r.tarifLabel}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </>
-            )}
-
-            {/* Contact — tel / SMS / WhatsApp / Email, identique à l'admin */}
-            {(resa.status === "acceptee" || resa.status === "en_route" || resa.status === "arrivee") &&
-              (() => {
-                const phone = resa.client_phone;
-                const mail = resa.client_email || resa.email;
-                const trackUrl =
-                  resa.suivi_id && typeof window !== "undefined"
-                    ? `${window.location.origin}/suivi/${resa.suivi_id}`
-                    : "";
-                const greet = `Bonjour ${resa.client_name || ""}, votre taxi Taxi City Bordeaux.`;
-                const body = trackUrl ? `${greet}\nRetrouvez votre course ici : ${trackUrl}` : greet;
-                const mailBody = trackUrl
-                  ? `Bonjour ${resa.client_name || ""},\n\nVoici le lien pour retrouver et suivre votre course en temps réel :\n${trackUrl}\n\nTaxi City Bordeaux`
-                  : `Bonjour ${resa.client_name || ""},\n\nTaxi City Bordeaux`;
-                if (!phone && !mail) return null;
-                const contactBtn: React.CSSProperties = {
-                  flex: "1 1 auto",
-                  minWidth: 78,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 12,
-                  padding: "10px",
-                  fontWeight: 700,
-                  fontSize: 12.5,
-                  textDecoration: "none",
-                  color: "#0f172a",
-                };
-                return (
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-                    {phone && (
-                      <>
-                        <a
-                          href={`tel:${phone}`}
-                          style={{ ...contactBtn, background: "#eff6ff", borderColor: "#bfdbfe", color: "#0369a1" }}
-                        >
-                          📞 Appeler
-                        </a>
-                        <a
-                          href={`sms:${phone}?body=${encodeURIComponent(body)}`}
-                          style={{ ...contactBtn, background: "#faf5ff", borderColor: "#e9d5ff", color: "#7e22ce" }}
-                        >
-                          💬 SMS
-                        </a>
-                        <a
-                          href={`https://wa.me/${phone.replace(/[^0-9]/g, "").replace(/^0/, "33")}?text=${encodeURIComponent(body)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ ...contactBtn, background: "#f0fdf4", borderColor: "#bbf7d0", color: "#15803d" }}
-                        >
-                          🟢 WhatsApp
-                        </a>
-                      </>
-                    )}
-                    {mail && (
-                      <a
-                        href={`mailto:${mail}?subject=${encodeURIComponent("Votre course Taxi City Bordeaux")}&body=${encodeURIComponent(mailBody)}`}
-                        style={{ ...contactBtn, background: "#fffbeb", borderColor: "#fde68a", color: "#92400e" }}
-                      >
-                        ✉️ Email
-                      </a>
-                    )}
-                  </div>
-                );
-              })()}
-
-            {/* Gestion avancée — visible une fois la course acceptée */}
-            {(resa.status === "acceptee" || resa.status === "en_route" || resa.status === "arrivee") && (
-              <>
-                {routes.length > 0 && (
-                  <button
-                    className="drv-btn-secondary"
-                    style={{ width: "100%", marginBottom: 10 }}
-                    onClick={handleUpdateItineraire}
-                    disabled={itinSaving}
-                  >
-                    {itinSaving ? "…" : "🔄 Appliquer cet itinéraire à la course"}
-                  </button>
-                )}
-
-                {/* Prix custom */}
-                <button
-                  onClick={() => setCustomPrixOpen((o) => !o)}
-                  style={{
-                    width: "100%",
-                    textAlign: "left",
-                    background: "#f8fafc",
-                    border: "1px solid #e2e8f0",
-                    borderRadius: 12,
-                    padding: "10px 14px",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "#0f172a",
-                    cursor: "pointer",
-                    marginBottom: customPrixOpen ? 8 : 10,
-                  }}
+          {routes.length > 0 && (
+            <>
+              <p className="drv-section">Choisir un itinéraire</p>
+              {routes.map((r, i) => (
+                <div
+                  key={i}
+                  className={`drv-route-opt${selectedRoute === i ? " selected" : ""}`}
+                  onClick={() => setSelectedRoute(i)}
                 >
-                  💶 {customPrixOpen ? "▲" : "▼"} Envoyer un prix personnalisé
-                </button>
-                {customPrixOpen && (
-                  <div style={{ marginBottom: 12 }}>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="Ex: 18.50"
-                      value={customPrix}
-                      onChange={(e) => setCustomPrix(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        borderRadius: 10,
-                        border: "1px solid #e2e8f0",
-                        fontSize: 16,
-                        marginBottom: 8,
-                        fontFamily: "'DM Sans', sans-serif",
-                      }}
-                    />
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <button
-                        onClick={() => handleSendCustomPrix("sms")}
-                        disabled={customPrixSending}
-                        style={{
-                          flex: 1,
-                          minWidth: 70,
-                          background: "#faf5ff",
-                          border: "1px solid #e9d5ff",
-                          color: "#7e22ce",
-                          borderRadius: 10,
-                          padding: "8px",
-                          fontSize: 12,
-                          fontWeight: 700,
-                          cursor: "pointer",
-                        }}
+                  <div className="drv-route-opt-head">
+                    <span className="drv-route-label">
+                      {i === 0 ? "🏆 Recommandé" : i === 1 ? "🔀 Alternatif" : "⏱ Rapide"} — {r.summary}
+                    </span>
+                    <span className="drv-route-price">{r.prix.toFixed(2)} €</span>
+                  </div>
+                  <div className="drv-route-meta">
+                    <span>🛣 {r.distanceKm} km</span>
+                    <span>⏱ {r.dureeMin} min</span>
+                    <span style={{ color: r.tarifLabel === "Tarif jour" ? "#15803d" : "#1d4ed8" }}>{r.tarifLabel}</span>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+
+          {/* Contact — tel / SMS / WhatsApp / Email, identique à l'admin */}
+          {(resa.status === "acceptee" || resa.status === "en_route" || resa.status === "arrivee") &&
+            (() => {
+              const phone = resa.client_phone;
+              const mail = resa.client_email || resa.email;
+              const trackUrl =
+                resa.suivi_id && typeof window !== "undefined"
+                  ? `${window.location.origin}/suivi/${resa.suivi_id}`
+                  : "";
+              const greet = `Bonjour ${resa.client_name || ""}, votre taxi Taxi City Bordeaux.`;
+              const body = trackUrl ? `${greet}\nRetrouvez votre course ici : ${trackUrl}` : greet;
+              const mailBody = trackUrl
+                ? `Bonjour ${resa.client_name || ""},\n\nVoici le lien pour retrouver et suivre votre course en temps réel :\n${trackUrl}\n\nTaxi City Bordeaux`
+                : `Bonjour ${resa.client_name || ""},\n\nTaxi City Bordeaux`;
+              if (!phone && !mail) return null;
+              const contactBtn: React.CSSProperties = {
+                flex: "1 1 auto",
+                minWidth: 78,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                border: "1px solid #e2e8f0",
+                borderRadius: 12,
+                padding: "10px",
+                fontWeight: 700,
+                fontSize: 12.5,
+                textDecoration: "none",
+                color: "#0f172a",
+              };
+              return (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                  {phone && (
+                    <>
+                      <a
+                        href={`tel:${phone}`}
+                        style={{ ...contactBtn, background: "#eff6ff", borderColor: "#bfdbfe", color: "#0369a1" }}
+                      >
+                        📞 Appeler
+                      </a>
+                      <a
+                        href={`sms:${phone}?body=${encodeURIComponent(body)}`}
+                        style={{ ...contactBtn, background: "#faf5ff", borderColor: "#e9d5ff", color: "#7e22ce" }}
                       >
                         💬 SMS
-                      </button>
-                      <button
-                        onClick={() => handleSendCustomPrix("whatsapp")}
-                        disabled={customPrixSending}
-                        style={{
-                          flex: 1,
-                          minWidth: 70,
-                          background: "#f0fdf4",
-                          border: "1px solid #bbf7d0",
-                          color: "#15803d",
-                          borderRadius: 10,
-                          padding: "8px",
-                          fontSize: 12,
-                          fontWeight: 700,
-                          cursor: "pointer",
-                        }}
+                      </a>
+                      <a
+                        href={`https://wa.me/${phone.replace(/[^0-9]/g, "").replace(/^0/, "33")}?text=${encodeURIComponent(body)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ ...contactBtn, background: "#f0fdf4", borderColor: "#bbf7d0", color: "#15803d" }}
                       >
                         🟢 WhatsApp
-                      </button>
-                      <button
-                        onClick={() => handleSendCustomPrix("email")}
-                        disabled={customPrixSending}
-                        style={{
-                          flex: 1,
-                          minWidth: 70,
-                          background: "#fffbeb",
-                          border: "1px solid #fde68a",
-                          color: "#92400e",
-                          borderRadius: 10,
-                          padding: "8px",
-                          fontSize: 12,
-                          fontWeight: 700,
-                          cursor: "pointer",
-                        }}
-                      >
-                        {customPrixSending ? "…" : "✉️ Email"}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Reprogrammer l'heure */}
-                <button
-                  onClick={() => setChangeHeureOpen((o) => !o)}
-                  style={{
-                    width: "100%",
-                    textAlign: "left",
-                    background: "#f8fafc",
-                    border: "1px solid #e2e8f0",
-                    borderRadius: 12,
-                    padding: "10px 14px",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "#0f172a",
-                    cursor: "pointer",
-                    marginBottom: changeHeureOpen ? 8 : 10,
-                  }}
-                >
-                  🕐 {changeHeureOpen ? "▲" : "▼"} Reprogrammer l'heure
-                </button>
-                {changeHeureOpen && (
-                  <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
-                    <input
-                      type="datetime-local"
-                      value={newDatetime}
-                      onChange={(e) => setNewDatetime(e.target.value)}
-                      style={{
-                        flex: 1,
-                        padding: "10px 12px",
-                        borderRadius: 10,
-                        border: "1px solid #e2e8f0",
-                        fontSize: 16,
-                        fontFamily: "'DM Sans', sans-serif",
-                      }}
-                    />
-                    <button
-                      onClick={handleChangeHeure}
-                      disabled={changeHeureSending || !newDatetime}
-                      className="drv-btn-primary"
-                      style={{ flex: "0 0 auto", padding: "10px 16px" }}
+                      </a>
+                    </>
+                  )}
+                  {mail && (
+                    <a
+                      href={`mailto:${mail}?subject=${encodeURIComponent("Votre course Taxi City Bordeaux")}&body=${encodeURIComponent(mailBody)}`}
+                      style={{ ...contactBtn, background: "#fffbeb", borderColor: "#fde68a", color: "#92400e" }}
                     >
-                      {changeHeureSending ? "…" : "OK"}
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
+                      ✉️ Email
+                    </a>
+                  )}
+                </div>
+              );
+            })()}
 
-            {/* Actions */}
-            {resa.status === "nouvelle" && (
-              <div className="drv-btns">
-                <button className="drv-btn-danger" onClick={handleRefuse} disabled={busy}>
-                  Refuser
+          {/* Gestion avancée — visible une fois la course acceptée */}
+          {(resa.status === "acceptee" || resa.status === "en_route" || resa.status === "arrivee") && (
+            <>
+              {routes.length > 0 && (
+                <button
+                  className="drv-btn-secondary"
+                  style={{ width: "100%", marginBottom: 10 }}
+                  onClick={handleUpdateItineraire}
+                  disabled={itinSaving}
+                >
+                  {itinSaving ? "…" : "🔄 Appliquer cet itinéraire à la course"}
                 </button>
-                <button className="drv-btn-primary" onClick={handleAccept} disabled={busy}>
-                  {busy ? "…" : "Accepter"}
-                </button>
-              </div>
-            )}
-            {resa.status === "acceptee" && (
-              <a
-                href={`/suivi/${resa.id}?gps=1`}
+              )}
+
+              {/* Prix custom */}
+              <button
+                onClick={() => setCustomPrixOpen((o) => !o)}
                 style={{
-                  display: "block",
-                  textAlign: "center",
-                  background: "#0f172a",
-                  color: "#fff",
+                  width: "100%",
+                  textAlign: "left",
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
                   borderRadius: 12,
-                  padding: "12px",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  textDecoration: "none",
-                  marginBottom: 10,
+                  padding: "10px 14px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#0f172a",
+                  cursor: "pointer",
+                  marginBottom: customPrixOpen ? 8 : 10,
                 }}
               >
-                🚗 Démarrer la course
-              </a>
-            )}
-          </>
-        )}
+                💶 {customPrixOpen ? "▲" : "▼"} Envoyer un prix personnalisé
+              </button>
+              {customPrixOpen && (
+                <div style={{ marginBottom: 12 }}>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="Ex: 18.50"
+                    value={customPrix}
+                    onChange={(e) => setCustomPrix(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #e2e8f0",
+                      fontSize: 16,
+                      marginBottom: 8,
+                      fontFamily: "'DM Sans', sans-serif",
+                    }}
+                  />
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button
+                      onClick={() => handleSendCustomPrix("sms")}
+                      disabled={customPrixSending}
+                      style={{
+                        flex: 1,
+                        minWidth: 70,
+                        background: "#faf5ff",
+                        border: "1px solid #e9d5ff",
+                        color: "#7e22ce",
+                        borderRadius: 10,
+                        padding: "8px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      💬 SMS
+                    </button>
+                    <button
+                      onClick={() => handleSendCustomPrix("whatsapp")}
+                      disabled={customPrixSending}
+                      style={{
+                        flex: 1,
+                        minWidth: 70,
+                        background: "#f0fdf4",
+                        border: "1px solid #bbf7d0",
+                        color: "#15803d",
+                        borderRadius: 10,
+                        padding: "8px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      🟢 WhatsApp
+                    </button>
+                    <button
+                      onClick={() => handleSendCustomPrix("email")}
+                      disabled={customPrixSending}
+                      style={{
+                        flex: 1,
+                        minWidth: 70,
+                        background: "#fffbeb",
+                        border: "1px solid #fde68a",
+                        color: "#92400e",
+                        borderRadius: 10,
+                        padding: "8px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {customPrixSending ? "…" : "✉️ Email"}
+                    </button>
+                  </div>
+                </div>
+              )}
 
-        {/* Toggle */}
-        <button
-          onClick={onToggle}
-          style={{
-            width: "100%",
-            marginTop: 8,
-            background: "none",
-            border: "none",
-            color: "#94a3b8",
-            fontSize: 12,
-            cursor: "pointer",
-            padding: "4px 0",
-          }}
-        >
-          {expanded ? "▲ Réduire" : "▼ Voir détails & itinéraires"}
-        </button>
-      </div>
-    </SwipeDeleteRow>
+              {/* Reprogrammer l'heure */}
+              <button
+                onClick={() => setChangeHeureOpen((o) => !o)}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 12,
+                  padding: "10px 14px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#0f172a",
+                  cursor: "pointer",
+                  marginBottom: changeHeureOpen ? 8 : 10,
+                }}
+              >
+                🕐 {changeHeureOpen ? "▲" : "▼"} Reprogrammer l'heure
+              </button>
+              {changeHeureOpen && (
+                <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
+                  <input
+                    type="datetime-local"
+                    value={newDatetime}
+                    onChange={(e) => setNewDatetime(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #e2e8f0",
+                      fontSize: 16,
+                      fontFamily: "'DM Sans', sans-serif",
+                    }}
+                  />
+                  <button
+                    onClick={handleChangeHeure}
+                    disabled={changeHeureSending || !newDatetime}
+                    className="drv-btn-primary"
+                    style={{ flex: "0 0 auto", padding: "10px 16px" }}
+                  >
+                    {changeHeureSending ? "…" : "OK"}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Actions */}
+          {resa.status === "nouvelle" && (
+            <div className="drv-btns">
+              <button className="drv-btn-danger" onClick={handleRefuse} disabled={busy}>
+                Refuser
+              </button>
+              <button className="drv-btn-primary" onClick={handleAccept} disabled={busy}>
+                {busy ? "…" : "Accepter"}
+              </button>
+            </div>
+          )}
+          {resa.status === "acceptee" && (
+            <a
+              href={`/suivi/${resa.id}?gps=1`}
+              style={{
+                display: "block",
+                textAlign: "center",
+                background: "#0f172a",
+                color: "#fff",
+                borderRadius: 12,
+                padding: "12px",
+                fontSize: 14,
+                fontWeight: 700,
+                textDecoration: "none",
+                marginBottom: 10,
+              }}
+            >
+              🚗 Démarrer la course
+            </a>
+          )}
+
+          {/* Supprimer définitivement */}
+          <button
+            onClick={handleDeleteResa}
+            disabled={deleting}
+            style={{
+              width: "100%",
+              marginTop: 4,
+              background: "none",
+              border: "none",
+              color: "#b91c1c",
+              fontSize: 11.5,
+              fontWeight: 600,
+              cursor: "pointer",
+              padding: "6px 0",
+            }}
+          >
+            {deleting ? "Suppression…" : "🗑 Supprimer cette course"}
+          </button>
+        </>
+      )}
+
+      {/* Toggle */}
+      <button
+        onClick={onToggle}
+        style={{
+          width: "100%",
+          marginTop: 8,
+          background: "none",
+          border: "none",
+          color: "#94a3b8",
+          fontSize: 12,
+          cursor: "pointer",
+          padding: "4px 0",
+        }}
+      >
+        {expanded ? "▲ Réduire" : "▼ Voir détails & itinéraires"}
+      </button>
+    </div>
   );
 }
 
@@ -1448,18 +1383,31 @@ function AvisTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
       ) : (
         <>
           {published.map((a) => (
-            <SwipeDeleteRow key={a.id} onDelete={() => removeAvis(a.id)} style={{ marginBottom: 10 }}>
-              <div className="drv-card" style={{ opacity: 0.75 }}>
-                <div className="drv-row">
-                  <span className="drv-name">{a.author_name || "Anonyme"}</span>
-                  <span className="drv-badge-pill drv-badge-green">Publié</span>
-                </div>
-                <div style={{ marginBottom: 4 }}>
-                  <Stars n={a.note} />
-                </div>
-                <p style={{ fontSize: 13, color: "#475569", margin: "0 0 8px", lineHeight: 1.5 }}>"{a.commentaire}"</p>
+            <div key={a.id} className="drv-card" style={{ opacity: 0.75 }}>
+              <div className="drv-row">
+                <span className="drv-name">{a.author_name || "Anonyme"}</span>
+                <span className="drv-badge-pill drv-badge-green">Publié</span>
               </div>
-            </SwipeDeleteRow>
+              <div style={{ marginBottom: 4 }}>
+                <Stars n={a.note} />
+              </div>
+              <p style={{ fontSize: 13, color: "#475569", margin: "0 0 8px", lineHeight: 1.5 }}>"{a.commentaire}"</p>
+              <button
+                onClick={() => removeAvis(a.id)}
+                disabled={busy === a.id}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#b91c1c",
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  padding: 0,
+                }}
+              >
+                {busy === a.id ? "…" : "🗑 Supprimer"}
+              </button>
+            </div>
           ))}
           {avgNote && (
             <div style={{ textAlign: "center", marginTop: 20, padding: "16px 0", borderTop: "1px solid #f1f5f9" }}>
@@ -1611,91 +1559,101 @@ function ClientsTab() {
         </div>
       ) : (
         filtered.map((c) => (
-          <SwipeDeleteRow
-            key={c.phone}
-            onDelete={() => removeClient(c)}
-            disabled={deletingPhone === c.phone}
-            style={{ marginBottom: 12 }}
-          >
-            <div className="drv-card">
-              <div className="drv-row">
-                <span className="drv-name">{c.name}</span>
-                <span className="drv-badge-pill drv-badge-gray">
-                  {c.nbCourses} course{c.nbCourses > 1 ? "s" : ""}
-                </span>
-              </div>
-              <div className="drv-sub" style={{ marginBottom: 6 }}>
-                Dernière course : {formatDate(c.derniereCourse)} → {c.derniereDestination}
-              </div>
-              <div className="drv-meta" style={{ margin: "8px 0 12px" }}>
-                <span>💶 {c.totalDepense.toFixed(2)} € au total</span>
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <a
-                  href={`tel:${c.phone}`}
-                  style={{
-                    flex: 1,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 6,
-                    background: "#f0fdf4",
-                    border: "1px solid #bbf7d0",
-                    borderRadius: 12,
-                    padding: "10px",
-                    color: "#15803d",
-                    fontWeight: 700,
-                    fontSize: 13,
-                    textDecoration: "none",
-                  }}
-                >
-                  📞 Appeler
-                </a>
-                <a
-                  href={`sms:${c.phone}`}
-                  style={{
-                    flex: 1,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 6,
-                    background: "#eff6ff",
-                    border: "1px solid #bfdbfe",
-                    borderRadius: 12,
-                    padding: "10px",
-                    color: "#1d4ed8",
-                    fontWeight: 700,
-                    fontSize: 13,
-                    textDecoration: "none",
-                  }}
-                >
-                  💬 SMS
-                </a>
-                <a
-                  href={`https://wa.me/${c.phone.replace(/[^0-9]/g, "").replace(/^0/, "33")}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    flex: 1,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 6,
-                    background: "#f0fdf4",
-                    border: "1px solid #bbf7d0",
-                    borderRadius: 12,
-                    padding: "10px",
-                    color: "#15803d",
-                    fontWeight: 700,
-                    fontSize: 13,
-                    textDecoration: "none",
-                  }}
-                >
-                  🟢 WhatsApp
-                </a>
-              </div>
+          <div key={c.phone} className="drv-card">
+            <div className="drv-row">
+              <span className="drv-name">{c.name}</span>
+              <span className="drv-badge-pill drv-badge-gray">
+                {c.nbCourses} course{c.nbCourses > 1 ? "s" : ""}
+              </span>
             </div>
-          </SwipeDeleteRow>
+            <div className="drv-sub" style={{ marginBottom: 6 }}>
+              Dernière course : {formatDate(c.derniereCourse)} → {c.derniereDestination}
+            </div>
+            <div className="drv-meta" style={{ margin: "8px 0 12px" }}>
+              <span>💶 {c.totalDepense.toFixed(2)} € au total</span>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <a
+                href={`tel:${c.phone}`}
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  background: "#f0fdf4",
+                  border: "1px solid #bbf7d0",
+                  borderRadius: 12,
+                  padding: "10px",
+                  color: "#15803d",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  textDecoration: "none",
+                }}
+              >
+                📞 Appeler
+              </a>
+              <a
+                href={`sms:${c.phone}`}
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  background: "#eff6ff",
+                  border: "1px solid #bfdbfe",
+                  borderRadius: 12,
+                  padding: "10px",
+                  color: "#1d4ed8",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  textDecoration: "none",
+                }}
+              >
+                💬 SMS
+              </a>
+              <a
+                href={`https://wa.me/${c.phone.replace(/[^0-9]/g, "").replace(/^0/, "33")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  background: "#f0fdf4",
+                  border: "1px solid #bbf7d0",
+                  borderRadius: 12,
+                  padding: "10px",
+                  color: "#15803d",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  textDecoration: "none",
+                }}
+              >
+                🟢 WhatsApp
+              </a>
+            </div>
+            <button
+              onClick={() => removeClient(c)}
+              disabled={deletingPhone === c.phone}
+              style={{
+                width: "100%",
+                marginTop: 8,
+                background: "none",
+                border: "none",
+                color: "#b91c1c",
+                fontSize: 11.5,
+                fontWeight: 600,
+                cursor: "pointer",
+                padding: "4px 0",
+              }}
+            >
+              {deletingPhone === c.phone ? "Suppression…" : "🗑 Supprimer ce client"}
+            </button>
+          </div>
         ))
       )}
     </>
