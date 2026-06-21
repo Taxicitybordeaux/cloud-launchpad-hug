@@ -923,7 +923,7 @@ function CourseCard({
                     <span className="drv-route-label">
                       {i === 0 ? "🏆 Recommandé" : i === 1 ? "🔀 Alternatif" : "⏱ Rapide"} — {r.summary}
                     </span>
-                    <span className="drv-route-price">{r.prix_estime_estime.toFixed(2)} €</span>
+                    <span className="drv-route-price">{r.prix_estime.toFixed(2)} €</span>
                   </div>
                   <div className="drv-route-meta">
                     <span>🛣 {r.distanceKm} km</span>
@@ -1304,7 +1304,7 @@ function PlanningTab() {
               </div>
               <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
                 {r.distance_km ? `${r.distance_km} km · ` : ""}
-                {r.prix_estime_estime ? `${r.prix_estime_estime.toFixed(2)} €` : ""}
+                {r.prix_estime ? `${r.prix_estime.toFixed(2)} €` : ""}
                 {["terminee", "completed"].includes(r.status) ? " · Terminée" : ""}
               </div>
             </div>
@@ -1490,14 +1490,14 @@ function ClientsTab() {
           phone,
           name: r.client_name || "Client",
           nbCourses: isCompleted ? 1 : 0,
-          totalDepense: isCompleted ? (r.prix_estime_estime ?? 0) : 0,
+          totalDepense: isCompleted ? (r.prix_estime ?? 0) : 0,
           derniereCourse: r.date_heure,
           derniereDestination: r.destination,
         });
       } else {
         if (isCompleted) {
           existing.nbCourses += 1;
-          existing.totalDepense += r.prix_estime_estime ?? 0;
+          existing.totalDepense += r.prix_estime ?? 0;
         }
         if (r.date_heure > existing.derniereCourse) {
           existing.derniereCourse = r.date_heure;
@@ -1714,7 +1714,7 @@ function StatsTab() {
       ]);
 
       const sem: any[] = semData ?? [];
-      const revenus = sem.reduce((s: number, r: any) => s + (r.prix_estime_estime ?? 0), 0);
+      const revenus = sem.reduce((s: number, r: any) => s + (r.prix_estime ?? 0), 0);
       const km = sem.reduce((s: number, r: any) => s + (r.distance_km ?? 0), 0);
       const note = avisData?.length ? avisData.reduce((s: number, a: any) => s + a.note, 0) / avisData.length : 0;
 
