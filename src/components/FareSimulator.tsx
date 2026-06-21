@@ -2,7 +2,7 @@ import { useEffect, useRef, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Calculator, Phone, ArrowRight, Info, MapPin, Loader2, Clock } from "lucide-react";
 import { useT } from "@/i18n/I18nProvider";
-import { getDistanceAndDurationKm } from "@/lib/osrm";
+import { getDistanceAndDurationKm } from "@/lib/googleRoute";
 import { getCurrentPosition } from "@/lib/geocode";
 
 // ─── Config tarifs ────────────────────────────────────────────
@@ -71,14 +71,14 @@ interface NominatimResult {
 }
 
 // ─── Géocodage silencieux (1er résultat Nominatim) ───────────
-import { geocodeAddress } from "@/lib/geocode";
+import { searchAddress } from "@/lib/googleGeocode";
 
 async function geocodeSilent(query: string): Promise<[number, number] | null> {
   if (query.trim().length < 3) return null;
   try {
-    const c = await geocodeAddress(query);
-    if (!c) return null;
-    return [c.lng, c.lat];
+    const results = await searchAddress(query, 1);
+    if (!results.length) return null;
+    return [results[0].coord[1], results[0].coord[0]]; // [lng, lat]
   } catch {
     return null;
   }
@@ -185,7 +185,7 @@ function useRoute(from: [number, number] | null, to: [number, number] | null) {
         if (dd && dd.distanceKm != null) {
           setRoute({ km: Math.round(dd.distanceKm * 10) / 10, durationSec: Math.round(dd.dureeS) });
         } else {
-          throw new Error('no route');
+          throw new Error("no route");
         }
       } catch {
         const km = Math.round(haversineKm(from, to) * 1.3 * 10) / 10;
@@ -274,7 +274,7 @@ export function FareSimulator() {
             errorMsg={t("sim.addr_error")}
             onCoord={setFromCoord}
           />
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <button
               type="button"
               onClick={handleUseMyPosition}
@@ -282,7 +282,7 @@ export function FareSimulator() {
             >
               📍 Utiliser ma position
             </button>
-            {geoMsg && <div style={{ color: '#94a3b8', fontSize: 13 }}>{geoMsg}</div>}
+            {geoMsg && <div style={{ color: "#94a3b8", fontSize: 13 }}>{geoMsg}</div>}
           </div>
           <AddressField
             id="sim-to"
