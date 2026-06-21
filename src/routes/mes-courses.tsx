@@ -6,6 +6,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useLang } from "@/hooks/useLang";
+import { searchAddress } from "@/lib/googleGeocode";
+import { fetchRouteCoordinates } from "@/lib/googleRoute";
 
 export const Route = createFileRoute("/mes-courses")({
   head: () => ({ meta: [{ title: "Mes courses — Taxi City Bordeaux" }] }),
@@ -48,9 +50,6 @@ function loadLeaflet(): Promise<void> {
     document.head.appendChild(s);
   });
 }
-
-import { searchAddress } from "@/lib/googleGeocode";
-import { fetchRouteCoordinates } from "@/lib/googleRoute";
 
 const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_TILE_OPTIONS = { attribution: "© OpenStreetMap contributors", maxZoom: 19 };
