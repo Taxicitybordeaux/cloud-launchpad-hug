@@ -645,7 +645,6 @@ function ReservationPage() {
   const [searchingDepart, setSearchingDepart] = useState(false);
   const [searchingDestination, setSearchingDestination] = useState(false);
   const departDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const destinationDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [voiceListening, setVoiceListening] = useState(false);
   const [voiceBothListening, setVoiceBothListening] = useState(false);
   const voiceRecogRef = useRef<any>(null);
@@ -2137,12 +2136,6 @@ function ReservationPage() {
                     const v = e.target.value;
                     set("destination", v);
                     setToCoord(null);
-                    if (destinationDebounceRef.current) clearTimeout(destinationDebounceRef.current);
-                    if (v.trim().length >= 3) {
-                      destinationDebounceRef.current = setTimeout(() => {
-                        resolveDestinationAddressRef.current?.();
-                      }, 500);
-                    }
                   }}
                   onBlur={resolveDestinationAddress}
                   placeholder={t("res.f.to.ph")}
