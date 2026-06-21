@@ -55,31 +55,60 @@ interface RouteOption {
   dureeMin: number;
   prix: number;
   tarifLabel: string;
-  legs: any[];
+  legs: google.maps.DirectionsLeg[];
   overview_polyline: string;
-  dirResult: any;
+  dirResult: google.maps.DirectionsResult;
 }
 
 // ── Route definition ───────────────────────────────────────────────────────
 export const Route = createFileRoute("/driver")({
   validateSearch: (s: Record<string, unknown>) => ({ token: String(s.token ?? "") }),
-  head: () => ({ meta: [{ title: "Espace chauffeur" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [
+      { title: "Espace chauffeur" },
+      { name: "robots", content: "noindex" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" },
+      { name: "theme-color", content: "#0f172a" },
+    ],
+  }),
   component: DriverPage,
 });
 
 // ── Styles globaux ─────────────────────────────────────────────────────────
 const css = `
-  * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+  * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; touch-action: manipulation; }
+  html, body { overscroll-behavior-y: contain; }
   body { margin: 0; background: #f8fafc; font-family: 'DM Sans', sans-serif; }
-  .drv-root { max-width: 480px; margin: 0 auto; min-height: 100dvh; display: flex; flex-direction: column; background: #fff; }
-  .drv-header { background: #0f172a; color: #fff; padding: 14px 16px 10px; display: flex; align-items: center; gap: 10px; }
+  input, textarea, select { font-size: 16px; } /* empêche le zoom auto au focus sur iOS */
+  .drv-root {
+    max-width: 480px; margin: 0 auto; min-height: 100dvh; display: flex; flex-direction: column;
+    background: #fff; overflow: hidden;
+  }
+  .drv-header {
+    background: #0f172a; color: #fff; display: flex; align-items: center; gap: 10px;
+    padding: calc(env(safe-area-inset-top, 0px) + 14px) calc(env(safe-area-inset-right, 0px) + 16px) 10px calc(env(safe-area-inset-left, 0px) + 16px);
+    flex-shrink: 0;
+  }
   .drv-header h1 { margin: 0; font-size: 17px; font-weight: 700; flex: 1; }
-  .drv-tabs { display: flex; border-bottom: 1px solid #e2e8f0; background: #fff; position: sticky; top: 0; z-index: 10; }
-  .drv-tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 4px 8px; border: none; background: none; color: #94a3b8; font-size: 10px; font-family: 'DM Sans', sans-serif; cursor: pointer; border-bottom: 2px solid transparent; transition: color 0.15s; }
+  .drv-tabs {
+    display: flex; border-bottom: 1px solid #e2e8f0; background: #fff;
+    padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);
+    flex-shrink: 0;
+  }
+  .drv-tab {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 12px 4px 10px; min-height: 48px; border: none; background: none; color: #94a3b8;
+    font-size: 10px; font-family: 'DM Sans', sans-serif; cursor: pointer; border-bottom: 2px solid transparent;
+    transition: color 0.15s; -webkit-user-select: none; user-select: none;
+  }
+  .drv-tab:active { background: #f8fafc; }
   .drv-tab.active { color: #0f172a; border-bottom-color: #0f172a; }
   .drv-tab svg { width: 22px; height: 22px; }
   .drv-badge { background: #ef4444; color: #fff; border-radius: 99px; font-size: 10px; font-weight: 700; padding: 1px 5px; position: absolute; top: -3px; right: -5px; }
-  .drv-body { flex: 1; padding: 16px; overflow-y: auto; }
+  .drv-body {
+    flex: 1; padding: 16px; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+    overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;
+  }
   .drv-section { font-size: 10px; font-weight: 700; color: #94a3b8; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 10px; }
   .drv-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 14px; margin-bottom: 10px; }
   .drv-card.pending { border-color: #f59e0b; }
@@ -96,9 +125,12 @@ const css = `
   .drv-meta { display: flex; gap: 12px; font-size: 12px; color: #64748b; margin: 8px 0 12px; flex-wrap: wrap; }
   .drv-meta span { display: flex; align-items: center; gap: 4px; }
   .drv-btns { display: flex; gap: 8px; }
-  .drv-btn-primary { flex: 1; background: #0f172a; color: #fff; border: none; border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 700; font-family: 'DM Sans', sans-serif; cursor: pointer; }
-  .drv-btn-secondary { flex: 1; background: #f1f5f9; color: #0f172a; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; }
-  .drv-btn-danger { flex: 1; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .drv-btn-primary { flex: 1; min-height: 46px; background: #0f172a; color: #fff; border: none; border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 700; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .drv-btn-primary:active { background: #1e293b; }
+  .drv-btn-secondary { flex: 1; min-height: 46px; background: #f1f5f9; color: #0f172a; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .drv-btn-secondary:active { background: #e2e8f0; }
+  .drv-btn-danger { flex: 1; min-height: 46px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .drv-btn-danger:active { background: #fee2e2; }
   .drv-badge-pill { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 99px; }
   .drv-badge-blue { background: #eff6ff; color: #1d4ed8; }
   .drv-badge-green { background: #f0fdf4; color: #15803d; }
@@ -114,13 +146,14 @@ const css = `
   .drv-stat-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
   .drv-empty { text-align: center; padding: 50px 20px; color: #94a3b8; }
   .drv-empty svg { width: 40px; height: 40px; margin-bottom: 10px; opacity: 0.4; }
-  .drv-route-opt { border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; cursor: pointer; transition: border-color 0.15s; }
+  .drv-route-opt { border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; cursor: pointer; transition: border-color 0.15s; min-height: 44px; }
+  .drv-route-opt:active { background: #f8fafc; }
   .drv-route-opt.selected { border-color: #0f172a; background: #f8fafc; }
   .drv-route-opt-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
   .drv-route-label { font-size: 13px; font-weight: 700; color: #0f172a; }
   .drv-route-price { font-size: 16px; font-weight: 800; color: #0f172a; }
   .drv-route-meta { display: flex; gap: 10px; font-size: 12px; color: #64748b; }
-  .drv-map { width: 100%; height: 200px; border-radius: 12px; overflow: hidden; margin-bottom: 14px; border: 1px solid #e2e8f0; }
+  .drv-map { width: 100%; height: 200px; border-radius: 12px; overflow: hidden; margin-bottom: 14px; border: 1px solid #e2e8f0; touch-action: pan-x pan-y; }
   .drv-divider { border: none; border-top: 1px solid #f1f5f9; margin: 16px 0; }
   .drv-planning-slot { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 12px; }
   .drv-planning-time { font-size: 12px; color: #64748b; min-width: 40px; padding-top: 3px; }
@@ -129,6 +162,10 @@ const css = `
   @media (max-width: 380px) {
     .drv-time { font-size: 18px; }
     .drv-stat-val { font-size: 20px; }
+  }
+  @supports (-webkit-touch-callout: none) {
+    /* iOS Safari : 100dvh dans une PWA standalone peut rogner sous la barre d'accueil */
+    .drv-root { min-height: -webkit-fill-available; }
   }
 `;
 
@@ -314,8 +351,9 @@ function DriverApp() {
               textDecoration: "none",
               border: "1px solid #334155",
               borderRadius: 8,
-              padding: "4px 8px",
+              padding: "8px 10px",
               flexShrink: 0,
+              minHeight: 30,
             }}
           >
             ↩ Site
@@ -511,8 +549,8 @@ function CourseCard({
   const [loadingRoutes, setLoadingRoutes] = useState(false);
   const [busy, setBusy] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
-  const mapInst = useRef<any>(null);
-  const rendererRef = useRef<any>(null);
+  const mapInst = useRef<google.maps.Map | null>(null);
+  const rendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
 
   // Charger les itinéraires quand on ouvre la carte
   useEffect(() => {
@@ -529,21 +567,21 @@ function CourseCard({
         }
 
         const svc = new mapsApi.maps.DirectionsService();
-        const result: any = await new Promise((res, rej) =>
+        const result: google.maps.DirectionsResult = await new Promise((res, rej) =>
           svc.route(
             {
-              origin: { lat: geoA.lat, lng: geoA.lng },
-              destination: { lat: geoB.lat, lng: geoB.lng },
+              origin: { lat: geoA[0], lng: geoA[1] },
+              destination: { lat: geoB[0], lng: geoB[1] },
               travelMode: mapsApi.maps.TravelMode.DRIVING,
               provideRouteAlternatives: true,
             },
-            (r: any, s: string) =>
+            (r: google.maps.DirectionsResult | null, s: google.maps.DirectionsStatus) =>
               s === "OK" && r ? res(r) : rej(s),
           ),
         );
 
         const tarifJour = estTarifJourParis(resa.date_heure);
-        const opts: RouteOption[] = result.routes.slice(0, 3).map((route: any, i: number) => {
+        const opts: RouteOption[] = result.routes.slice(0, 3).map((route, i) => {
           const leg = route.legs[0];
           const distKm = (leg.distance?.value ?? 0) / 1000;
           const dureeMin = Math.round((leg.duration?.value ?? 0) / 60);
@@ -1093,7 +1131,7 @@ function ClientsTab() {
           padding: "10px 14px",
           borderRadius: 12,
           border: "1px solid #e2e8f0",
-          fontSize: 14,
+          fontSize: 16,
           fontFamily: "'DM Sans', sans-serif",
           marginBottom: 14,
           outline: "none",
