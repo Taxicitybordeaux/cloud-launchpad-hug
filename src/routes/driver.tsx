@@ -338,6 +338,15 @@ function DriverApp() {
     };
   }, []);
 
+  // Rafraîchit le token FCM à chaque reprise de la page (iOS révoque souvent le token)
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === "visible") subscribePush("chauffeur");
+    };
+    document.addEventListener("visibilitychange", refresh);
+    return () => document.removeEventListener("visibilitychange", refresh);
+  }, [subscribePush]);
+
   // Rafraîchissement badge courses
   useEffect(() => {
     const load = async () => {
