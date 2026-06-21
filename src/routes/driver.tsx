@@ -549,8 +549,8 @@ function CourseCard({
   const [loadingRoutes, setLoadingRoutes] = useState(false);
   const [busy, setBusy] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
-  const mapInst = useRef<google.maps.Map | null>(null);
-  const rendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
+  const mapInst = useRef<any>(null);
+  const rendererRef = useRef<any>(null);
 
   // Charger les itinéraires quand on ouvre la carte
   useEffect(() => {
