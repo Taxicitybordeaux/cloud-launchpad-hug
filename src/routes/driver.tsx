@@ -274,8 +274,18 @@ function DriverPage() {
   const { token } = Route.useSearch();
   const navigate = useNavigate();
 
-  // Token guard
-  if (token !== DRIVER_TOKEN) {
+  // Sauvegarde le token si présent dans l'URL
+  useEffect(() => {
+    if (token === DRIVER_TOKEN) {
+      localStorage.setItem("driver_token", token);
+    }
+  }, [token]);
+
+  // Relit le token depuis localStorage si absent de l'URL
+  const savedToken = typeof window !== "undefined" ? localStorage.getItem("driver_token") : null;
+  const validToken = token === DRIVER_TOKEN || savedToken === DRIVER_TOKEN;
+
+  if (!validToken) {
     return (
       <div
         style={{

@@ -29,6 +29,7 @@ import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe
 import { Route as CourseIdRouteImport } from './routes/course.$id'
 import { Route as ClientLoginRouteImport } from './routes/client.login'
 import { Route as ClientDashboardRouteImport } from './routes/client.dashboard'
+import { Route as ApiManifestRouteImport } from './routes/api/manifest'
 import { Route as AdminPushFailuresRouteImport } from './routes/admin.push-failures'
 import { Route as AdminFlowCheckRouteImport } from './routes/admin.flow-check'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
@@ -145,6 +146,11 @@ const ClientDashboardRoute = ClientDashboardRouteImport.update({
   path: '/client/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiManifestRoute = ApiManifestRouteImport.update({
+  id: '/api/manifest',
+  path: '/api/manifest',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminPushFailuresRoute = AdminPushFailuresRouteImport.update({
   id: '/push-failures',
   path: '/push-failures',
@@ -244,6 +250,7 @@ export interface FileRoutesByFullPath {
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/flow-check': typeof AdminFlowCheckRoute
   '/admin/push-failures': typeof AdminPushFailuresRoute
+  '/api/manifest': typeof ApiManifestRoute
   '/client/dashboard': typeof ClientDashboardRoute
   '/client/login': typeof ClientLoginRoute
   '/course/$id': typeof CourseIdRoute
@@ -281,6 +288,7 @@ export interface FileRoutesByTo {
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/flow-check': typeof AdminFlowCheckRoute
   '/admin/push-failures': typeof AdminPushFailuresRoute
+  '/api/manifest': typeof ApiManifestRoute
   '/client/dashboard': typeof ClientDashboardRoute
   '/client/login': typeof ClientLoginRoute
   '/course/$id': typeof CourseIdRoute
@@ -319,6 +327,7 @@ export interface FileRoutesById {
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/flow-check': typeof AdminFlowCheckRoute
   '/admin/push-failures': typeof AdminPushFailuresRoute
+  '/api/manifest': typeof ApiManifestRoute
   '/client/dashboard': typeof ClientDashboardRoute
   '/client/login': typeof ClientLoginRoute
   '/course/$id': typeof CourseIdRoute
@@ -358,6 +367,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/flow-check'
     | '/admin/push-failures'
+    | '/api/manifest'
     | '/client/dashboard'
     | '/client/login'
     | '/course/$id'
@@ -395,6 +405,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/flow-check'
     | '/admin/push-failures'
+    | '/api/manifest'
     | '/client/dashboard'
     | '/client/login'
     | '/course/$id'
@@ -432,6 +443,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/flow-check'
     | '/admin/push-failures'
+    | '/api/manifest'
     | '/client/dashboard'
     | '/client/login'
     | '/course/$id'
@@ -466,6 +478,7 @@ export interface RootRouteChildren {
   ReserverRoute: typeof ReserverRoute
   ServicesRoute: typeof ServicesRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  ApiManifestRoute: typeof ApiManifestRoute
   ClientDashboardRoute: typeof ClientDashboardRoute
   ClientLoginRoute: typeof ClientLoginRoute
   CourseIdRoute: typeof CourseIdRoute
@@ -627,6 +640,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClientDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/manifest': {
+      id: '/api/manifest'
+      path: '/api/manifest'
+      fullPath: '/api/manifest'
+      preLoaderRoute: typeof ApiManifestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/push-failures': {
       id: '/admin/push-failures'
       path: '/push-failures'
@@ -777,6 +797,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReserverRoute: ReserverRoute,
   ServicesRoute: ServicesRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  ApiManifestRoute: ApiManifestRoute,
   ClientDashboardRoute: ClientDashboardRoute,
   ClientLoginRoute: ClientLoginRoute,
   CourseIdRoute: CourseIdRoute,
