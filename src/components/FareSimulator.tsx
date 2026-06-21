@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Calculator, Phone, ArrowRight, Info, MapPin, Loader2, Clock } from "lucide-react";
 import { useT } from "@/i18n/I18nProvider";
 import { getDistanceAndDurationKm } from "@/lib/googleRoute";
-import { getCurrentPosition } from "@/lib/geocode";
+import { searchAddress } from "@/lib/googleGeocode";
 
 // ─── Config tarifs ────────────────────────────────────────────
 const PHONE = "0673072322";
@@ -62,16 +62,7 @@ function computeMixedRate(departure: Date, durationSec: number): number {
   return (dayMs / total) * RATE_DAY + (nightMs / total) * RATE_NIGHT;
 }
 
-// ─── Types ───────────────────────────────────────────────────
-interface NominatimResult {
-  place_id: number;
-  display_name: string;
-  lat: string;
-  lon: string;
-}
-
 // ─── Géocodage silencieux (1er résultat Nominatim) ───────────
-import { searchAddress } from "@/lib/googleGeocode";
 
 async function geocodeSilent(query: string): Promise<[number, number] | null> {
   if (query.trim().length < 3) return null;
@@ -246,12 +237,21 @@ export function FareSimulator() {
 
   const handleUseMyPosition = async () => {
     setGeoMsg(null);
-    const pos = await getCurrentPosition({ enableHighAccuracy: true }, 10000);
+    const pos = await new Promise<GeolocationPosition | null>((resolve) => {
+      if (!navigator.geolocation) {
+        resolve(null);
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(resolve, () => resolve(null), {
+        enableHighAccuracy: true,
+        timeout: 10000,
+      });
+    });
     if (!pos) {
       setGeoMsg("Impossible d'obtenir votre position");
       return;
     }
-    setFromCoord([pos.lng, pos.lat]);
+    setFromCoord([pos.coords.longitude, pos.coords.latitude]);
     setGeoMsg("Position utilisée comme origine");
     setTimeout(() => setGeoMsg(null), 3000);
   };
