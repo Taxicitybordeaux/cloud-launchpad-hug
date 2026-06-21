@@ -21,7 +21,7 @@ interface Resa {
   destination: string;
   date_heure: string;
   status: string;
-  prix?: number | null;
+  prix_estime?: number | null;
   distance_km?: number | null;
   client_name?: string | null;
   client_phone?: string | null;
@@ -54,7 +54,7 @@ interface RouteOption {
   summary: string;
   distanceKm: number;
   dureeMin: number;
-  prix: number;
+  prix_estime: number;
   tarifLabel: string;
   legs: any[];
   overview_polyline: string;
@@ -457,7 +457,7 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
     const { data } = await (supabase as any)
       .from("reservations")
       .select(
-        "id,depart,destination,date_heure,status,prix,distance_km,client_name,client_phone,client_email,email,suivi_id",
+        "id,depart,destination,date_heure,status,prix_estime,distance_km,client_name,client_phone,client_email,suivi_id",
       )
       .in("status", ["pending", "accepted"])
       .order("date_heure", { ascending: true });
@@ -587,13 +587,13 @@ function CourseCard({
           const leg = route.legs[0];
           const distKm = (leg.distance?.value ?? 0) / 1000;
           const dureeMin = Math.round((leg.duration?.value ?? 0) / 60);
-          const prix = calculerPrixMixte(distKm, resa.date_heure);
+          const prix_estime = calculerPrixMixte(distKm, resa.date_heure);
           return {
             index: i,
             summary: route.summary || `Itinéraire ${i + 1}`,
             distanceKm: parseFloat(distKm.toFixed(1)),
             dureeMin,
-            prix,
+            prix_estime,
             tarifLabel: tarifJour ? "Tarif jour" : "Tarif nuit",
             legs: route.legs,
             overview_polyline:
@@ -654,7 +654,7 @@ function CourseCard({
       const updates: any = { status: "accepted" };
       if (chosen) {
         updates.distance_km = chosen.distanceKm;
-        updates.prix = chosen.prix;
+        updates.prix_estime = chosen.prix_estime;
       }
       const { error } = await (supabase as any).from("reservations").update(updates).eq("id", resa.id);
       if (error) throw error;
@@ -694,10 +694,10 @@ function CourseCard({
     try {
       const { error } = await (supabase as any)
         .from("reservations")
-        .update({ distance_km: chosen.distanceKm, prix: chosen.prix })
+        .update({ distance_km: chosen.distanceKm, prix_estime: chosen.prix_estime })
         .eq("id", resa.id);
       if (error) throw error;
-      toast.success(`Itinéraire mis à jour — ${chosen.distanceKm} km · ${chosen.prix.toFixed(2)} €`);
+      toast.success(`Itinéraire mis à jour — ${chosen.distanceKm} km · ${chosen.prix_estime.toFixed(2)} €`);
       onRefresh();
     } catch (e: any) {
       toast.error("Erreur : " + (e.message ?? e));
@@ -772,7 +772,7 @@ function CourseCard({
         setCustomPrixSending(false);
       }
     }
-    await (supabase as any).from("reservations").update({ prix: val }).eq("id", resa.id);
+    await (supabase as any).from("reservations").update({ prix_estime: val }).eq("id", resa.id);
     onRefresh();
   };
 
@@ -855,10 +855,10 @@ function CourseCard({
       </div>
 
       {/* Résumé km/prix si déjà calculé */}
-      {(resa.distance_km || resa.prix) && (
+      {(resa.distance_km || resa.prix_estime) && (
         <div className="drv-meta">
           {resa.distance_km && <span>🛣 {resa.distance_km} km</span>}
-          {resa.prix && <span>💶 {resa.prix.toFixed(2)} €</span>}
+          {resa.prix_estime && <span>💶 {resa.prix_estime.toFixed(2)} €</span>}
         </div>
       )}
 
@@ -890,7 +890,7 @@ function CourseCard({
                     <span className="drv-route-label">
                       {i === 0 ? "🏆 Recommandé" : i === 1 ? "🔀 Alternatif" : "⏱ Rapide"} — {r.summary}
                     </span>
-                    <span className="drv-route-price">{r.prix.toFixed(2)} €</span>
+                    <span className="drv-route-price">{r.prix_estime_estime.toFixed(2)} €</span>
                   </div>
                   <div className="drv-route-meta">
                     <span>🛣 {r.distanceKm} km</span>
@@ -1212,7 +1212,7 @@ function PlanningTab() {
 
     const { data } = await (supabase as any)
       .from("reservations")
-      .select("id,depart,destination,date_heure,status,prix,distance_km")
+      .select("id,depart,destination,date_heure,status,prix_estime,distance_km")
       .gte("date_heure", today.toISOString())
       .lt("date_heure", tomorrow.toISOString())
       .not("status", "eq", "cancelled")
@@ -1271,7 +1271,7 @@ function PlanningTab() {
               </div>
               <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
                 {r.distance_km ? `${r.distance_km} km · ` : ""}
-                {r.prix ? `${r.prix.toFixed(2)} €` : ""}
+                {r.prix_estime_estime ? `${r.prix_estime_estime.toFixed(2)} €` : ""}
                 {["terminee", "completed"].includes(r.status) ? " · Terminée" : ""}
               </div>
             </div>
@@ -1432,7 +1432,7 @@ function ClientsTab() {
     const [{ data }, { data: clientsRows }] = await Promise.all([
       (supabase as any)
         .from("reservations")
-        .select("client_name,client_phone,destination,prix,date_heure,status")
+        .select("client_name,client_phone,destination,prix_estime,date_heure,status")
         .not("client_phone", "is", null)
         .order("date_heure", { ascending: false }),
       (supabase as any).from("clients").select("id,phone"),
@@ -1457,14 +1457,14 @@ function ClientsTab() {
           phone,
           name: r.client_name || "Client",
           nbCourses: isCompleted ? 1 : 0,
-          totalDepense: isCompleted ? (r.prix ?? 0) : 0,
+          totalDepense: isCompleted ? (r.prix_estime_estime ?? 0) : 0,
           derniereCourse: r.date_heure,
           derniereDestination: r.destination,
         });
       } else {
         if (isCompleted) {
           existing.nbCourses += 1;
-          existing.totalDepense += r.prix ?? 0;
+          existing.totalDepense += r.prix_estime_estime ?? 0;
         }
         if (r.date_heure > existing.derniereCourse) {
           existing.derniereCourse = r.date_heure;
@@ -1674,14 +1674,14 @@ function StatsTab() {
       const [{ data: semData }, { data: avisData }] = await Promise.all([
         (supabase as any)
           .from("reservations")
-          .select("prix,distance_km,date_heure")
+          .select("prix_estime,distance_km,date_heure")
           .gte("date_heure", monday.toISOString())
           .in("status", ["terminee", "completed"]),
         (supabase as any).from("avis").select("note").eq("status", "approved"),
       ]);
 
       const sem: any[] = semData ?? [];
-      const revenus = sem.reduce((s: number, r: any) => s + (r.prix ?? 0), 0);
+      const revenus = sem.reduce((s: number, r: any) => s + (r.prix_estime_estime ?? 0), 0);
       const km = sem.reduce((s: number, r: any) => s + (r.distance_km ?? 0), 0);
       const note = avisData?.length ? avisData.reduce((s: number, a: any) => s + a.note, 0) / avisData.length : 0;
 
