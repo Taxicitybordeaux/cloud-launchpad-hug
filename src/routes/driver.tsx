@@ -365,24 +365,24 @@ function DriverApp() {
         </div>
 
         {/* Bandeau activation notifications */}
-        {(pushStatus === "idle" || pushStatus === "denied" || pushStatus === "subscribed") && (
+        {(pushStatus === "idle" || pushStatus === "denied" || pushStatus === "granted") && (
           <div
             style={{
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
               gap: 10,
-              background: pushStatus === "denied" ? "#fef2f2" : pushStatus === "subscribed" ? "#f0fdf4" : "#eff6ff",
+              background: pushStatus === "denied" ? "#fef2f2" : pushStatus === "granted" ? "#f0fdf4" : "#eff6ff",
               borderBottom: "1px solid #e2e8f0",
               padding: "10px 16px",
               fontSize: 12.5,
-              color: pushStatus === "denied" ? "#b91c1c" : pushStatus === "subscribed" ? "#15803d" : "#1d4ed8",
+              color: pushStatus === "denied" ? "#b91c1c" : pushStatus === "granted" ? "#15803d" : "#1d4ed8",
             }}
           >
             <span>
               {pushStatus === "denied"
                 ? "🔕 Notifications bloquées — active-les dans les réglages."
-                : pushStatus === "subscribed"
+                : pushStatus === "granted"
                   ? "🔔 Notifications actives"
                   : "🔔 Active les notifications pour ne rater aucune nouvelle course."}
             </span>
@@ -401,7 +401,7 @@ function DriverApp() {
                   cursor: "pointer",
                 }}
               >
-                {pushStatus === "subscribed" ? "🔄 Ré-activer" : "Activer"}
+                {pushStatus === "granted" ? "🔄 Ré-activer" : "Activer"}
               </button>
             )}
           </div>
