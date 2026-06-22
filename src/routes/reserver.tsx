@@ -1494,61 +1494,37 @@ function ReservationPage() {
         @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
       `}</style>
 
-      {/* ── Map ── */}
-      <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
-        <div ref={mapRef} style={{ position: "absolute", inset: 0 }} />
-
-        {mapLoadError && (
+      {/* Badge calcul (flottant) */}
+      {calcLoading && (
+        <div
+          style={{
+            position: "fixed",
+            top: 16,
+            right: 16,
+            background: "rgba(10,10,20,0.85)",
+            backdropFilter: "blur(12px)",
+            borderRadius: 99,
+            padding: "6px 14px",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            border: "1px solid rgba(245,200,66,0.15)",
+            zIndex: 100,
+          }}
+        >
           <div
             style={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              textAlign: "center",
-              padding: 24,
-              background: "#11182a",
-              color: "#cbd5e1",
-              fontSize: 13,
+              width: 14,
+              height: 14,
+              border: "2px solid #f5c842",
+              borderTopColor: "transparent",
+              borderRadius: "50%",
+              animation: "spin 0.8s linear infinite",
             }}
-          >
-            {mapLoadError}
-          </div>
-        )}
-
-        {/* Badge calcul */}
-        {calcLoading && (
-          <div
-            style={{
-              position: "absolute",
-              top: 16,
-              right: 16,
-              background: "rgba(10,10,20,0.85)",
-              backdropFilter: "blur(12px)",
-              borderRadius: 99,
-              padding: "6px 14px",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              border: "1px solid rgba(245,200,66,0.15)",
-              zIndex: 100,
-            }}
-          >
-            <div
-              style={{
-                width: 14,
-                height: 14,
-                border: "2px solid #f5c842",
-                borderTopColor: "transparent",
-                borderRadius: "50%",
-                animation: "spin 0.8s linear infinite",
-              }}
-            />
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#f5c842" }}>{t("rsim.loading")}</span>
-          </div>
-        )}
-      </div>
+          />
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#f5c842" }}>{t("rsim.loading")}</span>
+        </div>
+      )}
 
       {/* ── Bottom sheet ── */}
       <div
