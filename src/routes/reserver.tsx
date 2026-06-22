@@ -860,7 +860,6 @@ function ReservationPage() {
   const t = (k: string) => d[k] ?? DICTS["fr"][k] ?? k;
   const dir = lang === "ar" ? "rtl" : "ltr";
 
-
   const pickupIso = f.date && f.heure ? toParisIso(f.date, f.heure) : null;
 
   // ── Tarification Paris : règle unique demandée
@@ -1522,7 +1521,7 @@ function ReservationPage() {
               animation: "spin 0.8s linear infinite",
             }}
           />
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#f5c842" }}>{t("rsim.loading")}</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#f5c842" }}>"Recherche en cours…"</span>
         </div>
       )}
 
@@ -2079,125 +2078,6 @@ function ReservationPage() {
                   <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>✓ {t("res.loc.to")}</div>
                 )}
               </div>
-
-              {/* Récap distance + prix */}
-              {orsResult && (
-                <div
-                  style={{
-                    marginTop: 12,
-                    padding: "12px 16px",
-                    background: "rgba(245,200,66,0.12)",
-                    borderRadius: 12,
-                    border: "1px solid rgba(245,200,66,0.3)",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: 14, color: "#f5c842", fontWeight: 700 }}>
-                      {orsResult.distanceKm} km · {Math.round(orsResult.dureeS / 60)} min
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: tarifJour ? "#fbbf24" : "#818cf8",
-                        marginTop: 2,
-                        fontWeight: 600,
-                      }}
-                    >
-                      {tarifJour ? "☀️ Tarif jour" : "🌙 Tarif nuit"}
-                      <span style={{ color: "#94a3b8", fontWeight: 500, marginLeft: 6 }}>— {tarifInfo.motif}</span>
-                    </div>
-                    {detailCalc && detailCalc.pctJour > 0 && detailCalc.pctNuit > 0 && (
-                      <div style={{ fontSize: 11, marginTop: 4, fontWeight: 600 }}>
-                        <span style={{ color: "#fbbf24" }}>☀️ {detailCalc.pctJour}% jour</span>
-                        <span style={{ color: "#94a3b8", margin: "0 6px" }}>/</span>
-                        <span style={{ color: "#818cf8" }}>🌙 {detailCalc.pctNuit}% nuit</span>
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 11, color: "#cbd5e1", marginBottom: 2 }}>{t("rsim.estimate")}</div>
-                    <div
-                      style={{
-                        fontSize: 22,
-                        fontWeight: 800,
-                        color: "#f5c842",
-                        fontFamily: "'Clash Display'",
-                      }}
-                    >
-                      {prixAller.toFixed(2)} €
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Détail du calcul mixte */}
-              {orsResult && detailCalc && (
-                <details
-                  style={{
-                    marginTop: 8,
-                    padding: "10px 14px",
-                    background: "rgba(15,23,42,0.5)",
-                    borderRadius: 10,
-                    border: "1px solid rgba(148,163,184,0.2)",
-                    fontSize: 12,
-                    color: "#cbd5e1",
-                  }}
-                >
-                  <summary style={{ cursor: "pointer", color: "#f5c842", fontWeight: 600 }}>
-                    🧮 Détail du calcul
-                  </summary>
-                  <div style={{ marginTop: 10, display: "grid", gap: 6 }}>
-                    <div style={{ color: "#94a3b8" }}>
-                      Distance totale : <b style={{ color: "#f5f5f5" }}>{orsResult.distanceKm.toFixed(2)} km</b>
-                      {" · "}Durée : <b style={{ color: "#f5f5f5" }}>{Math.round(orsResult.dureeS / 60)} min</b>
-                    </div>
-                    <div style={{ height: 1, background: "rgba(148,163,184,0.15)", margin: "4px 0" }} />
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span>Prise en charge</span>
-                      <b style={{ color: "#f5f5f5" }}>{PRISE.toFixed(2)} €</b>
-                    </div>
-                    {detailCalc.jourKm > 0 && (
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span style={{ color: "#fbbf24" }}>
-                          ☀️ Jour : {detailCalc.jourKm.toFixed(2)} km ({Math.round(detailCalc.jourMin)} min) ×{" "}
-                          {TARIF_JOUR_KM.toFixed(2)} €/km — <b>{detailCalc.pctJour}%</b>
-                        </span>
-                        <b style={{ color: "#f5f5f5" }}>{(detailCalc.jourKm * TARIF_JOUR_KM).toFixed(2)} €</b>
-                      </div>
-                    )}
-                    {detailCalc.nuitKm > 0 && (
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span style={{ color: "#818cf8" }}>
-                          🌙 Nuit : {detailCalc.nuitKm.toFixed(2)} km ({Math.round(detailCalc.nuitMin)} min) ×{" "}
-                          {TARIF_NUIT_KM.toFixed(2)} €/km — <b>{detailCalc.pctNuit}%</b>
-                        </span>
-                        <b style={{ color: "#f5f5f5" }}>{(detailCalc.nuitKm * TARIF_NUIT_KM).toFixed(2)} €</b>
-                      </div>
-                    )}
-                    <div style={{ height: 1, background: "rgba(148,163,184,0.15)", margin: "4px 0" }} />
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                      <b style={{ color: "#f5c842" }}>Total estimé</b>
-                      <b style={{ color: "#f5c842" }}>{detailCalc.total.toFixed(2)} €</b>
-                    </div>
-                    {detailCalc.jourKm > 0 && detailCalc.nuitKm > 0 && (
-                      <div style={{ color: "#94a3b8", fontSize: 11, marginTop: 4, fontStyle: "italic" }}>
-                        Prorata calculé minute par minute selon le passage de 7h ou 19h (heure de Paris).
-                      </div>
-                    )}
-                    <div style={{ color: "#94a3b8", fontSize: 11 }}>
-                      Règle : 7h–19h = tarif jour · 19h–7h, dimanche et jours fériés = tarif nuit.
-                    </div>
-                  </div>
-                </details>
-              )}
-              {calcLoading && !orsResult && (
-                <div style={{ color: "#cbd5e1", fontSize: 12, marginTop: 8, textAlign: "center" }}>
-                  ⏳ Calcul de l'itinéraire…
-                </div>
-              )}
             </div>
 
             {/* ── Date/heure ── */}
