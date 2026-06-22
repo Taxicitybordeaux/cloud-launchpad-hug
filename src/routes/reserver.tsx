@@ -1597,6 +1597,50 @@ function ReservationPage() {
           </div>
         </div>
 
+        {/* ── Grille tarifaire ── */}
+        <div
+          style={{
+            background: "rgba(201,168,76,0.08)",
+            borderBottom: "1px solid rgba(201,168,76,0.2)",
+            padding: "10px 16px",
+            display: "flex",
+            gap: 0,
+            overflowX: "auto",
+            WebkitOverflowScrolling: "touch",
+            flexShrink: 0,
+          }}
+        >
+          {[
+            { icon: "☀️", label: "Tarif jour", detail: "7h – 19h", price: "2,16 €/km" },
+            { icon: "🌙", label: "Tarif nuit", detail: "19h – 7h", price: "3,24 €/km" },
+            { icon: "🚩", label: "Prise en charge", detail: "", price: "2,89 €" },
+            { icon: "ℹ️", label: "Frais de résa", detail: "selon conditions", price: "" },
+          ].map((item, i, arr) => (
+            <div
+              key={item.label}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 2,
+                padding: "6px 14px",
+                borderRight: i < arr.length - 1 ? "1px solid rgba(201,168,76,0.2)" : "none",
+                minWidth: 90,
+                flexShrink: 0,
+              }}
+            >
+              <span style={{ fontSize: 16 }}>{item.icon}</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#9a7427", textAlign: "center", lineHeight: 1.2 }}>
+                {item.label}
+              </span>
+              {item.detail && <span style={{ fontSize: 9, color: "#b89a5a", textAlign: "center" }}>{item.detail}</span>}
+              {item.price && (
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#1a1209", marginTop: 1 }}>{item.price}</span>
+              )}
+            </div>
+          ))}
+        </div>
+
         {/* Zone scrollable */}
         <div
           style={{
@@ -2403,55 +2447,6 @@ function ReservationPage() {
                 {t("res.geo.err.unavailable")}
               </div>
             )}
-
-            {/* ── Info tarifaire ── */}
-            <div
-              style={{
-                background: "#fff",
-                borderRadius: 14,
-                padding: "16px",
-                border: "1px solid #ede8de",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: "#1a1209",
-                  marginBottom: 12,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                }}
-              >
-                ℹ️ Grille tarifaire
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12, color: "#4a3a20" }}>
-                  <span style={{ color: "#c9a84c", fontWeight: 700, flexShrink: 0 }}>★</span>
-                  <span>
-                    <strong>Tarif jour</strong> — 7h à 19h : <strong>2,16 €/km</strong>
-                  </span>
-                </div>
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12, color: "#4a3a20" }}>
-                  <span style={{ color: "#c9a84c", fontWeight: 700, flexShrink: 0 }}>★</span>
-                  <span>
-                    <strong>Tarif nuit</strong> — 19h à 7h : <strong>3,24 €/km</strong>
-                  </span>
-                </div>
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12, color: "#4a3a20" }}>
-                  <span style={{ color: "#c9a84c", fontWeight: 700, flexShrink: 0 }}>★</span>
-                  <span>
-                    Des <strong>frais de réservation</strong> peuvent être appliqués selon les conditions de la course.
-                  </span>
-                </div>
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 12, color: "#4a3a20" }}>
-                  <span style={{ color: "#c9a84c", fontWeight: 700, flexShrink: 0 }}>★</span>
-                  <span>
-                    <strong>Prise en charge</strong> : <strong>2,89 €</strong>
-                  </span>
-                </div>
-              </div>
-            </div>
           </form>
 
           <div style={{ height: 20 }} />
