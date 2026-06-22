@@ -632,6 +632,12 @@ function CourseCard({
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInst = useRef<any>(null);
   const rendererRef = useRef<any>(null);
+  // Horaire simulateur — initialisé depuis la réservation, modifiable
+  const [simHeure, setSimHeure] = useState<string>(() => {
+    if (!resa.date_heure) return "";
+    // datetime-local attend "YYYY-MM-DDTHH:mm"
+    return resa.date_heure.slice(0, 16);
+  });
 
   // Charger les itinéraires quand on ouvre la carte
   useEffect(() => {
@@ -660,12 +666,13 @@ function CourseCard({
           ),
         );
 
-        const tarifJour = estTarifJourParis(resa.date_heure);
+        const heureRef = simHeure || resa.date_heure;
+        const tarifJour = estTarifJourParis(heureRef);
         const opts: RouteOption[] = result.routes.slice(0, 3).map((route: google.maps.DirectionsRoute, i: number) => {
           const leg = route.legs[0];
           const distKm = (leg.distance?.value ?? 0) / 1000;
           const dureeMin = Math.round((leg.duration?.value ?? 0) / 60);
-          const prix_estime = calculerPrixMixte(distKm, resa.date_heure);
+          const prix_estime = calculerPrixMixte(distKm, heureRef);
           return {
             index: i,
             summary: route.summary || `Itinéraire ${i + 1}`,
@@ -689,6 +696,18 @@ function CourseCard({
       }
     })();
   }, [expanded, resa]);
+
+  // Recalculer les prix si l'horaire simulateur change
+  useEffect(() => {
+    if (!routes.length || !simHeure) return;
+    const tarifJour = estTarifJourParis(simHeure);
+    setRoutes((prev) =>
+      prev.map((r) => {
+        const prix_estime = calculerPrixMixte(r.distanceKm, simHeure);
+        return { ...r, prix_estime, tarifLabel: tarifJour ? "Tarif jour" : "Tarif nuit" };
+      }),
+    );
+  }, [simHeure]);
 
   // Afficher la route sélectionnée sur la carte
   useEffect(() => {
@@ -955,30 +974,173 @@ function CourseCard({
             </div>
           )}
 
-          {routes.length > 0 && (
-            <>
-              <p className="drv-section">Choisir un itinéraire</p>
-              {routes.map((r, i) => (
-                <div
-                  key={i}
-                  className={`drv-route-opt${selectedRoute === i ? " selected" : ""}`}
-                  onClick={() => setSelectedRoute(i)}
-                >
-                  <div className="drv-route-opt-head">
-                    <span className="drv-route-label">
-                      {i === 0 ? "🏆 Recommandé" : i === 1 ? "🔀 Alternatif" : "⏱ Rapide"} — {r.summary}
-                    </span>
-                    <span className="drv-route-price">{r.prix_estime.toFixed(2)} €</span>
+          {routes.length > 0 &&
+            (() => {
+              const chosen = routes[selectedRoute];
+              const phone = (resa.client_phone || "").replace(/\s/g, "");
+              const email = resa.client_email || resa.email || "";
+              const name = resa.client_name || "Client";
+              const trajet = `${resa.depart} → ${resa.destination || "—"}`;
+              const trackUrl =
+                resa.suivi_id && typeof window !== "undefined"
+                  ? `${window.location.origin}/suivi/${resa.suivi_id}`
+                  : "";
+              const prixMsg = chosen
+                ? `Bonjour ${name}, le prix de votre course Taxi City Bordeaux (${trajet}) est de ${chosen.prix_estime.toFixed(2)} €.${
+                    trackUrl
+                      ? `
+Suivre votre course : ${trackUrl}`
+                      : ""
+                  }`
+                : "";
+              const btnStyle = (bg: string, border: string, color: string): React.CSSProperties => ({
+                flex: "1 1 auto",
+                minWidth: 70,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 5,
+                padding: "9px 6px",
+                borderRadius: 10,
+                border: `1px solid ${border}`,
+                background: bg,
+                color,
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                textDecoration: "none",
+              });
+              return (
+                <>
+                  {/* Champ horaire simulateur */}
+                  <div style={{ marginBottom: 10 }}>
+                    <label
+                      style={{ fontSize: 11, fontWeight: 700, color: "#64748b", display: "block", marginBottom: 4 }}
+                    >
+                      🕐 Horaire de la course (modifiable pour simuler le tarif)
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={simHeure}
+                      onChange={(e) => setSimHeure(e.target.value)}
+                      style={{
+                        width: "100%",
+                        boxSizing: "border-box",
+                        padding: "9px 12px",
+                        borderRadius: 10,
+                        border: "1px solid #e2e8f0",
+                        fontSize: 13,
+                        fontFamily: "'DM Sans', sans-serif",
+                        background: "#f8fafc",
+                      }}
+                    />
                   </div>
-                  <div className="drv-route-meta">
-                    <span>🛣 {r.distanceKm} km</span>
-                    <span>⏱ {r.dureeMin} min</span>
-                    <span style={{ color: r.tarifLabel === "Tarif jour" ? "#15803d" : "#1d4ed8" }}>{r.tarifLabel}</span>
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
+
+                  {/* Itinéraires */}
+                  <p className="drv-section">Choisir un itinéraire</p>
+                  {routes.map((r, i) => (
+                    <div
+                      key={i}
+                      className={`drv-route-opt${selectedRoute === i ? " selected" : ""}`}
+                      onClick={() => setSelectedRoute(i)}
+                    >
+                      <div className="drv-route-opt-head">
+                        <span className="drv-route-label">
+                          {i === 0 ? "🏆 Recommandé" : i === 1 ? "🔀 Alternatif" : "⏱ Rapide"} — {r.summary}
+                        </span>
+                        <span className="drv-route-price">{r.prix_estime.toFixed(2)} €</span>
+                      </div>
+                      <div className="drv-route-meta">
+                        <span>🛣 {r.distanceKm} km</span>
+                        <span>⏱ {r.dureeMin} min</span>
+                        <span style={{ color: r.tarifLabel === "Tarif jour" ? "#15803d" : "#1d4ed8" }}>
+                          {r.tarifLabel}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Simulateur — récap + envoi prix */}
+                  {chosen && (
+                    <div
+                      style={{
+                        marginTop: 10,
+                        padding: "14px 16px",
+                        borderRadius: 14,
+                        background: "linear-gradient(135deg,#f0fdf4,#fffbeb)",
+                        border: "1.5px solid #bbf7d0",
+                      }}
+                    >
+                      {/* Prix estimé mis en avant */}
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          marginBottom: 10,
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>PRIX ESTIMÉ</div>
+                          <div style={{ fontSize: 30, fontWeight: 900, color: "#15803d", letterSpacing: -1 }}>
+                            {chosen.prix_estime.toFixed(2)} €
+                          </div>
+                          <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+                            {chosen.distanceKm} km · {chosen.dureeMin} min ·{" "}
+                            <span
+                              style={{
+                                color: chosen.tarifLabel === "Tarif jour" ? "#ca8a04" : "#4f46e5",
+                                fontWeight: 700,
+                              }}
+                            >
+                              {chosen.tarifLabel === "Tarif jour" ? "☀️ Jour" : "🌙 Nuit"}
+                            </span>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: 32 }}>🧮</div>
+                      </div>
+
+                      {/* Boutons envoi direct */}
+                      <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 6 }}>
+                        ENVOYER CE PRIX AU CLIENT
+                      </div>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        {phone ? (
+                          <>
+                            <a
+                              href={`sms:${phone}?body=${encodeURIComponent(prixMsg)}`}
+                              style={btnStyle("#faf5ff", "#e9d5ff", "#7e22ce")}
+                            >
+                              💬 SMS
+                            </a>
+                            <a
+                              href={`https://wa.me/${phone.replace(/^0/, "33")}?text=${encodeURIComponent(prixMsg)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={btnStyle("#f0fdf4", "#bbf7d0", "#15803d")}
+                            >
+                              🟢 WhatsApp
+                            </a>
+                          </>
+                        ) : (
+                          <span style={{ fontSize: 11, color: "#94a3b8" }}>Pas de téléphone</span>
+                        )}
+                        {email ? (
+                          <a
+                            href={`mailto:${email}?subject=${encodeURIComponent("Prix de votre course — Taxi City Bordeaux")}&body=${encodeURIComponent(prixMsg)}`}
+                            style={btnStyle("#fffbeb", "#fde68a", "#92400e")}
+                          >
+                            ✉️ Email
+                          </a>
+                        ) : (
+                          <span style={{ fontSize: 11, color: "#94a3b8" }}>Pas d'email</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
 
           {/* Contact — tel / SMS / WhatsApp / Email, identique à l'admin */}
           {(resa.status === "accepted" || resa.status === "en_route" || resa.status === "arrived") &&
@@ -2012,7 +2174,6 @@ function TarifAddressField({
   value,
   onChange,
   onCoord,
-  geocoding,
   ok,
   failed,
 }: {
@@ -2020,15 +2181,18 @@ function TarifAddressField({
   value: string;
   onChange: (v: string) => void;
   onCoord: (c: [number, number] | null) => void;
-  geocoding: boolean;
   ok: boolean;
   failed: boolean;
 }) {
-  const handleBlur = async () => {
-    const q = value.trim();
-    if (q.length < 3) return;
+  const [listening, setListening] = React.useState(false);
+  const [geocoding, setGeocoding] = React.useState(false);
+  const recogRef = React.useRef<any>(null);
+
+  const geocode = async (q: string) => {
+    if (q.trim().length < 3) return;
+    setGeocoding(true);
     try {
-      const results = await searchAddress(q, 1);
+      const results = await searchAddress(q.trim(), 1);
       if (results.length) {
         onCoord([results[0].coord[1], results[0].coord[0]]);
       } else {
@@ -2036,40 +2200,102 @@ function TarifAddressField({
       }
     } catch {
       onCoord(null);
+    } finally {
+      setGeocoding(false);
     }
   };
+
+  const handleBlur = () => geocode(value);
+
+  const handleVoice = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Dictée vocale non supportée sur ce navigateur.");
+      return;
+    }
+    if (listening) {
+      recogRef.current?.stop();
+      setListening(false);
+      return;
+    }
+    const recog = new SpeechRecognition();
+    recogRef.current = recog;
+    recog.lang = "fr-FR";
+    recog.interimResults = false;
+    recog.maxAlternatives = 1;
+    recog.onstart = () => setListening(true);
+    recog.onresult = (e: any) => {
+      const transcript = e.results[0][0].transcript;
+      onChange(transcript);
+      onCoord(null);
+      // Géocode automatiquement après la dictée
+      geocode(transcript);
+    };
+    recog.onerror = () => setListening(false);
+    recog.onend = () => setListening(false);
+    recog.start();
+  };
+
+  const borderColor = failed ? "#f87171" : ok ? "#34d399" : listening ? "#f5c842" : "#334155";
+  const statusIcon = geocoding ? "⏳" : ok ? "✅" : failed ? "❌" : "📍";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <label style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8" }}>{label}</label>
-      <div style={{ position: "relative" }}>
-        <input
-          type="text"
-          value={value}
-          autoComplete="off"
-          autoCorrect="off"
-          spellCheck={false}
-          onChange={(e) => {
-            onChange(e.target.value);
-            onCoord(null);
-          }}
-          onBlur={handleBlur}
+      <div style={{ position: "relative", display: "flex", gap: 6 }}>
+        <div style={{ position: "relative", flex: 1 }}>
+          <input
+            type="text"
+            value={value}
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            onChange={(e) => {
+              onChange(e.target.value);
+              onCoord(null);
+            }}
+            onBlur={handleBlur}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              background: "#1e293b",
+              border: `1.5px solid ${borderColor}`,
+              borderRadius: 10,
+              padding: "10px 36px 10px 12px",
+              fontSize: 13,
+              color: "#f1f5f9",
+              outline: "none",
+            }}
+          />
+          <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 14 }}>
+            {statusIcon}
+          </span>
+        </div>
+        {/* Bouton micro */}
+        <button
+          type="button"
+          onClick={handleVoice}
+          title={listening ? "Arrêter la dictée" : "Dicter l'adresse"}
           style={{
-            width: "100%",
-            boxSizing: "border-box",
-            background: "#1e293b",
-            border: `1.5px solid ${failed ? "#f87171" : ok ? "#34d399" : "#334155"}`,
+            flexShrink: 0,
+            width: 40,
+            height: 40,
             borderRadius: 10,
-            padding: "10px 36px 10px 12px",
-            fontSize: 13,
-            color: "#f1f5f9",
-            outline: "none",
+            border: `1.5px solid ${listening ? "#f5c842" : "#334155"}`,
+            background: listening ? "#f5c84225" : "#1e293b",
+            color: listening ? "#f5c842" : "#94a3b8",
+            fontSize: 18,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            animation: listening ? "pulse 1s ease-in-out infinite" : "none",
           }}
-        />
-        <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 14 }}>
-          {geocoding ? "⏳" : ok ? "✅" : failed ? "❌" : "📍"}
-        </span>
+        >
+          🎙️
+        </button>
       </div>
+      {listening && <span style={{ fontSize: 11, color: "#f5c842", fontWeight: 600 }}>🎙️ Parlez maintenant…</span>}
       {failed && <span style={{ fontSize: 11, color: "#f87171" }}>Adresse non trouvée</span>}
     </div>
   );
@@ -2171,7 +2397,6 @@ function TarifTab() {
             setFromFailed(false);
           }}
           onCoord={handleFromCoord}
-          geocoding={false}
           ok={fromOk}
           failed={fromFailed}
         />
@@ -2184,7 +2409,6 @@ function TarifTab() {
             setToFailed(false);
           }}
           onCoord={handleToCoord}
-          geocoding={false}
           ok={toOk}
           failed={toFailed}
         />
