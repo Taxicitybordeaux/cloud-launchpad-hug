@@ -1281,14 +1281,17 @@ function CourseCard({
                 const chosen = routes[selectedRoute];
                 const origCoord = chosen
                   ? `${chosen.originLatLng.lat},${chosen.originLatLng.lng}`
-                  : encodeURIComponent(resa.depart);
+                  : resa.depart;
                 const destCoord = chosen
                   ? `${chosen.destLatLng.lat},${chosen.destLatLng.lng}`
-                  : encodeURIComponent(resa.destination);
+                  : resa.destination;
                 // Waypoint milieu pour forcer le même itinéraire dans Maps
                 const wp = chosen?.waypointLatLng;
-                const waypointParam = wp ? `&waypoints=${wp.lat},${wp.lng}` : "";
+                const waypointParam = wp ? `&waypoints=via:${wp.lat},${wp.lng}` : "";
                 const waypointCoord = wp ? `${wp.lat},${wp.lng}` : null;
+                const originParam = encodeURIComponent(origCoord);
+                const destinationParam = encodeURIComponent(destCoord);
+                const googleMapsWeb = `https://www.google.com/maps/dir/?api=1&origin=${originParam}&destination=${destinationParam}${waypointParam}&travelmode=driving&dir_action=navigate`;
                 return (
                   <div style={{ marginBottom: 10 }}>
                     <button
@@ -1297,24 +1300,18 @@ function CourseCard({
                         const isIOS = /iPad|iPhone|iPod/.test(ua);
                         const isAndroid = /Android/.test(ua);
                         if (isIOS) {
-                          // iOS : Google Maps app avec waypoint, fallback Apple Maps
-                          const wpParam = waypointCoord ? `+to:${waypointCoord}+to:` : "";
-                          const gmaps = `comgooglemaps://?saddr=${origCoord}&daddr=${wpParam}${destCoord}&directionsmode=driving`;
-                          const apple = `maps://maps.apple.com/?saddr=${origCoord}&daddr=${destCoord}&dirflg=d`;
+                          // iOS : ouvrir l'app Google Maps native ; si non installée, fallback sur Google Maps web
+                          const gmaps = `comgooglemaps://?saddr=${originParam}&daddr=${destinationParam}${waypointParam}&directionsmode=driving`;
                           window.location.href = gmaps;
                           setTimeout(() => {
-                            window.location.href = apple;
-                          }, 1500);
+                            window.location.href = googleMapsWeb;
+                          }, 1200);
                         } else if (isAndroid) {
-                          // Android : intent Maps avec waypoint pour forcer l'itinéraire
-                          const daddr = waypointCoord ? `${waypointCoord}+to:${destCoord}` : destCoord;
-                          const intent = `intent://maps.google.com/maps?saddr=${origCoord}&daddr=${daddr}&dirflg=d#Intent;scheme=https;package=com.google.android.apps.maps;end`;
+                          // Android : intent vers Google Maps app avec fallback web si l'appli n'est pas installée
+                          const intent = `intent://maps.google.com/maps?origin=${originParam}&destination=${destinationParam}${waypointParam}&travelmode=driving#Intent;scheme=https;package=com.google.android.apps.maps;S.browser_fallback_url=${encodeURIComponent(googleMapsWeb)};end`;
                           window.location.href = intent;
                         } else {
-                          window.open(
-                            `https://www.google.com/maps/dir/?api=1&origin=${origCoord}&destination=${destCoord}${waypointParam}&travelmode=driving&dir_action=navigate`,
-                            "_blank",
-                          );
+                          window.open(googleMapsWeb, "_blank");
                         }
                       }}
                       style={{
