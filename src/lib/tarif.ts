@@ -18,6 +18,28 @@ const FIN_JOUR = 19;
  * Extrait les composantes Paris d'une date de manière fiable (tous navigateurs,
  * tous runtimes serveur).
  */
+/**
+ * Parse une ISO datetime en supposant heure Paris si aucune timezone n'est indiquée.
+ * Corrige le bug : "2026-06-22T17:00:00" sans Z → new Date() lit UTC → 19h Paris → faux tarif nuit.
+ */
+function parseAsParisTime(iso: string): Date {
+  if (/Z|[+-]\d{2}:\d{2}$/.test(iso)) return new Date(iso);
+  const provisional = new Date(iso + "Z");
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Paris",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(provisional);
+  const parisH = parseInt(parts.find((p) => p.type === "hour")!.value, 10) % 24;
+  const parisM = parseInt(parts.find((p) => p.type === "minute")!.value, 10);
+  const [, h, m] = iso.match(/T(\d{2}):(\d{2})/) ?? ["", "0", "0"];
+  const wantedH = parseInt(h, 10);
+  const wantedM = parseInt(m, 10);
+  const diffMs = (wantedH * 60 + wantedM - (parisH * 60 + parisM)) * 60_000;
+  return new Date(provisional.getTime() - diffMs);
+}
+
 export function partsParis(iso: string): {
   year: number;
   month: number;
@@ -26,7 +48,7 @@ export function partsParis(iso: string): {
   minute: number;
   weekday: string;
 } {
-  const date = new Date(iso);
+  const date = parseAsParisTime(iso);
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/Paris",
     year: "numeric",
@@ -76,14 +98,21 @@ function addDays(year: number, month: number, day: number, add: number) {
 // Jours fériés légaux français (métropole).
 export function estJourFerieFR(year: number, month: number, day: number): boolean {
   const fixed: Array<[number, number]> = [
-    [1, 1], [5, 1], [5, 8], [7, 14], [8, 15], [11, 1], [11, 11], [12, 25],
+    [1, 1],
+    [5, 1],
+    [5, 8],
+    [7, 14],
+    [8, 15],
+    [11, 1],
+    [11, 11],
+    [12, 25],
   ];
   if (fixed.some(([m, d]) => m === month && d === day)) return true;
   const e = easterSunday(year);
   const movable = [
-    addDays(year, e.month, e.day, 1),   // Lundi de Pâques
-    addDays(year, e.month, e.day, 39),  // Ascension
-    addDays(year, e.month, e.day, 50),  // Lundi de Pentecôte
+    addDays(year, e.month, e.day, 1), // Lundi de Pâques
+    addDays(year, e.month, e.day, 39), // Ascension
+    addDays(year, e.month, e.day, 50), // Lundi de Pentecôte
   ];
   return movable.some((f) => f.month === month && f.day === day);
 }
