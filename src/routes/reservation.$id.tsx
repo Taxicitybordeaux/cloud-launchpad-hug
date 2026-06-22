@@ -16,6 +16,7 @@ import { buildReservationMessage, whatsappLink } from "@/lib/whatsapp";
 // Push client retiré — le client est notifié visuellement sur /suivi/$id (bandeau étapes).
 import { useT, useI18n } from "@/i18n/I18nProvider";
 import { getReservationPublic, cancelReservationPublic } from "@/lib/reservation.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/reservation/$id")({
   head: () => ({
@@ -53,9 +54,26 @@ function ConfirmationPage() {
   // (push client supprimé)
   const fetchReservation = useServerFn(getReservationPublic);
   const cancelReservation = useServerFn(cancelReservationPublic);
-  // Redirection /suivi/$id supprimée.
 
-
+  // Écoute Realtime : si José marque la course comme terminée → redirect /fin/$id
+  useEffect(() => {
+    const channel = (supabase as any)
+      .channel(`reservation-complete-${id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "reservations", filter: `id=eq.${id}` },
+        (payload: any) => {
+          const newStatus = payload.new?.status;
+          if (newStatus === "completed" || newStatus === "terminee") {
+            navigate({ to: "/fin/$id", params: { id } });
+          }
+        },
+      )
+      .subscribe();
+    return () => {
+      (supabase as any).removeChannel(channel);
+    };
+  }, [id, navigate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -158,11 +176,7 @@ function ConfirmationPage() {
         <p className="mt-1 text-xs text-muted-foreground">{t("conf.ref.note")}</p>
       </div>
 
-      {!isCancelled && (
-        <div className="mt-6 rounded-2xl border border-border bg-card p-4 text-center text-sm text-muted-foreground">
-          📲 Les notifications de suivi sont activées automatiquement pour cette réservation.
-        </div>
-      )}
+      {/* suivi Realtime actif — le client sera redirigé vers /fin/$id dès que José termine la course */}
 
       <div className="mt-6 rounded-2xl border border-border bg-card p-6 space-y-4">
         <h2 className="font-display text-lg font-semibold">{t("conf.summary")}</h2>
@@ -216,7 +230,6 @@ function ConfirmationPage() {
       )}
 
       {/* Lien /suivi/$id supprimé. */}
-
 
       {!isCancelled && (
         <div className="mt-6 rounded-xl border border-border bg-card/50 p-5">
