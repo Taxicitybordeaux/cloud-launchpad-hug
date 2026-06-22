@@ -1493,39 +1493,6 @@ function ReservationPage() {
         input:focus, select:focus { border-color: #c9a84c !important; background: #fff !important; box-shadow: 0 0 0 3px rgba(201,168,76,0.12); }
       `}</style>
 
-      {/* Badge calcul (flottant) */}
-      {calcLoading && (
-        <div
-          style={{
-            position: "fixed",
-            top: 16,
-            right: 16,
-            background: "rgba(255,255,255,0.92)",
-            backdropFilter: "blur(12px)",
-            borderRadius: 99,
-            padding: "6px 14px",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            border: "1px solid rgba(201,168,76,0.3)",
-            boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
-            zIndex: 100,
-          }}
-        >
-          <div
-            style={{
-              width: 14,
-              height: 14,
-              border: "2px solid #c9a84c",
-              borderTopColor: "transparent",
-              borderRadius: "50%",
-              animation: "spin 0.8s linear infinite",
-            }}
-          />
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#c9a84c" }}>Calcul en cours…</span>
-        </div>
-      )}
-
       {/* ── Contenu principal ── */}
       <div
         dir={dir}
@@ -1613,7 +1580,7 @@ function ReservationPage() {
           {[
             { icon: "☀️", label: "Tarif jour", detail: "7h – 19h", price: "2,16 €/km" },
             { icon: "🌙", label: "Tarif nuit", detail: "19h – 7h", price: "3,24 €/km" },
-            { icon: "🚩", label: "Prise en charge", detail: "", price: "2,89 €" },
+            { icon: "🚩", label: "Prise en charge", detail: "", price: "2,83 €" },
             { icon: "ℹ️", label: "Frais de résa", detail: "selon conditions", price: "" },
           ].map((item, i, arr) => (
             <div
@@ -2078,94 +2045,6 @@ function ReservationPage() {
               </div>
             </div>
 
-            {/* ── Tarif estimé (si dispo) ── */}
-            {/* ── Tarif estimé ── */}
-            {orsResult && (
-              <div
-                style={{
-                  background: "linear-gradient(135deg, #1a1209 0%, #2d1f0a 100%)",
-                  borderRadius: 16,
-                  padding: "16px",
-                  border: "1px solid rgba(201,168,76,0.25)",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "rgba(232,201,106,0.7)",
-                    fontWeight: 600,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                    marginBottom: 10,
-                  }}
-                >
-                  Tarif estimé
-                </div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div>
-                    <div style={{ fontSize: 32, fontWeight: 700, color: "#e8c96a", fontFamily: "'Clash Display'" }}>
-                      {prixAller.toFixed(2)} €
-                    </div>
-                    <div style={{ fontSize: 12, color: "rgba(232,201,106,0.6)", marginTop: 2 }}>
-                      {orsResult.distanceKm.toFixed(1)} km · {Math.round(orsResult.dureeS / 60)} min
-                    </div>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 11, color: "rgba(232,201,106,0.55)", fontWeight: 600 }}>
-                      {tarifInfo.label}
-                    </div>
-                    <div style={{ fontSize: 10, color: "rgba(232,201,106,0.4)", marginTop: 2 }}>{tarifInfo.motif}</div>
-                  </div>
-                </div>
-                {detailCalc && detailCalc.pctJour > 0 && detailCalc.pctNuit > 0 && (
-                  <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
-                    <div
-                      style={{
-                        flex: detailCalc.pctJour,
-                        background: "rgba(201,168,76,0.2)",
-                        borderRadius: 4,
-                        height: 4,
-                      }}
-                    />
-                    <div
-                      style={{
-                        flex: detailCalc.pctNuit,
-                        background: "rgba(201,168,76,0.06)",
-                        borderRadius: 4,
-                        height: 4,
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-            {calcLoading && !orsResult && (
-              <div
-                style={{
-                  background: "#fff",
-                  borderRadius: 16,
-                  padding: "16px",
-                  border: "1px solid #ede8de",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                }}
-              >
-                <div
-                  style={{
-                    width: 18,
-                    height: 18,
-                    border: "2px solid #c9a84c",
-                    borderTopColor: "transparent",
-                    borderRadius: "50%",
-                    animation: "spin 0.8s linear infinite",
-                    flexShrink: 0,
-                  }}
-                />
-                <span style={{ fontSize: 13, color: "#7a6a50" }}>Calcul du tarif en cours…</span>
-              </div>
-            )}
-
             {/* ── Coordonnées passager ── */}
             <div
               style={{
@@ -2441,12 +2320,6 @@ function ReservationPage() {
               </svg>
               Envoyer par WhatsApp
             </a>
-
-            {!orsResult && !calcLoading && fromCoord && toCoord && (
-              <div style={{ color: "#dc2626", fontSize: 12, textAlign: "center", marginTop: -8 }}>
-                {t("res.geo.err.unavailable")}
-              </div>
-            )}
           </form>
 
           <div style={{ height: 20 }} />
