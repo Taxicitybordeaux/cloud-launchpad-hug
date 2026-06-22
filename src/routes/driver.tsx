@@ -4,7 +4,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrixMixte, estTarifJourParis } from "@/lib/tarif";
 import { loadGoogleMapsWhenVisible } from "@/lib/googleMaps";
-import { geocodeAddress } from "@/lib/googleGeocode";
+import { geocodeAddress, searchAddress } from "@/lib/googleGeocode";
+import { getDistanceAndDurationKm } from "@/lib/googleRoute";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useServerFn } from "@tanstack/react-start";
 import { listPushFailures } from "@/lib/push.functions";
@@ -13,7 +14,7 @@ import { listPushFailures } from "@/lib/push.functions";
 const DRIVER_TOKEN = "DSF234";
 
 // ── Types ─────────────────────────────────────────────────────────────────
-type Tab = "courses" | "planning" | "avis" | "clients" | "stats";
+type Tab = "courses" | "planning" | "avis" | "clients" | "stats" | "tarif";
 
 interface Resa {
   id: string;
@@ -475,7 +476,7 @@ function DriverApp() {
 
         {/* Tabs */}
         <div className="drv-tabs">
-          {(["courses", "planning", "avis", "clients", "stats"] as Tab[]).map((t) => (
+          {(["courses", "planning", "avis", "clients", "stats", "tarif"] as Tab[]).map((t) => (
             <button key={t} className={`drv-tab${tab === t ? " active" : ""}`} onClick={() => setTab(t)}>
               <div style={{ position: "relative", display: "inline-block" }}>
                 {t === "courses" && (
@@ -493,9 +494,19 @@ function DriverApp() {
                 )}
                 {t === "clients" && <IconUsers />}
                 {t === "stats" && <IconChart />}
+                {t === "tarif" && <span style={{ fontSize: 18 }}>🧮</span>}
               </div>
               <span>
-                {{ courses: "Courses", planning: "Planning", avis: "Avis", clients: "Clients", stats: "Stats" }[t]}
+                {
+                  {
+                    courses: "Courses",
+                    planning: "Planning",
+                    avis: "Avis",
+                    clients: "Clients",
+                    stats: "Stats",
+                    tarif: "Tarif",
+                  }[t]
+                }
               </span>
             </button>
           ))}
@@ -507,6 +518,7 @@ function DriverApp() {
           {tab === "avis" && <AvisTab onBadgeChange={setPendingAvis} />}
           {tab === "clients" && <ClientsTab />}
           {tab === "stats" && <StatsTab />}
+          {tab === "tarif" && <TarifTab />}
         </div>
       </div>
     </>
@@ -1931,6 +1943,333 @@ function PushDiagnostic() {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Onglet Tarif ────────────────────────────────────────────────────────────
+const PICKUP_FEE = 2.83;
+const RATE_DAY = 2.16; // 7h–19h
+const RATE_NIGHT = 3.24; // 19h–7h
+
+function parisHourT(date: Date): number {
+  const parts = new Intl.DateTimeFormat("fr-FR", {
+    timeZone: "Europe/Paris",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  return parseInt(parts.find((p) => p.type === "hour")?.value ?? "0", 10) % 24;
+}
+
+function computeMixedRateT(departure: Date, durationSec: number): number {
+  if (durationSec <= 0) {
+    const h = parisHourT(departure);
+    return h >= 7 && h < 19 ? RATE_DAY : RATE_NIGHT;
+  }
+  const start = departure.getTime();
+  const end = start + durationSec * 1000;
+  const STEP = 60_000;
+  let dayMs = 0,
+    nightMs = 0,
+    cursor = start;
+  while (cursor < end) {
+    const slice = Math.min(STEP, end - cursor);
+    const h = parisHourT(new Date(cursor));
+    if (h >= 7 && h < 19) dayMs += slice;
+    else nightMs += slice;
+    cursor += slice;
+  }
+  const total = dayMs + nightMs;
+  if (total === 0) return RATE_DAY;
+  return (dayMs / total) * RATE_DAY + (nightMs / total) * RATE_NIGHT;
+}
+
+function haversineT([lon1, lat1]: [number, number], [lon2, lat2]: [number, number]): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatEurT(v: number) {
+  return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 2 }).format(v);
+}
+
+function formatDurT(sec: number): string {
+  if (sec >= 3600) {
+    const h = Math.floor(sec / 3600);
+    const m = Math.round((sec % 3600) / 60);
+    return `${h}h${String(m).padStart(2, "0")}`;
+  }
+  return `${Math.round(sec / 60)} min`;
+}
+
+function TarifAddressField({
+  label,
+  value,
+  onChange,
+  onCoord,
+  geocoding,
+  ok,
+  failed,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  onCoord: (c: [number, number] | null) => void;
+  geocoding: boolean;
+  ok: boolean;
+  failed: boolean;
+}) {
+  const handleBlur = async () => {
+    const q = value.trim();
+    if (q.length < 3) return;
+    try {
+      const results = await searchAddress(q, 1);
+      if (results.length) {
+        onCoord([results[0].coord[1], results[0].coord[0]]);
+      } else {
+        onCoord(null);
+      }
+    } catch {
+      onCoord(null);
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <label style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8" }}>{label}</label>
+      <div style={{ position: "relative" }}>
+        <input
+          type="text"
+          value={value}
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
+          onChange={(e) => {
+            onChange(e.target.value);
+            onCoord(null);
+          }}
+          onBlur={handleBlur}
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            background: "#1e293b",
+            border: `1.5px solid ${failed ? "#f87171" : ok ? "#34d399" : "#334155"}`,
+            borderRadius: 10,
+            padding: "10px 36px 10px 12px",
+            fontSize: 13,
+            color: "#f1f5f9",
+            outline: "none",
+          }}
+        />
+        <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 14 }}>
+          {geocoding ? "⏳" : ok ? "✅" : failed ? "❌" : "📍"}
+        </span>
+      </div>
+      {failed && <span style={{ fontSize: 11, color: "#f87171" }}>Adresse non trouvée</span>}
+    </div>
+  );
+}
+
+function TarifTab() {
+  const [fromText, setFromText] = React.useState("");
+  const [toText, setToText] = React.useState("");
+  const [fromCoord, setFromCoord] = React.useState<[number, number] | null>(null);
+  const [toCoord, setToCoord] = React.useState<[number, number] | null>(null);
+  const [fromOk, setFromOk] = React.useState(false);
+  const [toOk, setToOk] = React.useState(false);
+  const [fromFailed, setFromFailed] = React.useState(false);
+  const [toFailed, setToFailed] = React.useState(false);
+  const [route, setRoute] = React.useState<{ km: number; durationSec: number } | null>(null);
+  const [loading, setLoading] = React.useState(false);
+  const [now, setNow] = React.useState(() => new Date());
+
+  React.useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Recalcul dès que les deux coords sont prêtes
+  React.useEffect(() => {
+    if (!fromCoord || !toCoord) {
+      setRoute(null);
+      return;
+    }
+    setLoading(true);
+    (async () => {
+      try {
+        const r = await getDistanceAndDurationKm([fromCoord[0], fromCoord[1]], [toCoord[0], toCoord[1]]);
+        if (r && r.distanceKm > 0) {
+          setRoute({ km: Math.round(r.distanceKm * 10) / 10, durationSec: Math.round(r.dureeS) });
+        } else {
+          throw new Error("no route");
+        }
+      } catch {
+        const km = Math.round(haversineT(fromCoord, toCoord) * 1.3 * 10) / 10;
+        setRoute({ km, durationSec: Math.round((km / 50) * 3600) });
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [fromCoord, toCoord]);
+
+  const rate = React.useMemo(
+    () =>
+      route
+        ? computeMixedRateT(now, route.durationSec)
+        : parisHourT(now) >= 7 && parisHourT(now) < 19
+          ? RATE_DAY
+          : RATE_NIGHT,
+    [route, now],
+  );
+  const isMixed = route ? Math.abs(rate - RATE_DAY) > 0.01 && Math.abs(rate - RATE_NIGHT) > 0.01 : false;
+  const isDay = parisHourT(now) >= 7 && parisHourT(now) < 19;
+  const total = route ? PICKUP_FEE + route.km * rate : null;
+
+  const handleFromCoord = (c: [number, number] | null) => {
+    setFromCoord(c);
+    setFromOk(!!c);
+    setFromFailed(!c && fromText.trim().length >= 3);
+  };
+  const handleToCoord = (c: [number, number] | null) => {
+    setToCoord(c);
+    setToOk(!!c);
+    setToFailed(!c && toText.trim().length >= 3);
+  };
+
+  const handleReset = () => {
+    setFromText("");
+    setToText("");
+    setFromCoord(null);
+    setToCoord(null);
+    setFromOk(false);
+    setToOk(false);
+    setFromFailed(false);
+    setToFailed(false);
+    setRoute(null);
+  };
+
+  const s = { card: { background: "#1e293b", borderRadius: 12, padding: "14px 16px", border: "1px solid #334155" } };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "4px 0 80px" }}>
+      {/* Titre */}
+      <div style={{ fontSize: 15, fontWeight: 800, color: "#f5c842" }}>🧮 Simulateur de tarif</div>
+
+      {/* Champs adresses */}
+      <div style={{ ...s.card, display: "flex", flexDirection: "column", gap: 12 }}>
+        <TarifAddressField
+          label="🟢 Départ"
+          value={fromText}
+          onChange={(v) => {
+            setFromText(v);
+            setFromOk(false);
+            setFromFailed(false);
+          }}
+          onCoord={handleFromCoord}
+          geocoding={false}
+          ok={fromOk}
+          failed={fromFailed}
+        />
+        <TarifAddressField
+          label="🏁 Destination"
+          value={toText}
+          onChange={(v) => {
+            setToText(v);
+            setToOk(false);
+            setToFailed(false);
+          }}
+          onCoord={handleToCoord}
+          geocoding={false}
+          ok={toOk}
+          failed={toFailed}
+        />
+        <button
+          onClick={handleReset}
+          style={{
+            alignSelf: "flex-end",
+            background: "transparent",
+            border: "1px solid #475569",
+            borderRadius: 8,
+            color: "#94a3b8",
+            fontSize: 11,
+            padding: "4px 10px",
+            cursor: "pointer",
+          }}
+        >
+          ↺ Effacer
+        </button>
+      </div>
+
+      {/* Badge période */}
+      <div style={{ ...s.card, display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#94a3b8" }}>
+        <span>{isDay ? "☀️" : "🌙"}</span>
+        <span style={{ color: "#f1f5f9", fontWeight: 600 }}>
+          {isDay ? `Tarif jour — ${formatEurT(RATE_DAY)}/km` : `Tarif nuit — ${formatEurT(RATE_NIGHT)}/km`}
+        </span>
+        {isMixed && (
+          <span
+            style={{
+              marginLeft: "auto",
+              background: "#f5c84220",
+              color: "#f5c842",
+              borderRadius: 20,
+              padding: "2px 8px",
+              fontSize: 10,
+              fontWeight: 700,
+            }}
+          >
+            MIXTE
+          </span>
+        )}
+      </div>
+
+      {/* Résultat */}
+      <div style={{ ...s.card, display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>ESTIMATION</div>
+
+        {loading ? (
+          <div style={{ color: "#94a3b8", fontSize: 13 }}>⏳ Calcul en cours…</div>
+        ) : (
+          <div style={{ fontSize: 36, fontWeight: 900, color: "#f5c842", letterSpacing: -1 }}>
+            {formatEurT(total ?? PICKUP_FEE)}
+          </div>
+        )}
+
+        {/* Détail */}
+        <div style={{ display: "grid", gap: 6, marginTop: 4 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#94a3b8" }}>
+            <span>Prise en charge</span>
+            <span style={{ color: "#f1f5f9", fontWeight: 600 }}>{formatEurT(PICKUP_FEE)}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#94a3b8" }}>
+            <span>{isMixed ? "Tarif mixte pondéré" : isDay ? "Tarif jour" : "Tarif nuit"}</span>
+            <span style={{ color: "#f1f5f9", fontWeight: 600 }}>{formatEurT(rate)}/km</span>
+          </div>
+          {route && (
+            <>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#94a3b8" }}>
+                <span>Distance</span>
+                <span style={{ color: "#f1f5f9", fontWeight: 600 }}>{route.km} km</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#94a3b8" }}>
+                <span>Durée estimée</span>
+                <span style={{ color: "#f1f5f9", fontWeight: 600 }}>{formatDurT(route.durationSec)}</span>
+              </div>
+            </>
+          )}
+        </div>
+
+        {!route && !loading && (
+          <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>
+            Saisissez départ et destination puis quittez le champ.
+          </div>
+        )}
+      </div>
     </div>
   );
 }
