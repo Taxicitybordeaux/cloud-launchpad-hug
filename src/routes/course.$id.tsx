@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { getRouteGeoCoords } from "@/lib/googleRoute";
+import { getRouteGeoCoords, getDistanceAndDurationKm } from "@/lib/googleRoute";
 import { searchAddress } from "@/lib/googleGeocode";
 const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_TILE_OPTIONS = { attribution: "© OpenStreetMap contributors", maxZoom: 19 };
