@@ -13,7 +13,7 @@ import {
   Navigation,
 } from "lucide-react";
 import { buildReservationMessage, whatsappLink } from "@/lib/whatsapp";
-// Push client retiré — le client est notifié visuellement sur /suivi/$id (bandeau étapes).
+// Push client retiré — le client est notifié visuellement sur /reservation/$id (bandeau étapes).
 import { useT, useI18n } from "@/i18n/I18nProvider";
 import { getReservationPublic, cancelReservationPublic } from "@/lib/reservation.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,25 +55,29 @@ function ConfirmationPage() {
   const fetchReservation = useServerFn(getReservationPublic);
   const cancelReservation = useServerFn(cancelReservationPublic);
 
-  // Écoute Realtime : si José marque la course comme terminée → redirect /fin/$id
+  // Écoute Realtime : si José change le statut de la course, mettre à jour la page
+  // et rediriger vers /fin/$id lorsque la course est terminée.
   useEffect(() => {
     const channel = (supabase as any)
-      .channel(`reservation-complete-${id}`)
+      .channel(`reservation-status-${id}`)
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "reservations", filter: `id=eq.${id}` },
-        (payload: any) => {
+        async (payload: any) => {
           const newStatus = payload.new?.status;
           if (newStatus === "completed" || newStatus === "terminee") {
             navigate({ to: "/fin/$id", params: { id } });
+            return;
           }
+          const updated = await fetchReservation({ data: { id } });
+          if (updated) setReservation(updated as Reservation);
         },
       )
       .subscribe();
     return () => {
       (supabase as any).removeChannel(channel);
     };
-  }, [id, navigate]);
+  }, [id, navigate, fetchReservation]);
 
   useEffect(() => {
     let cancelled = false;

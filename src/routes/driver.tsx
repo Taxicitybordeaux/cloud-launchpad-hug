@@ -810,7 +810,7 @@ function CourseCard({
     const email = resa.client_email || resa.email || "";
     const trajet = `${resa.depart} → ${resa.destination || "—"}`;
     const trackUrl =
-      resa.suivi_id && typeof window !== "undefined" ? `${window.location.origin}/suivi/${resa.suivi_id}` : "";
+      typeof window !== "undefined" ? `${window.location.origin}/reservation/${resa.id}` : "";
     const trackingLine = trackUrl ? `\nRetrouvez votre course ici : ${trackUrl}` : "";
     const msg = `Bonjour ${name}, le prix de votre course Taxi City Bordeaux (${trajet}) est de ${val.toFixed(2)} €. Merci.${trackingLine}`;
 
@@ -1055,8 +1055,8 @@ function CourseCard({
               const phone = resa.client_phone;
               const mail = resa.client_email || resa.email;
               const trackUrl =
-                resa.suivi_id && typeof window !== "undefined"
-                  ? `${window.location.origin}/suivi/${resa.suivi_id}`
+                typeof window !== "undefined"
+                  ? `${window.location.origin}/reservation/${resa.id}`
                   : "";
               const greet = `Bonjour ${resa.client_name || ""}, votre taxi Taxi City Bordeaux.`;
               const body = trackUrl ? `${greet}\nRetrouvez votre course ici : ${trackUrl}` : greet;

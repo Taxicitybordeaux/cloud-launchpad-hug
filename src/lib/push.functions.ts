@@ -249,7 +249,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
     const url = `/reservation/${r.id}`;
 
     // ⚠️ Plus de push au CLIENT — le client est notifié visuellement via le
-    // bandeau d'étapes sur la page /suivi/$id (realtime Supabase).
+    // bandeau d'étapes sur la page /reservation/$id (realtime Supabase).
     // On garde uniquement la push CHAUFFEUR à l'acceptation (rappel GPS).
     let chauffeurResult = { sent: 0, removed: 0 };
     if (data.status === "accepted") {
@@ -281,7 +281,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
 
 // ── Mise à jour du trajet (km + prix) par le chauffeur depuis la page suivi ──
 // Le chauffeur choisit dans Maps son itinéraire (option C : longueur/voie rapide
-// laissée à son jugement), revient sur /suivi/$id et saisit le nouveau km.
+// laissée à son jugement), revient sur /reservation/$id et saisit le nouveau km.
 // On recalcule le prix et on notifie le client par push.
 export const updateReservationRoute = createServerFn({ method: "POST" })
   .inputValidator((input) =>
@@ -344,7 +344,7 @@ export const updateReservationRoute = createServerFn({ method: "POST" })
     if (updErr) throw new Error(`update_failed: ${updErr.message}`);
 
     // ⚠️ Plus de push au CLIENT — la mise à jour du prix est visible en
-    // temps réel sur /suivi/$id (le client voit le nouveau montant + km).
+    // temps réel sur /reservation/$id (le client voit le nouveau montant + km).
     return {
       ok: true,
       prix_estime: newPrice,
