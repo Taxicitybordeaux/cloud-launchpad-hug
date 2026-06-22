@@ -1270,25 +1270,47 @@ function CourseCard({
                 >
                   🗺 Itinéraires
                 </a>
-                <a
-                  href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(resa.depart)}&destination=${encodeURIComponent(resa.destination)}&travelmode=driving&dir_action=navigate`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  onClick={() => {
+                    const dest = encodeURIComponent(resa.destination);
+                    const orig = encodeURIComponent(resa.depart);
+                    const ua = navigator.userAgent;
+                    const isIOS = /iPad|iPhone|iPod/.test(ua);
+                    const isAndroid = /Android/.test(ua);
+                    if (isIOS) {
+                      const gmaps = `comgooglemaps://?saddr=${orig}&daddr=${dest}&directionsmode=driving`;
+                      const apple = `maps://maps.apple.com/?saddr=${orig}&daddr=${dest}&dirflg=d`;
+                      window.location.href = gmaps;
+                      setTimeout(() => {
+                        window.location.href = apple;
+                      }, 1500);
+                    } else if (isAndroid) {
+                      window.location.href = `google.navigation:q=${dest}`;
+                    } else {
+                      // PC — lien web Google Maps avec navigation
+                      window.open(
+                        `https://www.google.com/maps/dir/?api=1&origin=${orig}&destination=${dest}&travelmode=driving&dir_action=navigate`,
+                        "_blank",
+                      );
+                    }
+                  }}
                   style={{
                     flex: 2,
                     display: "block",
                     textAlign: "center",
                     background: "#0f172a",
                     color: "#fff",
+                    border: "none",
                     borderRadius: 12,
                     padding: "12px 8px",
                     fontSize: 13,
                     fontWeight: 700,
-                    textDecoration: "none",
+                    cursor: "pointer",
+                    fontFamily: "'DM Sans', sans-serif",
                   }}
                 >
                   🚗 Démarrer GPS
-                </a>
+                </button>
               </div>
               <button
                 onClick={() => handleProgressStatus("en_route", "🚕 En route !")}
