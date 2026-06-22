@@ -1300,15 +1300,18 @@ function CourseCard({
                         const isIOS = /iPad|iPhone|iPod/.test(ua);
                         const isAndroid = /Android/.test(ua);
                         if (isIOS) {
-                          // iOS : ouvrir l'app Google Maps native ; si non installée, fallback sur Google Maps web
-                          const gmaps = `comgooglemaps://?saddr=${originParam}&daddr=${destinationParam}${waypointParam}&directionsmode=driving`;
+                          // iOS : open Google Maps app with explicit origin + waypoint + start navigation
+                          const wpParam = waypointCoord ? `+to:${waypointCoord}+to:` : "";
+                          const gmaps = `comgooglemaps://?saddr=${originParam}&daddr=${wpParam}${destinationParam}&directionsmode=driving&dir_action=navigate`;
                           window.location.href = gmaps;
+                          // fallback to web
                           setTimeout(() => {
                             window.location.href = googleMapsWeb;
                           }, 1200);
                         } else if (isAndroid) {
-                          // Android : intent vers Google Maps app avec fallback web si l'appli n'est pas installée
-                          const intent = `intent://maps.google.com/maps?origin=${originParam}&destination=${destinationParam}${waypointParam}&travelmode=driving#Intent;scheme=https;package=com.google.android.apps.maps;S.browser_fallback_url=${encodeURIComponent(googleMapsWeb)};end`;
+                          // Android : intent with saddr + daddr (including via: waypoint) and dir_action to start navigation
+                          const daddr = waypointCoord ? `via:${waypointCoord}+to:${destinationParam}` : destinationParam;
+                          const intent = `intent://maps.google.com/maps?saddr=${originParam}&daddr=${daddr}&dir_action=navigate#Intent;scheme=https;package=com.google.android.apps.maps;S.browser_fallback_url=${encodeURIComponent(googleMapsWeb)};end`;
                           window.location.href = intent;
                         } else {
                           window.open(googleMapsWeb, "_blank");
