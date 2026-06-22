@@ -648,19 +648,39 @@ function CourseCard({
           ),
         );
 
-        const tarifJour = estTarifJourParis(resa.date_heure);
         const opts: RouteOption[] = result.routes.slice(0, 3).map((route: google.maps.DirectionsRoute, i: number) => {
           const leg = route.legs[0];
           const distKm = (leg.distance?.value ?? 0) / 1000;
           const dureeMin = Math.round((leg.duration?.value ?? 0) / 60);
           const prix_estime = calculerPrixMixte(distKm, resa.date_heure);
+
+          // Tarif label : on recalcule le prorata pour savoir si c'est pur jour, pur nuit ou mixte
+          const dureeH = distKm / 40;
+          const dureeMs = Math.max(dureeH * 3_600_000, 60_000);
+          const departMs = new Date(resa.date_heure).getTime();
+          const steps = Math.max(Math.ceil(dureeMs / 60_000), 1);
+          let kmJour = 0;
+          let kmNuit = 0;
+          for (let s = 0; s < steps; s++) {
+            const t = new Date(departMs + s * (dureeMs / steps)).toISOString();
+            const slice = distKm / steps;
+            if (estTarifJourParis(t)) kmJour += slice;
+            else kmNuit += slice;
+          }
+          const tarifLabel =
+            kmNuit < 0.01
+              ? "Tarif jour"
+              : kmJour < 0.01
+                ? "Tarif nuit"
+                : `Mixte (${Math.round((kmJour / distKm) * 100)}% jour)`;
+
           return {
             index: i,
             summary: route.summary || `Itinéraire ${i + 1}`,
             distanceKm: parseFloat(distKm.toFixed(1)),
             dureeMin,
             prix_estime,
-            tarifLabel: tarifJour ? "Tarif jour" : "Tarif nuit",
+            tarifLabel,
             legs: route.legs,
             overview_polyline:
               (route.overview_polyline as unknown as { points?: string })?.points ??
