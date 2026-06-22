@@ -6,8 +6,10 @@ import { calculerPrixMixte, estTarifJourParis } from "@/lib/tarif";
 
 /** Parse une ISO sans timezone comme heure Paris (évite le décalage UTC+2 en été). */
 function parseParisMs(iso: string): number {
+  if (!iso) return Date.now();
   if (/Z|[+-]\d{2}:\d{2}$/.test(iso)) return new Date(iso).getTime();
   const provisional = new Date(iso + "Z");
+  if (isNaN(provisional.getTime())) return Date.now();
   const fmt = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/Paris",
     hour: "2-digit",
