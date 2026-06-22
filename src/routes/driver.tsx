@@ -1299,6 +1299,22 @@ function CourseCard({
                         const ua = navigator.userAgent;
                         const isIOS = /iPad|iPhone|iPod/.test(ua);
                         const isAndroid = /Android/.test(ua);
+                        // Debug: log generated URLs to help testing
+                        const debug_googleMapsWeb = googleMapsWeb;
+                        const debug_wp = waypointParam || "";
+                        const debug_origin = originParam;
+                        const debug_destination = destinationParam;
+                        // build native urls for logging
+                        const debug_ios = `comgooglemaps://?saddr=${originParam}&daddr=${destinationParam}${waypointParam}&directionsmode=driving&dir_action=navigate`;
+                        const debug_android_daddr = waypointCoord ? `via:${waypointCoord}+to:${destinationParam}` : destinationParam;
+                        const debug_android_intent = `intent://maps.google.com/maps?saddr=${originParam}&daddr=${debug_android_daddr}&dir_action=navigate#Intent;scheme=https;package=com.google.android.apps.maps;S.browser_fallback_url=${encodeURIComponent(googleMapsWeb)};end`;
+                        console.debug("[Démarrer GPS] UA:", ua);
+                        console.debug("[Démarrer GPS] origin:", debug_origin);
+                        console.debug("[Démarrer GPS] destination:", debug_destination);
+                        console.debug("[Démarrer GPS] waypoint:", debug_wp);
+                        console.debug("[Démarrer GPS] ios:", debug_ios);
+                        console.debug("[Démarrer GPS] android_intent:", debug_android_intent);
+                        console.debug("[Démarrer GPS] web:", debug_googleMapsWeb);
                         if (isIOS) {
                           // iOS : open Google Maps app with explicit origin + waypoint + start navigation
                           const wpParam = waypointCoord ? `+to:${waypointCoord}+to:` : "";
