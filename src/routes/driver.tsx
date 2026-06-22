@@ -4,8 +4,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrixMixte, estTarifJourParis } from "@/lib/tarif";
 import { loadGoogleMapsWhenVisible } from "@/lib/googleMaps";
-import { geocodeAddress, searchAddress } from "@/lib/googleGeocode";
-import { getDistanceAndDurationKm } from "@/lib/googleRoute";
+import { geocodeAddress } from "@/lib/googleGeocode";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useServerFn } from "@tanstack/react-start";
 import { listPushFailures } from "@/lib/push.functions";
@@ -14,7 +13,7 @@ import { listPushFailures } from "@/lib/push.functions";
 const DRIVER_TOKEN = "DSF234";
 
 // ── Types ─────────────────────────────────────────────────────────────────
-type Tab = "courses" | "planning" | "avis" | "clients" | "stats" | "tarif";
+type Tab = "courses" | "planning" | "avis" | "clients" | "stats";
 
 interface Resa {
   id: string;
@@ -476,7 +475,7 @@ function DriverApp() {
 
         {/* Tabs */}
         <div className="drv-tabs">
-          {(["courses", "planning", "avis", "clients", "stats", "tarif"] as Tab[]).map((t) => (
+          {(["courses", "planning", "avis", "clients", "stats"] as Tab[]).map((t) => (
             <button key={t} className={`drv-tab${tab === t ? " active" : ""}`} onClick={() => setTab(t)}>
               <div style={{ position: "relative", display: "inline-block" }}>
                 {t === "courses" && (
@@ -494,19 +493,9 @@ function DriverApp() {
                 )}
                 {t === "clients" && <IconUsers />}
                 {t === "stats" && <IconChart />}
-                {t === "tarif" && <span style={{ fontSize: 18 }}>🧮</span>}
               </div>
               <span>
-                {
-                  {
-                    courses: "Courses",
-                    planning: "Planning",
-                    avis: "Avis",
-                    clients: "Clients",
-                    stats: "Stats",
-                    tarif: "Tarif",
-                  }[t]
-                }
+                {{ courses: "Courses", planning: "Planning", avis: "Avis", clients: "Clients", stats: "Stats" }[t]}
               </span>
             </button>
           ))}
@@ -518,7 +507,6 @@ function DriverApp() {
           {tab === "avis" && <AvisTab onBadgeChange={setPendingAvis} />}
           {tab === "clients" && <ClientsTab />}
           {tab === "stats" && <StatsTab />}
-          {tab === "tarif" && <TarifTab />}
         </div>
       </div>
     </>
@@ -632,12 +620,6 @@ function CourseCard({
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInst = useRef<any>(null);
   const rendererRef = useRef<any>(null);
-  // Horaire simulateur — initialisé depuis la réservation, modifiable
-  const [simHeure, setSimHeure] = useState<string>(() => {
-    if (!resa.date_heure) return "";
-    // datetime-local attend "YYYY-MM-DDTHH:mm"
-    return resa.date_heure.slice(0, 16);
-  });
 
   // Charger les itinéraires quand on ouvre la carte
   useEffect(() => {
@@ -666,13 +648,12 @@ function CourseCard({
           ),
         );
 
-        const heureRef = simHeure || resa.date_heure;
-        const tarifJour = estTarifJourParis(heureRef);
+        const tarifJour = estTarifJourParis(resa.date_heure);
         const opts: RouteOption[] = result.routes.slice(0, 3).map((route: google.maps.DirectionsRoute, i: number) => {
           const leg = route.legs[0];
           const distKm = (leg.distance?.value ?? 0) / 1000;
           const dureeMin = Math.round((leg.duration?.value ?? 0) / 60);
-          const prix_estime = calculerPrixMixte(distKm, heureRef);
+          const prix_estime = calculerPrixMixte(distKm, resa.date_heure);
           return {
             index: i,
             summary: route.summary || `Itinéraire ${i + 1}`,
@@ -696,18 +677,6 @@ function CourseCard({
       }
     })();
   }, [expanded, resa]);
-
-  // Recalculer les prix si l'horaire simulateur change
-  useEffect(() => {
-    if (!routes.length || !simHeure) return;
-    const tarifJour = estTarifJourParis(simHeure);
-    setRoutes((prev) =>
-      prev.map((r) => {
-        const prix_estime = calculerPrixMixte(r.distanceKm, simHeure);
-        return { ...r, prix_estime, tarifLabel: tarifJour ? "Tarif jour" : "Tarif nuit" };
-      }),
-    );
-  }, [simHeure]);
 
   // Afficher la route sélectionnée sur la carte
   useEffect(() => {
@@ -921,6 +890,39 @@ function CourseCard({
     }
   };
 
+  // ── Terminer la course ──
+  const [completing, setCompleting] = useState(false);
+  const handleComplete = async () => {
+    if (!confirm("Marquer cette course comme terminée ?")) return;
+    setCompleting(true);
+    try {
+      const { error } = await (supabase as any).from("reservations").update({ status: "completed" }).eq("id", resa.id);
+      if (error) throw error;
+      toast.success("🏁 Course terminée");
+      onRefresh();
+    } catch (e: any) {
+      toast.error("Erreur : " + (e.message ?? e));
+    } finally {
+      setCompleting(false);
+    }
+  };
+
+  // ── Progression de statut ──
+  const [progressing, setProgressing] = useState(false);
+  const handleProgressStatus = async (nextStatus: string, label: string) => {
+    setProgressing(true);
+    try {
+      const { error } = await (supabase as any).from("reservations").update({ status: nextStatus }).eq("id", resa.id);
+      if (error) throw error;
+      toast.success(label);
+      onRefresh();
+    } catch (e: any) {
+      toast.error("Erreur : " + (e.message ?? e));
+    } finally {
+      setProgressing(false);
+    }
+  };
+
   // ── Supprimer la course ──
   const [deleting, setDeleting] = useState(false);
   const handleDeleteResa = async () => {
@@ -974,173 +976,30 @@ function CourseCard({
             </div>
           )}
 
-          {routes.length > 0 &&
-            (() => {
-              const chosen = routes[selectedRoute];
-              const phone = (resa.client_phone || "").replace(/\s/g, "");
-              const email = resa.client_email || resa.email || "";
-              const name = resa.client_name || "Client";
-              const trajet = `${resa.depart} → ${resa.destination || "—"}`;
-              const trackUrl =
-                resa.suivi_id && typeof window !== "undefined"
-                  ? `${window.location.origin}/suivi/${resa.suivi_id}`
-                  : "";
-              const prixMsg = chosen
-                ? `Bonjour ${name}, le prix de votre course Taxi City Bordeaux (${trajet}) est de ${chosen.prix_estime.toFixed(2)} €.${
-                    trackUrl
-                      ? `
-Suivre votre course : ${trackUrl}`
-                      : ""
-                  }`
-                : "";
-              const btnStyle = (bg: string, border: string, color: string): React.CSSProperties => ({
-                flex: "1 1 auto",
-                minWidth: 70,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 5,
-                padding: "9px 6px",
-                borderRadius: 10,
-                border: `1px solid ${border}`,
-                background: bg,
-                color,
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: "pointer",
-                textDecoration: "none",
-              });
-              return (
-                <>
-                  {/* Champ horaire simulateur */}
-                  <div style={{ marginBottom: 10 }}>
-                    <label
-                      style={{ fontSize: 11, fontWeight: 700, color: "#64748b", display: "block", marginBottom: 4 }}
-                    >
-                      🕐 Horaire de la course (modifiable pour simuler le tarif)
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={simHeure}
-                      onChange={(e) => setSimHeure(e.target.value)}
-                      style={{
-                        width: "100%",
-                        boxSizing: "border-box",
-                        padding: "9px 12px",
-                        borderRadius: 10,
-                        border: "1px solid #e2e8f0",
-                        fontSize: 13,
-                        fontFamily: "'DM Sans', sans-serif",
-                        background: "#f8fafc",
-                      }}
-                    />
+          {routes.length > 0 && (
+            <>
+              <p className="drv-section">Choisir un itinéraire</p>
+              {routes.map((r, i) => (
+                <div
+                  key={i}
+                  className={`drv-route-opt${selectedRoute === i ? " selected" : ""}`}
+                  onClick={() => setSelectedRoute(i)}
+                >
+                  <div className="drv-route-opt-head">
+                    <span className="drv-route-label">
+                      {i === 0 ? "🏆 Recommandé" : i === 1 ? "🔀 Alternatif" : "⏱ Rapide"} — {r.summary}
+                    </span>
+                    <span className="drv-route-price">{r.prix_estime.toFixed(2)} €</span>
                   </div>
-
-                  {/* Itinéraires */}
-                  <p className="drv-section">Choisir un itinéraire</p>
-                  {routes.map((r, i) => (
-                    <div
-                      key={i}
-                      className={`drv-route-opt${selectedRoute === i ? " selected" : ""}`}
-                      onClick={() => setSelectedRoute(i)}
-                    >
-                      <div className="drv-route-opt-head">
-                        <span className="drv-route-label">
-                          {i === 0 ? "🏆 Recommandé" : i === 1 ? "🔀 Alternatif" : "⏱ Rapide"} — {r.summary}
-                        </span>
-                        <span className="drv-route-price">{r.prix_estime.toFixed(2)} €</span>
-                      </div>
-                      <div className="drv-route-meta">
-                        <span>🛣 {r.distanceKm} km</span>
-                        <span>⏱ {r.dureeMin} min</span>
-                        <span style={{ color: r.tarifLabel === "Tarif jour" ? "#15803d" : "#1d4ed8" }}>
-                          {r.tarifLabel}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Simulateur — récap + envoi prix */}
-                  {chosen && (
-                    <div
-                      style={{
-                        marginTop: 10,
-                        padding: "14px 16px",
-                        borderRadius: 14,
-                        background: "linear-gradient(135deg,#f0fdf4,#fffbeb)",
-                        border: "1.5px solid #bbf7d0",
-                      }}
-                    >
-                      {/* Prix estimé mis en avant */}
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          marginBottom: 10,
-                        }}
-                      >
-                        <div>
-                          <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>PRIX ESTIMÉ</div>
-                          <div style={{ fontSize: 30, fontWeight: 900, color: "#15803d", letterSpacing: -1 }}>
-                            {chosen.prix_estime.toFixed(2)} €
-                          </div>
-                          <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
-                            {chosen.distanceKm} km · {chosen.dureeMin} min ·{" "}
-                            <span
-                              style={{
-                                color: chosen.tarifLabel === "Tarif jour" ? "#ca8a04" : "#4f46e5",
-                                fontWeight: 700,
-                              }}
-                            >
-                              {chosen.tarifLabel === "Tarif jour" ? "☀️ Jour" : "🌙 Nuit"}
-                            </span>
-                          </div>
-                        </div>
-                        <div style={{ fontSize: 32 }}>🧮</div>
-                      </div>
-
-                      {/* Boutons envoi direct */}
-                      <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 6 }}>
-                        ENVOYER CE PRIX AU CLIENT
-                      </div>
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                        {phone ? (
-                          <>
-                            <a
-                              href={`sms:${phone}?body=${encodeURIComponent(prixMsg)}`}
-                              style={btnStyle("#faf5ff", "#e9d5ff", "#7e22ce")}
-                            >
-                              💬 SMS
-                            </a>
-                            <a
-                              href={`https://wa.me/${phone.replace(/^0/, "33")}?text=${encodeURIComponent(prixMsg)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={btnStyle("#f0fdf4", "#bbf7d0", "#15803d")}
-                            >
-                              🟢 WhatsApp
-                            </a>
-                          </>
-                        ) : (
-                          <span style={{ fontSize: 11, color: "#94a3b8" }}>Pas de téléphone</span>
-                        )}
-                        {email ? (
-                          <a
-                            href={`mailto:${email}?subject=${encodeURIComponent("Prix de votre course — Taxi City Bordeaux")}&body=${encodeURIComponent(prixMsg)}`}
-                            style={btnStyle("#fffbeb", "#fde68a", "#92400e")}
-                          >
-                            ✉️ Email
-                          </a>
-                        ) : (
-                          <span style={{ fontSize: 11, color: "#94a3b8" }}>Pas d'email</span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </>
-              );
-            })()}
+                  <div className="drv-route-meta">
+                    <span>🛣 {r.distanceKm} km</span>
+                    <span>⏱ {r.dureeMin} min</span>
+                    <span style={{ color: r.tarifLabel === "Tarif jour" ? "#15803d" : "#1d4ed8" }}>{r.tarifLabel}</span>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
 
           {/* Contact — tel / SMS / WhatsApp / Email, identique à l'admin */}
           {(resa.status === "accepted" || resa.status === "en_route" || resa.status === "arrived") &&
@@ -1379,23 +1238,85 @@ Suivre votre course : ${trackUrl}`
             </div>
           )}
           {resa.status === "accepted" && (
-            <a
-              href={`/course/${resa.id}?gps=1`}
+            <>
+              <a
+                href={`/course/${resa.id}?gps=1`}
+                style={{
+                  display: "block",
+                  textAlign: "center",
+                  background: "#0f172a",
+                  color: "#fff",
+                  borderRadius: 12,
+                  padding: "12px",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  textDecoration: "none",
+                  marginBottom: 10,
+                }}
+              >
+                🚗 Démarrer la course
+              </a>
+              <button
+                onClick={() => handleProgressStatus("en_route", "🚕 En route !")}
+                disabled={progressing}
+                style={{
+                  width: "100%",
+                  background: "#fffbeb",
+                  border: "1px solid #fde68a",
+                  color: "#92400e",
+                  borderRadius: 12,
+                  padding: "11px",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  marginBottom: 10,
+                }}
+              >
+                {progressing ? "…" : "🚕 Passer en route"}
+              </button>
+            </>
+          )}
+
+          {resa.status === "en_route" && (
+            <button
+              onClick={() => handleProgressStatus("arrived", "📍 Arrivé !")}
+              disabled={progressing}
               style={{
-                display: "block",
-                textAlign: "center",
-                background: "#0f172a",
-                color: "#fff",
+                width: "100%",
+                background: "#eff6ff",
+                border: "1px solid #bfdbfe",
+                color: "#1e40af",
                 borderRadius: 12,
-                padding: "12px",
-                fontSize: 14,
+                padding: "11px",
+                fontSize: 13,
                 fontWeight: 700,
-                textDecoration: "none",
+                cursor: "pointer",
                 marginBottom: 10,
               }}
             >
-              🚗 Démarrer la course
-            </a>
+              {progressing ? "…" : "📍 Marquer arrivé"}
+            </button>
+          )}
+
+          {(resa.status === "en_route" || resa.status === "arrived") && (
+            <button
+              onClick={handleComplete}
+              disabled={completing}
+              style={{
+                width: "100%",
+                background: "#f0fdf4",
+                border: "2px solid #16a34a",
+                color: "#15803d",
+                borderRadius: 12,
+                padding: "12px",
+                fontSize: 14,
+                fontWeight: 800,
+                cursor: "pointer",
+                marginBottom: 10,
+              }}
+            >
+              {completing ? "…" : "🏁 Course terminée"}
+            </button>
           )}
 
           {/* Supprimer définitivement */}
@@ -2105,395 +2026,6 @@ function PushDiagnostic() {
           </button>
         </div>
       )}
-    </div>
-  );
-}
-
-// ── Onglet Tarif ────────────────────────────────────────────────────────────
-const PICKUP_FEE = 2.83;
-const RATE_DAY = 2.16; // 7h–19h
-const RATE_NIGHT = 3.24; // 19h–7h
-
-function parisHourT(date: Date): number {
-  const parts = new Intl.DateTimeFormat("fr-FR", {
-    timeZone: "Europe/Paris",
-    hour: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(date);
-  return parseInt(parts.find((p) => p.type === "hour")?.value ?? "0", 10) % 24;
-}
-
-function computeMixedRateT(departure: Date, durationSec: number): number {
-  if (durationSec <= 0) {
-    const h = parisHourT(departure);
-    return h >= 7 && h < 19 ? RATE_DAY : RATE_NIGHT;
-  }
-  const start = departure.getTime();
-  const end = start + durationSec * 1000;
-  const STEP = 60_000;
-  let dayMs = 0,
-    nightMs = 0,
-    cursor = start;
-  while (cursor < end) {
-    const slice = Math.min(STEP, end - cursor);
-    const h = parisHourT(new Date(cursor));
-    if (h >= 7 && h < 19) dayMs += slice;
-    else nightMs += slice;
-    cursor += slice;
-  }
-  const total = dayMs + nightMs;
-  if (total === 0) return RATE_DAY;
-  return (dayMs / total) * RATE_DAY + (nightMs / total) * RATE_NIGHT;
-}
-
-function haversineT([lon1, lat1]: [number, number], [lon2, lat2]: [number, number]): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function formatEurT(v: number) {
-  return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 2 }).format(v);
-}
-
-function formatDurT(sec: number): string {
-  if (sec >= 3600) {
-    const h = Math.floor(sec / 3600);
-    const m = Math.round((sec % 3600) / 60);
-    return `${h}h${String(m).padStart(2, "0")}`;
-  }
-  return `${Math.round(sec / 60)} min`;
-}
-
-function TarifAddressField({
-  label,
-  value,
-  onChange,
-  onCoord,
-  ok,
-  failed,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  onCoord: (c: [number, number] | null) => void;
-  ok: boolean;
-  failed: boolean;
-}) {
-  const [listening, setListening] = React.useState(false);
-  const [geocoding, setGeocoding] = React.useState(false);
-  const recogRef = React.useRef<any>(null);
-
-  const geocode = async (q: string) => {
-    if (q.trim().length < 3) return;
-    setGeocoding(true);
-    try {
-      const results = await searchAddress(q.trim(), 1);
-      if (results.length) {
-        onCoord([results[0].coord[1], results[0].coord[0]]);
-      } else {
-        onCoord(null);
-      }
-    } catch {
-      onCoord(null);
-    } finally {
-      setGeocoding(false);
-    }
-  };
-
-  const handleBlur = () => geocode(value);
-
-  const handleVoice = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("Dictée vocale non supportée sur ce navigateur.");
-      return;
-    }
-    if (listening) {
-      recogRef.current?.stop();
-      setListening(false);
-      return;
-    }
-    const recog = new SpeechRecognition();
-    recogRef.current = recog;
-    recog.lang = "fr-FR";
-    recog.interimResults = false;
-    recog.maxAlternatives = 1;
-    recog.onstart = () => setListening(true);
-    recog.onresult = (e: any) => {
-      const transcript = e.results[0][0].transcript;
-      onChange(transcript);
-      onCoord(null);
-      // Géocode automatiquement après la dictée
-      geocode(transcript);
-    };
-    recog.onerror = () => setListening(false);
-    recog.onend = () => setListening(false);
-    recog.start();
-  };
-
-  const borderColor = failed ? "#f87171" : ok ? "#34d399" : listening ? "#f5c842" : "#334155";
-  const statusIcon = geocoding ? "⏳" : ok ? "✅" : failed ? "❌" : "📍";
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <label style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8" }}>{label}</label>
-      <div style={{ position: "relative", display: "flex", gap: 6 }}>
-        <div style={{ position: "relative", flex: 1 }}>
-          <input
-            type="text"
-            value={value}
-            autoComplete="off"
-            autoCorrect="off"
-            spellCheck={false}
-            onChange={(e) => {
-              onChange(e.target.value);
-              onCoord(null);
-            }}
-            onBlur={handleBlur}
-            style={{
-              width: "100%",
-              boxSizing: "border-box",
-              background: "#1e293b",
-              border: `1.5px solid ${borderColor}`,
-              borderRadius: 10,
-              padding: "10px 36px 10px 12px",
-              fontSize: 13,
-              color: "#f1f5f9",
-              outline: "none",
-            }}
-          />
-          <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 14 }}>
-            {statusIcon}
-          </span>
-        </div>
-        {/* Bouton micro */}
-        <button
-          type="button"
-          onClick={handleVoice}
-          title={listening ? "Arrêter la dictée" : "Dicter l'adresse"}
-          style={{
-            flexShrink: 0,
-            width: 40,
-            height: 40,
-            borderRadius: 10,
-            border: `1.5px solid ${listening ? "#f5c842" : "#334155"}`,
-            background: listening ? "#f5c84225" : "#1e293b",
-            color: listening ? "#f5c842" : "#94a3b8",
-            fontSize: 18,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            animation: listening ? "pulse 1s ease-in-out infinite" : "none",
-          }}
-        >
-          🎙️
-        </button>
-      </div>
-      {listening && <span style={{ fontSize: 11, color: "#f5c842", fontWeight: 600 }}>🎙️ Parlez maintenant…</span>}
-      {failed && <span style={{ fontSize: 11, color: "#f87171" }}>Adresse non trouvée</span>}
-    </div>
-  );
-}
-
-function TarifTab() {
-  const [fromText, setFromText] = React.useState("");
-  const [toText, setToText] = React.useState("");
-  const [fromCoord, setFromCoord] = React.useState<[number, number] | null>(null);
-  const [toCoord, setToCoord] = React.useState<[number, number] | null>(null);
-  const [fromOk, setFromOk] = React.useState(false);
-  const [toOk, setToOk] = React.useState(false);
-  const [fromFailed, setFromFailed] = React.useState(false);
-  const [toFailed, setToFailed] = React.useState(false);
-  const [route, setRoute] = React.useState<{ km: number; durationSec: number } | null>(null);
-  const [loading, setLoading] = React.useState(false);
-  const [now, setNow] = React.useState(() => new Date());
-
-  React.useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 60_000);
-    return () => clearInterval(id);
-  }, []);
-
-  // Recalcul dès que les deux coords sont prêtes
-  React.useEffect(() => {
-    if (!fromCoord || !toCoord) {
-      setRoute(null);
-      return;
-    }
-    setLoading(true);
-    (async () => {
-      try {
-        const r = await getDistanceAndDurationKm([fromCoord[0], fromCoord[1]], [toCoord[0], toCoord[1]]);
-        if (r && r.distanceKm > 0) {
-          setRoute({ km: Math.round(r.distanceKm * 10) / 10, durationSec: Math.round(r.dureeS) });
-        } else {
-          throw new Error("no route");
-        }
-      } catch {
-        const km = Math.round(haversineT(fromCoord, toCoord) * 1.3 * 10) / 10;
-        setRoute({ km, durationSec: Math.round((km / 50) * 3600) });
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [fromCoord, toCoord]);
-
-  const rate = React.useMemo(
-    () =>
-      route
-        ? computeMixedRateT(now, route.durationSec)
-        : parisHourT(now) >= 7 && parisHourT(now) < 19
-          ? RATE_DAY
-          : RATE_NIGHT,
-    [route, now],
-  );
-  const isMixed = route ? Math.abs(rate - RATE_DAY) > 0.01 && Math.abs(rate - RATE_NIGHT) > 0.01 : false;
-  const isDay = parisHourT(now) >= 7 && parisHourT(now) < 19;
-  const total = route ? PICKUP_FEE + route.km * rate : null;
-
-  const handleFromCoord = (c: [number, number] | null) => {
-    setFromCoord(c);
-    setFromOk(!!c);
-    setFromFailed(!c && fromText.trim().length >= 3);
-  };
-  const handleToCoord = (c: [number, number] | null) => {
-    setToCoord(c);
-    setToOk(!!c);
-    setToFailed(!c && toText.trim().length >= 3);
-  };
-
-  const handleReset = () => {
-    setFromText("");
-    setToText("");
-    setFromCoord(null);
-    setToCoord(null);
-    setFromOk(false);
-    setToOk(false);
-    setFromFailed(false);
-    setToFailed(false);
-    setRoute(null);
-  };
-
-  const s = { card: { background: "#1e293b", borderRadius: 12, padding: "14px 16px", border: "1px solid #334155" } };
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "4px 0 80px" }}>
-      {/* Titre */}
-      <div style={{ fontSize: 15, fontWeight: 800, color: "#f5c842" }}>🧮 Simulateur de tarif</div>
-
-      {/* Champs adresses */}
-      <div style={{ ...s.card, display: "flex", flexDirection: "column", gap: 12 }}>
-        <TarifAddressField
-          label="🟢 Départ"
-          value={fromText}
-          onChange={(v) => {
-            setFromText(v);
-            setFromOk(false);
-            setFromFailed(false);
-          }}
-          onCoord={handleFromCoord}
-          ok={fromOk}
-          failed={fromFailed}
-        />
-        <TarifAddressField
-          label="🏁 Destination"
-          value={toText}
-          onChange={(v) => {
-            setToText(v);
-            setToOk(false);
-            setToFailed(false);
-          }}
-          onCoord={handleToCoord}
-          ok={toOk}
-          failed={toFailed}
-        />
-        <button
-          onClick={handleReset}
-          style={{
-            alignSelf: "flex-end",
-            background: "transparent",
-            border: "1px solid #475569",
-            borderRadius: 8,
-            color: "#94a3b8",
-            fontSize: 11,
-            padding: "4px 10px",
-            cursor: "pointer",
-          }}
-        >
-          ↺ Effacer
-        </button>
-      </div>
-
-      {/* Badge période */}
-      <div style={{ ...s.card, display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#94a3b8" }}>
-        <span>{isDay ? "☀️" : "🌙"}</span>
-        <span style={{ color: "#f1f5f9", fontWeight: 600 }}>
-          {isDay ? `Tarif jour — ${formatEurT(RATE_DAY)}/km` : `Tarif nuit — ${formatEurT(RATE_NIGHT)}/km`}
-        </span>
-        {isMixed && (
-          <span
-            style={{
-              marginLeft: "auto",
-              background: "#f5c84220",
-              color: "#f5c842",
-              borderRadius: 20,
-              padding: "2px 8px",
-              fontSize: 10,
-              fontWeight: 700,
-            }}
-          >
-            MIXTE
-          </span>
-        )}
-      </div>
-
-      {/* Résultat */}
-      <div style={{ ...s.card, display: "flex", flexDirection: "column", gap: 10 }}>
-        <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>ESTIMATION</div>
-
-        {loading ? (
-          <div style={{ color: "#94a3b8", fontSize: 13 }}>⏳ Calcul en cours…</div>
-        ) : (
-          <div style={{ fontSize: 36, fontWeight: 900, color: "#f5c842", letterSpacing: -1 }}>
-            {formatEurT(total ?? PICKUP_FEE)}
-          </div>
-        )}
-
-        {/* Détail */}
-        <div style={{ display: "grid", gap: 6, marginTop: 4 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#94a3b8" }}>
-            <span>Prise en charge</span>
-            <span style={{ color: "#f1f5f9", fontWeight: 600 }}>{formatEurT(PICKUP_FEE)}</span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#94a3b8" }}>
-            <span>{isMixed ? "Tarif mixte pondéré" : isDay ? "Tarif jour" : "Tarif nuit"}</span>
-            <span style={{ color: "#f1f5f9", fontWeight: 600 }}>{formatEurT(rate)}/km</span>
-          </div>
-          {route && (
-            <>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#94a3b8" }}>
-                <span>Distance</span>
-                <span style={{ color: "#f1f5f9", fontWeight: 600 }}>{route.km} km</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#94a3b8" }}>
-                <span>Durée estimée</span>
-                <span style={{ color: "#f1f5f9", fontWeight: 600 }}>{formatDurT(route.durationSec)}</span>
-              </div>
-            </>
-          )}
-        </div>
-
-        {!route && !loading && (
-          <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>
-            Saisissez départ et destination puis quittez le champ.
-          </div>
-        )}
-      </div>
     </div>
   );
 }
