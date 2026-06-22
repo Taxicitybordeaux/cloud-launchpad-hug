@@ -845,7 +845,7 @@ function ReservationPage() {
       heure: "",
       passagers: 1,
       bagages: 0,
-      paiement: "especes",
+      paiement: "cb",
       prenom: "",
       nom: "",
       phone: "",
@@ -1673,12 +1673,12 @@ function ReservationPage() {
             {/* ── Coordonnées ── */}
             <div>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>
-                {t("res.loc.contact_section")}
+                👤 {t("res.loc.contact_section")}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 {[
-                  { k: "prenom" as const, label: t("res.loc.firstname"), ph: "Jean" },
-                  { k: "nom" as const, label: t("res.loc.lastname"), ph: "Dupont" },
+                  { k: "prenom" as const, label: "👤 " + t("res.loc.firstname"), ph: "Jean" },
+                  { k: "nom" as const, label: "👤 " + t("res.loc.lastname"), ph: "Dupont" },
                 ].map(({ k, label, ph }) => (
                   <div key={k}>
                     <label
@@ -1712,13 +1712,13 @@ function ReservationPage() {
                 {[
                   {
                     k: "phone" as const,
-                    label: t("res.loc.phone"),
+                    label: "📞 " + t("res.loc.phone"),
                     ph: "06 12 34 56 78",
                     type: "tel",
                   },
                   {
                     k: "email" as const,
-                    label: t("res.loc.email"),
+                    label: "✉️ " + t("res.loc.email"),
                     ph: "jean@exemple.fr",
                     type: "email",
                   },
@@ -1810,7 +1810,7 @@ function ReservationPage() {
                     marginBottom: 6,
                   }}
                 >
-                  {t("res.loc.from")}
+                  {t("res.loc.from")} 📍
                 </label>
                 <div style={{ position: "relative" }}>
                   <input
@@ -2019,7 +2019,7 @@ function ReservationPage() {
                       flex: 1,
                     }}
                   >
-                    {t("res.loc.to")}
+                    {t("res.loc.to")} 🏁
                   </label>
                 </div>
                 <input
@@ -2096,7 +2096,7 @@ function ReservationPage() {
                       marginBottom: 6,
                     }}
                   >
-                    {t("res.loc.date_label")}
+                    📅 {t("res.loc.date_label")}
                   </label>
                   <input
                     type="date"
@@ -2117,7 +2117,7 @@ function ReservationPage() {
                       marginBottom: 6,
                     }}
                   >
-                    {t("res.loc.time_label")}
+                    🕐 {t("res.loc.time_label")}
                   </label>
                   <input
                     type="time"
@@ -2146,7 +2146,7 @@ function ReservationPage() {
                       marginBottom: 6,
                     }}
                   >
-                    {t("res.f.passengers")}
+                    {["", "👤", "👥", "👥👤", "👥👥", "👥👥👤", "👥👥👥"][f.passagers] ?? "👤"} {t("res.f.passengers")}
                   </label>
                   <select
                     value={f.passagers}
@@ -2170,7 +2170,7 @@ function ReservationPage() {
                       marginBottom: 6,
                     }}
                   >
-                    {t("res.f.luggage")}
+                    🧳 {t("res.f.luggage")}
                   </label>
                   <select
                     value={f.bagages}
@@ -2198,11 +2198,11 @@ function ReservationPage() {
                   marginBottom: 6,
                 }}
               >
-                {t("res.loc.payment_section")}
+                💳 {t("res.loc.payment_section")}
               </label>
               <select value={f.paiement} onChange={(e) => set("paiement", e.target.value)} style={inputStyle()}>
-                <option value="especes">{t("res.loc.cash")}</option>
                 <option value="cb">{t("res.loc.card")}</option>
+                <option value="especes">{t("res.loc.cash")}</option>
               </select>
             </div>
 
