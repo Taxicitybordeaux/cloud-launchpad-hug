@@ -3,29 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrixMixte, estTarifJourParis } from "@/lib/tarif";
-
-/** Parse une ISO sans timezone comme heure Paris (évite le décalage UTC+2 en été). */
-function parseParisMs(iso: string): number {
-  if (!iso) return Date.now();
-  if (/Z|[+-]\d{2}:\d{2}$/.test(iso)) return new Date(iso).getTime();
-  const provisional = new Date(iso + "Z");
-  if (isNaN(provisional.getTime())) return Date.now();
-  const fmt = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/Paris",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(provisional);
-  const parisH = parseInt(fmt.find((p) => p.type === "hour")!.value, 10) % 24;
-  const parisM = parseInt(fmt.find((p) => p.type === "minute")!.value, 10);
-  const [, h, m] = iso.match(/T(\d{2}):(\d{2})/) ?? ["", "0", "0"];
-  const diffMs = (parseInt(h, 10) * 60 + parseInt(m, 10) - (parisH * 60 + parisM)) * 60_000;
-  return provisional.getTime() - diffMs;
-}
-/** Retourne le datetime fiable d'une resa : pickup_datetime en priorité, sinon date_heure. */
-function resaDatetime(resa: { date_heure: string; pickup_datetime?: string | null }): string {
-  return resa.pickup_datetime || resa.date_heure || "";
-}
+import { loadGoogleMapsWhenVisible } from "@/lib/googleMaps";
 import { geocodeAddress } from "@/lib/googleGeocode";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useServerFn } from "@tanstack/react-start";
@@ -42,7 +20,6 @@ interface Resa {
   depart: string;
   destination: string;
   date_heure: string;
-  pickup_datetime?: string | null;
   status: string;
   prix_estime?: number | null;
   distance_km?: number | null;
@@ -546,7 +523,7 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
     const { data } = await (supabase as any)
       .from("reservations")
       .select(
-        "id,depart,destination,date_heure,pickup_datetime,status,prix_estime,distance_km,client_name,client_phone,client_email,suivi_id",
+        "id,depart,destination,date_heure,status,prix_estime,distance_km,client_name,client_phone,client_email,suivi_id",
       )
       .in("status", ["pending", "accepted"])
       .order("date_heure", { ascending: true });
@@ -675,12 +652,12 @@ function CourseCard({
           const leg = route.legs[0];
           const distKm = (leg.distance?.value ?? 0) / 1000;
           const dureeMin = Math.round((leg.duration?.value ?? 0) / 60);
-          const prix_estime = calculerPrixMixte(distKm, resaDatetime(resa));
+          const prix_estime = calculerPrixMixte(distKm, resa.date_heure);
 
           // Tarif label : on recalcule le prorata pour savoir si c'est pur jour, pur nuit ou mixte
-          const dureeH = distKm / 40;
-          const dureeMs = Math.max(dureeH * 3_600_000, 60_000);
-          const departMs = parseParisMs(resaDatetime(resa));
+          // Utiliser la vraie durée de Google Maps au lieu d'une estimation 40km/h
+          const dureeMs = Math.max(dureeMin * 60_000, 60_000);
+          const departMs = new Date(resa.date_heure).getTime();
           const steps = Math.max(Math.ceil(dureeMs / 60_000), 1);
           let kmJour = 0;
           let kmNuit = 0;
@@ -692,10 +669,10 @@ function CourseCard({
           }
           const tarifLabel =
             kmNuit < 0.01
-              ? "Tarif jour"
+              ? "Tarif jour ☀️"
               : kmJour < 0.01
-                ? "Tarif nuit"
-                : `Mixte (${Math.round((kmJour / distKm) * 100)}% jour)`;
+                ? "Tarif nuit 🌙"
+                : `Mixte (${Math.round((kmJour / distKm) * 100)}% jour) 🌓`;
 
           return {
             index: i,
@@ -996,13 +973,20 @@ function CourseCard({
         <span>🏁 {resa.destination}</span>
       </div>
 
-      {/* Résumé km/prix si déjà calculé */}
-      {(resa.distance_km || resa.prix_estime) && (
-        <div className="drv-meta">
-          {resa.distance_km && <span>🛣 {resa.distance_km} km</span>}
-          {resa.prix_estime && <span>💶 {resa.prix_estime.toFixed(2)} €</span>}
-        </div>
-      )}
+      {/* Résumé km/prix : live si routes calculées, sinon DB */}
+      {(() => {
+        const liveRoute = routes.length > 0 ? routes[selectedRoute] : null;
+        const km = liveRoute ? liveRoute.distanceKm : resa.distance_km;
+        const prix = liveRoute ? liveRoute.prix_estime : resa.prix_estime;
+        const tarifLabel = liveRoute ? liveRoute.tarifLabel : null;
+        return km || prix ? (
+          <div className="drv-meta">
+            {km && <span>🛣 {km} km</span>}
+            {prix && <span>💶 {prix.toFixed(2)} €</span>}
+            {tarifLabel && <span style={{ fontSize: 11, color: "#64748b", fontWeight: 500 }}>{tarifLabel}</span>}
+          </div>
+        ) : null;
+      })()}
 
       {/* Détail expandable */}
       {expanded && (
@@ -1037,7 +1021,17 @@ function CourseCard({
                   <div className="drv-route-meta">
                     <span>🛣 {r.distanceKm} km</span>
                     <span>⏱ {r.dureeMin} min</span>
-                    <span style={{ color: r.tarifLabel === "Tarif jour" ? "#15803d" : "#1d4ed8" }}>{r.tarifLabel}</span>
+                    <span
+                      style={{
+                        color: r.tarifLabel.includes("jour ☀️")
+                          ? "#15803d"
+                          : r.tarifLabel.includes("nuit 🌙")
+                            ? "#1d4ed8"
+                            : "#92400e",
+                      }}
+                    >
+                      {r.tarifLabel}
+                    </span>
                   </div>
                 </div>
               ))}
