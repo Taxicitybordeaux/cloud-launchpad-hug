@@ -12,7 +12,7 @@ import {
 } from "@/lib/tarif";
 import { reverseGeocode, searchAddress } from "@/lib/googleGeocode";
 import { getDistanceAndDurationKm } from "@/lib/googleRoute";
-import { loadGoogleMapsWhenVisible } from "@/lib/googleMaps";
+
 import { newSuiviId } from "@/lib/suivi-id";
 import { notifyNewReservation } from "@/lib/push.functions";
 import { ensureMicAccess, describeGeoError } from "@/lib/permissions";
@@ -860,11 +860,6 @@ function ReservationPage() {
   const t = (k: string) => d[k] ?? DICTS["fr"][k] ?? k;
   const dir = lang === "ar" ? "rtl" : "ltr";
 
-  const mapRef = useRef<HTMLDivElement>(null);
-  const mapInst = useRef<any | null>(null);
-  const fromMarker = useRef<any | null>(null);
-  const toMarker = useRef<any | null>(null);
-  const [mapLoadError, setMapLoadError] = useState<string | null>(null);
 
   const pickupIso = f.date && f.heure ? toParisIso(f.date, f.heure) : null;
 
@@ -937,112 +932,7 @@ function ReservationPage() {
     setF((p) => ({ ...p, date: p.date || d }));
   }, []);
 
-  // ── Init carte ────────────────────────────────────────────────────────────
-  useEffect(() => {
-    let mounted = true;
-    const initMap = async () => {
-      let mapsApi: any;
-      try {
-        mapsApi = await loadGoogleMapsWhenVisible(mapRef.current);
-      } catch (err) {
-        console.error("[reserver] Échec du chargement de Google Maps:", err);
-        if (mounted) {
-          setMapLoadError(
-            err instanceof Error
-              ? err.message
-              : "Impossible de charger la carte Google Maps. Vous pouvez réserver sans la carte.",
-          );
-        }
-        return;
-      }
-      if (!mounted || !mapRef.current) return;
-      if (mapInst.current) return; // déjà initialisée (évite double création en StrictMode)
-      setMapLoadError(null);
-      const map = new mapsApi.maps.Map(mapRef.current, {
-        center: { lat: BORDEAUX_CENTER[0], lng: BORDEAUX_CENTER[1] },
-        zoom: 12,
-        disableDefaultUI: true,
-        zoomControl: true,
-        zoomControlOptions: { position: mapsApi.maps.ControlPosition.RIGHT_BOTTOM },
-        clickableIcons: false,
-        backgroundColor: "#0d1117",
-      });
-      mapInst.current = map;
-      setTimeout(() => mapsApi.maps.event.trigger(map, "resize"), 100);
-      setTimeout(() => mapsApi.maps.event.trigger(map, "resize"), 400);
-    };
-    initMap();
-    return () => {
-      mounted = false;
-      fromMarker.current?.setMap(null);
-      fromMarker.current = null;
-      toMarker.current?.setMap(null);
-      toMarker.current = null;
-      mapInst.current = null;
-    };
-  }, []);
-
-  // ── Marqueurs + tracé (chemin le plus long) ───────────────────────────────
-  useEffect(() => {
-    const map = mapInst.current;
-    const mapsApi = (window as Window & { google?: any }).google;
-    if (!map || !mapsApi?.maps) return;
-
-    if (fromCoord) {
-      fromMarker.current?.setMap(null);
-      fromMarker.current = new mapsApi.maps.Marker({
-        position: { lat: fromCoord[0], lng: fromCoord[1] },
-        map,
-        zIndex: 10,
-        icon: {
-          url:
-            "data:image/svg+xml;charset=UTF-8," +
-            encodeURIComponent(`
-              <svg xmlns="http://www.w3.org/2000/svg" width="36" height="48" viewBox="0 0 36 48">
-                <path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 30 18 30s18-16.5 18-30C36 8.06 27.94 0 18 0z" fill="#22c55e" stroke="#ffffff" stroke-width="2"/>
-                <circle cx="18" cy="18" r="7" fill="#ffffff"/>
-              </svg>
-            `),
-          scaledSize: new mapsApi.maps.Size(36, 48),
-          anchor: new mapsApi.maps.Point(18, 48),
-        },
-      });
-    }
-
-    if (toCoord) {
-      toMarker.current?.setMap(null);
-      toMarker.current = new mapsApi.maps.Marker({
-        position: { lat: toCoord[0], lng: toCoord[1] },
-        map,
-        zIndex: 10,
-        icon: {
-          url:
-            "data:image/svg+xml;charset=UTF-8," +
-            encodeURIComponent(`
-              <svg xmlns="http://www.w3.org/2000/svg" width="36" height="48" viewBox="0 0 36 48">
-                <path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 30 18 30s18-16.5 18-30C36 8.06 27.94 0 18 0z" fill="#f5c842" stroke="#1a1a2e" stroke-width="2"/>
-                <circle cx="18" cy="18" r="7" fill="#1a1a2e"/>
-              </svg>
-            `),
-          scaledSize: new mapsApi.maps.Size(36, 48),
-          anchor: new mapsApi.maps.Point(18, 48),
-        },
-      });
-    }
-
-    if (fromCoord && toCoord) {
-      const bounds = new mapsApi.maps.LatLngBounds();
-      bounds.extend({ lat: fromCoord[0], lng: fromCoord[1] });
-      bounds.extend({ lat: toCoord[0], lng: toCoord[1] });
-      map.fitBounds(bounds, 60);
-      mapsApi.maps.event.addListenerOnce(map, "bounds_changed", () => {
-        if ((map.getZoom() ?? 0) > 16) map.setZoom(16);
-      });
-    } else if (fromCoord) {
-      map.setCenter({ lat: fromCoord[0], lng: fromCoord[1] });
-      map.setZoom(14);
-    }
-  }, [fromCoord, toCoord]);
+  // ── Carte supprimée ──────────────────────────────────────────────────────
 
   // ── Google Directions : recalcul distance/prix ─────────────────────────────
   useEffect(() => {
