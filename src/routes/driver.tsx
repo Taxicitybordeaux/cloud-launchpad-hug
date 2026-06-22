@@ -923,6 +923,9 @@ function CourseCard({
       if (error) throw error;
       toast.success("🏁 Course terminée");
       onRefresh();
+      // Ouvrir la page de fin pour le client
+      const finUrl = `${window.location.origin}/fin/${resa.id}`;
+      window.open(finUrl, "_blank");
     } catch (e: any) {
       toast.error("Erreur : " + (e.message ?? e));
     } finally {
