@@ -570,16 +570,17 @@ async function ipGeolocate(): Promise<{ lat: number; lng: number } | null> {
 
 const inputStyle = (hasError?: boolean): React.CSSProperties => ({
   width: "100%",
-  padding: "14px 14px",
-  borderRadius: 12,
-  border: `2px solid ${hasError ? "#ef4444" : "rgba(203,213,225,0.4)"}`,
+  padding: "13px 16px",
+  borderRadius: 10,
+  border: `1.5px solid ${hasError ? "#dc2626" : "#e2d9c8"}`,
   fontSize: 16,
-  background: "#ffffff",
-  color: "#0f172a",
+  background: hasError ? "#fff5f5" : "#faf9f7",
+  color: "#1a1209",
   fontFamily: "'DM Sans',sans-serif",
   outline: "none",
   boxSizing: "border-box",
   minHeight: 48,
+  transition: "border-color 0.15s",
 });
 
 /**
@@ -845,7 +846,7 @@ function ReservationPage() {
       heure: "",
       passagers: 1,
       bagages: 0,
-      paiement: "cb",
+      paiement: "especes",
       prenom: "",
       nom: "",
       phone: "",
@@ -1466,17 +1467,15 @@ function ReservationPage() {
       style={{
         position: "fixed",
         inset: 0,
-        background: "#0f4bbf",
+        background: "#f5f0e8",
         fontFamily: "'DM Sans',sans-serif",
         display: "flex",
         flexDirection: "column",
         overflowX: "hidden",
-        // Safe-area : respecte notch / barre dynamique / home indicator (iOS, Android PWA)
         paddingTop: "env(safe-area-inset-top, 0px)",
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
         paddingLeft: "env(safe-area-inset-left, 0px)",
         paddingRight: "env(safe-area-inset-right, 0px)",
-        // Hauteur dynamique (dvh) pour suivre la barre d'URL mobile + clavier
         height: "100dvh",
         minHeight: "100svh",
       }}
@@ -1491,6 +1490,7 @@ function ReservationPage() {
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
         @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        input:focus, select:focus { border-color: #c9a84c !important; background: #fff !important; box-shadow: 0 0 0 3px rgba(201,168,76,0.12); }
       `}</style>
 
       {/* Badge calcul (flottant) */}
@@ -1500,14 +1500,15 @@ function ReservationPage() {
             position: "fixed",
             top: 16,
             right: 16,
-            background: "rgba(10,10,20,0.85)",
+            background: "rgba(255,255,255,0.92)",
             backdropFilter: "blur(12px)",
             borderRadius: 99,
             padding: "6px 14px",
             display: "flex",
             alignItems: "center",
             gap: 6,
-            border: "1px solid rgba(245,200,66,0.15)",
+            border: "1px solid rgba(201,168,76,0.3)",
+            boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
             zIndex: 100,
           }}
         >
@@ -1515,125 +1516,107 @@ function ReservationPage() {
             style={{
               width: 14,
               height: 14,
-              border: "2px solid #f5c842",
+              border: "2px solid #c9a84c",
               borderTopColor: "transparent",
               borderRadius: "50%",
               animation: "spin 0.8s linear infinite",
             }}
           />
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#f5c842" }}>"Recherche en cours…"</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#c9a84c" }}>Calcul en cours…</span>
         </div>
       )}
 
-      {/* ── Bottom sheet ── */}
+      {/* ── Contenu principal ── */}
       <div
         dir={dir}
         style={{
           flex: 1,
-          background: "linear-gradient(180deg, #0f4bbf 0%, #0a3aa1 100%)",
-          borderRadius: 0,
-          boxShadow: "none",
+          background: "#f5f0e8",
           minHeight: 0,
           display: "flex",
           flexDirection: "column",
           overflowX: "hidden",
         }}
       >
-        <div style={{ padding: "12px 0 0", display: "flex", justifyContent: "center", flexShrink: 0 }}>
-          <div style={{ width: 36, height: 4, background: "rgba(245,200,66,0.25)", borderRadius: 9 }} />
+        {/* Header doré */}
+        <div
+          style={{
+            background: "linear-gradient(135deg, #1a1209 0%, #2d1f0a 100%)",
+            padding: "16px 20px 20px",
+            flexShrink: 0,
+          }}
+        >
+          {/* Ligne retour + langue */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <button
+              onClick={() => navigate({ to: "/" })}
+              aria-label="Retour au site"
+              style={{
+                background: "rgba(201,168,76,0.15)",
+                border: "1px solid rgba(201,168,76,0.35)",
+                color: "#e8c96a",
+                borderRadius: 99,
+                padding: "7px 14px",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontFamily: "'DM Sans', sans-serif",
+              }}
+            >
+              ← Retour
+            </button>
+            <select
+              value={lang}
+              onChange={(e) => setLang(e.target.value as Lang)}
+              style={{
+                background: "rgba(201,168,76,0.15)",
+                border: "1px solid rgba(201,168,76,0.3)",
+                color: "#e8c96a",
+                borderRadius: 8,
+                padding: "6px 8px",
+                fontSize: 13,
+                cursor: "pointer",
+              }}
+            >
+              {LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code} style={{ background: "#1a1209", color: "#e8c96a" }}>
+                  {l.flag} {l.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          {/* Titre */}
+          <div>
+            <div style={{ fontSize: 26, fontWeight: 700, color: "#f5f0e8", fontFamily: "'Clash Display'" }}>
+              {t("res.title")}
+            </div>
+            <div style={{ fontSize: 13, color: "rgba(232,201,106,0.75)", marginTop: 4 }}>{t("res.intro")}</div>
+          </div>
         </div>
 
+        {/* Zone scrollable */}
         <div
           style={{
             flex: 1,
             overflowY: "auto",
-            padding: "16px 20px max(20px, env(safe-area-inset-bottom, 0px))",
+            padding: "20px 16px max(24px, env(safe-area-inset-bottom, 0px))",
             WebkitOverflowScrolling: "touch",
             display: "flex",
             flexDirection: "column",
-            gap: 20,
+            gap: 16,
           }}
         >
-          {/* ── En-tête : retour + titre + langue + notifs ── */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {/* Ligne 1 : bouton retour ← et bouton notifs */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 8,
-              }}
-            >
-              <button
-                onClick={() => navigate({ to: "/" })}
-                aria-label="Retour au site"
-                style={{
-                  background: "rgba(255,255,255,0.1)",
-                  border: "1px solid rgba(255,255,255,0.18)",
-                  color: "#f8fafc",
-                  borderRadius: 99,
-                  padding: "7px 14px",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  fontFamily: "'DM Sans', sans-serif",
-                }}
-              >
-                ← Retour
-              </button>
-
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {/* Sélecteur de langue */}
-                <select
-                  value={lang}
-                  onChange={(e) => setLang(e.target.value as Lang)}
-                  style={{
-                    background: "rgba(255,255,255,0.12)",
-                    border: "1px solid rgba(255,255,255,0.2)",
-                    color: "#f5f5f5",
-                    borderRadius: 8,
-                    padding: "6px 8px",
-                    fontSize: 13,
-                    cursor: "pointer",
-                  }}
-                >
-                  {LANGUAGES.map((l) => (
-                    <option key={l.code} value={l.code} style={{ background: "#1e3a8a", color: "#f5f5f5" }}>
-                      {l.flag} {l.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Ligne 2 : titre + sous-titre */}
-            <div>
-              <div
-                style={{
-                  fontSize: 24,
-                  fontWeight: 700,
-                  color: "#f5f5f5",
-                  fontFamily: "'Clash Display'",
-                }}
-              >
-                {t("res.title")}
-              </div>
-              <div style={{ fontSize: 13, color: "#cbd5e1", marginTop: 4 }}>{t("res.intro")}</div>
-            </div>
-          </div>
-
           {/* ── Bannière disponibilité taxi ── */}
           {taxiAvailable === false && (
             <div
               style={{
-                background: "rgba(239,68,68,0.12)",
-                border: "1px solid rgba(239,68,68,0.35)",
+                background: "#fff5f5",
+                border: "1.5px solid #fca5a5",
                 borderRadius: 12,
-                padding: "10px 14px",
+                padding: "12px 16px",
                 display: "flex",
                 alignItems: "flex-start",
                 gap: 10,
@@ -1641,96 +1624,570 @@ function ReservationPage() {
             >
               <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>🚕</span>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#fca5a5", marginBottom: 2 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#b91c1c", marginBottom: 2 }}>
                   {t("taxi.banner.busy.title")}
                 </div>
-                <div style={{ fontSize: 12, color: "#fecaca", lineHeight: 1.4 }}>{t("taxi.banner.busy.desc")}</div>
+                <div style={{ fontSize: 12, color: "#dc2626", lineHeight: 1.4 }}>{t("taxi.banner.busy.desc")}</div>
               </div>
             </div>
           )}
           {taxiAvailable === true && (
             <div
               style={{
-                background: "rgba(34,197,94,0.1)",
-                border: "1px solid rgba(34,197,94,0.3)",
+                background: "#f0fdf4",
+                border: "1.5px solid #4ade80",
                 borderRadius: 12,
-                padding: "10px 14px",
+                padding: "12px 16px",
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
               }}
             >
               <span style={{ fontSize: 18, flexShrink: 0 }}>✅</span>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#86efac" }}>{t("taxi.banner.available.msg")}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#166534" }}>{t("taxi.banner.available.msg")}</div>
             </div>
           )}
 
           <form
             onSubmit={handleSubmit}
             autoComplete="off"
-            style={{ display: "flex", flexDirection: "column", gap: 18 }}
+            style={{ display: "flex", flexDirection: "column", gap: 16 }}
           >
-            {/* ── Coordonnées ── */}
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>
-                👤 {t("res.loc.contact_section")}
+            {/* ── Section helper ── */}
+            {/* Card wrapper générique */}
+            {/* ── Votre trajet (adresses + date) ── */}
+            <div
+              style={{
+                background: "#fff",
+                borderRadius: 16,
+                padding: "18px 16px",
+                border: "1px solid #ede8de",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+              }}
+            >
+              {/* Titre section trajet */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "#1a1209",
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  🚖 {t("res.loc.ride_section")}
+                </div>
+                <button
+                  type="button"
+                  onClick={fromCoord ? startVoiceRecognition : startVoiceRecognitionBoth}
+                  title={fromCoord ? "Dictez uniquement la destination" : "Dictez le trajet complet"}
+                  style={{
+                    background: voiceBothListening || voiceListening ? "rgba(220,38,38,0.08)" : "rgba(201,168,76,0.1)",
+                    border: `1.5px solid ${voiceBothListening || voiceListening ? "rgba(220,38,38,0.4)" : "rgba(201,168,76,0.5)"}`,
+                    borderRadius: 8,
+                    padding: "5px 10px",
+                    cursor: "pointer",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: voiceBothListening || voiceListening ? "#dc2626" : "#9a7427",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    animation: voiceBothListening || voiceListening ? "pulse 1s ease-in-out infinite" : "none",
+                  }}
+                >
+                  {voiceBothListening || voiceListening
+                    ? "⏹ J'écoute…"
+                    : fromCoord
+                      ? "🎤 Destination"
+                      : "🎤 Dicter le trajet"}
+                </button>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                {[
-                  { k: "prenom" as const, label: "👤 " + t("res.loc.firstname"), ph: "Jean" },
-                  { k: "nom" as const, label: "👤 " + t("res.loc.lastname"), ph: "Dupont" },
-                ].map(({ k, label, ph }) => (
-                  <div key={k}>
-                    <label
-                      style={{
-                        fontSize: 11,
-                        color: "#cbd5e1",
-                        fontWeight: 600,
-                        display: "block",
-                        marginBottom: 6,
-                      }}
-                    >
-                      {label}
-                    </label>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {/* Départ */}
+                <div>
+                  <label
+                    style={{
+                      fontSize: 11,
+                      color: "#7a6a50",
+                      fontWeight: 600,
+                      display: "block",
+                      marginBottom: 6,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    {t("res.loc.from")}
+                  </label>
+                  <div style={{ position: "relative" }}>
                     <input
                       type="text"
-                      value={f[k]}
-                      onChange={(e) => set(k, e.target.value)}
-                      placeholder={ph}
+                      value={f.depart}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        set("depart", v);
+                        setFromCoord(null);
+                        setDepartChoices([]);
+                        if (departDebounceRef.current) clearTimeout(departDebounceRef.current);
+                      }}
+                      onBlur={resolveDepartAddress}
+                      placeholder="Adresse de départ"
                       autoComplete="off"
                       autoCorrect="off"
-                      autoCapitalize="words"
+                      autoCapitalize="off"
                       spellCheck={false}
-                      name={`tcb-${k}-x`}
-                      style={inputStyle(!!errors[k])}
+                      name="tcb-depart-x"
+                      style={{ ...inputStyle(!!errors.depart), paddingRight: 52 }}
                     />
-                    {errors[k] && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors[k]}</div>}
+                    <button
+                      type="button"
+                      onClick={() => handleGeolocate()}
+                      disabled={geolocLoading}
+                      style={{
+                        position: "absolute",
+                        right: 6,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        background: "#c9a84c",
+                        border: "none",
+                        borderRadius: 8,
+                        cursor: geolocLoading ? "wait" : "pointer",
+                        color: "#fff",
+                        padding: "8px 10px",
+                        fontSize: 16,
+                        fontWeight: 700,
+                      }}
+                      aria-label="Me géolocaliser"
+                    >
+                      {geolocLoading ? "⏳" : "📍"}
+                    </button>
                   </div>
-                ))}
+                  {geolocStatus !== "idle" && (
+                    <div
+                      role="status"
+                      aria-live="polite"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        marginTop: 6,
+                        padding: "6px 10px",
+                        borderRadius: 8,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        background:
+                          geolocStatus === "success"
+                            ? "#f0fdf4"
+                            : geolocStatus === "loading"
+                              ? "#fefce8"
+                              : geolocStatus === "hint" || geolocStatus === "ip"
+                                ? "#eff6ff"
+                                : "#fff5f5",
+                        color:
+                          geolocStatus === "success"
+                            ? "#166534"
+                            : geolocStatus === "loading"
+                              ? "#854d0e"
+                              : geolocStatus === "hint" || geolocStatus === "ip"
+                                ? "#1e40af"
+                                : "#b91c1c",
+                        border: "1px solid currentColor",
+                      }}
+                    >
+                      <span>
+                        {geolocStatus === "hint" && "📍"}
+                        {geolocStatus === "loading" && "⏳"}
+                        {geolocStatus === "success" && "✓"}
+                        {geolocStatus === "ip" && "🌐"}
+                        {geolocStatus === "denied" && "🚫"}
+                        {geolocStatus === "error" && "⚠️"}
+                      </span>
+                      <span style={{ flex: 1 }}>{geolocStatusMsg}</span>
+                      {(geolocStatus === "success" || geolocStatus === "ip") && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setGeolocStatus("idle");
+                            setGeolocStatusMsg("");
+                          }}
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            color: "inherit",
+                            cursor: "pointer",
+                            fontSize: 11,
+                            textDecoration: "underline",
+                          }}
+                        >
+                          Modifier
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {errors.depart && <div style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>{errors.depart}</div>}
+                  {fromCoord && !errors.depart && (
+                    <div style={{ color: "#166534", fontSize: 11, marginTop: 4 }}>✓ {t("res.geo.btn")}</div>
+                  )}
+                  {searchingDepart && (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        marginTop: 6,
+                        color: "#9a7427",
+                        fontSize: 11,
+                      }}
+                    >
+                      <span
+                        style={{
+                          display: "inline-block",
+                          width: 10,
+                          height: 10,
+                          borderRadius: "50%",
+                          border: "2px solid #c9a84c",
+                          borderTopColor: "transparent",
+                          animation: "spin 0.8s linear infinite",
+                        }}
+                      />
+                      Recherche en cours…
+                    </div>
+                  )}
+                  {searchingDepart && departChoices.length === 0 && (
+                    <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
+                      {[0, 1, 2].map((i) => (
+                        <div
+                          key={i}
+                          style={{
+                            height: 44,
+                            borderRadius: 10,
+                            background: "linear-gradient(90deg, #f5f0e8, #ede8de, #f5f0e8)",
+                            backgroundSize: "200% 100%",
+                            animation: "shimmer 1.4s ease-in-out infinite",
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {departChoices.length > 0 && (
+                    <div style={{ display: "grid", gap: 6, marginTop: 8 }}>
+                      {departChoices.map((choice) => (
+                        <button
+                          key={`${choice.label}-${choice.coord[0]}-${choice.coord[1]}`}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            if (departDebounceRef.current) clearTimeout(departDebounceRef.current);
+                            skipNextDepartResolveRef.current = true;
+                            set("depart", choice.label);
+                            setFromCoord(choice.coord);
+                            setDepartChoices([]);
+                            setErrors((prev) => {
+                              const next = { ...prev };
+                              delete next.depart;
+                              return next;
+                            });
+                          }}
+                          style={{
+                            width: "100%",
+                            textAlign: "left",
+                            padding: "10px 12px",
+                            borderRadius: 10,
+                            border: "1.5px solid #e2d9c8",
+                            background: "#faf9f7",
+                            color: "#1a1209",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <span style={{ display: "block", fontSize: 13, fontWeight: 700 }}>{choice.label}</span>
+                          <span style={{ display: "block", fontSize: 11, color: "#9a7427", marginTop: 2 }}>
+                            à {choice.distanceKm.toFixed(1)} km
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Destination */}
+                <div>
+                  <label
+                    style={{
+                      fontSize: 11,
+                      color: "#7a6a50",
+                      fontWeight: 600,
+                      display: "block",
+                      marginBottom: 6,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    {t("res.loc.to")}
+                  </label>
+                  <input
+                    type="text"
+                    value={f.destination}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      set("destination", v);
+                      setToCoord(null);
+                      if (destinationDebounceRef.current) clearTimeout(destinationDebounceRef.current);
+                    }}
+                    onFocus={() => {
+                      destinationFocusedRef.current = true;
+                    }}
+                    onBlur={() => {
+                      destinationFocusedRef.current = false;
+                      resolveDestinationAddress();
+                    }}
+                    placeholder={t("res.f.to.ph")}
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    name="tcb-dest-x"
+                    style={inputStyle(!!errors.destination)}
+                  />
+                  {errors.destination && (
+                    <div style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>{errors.destination}</div>
+                  )}
+                  {searchingDestination && (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        marginTop: 6,
+                        color: "#9a7427",
+                        fontSize: 11,
+                      }}
+                    >
+                      <span
+                        style={{
+                          display: "inline-block",
+                          width: 10,
+                          height: 10,
+                          borderRadius: "50%",
+                          border: "2px solid #c9a84c",
+                          borderTopColor: "transparent",
+                          animation: "spin 0.8s linear infinite",
+                        }}
+                      />
+                      Recherche en cours…
+                    </div>
+                  )}
+                  {toCoord && !errors.destination && (
+                    <div style={{ color: "#166534", fontSize: 11, marginTop: 4 }}>✓ {t("res.loc.to")}</div>
+                  )}
+                </div>
+
+                {/* Séparateur */}
+                <div style={{ height: 1, background: "#ede8de" }} />
+
+                {/* Date + Heure */}
+                <div>
+                  <label
+                    style={{
+                      fontSize: 11,
+                      color: "#7a6a50",
+                      fontWeight: 600,
+                      display: "block",
+                      marginBottom: 8,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    🕐 Date & heure de départ
+                  </label>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    <div>
+                      <input
+                        type="date"
+                        value={f.date}
+                        onChange={(e) => set("date", e.target.value)}
+                        min={today}
+                        style={inputStyle(!!errors.date)}
+                      />
+                      {errors.date && <div style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>{errors.date}</div>}
+                    </div>
+                    <div>
+                      <input
+                        type="time"
+                        value={f.heure}
+                        onChange={(e) => set("heure", e.target.value)}
+                        style={inputStyle(!!errors.heure)}
+                      />
+                      {errors.heure && (
+                        <div style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>{errors.heure}</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10 }}>
+            </div>
+
+            {/* ── Tarif estimé (si dispo) ── */}
+            {/* ── Tarif estimé ── */}
+            {orsResult && (
+              <div
+                style={{
+                  background: "linear-gradient(135deg, #1a1209 0%, #2d1f0a 100%)",
+                  borderRadius: 16,
+                  padding: "16px",
+                  border: "1px solid rgba(201,168,76,0.25)",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "rgba(232,201,106,0.7)",
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                    marginBottom: 10,
+                  }}
+                >
+                  Tarif estimé
+                </div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div>
+                    <div style={{ fontSize: 32, fontWeight: 700, color: "#e8c96a", fontFamily: "'Clash Display'" }}>
+                      {prixAller.toFixed(2)} €
+                    </div>
+                    <div style={{ fontSize: 12, color: "rgba(232,201,106,0.6)", marginTop: 2 }}>
+                      {orsResult.distanceKm.toFixed(1)} km · {Math.round(orsResult.dureeS / 60)} min
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 11, color: "rgba(232,201,106,0.55)", fontWeight: 600 }}>
+                      {tarifInfo.label}
+                    </div>
+                    <div style={{ fontSize: 10, color: "rgba(232,201,106,0.4)", marginTop: 2 }}>{tarifInfo.motif}</div>
+                  </div>
+                </div>
+                {detailCalc && detailCalc.pctJour > 0 && detailCalc.pctNuit > 0 && (
+                  <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+                    <div
+                      style={{
+                        flex: detailCalc.pctJour,
+                        background: "rgba(201,168,76,0.2)",
+                        borderRadius: 4,
+                        height: 4,
+                      }}
+                    />
+                    <div
+                      style={{
+                        flex: detailCalc.pctNuit,
+                        background: "rgba(201,168,76,0.06)",
+                        borderRadius: 4,
+                        height: 4,
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+            {calcLoading && !orsResult && (
+              <div
+                style={{
+                  background: "#fff",
+                  borderRadius: 16,
+                  padding: "16px",
+                  border: "1px solid #ede8de",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                }}
+              >
+                <div
+                  style={{
+                    width: 18,
+                    height: 18,
+                    border: "2px solid #c9a84c",
+                    borderTopColor: "transparent",
+                    borderRadius: "50%",
+                    animation: "spin 0.8s linear infinite",
+                    flexShrink: 0,
+                  }}
+                />
+                <span style={{ fontSize: 13, color: "#7a6a50" }}>Calcul du tarif en cours…</span>
+              </div>
+            )}
+
+            {/* ── Coordonnées passager ── */}
+            <div
+              style={{
+                background: "#fff",
+                borderRadius: 16,
+                padding: "18px 16px",
+                border: "1px solid #ede8de",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#1a1209",
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                  marginBottom: 14,
+                }}
+              >
+                👤 {t("res.loc.contact_section")}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  {[
+                    { k: "prenom" as const, label: t("res.loc.firstname"), ph: "Jean" },
+                    { k: "nom" as const, label: t("res.loc.lastname"), ph: "Dupont" },
+                  ].map(({ k, label, ph }) => (
+                    <div key={k}>
+                      <label
+                        style={{
+                          fontSize: 11,
+                          color: "#7a6a50",
+                          fontWeight: 600,
+                          display: "block",
+                          marginBottom: 6,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                        }}
+                      >
+                        {label}
+                      </label>
+                      <input
+                        type="text"
+                        value={f[k]}
+                        onChange={(e) => set(k, e.target.value)}
+                        placeholder={ph}
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="words"
+                        spellCheck={false}
+                        name={`tcb-${k}-x`}
+                        style={inputStyle(!!errors[k])}
+                      />
+                      {errors[k] && <div style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>{errors[k]}</div>}
+                    </div>
+                  ))}
+                </div>
                 {[
-                  {
-                    k: "phone" as const,
-                    label: "📞 " + t("res.loc.phone"),
-                    ph: "06 12 34 56 78",
-                    type: "tel",
-                  },
-                  {
-                    k: "email" as const,
-                    label: "✉️ " + t("res.loc.email"),
-                    ph: "jean@exemple.fr",
-                    type: "email",
-                  },
+                  { k: "phone" as const, label: t("res.loc.phone"), ph: "06 12 34 56 78", type: "tel" },
+                  { k: "email" as const, label: t("res.loc.email"), ph: "jean@exemple.fr", type: "email" },
                 ].map(({ k, label, ph, type }) => (
                   <div key={k}>
                     <label
                       style={{
                         fontSize: 11,
-                        color: "#cbd5e1",
+                        color: "#7a6a50",
                         fontWeight: 600,
                         display: "block",
                         marginBottom: 6,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
                       }}
                     >
                       {label}
@@ -1747,463 +2204,109 @@ function ReservationPage() {
                       name={`tcb-${k}-x`}
                       style={inputStyle(!!errors[k])}
                     />
-                    {errors[k] && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors[k]}</div>}
+                    {errors[k] && <div style={{ color: "#dc2626", fontSize: 12, marginTop: 4 }}>{errors[k]}</div>}
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* ── Adresses ── */}
-            <div>
+            {/* ── Passagers / Bagages / Paiement ── */}
+            <div
+              style={{
+                background: "#fff",
+                borderRadius: 16,
+                padding: "18px 16px",
+                border: "1px solid #ede8de",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+              }}
+            >
               <div
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 8,
-                  marginBottom: 10,
-                  flexWrap: "wrap",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#1a1209",
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                  marginBottom: 14,
                 }}
               >
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5" }}>{t("res.loc.ride_section")}</div>
-                <button
-                  type="button"
-                  onClick={fromCoord ? startVoiceRecognition : startVoiceRecognitionBoth}
-                  title={
-                    fromCoord
-                      ? "Départ déjà connu (géoloc) — dictez uniquement la destination"
-                      : 'Dictez le trajet complet en une phrase, ex : "12 rue de la République à aéroport de Bordeaux"'
-                  }
-                  style={{
-                    background: voiceBothListening || voiceListening ? "rgba(239,68,68,0.15)" : "rgba(245,200,66,0.12)",
-                    border: `1px solid ${
-                      voiceBothListening || voiceListening ? "rgba(239,68,68,0.4)" : "rgba(245,200,66,0.4)"
-                    }`,
-                    borderRadius: 8,
-                    padding: "6px 10px",
-                    cursor: "pointer",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: voiceBothListening || voiceListening ? "#f87171" : "#f5c842",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    animation: voiceBothListening || voiceListening ? "pulse 1s ease-in-out infinite" : "none",
-                  }}
-                >
-                  {voiceBothListening || voiceListening
-                    ? "⏹ J'écoute…"
-                    : fromCoord
-                      ? "🎤 Dicter la destination"
-                      : "🎤 Dicter départ + destination"}
-                </button>
+                ⚙️ Détails du trajet
               </div>
-
-              {/* Départ : saisie libre + bouton géoloc */}
-              <div style={{ marginBottom: 10 }}>
-                <label
-                  style={{
-                    fontSize: 11,
-                    color: "#cbd5e1",
-                    fontWeight: 600,
-                    display: "block",
-                    marginBottom: 6,
-                  }}
-                >
-                  {t("res.loc.from")} 📍
-                </label>
-                <div style={{ position: "relative" }}>
-                  <input
-                    type="text"
-                    value={f.depart}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      set("depart", v);
-                      setFromCoord(null);
-                      setDepartChoices([]);
-                      if (departDebounceRef.current) clearTimeout(departDebounceRef.current);
-                    }}
-                    onBlur={resolveDepartAddress}
-                    placeholder="Adresse ou cliquez 📍"
-                    autoComplete="off"
-                    autoCorrect="off"
-                    autoCapitalize="off"
-                    spellCheck={false}
-                    name="tcb-depart-x"
-                    style={{ ...inputStyle(!!errors.depart), paddingRight: 52 }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleGeolocate()}
-                    disabled={geolocLoading}
-                    style={{
-                      position: "absolute",
-                      right: 6,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      background: "#f5c842",
-                      border: "none",
-                      borderRadius: 8,
-                      cursor: geolocLoading ? "wait" : "pointer",
-                      color: "#0f172a",
-                      padding: "8px 10px",
-                      fontSize: 16,
-                      fontWeight: 700,
-                    }}
-                    aria-label="Me géolocaliser"
-                  >
-                    {geolocLoading ? "⏳" : "📍"}
-                  </button>
-                </div>
-                {/* Indicateur clair du statut de la géolocalisation */}
-                {geolocStatus !== "idle" && (
-                  <div
-                    role="status"
-                    aria-live="polite"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      marginTop: 6,
-                      padding: "6px 10px",
-                      borderRadius: 8,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      background:
-                        geolocStatus === "success"
-                          ? "rgba(34,197,94,0.12)"
-                          : geolocStatus === "loading"
-                            ? "rgba(253,224,71,0.12)"
-                            : geolocStatus === "hint"
-                              ? "rgba(59,130,246,0.12)"
-                              : geolocStatus === "ip"
-                                ? "rgba(59,130,246,0.12)"
-                                : "rgba(239,68,68,0.12)",
-                      color:
-                        geolocStatus === "success"
-                          ? "#86efac"
-                          : geolocStatus === "loading"
-                            ? "#fde68a"
-                            : geolocStatus === "hint"
-                              ? "#93c5fd"
-                              : geolocStatus === "ip"
-                                ? "#93c5fd"
-                                : "#fecaca",
-                      border: "1px solid currentColor",
-                    }}
-                  >
-                    <span>
-                      {geolocStatus === "hint" && "📍"}
-                      {geolocStatus === "loading" && "⏳"}
-                      {geolocStatus === "success" && "✓"}
-                      {geolocStatus === "ip" && "🌐"}
-                      {geolocStatus === "denied" && "🚫"}
-                      {geolocStatus === "error" && "⚠️"}
-                    </span>
-                    <span style={{ flex: 1 }}>{geolocStatusMsg}</span>
-                    {(geolocStatus === "success" || geolocStatus === "ip") && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setGeolocStatus("idle");
-                          setGeolocStatusMsg("");
-                        }}
-                        style={{
-                          background: "transparent",
-                          border: "none",
-                          color: "inherit",
-                          cursor: "pointer",
-                          fontSize: 11,
-                          textDecoration: "underline",
-                        }}
-                      >
-                        Modifier
-                      </button>
-                    )}
-                  </div>
-                )}
-                {errors.depart && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.depart}</div>}
-                {fromCoord && !errors.depart && (
-                  <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>✓ {t("res.geo.btn")}</div>
-                )}
-                {searchingDepart && (
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      marginTop: 6,
-                      color: "#fde68a",
-                      fontSize: 11,
-                    }}
-                  >
-                    <span
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div>
+                    <label
                       style={{
-                        display: "inline-block",
-                        width: 10,
-                        height: 10,
-                        borderRadius: "50%",
-                        border: "2px solid #fde68a",
-                        borderTopColor: "transparent",
-                        animation: "spin 0.8s linear infinite",
+                        fontSize: 11,
+                        color: "#7a6a50",
+                        fontWeight: 600,
+                        display: "block",
+                        marginBottom: 6,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
                       }}
-                    />
-                    Recherche en cours…
+                    >
+                      {t("res.f.passengers")}
+                    </label>
+                    <select
+                      value={f.passagers}
+                      onChange={(e) => set("passagers", parseInt(e.target.value))}
+                      style={inputStyle()}
+                    >
+                      {[1, 2, 3, 4, 5, 6].map((n) => (
+                        <option key={n} value={n}>
+                          {n} {n > 1 ? t("res.loc.passengers_pl") : t("res.loc.passenger_sg")}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                )}
-                {searchingDepart && departChoices.length === 0 && (
-                  <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
-                    {[0, 1, 2].map((i) => (
-                      <div
-                        key={i}
-                        style={{
-                          height: 44,
-                          borderRadius: 10,
-                          background:
-                            "linear-gradient(90deg, rgba(245,200,66,0.05), rgba(245,200,66,0.15), rgba(245,200,66,0.05))",
-                          backgroundSize: "200% 100%",
-                          animation: "shimmer 1.4s ease-in-out infinite",
-                        }}
-                      />
-                    ))}
-                  </div>
-                )}
-                {departChoices.length > 0 && (
-                  <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
-                    {departChoices.map((choice) => (
-                      <button
-                        key={`${choice.label}-${choice.coord[0]}-${choice.coord[1]}`}
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          if (departDebounceRef.current) clearTimeout(departDebounceRef.current);
-                          skipNextDepartResolveRef.current = true;
-                          set("depart", choice.label);
-                          setFromCoord(choice.coord);
-                          setDepartChoices([]);
-                          setErrors((prev) => {
-                            const next = { ...prev };
-                            delete next.depart;
-                            return next;
-                          });
-                        }}
-                        style={{
-                          width: "100%",
-                          textAlign: "left",
-                          padding: "10px 12px",
-                          borderRadius: 10,
-                          border: "1px solid rgba(245,200,66,0.35)",
-                          background: "rgba(245,200,66,0.1)",
-                          color: "#f8fafc",
-                          cursor: "pointer",
-                        }}
-                      >
-                        <span style={{ display: "block", fontSize: 13, fontWeight: 700 }}>{choice.label}</span>
-                        <span style={{ display: "block", fontSize: 11, color: "#fde68a", marginTop: 2 }}>
-                          à {choice.distanceKm.toFixed(1)} km
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Destination */}
-              <div>
-                <div style={{ position: "relative", display: "flex", alignItems: "center", marginBottom: 6 }}>
-                  <label
-                    style={{
-                      fontSize: 11,
-                      color: "#cbd5e1",
-                      fontWeight: 600,
-                      flex: 1,
-                    }}
-                  >
-                    {t("res.loc.to")} 🏁
-                  </label>
-                </div>
-                <input
-                  type="text"
-                  value={f.destination}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    set("destination", v);
-                    setToCoord(null);
-                    if (destinationDebounceRef.current) clearTimeout(destinationDebounceRef.current);
-                  }}
-                  onFocus={() => {
-                    destinationFocusedRef.current = true;
-                  }}
-                  onBlur={() => {
-                    destinationFocusedRef.current = false;
-                    resolveDestinationAddress();
-                  }}
-                  placeholder={t("res.f.to.ph")}
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck={false}
-                  name="tcb-dest-x"
-                  style={inputStyle(!!errors.destination)}
-                />
-                {errors.destination && (
-                  <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.destination}</div>
-                )}
-                {searchingDestination && (
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      marginTop: 6,
-                      color: "#fde68a",
-                      fontSize: 11,
-                    }}
-                  >
-                    <span
+                  <div>
+                    <label
                       style={{
-                        display: "inline-block",
-                        width: 10,
-                        height: 10,
-                        borderRadius: "50%",
-                        border: "2px solid #fde68a",
-                        borderTopColor: "transparent",
-                        animation: "spin 0.8s linear infinite",
+                        fontSize: 11,
+                        color: "#7a6a50",
+                        fontWeight: 600,
+                        display: "block",
+                        marginBottom: 6,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
                       }}
-                    />
-                    Recherche en cours…
+                    >
+                      {t("res.f.luggage")}
+                    </label>
+                    <select
+                      value={f.bagages}
+                      onChange={(e) => set("bagages", parseInt(e.target.value))}
+                      style={inputStyle()}
+                    >
+                      {[0, 1, 2, 3, 4, 5].map((n) => (
+                        <option key={n} value={n}>
+                          {n} {n > 1 ? t("res.loc.luggage_pl") : t("res.loc.luggage_sg")}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                )}
-                {toCoord && !errors.destination && (
-                  <div style={{ color: "#86efac", fontSize: 11, marginTop: 4 }}>✓ {t("res.loc.to")}</div>
-                )}
-              </div>
-            </div>
-
-            {/* ── Date/heure ── */}
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>
-                🕐 {t("res.loc.date_label")}
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div>
-                  <label
-                    style={{
-                      fontSize: 11,
-                      color: "#cbd5e1",
-                      fontWeight: 600,
-                      display: "block",
-                      marginBottom: 6,
-                    }}
-                  >
-                    📅 {t("res.loc.date_label")}
-                  </label>
-                  <input
-                    type="date"
-                    value={f.date}
-                    onChange={(e) => set("date", e.target.value)}
-                    min={today}
-                    style={inputStyle(!!errors.date)}
-                  />
-                  {errors.date && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.date}</div>}
                 </div>
                 <div>
                   <label
                     style={{
                       fontSize: 11,
-                      color: "#cbd5e1",
+                      color: "#7a6a50",
                       fontWeight: 600,
                       display: "block",
                       marginBottom: 6,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
                     }}
                   >
-                    🕐 {t("res.loc.time_label")}
+                    {t("res.loc.payment_section")}
                   </label>
-                  <input
-                    type="time"
-                    value={f.heure}
-                    onChange={(e) => set("heure", e.target.value)}
-                    style={inputStyle(!!errors.heure)}
-                  />
-                  {errors.heure && <div style={{ color: "#fecaca", fontSize: 12, marginTop: 4 }}>{errors.heure}</div>}
-                </div>
-              </div>
-            </div>
-
-            {/* ── Passagers / Bagages ── */}
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#f5f5f5", marginBottom: 10 }}>
-                👥 {t("res.f.passengers")}
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div>
-                  <label
-                    style={{
-                      fontSize: 11,
-                      color: "#cbd5e1",
-                      fontWeight: 600,
-                      display: "block",
-                      marginBottom: 6,
-                    }}
-                  >
-                    {["", "👤", "👥", "👥👤", "👥👥", "👥👥👤", "👥👥👥"][f.passagers] ?? "👤"} {t("res.f.passengers")}
-                  </label>
-                  <select
-                    value={f.passagers}
-                    onChange={(e) => set("passagers", parseInt(e.target.value))}
-                    style={inputStyle()}
-                  >
-                    {[1, 2, 3, 4, 5, 6].map((n) => (
-                      <option key={n} value={n}>
-                        {n} {n > 1 ? t("res.loc.passengers_pl") : t("res.loc.passenger_sg")}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label
-                    style={{
-                      fontSize: 11,
-                      color: "#cbd5e1",
-                      fontWeight: 600,
-                      display: "block",
-                      marginBottom: 6,
-                    }}
-                  >
-                    🧳 {t("res.f.luggage")}
-                  </label>
-                  <select
-                    value={f.bagages}
-                    onChange={(e) => set("bagages", parseInt(e.target.value))}
-                    style={inputStyle()}
-                  >
-                    {[0, 1, 2, 3, 4, 5].map((n) => (
-                      <option key={n} value={n}>
-                        {n} {n > 1 ? t("res.loc.luggage_pl") : t("res.loc.luggage_sg")}
-                      </option>
-                    ))}
+                  <select value={f.paiement} onChange={(e) => set("paiement", e.target.value)} style={inputStyle()}>
+                    <option value="especes">{t("res.loc.cash")}</option>
+                    <option value="cb">{t("res.loc.card")}</option>
                   </select>
                 </div>
               </div>
-            </div>
-
-            {/* ── Paiement ── */}
-            <div>
-              <label
-                style={{
-                  fontSize: 11,
-                  color: "#cbd5e1",
-                  fontWeight: 600,
-                  display: "block",
-                  marginBottom: 6,
-                }}
-              >
-                💳 {t("res.loc.payment_section")}
-              </label>
-              <select value={f.paiement} onChange={(e) => set("paiement", e.target.value)} style={inputStyle()}>
-                <option value="cb">{t("res.loc.card")}</option>
-                <option value="especes">{t("res.loc.cash")}</option>
-              </select>
             </div>
 
             {/* ── Bouton réserver ── */}
@@ -2211,21 +2314,23 @@ function ReservationPage() {
               type="submit"
               disabled={sending}
               style={{
-                padding: "14px 20px",
-                background: sending ? "#64748b" : "#f5c842",
-                color: sending ? "#cbd5e1" : "#0f172a",
-                border: "none",
-                borderRadius: 12,
+                padding: "16px 20px",
+                background: sending ? "#c9b98a" : "linear-gradient(135deg, #1a1209 0%, #2d1f0a 100%)",
+                color: sending ? "#a8956a" : "#e8c96a",
+                border: "1.5px solid rgba(201,168,76,0.4)",
+                borderRadius: 14,
                 fontWeight: 700,
-                fontSize: 16,
+                fontSize: 17,
                 cursor: sending ? "wait" : "pointer",
+                letterSpacing: "0.02em",
+                boxShadow: sending ? "none" : "0 4px 16px rgba(26,18,9,0.2)",
               }}
             >
               {sending ? t("res.sending") : t("res.send")}
             </button>
 
             {!orsResult && !calcLoading && fromCoord && toCoord && (
-              <div style={{ color: "#fecaca", fontSize: 12, textAlign: "center", marginTop: -8 }}>
+              <div style={{ color: "#dc2626", fontSize: 12, textAlign: "center", marginTop: -8 }}>
                 {t("res.geo.err.unavailable")}
               </div>
             )}
