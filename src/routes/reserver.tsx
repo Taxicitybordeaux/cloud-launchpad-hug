@@ -846,7 +846,7 @@ function ReservationPage() {
       heure: "",
       passagers: 1,
       bagages: 0,
-      paiement: "especes",
+      paiement: "cb",
       prenom: "",
       nom: "",
       phone: "",
@@ -1713,13 +1713,15 @@ function ReservationPage() {
                       fontSize: 11,
                       color: "#7a6a50",
                       fontWeight: 600,
-                      display: "block",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
                       marginBottom: 6,
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
                     }}
                   >
-                    {t("res.loc.from")}
+                    <span>🟢</span> {t("res.loc.from")}
                   </label>
                   <div style={{ position: "relative" }}>
                     <input
@@ -1918,13 +1920,15 @@ function ReservationPage() {
                       fontSize: 11,
                       color: "#7a6a50",
                       fontWeight: 600,
-                      display: "block",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
                       marginBottom: 6,
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
                     }}
                   >
-                    {t("res.loc.to")}
+                    <span>🔴</span> {t("res.loc.to")}
                   </label>
                   <input
                     type="text"
@@ -1993,13 +1997,15 @@ function ReservationPage() {
                       fontSize: 11,
                       color: "#7a6a50",
                       fontWeight: 600,
-                      display: "block",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
                       marginBottom: 8,
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
                     }}
                   >
-                    🕐 Date & heure de départ
+                    <span>📅</span> Date & heure de départ
                   </label>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                     <div>
@@ -2141,21 +2147,24 @@ function ReservationPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   {[
-                    { k: "prenom" as const, label: t("res.loc.firstname"), ph: "Jean" },
-                    { k: "nom" as const, label: t("res.loc.lastname"), ph: "Dupont" },
-                  ].map(({ k, label, ph }) => (
+                    { k: "prenom" as const, label: t("res.loc.firstname"), ph: "Jean", icon: "👤" },
+                    { k: "nom" as const, label: t("res.loc.lastname"), ph: "Dupont", icon: "👤" },
+                  ].map(({ k, label, ph, icon }) => (
                     <div key={k}>
                       <label
                         style={{
                           fontSize: 11,
                           color: "#7a6a50",
                           fontWeight: 600,
-                          display: "block",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 5,
                           marginBottom: 6,
                           textTransform: "uppercase",
                           letterSpacing: "0.05em",
                         }}
                       >
+                        <span>{icon}</span>
                         {label}
                       </label>
                       <input
@@ -2175,21 +2184,24 @@ function ReservationPage() {
                   ))}
                 </div>
                 {[
-                  { k: "phone" as const, label: t("res.loc.phone"), ph: "06 12 34 56 78", type: "tel" },
-                  { k: "email" as const, label: t("res.loc.email"), ph: "jean@exemple.fr", type: "email" },
-                ].map(({ k, label, ph, type }) => (
+                  { k: "phone" as const, label: t("res.loc.phone"), ph: "06 12 34 56 78", type: "tel", icon: "📱" },
+                  { k: "email" as const, label: t("res.loc.email"), ph: "jean@exemple.fr", type: "email", icon: "✉️" },
+                ].map(({ k, label, ph, type, icon }) => (
                   <div key={k}>
                     <label
                       style={{
                         fontSize: 11,
                         color: "#7a6a50",
                         fontWeight: 600,
-                        display: "block",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 5,
                         marginBottom: 6,
                         textTransform: "uppercase",
                         letterSpacing: "0.05em",
                       }}
                     >
+                      <span>{icon}</span>
                       {label}
                     </label>
                     <input
@@ -2240,12 +2252,15 @@ function ReservationPage() {
                         fontSize: 11,
                         color: "#7a6a50",
                         fontWeight: 600,
-                        display: "block",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 5,
                         marginBottom: 6,
                         textTransform: "uppercase",
                         letterSpacing: "0.05em",
                       }}
                     >
+                      <span>👥</span>
                       {t("res.f.passengers")}
                     </label>
                     <select
@@ -2266,12 +2281,15 @@ function ReservationPage() {
                         fontSize: 11,
                         color: "#7a6a50",
                         fontWeight: 600,
-                        display: "block",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 5,
                         marginBottom: 6,
                         textTransform: "uppercase",
                         letterSpacing: "0.05em",
                       }}
                     >
+                      <span>🧳</span>
                       {t("res.f.luggage")}
                     </label>
                     <select
@@ -2293,17 +2311,20 @@ function ReservationPage() {
                       fontSize: 11,
                       color: "#7a6a50",
                       fontWeight: 600,
-                      display: "block",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
                       marginBottom: 6,
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
                     }}
                   >
+                    <span>💳</span>
                     {t("res.loc.payment_section")}
                   </label>
                   <select value={f.paiement} onChange={(e) => set("paiement", e.target.value)} style={inputStyle()}>
-                    <option value="especes">{t("res.loc.cash")}</option>
                     <option value="cb">{t("res.loc.card")}</option>
+                    <option value="especes">{t("res.loc.cash")}</option>
                   </select>
                 </div>
               </div>
