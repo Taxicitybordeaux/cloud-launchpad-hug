@@ -87,7 +87,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   const showHeader =
     !pathname.startsWith("/reserver") &&
     !pathname.startsWith("/admin") &&
-    !pathname.startsWith("/suivi") &&
+    !pathname.startsWith("/reservation") &&
     !pathname.startsWith("/login");
 
   return (

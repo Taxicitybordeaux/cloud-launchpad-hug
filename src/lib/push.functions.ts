@@ -246,7 +246,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
     const trajet = `${r.depart} → ${r.arrivee || r.destination || "—"}`;
     const phone = r.client_phone || r.telephone || "";
     const smsPhone = phone.replace(/[^\d]/g, "").replace(/^0/, "+33");
-    const url = r.suivi_id ? `/suivi/${r.suivi_id}` : `/reservation/${r.id}`;
+    const url = `/reservation/${r.id}`;
 
     // ⚠️ Plus de push au CLIENT — le client est notifié visuellement via le
     // bandeau d'étapes sur la page /suivi/$id (realtime Supabase).

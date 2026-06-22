@@ -13,14 +13,12 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as ReserverRouteImport } from './routes/reserver'
 import { Route as ReservationRouteImport } from './routes/reservation'
-import { Route as MesCoursesRouteImport } from './routes/mes-courses'
 import { Route as MentionsLegalesRouteImport } from './routes/mentions-legales'
 import { Route as DriverRouteImport } from './routes/driver'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as ConfidentialiteRouteImport } from './routes/confidentialite'
 import { Route as AProposRouteImport } from './routes/a-propos'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as SuiviIdRouteImport } from './routes/suivi.$id'
 import { Route as ReservationIdRouteImport } from './routes/reservation.$id'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as CourseIdRouteImport } from './routes/course.$id'
@@ -59,11 +57,6 @@ const ReservationRoute = ReservationRouteImport.update({
   path: '/reservation',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MesCoursesRoute = MesCoursesRouteImport.update({
-  id: '/mes-courses',
-  path: '/mes-courses',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const MentionsLegalesRoute = MentionsLegalesRouteImport.update({
   id: '/mentions-legales',
   path: '/mentions-legales',
@@ -92,11 +85,6 @@ const AProposRoute = AProposRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SuiviIdRoute = SuiviIdRouteImport.update({
-  id: '/suivi/$id',
-  path: '/suivi/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReservationIdRoute = ReservationIdRouteImport.update({
@@ -197,7 +185,6 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/driver': typeof DriverRoute
   '/mentions-legales': typeof MentionsLegalesRoute
-  '/mes-courses': typeof MesCoursesRoute
   '/reservation': typeof ReservationRouteWithChildren
   '/reserver': typeof ReserverRoute
   '/services': typeof ServicesRoute
@@ -208,7 +195,6 @@ export interface FileRoutesByFullPath {
   '/course/$id': typeof CourseIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
-  '/suivi/$id': typeof SuiviIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
   '/api/public/contact': typeof ApiPublicContactRoute
   '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
@@ -228,7 +214,6 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/driver': typeof DriverRoute
   '/mentions-legales': typeof MentionsLegalesRoute
-  '/mes-courses': typeof MesCoursesRoute
   '/reservation': typeof ReservationRouteWithChildren
   '/reserver': typeof ReserverRoute
   '/services': typeof ServicesRoute
@@ -239,7 +224,6 @@ export interface FileRoutesByTo {
   '/course/$id': typeof CourseIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
-  '/suivi/$id': typeof SuiviIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
   '/api/public/contact': typeof ApiPublicContactRoute
   '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
@@ -260,7 +244,6 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/driver': typeof DriverRoute
   '/mentions-legales': typeof MentionsLegalesRoute
-  '/mes-courses': typeof MesCoursesRoute
   '/reservation': typeof ReservationRouteWithChildren
   '/reserver': typeof ReserverRoute
   '/services': typeof ServicesRoute
@@ -271,7 +254,6 @@ export interface FileRoutesById {
   '/course/$id': typeof CourseIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
-  '/suivi/$id': typeof SuiviIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
   '/api/public/contact': typeof ApiPublicContactRoute
   '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
@@ -293,7 +275,6 @@ export interface FileRouteTypes {
     | '/contact'
     | '/driver'
     | '/mentions-legales'
-    | '/mes-courses'
     | '/reservation'
     | '/reserver'
     | '/services'
@@ -304,7 +285,6 @@ export interface FileRouteTypes {
     | '/course/$id'
     | '/email/unsubscribe'
     | '/reservation/$id'
-    | '/suivi/$id'
     | '/api/admin/send-course-email'
     | '/api/public/contact'
     | '/api/public/driver-location'
@@ -324,7 +304,6 @@ export interface FileRouteTypes {
     | '/contact'
     | '/driver'
     | '/mentions-legales'
-    | '/mes-courses'
     | '/reservation'
     | '/reserver'
     | '/services'
@@ -335,7 +314,6 @@ export interface FileRouteTypes {
     | '/course/$id'
     | '/email/unsubscribe'
     | '/reservation/$id'
-    | '/suivi/$id'
     | '/api/admin/send-course-email'
     | '/api/public/contact'
     | '/api/public/driver-location'
@@ -355,7 +333,6 @@ export interface FileRouteTypes {
     | '/contact'
     | '/driver'
     | '/mentions-legales'
-    | '/mes-courses'
     | '/reservation'
     | '/reserver'
     | '/services'
@@ -366,7 +343,6 @@ export interface FileRouteTypes {
     | '/course/$id'
     | '/email/unsubscribe'
     | '/reservation/$id'
-    | '/suivi/$id'
     | '/api/admin/send-course-email'
     | '/api/public/contact'
     | '/api/public/driver-location'
@@ -387,7 +363,6 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   DriverRoute: typeof DriverRoute
   MentionsLegalesRoute: typeof MentionsLegalesRoute
-  MesCoursesRoute: typeof MesCoursesRoute
   ReservationRoute: typeof ReservationRouteWithChildren
   ReserverRoute: typeof ReserverRoute
   ServicesRoute: typeof ServicesRoute
@@ -397,7 +372,6 @@ export interface RootRouteChildren {
   ClientLoginRoute: typeof ClientLoginRoute
   CourseIdRoute: typeof CourseIdRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
-  SuiviIdRoute: typeof SuiviIdRoute
   ApiAdminSendCourseEmailRoute: typeof ApiAdminSendCourseEmailRoute
   ApiPublicContactRoute: typeof ApiPublicContactRoute
   ApiPublicDriverLocationRoute: typeof ApiPublicDriverLocationRoute
@@ -441,13 +415,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReservationRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/mes-courses': {
-      id: '/mes-courses'
-      path: '/mes-courses'
-      fullPath: '/mes-courses'
-      preLoaderRoute: typeof MesCoursesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/mentions-legales': {
       id: '/mentions-legales'
       path: '/mentions-legales'
@@ -488,13 +455,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/suivi/$id': {
-      id: '/suivi/$id'
-      path: '/suivi/$id'
-      fullPath: '/suivi/$id'
-      preLoaderRoute: typeof SuiviIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reservation/$id': {
@@ -638,7 +598,6 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   DriverRoute: DriverRoute,
   MentionsLegalesRoute: MentionsLegalesRoute,
-  MesCoursesRoute: MesCoursesRoute,
   ReservationRoute: ReservationRouteWithChildren,
   ReserverRoute: ReserverRoute,
   ServicesRoute: ServicesRoute,
@@ -648,7 +607,6 @@ const rootRouteChildren: RootRouteChildren = {
   ClientLoginRoute: ClientLoginRoute,
   CourseIdRoute: CourseIdRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
-  SuiviIdRoute: SuiviIdRoute,
   ApiAdminSendCourseEmailRoute: ApiAdminSendCourseEmailRoute,
   ApiPublicContactRoute: ApiPublicContactRoute,
   ApiPublicDriverLocationRoute: ApiPublicDriverLocationRoute,

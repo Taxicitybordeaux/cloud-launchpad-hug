@@ -53,17 +53,8 @@ function ConfirmationPage() {
   // (push client supprimé)
   const fetchReservation = useServerFn(getReservationPublic);
   const cancelReservation = useServerFn(cancelReservationPublic);
-  // Redirection automatique après 5 secondes si réservation valide et non annulée
-  useEffect(() => {
-    if (reservation && !["annulee", "cancelled", "canceled"].includes(reservation.status)) {
-      const timeout = setTimeout(() => {
-        navigate({ to: "/suivi/$id", params: { id: reservation.id } });
-      }, 5000);
-      return () => clearTimeout(timeout);
-    }
-  }, [reservation, navigate]);
+  // Redirection /suivi/$id supprimée.
 
-  // Notifications push client supprimées — bandeau d'étapes sur /suivi/$id à la place.
 
 
   useEffect(() => {
@@ -224,15 +215,8 @@ function ConfirmationPage() {
         </div>
       )}
 
-      {!isCancelled && (
-        <Link
-          to="/suivi/$id"
-          params={{ id: reservation.id }}
-          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 font-semibold text-primary-foreground shadow transition hover:opacity-90"
-        >
-          <Navigation className="h-5 w-5" /> {t("conf.track")}
-        </Link>
-      )}
+      {/* Lien /suivi/$id supprimé. */}
+
 
       {!isCancelled && (
         <div className="mt-6 rounded-xl border border-border bg-card/50 p-5">

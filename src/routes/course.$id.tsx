@@ -136,7 +136,7 @@ function CoursePage() {
         return;
       }
       if (r.status !== "en_route") {
-        navigate({ to: `/suivi/${id}` });
+        navigate({ to: "/reservation/$id", params: { id } });
         return;
       }
 
@@ -325,7 +325,7 @@ function CoursePage() {
 
   // ── Partage trajet ──────────────────────────────────────────
   const partagerTrajet = useCallback(async () => {
-    const url = `${window.location.origin}/suivi/${id}`;
+    const url = `${window.location.origin}/reservation/${id}`;
     try {
       await navigator.share({
         title: "Je suis en taxi !",
