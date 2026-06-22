@@ -60,6 +60,7 @@ interface RouteOption {
   dirResult: any;
   originLatLng: { lat: number; lng: number };
   destLatLng: { lat: number; lng: number };
+  waypointLatLng: { lat: number; lng: number } | null;
 }
 
 // ── Route definition ───────────────────────────────────────────────────────
@@ -666,6 +667,13 @@ function CourseCard({
           const prix_estime = parseFloat((distKm * tarifKm + PRISE_EN_CHARGE).toFixed(2));
           const tarifLabel = estJour ? "Tarif jour ☀️" : "Tarif nuit 🌙";
 
+          // Extraire un waypoint au milieu du trajet pour forcer cet itinéraire dans Maps
+          const steps: any[] = route.legs.flatMap((l: any) => l.steps ?? []);
+          const midStep = steps.length > 2 ? steps[Math.floor(steps.length / 2)] : null;
+          const waypointLatLng = midStep?.start_location
+            ? { lat: midStep.start_location.lat(), lng: midStep.start_location.lng() }
+            : null;
+
           return {
             index: i,
             summary: route.summary || `Itinéraire ${i + 1}`,
@@ -681,6 +689,7 @@ function CourseCard({
             dirResult: { ...result, routes: [route] },
             originLatLng: { lat: geoA.lat, lng: geoA.lng },
             destLatLng: { lat: geoB.lat, lng: geoB.lng },
+            waypointLatLng,
           };
         });
         setRoutes(opts);
@@ -1273,63 +1282,48 @@ function CourseCard({
                 const destCoord = chosen
                   ? `${chosen.destLatLng.lat},${chosen.destLatLng.lng}`
                   : encodeURIComponent(resa.destination);
-                const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origCoord}&destination=${destCoord}&travelmode=driving`;
+                // Waypoint milieu pour forcer le même itinéraire dans Maps
+                const wp = chosen?.waypointLatLng;
+                const waypointParam = wp ? `&waypoints=${wp.lat},${wp.lng}` : "";
+                const waypointCoord = wp ? `${wp.lat},${wp.lng}` : null;
                 return (
-                  <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                    <a
-                      href={mapsUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        flex: 1,
-                        display: "block",
-                        textAlign: "center",
-                        background: "#f1f5f9",
-                        color: "#0f172a",
-                        border: "1px solid #e2e8f0",
-                        borderRadius: 12,
-                        padding: "12px 8px",
-                        fontSize: 13,
-                        fontWeight: 700,
-                        textDecoration: "none",
-                      }}
-                    >
-                      🗺 Itinéraires
-                    </a>
+                  <div style={{ marginBottom: 10 }}>
                     <button
                       onClick={() => {
                         const ua = navigator.userAgent;
                         const isIOS = /iPad|iPhone|iPod/.test(ua);
                         const isAndroid = /Android/.test(ua);
-                        // On navigue départ → destination (pas depuis position actuelle)
-                        // waypoints=depart force Maps à commencer au point de prise en charge
-                        const navUrl = `https://www.google.com/maps/dir/?api=1&origin=${origCoord}&destination=${destCoord}&travelmode=driving&dir_action=navigate`;
                         if (isIOS) {
-                          // comgooglemaps avec saddr = départ de la course
-                          const gmaps = `comgooglemaps://?saddr=${origCoord}&daddr=${destCoord}&directionsmode=driving`;
+                          // iOS : Google Maps app avec waypoint, fallback Apple Maps
+                          const wpParam = waypointCoord ? `+to:${waypointCoord}+to:` : "";
+                          const gmaps = `comgooglemaps://?saddr=${origCoord}&daddr=${wpParam}${destCoord}&directionsmode=driving`;
                           const apple = `maps://maps.apple.com/?saddr=${origCoord}&daddr=${destCoord}&dirflg=d`;
                           window.location.href = gmaps;
                           setTimeout(() => {
                             window.location.href = apple;
                           }, 1500);
                         } else if (isAndroid) {
-                          // Sur Android : google.navigation ignore saddr, on passe par le lien web
-                          // qui respecte l'origin et lance la nav directement
-                          window.location.href = navUrl;
+                          // Android : intent Maps avec waypoint pour forcer l'itinéraire
+                          const daddr = waypointCoord ? `${waypointCoord}+to:${destCoord}` : destCoord;
+                          const intent = `intent://maps.google.com/maps?saddr=${origCoord}&daddr=${daddr}&dirflg=d#Intent;scheme=https;package=com.google.android.apps.maps;end`;
+                          window.location.href = intent;
                         } else {
-                          window.open(navUrl, "_blank");
+                          window.open(
+                            `https://www.google.com/maps/dir/?api=1&origin=${origCoord}&destination=${destCoord}${waypointParam}&travelmode=driving&dir_action=navigate`,
+                            "_blank",
+                          );
                         }
                       }}
                       style={{
-                        flex: 2,
+                        width: "100%",
                         display: "block",
                         textAlign: "center",
                         background: "#0f172a",
                         color: "#fff",
                         border: "none",
                         borderRadius: 12,
-                        padding: "12px 8px",
-                        fontSize: 13,
+                        padding: "13px 8px",
+                        fontSize: 14,
                         fontWeight: 700,
                         cursor: "pointer",
                         fontFamily: "'DM Sans', sans-serif",
