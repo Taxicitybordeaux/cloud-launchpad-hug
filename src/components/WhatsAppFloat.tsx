@@ -15,7 +15,6 @@ export function WhatsAppFloat() {
 
   const isHiddenPage =
     location.pathname.startsWith("/tracking/") ||
-    location.pathname.startsWith("/suivi/") ||
     location.pathname.startsWith("/reservation/") ||
     location.pathname.startsWith("/scan/") ||
     location.pathname.startsWith("/admin") ||

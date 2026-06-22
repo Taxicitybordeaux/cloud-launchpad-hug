@@ -498,9 +498,9 @@ function ClientDashboard() {
                             </button>
                           )}
 
-                          {isActive && (r.suivi_id || r.tracking_id) && (
+                          {isActive && (
                             <a
-                              href={`/suivi/${r.suivi_id || r.tracking_id}`}
+                              href={`/reservation/${r.id}`}
                               className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-black"
                               style={{
                                 background: "linear-gradient(135deg, #C9A84C 0%, #E8C96D 100%)",

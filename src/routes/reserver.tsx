@@ -1441,7 +1441,7 @@ function ReservationPage() {
         console.warn("[notify] chauffeur notify failed (non-blocking)", e);
       }
 
-      navigate({ to: "/suivi/$id", params: { id: inserted.suivi_id ?? inserted.id } });
+      navigate({ to: "/reservation/$id", params: { id: inserted.id } });
     } catch (err: any) {
       setSending(false);
       toast.error(t("res.err.global"), { description: err?.message });
