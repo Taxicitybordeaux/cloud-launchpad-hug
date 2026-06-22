@@ -22,9 +22,11 @@ const FIN_JOUR = 19;
  * Parse une ISO datetime en supposant heure Paris si aucune timezone n'est indiquée.
  * Corrige le bug : "2026-06-22T17:00:00" sans Z → new Date() lit UTC → 19h Paris → faux tarif nuit.
  */
-function parseAsParisTime(iso: string): Date {
+export function parseAsParisTime(iso: string): Date {
+  if (!iso) return new Date();
   if (/Z|[+-]\d{2}:\d{2}$/.test(iso)) return new Date(iso);
   const provisional = new Date(iso + "Z");
+  if (isNaN(provisional.getTime())) return new Date();
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/Paris",
     hour: "2-digit",
