@@ -78,12 +78,17 @@ export const Route = createFileRoute("/driver")({
 // ── Styles globaux ─────────────────────────────────────────────────────────
 const css = `
   * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; touch-action: manipulation; }
-  html, body { overscroll-behavior-y: contain; }
-  body { margin: 0; background: #f8fafc; font-family: 'DM Sans', sans-serif; }
-  input, textarea, select { font-size: 16px; } /* empêche le zoom auto au focus sur iOS */
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    overscroll-behavior-y: contain; background: #f8fafc;
+    font-family: 'DM Sans', sans-serif;
+  }
+  input, textarea, select { font-size: 16px; }
   .drv-root {
-    max-width: 480px; margin: 0 auto; min-height: 100dvh; display: flex; flex-direction: column;
-    background: #fff; overflow: hidden;
+    position: fixed; inset: 0;
+    max-width: 480px; margin: 0 auto;
+    display: flex; flex-direction: column;
+    background: #fff;
   }
   .drv-header {
     background: #0f172a; color: #fff; display: flex; align-items: center; gap: 10px;
@@ -107,7 +112,8 @@ const css = `
   .drv-tab svg { width: 22px; height: 22px; }
   .drv-badge { background: #ef4444; color: #fff; border-radius: 99px; font-size: 10px; font-weight: 700; padding: 1px 5px; position: absolute; top: -3px; right: -5px; }
   .drv-body {
-    flex: 1; padding: 16px; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+    flex: 1; padding: 16px;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
     overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;
   }
   .drv-section { font-size: 10px; font-weight: 700; color: #94a3b8; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 10px; }
@@ -164,10 +170,7 @@ const css = `
     .drv-time { font-size: 18px; }
     .drv-stat-val { font-size: 20px; }
   }
-  @supports (-webkit-touch-callout: none) {
-    /* iOS Safari : 100dvh dans une PWA standalone peut rogner sous la barre d'accueil */
-    .drv-root { min-height: -webkit-fill-available; }
-  }
+
 `;
 
 // ── Icons ──────────────────────────────────────────────────────────────────
