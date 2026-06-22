@@ -1206,7 +1206,7 @@ function CourseCard({
           )}
           {resa.status === "accepted" && (
             <a
-              href={`/suivi/${resa.id}?gps=1`}
+              href={`/course/${resa.id}?gps=1`}
               style={{
                 display: "block",
                 textAlign: "center",
