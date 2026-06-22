@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { getRouteGeoCoords } from "@/lib/googleRoute";
+import { getRouteGeoCoords, getDistanceAndDurationKm } from "@/lib/googleRoute";
 import { searchAddress } from "@/lib/googleGeocode";
 const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const OSM_TILE_OPTIONS = { attribution: "© OpenStreetMap contributors", maxZoom: 19 };
@@ -50,12 +50,15 @@ function loadLeaflet(): Promise<void> {
 
 async function getRoute(from: [number, number], to: [number, number]) {
   try {
-    // incoming coords are [lat, lng] in this file; OSRM helper expects [lng, lat]
-    const res = await getRouteGeoCoords([from[1], from[0]], [to[1], to[0]]);
+    // incoming coords are [lat, lng] in this file; helper expects [lng, lat]
+    const [res, dur] = await Promise.all([
+      getRouteGeoCoords([from[1], from[0]], [to[1], to[0]]),
+      getDistanceAndDurationKm([from[1], from[0]], [to[1], to[0]]),
+    ]);
     if (!res) return null;
     return {
       coords: res.coords,
-      dureeMin: Math.round(res.durationSec / 60),
+      dureeMin: Math.round((dur?.dureeS ?? 0) / 60),
       distanceKm: res.distanceKm.toFixed(1),
     };
   } catch {
