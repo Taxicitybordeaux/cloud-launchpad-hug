@@ -22,7 +22,10 @@ function parseParisMs(iso: string): number {
   const diffMs = (parseInt(h, 10) * 60 + parseInt(m, 10) - (parisH * 60 + parisM)) * 60_000;
   return provisional.getTime() - diffMs;
 }
-import { loadGoogleMapsWhenVisible } from "@/lib/googleMaps";
+/** Retourne le datetime fiable d'une resa : pickup_datetime en priorité, sinon date_heure. */
+function resaDatetime(resa: { date_heure: string; pickup_datetime?: string | null }): string {
+  return resa.pickup_datetime || resa.date_heure || "";
+}
 import { geocodeAddress } from "@/lib/googleGeocode";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useServerFn } from "@tanstack/react-start";
@@ -39,6 +42,7 @@ interface Resa {
   depart: string;
   destination: string;
   date_heure: string;
+  pickup_datetime?: string | null;
   status: string;
   prix_estime?: number | null;
   distance_km?: number | null;
@@ -542,7 +546,7 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
     const { data } = await (supabase as any)
       .from("reservations")
       .select(
-        "id,depart,destination,date_heure,status,prix_estime,distance_km,client_name,client_phone,client_email,suivi_id",
+        "id,depart,destination,date_heure,pickup_datetime,status,prix_estime,distance_km,client_name,client_phone,client_email,suivi_id",
       )
       .in("status", ["pending", "accepted"])
       .order("date_heure", { ascending: true });
@@ -671,12 +675,12 @@ function CourseCard({
           const leg = route.legs[0];
           const distKm = (leg.distance?.value ?? 0) / 1000;
           const dureeMin = Math.round((leg.duration?.value ?? 0) / 60);
-          const prix_estime = calculerPrixMixte(distKm, resa.date_heure);
+          const prix_estime = calculerPrixMixte(distKm, resaDatetime(resa));
 
           // Tarif label : on recalcule le prorata pour savoir si c'est pur jour, pur nuit ou mixte
           const dureeH = distKm / 40;
           const dureeMs = Math.max(dureeH * 3_600_000, 60_000);
-          const departMs = parseParisMs(resa.date_heure);
+          const departMs = parseParisMs(resaDatetime(resa));
           const steps = Math.max(Math.ceil(dureeMs / 60_000), 1);
           let kmJour = 0;
           let kmNuit = 0;
