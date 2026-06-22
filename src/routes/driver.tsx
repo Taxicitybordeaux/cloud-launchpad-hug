@@ -1309,8 +1309,10 @@ function CourseCard({
                         const debug_origin = originNative;
                         const debug_destination = destinationNative;
                         // build native urls for logging (use native-encoded values)
-                        const debug_ios = `comgooglemaps://?saddr=${originNative}&daddr=${destinationNative}${waypointParam}&directionsmode=driving&dir_action=navigate`;
-                        const debug_android_daddr = waypointCoord ? `via:${waypointCoord}+to:${destinationNative}` : destinationNative;
+                        const debug_ios = waypointCoord
+                          ? `comgooglemaps://?saddr=${originNative}&daddr=${waypointCoord}+to:${destinationNative}&directionsmode=driving&dir_action=navigate`
+                          : `comgooglemaps://?saddr=${originNative}&daddr=${destinationNative}&directionsmode=driving&dir_action=navigate`;
+                        const debug_android_daddr = waypointCoord ? `${waypointCoord}+to:${destinationNative}` : destinationNative;
                         const debug_android_intent = `intent://maps.google.com/maps?saddr=${originNative}&daddr=${debug_android_daddr}&dir_action=navigate#Intent;scheme=https;package=com.google.android.apps.maps;S.browser_fallback_url=${encodeURIComponent(googleMapsWeb)};end`;
                         console.debug("[Démarrer GPS] UA:", ua);
                         console.debug("[Démarrer GPS] origin:", debug_origin);
@@ -1321,16 +1323,17 @@ function CourseCard({
                         console.debug("[Démarrer GPS] web:", debug_googleMapsWeb);
                         if (isIOS) {
                           // iOS : open Google Maps app with explicit origin + waypoint + start navigation
-                          const wpParam = waypointCoord ? `+to:${waypointCoord}+to:` : "";
-                          const gmaps = `comgooglemaps://?saddr=${originNative}&daddr=${wpParam}${destinationNative}&directionsmode=driving&dir_action=navigate`;
+                          const gmaps = waypointCoord
+                            ? `comgooglemaps://?saddr=${originNative}&daddr=${waypointCoord}+to:${destinationNative}&directionsmode=driving&dir_action=navigate`
+                            : `comgooglemaps://?saddr=${originNative}&daddr=${destinationNative}&directionsmode=driving&dir_action=navigate`;
                           window.location.href = gmaps;
                           // fallback to web
                           setTimeout(() => {
                             window.location.href = googleMapsWeb;
                           }, 1200);
                         } else if (isAndroid) {
-                          // Android : intent with saddr + daddr (including via: waypoint) and dir_action to start navigation
-                          const daddr = waypointCoord ? `via:${waypointCoord}+to:${destinationNative}` : destinationNative;
+                          // Android : intent with saddr + daddr (waypoint chained with +to:) and dir_action to start navigation
+                          const daddr = waypointCoord ? `${waypointCoord}+to:${destinationNative}` : destinationNative;
                           const intent = `intent://maps.google.com/maps?saddr=${originNative}&daddr=${daddr}&dir_action=navigate#Intent;scheme=https;package=com.google.android.apps.maps;S.browser_fallback_url=${encodeURIComponent(googleMapsWeb)};end`;
                           window.location.href = intent;
                         } else {
