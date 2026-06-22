@@ -58,6 +58,8 @@ interface RouteOption {
   legs: any[];
   overview_polyline: string;
   dirResult: any;
+  originLatLng: { lat: number; lng: number };
+  destLatLng: { lat: number; lng: number };
 }
 
 // ── Route definition ───────────────────────────────────────────────────────
@@ -677,6 +679,8 @@ function CourseCard({
               (route.overview_polyline as unknown as string) ??
               "",
             dirResult: { ...result, routes: [route] },
+            originLatLng: { lat: geoA.lat, lng: geoA.lng },
+            destLatLng: { lat: geoB.lat, lng: geoB.lng },
           };
         });
         setRoutes(opts);
@@ -963,11 +967,20 @@ function CourseCard({
         <span>🏁 {resa.destination}</span>
       </div>
 
-      {/* Résumé km/prix si déjà calculé */}
-      {(resa.distance_km || resa.prix_estime) && (
+      {/* Résumé km/prix — priorité à la route sélectionnée si chargée, sinon valeurs BDD */}
+      {(resa.distance_km || resa.prix_estime || routes.length > 0) && (
         <div className="drv-meta">
-          {resa.distance_km && <span>🛣 {resa.distance_km} km</span>}
-          {resa.prix_estime && <span>💶 {resa.prix_estime.toFixed(2)} €</span>}
+          {(routes[selectedRoute]?.distanceKm ?? resa.distance_km) != null && (
+            <span>🛣 {routes[selectedRoute]?.distanceKm ?? resa.distance_km} km</span>
+          )}
+          {(routes[selectedRoute]?.prix_estime ?? resa.prix_estime) != null && (
+            <span>💶 {(routes[selectedRoute]?.prix_estime ?? resa.prix_estime ?? 0).toFixed(2)} €</span>
+          )}
+          {routes[selectedRoute]?.tarifLabel && (
+            <span style={{ color: routes[selectedRoute].tarifLabel.includes("nuit") ? "#1d4ed8" : "#15803d" }}>
+              {routes[selectedRoute].tarifLabel}
+            </span>
+          )}
         </div>
       )}
 
@@ -993,20 +1006,19 @@ function CourseCard({
                 <div
                   key={i}
                   className={`drv-route-opt${selectedRoute === i ? " selected" : ""}`}
-                  onClick={() => {
+                  onClick={async () => {
                     setSelectedRoute(i);
-                    // Mise à jour automatique en base dès la sélection
-                    (supabase as any)
-                      .from("reservations")
-                      .update({ distance_km: r.distanceKm, prix_estime: r.prix_estime })
-                      .eq("id", resa.id)
-                      .then(({ error }: any) => {
-                        if (error) toast.error("Erreur mise à jour itinéraire");
-                        else {
-                          toast.success(`Itinéraire sélectionné — ${r.distanceKm} km · ${r.prix_estime.toFixed(2)} €`);
-                          onRefresh();
-                        }
-                      });
+                    try {
+                      const { error } = await (supabase as any)
+                        .from("reservations")
+                        .update({ distance_km: r.distanceKm, prix_estime: r.prix_estime })
+                        .eq("id", resa.id);
+                      if (error) throw error;
+                      toast.success(`✓ ${r.distanceKm} km · ${r.prix_estime.toFixed(2)} €`);
+                      onRefresh();
+                    } catch (e: any) {
+                      toast.error("Erreur mise à jour itinéraire : " + (e.message ?? e));
+                    }
                   }}
                 >
                   <div className="drv-route-opt-head">
@@ -1252,69 +1264,82 @@ function CourseCard({
           )}
           {resa.status === "accepted" && (
             <>
-              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                <a
-                  href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(resa.depart)}&destination=${encodeURIComponent(resa.destination)}&travelmode=driving`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    flex: 1,
-                    display: "block",
-                    textAlign: "center",
-                    background: "#f1f5f9",
-                    color: "#0f172a",
-                    border: "1px solid #e2e8f0",
-                    borderRadius: 12,
-                    padding: "12px 8px",
-                    fontSize: 13,
-                    fontWeight: 700,
-                    textDecoration: "none",
-                  }}
-                >
-                  🗺 Itinéraires
-                </a>
-                <button
-                  onClick={() => {
-                    const dest = encodeURIComponent(resa.destination);
-                    const orig = encodeURIComponent(resa.depart);
-                    const ua = navigator.userAgent;
-                    const isIOS = /iPad|iPhone|iPod/.test(ua);
-                    const isAndroid = /Android/.test(ua);
-                    if (isIOS) {
-                      const gmaps = `comgooglemaps://?saddr=${orig}&daddr=${dest}&directionsmode=driving`;
-                      const apple = `maps://maps.apple.com/?saddr=${orig}&daddr=${dest}&dirflg=d`;
-                      window.location.href = gmaps;
-                      setTimeout(() => {
-                        window.location.href = apple;
-                      }, 1500);
-                    } else if (isAndroid) {
-                      window.location.href = `google.navigation:q=${dest}`;
-                    } else {
-                      // PC — lien web Google Maps avec navigation
-                      window.open(
-                        `https://www.google.com/maps/dir/?api=1&origin=${orig}&destination=${dest}&travelmode=driving&dir_action=navigate`,
-                        "_blank",
-                      );
-                    }
-                  }}
-                  style={{
-                    flex: 2,
-                    display: "block",
-                    textAlign: "center",
-                    background: "#0f172a",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: 12,
-                    padding: "12px 8px",
-                    fontSize: 13,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    fontFamily: "'DM Sans', sans-serif",
-                  }}
-                >
-                  🚗 Démarrer GPS
-                </button>
-              </div>
+              {(() => {
+                // Utilise les coords géocodées si disponibles (plus précis que le texte brut)
+                const chosen = routes[selectedRoute];
+                const origCoord = chosen
+                  ? `${chosen.originLatLng.lat},${chosen.originLatLng.lng}`
+                  : encodeURIComponent(resa.depart);
+                const destCoord = chosen
+                  ? `${chosen.destLatLng.lat},${chosen.destLatLng.lng}`
+                  : encodeURIComponent(resa.destination);
+                const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origCoord}&destination=${destCoord}&travelmode=driving`;
+                return (
+                  <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                    <a
+                      href={mapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        flex: 1,
+                        display: "block",
+                        textAlign: "center",
+                        background: "#f1f5f9",
+                        color: "#0f172a",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: 12,
+                        padding: "12px 8px",
+                        fontSize: 13,
+                        fontWeight: 700,
+                        textDecoration: "none",
+                      }}
+                    >
+                      🗺 Itinéraires
+                    </a>
+                    <button
+                      onClick={() => {
+                        const ua = navigator.userAgent;
+                        const isIOS = /iPad|iPhone|iPod/.test(ua);
+                        const isAndroid = /Android/.test(ua);
+                        // On navigue départ → destination (pas depuis position actuelle)
+                        // waypoints=depart force Maps à commencer au point de prise en charge
+                        const navUrl = `https://www.google.com/maps/dir/?api=1&origin=${origCoord}&destination=${destCoord}&travelmode=driving&dir_action=navigate`;
+                        if (isIOS) {
+                          // comgooglemaps avec saddr = départ de la course
+                          const gmaps = `comgooglemaps://?saddr=${origCoord}&daddr=${destCoord}&directionsmode=driving`;
+                          const apple = `maps://maps.apple.com/?saddr=${origCoord}&daddr=${destCoord}&dirflg=d`;
+                          window.location.href = gmaps;
+                          setTimeout(() => {
+                            window.location.href = apple;
+                          }, 1500);
+                        } else if (isAndroid) {
+                          // Sur Android : google.navigation ignore saddr, on passe par le lien web
+                          // qui respecte l'origin et lance la nav directement
+                          window.location.href = navUrl;
+                        } else {
+                          window.open(navUrl, "_blank");
+                        }
+                      }}
+                      style={{
+                        flex: 2,
+                        display: "block",
+                        textAlign: "center",
+                        background: "#0f172a",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 12,
+                        padding: "12px 8px",
+                        fontSize: 13,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        fontFamily: "'DM Sans', sans-serif",
+                      }}
+                    >
+                      🚗 Démarrer GPS
+                    </button>
+                  </div>
+                );
+              })()}
               <button
                 onClick={() => handleProgressStatus("en_route", "🚕 En route !")}
                 disabled={progressing}
