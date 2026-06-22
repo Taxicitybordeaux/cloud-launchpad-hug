@@ -3,6 +3,23 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { calculerPrixMixte, estTarifJourParis } from "@/lib/tarif";
+
+/** Parse une ISO sans timezone comme heure Paris (évite le décalage UTC+2 en été). */
+function parseParisMs(iso: string): number {
+  if (/Z|[+-]\d{2}:\d{2}$/.test(iso)) return new Date(iso).getTime();
+  const provisional = new Date(iso + "Z");
+  const fmt = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Paris",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(provisional);
+  const parisH = parseInt(fmt.find((p) => p.type === "hour")!.value, 10) % 24;
+  const parisM = parseInt(fmt.find((p) => p.type === "minute")!.value, 10);
+  const [, h, m] = iso.match(/T(\d{2}):(\d{2})/) ?? ["", "0", "0"];
+  const diffMs = (parseInt(h, 10) * 60 + parseInt(m, 10) - (parisH * 60 + parisM)) * 60_000;
+  return provisional.getTime() - diffMs;
+}
 import { loadGoogleMapsWhenVisible } from "@/lib/googleMaps";
 import { geocodeAddress } from "@/lib/googleGeocode";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
@@ -657,7 +674,7 @@ function CourseCard({
           // Tarif label : on recalcule le prorata pour savoir si c'est pur jour, pur nuit ou mixte
           const dureeH = distKm / 40;
           const dureeMs = Math.max(dureeH * 3_600_000, 60_000);
-          const departMs = new Date(resa.date_heure).getTime();
+          const departMs = parseParisMs(resa.date_heure);
           const steps = Math.max(Math.ceil(dureeMs / 60_000), 1);
           let kmJour = 0;
           let kmNuit = 0;
