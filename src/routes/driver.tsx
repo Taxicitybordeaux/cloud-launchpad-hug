@@ -805,7 +805,8 @@ function CourseCard({
     const phone = (resa.client_phone || "").replace(/\s/g, "");
     const email = resa.client_email || resa.email || "";
     const trajet = `${resa.depart} → ${resa.destination || "—"}`;
-    const trackUrl = typeof window !== "undefined" ? `${window.location.origin}/reservation/${resa.id}` : "";
+    const trackUrl =
+      typeof window !== "undefined" ? `${window.location.origin}/reservation/${resa.id}` : "";
     const trackingLine = trackUrl ? `\nRetrouvez votre course ici : ${trackUrl}` : "";
     const msg = `Bonjour ${name}, le prix de votre course Taxi City Bordeaux (${trajet}) est de ${val.toFixed(2)} €. Merci.${trackingLine}`;
 
@@ -1049,7 +1050,10 @@ function CourseCard({
             (() => {
               const phone = resa.client_phone;
               const mail = resa.client_email || resa.email;
-              const trackUrl = typeof window !== "undefined" ? `${window.location.origin}/reservation/${resa.id}` : "";
+              const trackUrl =
+                typeof window !== "undefined"
+                  ? `${window.location.origin}/reservation/${resa.id}`
+                  : "";
               const greet = `Bonjour ${resa.client_name || ""}, votre taxi Taxi City Bordeaux.`;
               const body = trackUrl ? `${greet}\nRetrouvez votre course ici : ${trackUrl}` : greet;
               const mailBody = trackUrl
@@ -1271,8 +1275,12 @@ function CourseCard({
               {(() => {
                 // Utilise les coords géocodées si disponibles (plus précis que le texte brut)
                 const chosen = routes[selectedRoute];
-                const origCoord = chosen ? `${chosen.originLatLng.lat},${chosen.originLatLng.lng}` : resa.depart;
-                const destCoord = chosen ? `${chosen.destLatLng.lat},${chosen.destLatLng.lng}` : resa.destination;
+                const origCoord = chosen
+                  ? `${chosen.originLatLng.lat},${chosen.originLatLng.lng}`
+                  : resa.depart;
+                const destCoord = chosen
+                  ? `${chosen.destLatLng.lat},${chosen.destLatLng.lng}`
+                  : resa.destination;
                 // Waypoint milieu pour forcer le même itinéraire dans Maps
                 const wp = chosen?.waypointLatLng;
                 const waypointParam = wp ? `&waypoints=${wp.lat},${wp.lng}` : "";
@@ -1350,54 +1358,14 @@ function CourseCard({
                         fontFamily: "'DM Sans', sans-serif",
                       }}
                     >
-                      🚗 Démarrer GPS
+                      🗺 Lancer Google Maps
                     </button>
                   </div>
                 );
               })()}
-              <button
-                onClick={() => handleProgressStatus("en_route", "🚕 En route !")}
-                disabled={progressing}
-                style={{
-                  width: "100%",
-                  background: "#fffbeb",
-                  border: "1px solid #fde68a",
-                  color: "#92400e",
-                  borderRadius: 12,
-                  padding: "11px",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  marginBottom: 10,
-                }}
-              >
-                {progressing ? "…" : "🚕 Passer en route"}
-              </button>
-            </>
-          )}
 
-          {resa.status === "en_route" && (
-            <button
-              onClick={() => handleProgressStatus("arrived", "📍 Arrivé !")}
-              disabled={progressing}
-              style={{
-                width: "100%",
-                background: "#eff6ff",
-                border: "1px solid #bfdbfe",
-                color: "#1e40af",
-                borderRadius: 12,
-                padding: "11px",
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: "pointer",
-                marginBottom: 10,
-              }}
-            >
-              {progressing ? "…" : "📍 Marquer arrivé"}
-            </button>
-          )}
 
-          {(resa.status === "en_route" || resa.status === "arrived") && (
+          {(resa.status === "accepted" || resa.status === "en_route" || resa.status === "arrived") && (
             <button
               onClick={handleComplete}
               disabled={completing}
