@@ -16,6 +16,7 @@ type Props = {
   role: "client" | "chauffeur";
   onClose: () => void;
   peerName?: string;
+  clientIdentity?: { account_id: string; phone?: string | null; email?: string | null };
 };
 
 const PAGE_SIZE = 30;
@@ -28,7 +29,7 @@ const MSG_COLS = "id,reservation_id,sender,content,read_by_client,read_by_chauff
 const OFFLINE_QUEUE_KEY = (rid: string, role: string) => `chat:offline:${role}:${rid}`;
 type OfflineMsg = { tempId: string; content: string; at: number };
 
-export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
+export function ChatPanel({ reservationId, role, onClose, peerName, clientIdentity }: Props) {
   const peerRole = role === "client" ? "chauffeur" : "client";
   const title = peerName || (role === "client" ? "José 🚖" : "Client");
 
