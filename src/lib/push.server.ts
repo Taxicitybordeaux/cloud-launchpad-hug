@@ -148,12 +148,16 @@ async function sendFcmToToken(
   const body = {
     message: {
       token,
-      // NE PAS mettre "notification" racine ici : si présent, FCM tente d'afficher
-      // la notif lui-même sans passer par le Service Worker → silencieux sur Android
-      // PWA en background (comportement observé). On délègue 100% au SW via
-      // webpush.notification — c'est la version qui fonctionne en production.
+      // notification racine : requis pour livraison mobile background (Android/iOS).
+      // Sans ce champ FCM traite le message comme data-only et ne réveille pas le SW.
+      // Le SW Firebase réaffiche ensuite avec toutes les options via onBackgroundMessage.
+      notification: {
+        title: payload.title,
+        body: payload.body,
+      },
       webpush: {
         headers: { Urgency: "high", TTL: "86400" },
+        // data dans webpush : accessible dans payload.data côté SW Firebase SDK
         data,
         notification: {
           title: payload.title,
@@ -164,9 +168,8 @@ async function sendFcmToToken(
           requireInteraction: !!payload.requireInteraction,
           vibrate: [200, 100, 200],
         },
-        // fcm_options.link supprimé : sur Opera/Chrome Android, FCM utilise ce champ
-        // pour naviguer directement sans déclencher notificationclick dans le SW.
       },
+      // data racine : reçu par le push event natif iOS Safari PWA >= 16.4
       data,
     },
   };
