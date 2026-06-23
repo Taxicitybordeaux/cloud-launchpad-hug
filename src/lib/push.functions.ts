@@ -2,12 +2,12 @@ import { createServerFn } from "@tanstack/react-start";
 import { DICTS, type Lang } from "@/i18n/dict";
 import { z } from "zod";
 
-export type PushAudience = "admin" | "chauffeur" | "client";
+export type PushAudience = "chauffeur" | "client";
 
 const FCM_TOKEN_RE = /^[A-Za-z0-9_\-:]{50,500}$/;
 
 const subSchema = z.object({
-  audience: z.enum(["admin", "chauffeur", "client"]),
+  audience: z.enum(["chauffeur", "client"]),
   fcm_token: z.string().regex(FCM_TOKEN_RE, "fcm_token format invalide"),
   reservation_id: z.string().uuid().optional().nullable(),
   user_agent: z.string().max(500).optional().nullable(),
