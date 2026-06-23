@@ -125,101 +125,106 @@ function SuiviPage() {
             setPriceUpdated(true);
           }
           if (updated.status === "accepted") {
-            setAcceptedAlert(true);
-            window.setTimeout(() => setAcceptedAlert(false), 5000);
-          }
-          if (updated.status === "completed" || updated.status === "terminee") {
-            navigate({ to: "/fin/$id", params: { id: updated.id } });
-          }
-        },
-      )
-      .subscribe();
-    return () => {
-      (supabase as any).removeChannel(channel);
-    };
-  }, [reservation?.id, navigate]);
+            <div className="mx-auto max-w-5xl px-6 py-12">
+              {/* Hero */}
+              <div className="rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-8 shadow-lg text-center text-white">
+                <h2 className="text-xs uppercase tracking-widest text-slate-300">Suivi premium</h2>
+                <h1 className="mt-2 text-3xl font-semibold">Suivez votre course en temps réel</h1>
+                <p className="mt-2 text-sm text-slate-300">Informations claires et sécurisées — votre chauffeur confirme le tarif avant affichage.</p>
+              </div>
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+              {/* Main grid */}
+              <div className="mt-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Left column: info + driver */}
+                <div className="lg:col-span-7 space-y-6">
+                  <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm uppercase tracking-[0.12em] text-muted-foreground">Statut</p>
+                        <div className="mt-2 flex items-center gap-3">
+                          <div className="rounded-full bg-white/6 px-3 py-1 text-sm font-semibold text-white">{translatedStatus}</div>
+                          <div className="text-sm text-muted-foreground">Prise en charge : {formatPickup(reservation.pickup_datetime ?? "", locale)}</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <Link to={`/reservation/${reservation.id}`} className="text-sm text-primary underline">Voir réservation</Link>
+                      </div>
+                    </div>
 
-  if (notFound || !reservation) {
-    return (
-      <div className="mx-auto max-w-2xl px-4 py-24 text-center">
-        <AlertTriangle className="mx-auto h-16 w-16 text-destructive" />
-        <h1 className="mt-6 font-display text-3xl font-bold">Suivi introuvable</h1>
-        <p className="mt-3 text-muted-foreground">Nous n'avons pas trouvé cette réservation.</p>
-        <Link
-          to="/"
-          className="mt-6 inline-flex items-center justify-center rounded-md bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground"
-        >
-          Retour à l'accueil
-        </Link>
-      </div>
-    );
-  }
+                    <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="rounded-lg bg-background p-4">
+                        <p className="text-xs text-muted-foreground">Départ</p>
+                        <p className="mt-1 text-white">{reservation.depart}</p>
+                      </div>
+                      <div className="rounded-lg bg-background p-4">
+                        <p className="text-xs text-muted-foreground">Destination</p>
+                        <p className="mt-1 text-white">{reservation.destination ?? reservation.arrivee ?? "-"}</p>
+                      </div>
+                    </div>
+                  </div>
 
-  const statusLabel = reservation.status;
-  const translatedStatus = t(`mc.status.${reservation.status}`) || statusLabel;
+                  {/* Driver card */}
+                  <div className="rounded-2xl border border-border bg-card p-6 flex items-center gap-4">
+                    <div className="h-16 w-16 rounded-full bg-gradient-to-br from-primary to-emerald-600 flex items-center justify-center text-xl font-bold text-white">J</div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm text-muted-foreground">Chauffeur</div>
+                          <div className="mt-1 font-semibold text-white">José — Mercedes</div>
+                          <div className="text-sm text-muted-foreground">Plaque: HF 450 JG</div>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          <a href={`tel:0673072322`} className="inline-flex items-center gap-2 rounded-full bg-white/6 px-3 py-2 text-sm text-white">Appeler</a>
+                          <a href={`https://wa.me/33673072322`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full bg-white/6 px-3 py-2 text-sm text-white">WhatsApp</a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-  return (
-    <div className="mx-auto max-w-3xl px-4 py-16">
-      {(acceptedAlert || priceUpdated) && (
-        <div className="mb-6 rounded-3xl border border-primary/30 bg-primary/10 p-4 text-sm text-primary-foreground">
-          {acceptedAlert ? (
-            <p>✅ Votre course a été acceptée par le chauffeur. Les informations sont mises à jour en temps réel.</p>
-          ) : (
-            <p>⚠️ Le tarif a changé depuis la réservation. Le montant affiché a été mis à jour.</p>
-          )}
-        </div>
-      )}
-      <div className="space-y-4 text-center">
-        <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">Suivi de course</p>
-        <h1 className="font-display text-3xl font-bold sm:text-4xl">Votre taxi arrive bientôt</h1>
-        <p className="mx-auto max-w-2xl text-sm leading-6 text-muted-foreground">
-          Prise en charge prévue le {formatPickup(reservation.pickup_datetime ?? "", locale)}
-        </p>
-      </div>
-
-      <div className="mt-10 space-y-6">
-        <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-          <div className="mb-6 flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm uppercase tracking-[0.16em] text-muted-foreground">Statut</p>
-              <p className="mt-2 text-xl font-semibold">{translatedStatus}</p>
-            </div>
-          </div>
-
-          <div className="space-y-4 text-sm text-muted-foreground">
-            <div className="rounded-2xl border border-border bg-background p-4">
-              <p className="font-semibold text-slate-100">Départ</p>
-              <p className="mt-2 text-base text-white">{reservation.depart}</p>
-            </div>
-            <div className="rounded-2xl border border-border bg-background p-4">
-              <p className="font-semibold text-slate-100">Destination</p>
-              <p className="mt-2 text-base text-white">{reservation.destination ?? reservation.arrivee ?? "-"}</p>
-            </div>
-            <div className="rounded-2xl border border-border bg-background p-4">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="text-sm text-muted-foreground">
-                  {reservation.distance_km != null && (
-                    <div>Distance estimée : {reservation.distance_km.toFixed(1)} km</div>
-                  )}
+                  {/* Chat panel (bottom on mobile) */}
+                  <div className="rounded-2xl border border-border bg-card p-4">
+                    <div className="flex items-center gap-3">
+                      <MessageCircle className="h-5 w-5 text-primary" />
+                      <div className="font-semibold text-white">Messagerie</div>
+                    </div>
+                    <div className="mt-4" style={{ minHeight: 300 }}>
+                      {session ? (
+                        <DirectChatPanel accountId={session.id} role="client" peerName="José 🚖" />
+                      ) : (
+                        <div className="space-y-4 text-sm text-muted-foreground">
+                          <p>Connectez-vous pour discuter directement avec votre chauffeur.</p>
+                          <Link to="/client/login" className="inline-flex items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">Connexion</Link>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="text-sm">
-                  {(["accepted", "en_route", "arrived", "completed", "terminee"].includes(reservation.status) && reservation.prix_estime != null) ? (
-                    <div className="font-medium text-white">
-                      {new Intl.NumberFormat(locale, { style: "currency", currency: "EUR" }).format(reservation.prix_estime)}
+
+                {/* Right column: fare and meta */}
+                <aside className="lg:col-span-5">
+                  <div className="sticky top-24 space-y-4">
+                    <div className="rounded-2xl bg-slate-900 p-6 text-white shadow-lg border border-white/6">
+                      <div className="text-sm text-slate-300">Tarif estimé</div>
+                      <div className="mt-4">
+                        {(["accepted", "en_route", "arrived", "completed", "terminee"].includes(reservation.status) && reservation.prix_estime != null) ? (
+                          <div className="text-2xl font-semibold">{new Intl.NumberFormat(locale, { style: "currency", currency: "EUR" }).format(reservation.prix_estime)}</div>
+                        ) : (
+                          <div className="text-sm text-slate-400">Votre tarif estimé sera fixé par le chauffeur et affiché ici une fois la course confirmée.</div>
+                        )}
+                      </div>
                     </div>
-                  ) : (
-                    <div className="text-muted-foreground">
-                      Votre tarif estimé sera fixé par le chauffeur et affiché ici une fois la course confirmée.
+
+                    <div className="rounded-2xl border border-border bg-card p-4">
+                      <div className="text-sm text-muted-foreground">Résumé</div>
+                      <div className="mt-3 text-sm text-white">
+                        <div>Distance estimée: {reservation.distance_km != null ? `${reservation.distance_km.toFixed(1)} km` : `-`}</div>
+                        <div className="mt-2">ID: {reservation.id}</div>
+                      </div>
                     </div>
-                  )}
+                  </div>
+                </aside>
+              </div>
+            </div>
                 </div>
               </div>
             </div>
