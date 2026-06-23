@@ -79,7 +79,7 @@ export const unsubscribePush = createServerFn({ method: "POST" })
   });
 
 export const sendTestPush = createServerFn({ method: "POST" })
-  .inputValidator((input) => z.object({ audience: z.enum(["admin", "chauffeur", "client"]) }).parse(input))
+  .inputValidator((input) => z.object({ audience: z.enum(["chauffeur", "client"]) }).parse(input))
   .handler(async ({ data }) => {
     const { sendPushToAudience } = await import("@/lib/push.server");
     return sendPushToAudience(data.audience, {
