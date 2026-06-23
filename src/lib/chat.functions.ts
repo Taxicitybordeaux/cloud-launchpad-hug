@@ -29,6 +29,42 @@ const sendSchema = z.object({
   skip_push: z.boolean().optional(),
 });
 
+const clientSendSchema = sendSchema.extend({
+  account_id: z.string().uuid(),
+  phone: z.string().trim().max(40).optional().nullable(),
+  email: z.string().trim().toLowerCase().max(255).optional().nullable(),
+});
+
+function normalizePhone(p?: string | null): string | null {
+  if (!p) return null;
+  const digits = p.replace(/\D+/g, "");
+  return digits.length >= 6 ? digits.slice(-9) : null;
+}
+
+async function assertClientOwnsReservation(
+  reservationId: string,
+  identity: { account_id: string; phone?: string | null; email?: string | null },
+) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: r } = await supabaseAdmin
+    .from("reservations")
+    .select("id, client_account_id, client_phone, telephone, client_email, email")
+    .eq("id", reservationId)
+    .maybeSingle();
+  if (!r) throw new Error("NOT_FOUND");
+  if (r.client_account_id === identity.account_id) return;
+  const phoneTail = normalizePhone(identity.phone);
+  const matchPhone =
+    !!phoneTail &&
+    (normalizePhone((r as any).client_phone) === phoneTail ||
+      normalizePhone((r as any).telephone) === phoneTail);
+  const matchEmail =
+    !!identity.email &&
+    (((r as any).client_email || "").toLowerCase() === identity.email.toLowerCase() ||
+      ((r as any).email || "").toLowerCase() === identity.email.toLowerCase());
+  if (!matchPhone && !matchEmail) throw new Error("FORBIDDEN");
+}
+
 // Throttle chauffeur → client pushes per reservation to avoid spam when
 // several messages are typed quickly. FCM `tag` already collapses on-device,
 // but skipping the network call entirely cuts noise + cost.
@@ -36,8 +72,13 @@ const lastChauffeurPushAt = new Map<string, number>();
 const PUSH_THROTTLE_MS = 8000;
 
 export const sendClientMessage = createServerFn({ method: "POST" })
-  .inputValidator((input) => sendSchema.parse(input))
+  .inputValidator((input) => clientSendSchema.parse(input))
   .handler(async ({ data }) => {
+    await assertClientOwnsReservation(data.reservation_id, {
+      account_id: data.account_id,
+      phone: data.phone ?? null,
+      email: data.email ?? null,
+    });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
       .from("reservation_messages")
@@ -53,6 +94,7 @@ export const sendClientMessage = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return row as ChatMessage;
   });
+
 
 export const sendChauffeurMessage = createServerFn({ method: "POST" })
   .inputValidator((input) => sendSchema.parse(input))
