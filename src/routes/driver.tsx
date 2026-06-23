@@ -1378,6 +1378,9 @@ function CourseCard({
                 );
               })()}
 
+            </>
+          )}
+
 
           {(resa.status === "accepted" || resa.status === "en_route" || resa.status === "arrived") && (
             <button
