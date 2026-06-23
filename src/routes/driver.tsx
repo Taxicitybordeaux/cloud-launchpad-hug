@@ -345,7 +345,8 @@ function DriverApp() {
     };
   }, []);
 
-  // Rafraîchit le token FCM à chaque reprise de la page (iOS révoque souvent le token)
+  // Rafraîchit le token FCM à chaque reprise de la page.
+  // getFcmToken retourne le cache immédiatement sauf si token > 50j → rotation silencieuse auto.
   useEffect(() => {
     const refresh = () => {
       if (document.visibilityState === "visible") subscribePush("chauffeur");
@@ -659,23 +660,23 @@ function CourseCard({
           const leg = route.legs[0];
           const distKm = (leg.distance?.value ?? 0) / 1000;
           const dureeMin = Math.round((leg.duration?.value ?? 0) / 60);
-          const dureeS = (leg.duration?.value ?? 0);
+          const dureeS = leg.duration?.value ?? 0;
           // Tarifs Bordeaux — calcul mixte avec durée réelle Google Maps
           const pickupIso = resa.pickup_datetime ?? resa.date_heure ?? "";
           const pickupMs = pickupIso ? new Date(pickupIso).getTime() : Date.now();
           const stepsCount = Math.max(Math.round(dureeS / 60), 1);
           const stepMs = (dureeS * 1000) / stepsCount;
           const frac = distKm / stepsCount;
-          let jourKm = 0, nuitKm = 0;
+          let jourKm = 0,
+            nuitKm = 0;
           for (let s = 0; s < stepsCount; s++) {
             const t = new Date(pickupMs + s * stepMs).toISOString();
-            if (estTarifJourParis(t)) jourKm += frac; else nuitKm += frac;
+            if (estTarifJourParis(t)) jourKm += frac;
+            else nuitKm += frac;
           }
           const prix_estime = parseFloat((2.83 + jourKm * 2.16 + nuitKm * 3.24).toFixed(2));
           const estJour = estTarifJourParis(pickupIso);
-          const tarifLabel = jourKm > 0 && nuitKm > 0
-            ? "Tarif mixte 🌗"
-            : estJour ? "Tarif jour ☀️" : "Tarif nuit 🌙";
+          const tarifLabel = jourKm > 0 && nuitKm > 0 ? "Tarif mixte 🌗" : estJour ? "Tarif jour ☀️" : "Tarif nuit 🌙";
 
           // Extraire un waypoint au milieu du trajet pour forcer cet itinéraire dans Maps
           const steps: any[] = route.legs.flatMap((l: any) => l.steps ?? []);
@@ -819,8 +820,7 @@ function CourseCard({
     const phone = (resa.client_phone || "").replace(/\s/g, "");
     const email = resa.client_email || resa.email || "";
     const trajet = `${resa.depart} → ${resa.destination || "—"}`;
-    const trackUrl =
-      typeof window !== "undefined" ? `${window.location.origin}/reservation/${resa.id}` : "";
+    const trackUrl = typeof window !== "undefined" ? `${window.location.origin}/reservation/${resa.id}` : "";
     const trackingLine = trackUrl ? `\nRetrouvez votre course ici : ${trackUrl}` : "";
     const msg = `Bonjour ${name}, le prix de votre course Taxi City Bordeaux (${trajet}) est de ${val.toFixed(2)} €. Merci.${trackingLine}`;
 
@@ -903,7 +903,10 @@ function CourseCard({
                 nom: name,
                 depart: resa.depart,
                 arrivee: resa.destination || "—",
-                old_datetime: formatDate(resa.pickup_datetime ?? resa.date_heure) + " " + formatHeure(resa.pickup_datetime ?? resa.date_heure),
+                old_datetime:
+                  formatDate(resa.pickup_datetime ?? resa.date_heure) +
+                  " " +
+                  formatHeure(resa.pickup_datetime ?? resa.date_heure),
                 new_datetime: formatDate(newDatetime) + " " + formatHeure(newDatetime),
               },
             }),
@@ -1064,10 +1067,7 @@ function CourseCard({
             (() => {
               const phone = resa.client_phone;
               const mail = resa.client_email || resa.email;
-              const trackUrl =
-                typeof window !== "undefined"
-                  ? `${window.location.origin}/reservation/${resa.id}`
-                  : "";
+              const trackUrl = typeof window !== "undefined" ? `${window.location.origin}/reservation/${resa.id}` : "";
               const greet = `Bonjour ${resa.client_name || ""}, votre taxi Taxi City Bordeaux.`;
               const body = trackUrl ? `${greet}\nRetrouvez votre course ici : ${trackUrl}` : greet;
               const mailBody = trackUrl
@@ -1289,12 +1289,8 @@ function CourseCard({
               {(() => {
                 // Utilise les coords géocodées si disponibles (plus précis que le texte brut)
                 const chosen = routes[selectedRoute];
-                const origCoord = chosen
-                  ? `${chosen.originLatLng.lat},${chosen.originLatLng.lng}`
-                  : resa.depart;
-                const destCoord = chosen
-                  ? `${chosen.destLatLng.lat},${chosen.destLatLng.lng}`
-                  : resa.destination;
+                const origCoord = chosen ? `${chosen.originLatLng.lat},${chosen.originLatLng.lng}` : resa.depart;
+                const destCoord = chosen ? `${chosen.destLatLng.lat},${chosen.destLatLng.lng}` : resa.destination;
                 // Waypoint milieu pour forcer le même itinéraire dans Maps
                 const wp = chosen?.waypointLatLng;
                 const waypointParam = wp ? `&waypoints=${wp.lat},${wp.lng}` : "";
@@ -1379,9 +1375,6 @@ function CourseCard({
               })()}
             </>
           )}
-
-
-
 
           {(resa.status === "accepted" || resa.status === "en_route" || resa.status === "arrived") && (
             <button
