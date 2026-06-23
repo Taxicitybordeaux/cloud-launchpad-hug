@@ -1447,6 +1447,27 @@ function CourseCard({
             </>
           )}
 
+          {resa.status === "accepted" && (
+            <button
+              onClick={() => handleProgressStatus("arrived", "📍 Statut : arrivé devant chez le client")}
+              disabled={progressing}
+              style={{
+                width: "100%",
+                background: "#f5f3ff",
+                border: "2px solid #7c3aed",
+                color: "#6d28d9",
+                borderRadius: 12,
+                padding: "12px",
+                fontSize: 14,
+                fontWeight: 800,
+                cursor: "pointer",
+                marginBottom: 10,
+              }}
+            >
+              {progressing ? "…" : "📍 Je suis devant chez vous"}
+            </button>
+          )}
+
           {(resa.status === "accepted" || resa.status === "en_route" || resa.status === "arrived") && (
             <button
               onClick={handleComplete}
