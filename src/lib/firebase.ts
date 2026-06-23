@@ -65,10 +65,24 @@ export async function getFcmToken(options: { forceRefresh?: boolean } = {}): Pro
         r.waiting?.scriptURL.includes(SW_URL),
     );
     if (!swReg) {
-      swReg = await navigator.serviceWorker.register(SW_URL, { scope: "/" });
+      swReg = await navigator.serviceWorker.register(SW_URL, { scope: "/", updateViaCache: "none" });
     } else {
       await swReg.update().catch((err) => console.warn("[FCM] SW update check failed", err));
+      // Si une nouvelle version est en attente, force la prise de contrôle.
+      if (swReg.waiting) {
+        swReg.waiting.postMessage({ type: "FCM_SW_SKIP_WAITING" });
+      }
     }
+
+    // Log de la version active du SW pour debug clic notif
+    try {
+      const active = swReg.active;
+      if (active) {
+        const channel = new MessageChannel();
+        channel.port1.onmessage = (ev) => console.log("[FCM] SW version active:", ev.data?.version);
+        active.postMessage({ type: "FCM_SW_VERSION" }, [channel.port2]);
+      }
+    } catch (_) {}
 
     // Attendre que le SW Firebase soit actif avant de demander le token
     // Timeout de 8s pour éviter de bloquer indéfiniment si gstatic.com est lent
