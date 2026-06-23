@@ -878,52 +878,134 @@ function SuiviPage() {
           </div>
         )}
 
-        {/* Bouton Rafraîchir */}
-        <div style={{ marginBottom: "16px" }}>
-          <button
-            onClick={() => loadReservation(true)}
-            disabled={refreshing}
+        {/* Bloc Course terminée */}
+        {isCompleted && (
+          <div
+            className="suivi-premium suivi-card"
             style={{
-              width: "100%",
-              padding: "13px 16px",
-              background: refreshing ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.08)",
-              color: refreshing ? "#64748b" : "#94a3b8",
-              border: "1px solid rgba(148,163,184,0.15)",
-              borderRadius: "12px",
-              fontWeight: 600,
-              fontSize: "13px",
-              cursor: refreshing ? "not-allowed" : "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px",
-              transition: "all 0.3s",
-              backdropFilter: "blur(10px)",
+              marginBottom: "16px",
+              padding: "24px 20px",
+              textAlign: "center",
+              background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
+              border: "1px solid rgba(34,197,94,0.2)",
             }}
           >
-            {refreshing ? (
-              <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
-            ) : (
-              <span style={{ fontSize: "16px" }}>🔄</span>
+            <div style={{ fontSize: "48px", marginBottom: "12px" }}>🏁</div>
+            <div style={{ fontSize: "17px", fontWeight: 800, color: "#15803d", marginBottom: "6px" }}>
+              Merci d'avoir voyagé avec nous !
+            </div>
+            <div style={{ fontSize: "13px", color: "#166534", marginBottom: "20px", lineHeight: 1.5 }}>
+              Votre course est terminée. À très bientôt à bord de Taxi City Bordeaux.
+            </div>
+            {reservation.prix_estime != null && (
+              <div
+                style={{
+                  display: "inline-block",
+                  background: "rgba(255,255,255,0.7)",
+                  border: "1px solid rgba(34,197,94,0.25)",
+                  borderRadius: "10px",
+                  padding: "10px 20px",
+                  marginBottom: "20px",
+                  fontSize: "22px",
+                  fontWeight: 800,
+                  color: "#15803d",
+                }}
+              >
+                {new Intl.NumberFormat(locale, { style: "currency", currency: "EUR" }).format(reservation.prix_estime)}
+              </div>
             )}
-            {refreshing ? "Actualisation…" : "Actualiser le statut"}
-          </button>
-        </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <Link
+                to="/reservation"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  padding: "13px 16px",
+                  background: "linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)",
+                  color: "#fff",
+                  borderRadius: "10px",
+                  textDecoration: "none",
+                  fontWeight: 700,
+                  fontSize: "14px",
+                  boxShadow: "0 4px 12px rgba(29, 78, 216, 0.3)",
+                }}
+              >
+                🚕 Réserver un nouveau trajet
+              </Link>
+              <Link
+                to="/"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "11px 16px",
+                  background: "rgba(255,255,255,0.6)",
+                  color: "#15803d",
+                  borderRadius: "10px",
+                  textDecoration: "none",
+                  fontWeight: 600,
+                  fontSize: "13px",
+                  border: "1px solid rgba(34,197,94,0.2)",
+                }}
+              >
+                ← Retour à l'accueil
+              </Link>
+            </div>
+          </div>
+        )}
 
-        {/* Footer */}
-        <div style={{ textAlign: "center" }}>
-          <Link
-            to="/"
-            style={{
-              fontSize: "12px",
-              color: "#94a3b8",
-              textDecoration: "none",
-              transition: "color 0.3s",
-            }}
-          >
-            ← Retour à l'accueil
-          </Link>
-        </div>
+        {/* Bouton Rafraîchir — masqué si course terminée */}
+        {!isCompleted && (
+          <div style={{ marginBottom: "16px" }}>
+            <button
+              onClick={() => loadReservation(true)}
+              disabled={refreshing}
+              style={{
+                width: "100%",
+                padding: "13px 16px",
+                background: refreshing ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.08)",
+                color: refreshing ? "#64748b" : "#94a3b8",
+                border: "1px solid rgba(148,163,184,0.15)",
+                borderRadius: "12px",
+                fontWeight: 600,
+                fontSize: "13px",
+                cursor: refreshing ? "not-allowed" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                transition: "all 0.3s",
+                backdropFilter: "blur(10px)",
+              }}
+            >
+              {refreshing ? (
+                <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
+              ) : (
+                <span style={{ fontSize: "16px" }}>🔄</span>
+              )}
+              {refreshing ? "Actualisation…" : "Actualiser le statut"}
+            </button>
+          </div>
+        )}
+
+        {/* Footer — masqué si completed (boutons dans le bloc terminée) */}
+        {!isCompleted && (
+          <div style={{ textAlign: "center" }}>
+            <Link
+              to="/"
+              style={{
+                fontSize: "12px",
+                color: "#94a3b8",
+                textDecoration: "none",
+                transition: "color 0.3s",
+              }}
+            >
+              ← Retour à l'accueil
+            </Link>
+          </div>
+        )}
       </div>
     </>
   );
