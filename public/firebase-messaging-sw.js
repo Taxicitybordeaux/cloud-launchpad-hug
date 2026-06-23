@@ -112,6 +112,8 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   const notifData = event.notification.data || {};
+  // L'URL est toujours dans data.url (posée par push.server.ts via le champ data).
+  // Fallback uniquement si absent (cas extrême).
   let clickDefault = "/";
   if (notifData.audience === "chauffeur") {
     clickDefault = "/driver?token=DSF234";
@@ -119,6 +121,14 @@ self.addEventListener("notificationclick", (event) => {
     clickDefault = "/suivi/" + notifData.reservation_id;
   }
   const url = notifData.url || clickDefault;
+  console.log(
+    "[FCM SW] notificationclick → url:",
+    url,
+    "| audience:",
+    notifData.audience,
+    "| data.url:",
+    notifData.url,
+  );
   event.notification.close();
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
