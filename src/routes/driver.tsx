@@ -20,6 +20,7 @@ interface Resa {
   depart: string;
   destination: string;
   date_heure: string;
+  pickup_datetime: string;
   status: string;
   prix_estime?: number | null;
   distance_km?: number | null;
@@ -529,10 +530,10 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
     const { data } = await (supabase as any)
       .from("reservations")
       .select(
-        "id,depart,destination,date_heure,status,prix_estime,distance_km,client_name,client_phone,client_email,suivi_id",
+        "id,depart,destination,pickup_datetime,status,prix_estime,distance_km,client_name,client_phone,client_email,suivi_id",
       )
       .in("status", ["pending", "accepted"])
-      .order("date_heure", { ascending: true });
+      .order("pickup_datetime", { ascending: true });
     const list: Resa[] = data ?? [];
     setCourses(list);
     setLoading(false);
@@ -659,8 +660,8 @@ function CourseCard({
           const distKm = (leg.distance?.value ?? 0) / 1000;
           const dureeMin = Math.round((leg.duration?.value ?? 0) / 60);
           // Tarifs Bordeaux — via tarif.ts (fuseau Paris, dimanche/férié correct)
-          const prix_estime = calculerPrixMixte(distKm, resa.date_heure ?? "");
-          const estJour = estTarifJourParis(resa.date_heure ?? "");
+          const prix_estime = calculerPrixMixte(distKm, resa.pickup_datetime ?? resa.date_heure ?? "");
+          const estJour = estTarifJourParis(resa.pickup_datetime ?? resa.date_heure ?? "");
           const tarifLabel = estJour ? "Tarif jour ☀️" : "Tarif nuit 🌙";
 
           // Extraire un waypoint au milieu du trajet pour forcer cet itinéraire dans Maps
@@ -889,7 +890,7 @@ function CourseCard({
                 nom: name,
                 depart: resa.depart,
                 arrivee: resa.destination || "—",
-                old_datetime: formatDate(resa.date_heure) + " " + formatHeure(resa.date_heure),
+                old_datetime: formatDate(resa.pickup_datetime ?? resa.date_heure) + " " + formatHeure(resa.pickup_datetime ?? resa.date_heure),
                 new_datetime: formatDate(newDatetime) + " " + formatHeure(newDatetime),
               },
             }),
@@ -966,7 +967,7 @@ function CourseCard({
     <div className={`drv-card${resa.status === "pending" ? " new" : ""}`}>
       {/* En-tête */}
       <div className="drv-row" style={{ cursor: "pointer" }} onClick={onToggle}>
-        <span className="drv-time">{formatHeure(resa.date_heure)}</span>
+        <span className="drv-time">{formatHeure(resa.pickup_datetime ?? resa.date_heure)}</span>
         <span className={`drv-badge-pill ${st.cls}`}>{st.label}</span>
       </div>
       {resa.client_name && <div className="drv-name">{resa.client_name}</div>}
@@ -1406,8 +1407,6 @@ function CourseCard({
           </button>
         </>
       )}
-        </>
-      )}
 
       {/* Toggle */}
       <button
@@ -1442,11 +1441,11 @@ function PlanningTab() {
 
     const { data } = await (supabase as any)
       .from("reservations")
-      .select("id,depart,destination,date_heure,status,prix_estime,distance_km")
-      .gte("date_heure", today.toISOString())
-      .lt("date_heure", tomorrow.toISOString())
+      .select("id,depart,destination,pickup_datetime,date_heure,status,prix_estime,distance_km")
+      .gte("pickup_datetime", today.toISOString())
+      .lt("pickup_datetime", tomorrow.toISOString())
       .not("status", "eq", "cancelled")
-      .order("date_heure", { ascending: true });
+      .order("pickup_datetime", { ascending: true });
     setCourses(data ?? []);
     setLoading(false);
   }, []);
@@ -1490,7 +1489,7 @@ function PlanningTab() {
       ) : (
         courses.map((r) => (
           <div key={r.id} className="drv-planning-slot">
-            <span className="drv-planning-time">{formatHeure(r.date_heure)}</span>
+            <span className="drv-planning-time">{formatHeure(r.pickup_datetime ?? r.date_heure)}</span>
             <div className="drv-planning-dot" style={{ background: dotColor[r.status] ?? "#94a3b8" }} />
             <div
               className={`drv-planning-card${["terminee", "completed"].includes(r.status) ? " done" : ""}`}
@@ -1662,9 +1661,9 @@ function ClientsTab() {
     const [{ data }, { data: clientsRows }] = await Promise.all([
       (supabase as any)
         .from("reservations")
-        .select("client_name,client_phone,destination,prix_estime,date_heure,status")
+        .select("client_name,client_phone,destination,prix_estime,pickup_datetime,date_heure,status")
         .not("client_phone", "is", null)
-        .order("date_heure", { ascending: false }),
+        .order("pickup_datetime", { ascending: false }),
       (supabase as any).from("clients").select("id,phone"),
     ]);
 
@@ -1688,7 +1687,7 @@ function ClientsTab() {
           name: r.client_name || "Client",
           nbCourses: isCompleted ? 1 : 0,
           totalDepense: isCompleted ? (r.prix_estime ?? 0) : 0,
-          derniereCourse: r.date_heure,
+          derniereCourse: r.pickup_datetime ?? r.date_heure,
           derniereDestination: r.destination,
         });
       } else {
@@ -1696,8 +1695,8 @@ function ClientsTab() {
           existing.nbCourses += 1;
           existing.totalDepense += r.prix_estime ?? 0;
         }
-        if (r.date_heure > existing.derniereCourse) {
-          existing.derniereCourse = r.date_heure;
+        if ((r.pickup_datetime ?? r.date_heure) > existing.derniereCourse) {
+          existing.derniereCourse = r.pickup_datetime ?? r.date_heure;
           existing.derniereDestination = r.destination;
         }
         if (!existing.name || existing.name === "Client") existing.name = r.client_name || existing.name;
@@ -1904,8 +1903,8 @@ function StatsTab() {
       const [{ data: semData }, { data: avisData }] = await Promise.all([
         (supabase as any)
           .from("reservations")
-          .select("prix_estime,distance_km,date_heure")
-          .gte("date_heure", monday.toISOString())
+          .select("prix_estime,distance_km,pickup_datetime,date_heure")
+          .gte("pickup_datetime", monday.toISOString())
           .in("status", ["terminee", "completed"]),
         (supabase as any).from("avis").select("note").eq("status", "approved"),
       ]);
