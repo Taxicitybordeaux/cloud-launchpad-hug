@@ -220,7 +220,7 @@ function PremiumTimeline({ status }: { status: string }) {
               </div>
               <div
                 style={{
-                  fontSize: "9px",
+                  fontSize: "11px",
                   fontWeight: isActive ? 700 : 500,
                   color: isDone ? config.color : "#94a3b8",
                   textAlign: "center",
@@ -573,7 +573,7 @@ function SuiviPage() {
         <style>{PREMIUM_CSS}</style>
         <div className="suivi-card" style={{ maxWidth: "400px", padding: "40px 24px", textAlign: "center" }}>
           <AlertTriangle size={48} style={{ color: "#991b1b", marginBottom: "16px" }} />
-          <h1 style={{ fontSize: "20px", fontWeight: 700, color: "#0f172a", marginBottom: "8px" }}>
+          <h1 style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a", marginBottom: "8px" }}>
             {error || "Réservation non trouvée"}
           </h1>
           <Link
@@ -630,10 +630,10 @@ function SuiviPage() {
               }}
             >
               <div>
-                <h1 style={{ fontSize: "26px", fontWeight: 800, color: "#0f172a", margin: 0, lineHeight: 1.2 }}>
+                <h1 style={{ fontSize: "16px", fontWeight: 800, color: "#0f172a", margin: 0, lineHeight: 1.2 }}>
                   {config.icon} {config.label}
                 </h1>
-                <p style={{ fontSize: "14px", color: "#94a3b8", margin: "4px 0 0 0" }}>
+                <p style={{ fontSize: "12px", color: "#94a3b8", margin: "4px 0 0 0" }}>
                   Réservation #{reservation.id.slice(-8).toUpperCase()}
                 </p>
               </div>
@@ -666,7 +666,7 @@ function SuiviPage() {
               >
                 <span>🟢</span> Départ
               </div>
-              <div style={{ fontSize: "17px", fontWeight: 700, color: "#0f172a", marginTop: "2px" }}>
+              <div style={{ fontSize: "13px", fontWeight: 600, color: "#0f172a", marginTop: "2px" }}>
                 {reservation.depart}
               </div>
             </div>
@@ -694,7 +694,7 @@ function SuiviPage() {
               >
                 <span>🔴</span> Arrivée
               </div>
-              <div style={{ fontSize: "17px", fontWeight: 700, color: "#0f172a", marginTop: "2px" }}>
+              <div style={{ fontSize: "13px", fontWeight: 600, color: "#0f172a", marginTop: "2px" }}>
                 {reservation.destination || reservation.arrivee || "À définir"}
               </div>
             </div>
@@ -722,7 +722,7 @@ function SuiviPage() {
               >
                 <span>🕐</span> Horaire
               </div>
-              <div style={{ fontSize: "16px", fontWeight: 600, color: "#0f172a", marginTop: "2px" }}>
+              <div style={{ fontSize: "13px", fontWeight: 600, color: "#0f172a", marginTop: "2px" }}>
                 {new Date(reservation.pickup_datetime).toLocaleString(locale, {
                   dateStyle: "short",
                   timeStyle: "short",
@@ -739,21 +739,21 @@ function SuiviPage() {
             <div className="suivi-premium suivi-card" style={{ padding: "14px", textAlign: "center" }}>
               <Users size={18} style={{ color: "#1d4ed8", margin: "0 auto 6px", display: "block" }} />
               <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>Passagers</div>
-              <div style={{ fontSize: "20px", fontWeight: 700, color: "#0f172a" }}>{reservation.nb_passagers}</div>
+              <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a" }}>{reservation.nb_passagers}</div>
             </div>
           )}
           {reservation.nb_bagages != null && (
             <div className="suivi-premium suivi-card" style={{ padding: "14px", textAlign: "center" }}>
               <Package size={18} style={{ color: "#f59e0b", margin: "0 auto 6px", display: "block" }} />
               <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>Bagages</div>
-              <div style={{ fontSize: "20px", fontWeight: 700, color: "#0f172a" }}>{reservation.nb_bagages}</div>
+              <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a" }}>{reservation.nb_bagages}</div>
             </div>
           )}
           {reservation.distance_km != null && (
             <div className="suivi-premium suivi-card" style={{ padding: "14px", textAlign: "center" }}>
               <Gauge size={18} style={{ color: "#8b5cf6", margin: "0 auto 6px", display: "block" }} />
               <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>Distance</div>
-              <div style={{ fontSize: "20px", fontWeight: 700, color: "#0f172a" }}>
+              <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a" }}>
                 {reservation.distance_km.toFixed(1)} km
               </div>
             </div>
@@ -770,7 +770,7 @@ function SuiviPage() {
               >
                 <CreditCard size={18} style={{ color: "#92400e", margin: "0 auto 6px", display: "block" }} />
                 <div style={{ fontSize: "13px", color: "#92400e", marginBottom: "4px" }}>Tarif estimé</div>
-                <div style={{ fontSize: "20px", fontWeight: 700, color: "#92400e" }}>
+                <div style={{ fontSize: "13px", fontWeight: 700, color: "#92400e" }}>
                   {new Intl.NumberFormat(locale, { style: "currency", currency: "EUR" }).format(
                     reservation.prix_estime,
                   )}
