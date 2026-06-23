@@ -14,7 +14,10 @@ export const firebaseConfig = {
 
 // Clé VAPID *Web Push* de Firebase (Console → Cloud Messaging → Web configuration)
 export const FCM_VAPID_KEY = "BPCVh_FRLBkhOWLLxdaKnD29L6HRNS44w4wHX_AE2DV0a0-Uc6OoofT8SldZ-V4_yMWInXt4xqbvkhGiFW-_N20";
-const FCM_TOKEN_VERSION = "taxi-city-bordeaux-auiagkpdpnfqxfngisfc-2026-06-14-v3";
+
+// FCM révoque les tokens après ~60 jours d'inactivité.
+// On force un refresh silencieux tous les 50 jours pour garder le token vivant indéfiniment.
+const TOKEN_MAX_AGE_MS = 50 * 24 * 60 * 60 * 1000; // 50 jours
 
 let app: FirebaseApp | null = null;
 let messaging: Messaging | null = null;
@@ -94,9 +97,19 @@ export async function getFcmToken(options: { forceRefresh?: boolean } = {}): Pro
       }
     }
 
-    const mustRefreshToken =
-      options.forceRefresh || window.localStorage.getItem("fcm_token_version") !== FCM_TOKEN_VERSION;
-    if (mustRefreshToken) {
+    // Retourner le token caché si valide et pas trop vieux (< 50 jours)
+    const cachedToken = window.localStorage.getItem("fcm_token");
+    const lastRefresh = parseInt(window.localStorage.getItem("fcm_token_last_refresh") ?? "0", 10);
+    const tokenAge = Date.now() - lastRefresh;
+    const tokenExpired = tokenAge > TOKEN_MAX_AGE_MS;
+
+    if (!options.forceRefresh && cachedToken && !tokenExpired) {
+      console.log("[FCM] Token en cache utilisé :", cachedToken.slice(-8), `(${Math.floor(tokenAge / 86400000)}j)`);
+      return cachedToken;
+    }
+
+    // Token absent, expiré (>50j) ou forceRefresh explicite → rotation silencieuse
+    if (cachedToken) {
       await deleteToken(msg).catch((err) => console.warn("[FCM] old token delete skipped", err));
       window.localStorage.removeItem("fcm_token");
     }
@@ -108,8 +121,8 @@ export async function getFcmToken(options: { forceRefresh?: boolean } = {}): Pro
 
     if (token) {
       console.log("[FCM] Token obtenu :", token);
-      window.localStorage.setItem("fcm_token_version", FCM_TOKEN_VERSION);
       window.localStorage.setItem("fcm_token", token);
+      window.localStorage.setItem("fcm_token_last_refresh", String(Date.now()));
     } else {
       console.warn("[FCM] Token vide — vérifier VAPID key et SW");
     }
