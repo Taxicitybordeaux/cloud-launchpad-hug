@@ -13,6 +13,10 @@ import {
   Loader2,
   Phone,
   MessageCircle,
+  Star,
+  FileText,
+  Download,
+  PrinterIcon,
 } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { getReservationForFinPublic } from "@/lib/reservation.functions";
@@ -463,6 +467,361 @@ function getAnonChatId(reservationId: string): string {
   return id;
 }
 
+// ─── Facture ──────────────────────────────────────────────────────────────────────
+const PICKUP_FEE = 2.83;
+const RATE_DAY = 2.16;
+const RATE_NIGHT = 3.24;
+
+function InvoiceBlock({ reservation, locale }: { reservation: any; locale: string }) {
+  const handlePrint = () => window.print();
+
+  const handleDownloadPDF = () => {
+    const invoiceWindow = window.open("", "_blank");
+    if (!invoiceWindow) return;
+    const dateStr = reservation.pickup_datetime
+      ? new Date(reservation.pickup_datetime).toLocaleString("fr-FR", {
+          dateStyle: "long",
+          timeStyle: "short",
+          timeZone: "Europe/Paris",
+        })
+      : new Date().toLocaleDateString("fr-FR");
+    const prix = reservation.prix_estime
+      ? new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(reservation.prix_estime)
+      : "—";
+    const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/>
+<title>Facture — Taxi City Bordeaux</title>
+<style>
+  @media print { body { margin: 0; } .no-print { display: none; } }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1a1a1a; max-width: 700px; margin: 40px auto; padding: 0 24px; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #1d4ed8; padding-bottom: 20px; margin-bottom: 28px; }
+  .brand { font-size: 22px; font-weight: 900; color: #1d4ed8; letter-spacing: -0.5px; }
+  .brand small { display: block; font-size: 12px; font-weight: 400; color: #64748b; margin-top: 2px; }
+  .meta { text-align: right; font-size: 12px; color: #64748b; }
+  .meta strong { display: block; font-size: 16px; color: #1a1a1a; font-weight: 700; }
+  h2 { font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 12px; }
+  .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+  .row:last-child { border: none; }
+  .row .label { color: #475569; }
+  .row .value { font-weight: 600; }
+  .total-box { margin-top: 24px; background: #f8fafc; border-radius: 10px; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
+  .total-box .label { font-size: 14px; color: #475569; }
+  .total-box .amount { font-size: 26px; font-weight: 900; color: #1d4ed8; }
+  .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; text-align: center; }
+  .btn { display: inline-block; margin: 20px 8px 0; padding: 10px 24px; background: #1d4ed8; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+</style></head><body>
+<div class="header">
+  <div class="brand">🚕 Taxi City Bordeaux<small>taxicitybordeaux.fr · 06 73 07 23 22</small></div>
+  <div class="meta"><strong>Reçu de course</strong>N° ${reservation.id.slice(-8).toUpperCase()}<br/>${dateStr}</div>
+</div>
+<h2>Détails du trajet</h2>
+<div class="row"><span class="label">🟢 Départ</span><span class="value">${reservation.depart ?? "—"}</span></div>
+<div class="row"><span class="label">🔴 Arrivée</span><span class="value">${reservation.destination ?? reservation.arrivee ?? "—"}</span></div>
+${reservation.distance_km != null ? `<div class="row"><span class="label">Distance</span><span class="value">${Number(reservation.distance_km).toFixed(1)} km</span></div>` : ""}
+${reservation.nb_passagers != null ? `<div class="row"><span class="label">Passagers</span><span class="value">${reservation.nb_passagers}</span></div>` : ""}
+${reservation.mode_paiement ? `<div class="row"><span class="label">Paiement</span><span class="value">${reservation.mode_paiement}</span></div>` : ""}
+<div class="total-box"><span class="label">Total course</span><span class="amount">${prix}</span></div>
+<div class="no-print" style="text-align:center">
+  <button class="btn" onclick="window.print()">🖨️ Imprimer</button>
+  <button class="btn" onclick="window.close()" style="background:#64748b">Fermer</button>
+</div>
+<div class="footer">Taxi City Bordeaux — SIRET : à compléter — TVA non applicable, art. 293 B du CGI<br/>Merci de votre confiance !</div>
+</body></html>`;
+    invoiceWindow.document.write(html);
+    invoiceWindow.document.close();
+    setTimeout(() => invoiceWindow.print(), 400);
+  };
+
+  return (
+    <div className="suivi-premium suivi-card" style={{ marginBottom: "16px", padding: "20px" }}>
+      <div
+        style={{
+          fontSize: "12px",
+          fontWeight: 700,
+          color: "#1d4ed8",
+          textTransform: "uppercase",
+          letterSpacing: "0.5px",
+          marginBottom: "14px",
+          display: "flex",
+          alignItems: "center",
+          gap: "6px",
+        }}
+      >
+        <FileText size={14} /> Reçu de course
+      </div>
+
+      {/* Récap trajet */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "16px" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            fontSize: "13px",
+            paddingBottom: "8px",
+            borderBottom: "1px solid #f1f5f9",
+          }}
+        >
+          <span style={{ color: "#64748b" }}>🟢 Départ</span>
+          <span style={{ fontWeight: 600, color: "#0f172a", maxWidth: "60%", textAlign: "right" }}>
+            {reservation.depart}
+          </span>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            fontSize: "13px",
+            paddingBottom: "8px",
+            borderBottom: "1px solid #f1f5f9",
+          }}
+        >
+          <span style={{ color: "#64748b" }}>🔴 Arrivée</span>
+          <span style={{ fontWeight: 600, color: "#0f172a", maxWidth: "60%", textAlign: "right" }}>
+            {reservation.destination ?? reservation.arrivee ?? "—"}
+          </span>
+        </div>
+        {reservation.distance_km != null && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontSize: "13px",
+              paddingBottom: "8px",
+              borderBottom: "1px solid #f1f5f9",
+            }}
+          >
+            <span style={{ color: "#64748b" }}>Distance</span>
+            <span style={{ fontWeight: 600, color: "#0f172a" }}>{Number(reservation.distance_km).toFixed(1)} km</span>
+          </div>
+        )}
+        {reservation.mode_paiement && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontSize: "13px",
+              paddingBottom: "8px",
+              borderBottom: "1px solid #f1f5f9",
+            }}
+          >
+            <span style={{ color: "#64748b" }}>Paiement</span>
+            <span style={{ fontWeight: 600, color: "#0f172a" }}>{reservation.mode_paiement}</span>
+          </div>
+        )}
+        {reservation.prix_estime != null && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "4px" }}>
+            <span style={{ fontSize: "13px", color: "#64748b" }}>Total</span>
+            <span style={{ fontSize: "22px", fontWeight: 900, color: "#1d4ed8" }}>
+              {new Intl.NumberFormat(locale, { style: "currency", currency: "EUR" }).format(reservation.prix_estime)}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Boutons */}
+      <div style={{ display: "flex", gap: "8px" }}>
+        <button
+          onClick={handlePrint}
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "6px",
+            padding: "11px 12px",
+            background: "rgba(255,255,255,0.08)",
+            color: "#94a3b8",
+            border: "1px solid rgba(148,163,184,0.2)",
+            borderRadius: "10px",
+            fontSize: "13px",
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          <PrinterIcon size={15} /> Imprimer
+        </button>
+        <button
+          onClick={handleDownloadPDF}
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "6px",
+            padding: "11px 12px",
+            background: "linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)",
+            color: "#fff",
+            border: "none",
+            borderRadius: "10px",
+            fontSize: "13px",
+            fontWeight: 600,
+            cursor: "pointer",
+            boxShadow: "0 4px 12px rgba(29,78,216,0.3)",
+          }}
+        >
+          <Download size={15} /> Télécharger PDF
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Avis ──────────────────────────────────────────────────────────────────────────
+function ReviewBlock({ reservationId }: { reservationId: string }) {
+  const [rating, setRating] = useState(0);
+  const [hover, setHover] = useState(0);
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [alreadyReviewed, setAlreadyReviewed] = useState(false);
+
+  useEffect(() => {
+    // Vérifier si un avis a déjà été soumis pour cette réservation
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("reviews")
+        .select("id")
+        .eq("reservation_id", reservationId)
+        .maybeSingle();
+      if (data) setAlreadyReviewed(true);
+    })();
+  }, [reservationId]);
+
+  const handleSubmit = async () => {
+    if (rating === 0) {
+      toast.error("Veuillez sélectionner une note");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const { error } = await (supabase as any).from("reviews").insert([
+        {
+          reservation_id: reservationId,
+          rating,
+          comment: comment.trim() || null,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+      if (error) throw error;
+      setSubmitted(true);
+      toast.success("⭐ Merci pour votre avis !");
+    } catch (e: any) {
+      toast.error("Erreur : " + (e.message ?? "impossible d'envoyer l'avis"));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (alreadyReviewed || submitted) {
+    return (
+      <div className="suivi-premium suivi-card" style={{ marginBottom: "16px", padding: "20px", textAlign: "center" }}>
+        <div style={{ fontSize: "32px", marginBottom: "8px" }}>⭐</div>
+        <div style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a", marginBottom: "4px" }}>Avis envoyé</div>
+        <div style={{ fontSize: "13px", color: "#64748b" }}>
+          Merci pour votre retour, cela nous aide à nous améliorer !
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="suivi-premium suivi-card" style={{ marginBottom: "16px", padding: "20px" }}>
+      <div
+        style={{
+          fontSize: "12px",
+          fontWeight: 700,
+          color: "#f59e0b",
+          textTransform: "uppercase",
+          letterSpacing: "0.5px",
+          marginBottom: "14px",
+          display: "flex",
+          alignItems: "center",
+          gap: "6px",
+        }}
+      >
+        <Star size={14} /> Votre avis
+      </div>
+
+      {/* Étoiles */}
+      <div style={{ display: "flex", gap: "6px", justifyContent: "center", marginBottom: "16px" }}>
+        {[1, 2, 3, 4, 5].map((star) => (
+          <button
+            key={star}
+            onClick={() => setRating(star)}
+            onMouseEnter={() => setHover(star)}
+            onMouseLeave={() => setHover(0)}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: "4px",
+              transition: "transform 0.15s",
+              transform: (hover || rating) >= star ? "scale(1.2)" : "scale(1)",
+            }}
+          >
+            <Star
+              size={32}
+              fill={(hover || rating) >= star ? "#f59e0b" : "none"}
+              stroke={(hover || rating) >= star ? "#f59e0b" : "#cbd5e1"}
+              strokeWidth={1.5}
+            />
+          </button>
+        ))}
+      </div>
+
+      {rating > 0 && (
+        <div style={{ fontSize: "13px", fontWeight: 600, color: "#f59e0b", textAlign: "center", marginBottom: "12px" }}>
+          {["", "Très décevant", "Décevant", "Correct", "Bien", "Excellent !"][rating]}
+        </div>
+      )}
+
+      {/* Commentaire */}
+      <textarea
+        placeholder="Un commentaire ? (optionnel)"
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        rows={3}
+        style={{
+          width: "100%",
+          padding: "10px 12px",
+          borderRadius: "10px",
+          border: "1px solid #e2e8f0",
+          fontSize: "13px",
+          fontFamily: "inherit",
+          resize: "vertical",
+          marginBottom: "12px",
+          boxSizing: "border-box",
+          background: "#f8fafc",
+          color: "#0f172a",
+        }}
+      />
+
+      <button
+        onClick={handleSubmit}
+        disabled={submitting || rating === 0}
+        style={{
+          width: "100%",
+          padding: "12px 16px",
+          background: rating === 0 || submitting ? "#e2e8f0" : "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+          color: rating === 0 || submitting ? "#94a3b8" : "#fff",
+          border: "none",
+          borderRadius: "10px",
+          fontSize: "13px",
+          fontWeight: 700,
+          cursor: rating === 0 || submitting ? "not-allowed" : "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "6px",
+          transition: "all 0.3s",
+        }}
+      >
+        {submitting ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <Star size={15} />}
+        {submitting ? "Envoi…" : "Envoyer mon avis"}
+      </button>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────────
 function SuiviPage() {
   const { id } = Route.useParams();
@@ -878,43 +1237,13 @@ function SuiviPage() {
           </div>
         )}
 
-        {/* Bloc Course terminée */}
+        {/* Bloc Course terminée — Facture + Avis */}
         {isCompleted && (
-          <div
-            className="suivi-premium suivi-card"
-            style={{
-              marginBottom: "16px",
-              padding: "24px 20px",
-              textAlign: "center",
-              background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
-              border: "1px solid rgba(34,197,94,0.2)",
-            }}
-          >
-            <div style={{ fontSize: "48px", marginBottom: "12px" }}>🏁</div>
-            <div style={{ fontSize: "17px", fontWeight: 800, color: "#15803d", marginBottom: "6px" }}>
-              Merci d'avoir voyagé avec nous !
-            </div>
-            <div style={{ fontSize: "13px", color: "#166534", marginBottom: "20px", lineHeight: 1.5 }}>
-              Votre course est terminée. À très bientôt à bord de Taxi City Bordeaux.
-            </div>
-            {reservation.prix_estime != null && (
-              <div
-                style={{
-                  display: "inline-block",
-                  background: "rgba(255,255,255,0.7)",
-                  border: "1px solid rgba(34,197,94,0.25)",
-                  borderRadius: "10px",
-                  padding: "10px 20px",
-                  marginBottom: "20px",
-                  fontSize: "22px",
-                  fontWeight: 800,
-                  color: "#15803d",
-                }}
-              >
-                {new Intl.NumberFormat(locale, { style: "currency", currency: "EUR" }).format(reservation.prix_estime)}
-              </div>
-            )}
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <>
+            <InvoiceBlock reservation={reservation} locale={locale} />
+            <ReviewBlock reservationId={reservation.id} />
+            {/* Boutons navigation */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
               <Link
                 to="/reservation"
                 style={{
@@ -941,19 +1270,19 @@ function SuiviPage() {
                   alignItems: "center",
                   justifyContent: "center",
                   padding: "11px 16px",
-                  background: "rgba(255,255,255,0.6)",
-                  color: "#15803d",
+                  background: "rgba(255,255,255,0.08)",
+                  color: "#94a3b8",
                   borderRadius: "10px",
                   textDecoration: "none",
                   fontWeight: 600,
                   fontSize: "13px",
-                  border: "1px solid rgba(34,197,94,0.2)",
+                  border: "1px solid rgba(148,163,184,0.15)",
                 }}
               >
                 ← Retour à l'accueil
               </Link>
             </div>
-          </div>
+          </>
         )}
 
         {/* Bouton Rafraîchir — masqué si course terminée */}
