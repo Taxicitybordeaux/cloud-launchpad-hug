@@ -18,6 +18,7 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { getReservationForFinPublic } from "@/lib/reservation.functions";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { getTaxiSupabase } from "@/lib/taxi-supabase";
 
 export const Route = createFileRoute("/suivi/$id")({
   head: () => ({
@@ -501,7 +502,8 @@ function SuiviPage() {
   // Real-time updates
   useEffect(() => {
     if (!id) return;
-    const channel = supabase
+    const taxiSupabase = getTaxiSupabase();
+    const channel = taxiSupabase
       .channel(`reservations:id=eq.${id}`)
       .on(
         "postgres_changes",
@@ -513,33 +515,37 @@ function SuiviPage() {
             const newStatus = newRow.status;
             const newPrice = newRow.prix_estime;
 
-            if (reservation && reservation.status !== newStatus) {
-              if (newStatus === "accepted") toast.success("✅ Votre course a été confirmée !");
-              else if (newStatus === "en_route") toast.success("🚕 Le chauffeur arrive chez vous !");
-              else if (newStatus === "arrived") toast.success("📍 Le chauffeur est devant chez vous !");
-              else if (newStatus === "completed") toast.success("🏁 Course terminée. Merci !");
-            }
-            if (
-              reservation &&
-              reservation.prix_estime != null &&
-              newPrice != null &&
-              Number(reservation.prix_estime) !== Number(newPrice)
-            ) {
-              toast.success("💶 Le prix a été mis à jour.");
-            }
-            setReservation(newRow);
+            setReservation((prev) => {
+              if (prev && prev.status !== newStatus) {
+                if (newStatus === "accepted") toast.success("✅ Votre course a été confirmée !");
+                else if (newStatus === "en_route") toast.success("🚕 Le chauffeur arrive chez vous !");
+                else if (newStatus === "arrived") toast.success("📍 Le chauffeur est devant chez vous !");
+                else if (newStatus === "completed") toast.success("🏁 Course terminée. Merci !");
+              }
+              if (
+                prev &&
+                prev.prix_estime != null &&
+                newPrice != null &&
+                Number(prev.prix_estime) !== Number(newPrice)
+              ) {
+                toast.success("💶 Le prix a été mis à jour.");
+              }
+              return newRow;
+            });
           } catch (e) {
             console.error("Real-time update error:", e);
           }
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("[suivi] Realtime status:", status);
+      });
     return () => {
       try {
-        supabase.removeChannel(channel);
+        taxiSupabase.removeChannel(channel);
       } catch {}
     };
-  }, [id, reservation]);
+  }, [id]);
 
   if (loading) {
     return (
