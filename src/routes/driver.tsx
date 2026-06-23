@@ -659,10 +659,23 @@ function CourseCard({
           const leg = route.legs[0];
           const distKm = (leg.distance?.value ?? 0) / 1000;
           const dureeMin = Math.round((leg.duration?.value ?? 0) / 60);
-          // Tarifs Bordeaux — via tarif.ts (fuseau Paris, dimanche/férié correct)
-          const prix_estime = calculerPrixMixte(distKm, resa.pickup_datetime ?? resa.date_heure ?? "");
-          const estJour = estTarifJourParis(resa.pickup_datetime ?? resa.date_heure ?? "");
-          const tarifLabel = estJour ? "Tarif jour ☀️" : "Tarif nuit 🌙";
+          const dureeS = (leg.duration?.value ?? 0);
+          // Tarifs Bordeaux — calcul mixte avec durée réelle Google Maps
+          const pickupIso = resa.pickup_datetime ?? resa.date_heure ?? "";
+          const pickupMs = pickupIso ? new Date(pickupIso).getTime() : Date.now();
+          const stepsCount = Math.max(Math.round(dureeS / 60), 1);
+          const stepMs = (dureeS * 1000) / stepsCount;
+          const frac = distKm / stepsCount;
+          let jourKm = 0, nuitKm = 0;
+          for (let s = 0; s < stepsCount; s++) {
+            const t = new Date(pickupMs + s * stepMs).toISOString();
+            if (estTarifJourParis(t)) jourKm += frac; else nuitKm += frac;
+          }
+          const prix_estime = parseFloat((2.83 + jourKm * 2.16 + nuitKm * 3.24).toFixed(2));
+          const estJour = estTarifJourParis(pickupIso);
+          const tarifLabel = jourKm > 0 && nuitKm > 0
+            ? "Tarif mixte 🌗"
+            : estJour ? "Tarif jour ☀️" : "Tarif nuit 🌙";
 
           // Extraire un waypoint au milieu du trajet pour forcer cet itinéraire dans Maps
           const steps: any[] = route.legs.flatMap((l: any) => l.steps ?? []);
@@ -1405,8 +1418,6 @@ function CourseCard({
           >
             {deleting ? "Suppression…" : "🗑 Supprimer cette course"}
           </button>
-        </>
-      )}
         </>
       )}
 
