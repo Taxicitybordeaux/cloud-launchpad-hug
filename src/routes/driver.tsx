@@ -7,6 +7,7 @@ import { geocodeAddress } from "@/lib/googleGeocode";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useServerFn } from "@tanstack/react-start";
 import { listPushFailures } from "@/lib/push.functions";
+import { calculerPrixMixte, estTarifJourParis } from "@/lib/tarif";
 
 // ── Token guard ────────────────────────────────────────────────────────────
 const DRIVER_TOKEN = "DSF234";
@@ -657,14 +658,9 @@ function CourseCard({
           const leg = route.legs[0];
           const distKm = (leg.distance?.value ?? 0) / 1000;
           const dureeMin = Math.round((leg.duration?.value ?? 0) / 60);
-          // Tarifs Bordeaux : prise en charge + €/km selon heure
-          const PRISE_EN_CHARGE = 2.83;
-          const TARIF_JOUR = 2.16; // 7h–19h
-          const TARIF_NUIT = 3.24; // 19h–7h
-          const heure = new Date(resa.date_heure).getHours();
-          const estJour = heure >= 7 && heure < 19;
-          const tarifKm = estJour ? TARIF_JOUR : TARIF_NUIT;
-          const prix_estime = parseFloat((distKm * tarifKm + PRISE_EN_CHARGE).toFixed(2));
+          // Tarifs Bordeaux — via tarif.ts (fuseau Paris, dimanche/férié correct)
+          const prix_estime = calculerPrixMixte(distKm, resa.date_heure ?? "");
+          const estJour = estTarifJourParis(resa.date_heure ?? "");
           const tarifLabel = estJour ? "Tarif jour ☀️" : "Tarif nuit 🌙";
 
           // Extraire un waypoint au milieu du trajet pour forcer cet itinéraire dans Maps
@@ -809,8 +805,7 @@ function CourseCard({
     const phone = (resa.client_phone || "").replace(/\s/g, "");
     const email = resa.client_email || resa.email || "";
     const trajet = `${resa.depart} → ${resa.destination || "—"}`;
-    const trackUrl =
-      typeof window !== "undefined" ? `${window.location.origin}/reservation/${resa.id}` : "";
+    const trackUrl = typeof window !== "undefined" ? `${window.location.origin}/reservation/${resa.id}` : "";
     const trackingLine = trackUrl ? `\nRetrouvez votre course ici : ${trackUrl}` : "";
     const msg = `Bonjour ${name}, le prix de votre course Taxi City Bordeaux (${trajet}) est de ${val.toFixed(2)} €. Merci.${trackingLine}`;
 
@@ -1054,10 +1049,7 @@ function CourseCard({
             (() => {
               const phone = resa.client_phone;
               const mail = resa.client_email || resa.email;
-              const trackUrl =
-                typeof window !== "undefined"
-                  ? `${window.location.origin}/reservation/${resa.id}`
-                  : "";
+              const trackUrl = typeof window !== "undefined" ? `${window.location.origin}/reservation/${resa.id}` : "";
               const greet = `Bonjour ${resa.client_name || ""}, votre taxi Taxi City Bordeaux.`;
               const body = trackUrl ? `${greet}\nRetrouvez votre course ici : ${trackUrl}` : greet;
               const mailBody = trackUrl
@@ -1279,12 +1271,8 @@ function CourseCard({
               {(() => {
                 // Utilise les coords géocodées si disponibles (plus précis que le texte brut)
                 const chosen = routes[selectedRoute];
-                const origCoord = chosen
-                  ? `${chosen.originLatLng.lat},${chosen.originLatLng.lng}`
-                  : resa.depart;
-                const destCoord = chosen
-                  ? `${chosen.destLatLng.lat},${chosen.destLatLng.lng}`
-                  : resa.destination;
+                const origCoord = chosen ? `${chosen.originLatLng.lat},${chosen.originLatLng.lng}` : resa.depart;
+                const destCoord = chosen ? `${chosen.destLatLng.lat},${chosen.destLatLng.lng}` : resa.destination;
                 // Waypoint milieu pour forcer le même itinéraire dans Maps
                 const wp = chosen?.waypointLatLng;
                 const waypointParam = wp ? `&waypoints=${wp.lat},${wp.lng}` : "";
