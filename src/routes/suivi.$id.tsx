@@ -135,14 +135,14 @@ const STATUS_CONFIG: Record<
     icon: "✨",
   },
   en_route: {
-    label: "En route",
+    label: "Le chauffeur arrive chez vous",
     color: "#1d4ed8",
     bgGradient: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
     borderColor: "rgba(29, 78, 216, 0.2)",
     icon: "🚕",
   },
   arrived: {
-    label: "Arrivé",
+    label: "Arrivé devant chez vous",
     color: "#7c3aed",
     bgGradient: "linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)",
     borderColor: "rgba(124, 58, 237, 0.2)",
@@ -166,7 +166,7 @@ const STATUS_CONFIG: Record<
 
 // ─── Timeline Stepper ──────────────────────────────────────────────────────────────
 function PremiumTimeline({ status }: { status: string }) {
-  const steps = ["pending", "accepted", "en_route", "arrived", "completed"];
+  const steps = ["pending", "accepted", "arrived", "completed"];
   if (status === "cancelled") return null;
 
   const currentIdx = steps.indexOf(status as any);
@@ -181,7 +181,7 @@ function PremiumTimeline({ status }: { status: string }) {
         return (
           <div key={s} style={{ display: "flex", alignItems: "center", flex: 1, gap: "4px" }}>
             <div
-              className={`suivi-premium ${isActive && status === "en_route" ? "suivi-pulse-active" : ""}`}
+              className={`suivi-premium ${isActive && status === "arrived" ? "suivi-pulse-active" : ""}`}
               style={{
                 width: "32px",
                 height: "32px",
@@ -482,8 +482,8 @@ function SuiviPage() {
 
             if (reservation && reservation.status !== newStatus) {
               if (newStatus === "accepted") toast.success("✅ Votre course a été confirmée !");
-              else if (newStatus === "en_route") toast.success("🚕 Le chauffeur est en route !");
-              else if (newStatus === "arrived") toast.success("📍 Le chauffeur est arrivé !");
+              else if (newStatus === "en_route") toast.success("🚕 Le chauffeur arrive chez vous !");
+              else if (newStatus === "arrived") toast.success("📍 Le chauffeur est devant chez vous !");
               else if (newStatus === "completed") toast.success("🏁 Course terminée. Merci !");
             }
             if (
@@ -597,10 +597,10 @@ function SuiviPage() {
               }}
             >
               <div>
-                <h1 style={{ fontSize: "22px", fontWeight: 800, color: "#0f172a", margin: 0, lineHeight: 1.2 }}>
+                <h1 style={{ fontSize: "26px", fontWeight: 800, color: "#0f172a", margin: 0, lineHeight: 1.2 }}>
                   {config.icon} {config.label}
                 </h1>
-                <p style={{ fontSize: "12px", color: "#94a3b8", margin: "4px 0 0 0" }}>
+                <p style={{ fontSize: "14px", color: "#94a3b8", margin: "4px 0 0 0" }}>
                   Réservation #{reservation.id.slice(-8).toUpperCase()}
                 </p>
               </div>
@@ -630,7 +630,7 @@ function SuiviPage() {
               >
                 Départ
               </div>
-              <div style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a", marginTop: "2px" }}>
+              <div style={{ fontSize: "17px", fontWeight: 700, color: "#0f172a", marginTop: "2px" }}>
                 {reservation.depart}
               </div>
             </div>
@@ -655,7 +655,7 @@ function SuiviPage() {
               >
                 Arrivée
               </div>
-              <div style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a", marginTop: "2px" }}>
+              <div style={{ fontSize: "17px", fontWeight: 700, color: "#0f172a", marginTop: "2px" }}>
                 {reservation.destination || reservation.arrivee || "À définir"}
               </div>
             </div>
@@ -673,7 +673,7 @@ function SuiviPage() {
               <div style={{ fontSize: "11px", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase" }}>
                 Horaire
               </div>
-              <div style={{ fontSize: "13px", fontWeight: 600, color: "#0f172a", marginTop: "2px" }}>
+              <div style={{ fontSize: "16px", fontWeight: 600, color: "#0f172a", marginTop: "2px" }}>
                 {new Date(reservation.pickup_datetime).toLocaleString(locale, {
                   dateStyle: "short",
                   timeStyle: "short",
@@ -689,22 +689,22 @@ function SuiviPage() {
           {reservation.nb_passagers != null && (
             <div className="suivi-premium suivi-card" style={{ padding: "14px", textAlign: "center" }}>
               <Users size={18} style={{ color: "#1d4ed8", margin: "0 auto 6px", display: "block" }} />
-              <div style={{ fontSize: "11px", color: "#94a3b8", marginBottom: "4px" }}>Passagers</div>
-              <div style={{ fontSize: "16px", fontWeight: 700, color: "#0f172a" }}>{reservation.nb_passagers}</div>
+              <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>Passagers</div>
+              <div style={{ fontSize: "20px", fontWeight: 700, color: "#0f172a" }}>{reservation.nb_passagers}</div>
             </div>
           )}
           {reservation.nb_bagages != null && (
             <div className="suivi-premium suivi-card" style={{ padding: "14px", textAlign: "center" }}>
               <Package size={18} style={{ color: "#f59e0b", margin: "0 auto 6px", display: "block" }} />
-              <div style={{ fontSize: "11px", color: "#94a3b8", marginBottom: "4px" }}>Bagages</div>
-              <div style={{ fontSize: "16px", fontWeight: 700, color: "#0f172a" }}>{reservation.nb_bagages}</div>
+              <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>Bagages</div>
+              <div style={{ fontSize: "20px", fontWeight: 700, color: "#0f172a" }}>{reservation.nb_bagages}</div>
             </div>
           )}
           {reservation.distance_km != null && (
             <div className="suivi-premium suivi-card" style={{ padding: "14px", textAlign: "center" }}>
               <Gauge size={18} style={{ color: "#8b5cf6", margin: "0 auto 6px", display: "block" }} />
-              <div style={{ fontSize: "11px", color: "#94a3b8", marginBottom: "4px" }}>Distance</div>
-              <div style={{ fontSize: "16px", fontWeight: 700, color: "#0f172a" }}>
+              <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>Distance</div>
+              <div style={{ fontSize: "20px", fontWeight: 700, color: "#0f172a" }}>
                 {reservation.distance_km.toFixed(1)} km
               </div>
             </div>
@@ -720,8 +720,8 @@ function SuiviPage() {
                 }}
               >
                 <CreditCard size={18} style={{ color: "#92400e", margin: "0 auto 6px", display: "block" }} />
-                <div style={{ fontSize: "11px", color: "#92400e", marginBottom: "4px" }}>Tarif estimé</div>
-                <div style={{ fontSize: "16px", fontWeight: 700, color: "#92400e" }}>
+                <div style={{ fontSize: "13px", color: "#92400e", marginBottom: "4px" }}>Tarif estimé</div>
+                <div style={{ fontSize: "20px", fontWeight: 700, color: "#92400e" }}>
                   {new Intl.NumberFormat(locale, { style: "currency", currency: "EUR" }).format(
                     reservation.prix_estime,
                   )}
