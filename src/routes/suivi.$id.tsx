@@ -32,7 +32,7 @@ export const Route = createFileRoute("/suivi/$id")({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────
-const JOSE_PHONE = "0600000000";
+const JOSE_PHONE = "0673072322";
 
 const PREMIUM_CSS = `
   * { box-sizing: border-box; }
@@ -469,35 +469,38 @@ function SuiviPage() {
   const { locale } = useI18n();
   const [reservation, setReservation] = useState<Reservation | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const josePhone = JOSE_PHONE;
 
   const fetchReservation = useServerFn(getReservationForFinPublic);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
+  const loadReservation = useCallback(
+    async (silent = false) => {
+      if (!silent) setLoading(true);
+      else setRefreshing(true);
       try {
         const row = await fetchReservation({ data: { key: id } });
-        if (cancelled) return;
         if (!row) {
           setError("Réservation introuvable");
         } else {
           setReservation(row as Reservation);
+          if (silent) toast.success("Statut actualisé ✓");
         }
       } catch (e) {
-        if (!cancelled) {
-          console.error("Fetch error:", e);
-          setError("Erreur de chargement");
-        }
+        console.error("Fetch error:", e);
+        setError("Erreur de chargement");
       } finally {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
+        setRefreshing(false);
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [fetchReservation, id]);
+    },
+    [fetchReservation, id],
+  );
+
+  useEffect(() => {
+    loadReservation(false);
+  }, [loadReservation]);
 
   // Real-time updates
   useEffect(() => {
@@ -874,6 +877,38 @@ function SuiviPage() {
             <AnonChat reservationId={reservation.id} />
           </div>
         )}
+
+        {/* Bouton Rafraîchir */}
+        <div style={{ marginBottom: "16px" }}>
+          <button
+            onClick={() => loadReservation(true)}
+            disabled={refreshing}
+            style={{
+              width: "100%",
+              padding: "13px 16px",
+              background: refreshing ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.08)",
+              color: refreshing ? "#64748b" : "#94a3b8",
+              border: "1px solid rgba(148,163,184,0.15)",
+              borderRadius: "12px",
+              fontWeight: 600,
+              fontSize: "13px",
+              cursor: refreshing ? "not-allowed" : "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              transition: "all 0.3s",
+              backdropFilter: "blur(10px)",
+            }}
+          >
+            {refreshing ? (
+              <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
+            ) : (
+              <span style={{ fontSize: "16px" }}>🔄</span>
+            )}
+            {refreshing ? "Actualisation…" : "Actualiser le statut"}
+          </button>
+        </div>
 
         {/* Footer */}
         <div style={{ textAlign: "center" }}>
