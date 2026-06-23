@@ -4,7 +4,7 @@ import { z } from "zod";
 const PUBLIC_COLUMNS =
   "id, nom, telephone, email, pickup_datetime, depart, arrivee, passagers, bagages, service_type, message, status, created_at";
 const FIN_PUBLIC_COLUMNS =
-  "id,depart,destination,arrivee,status,prix_estime,distance_km,nom,client_name,email,client_email,telephone,client_phone,paiement,date_course,heure_course,pickup_datetime,suivi_id";
+  "id,depart,destination,arrivee,status,prix_estime,distance_km,nom,client_name,email,client_email,telephone,client_phone,paiement,date_heure,heure_course,pickup_datetime,suivi_id";
 const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 export const getReservationPublic = createServerFn({ method: "POST" })
@@ -36,9 +36,7 @@ export const cancelReservationPublic = createServerFn({ method: "POST" })
   });
 
 export const getReservationForFinPublic = createServerFn({ method: "POST" })
-  .inputValidator((input) =>
-    z.object({ key: z.string().trim().min(3).max(80) }).parse(input),
-  )
+  .inputValidator((input) => z.object({ key: z.string().trim().min(3).max(80) }).parse(input))
   .handler(async ({ data }) => {
     const key = data.key.trim();
     const { getTaxiSupabaseAdmin } = await import("@/lib/taxi-supabase.server");
