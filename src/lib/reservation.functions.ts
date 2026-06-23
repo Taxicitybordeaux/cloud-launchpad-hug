@@ -41,7 +41,8 @@ export const getReservationForFinPublic = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const key = data.key.trim();
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { getTaxiSupabaseAdmin } = await import("@/lib/taxi-supabase.server");
+    const supabaseAdmin = getTaxiSupabaseAdmin();
 
     const base = supabaseAdmin.from("reservations").select(FIN_PUBLIC_COLUMNS).limit(1);
     const { data: rows, error } = UUID_RE.test(key)

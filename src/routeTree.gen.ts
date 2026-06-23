@@ -19,6 +19,7 @@ import { Route as ContactRouteImport } from './routes/contact'
 import { Route as ConfidentialiteRouteImport } from './routes/confidentialite'
 import { Route as AProposRouteImport } from './routes/a-propos'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SuiviIdRouteImport } from './routes/suivi.$id'
 import { Route as ReservationIdRouteImport } from './routes/reservation.$id'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as CourseIdRouteImport } from './routes/course.$id'
@@ -85,6 +86,11 @@ const AProposRoute = AProposRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SuiviIdRoute = SuiviIdRouteImport.update({
+  id: '/suivi/$id',
+  path: '/suivi/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReservationIdRoute = ReservationIdRouteImport.update({
@@ -195,6 +201,7 @@ export interface FileRoutesByFullPath {
   '/course/$id': typeof CourseIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
+  '/suivi/$id': typeof SuiviIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
   '/api/public/contact': typeof ApiPublicContactRoute
   '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
@@ -224,6 +231,7 @@ export interface FileRoutesByTo {
   '/course/$id': typeof CourseIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
+  '/suivi/$id': typeof SuiviIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
   '/api/public/contact': typeof ApiPublicContactRoute
   '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
@@ -254,6 +262,7 @@ export interface FileRoutesById {
   '/course/$id': typeof CourseIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
+  '/suivi/$id': typeof SuiviIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
   '/api/public/contact': typeof ApiPublicContactRoute
   '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
@@ -285,6 +294,7 @@ export interface FileRouteTypes {
     | '/course/$id'
     | '/email/unsubscribe'
     | '/reservation/$id'
+    | '/suivi/$id'
     | '/api/admin/send-course-email'
     | '/api/public/contact'
     | '/api/public/driver-location'
@@ -314,6 +324,7 @@ export interface FileRouteTypes {
     | '/course/$id'
     | '/email/unsubscribe'
     | '/reservation/$id'
+    | '/suivi/$id'
     | '/api/admin/send-course-email'
     | '/api/public/contact'
     | '/api/public/driver-location'
@@ -343,6 +354,7 @@ export interface FileRouteTypes {
     | '/course/$id'
     | '/email/unsubscribe'
     | '/reservation/$id'
+    | '/suivi/$id'
     | '/api/admin/send-course-email'
     | '/api/public/contact'
     | '/api/public/driver-location'
@@ -372,6 +384,7 @@ export interface RootRouteChildren {
   ClientLoginRoute: typeof ClientLoginRoute
   CourseIdRoute: typeof CourseIdRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
+  SuiviIdRoute: typeof SuiviIdRoute
   ApiAdminSendCourseEmailRoute: typeof ApiAdminSendCourseEmailRoute
   ApiPublicContactRoute: typeof ApiPublicContactRoute
   ApiPublicDriverLocationRoute: typeof ApiPublicDriverLocationRoute
@@ -455,6 +468,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/suivi/$id': {
+      id: '/suivi/$id'
+      path: '/suivi/$id'
+      fullPath: '/suivi/$id'
+      preLoaderRoute: typeof SuiviIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reservation/$id': {
@@ -607,6 +627,7 @@ const rootRouteChildren: RootRouteChildren = {
   ClientLoginRoute: ClientLoginRoute,
   CourseIdRoute: CourseIdRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
+  SuiviIdRoute: SuiviIdRoute,
   ApiAdminSendCourseEmailRoute: ApiAdminSendCourseEmailRoute,
   ApiPublicContactRoute: ApiPublicContactRoute,
   ApiPublicDriverLocationRoute: ApiPublicDriverLocationRoute,
