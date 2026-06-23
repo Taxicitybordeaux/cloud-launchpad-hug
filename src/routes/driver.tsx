@@ -1763,6 +1763,18 @@ function ClientsTab() {
     }
   };
 
+  const formatE164 = (phone: string) => {
+    const normalized = phone.replace(/[^0-9]/g, "").replace(/^0/, "33");
+    return normalized.startsWith("33") ? `+${normalized}` : `+${normalized}`;
+  };
+
+  const makeVcardHref = (name: string, phone: string) => {
+    const tel = formatE164(phone);
+    const safeName = name || "Client";
+    const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${safeName}\nTEL;TYPE=CELL:${tel}\nEND:VCARD`;
+    return `data:text/vcard;charset=utf-8,${encodeURIComponent(vcard)}`;
+  };
+
   if (loading)
     return (
       <div className="drv-empty">
@@ -1876,6 +1888,28 @@ function ClientsTab() {
                 🟢 WhatsApp
               </a>
             </div>
+            <a
+              href={makeVcardHref(c.name, c.phone)}
+              download={`${c.name.replace(/[^a-zA-Z0-9]/g, "_") || "client"}.vcf`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                width: "100%",
+                background: "#eff6ff",
+                border: "1px solid #bfdbfe",
+                borderRadius: 12,
+                padding: "10px",
+                color: "#1e40af",
+                fontWeight: 700,
+                fontSize: 13,
+                textDecoration: "none",
+                marginTop: 8,
+              }}
+            >
+              📇 Enregistrer
+            </a>
             <button
               onClick={() => removeClient(c)}
               disabled={deletingPhone === c.phone}
