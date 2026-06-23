@@ -4,7 +4,7 @@ import { z } from "zod";
 const PUBLIC_COLUMNS =
   "id, nom, telephone, email, pickup_datetime, depart, arrivee, passagers, bagages, service_type, message, status, created_at";
 const FIN_PUBLIC_COLUMNS =
-  "id,depart,destination,arrivee,status,prix_estime,distance_km,nom,client_name,email,client_email,telephone,client_phone,paiement,date_heure,heure_course,pickup_datetime,suivi_id";
+  "id,depart,destination,arrivee,status,prix_estime,distance_km,nb_passagers,nb_bagages,nom,client_name,email,client_email,telephone,client_phone,paiement,date_heure,heure_course,pickup_datetime,suivi_id";
 const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 export const getReservationPublic = createServerFn({ method: "POST" })
@@ -53,6 +53,8 @@ export const getReservationForFinPublic = createServerFn({ method: "POST" })
     return {
       ...row,
       destination: row.destination ?? row.arrivee ?? "",
+      nb_passagers: row.nb_passagers ?? null,
+      nb_bagages: row.nb_bagages ?? null,
       prix_final: null,
       distance_reelle_km: null,
       duree_reelle_min: null,
