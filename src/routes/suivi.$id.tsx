@@ -165,8 +165,6 @@ function SuiviPage() {
 
   const statusLabel = reservation.status;
   const translatedStatus = t(`mc.status.${reservation.status}`) || statusLabel;
-  const PRICE_VISIBLE_STATUSES = new Set(["accepted", "en_route", "arrived", "completed", "terminee"]);
-  const showPrice = reservation.prix_estime != null && PRICE_VISIBLE_STATUSES.has(reservation.status);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-16">
@@ -206,13 +204,23 @@ function SuiviPage() {
               <p className="mt-2 text-base text-white">{reservation.destination ?? reservation.arrivee ?? "-"}</p>
             </div>
             <div className="rounded-2xl border border-border bg-background p-4">
-              <div className="flex flex-col gap-2 text-sm text-muted-foreground">
-                {reservation.distance_km != null && <span>Distance estimée : {reservation.distance_km.toFixed(1)} km</span>}
-                {showPrice ? (
-                  <span className="font-semibold text-white">{new Intl.NumberFormat(locale, { style: "currency", currency: "EUR" }).format(reservation.prix_estime as number)}</span>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Votre tarif estimé sera indiqué par le chauffeur une fois l'itinéraire confirmé. Il peut être modifié en cas de trafic dense, accident ou autre.</p>
-                )}
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="text-sm text-muted-foreground">
+                  {reservation.distance_km != null && (
+                    <div>Distance estimée : {reservation.distance_km.toFixed(1)} km</div>
+                  )}
+                </div>
+                <div className="text-sm">
+                  {(["accepted", "en_route", "arrived", "completed", "terminee"].includes(reservation.status) && reservation.prix_estime != null) ? (
+                    <div className="font-medium text-white">
+                      {new Intl.NumberFormat(locale, { style: "currency", currency: "EUR" }).format(reservation.prix_estime)}
+                    </div>
+                  ) : (
+                    <div className="text-muted-foreground">
+                      Votre tarif estimé sera fixé par le chauffeur et affiché ici une fois la course confirmée.
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
