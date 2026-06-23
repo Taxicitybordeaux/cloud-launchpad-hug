@@ -1387,7 +1387,7 @@ function ReservationPage() {
       const fullName = `${f.prenom} ${f.nom}`.trim();
       const pickupIsoFinal = f.date && f.heure ? toParisIso(f.date, f.heure) : new Date().toISOString();
 
-      const { data: inserted, error } = await (supabase as any)
+      const { data: inserted, error } = await supabase
         .from("reservations")
         .insert({
           // NOT NULL columns
@@ -1416,7 +1416,6 @@ function ReservationPage() {
             : prixAller,
           source: "form",
           lang: lang as any,
-          date_heure: pickupIsoFinal,
         })
         .select("id,suivi_id")
         .single();
