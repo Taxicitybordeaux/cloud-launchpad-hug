@@ -7,7 +7,7 @@
 // Le navigateur considère le fichier modifié → install/activate immédiats
 // grâce à skipWaiting()/clients.claim(). Pas besoin de purge manuelle.
 // ─────────────────────────────────────────────────────────────────────────────
-const SW_VERSION = "2026-06-23.3";
+const SW_VERSION = "2026-06-23.4";
 console.log("[FCM SW] boot version =", SW_VERSION);
 
 // Deep links autorisés. Toute URL qui pointe vers /admin/* est REFUSÉE
@@ -99,12 +99,16 @@ function sanitizeDeepLink(rawUrl, audience, reservationId) {
 
 // ─── Réception background (Android/desktop via FCM) ─────────────────────────
 messaging.onBackgroundMessage((payload) => {
-  console.log("[FCM SW] Message background reçu :", payload);
+  console.log("[FCM SW] Message background reçu :", JSON.stringify(payload));
 
-  const data = payload.data || payload.webpush?.data || {};
-  const notif = payload.notification || payload.webpush?.notification || {};
-  const title = notif.title || "🚖 Taxi City Bordeaux";
-  const body = notif.body || "";
+  // Firebase SDK remonte webpush.data dans payload.data — on fusionne les deux
+  // pour être sûr d'avoir audience, url, tag peu importe la source.
+  const data = Object.assign({}, payload.webpush?.data || {}, payload.data || {});
+  const notif = payload.webpush?.notification || payload.notification || {};
+  const title = notif.title || data.title || "🚖 Taxi City Bordeaux";
+  const body = notif.body || data.body || "";
+
+  console.log("[FCM SW] data:", JSON.stringify(data), "audience:", data.audience, "url:", data.url);
 
   const url = sanitizeDeepLink(data.url || data.click_action, data.audience, data.reservation_id);
   const tag = data.tag || "taxi-fcm";
@@ -116,7 +120,7 @@ messaging.onBackgroundMessage((payload) => {
       icon: notif.icon || "/favicon.ico",
       badge: "/favicon.ico",
       tag,
-      data: { ...data, url, sw_version: SW_VERSION },
+      data: { ...data, url, audience: data.audience, reservation_id: data.reservation_id, sw_version: SW_VERSION },
       vibrate: [200, 100, 200],
       requireInteraction: true,
     });
