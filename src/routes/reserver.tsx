@@ -1411,9 +1411,7 @@ function ReservationPage() {
           bagages: f.bagages,
           paiement: f.paiement,
           tarif_jour: tarifJour,
-          prix_estime: pickupIso
-            ? calculerPrixMixteLocal(distanceKm, new Date(pickupIso).getTime(), dureeS)
-            : prixAller,
+          prix_estime: calculerPrixMixteLocal(distanceKm, new Date(pickupIsoFinal).getTime(), dureeS),
           source: "form",
           lang: lang as any,
         })
