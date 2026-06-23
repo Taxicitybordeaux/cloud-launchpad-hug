@@ -1407,6 +1407,8 @@ function CourseCard({
           </button>
         </>
       )}
+        </>
+      )}
 
       {/* Toggle */}
       <button
