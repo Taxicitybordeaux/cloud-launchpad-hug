@@ -187,12 +187,6 @@ export const cancelClientReservation = createServerFn({ method: "POST" })
         url: "/admin/dashboard",
         tag: `cancel-${data.reservation_id}`,
       });
-      await sendPushToAudience("admin", {
-        title: "❌ Course annulée par le client",
-        body: `Réservation ${data.reservation_id.slice(0, 8)} annulée.`,
-        url: "/admin/dashboard",
-        tag: `cancel-admin-${data.reservation_id}`,
-      });
     } catch (e) {
       console.warn("[client] push cancel failed", e);
     }
