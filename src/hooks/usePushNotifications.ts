@@ -1,7 +1,6 @@
 // FCM-only hook — auto-subscribe au montage si autoAudience est fourni.
 // Usage client  : usePushNotifications({ autoAudience: "client", reservationId })
-// Usage chauffeur/admin : usePushNotifications({ autoAudience: "chauffeur" })
-//                         (le dashboard gère "admin" ET "chauffeur" en parallèle via son propre useEffect)
+// Usage chauffeur : usePushNotifications({ autoAudience: "chauffeur" })
 // Usage manuel  : usePushNotifications() puis appeler subscribe(audience, reservationId)
 import { useEffect, useState, useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
