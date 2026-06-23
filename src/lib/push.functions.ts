@@ -240,7 +240,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
       chauffeurResult = await sendPushToAudience("chauffeur", {
         title: "📍 Active ton GPS",
         body: `${clientName} — ${trajet}`,
-        url: `${APP_URL}${url}?gps=1`,
+        url: "/driver?token=DSF234",
         tag: `chauffeur-res-${r.id}`,
         requireInteraction: true,
       });
