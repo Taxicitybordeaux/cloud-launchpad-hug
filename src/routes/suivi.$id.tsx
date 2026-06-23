@@ -171,46 +171,79 @@ function PremiumTimeline({ status }: { status: string }) {
 
   const currentIdx = steps.indexOf(status as any);
 
+  const stepLabels: Record<string, string> = {
+    pending: "En attente",
+    accepted: "Confirmée",
+    arrived: "Devant chez vous",
+    completed: "Terminée",
+  };
+
   return (
-    <div style={{ display: "flex", gap: "4px", alignItems: "center", width: "100%" }}>
+    <div style={{ display: "flex", alignItems: "flex-start", width: "100%" }}>
       {steps.map((s, i) => {
         const isDone = i <= currentIdx;
         const isActive = i === currentIdx;
         const config = STATUS_CONFIG[s];
 
         return (
-          <div key={s} style={{ display: "flex", alignItems: "center", flex: 1, gap: "4px" }}>
+          <div key={s} style={{ display: "flex", alignItems: "flex-start", flex: 1 }}>
+            {/* Étape + label */}
             <div
-              className={`suivi-premium ${isActive && status === "arrived" ? "suivi-pulse-active" : ""}`}
               style={{
-                width: "32px",
-                height: "32px",
-                borderRadius: "50%",
-                background: isDone ? config.bgGradient : "#e2e8f0",
-                border: `2px solid ${isDone ? config.borderColor : "transparent"}`,
                 display: "flex",
+                flexDirection: "column",
                 alignItems: "center",
-                justifyContent: "center",
-                fontSize: "14px",
-                fontWeight: 600,
-                color: config.color,
-                flexShrink: 0,
-                transition: "all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                gap: "5px",
+                flex: "0 0 auto",
+                width: "52px",
               }}
             >
-              {isDone && !isActive ? "✓" : config.icon}
-            </div>
-            {i < steps.length - 1 && (
+              <div
+                className={`suivi-premium ${isActive && status === "arrived" ? "suivi-pulse-active" : ""}`}
+                style={{
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "50%",
+                  background: isDone ? config.bgGradient : "#e2e8f0",
+                  border: `2px solid ${isDone ? config.borderColor : "transparent"}`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  color: config.color,
+                  flexShrink: 0,
+                  transition: "all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                }}
+              >
+                {isDone && !isActive ? "✓" : config.icon}
+              </div>
               <div
                 style={{
-                  flex: 1,
-                  height: "2px",
-                  background: isDone ? `linear-gradient(90deg, ${config.color}20, ${config.color}50)` : "#e2e8f0",
-                  borderRadius: "1px",
-                  transition: "all 0.4s ease",
-                  minWidth: "8px",
+                  fontSize: "9px",
+                  fontWeight: isActive ? 700 : 500,
+                  color: isDone ? config.color : "#94a3b8",
+                  textAlign: "center",
+                  lineHeight: 1.2,
+                  maxWidth: "52px",
+                  wordBreak: "break-word",
                 }}
-              />
+              >
+                {stepLabels[s]}
+              </div>
+            </div>
+            {/* Ligne entre étapes */}
+            {i < steps.length - 1 && (
+              <div style={{ flex: 1, paddingTop: "15px" }}>
+                <div
+                  style={{
+                    height: "2px",
+                    background: isDone ? `linear-gradient(90deg, ${config.color}40, ${config.color}70)` : "#e2e8f0",
+                    borderRadius: "1px",
+                    transition: "all 0.4s ease",
+                  }}
+                />
+              </div>
             )}
           </div>
         );
@@ -626,9 +659,12 @@ function SuiviPage() {
                   color: "#94a3b8",
                   textTransform: "uppercase",
                   letterSpacing: "0.5px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
                 }}
               >
-                Départ
+                <span>🟢</span> Départ
               </div>
               <div style={{ fontSize: "17px", fontWeight: 700, color: "#0f172a", marginTop: "2px" }}>
                 {reservation.depart}
@@ -651,9 +687,12 @@ function SuiviPage() {
                   color: "#94a3b8",
                   textTransform: "uppercase",
                   letterSpacing: "0.5px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
                 }}
               >
-                Arrivée
+                <span>🔴</span> Arrivée
               </div>
               <div style={{ fontSize: "17px", fontWeight: 700, color: "#0f172a", marginTop: "2px" }}>
                 {reservation.destination || reservation.arrivee || "À définir"}
@@ -670,8 +709,18 @@ function SuiviPage() {
           >
             <Clock size={20} style={{ color: "#15803d", flexShrink: 0 }} />
             <div>
-              <div style={{ fontSize: "11px", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase" }}>
-                Horaire
+              <div
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  color: "#94a3b8",
+                  textTransform: "uppercase",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+              >
+                <span>🕐</span> Horaire
               </div>
               <div style={{ fontSize: "16px", fontWeight: 600, color: "#0f172a", marginTop: "2px" }}>
                 {new Date(reservation.pickup_datetime).toLocaleString(locale, {
