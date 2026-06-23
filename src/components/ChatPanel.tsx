@@ -268,13 +268,22 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
   const sendOne = useCallback(
     async (content: string) => {
       if (role === "client") {
-        return await sendClientMessage({ data: { reservation_id: reservationId, content } });
+        if (!clientIdentity?.account_id) throw new Error("MISSING_IDENTITY");
+        return await sendClientMessage({
+          data: {
+            reservation_id: reservationId,
+            content,
+            account_id: clientIdentity.account_id,
+            phone: clientIdentity.phone ?? null,
+            email: clientIdentity.email ?? null,
+          },
+        });
       }
       return await sendChauffeurMessage({
         data: { reservation_id: reservationId, content, skip_push: peerOnline },
       });
     },
-    [reservationId, role, peerOnline],
+    [reservationId, role, peerOnline, clientIdentity],
   );
 
   const flushQueue = useCallback(async () => {
