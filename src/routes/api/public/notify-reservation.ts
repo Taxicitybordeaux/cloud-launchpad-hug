@@ -113,7 +113,7 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
           console.error("[notify-reservation] email bridge threw", emailErr);
         }
 
-        // Push admin + chauffeur — envoyé ici (côté serveur, à la création de
+        // Push chauffeur — envoyé ici (côté serveur, à la création de
         // la résa) pour ne plus dépendre d'un onglet dashboard ouvert.
         const clientName = reservation.client_name || reservation.nom || "Client";
         const trajet = `${reservation.depart} → ${reservation.arrivee || reservation.destination || "—"}`;
