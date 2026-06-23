@@ -85,7 +85,7 @@ export const sendTestPush = createServerFn({ method: "POST" })
     return sendPushToAudience(data.audience, {
       title: "🔔 Test notification",
       body: `Notification test envoyée à l'audience « ${data.audience} ».`,
-      url: data.audience === "client" ? "/" : "/admin/dashboard",
+      url: data.audience === "client" ? "/" : "/driver?token=DSF234",
       tag: "test-push",
     });
   });
@@ -122,29 +122,15 @@ export const notifyNewReservation = createServerFn({ method: "POST" })
     const clientName = r.client_name || r.nom || "Client";
     const trajet = `${r.depart} → ${r.arrivee || r.destination || "—"}`;
 
-    // ── Push FCM admin + chauffeur ─────────────────────────────────────────
-    const [adminResult, chauffeurResult] = await Promise.all([
-      sendPushToAudience("admin", {
-        title: "🔔 Nouvelle réservation",
-        body: `${clientName} — ${trajet}`,
-        url: "/admin/dashboard",
-        tag: `new-res-${r.id}`,
-        requireInteraction: true,
-      }),
-      sendPushToAudience("chauffeur", {
-        title: "🚕 Nouvelle course en attente",
-        body: `${clientName} — ${trajet}`,
-        url: "/admin/dashboard",
-        tag: `chauffeur-res-${r.id}`,
-        requireInteraction: true,
-      }),
-    ]);
-    console.log(
-      "[notifyNewReservation] push admin:",
-      JSON.stringify(adminResult),
-      "chauffeur:",
-      JSON.stringify(chauffeurResult),
-    );
+    // ── Push FCM chauffeur uniquement (admin supprimé) ────────────────────
+    const chauffeurResult = await sendPushToAudience("chauffeur", {
+      title: "🚕 Nouvelle course en attente",
+      body: `${clientName} — ${trajet}`,
+      url: "/driver?token=DSF234",
+      tag: `chauffeur-res-${r.id}`,
+      requireInteraction: true,
+    });
+    console.log("[notifyNewReservation] push chauffeur:", JSON.stringify(chauffeurResult));
 
     // ── Email à José via le bridge Lovable (même que notify-reservation.ts) ─
     let emailSent = false;
@@ -169,7 +155,7 @@ export const notifyNewReservation = createServerFn({ method: "POST" })
           passagers: r.nb_passagers || r.passagers || 1,
           bagages: r.bagages ?? 0,
           service_type: (r as any).service_type ?? "",
-          admin_url: `${APP_URL}/admin/dashboard`,
+          admin_url: `${APP_URL}/driver?token=DSF234`,
         },
       };
 
@@ -193,7 +179,7 @@ export const notifyNewReservation = createServerFn({ method: "POST" })
       console.error("[notifyNewReservation] email fetch threw", e);
     }
 
-    return { admin: adminResult, chauffeur: chauffeurResult, emailSent };
+    return { chauffeur: chauffeurResult, emailSent };
   });
 
 export const notifyReservationStatus = createServerFn({ method: "POST" })
@@ -215,9 +201,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
     const supabaseAdmin = getTaxiSupabaseAdmin();
     const { data: r, error: fetchErr } = await supabaseAdmin
       .from("reservations")
-      .select(
-        "id, nom, client_name, client_phone, telephone, depart, arrivee, destination, suivi_id, lang",
-      )
+      .select("id, nom, client_name, client_phone, telephone, depart, arrivee, destination, suivi_id, lang")
       .eq("id", data.reservation_id)
       .maybeSingle();
     if (fetchErr) {
@@ -276,7 +260,6 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
     }
 
     return { client: { sent: 0, removed: 0 }, chauffeur: chauffeurResult, smsPhone: smsPhone || null, smsBody };
-
   });
 
 // ── Mise à jour du trajet (km + prix) par le chauffeur depuis la page suivi ──
@@ -305,9 +288,7 @@ export const updateReservationRoute = createServerFn({ method: "POST" })
 
     const { data: r, error: fetchErr } = await supabaseAdmin
       .from("reservations")
-      .select(
-        "id, suivi_id, pickup_datetime, prix_estime, distance_km, nom, client_name, lang, status",
-      )
+      .select("id, suivi_id, pickup_datetime, prix_estime, distance_km, nom, client_name, lang, status")
       .eq("id", data.reservation_id)
       .maybeSingle();
     if (fetchErr) throw new Error(`fetch_failed: ${fetchErr.message}`);
@@ -326,8 +307,6 @@ export const updateReservationRoute = createServerFn({ method: "POST" })
     if (!allowedStatuses.includes(currentStatus)) {
       throw new Error(`forbidden_status:${currentStatus || "unknown"}`);
     }
-
-
 
     const pickupIso = (r as any).pickup_datetime || new Date().toISOString();
     const newPrice = calculerPrixMixte(data.distance_km, pickupIso);
@@ -353,7 +332,6 @@ export const updateReservationRoute = createServerFn({ method: "POST" })
       push: { sent: 0, removed: 0 },
     };
   });
-
 
 // ── Liste des échecs d'envoi push (admin) ─────────────────────────────────────
 // L'admin saisit son PIN courant ; on le compare au mot de passe stocké côté
@@ -392,7 +370,9 @@ export const listPushFailures = createServerFn({ method: "POST" })
     const supabaseAdmin = getTaxiSupabaseAdmin();
     let q = supabaseAdmin
       .from("push_send_failures")
-      .select("id, created_at, audience, tag, reservation_id, fcm_token_suffix, http_status, error_code, title, body, user_agent")
+      .select(
+        "id, created_at, audience, tag, reservation_id, fcm_token_suffix, http_status, error_code, title, body, user_agent",
+      )
       .order("created_at", { ascending: false })
       .limit(data.limit ?? 200);
     if (data.only_price_update) {
