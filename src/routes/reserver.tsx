@@ -1416,6 +1416,7 @@ function ReservationPage() {
             : prixAller,
           source: "form",
           lang: lang as any,
+          date_heure: pickupIsoFinal,
         })
         .select("id,suivi_id")
         .single();
