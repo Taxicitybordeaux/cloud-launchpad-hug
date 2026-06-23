@@ -54,7 +54,7 @@ export function usePushNotifications(opts: UsePushOptions = {}) {
     let cancelled = false;
     const run = async () => {
       try {
-        const fcm = await getFcmToken(); // demande la permission si nécessaire
+        const fcm = await getFcmToken(); // rotation auto si token > 50 jours
         if (!fcm || cancelled) return;
         await subscribeFn({
           data: {
@@ -81,9 +81,9 @@ export function usePushNotifications(opts: UsePushOptions = {}) {
     };
     run();
 
-    // Rafraîchit last_seen_at toutes les heures pour que le token ne soit pas
-    // considéré comme périmé si le dashboard reste ouvert sans rechargement.
-    const interval = setInterval(run, 30 * 60 * 1000);
+    // Rafraîchit last_seen_at en DB toutes les heures.
+    // getFcmToken gère lui-même la rotation du token (tous les 50 jours automatiquement).
+    const interval = setInterval(() => run(), 60 * 60 * 1000);
 
     return () => {
       cancelled = true;
@@ -132,5 +132,28 @@ export function usePushNotifications(opts: UsePushOptions = {}) {
     });
   }, [status]);
 
-  return { status, subscription: token, subscribe, testNotification };
+  // Force un nouveau token FCM et re-subscribe (utile au visibilitychange sur iOS)
+  const refreshToken = useCallback(
+    async (audience: PushAudience = "chauffeur") => {
+      try {
+        const fcm = await getFcmToken({ forceRefresh: true });
+        if (!fcm) return;
+        await subscribeFn({
+          data: {
+            audience,
+            fcm_token: fcm,
+            reservation_id: reservationId ?? null,
+            user_agent: navigator.userAgent.slice(0, 500),
+          },
+        });
+        setToken(fcm);
+        setStatus("granted");
+      } catch (e) {
+        console.warn("[push] refreshToken failed", e);
+      }
+    },
+    [subscribeFn, reservationId],
+  );
+
+  return { status, subscription: token, subscribe, testNotification, refreshToken };
 }
