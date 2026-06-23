@@ -1,171 +1,2190 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useRef, useState, useCallback } from "react";
-import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, Loader2 } from "lucide-react";
-import { useI18n } from "@/i18n/I18nProvider";
-import { getReservationForFinPublic } from "@/lib/reservation.functions";
+import { createFileRoute } from "@tanstack/react-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { loadGoogleMapsWhenVisible } from "@/lib/googleMaps";
+import { geocodeAddress } from "@/lib/googleGeocode";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useServerFn } from "@tanstack/react-start";
+import { listPushFailures } from "@/lib/push.functions";
+import { calculerPrixMixte, estTarifJourParis } from "@/lib/tarif";
 
-export const Route = createFileRoute("/suivi/$id")({
-  head: () => ({
-    meta: [
-      { title: "Suivi de votre taxi — Taxi City Bordeaux" },
-      { name: "robots", content: "noindex" },
-      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" },
-    ],
-  }),
-  component: SuiviPage,
-});
+// ── Token guard ────────────────────────────────────────────────────────────
+const DRIVER_TOKEN = "DSF234";
 
-// ─── Numéro de José ─────────────────────────────────────────────────────────
-const JOSE_PHONE = "0600000000"; // ← remplacer par le vrai numéro
+// ── Types ─────────────────────────────────────────────────────────────────
+type Tab = "courses" | "planning" | "avis" | "clients" | "chat" | "stats";
 
-// ─── CSS animations ──────────────────────────────────────────────────────────
-const globalCss = `
-  @keyframes pulse-ring {
-    0% { box-shadow: 0 0 0 0 rgba(29,78,216,0.4); }
-    70% { box-shadow: 0 0 0 10px rgba(29,78,216,0); }
-    100% { box-shadow: 0 0 0 0 rgba(29,78,216,0); }
-  }
-  .suivi-pulse { animation: pulse-ring 1.8s ease-in-out infinite; }
-  @keyframes fade-in { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
-  .suivi-fadein { animation: fade-in 0.35s ease both; }
-`;
-
-type Reservation = {
+interface Resa {
   id: string;
   depart: string;
-  destination?: string | null;
-  arrivee?: string | null;
-  pickup_datetime?: string | null;
+  destination: string;
+  date_heure: string;
+  pickup_datetime: string;
   status: string;
   prix_estime?: number | null;
   distance_km?: number | null;
   client_name?: string | null;
-  nb_passagers?: number | null;
-  nb_bagages?: number | null;
-  mode_paiement?: string | null;
-};
-
-function formatPickup(iso: string, locale: string) {
-  try {
-    return new Date(iso).toLocaleString(locale, {
-      dateStyle: "full",
-      timeStyle: "short",
-      timeZone: "Europe/Paris",
-    });
-  } catch {
-    return iso;
-  }
+  client_phone?: string | null;
+  client_email?: string | null;
+  email?: string | null;
+  suivi_id?: string | null;
 }
 
-// ─── Statut config ───────────────────────────────────────────────────────────
-const STEPS = ["pending", "accepted", "en_route", "arrived", "completed"] as const;
-const STATUS_MAP: Record<string, { label: string; emoji: string; color: string; bg: string; border: string }> = {
-  pending: { label: "En attente de confirmation", emoji: "⏳", color: "#92400e", bg: "#fffbeb", border: "#fde68a" },
-  accepted: { label: "Course confirmée", emoji: "✅", color: "#166534", bg: "#f0fdf4", border: "#bbf7d0" },
-  en_route: { label: "Le chauffeur est en route", emoji: "🚕", color: "#1d4ed8", bg: "#eff6ff", border: "#bfdbfe" },
-  arrived: { label: "Le chauffeur est arrivé", emoji: "📍", color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe" },
-  completed: { label: "Course terminée", emoji: "🏁", color: "#475569", bg: "#f8fafc", border: "#e2e8f0" },
-  cancelled: { label: "Course annulée", emoji: "❌", color: "#b91c1c", bg: "#fef2f2", border: "#fecaca" },
-};
-const STEP_LABELS: Record<string, string> = {
-  pending: "Demande",
-  accepted: "Confirmée",
-  en_route: "En route",
-  arrived: "Arrivé",
-  completed: "Terminée",
-};
+interface Avis {
+  id: string;
+  author_name: string;
+  note: number;
+  commentaire: string;
+  created_at: string;
+  status: string;
+}
 
-// ─── Stepper ─────────────────────────────────────────────────────────────────
-function StatusStepper({ status }: { status: string }) {
-  if (status === "cancelled") return null;
-  const currentIdx = STEPS.indexOf(status as any);
+interface ClientAgg {
+  id?: string;
+  phone: string;
+  email?: string | null;
+  name: string;
+  nbCourses: number;
+  totalDepense: number;
+  derniereCourse: string;
+  derniereDestination: string;
+}
+
+interface RouteOption {
+  index: number;
+  summary: string;
+  distanceKm: number;
+  dureeMin: number;
+  prix_estime: number;
+  tarifLabel: string;
+  legs: any[];
+  overview_polyline: string;
+  dirResult: any;
+  originLatLng: { lat: number; lng: number };
+  destLatLng: { lat: number; lng: number };
+  waypointLatLng: { lat: number; lng: number } | null;
+}
+
+// ── Route definition ───────────────────────────────────────────────────────
+export const Route = createFileRoute("/driver")({
+  validateSearch: (s: Record<string, unknown>) => ({ token: String(s.token ?? "") }),
+  head: () => ({
+    meta: [
+      { title: "Espace chauffeur" },
+      { name: "robots", content: "noindex" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" },
+      { name: "theme-color", content: "#0f172a" },
+    ],
+    links: [{ rel: "manifest", href: "/api/manifest?role=driver" }],
+  }),
+  component: DriverPage,
+});
+
+// ── Styles globaux ─────────────────────────────────────────────────────────
+const css = `
+  * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; touch-action: manipulation; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    overscroll-behavior-y: contain; background: #f8fafc;
+    font-family: 'DM Sans', sans-serif;
+  }
+  input, textarea, select { font-size: 16px; }
+  .drv-root {
+    position: fixed; inset: 0;
+    max-width: 480px; margin: 0 auto;
+    display: flex; flex-direction: column;
+    background: #fff;
+  }
+  .drv-header {
+    background: #0f172a; color: #fff; display: flex; align-items: center; gap: 10px;
+    padding: calc(env(safe-area-inset-top, 0px) + 14px) calc(env(safe-area-inset-right, 0px) + 16px) 10px calc(env(safe-area-inset-left, 0px) + 16px);
+    flex-shrink: 0;
+  }
+  .drv-header h1 { margin: 0; font-size: 17px; font-weight: 700; flex: 1; }
+  .drv-tabs {
+    display: flex; border-bottom: 1px solid #e2e8f0; background: #fff;
+    padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);
+    flex-shrink: 0;
+  }
+  .drv-tab {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 12px 4px 10px; min-height: 48px; border: none; background: none; color: #94a3b8;
+    font-size: 10px; font-family: 'DM Sans', sans-serif; cursor: pointer; border-bottom: 2px solid transparent;
+    transition: color 0.15s; -webkit-user-select: none; user-select: none;
+  }
+  .drv-tab:active { background: #f8fafc; }
+  .drv-tab.active { color: #0f172a; border-bottom-color: #0f172a; }
+  .drv-tab svg { width: 22px; height: 22px; }
+  .drv-badge { background: #ef4444; color: #fff; border-radius: 99px; font-size: 10px; font-weight: 700; padding: 1px 5px; position: absolute; top: -3px; right: -5px; }
+  .drv-body {
+    flex: 1; padding: 16px;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+    overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;
+  }
+  .drv-section { font-size: 10px; font-weight: 700; color: #94a3b8; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 10px; }
+  .drv-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 14px; margin-bottom: 10px; }
+  .drv-card.pending { border-color: #f59e0b; }
+  .drv-card.new { border-color: #3b82f6; box-shadow: 0 0 0 3px #3b82f620; }
+  .drv-card.done { opacity: 0.5; }
+  .drv-card.accepted { border-color: #22c55e; }
+  .drv-card.refused { border-color: #ef4444; opacity: 0.6; }
+  .drv-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .drv-time { font-size: 22px; font-weight: 800; color: #0f172a; }
+  .drv-name { font-size: 14px; font-weight: 600; color: #0f172a; }
+  .drv-sub { font-size: 12px; color: #64748b; }
+  .drv-route { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
+  .drv-route span { display: flex; align-items: flex-start; gap: 6px; font-size: 13px; color: #334155; line-height: 1.4; }
+  .drv-meta { display: flex; gap: 12px; font-size: 12px; color: #64748b; margin: 8px 0 12px; flex-wrap: wrap; }
+  .drv-meta span { display: flex; align-items: center; gap: 4px; }
+  .drv-btns { display: flex; gap: 8px; }
+  .drv-btn-primary { flex: 1; min-height: 46px; background: #0f172a; color: #fff; border: none; border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 700; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .drv-btn-primary:active { background: #1e293b; }
+  .drv-btn-secondary { flex: 1; min-height: 46px; background: #f1f5f9; color: #0f172a; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .drv-btn-secondary:active { background: #e2e8f0; }
+  .drv-btn-danger { flex: 1; min-height: 46px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .drv-btn-danger:active { background: #fee2e2; }
+  .drv-badge-pill { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 99px; }
+  .drv-badge-blue { background: #eff6ff; color: #1d4ed8; }
+  .drv-badge-green { background: #f0fdf4; color: #15803d; }
+  .drv-badge-amber { background: #fffbeb; color: #92400e; }
+  .drv-badge-red { background: #fef2f2; color: #b91c1c; }
+  .drv-badge-gray { background: #f1f5f9; color: #475569; }
+  .drv-stars { color: #f59e0b; font-size: 15px; letter-spacing: 1px; }
+  .drv-stars-empty { color: #cbd5e1; font-size: 15px; }
+  .drv-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .drv-stat { background: #f8fafc; border-radius: 14px; padding: 14px; }
+  .drv-stat-lbl { font-size: 11px; color: #64748b; margin-bottom: 4px; }
+  .drv-stat-val { font-size: 24px; font-weight: 800; color: #0f172a; }
+  .drv-stat-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+  .drv-empty { text-align: center; padding: 50px 20px; color: #94a3b8; }
+  .drv-empty svg { width: 40px; height: 40px; margin-bottom: 10px; opacity: 0.4; }
+  .drv-route-opt { border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; cursor: pointer; transition: border-color 0.15s; min-height: 44px; }
+  .drv-route-opt:active { background: #f8fafc; }
+  .drv-route-opt.selected { border-color: #0f172a; background: #f8fafc; }
+  .drv-route-opt-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .drv-route-label { font-size: 13px; font-weight: 700; color: #0f172a; }
+  .drv-route-price { font-size: 16px; font-weight: 800; color: #0f172a; }
+  .drv-route-meta { display: flex; gap: 10px; font-size: 12px; color: #64748b; }
+  .drv-map { width: 100%; height: 200px; border-radius: 12px; overflow: hidden; margin-bottom: 14px; border: 1px solid #e2e8f0; touch-action: pan-x pan-y; }
+  .drv-divider { border: none; border-top: 1px solid #f1f5f9; margin: 16px 0; }
+  .drv-planning-slot { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 12px; }
+  .drv-planning-time { font-size: 12px; color: #64748b; min-width: 40px; padding-top: 3px; }
+  .drv-planning-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+  .drv-planning-card { flex: 1; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px; }
+  @media (max-width: 380px) {
+    .drv-time { font-size: 18px; }
+    .drv-stat-val { font-size: 20px; }
+  }
+  .drv-chat-thread { border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer; background: #fff; display: flex; align-items: center; gap: 10; }
+  .drv-chat-thread:active { background: #f8fafc; }
+  .drv-chat-thread.unread { border-color: #3b82f6; background: #eff6ff; }
+  .drv-chat-avatar { width: 38px; height: 38px; border-radius: 50%; background: #0f172a; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; flex-shrink: 0; }
+  .drv-chat-bubble { max-width: 78%; border-radius: 14px; padding: 9px 12px; font-size: 13.5px; line-height: 1.45; }
+  .drv-chat-bubble.me { background: #0f172a; color: #fff; border-radius: 14px 14px 4px 14px; margin-left: auto; }
+  .drv-chat-bubble.them { background: #f1f5f9; color: #0f172a; border-radius: 14px 14px 14px 4px; }
+  @keyframes drv-fadein { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:none; } }
+  .drv-msg-in { animation: drv-fadein 0.25s ease both; }
+`;
+
+// ── Icons ──────────────────────────────────────────────────────────────────
+const IconBell = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+  </svg>
+);
+const IconCalendar = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+    <line x1="16" y1="2" x2="16" y2="6" />
+    <line x1="8" y1="2" x2="8" y2="6" />
+    <line x1="3" y1="10" x2="21" y2="10" />
+  </svg>
+);
+const IconStar = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+  </svg>
+);
+const IconChart = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <line x1="18" y1="20" x2="18" y2="10" />
+    <line x1="12" y1="20" x2="12" y2="4" />
+    <line x1="6" y1="20" x2="6" y2="14" />
+  </svg>
+);
+const IconUsers = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
+
+const IconChat = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+  </svg>
+);
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function Stars({ n }: { n: number }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 4 }}>
-      {STEPS.map((s, i) => {
-        const done = i <= currentIdx;
-        const active = i === currentIdx;
-        return (
-          <div key={s} style={{ display: "flex", alignItems: "center", flex: i < STEPS.length - 1 ? 1 : "none" }}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-              <div
-                className={active && status === "en_route" ? "suivi-pulse" : ""}
+    <span>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <span key={i} className={i <= n ? "drv-stars" : "drv-stars-empty"}>
+          ★
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function formatHeure(iso: string) {
+  return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+}
+
+function isToday(iso: string) {
+  const d = new Date(iso);
+  const n = new Date();
+  return d.getDate() === n.getDate() && d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear();
+}
+
+// ── Main component ─────────────────────────────────────────────────────────
+function DriverPage() {
+  const { token } = Route.useSearch();
+
+  useEffect(() => {
+    if (token === DRIVER_TOKEN) {
+      localStorage.setItem("driver_token", token);
+    }
+  }, [token]);
+
+  const savedToken = typeof window !== "undefined" ? localStorage.getItem("driver_token") : null;
+  const validToken = token === DRIVER_TOKEN || savedToken === DRIVER_TOKEN;
+
+  if (!validToken) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100dvh",
+          fontFamily: "DM Sans,sans-serif",
+          color: "#64748b",
+        }}
+      >
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+          <div style={{ fontSize: 16, fontWeight: 600 }}>Accès non autorisé</div>
+        </div>
+      </div>
+    );
+  }
+
+  return <DriverApp />;
+}
+
+function DriverApp() {
+  const [tab, setTab] = useState<Tab>("courses");
+  const [newCount, setNewCount] = useState(0);
+  const [pendingAvis, setPendingAvis] = useState(0);
+  const [unreadChat, setUnreadChat] = useState(0);
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const { status: pushStatus, subscribe: subscribePush } = usePushNotifications({ autoAudience: "chauffeur" });
+
+  // Capture le prompt d'installation PWA
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  // Force le manifest driver au runtime (remplace le manifest global)
+  useEffect(() => {
+    const existing = document.querySelector('link[rel="manifest"]');
+    if (existing) existing.setAttribute("href", "/api/manifest?role=driver");
+    else {
+      const link = document.createElement("link");
+      link.rel = "manifest";
+      link.href = "/api/manifest?role=driver";
+      document.head.appendChild(link);
+    }
+    return () => {
+      const el = document.querySelector('link[rel="manifest"]');
+      if (el) el.setAttribute("href", "/manifest.json");
+    };
+  }, []);
+
+  // Rafraîchit le token FCM à chaque reprise de la page.
+  // getFcmToken retourne le cache immédiatement sauf si token > 50j → rotation silencieuse auto.
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === "visible") subscribePush("chauffeur");
+    };
+    document.addEventListener("visibilitychange", refresh);
+    return () => document.removeEventListener("visibilitychange", refresh);
+  }, [subscribePush]);
+
+  // Rafraîchissement badge courses
+  useEffect(() => {
+    const load = async () => {
+      const { count } = await (supabase as any)
+        .from("reservations")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending");
+      setNewCount(count ?? 0);
+    };
+    load();
+    const ch = (supabase as any)
+      .channel("drv-badge")
+      .on("postgres_changes", { event: "*", schema: "public", table: "reservations" }, load)
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, []);
+
+  // Badge avis en attente
+  useEffect(() => {
+    const load = async () => {
+      const { count } = await (supabase as any)
+        .from("avis")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending");
+      setPendingAvis(count ?? 0);
+    };
+    load();
+  }, []);
+
+  // Badge messages non lus (messages clients sans réponse driver)
+  useEffect(() => {
+    const SEEN_KEY = "drv_chat_seen_at";
+    const loadUnread = async () => {
+      const seenAt = localStorage.getItem(SEEN_KEY) ?? new Date(0).toISOString();
+      const { count } = await (supabase as any)
+        .from("direct_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("sender_role", "client")
+        .gt("created_at", seenAt);
+      setUnreadChat(count ?? 0);
+    };
+    loadUnread();
+    const ch = (supabase as any)
+      .channel("drv-chat-badge")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "direct_messages" }, loadUnread)
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, []);
+
+  return (
+    <>
+      <style>{css}</style>
+      <div className="drv-root">
+        <div className="drv-header">
+          <span style={{ fontSize: 26 }}>🚕</span>
+          <h1>Espace José</h1>
+          {installPrompt && (
+            <button
+              onClick={async () => {
+                installPrompt.prompt();
+                const r = await installPrompt.userChoice;
+                if (r.outcome === "accepted") setInstallPrompt(null);
+              }}
+              style={{
+                flexShrink: 0,
+                background: "#0ea5e9",
+                color: "#fff",
+                border: "none",
+                borderRadius: 8,
+                padding: "6px 10px",
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              📲 Installer
+            </button>
+          )}
+          <a
+            href="/"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              color: "#cbd5e1",
+              fontSize: 11,
+              textDecoration: "none",
+              border: "1px solid #334155",
+              borderRadius: 8,
+              padding: "8px 10px",
+              flexShrink: 0,
+              minHeight: 30,
+            }}
+          >
+            ↩ Site
+          </a>
+          <span style={{ fontSize: 12, color: "#94a3b8" }}>
+            {new Date().toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}
+          </span>
+        </div>
+
+        {/* Bandeau activation notifications */}
+        {(pushStatus === "idle" || pushStatus === "denied" || pushStatus === "granted") && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10,
+              background: pushStatus === "denied" ? "#fef2f2" : pushStatus === "granted" ? "#f0fdf4" : "#eff6ff",
+              borderBottom: "1px solid #e2e8f0",
+              padding: "10px 16px",
+              fontSize: 12.5,
+              color: pushStatus === "denied" ? "#b91c1c" : pushStatus === "granted" ? "#15803d" : "#1d4ed8",
+            }}
+          >
+            <span>
+              {pushStatus === "denied"
+                ? "🔕 Notifications bloquées — active-les dans les réglages."
+                : pushStatus === "granted"
+                  ? "🔔 Notifications actives"
+                  : "🔔 Active les notifications pour ne rater aucune nouvelle course."}
+            </span>
+            {pushStatus !== "denied" && (
+              <button
+                onClick={() => subscribePush("chauffeur")}
                 style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: "50%",
-                  background: done ? (active ? (STATUS_MAP[status]?.color ?? "#0f172a") : "#22c55e") : "#e2e8f0",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 13,
-                  transition: "background 0.3s",
-                  border: active ? `2px solid ${STATUS_MAP[status]?.color ?? "#0f172a"}` : "2px solid transparent",
+                  flexShrink: 0,
+                  background: "#0f172a",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
                 }}
               >
-                {done ? (
-                  active ? (
-                    (STATUS_MAP[s]?.emoji ?? "•")
-                  ) : (
-                    "✓"
-                  )
-                ) : (
-                  <span style={{ color: "#94a3b8", fontSize: 11 }}>{i + 1}</span>
-                )}
-              </div>
-              <span
-                style={{
-                  fontSize: 9,
-                  fontWeight: 600,
-                  color: done ? "#0f172a" : "#94a3b8",
-                  textAlign: "center",
-                  whiteSpace: "nowrap",
-                  letterSpacing: "0.03em",
-                }}
-              >
-                {STEP_LABELS[s]}
-              </span>
-            </div>
-            {i < STEPS.length - 1 && (
-              <div
-                style={{
-                  flex: 1,
-                  height: 2,
-                  background: i < currentIdx ? "#22c55e" : "#e2e8f0",
-                  margin: "0 4px",
-                  marginBottom: 16,
-                  transition: "background 0.3s",
-                }}
-              />
+                {pushStatus === "granted" ? "🔄 Ré-activer" : "Activer"}
+              </button>
             )}
           </div>
+        )}
+
+        {/* Tabs */}
+        <div className="drv-tabs">
+          {(["courses", "planning", "avis", "clients", "chat", "stats"] as Tab[]).map((t) => (
+            <button
+              key={t}
+              className={`drv-tab${tab === t ? " active" : ""}`}
+              onClick={() => {
+                setTab(t);
+                if (t === "chat") {
+                  localStorage.setItem("drv_chat_seen_at", new Date().toISOString());
+                  setUnreadChat(0);
+                }
+              }}
+            >
+              <div style={{ position: "relative", display: "inline-block" }}>
+                {t === "courses" && (
+                  <>
+                    <IconBell />
+                    {newCount > 0 && <span className="drv-badge">{newCount}</span>}
+                  </>
+                )}
+                {t === "planning" && <IconCalendar />}
+                {t === "avis" && (
+                  <>
+                    <IconStar />
+                    {pendingAvis > 0 && <span className="drv-badge">{pendingAvis}</span>}
+                  </>
+                )}
+                {t === "clients" && <IconUsers />}
+                {t === "chat" && (
+                  <>
+                    <IconChat />
+                    {unreadChat > 0 && <span className="drv-badge">{unreadChat}</span>}
+                  </>
+                )}
+                {t === "stats" && <IconChart />}
+              </div>
+              <span>
+                {
+                  {
+                    courses: "Courses",
+                    planning: "Planning",
+                    avis: "Avis",
+                    clients: "Clients",
+                    chat: "Chat",
+                    stats: "Stats",
+                  }[t]
+                }
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <div className="drv-body">
+          {tab === "courses" && <CoursesTab onBadgeChange={setNewCount} />}
+          {tab === "planning" && <PlanningTab />}
+          {tab === "avis" && <AvisTab onBadgeChange={setPendingAvis} />}
+          {tab === "clients" && <ClientsTab />}
+          {tab === "chat" && <ChatTab />}
+          {tab === "stats" && <StatsTab />}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── Onglet Courses ─────────────────────────────────────────────────────────
+function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
+  const [courses, setCourses] = useState<Resa[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const { data } = await (supabase as any)
+      .from("reservations")
+      .select(
+        "id,depart,destination,pickup_datetime,status,prix_estime,distance_km,client_name,client_phone,client_email,suivi_id",
+      )
+      .in("status", ["pending", "accepted"])
+      .order("pickup_datetime", { ascending: true });
+    const list: Resa[] = data ?? [];
+    setCourses(list);
+    setLoading(false);
+    onBadgeChange(list.filter((r) => r.status === "pending").length);
+  }, [onBadgeChange]);
+
+  useEffect(() => {
+    load();
+    const ch = (supabase as any)
+      .channel("drv-courses")
+      .on("postgres_changes", { event: "*", schema: "public", table: "reservations" }, load)
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [load]);
+
+  if (loading)
+    return (
+      <div className="drv-empty">
+        <div style={{ fontSize: 14 }}>Chargement…</div>
+      </div>
+    );
+
+  const nouvelles = courses.filter((r) => r.status === "pending");
+  const encours = courses.filter((r) => r.status === "accepted");
+
+  if (courses.length === 0)
+    return (
+      <div className="drv-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+          <polyline points="22 4 12 14.01 9 11.01" />
+        </svg>
+        <div style={{ fontSize: 14, fontWeight: 600 }}>Aucune course en attente</div>
+        <div style={{ fontSize: 12, marginTop: 4 }}>Tout est à jour ✓</div>
+      </div>
+    );
+
+  return (
+    <>
+      {nouvelles.length > 0 && (
+        <>
+          <p className="drv-section">Nouvelles demandes</p>
+          {nouvelles.map((r) => (
+            <CourseCard
+              key={r.id}
+              resa={r}
+              onRefresh={load}
+              expanded={selected === r.id}
+              onToggle={() => setSelected((s) => (s === r.id ? null : r.id))}
+            />
+          ))}
+          <hr className="drv-divider" />
+        </>
+      )}
+      {encours.length > 0 && (
+        <>
+          <p className="drv-section">En cours</p>
+          {encours.map((r) => (
+            <CourseCard
+              key={r.id}
+              resa={r}
+              onRefresh={load}
+              expanded={selected === r.id}
+              onToggle={() => setSelected((s) => (s === r.id ? null : r.id))}
+            />
+          ))}
+        </>
+      )}
+    </>
+  );
+}
+
+// ── Course Card avec itinéraires Google Maps ───────────────────────────────
+function CourseCard({
+  resa,
+  onRefresh,
+  expanded,
+  onToggle,
+}: {
+  resa: Resa;
+  onRefresh: () => void;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const [routes, setRoutes] = useState<RouteOption[]>([]);
+  const [selectedRoute, setSelectedRoute] = useState(0);
+  const [loadingRoutes, setLoadingRoutes] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const mapRef = useRef<HTMLDivElement>(null);
+  const mapInst = useRef<any>(null);
+  const rendererRef = useRef<any>(null);
+
+  // Charger les itinéraires quand on ouvre la carte
+  useEffect(() => {
+    if (!expanded || routes.length > 0) return;
+    setLoadingRoutes(true);
+
+    (async () => {
+      try {
+        const mapsApi = await loadGoogleMapsWhenVisible(mapRef.current!);
+        const [geoA, geoB] = await Promise.all([geocodeAddress(resa.depart), geocodeAddress(resa.destination)]);
+        if (!geoA || !geoB) {
+          setLoadingRoutes(false);
+          return;
+        }
+
+        const svc = new mapsApi.maps.DirectionsService();
+        const result: any = await new Promise((res, rej) =>
+          svc.route(
+            {
+              origin: { lat: geoA.lat, lng: geoA.lng },
+              destination: { lat: geoB.lat, lng: geoB.lng },
+              travelMode: mapsApi.maps.TravelMode.DRIVING,
+              provideRouteAlternatives: true,
+            },
+            (r: any, s: any) => (s === "OK" && r ? res(r) : rej(s)),
+          ),
         );
-      })}
+
+        const opts: RouteOption[] = result.routes.slice(0, 3).map((route: google.maps.DirectionsRoute, i: number) => {
+          const leg = route.legs[0];
+          const distKm = (leg.distance?.value ?? 0) / 1000;
+          const dureeMin = Math.round((leg.duration?.value ?? 0) / 60);
+          const dureeS = leg.duration?.value ?? 0;
+          // Tarifs Bordeaux — calcul mixte avec durée réelle Google Maps
+          const pickupIso = resa.pickup_datetime ?? resa.date_heure ?? "";
+          const pickupMs = pickupIso ? new Date(pickupIso).getTime() : Date.now();
+          const stepsCount = Math.max(Math.round(dureeS / 60), 1);
+          const stepMs = (dureeS * 1000) / stepsCount;
+          const frac = distKm / stepsCount;
+          let jourKm = 0,
+            nuitKm = 0;
+          for (let s = 0; s < stepsCount; s++) {
+            const t = new Date(pickupMs + s * stepMs).toISOString();
+            if (estTarifJourParis(t)) jourKm += frac;
+            else nuitKm += frac;
+          }
+          const prix_estime = parseFloat((2.83 + jourKm * 2.16 + nuitKm * 3.24).toFixed(2));
+          const estJour = estTarifJourParis(pickupIso);
+          const tarifLabel = jourKm > 0 && nuitKm > 0 ? "Tarif mixte 🌗" : estJour ? "Tarif jour ☀️" : "Tarif nuit 🌙";
+
+          // Extraire un waypoint au milieu du trajet pour forcer cet itinéraire dans Maps
+          const steps: any[] = route.legs.flatMap((l: any) => l.steps ?? []);
+          const midStep = steps.length > 2 ? steps[Math.floor(steps.length / 2)] : null;
+          const waypointLatLng = midStep?.start_location
+            ? { lat: midStep.start_location.lat(), lng: midStep.start_location.lng() }
+            : null;
+
+          return {
+            index: i,
+            summary: route.summary || `Itinéraire ${i + 1}`,
+            distanceKm: parseFloat(distKm.toFixed(1)),
+            dureeMin,
+            prix_estime,
+            tarifLabel,
+            legs: route.legs,
+            overview_polyline:
+              (route.overview_polyline as unknown as { points?: string })?.points ??
+              (route.overview_polyline as unknown as string) ??
+              "",
+            dirResult: { ...result, routes: [route] },
+            originLatLng: { lat: geoA.lat, lng: geoA.lng },
+            destLatLng: { lat: geoB.lat, lng: geoB.lng },
+            waypointLatLng,
+          };
+        });
+        setRoutes(opts);
+        setLoadingRoutes(false);
+      } catch (e) {
+        console.error("[CourseCard] routes:", e);
+        setLoadingRoutes(false);
+      }
+    })();
+  }, [expanded, resa]);
+
+  // Afficher la route sélectionnée sur la carte
+  useEffect(() => {
+    if (!expanded || routes.length === 0) return;
+    (async () => {
+      try {
+        const mapsApi = await loadGoogleMapsWhenVisible(mapRef.current!);
+        if (!mapInst.current) {
+          mapInst.current = new mapsApi.maps.Map(mapRef.current!, {
+            zoom: 13,
+            disableDefaultUI: true,
+            gestureHandling: "cooperative",
+            styles: [{ featureType: "poi", stylers: [{ visibility: "off" }] }],
+          });
+        }
+        if (!rendererRef.current) {
+          rendererRef.current = new mapsApi.maps.DirectionsRenderer({
+            suppressMarkers: false,
+            polylineOptions: { strokeColor: "#0f172a", strokeWeight: 5 },
+          });
+          rendererRef.current.setMap(mapInst.current);
+        }
+        const chosen = routes[selectedRoute];
+        if (chosen) rendererRef.current.setDirections(chosen.dirResult);
+      } catch {}
+    })();
+  }, [expanded, routes, selectedRoute]);
+
+  const statusLabel: Record<string, { label: string; cls: string }> = {
+    pending: { label: "En attente", cls: "drv-badge-blue" },
+    accepted: { label: "Acceptée", cls: "drv-badge-green" },
+    en_route: { label: "En route", cls: "drv-badge-amber" },
+    arrived: { label: "Arrivé", cls: "drv-badge-amber" },
+  };
+  const st = statusLabel[resa.status] ?? { label: resa.status, cls: "drv-badge-gray" };
+
+  const handleAccept = async () => {
+    setBusy(true);
+    try {
+      const chosen = routes[selectedRoute];
+      const updates: any = { status: "accepted" };
+      if (chosen) {
+        updates.distance_km = chosen.distanceKm;
+        updates.prix_estime = chosen.prix_estime;
+      }
+      const { error } = await (supabase as any).from("reservations").update(updates).eq("id", resa.id);
+      if (error) throw error;
+      toast.success("Course acceptée ✓");
+      onRefresh();
+    } catch (e: any) {
+      toast.error("Erreur : " + (e.message ?? e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRefuse = async () => {
+    if (!confirm("Refuser cette course ?")) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase as any).from("reservations").update({ status: "cancelled" }).eq("id", resa.id);
+      if (error) throw error;
+      toast("Course refusée");
+      onRefresh();
+    } catch (e: any) {
+      toast.error("Erreur : " + (e.message ?? e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // ── Mettre à jour l'itinéraire d'une course déjà acceptée ──
+  const [itinSaving, setItinSaving] = useState(false);
+  const handleUpdateItineraire = async () => {
+    const chosen = routes[selectedRoute];
+    if (!chosen) {
+      toast.error("Sélectionne d'abord un itinéraire ci-dessus");
+      return;
+    }
+    setItinSaving(true);
+    try {
+      const { error } = await (supabase as any)
+        .from("reservations")
+        .update({ distance_km: chosen.distanceKm, prix_estime: chosen.prix_estime })
+        .eq("id", resa.id);
+      if (error) throw error;
+      toast.success(`Itinéraire mis à jour — ${chosen.distanceKm} km · ${chosen.prix_estime.toFixed(2)} €`);
+      onRefresh();
+    } catch (e: any) {
+      toast.error("Erreur : " + (e.message ?? e));
+    } finally {
+      setItinSaving(false);
+    }
+  };
+
+  // ── Prix custom — SMS / WhatsApp / Email ──
+  const [customPrix, setCustomPrix] = useState("");
+  const [customPrixOpen, setCustomPrixOpen] = useState(false);
+  const [customPrixSending, setCustomPrixSending] = useState(false);
+  const handleSendCustomPrix = async (canal: "sms" | "whatsapp" | "email") => {
+    const val = parseFloat((customPrix || "").trim().replace(",", "."));
+    if (!customPrix || isNaN(val) || val <= 0) {
+      toast.error("Prix invalide", { description: "Entrez un montant valide (ex: 18.50)" });
+      return;
+    }
+    const name = resa.client_name || "Client";
+    const phone = (resa.client_phone || "").replace(/\s/g, "");
+    const email = resa.client_email || resa.email || "";
+    const trajet = `${resa.depart} → ${resa.destination || "—"}`;
+    const trackUrl = typeof window !== "undefined" ? `${window.location.origin}/reservation/${resa.id}` : "";
+    const trackingLine = trackUrl ? `\nRetrouvez votre course ici : ${trackUrl}` : "";
+    const msg = `Bonjour ${name}, le prix de votre course Taxi City Bordeaux (${trajet}) est de ${val.toFixed(2)} €. Merci.${trackingLine}`;
+
+    if (canal === "sms") {
+      if (!phone) {
+        toast.error("Pas de téléphone");
+        return;
+      }
+      window.open(`sms:${phone}?body=${encodeURIComponent(msg)}`, "_blank");
+    } else if (canal === "whatsapp") {
+      if (!phone) {
+        toast.error("Pas de téléphone");
+        return;
+      }
+      window.open(`https://wa.me/${phone.replace(/^0/, "33")}?text=${encodeURIComponent(msg)}`, "_blank");
+    } else {
+      if (!email) {
+        toast.error("Pas d'email");
+        return;
+      }
+      setCustomPrixSending(true);
+      try {
+        const res = await fetch("/api/admin/send-course-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Admin-Secret": "admin-pin-call" },
+          body: JSON.stringify({
+            templateName: "custom-price",
+            recipientEmail: email,
+            idempotencyKey: `custom-price-${resa.id}-${Date.now()}`,
+            templateData: {
+              nom: name,
+              depart: resa.depart,
+              arrivee: resa.destination || "—",
+              prix: `${val.toFixed(2)} €`,
+              distance_km: resa.distance_km ? `${resa.distance_km} km` : undefined,
+            },
+          }),
+        });
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          toast.error(errBody?.error || "Échec envoi email");
+        } else {
+          toast.success(`✉️ Email envoyé à ${email}`);
+        }
+      } catch (e: any) {
+        toast.error("Erreur réseau", { description: e?.message ?? "" });
+      } finally {
+        setCustomPrixSending(false);
+      }
+    }
+    await (supabase as any).from("reservations").update({ prix_estime: val }).eq("id", resa.id);
+    onRefresh();
+  };
+
+  // ── Reprogrammer l'heure ──
+  const [newDatetime, setNewDatetime] = useState("");
+  const [changeHeureOpen, setChangeHeureOpen] = useState(false);
+  const [changeHeureSending, setChangeHeureSending] = useState(false);
+  const handleChangeHeure = async () => {
+    if (!newDatetime) return;
+    setChangeHeureSending(true);
+    try {
+      const { error } = await (supabase as any)
+        .from("reservations")
+        .update({ date_heure: newDatetime })
+        .eq("id", resa.id);
+      if (error) throw error;
+      const email = resa.client_email || resa.email;
+      const name = resa.client_name || "Client";
+      if (email) {
+        try {
+          await fetch("/api/admin/send-course-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Admin-Secret": "admin-pin-call" },
+            body: JSON.stringify({
+              templateName: "reschedule",
+              recipientEmail: email,
+              idempotencyKey: `reschedule-${resa.id}-${Date.now()}`,
+              templateData: {
+                nom: name,
+                depart: resa.depart,
+                arrivee: resa.destination || "—",
+                old_datetime:
+                  formatDate(resa.pickup_datetime ?? resa.date_heure) +
+                  " " +
+                  formatHeure(resa.pickup_datetime ?? resa.date_heure),
+                new_datetime: formatDate(newDatetime) + " " + formatHeure(newDatetime),
+              },
+            }),
+          });
+          toast.success("🕐 Heure modifiée · ✉️ Email envoyé");
+        } catch {
+          toast.success("🕐 Heure modifiée · ⚠️ Email non envoyé");
+        }
+      } else {
+        toast.success("🕐 Heure modifiée");
+      }
+      onRefresh();
+    } catch (e: any) {
+      toast.error("Erreur : " + (e.message ?? e));
+    } finally {
+      setChangeHeureSending(false);
+    }
+  };
+
+  // ── Terminer la course ──
+  const [completing, setCompleting] = useState(false);
+  const handleComplete = async () => {
+    if (!confirm("Marquer cette course comme terminée ?")) return;
+    setCompleting(true);
+    try {
+      const { error } = await (supabase as any).from("reservations").update({ status: "completed" }).eq("id", resa.id);
+      if (error) throw error;
+      toast.success("🏁 Course terminée");
+      onRefresh();
+      // Ouvrir la page de fin pour le client
+      const finUrl = `${window.location.origin}/fin/${resa.id}`;
+      window.open(finUrl, "_blank");
+    } catch (e: any) {
+      toast.error("Erreur : " + (e.message ?? e));
+    } finally {
+      setCompleting(false);
+    }
+  };
+
+  // ── Progression de statut ──
+  const [progressing, setProgressing] = useState(false);
+  const handleProgressStatus = async (nextStatus: string, label: string) => {
+    setProgressing(true);
+    try {
+      const { error } = await (supabase as any).from("reservations").update({ status: nextStatus }).eq("id", resa.id);
+      if (error) throw error;
+      toast.success(label);
+      onRefresh();
+    } catch (e: any) {
+      toast.error("Erreur : " + (e.message ?? e));
+    } finally {
+      setProgressing(false);
+    }
+  };
+
+  // ── Supprimer la course ──
+  const [deleting, setDeleting] = useState(false);
+  const handleDeleteResa = async () => {
+    if (!confirm("Supprimer définitivement cette course ? Action irréversible.")) return;
+    setDeleting(true);
+    try {
+      const { error } = await (supabase as any).from("reservations").delete().eq("id", resa.id);
+      if (error) throw error;
+      toast.success("Course supprimée");
+      onRefresh();
+    } catch (e: any) {
+      toast.error("Suppression impossible : " + (e.message ?? e));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div className={`drv-card${resa.status === "pending" ? " new" : ""}`}>
+      {/* En-tête */}
+      <div className="drv-row" style={{ cursor: "pointer" }} onClick={onToggle}>
+        <span className="drv-time">{formatHeure(resa.pickup_datetime ?? resa.date_heure)}</span>
+        <span className={`drv-badge-pill ${st.cls}`}>{st.label}</span>
+      </div>
+      {resa.client_name && <div className="drv-name">{resa.client_name}</div>}
+      <div className="drv-route">
+        <span>📍 {resa.depart}</span>
+        <span>🏁 {resa.destination}</span>
+      </div>
+
+      {/* Résumé km/prix — priorité à la route sélectionnée si chargée, sinon valeurs BDD */}
+      {(resa.distance_km || resa.prix_estime || routes.length > 0) && (
+        <div className="drv-meta">
+          {(routes[selectedRoute]?.distanceKm ?? resa.distance_km) != null && (
+            <span>🛣 {routes[selectedRoute]?.distanceKm ?? resa.distance_km} km</span>
+          )}
+          {(routes[selectedRoute]?.prix_estime ?? resa.prix_estime) != null && (
+            <span>💶 {(routes[selectedRoute]?.prix_estime ?? resa.prix_estime ?? 0).toFixed(2)} €</span>
+          )}
+          {routes[selectedRoute]?.tarifLabel && (
+            <span style={{ color: routes[selectedRoute].tarifLabel.includes("nuit") ? "#1d4ed8" : "#15803d" }}>
+              {routes[selectedRoute].tarifLabel}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Détail expandable */}
+      {expanded && (
+        <>
+          <hr className="drv-divider" />
+
+          {/* Carte Google Maps */}
+          <div className="drv-map" ref={mapRef} />
+
+          {/* Itinéraires */}
+          {loadingRoutes && (
+            <div style={{ textAlign: "center", fontSize: 13, color: "#64748b", padding: "10px 0" }}>
+              Calcul des itinéraires…
+            </div>
+          )}
+
+          {routes.length > 0 && (
+            <>
+              <p className="drv-section">Choisir un itinéraire</p>
+              {routes.map((r, i) => (
+                <div
+                  key={i}
+                  className={`drv-route-opt${selectedRoute === i ? " selected" : ""}`}
+                  onClick={async () => {
+                    setSelectedRoute(i);
+                    try {
+                      const { error } = await (supabase as any)
+                        .from("reservations")
+                        .update({ distance_km: r.distanceKm, prix_estime: r.prix_estime })
+                        .eq("id", resa.id);
+                      if (error) throw error;
+                      toast.success(`✓ ${r.distanceKm} km · ${r.prix_estime.toFixed(2)} €`);
+                      onRefresh();
+                    } catch (e: any) {
+                      toast.error("Erreur mise à jour itinéraire : " + (e.message ?? e));
+                    }
+                  }}
+                >
+                  <div className="drv-route-opt-head">
+                    <span className="drv-route-label">
+                      {i === 0 ? "🏆 Recommandé" : i === 1 ? "🔀 Alternatif" : "⏱ Rapide"} — {r.summary}
+                    </span>
+                    <span className="drv-route-price">{r.prix_estime.toFixed(2)} €</span>
+                  </div>
+                  <div className="drv-route-meta">
+                    <span>🛣 {r.distanceKm} km</span>
+                    <span>⏱ {r.dureeMin} min</span>
+                    <span style={{ color: r.tarifLabel === "Tarif jour" ? "#15803d" : "#1d4ed8" }}>{r.tarifLabel}</span>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+
+          {/* Contact — tel / SMS / WhatsApp / Email, identique à l'admin */}
+          {(resa.status === "accepted" || resa.status === "en_route" || resa.status === "arrived") &&
+            (() => {
+              const phone = resa.client_phone;
+              const mail = resa.client_email || resa.email;
+              const trackUrl = typeof window !== "undefined" ? `${window.location.origin}/reservation/${resa.id}` : "";
+              const greet = `Bonjour ${resa.client_name || ""}, votre taxi Taxi City Bordeaux.`;
+              const body = trackUrl ? `${greet}\nRetrouvez votre course ici : ${trackUrl}` : greet;
+              const mailBody = trackUrl
+                ? `Bonjour ${resa.client_name || ""},\n\nVoici le lien pour retrouver et suivre votre course en temps réel :\n${trackUrl}\n\nTaxi City Bordeaux`
+                : `Bonjour ${resa.client_name || ""},\n\nTaxi City Bordeaux`;
+              if (!phone && !mail) return null;
+              const contactBtn: React.CSSProperties = {
+                flex: "1 1 auto",
+                minWidth: 78,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                border: "1px solid #e2e8f0",
+                borderRadius: 12,
+                padding: "10px",
+                fontWeight: 700,
+                fontSize: 12.5,
+                textDecoration: "none",
+                color: "#0f172a",
+              };
+              return (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                  {phone && (
+                    <>
+                      <a
+                        href={`tel:${phone}`}
+                        style={{ ...contactBtn, background: "#eff6ff", borderColor: "#bfdbfe", color: "#0369a1" }}
+                      >
+                        📞 Appeler
+                      </a>
+                      <a
+                        href={`sms:${phone}?body=${encodeURIComponent(body)}`}
+                        style={{ ...contactBtn, background: "#faf5ff", borderColor: "#e9d5ff", color: "#7e22ce" }}
+                      >
+                        💬 SMS
+                      </a>
+                      <a
+                        href={`https://wa.me/${phone.replace(/[^0-9]/g, "").replace(/^0/, "33")}?text=${encodeURIComponent(body)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ ...contactBtn, background: "#f0fdf4", borderColor: "#bbf7d0", color: "#15803d" }}
+                      >
+                        🟢 WhatsApp
+                      </a>
+                    </>
+                  )}
+                  {mail && (
+                    <a
+                      href={`mailto:${mail}?subject=${encodeURIComponent("Votre course Taxi City Bordeaux")}&body=${encodeURIComponent(mailBody)}`}
+                      style={{ ...contactBtn, background: "#fffbeb", borderColor: "#fde68a", color: "#92400e" }}
+                    >
+                      ✉️ Email
+                    </a>
+                  )}
+                </div>
+              );
+            })()}
+
+          {/* Gestion avancée — visible une fois la course acceptée */}
+          {(resa.status === "accepted" || resa.status === "en_route" || resa.status === "arrived") && (
+            <>
+              {/* Prix custom */}
+              <button
+                onClick={() => setCustomPrixOpen((o) => !o)}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 12,
+                  padding: "10px 14px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#0f172a",
+                  cursor: "pointer",
+                  marginBottom: customPrixOpen ? 8 : 10,
+                }}
+              >
+                💶 {customPrixOpen ? "▲" : "▼"} Envoyer un prix personnalisé
+              </button>
+              {customPrixOpen && (
+                <div style={{ marginBottom: 12 }}>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="Ex: 18.50"
+                    value={customPrix}
+                    onChange={(e) => setCustomPrix(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #e2e8f0",
+                      fontSize: 16,
+                      marginBottom: 8,
+                      fontFamily: "'DM Sans', sans-serif",
+                    }}
+                  />
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button
+                      onClick={() => handleSendCustomPrix("sms")}
+                      disabled={customPrixSending}
+                      style={{
+                        flex: 1,
+                        minWidth: 70,
+                        background: "#faf5ff",
+                        border: "1px solid #e9d5ff",
+                        color: "#7e22ce",
+                        borderRadius: 10,
+                        padding: "8px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      💬 SMS
+                    </button>
+                    <button
+                      onClick={() => handleSendCustomPrix("whatsapp")}
+                      disabled={customPrixSending}
+                      style={{
+                        flex: 1,
+                        minWidth: 70,
+                        background: "#f0fdf4",
+                        border: "1px solid #bbf7d0",
+                        color: "#15803d",
+                        borderRadius: 10,
+                        padding: "8px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      🟢 WhatsApp
+                    </button>
+                    <button
+                      onClick={() => handleSendCustomPrix("email")}
+                      disabled={customPrixSending}
+                      style={{
+                        flex: 1,
+                        minWidth: 70,
+                        background: "#fffbeb",
+                        border: "1px solid #fde68a",
+                        color: "#92400e",
+                        borderRadius: 10,
+                        padding: "8px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {customPrixSending ? "…" : "✉️ Email"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Reprogrammer l'heure */}
+              <button
+                onClick={() => setChangeHeureOpen((o) => !o)}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 12,
+                  padding: "10px 14px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#0f172a",
+                  cursor: "pointer",
+                  marginBottom: changeHeureOpen ? 8 : 10,
+                }}
+              >
+                🕐 {changeHeureOpen ? "▲" : "▼"} Reprogrammer l'heure
+              </button>
+              {changeHeureOpen && (
+                <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
+                  <input
+                    type="datetime-local"
+                    value={newDatetime}
+                    onChange={(e) => setNewDatetime(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #e2e8f0",
+                      fontSize: 16,
+                      fontFamily: "'DM Sans', sans-serif",
+                    }}
+                  />
+                  <button
+                    onClick={handleChangeHeure}
+                    disabled={changeHeureSending || !newDatetime}
+                    className="drv-btn-primary"
+                    style={{ flex: "0 0 auto", padding: "10px 16px" }}
+                  >
+                    {changeHeureSending ? "…" : "OK"}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Actions */}
+          {resa.status === "pending" && (
+            <div className="drv-btns">
+              <button className="drv-btn-danger" onClick={handleRefuse} disabled={busy}>
+                Refuser
+              </button>
+              <button className="drv-btn-primary" onClick={handleAccept} disabled={busy}>
+                {busy ? "…" : "Accepter"}
+              </button>
+            </div>
+          )}
+          {resa.status === "accepted" && (
+            <>
+              {(() => {
+                // Utilise les coords géocodées si disponibles (plus précis que le texte brut)
+                const chosen = routes[selectedRoute];
+                const origCoord = chosen ? `${chosen.originLatLng.lat},${chosen.originLatLng.lng}` : resa.depart;
+                const destCoord = chosen ? `${chosen.destLatLng.lat},${chosen.destLatLng.lng}` : resa.destination;
+                // Waypoint milieu pour forcer le même itinéraire dans Maps
+                const wp = chosen?.waypointLatLng;
+                const waypointParam = wp ? `&waypoints=${wp.lat},${wp.lng}` : "";
+                const waypointCoord = wp ? `${wp.lat},${wp.lng}` : null;
+                // For web we percent-encode components; for native apps prefer encodeURI
+                // so commas in lat,lng are preserved (Google Maps expects `lat,lng`).
+                const originParam = encodeURIComponent(origCoord);
+                const destinationParam = encodeURIComponent(destCoord);
+                const originNative = encodeURI(origCoord);
+                const destinationNative = encodeURI(destCoord);
+                const googleMapsWeb = `https://www.google.com/maps/dir/?api=1&origin=${originParam}&destination=${destinationParam}${waypointParam}&travelmode=driving&dir_action=navigate`;
+                return (
+                  <div style={{ marginBottom: 10 }}>
+                    <button
+                      onClick={() => {
+                        const ua = navigator.userAgent;
+                        const isIOS = /iPad|iPhone|iPod/.test(ua);
+                        const isAndroid = /Android/.test(ua);
+                        // Debug: log generated URLs to help testing
+                        const debug_googleMapsWeb = googleMapsWeb;
+                        const debug_wp = waypointParam || "";
+                        const debug_origin = originNative;
+                        const debug_destination = destinationNative;
+                        const debug_android_waypoint = waypointCoord ? `${waypointCoord}` : "";
+                        const debug_android_intent = `intent://maps.google.com/maps?api=1&origin=${originNative}&destination=${destinationNative}${waypointCoord ? `&waypoints=${debug_android_waypoint}` : ""}&travelmode=driving#Intent;scheme=https;package=com.google.android.apps.maps;S.browser_fallback_url=${encodeURIComponent(googleMapsWeb)};end`;
+                        const debug_android_navigation = `google.navigation:q=${destinationNative}&mode=d`;
+                        console.debug("[Démarrer GPS] UA:", ua);
+                        console.debug("[Démarrer GPS] origin:", debug_origin);
+                        console.debug("[Démarrer GPS] destination:", debug_destination);
+                        console.debug("[Démarrer GPS] waypoint:", debug_wp);
+                        console.debug("[Démarrer GPS] android_intent:", debug_android_intent);
+                        console.debug("[Démarrer GPS] android_navigation:", debug_android_navigation);
+                        console.debug("[Démarrer GPS] web:", debug_googleMapsWeb);
+                        if (isIOS) {
+                          // iOS : open Google Maps app with explicit origin + waypoint + start navigation
+                          const gmaps = waypointCoord
+                            ? `comgooglemaps://?saddr=${originNative}&daddr=${waypointCoord}+to:${destinationNative}&directionsmode=driving&dir_action=navigate`
+                            : `comgooglemaps://?saddr=${originNative}&daddr=${destinationNative}&directionsmode=driving&dir_action=navigate`;
+                          window.location.href = gmaps;
+                          setTimeout(() => {
+                            window.location.href = googleMapsWeb;
+                          }, 1200);
+                        } else if (isAndroid) {
+                          const androidNavigation = `google.navigation:q=${destinationNative}&mode=d`;
+                          const gmapsAndroid = waypointCoord
+                            ? `comgooglemaps://?saddr=${originNative}&daddr=${destinationNative}&waypoints=${waypointCoord}&directionsmode=driving&dir_action=navigate`
+                            : androidNavigation;
+                          const intent = `intent://maps.google.com/maps?api=1&origin=${originNative}&destination=${destinationNative}${waypointCoord ? `&waypoints=${waypointCoord}` : ""}&travelmode=driving#Intent;scheme=https;package=com.google.android.apps.maps;S.browser_fallback_url=${encodeURIComponent(googleMapsWeb)};end`;
+                          window.location.href = gmapsAndroid;
+                          setTimeout(() => {
+                            window.location.href = intent;
+                          }, 1200);
+                          setTimeout(() => {
+                            window.location.href = androidNavigation;
+                          }, 2400);
+                          setTimeout(() => {
+                            window.open(googleMapsWeb, "_blank");
+                          }, 3600);
+                        } else {
+                          window.open(googleMapsWeb, "_blank");
+                        }
+                      }}
+                      style={{
+                        width: "100%",
+                        display: "block",
+                        textAlign: "center",
+                        background: "#0f172a",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 12,
+                        padding: "13px 8px",
+                        fontSize: 14,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        fontFamily: "'DM Sans', sans-serif",
+                      }}
+                    >
+                      🗺 Lancer Google Maps
+                    </button>
+                  </div>
+                );
+              })()}
+            </>
+          )}
+
+          {(resa.status === "accepted" || resa.status === "en_route" || resa.status === "arrived") && (
+            <button
+              onClick={handleComplete}
+              disabled={completing}
+              style={{
+                width: "100%",
+                background: "#f0fdf4",
+                border: "2px solid #16a34a",
+                color: "#15803d",
+                borderRadius: 12,
+                padding: "12px",
+                fontSize: 14,
+                fontWeight: 800,
+                cursor: "pointer",
+                marginBottom: 10,
+              }}
+            >
+              {completing ? "…" : "🏁 Course terminée"}
+            </button>
+          )}
+
+          {/* Supprimer définitivement */}
+          <button
+            onClick={handleDeleteResa}
+            disabled={deleting}
+            style={{
+              width: "100%",
+              marginTop: 4,
+              background: "none",
+              border: "none",
+              color: "#b91c1c",
+              fontSize: 11.5,
+              fontWeight: 600,
+              cursor: "pointer",
+              padding: "6px 0",
+            }}
+          >
+            {deleting ? "Suppression…" : "🗑 Supprimer cette course"}
+          </button>
+        </>
+      )}
+
+      {/* Toggle */}
+      <button
+        onClick={onToggle}
+        style={{
+          width: "100%",
+          marginTop: 8,
+          background: "none",
+          border: "none",
+          color: "#94a3b8",
+          fontSize: 12,
+          cursor: "pointer",
+          padding: "4px 0",
+        }}
+      >
+        {expanded ? "▲ Réduire" : "▼ Voir détails & itinéraires"}
+      </button>
     </div>
   );
 }
 
-// ─── Chat anonyme ─────────────────────────────────────────────────────────────
-function getAnonChatId(reservationId: string): string {
-  const key = `tcb_anon_chat_${reservationId}`;
-  let id = localStorage.getItem(key);
-  if (!id) {
-    id = `anon_${reservationId}_${Math.random().toString(36).slice(2, 10)}`;
-    localStorage.setItem(key, id);
-  }
-  return id;
+// ── Onglet Planning ────────────────────────────────────────────────────────
+function PlanningTab() {
+  const [courses, setCourses] = useState<Resa[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const { data } = await (supabase as any)
+      .from("reservations")
+      .select("id,depart,destination,pickup_datetime,date_heure,status,prix_estime,distance_km")
+      .gte("pickup_datetime", today.toISOString())
+      .lt("pickup_datetime", tomorrow.toISOString())
+      .not("status", "eq", "cancelled")
+      .order("pickup_datetime", { ascending: true });
+    setCourses(data ?? []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    load();
+    const ch = (supabase as any)
+      .channel("drv-planning")
+      .on("postgres_changes", { event: "*", schema: "public", table: "reservations" }, load)
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [load]);
+
+  if (loading)
+    return (
+      <div className="drv-empty">
+        <div style={{ fontSize: 14 }}>Chargement…</div>
+      </div>
+    );
+
+  const dotColor: Record<string, string> = {
+    terminee: "#94a3b8",
+    completed: "#94a3b8",
+    pending: "#f59e0b",
+    accepted: "#22c55e",
+    en_route: "#3b82f6",
+    arrived: "#3b82f6",
+  };
+
+  return (
+    <>
+      <p className="drv-section">
+        Aujourd'hui — {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+      </p>
+      {courses.length === 0 ? (
+        <div className="drv-empty">
+          <div style={{ fontSize: 14, fontWeight: 600 }}>Aucune course aujourd'hui</div>
+        </div>
+      ) : (
+        courses.map((r) => (
+          <div key={r.id} className="drv-planning-slot">
+            <span className="drv-planning-time">{formatHeure(r.pickup_datetime ?? r.date_heure)}</span>
+            <div className="drv-planning-dot" style={{ background: dotColor[r.status] ?? "#94a3b8" }} />
+            <div
+              className={`drv-planning-card${["terminee", "completed"].includes(r.status) ? " done" : ""}`}
+              style={{ opacity: ["terminee", "completed"].includes(r.status) ? 0.5 : 1 }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>
+                <div>📍 {r.depart}</div>
+                <div style={{ color: "#16a34a" }}>🏁 {r.destination}</div>
+              </div>
+              <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+                {r.distance_km ? `${r.distance_km} km · ` : ""}
+                {r.prix_estime ? `${r.prix_estime.toFixed(2)} €` : ""}
+                {["terminee", "completed"].includes(r.status) ? " · Terminée" : ""}
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+    </>
+  );
 }
 
-function AnonChat({ reservationId }: { reservationId: string }) {
+// ── Onglet Avis ────────────────────────────────────────────────────────────
+function AvisTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
+  const [pending, setPending] = useState<Avis[]>([]);
+  const [published, setPublished] = useState<Avis[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const [{ data: p }, { data: pub }] = await Promise.all([
+      (supabase as any).from("avis").select("*").eq("status", "pending").order("created_at", { ascending: false }),
+      (supabase as any)
+        .from("avis")
+        .select("*")
+        .eq("status", "approved")
+        .order("created_at", { ascending: false })
+        .limit(5),
+    ]);
+    setPending(p ?? []);
+    setPublished(pub ?? []);
+    onBadgeChange((p ?? []).length);
+  }, [onBadgeChange]);
+
+  useEffect(() => {
+    load();
+    const ch = (supabase as any)
+      .channel("drv-avis")
+      .on("postgres_changes", { event: "*", schema: "public", table: "avis" }, load)
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [load]);
+
+  const moderate = async (id: string, action: "approved" | "refused") => {
+    setBusy(id);
+    try {
+      const { error } = await (supabase as any).from("avis").update({ status: action }).eq("id", id);
+      if (error) throw error;
+      toast.success(action === "approved" ? "Avis publié ✓" : "Avis refusé");
+      load();
+    } catch (e: any) {
+      toast.error("Erreur : " + (e.message ?? e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const removeAvis = async (id: string) => {
+    if (!confirm("Supprimer définitivement cet avis ?")) return;
+    setBusy(id);
+    try {
+      const { error } = await (supabase as any).from("avis").delete().eq("id", id);
+      if (error) throw error;
+      toast.success("Avis supprimé");
+      load();
+    } catch (e: any) {
+      toast.error("Erreur : " + (e.message ?? e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const avgNote =
+    published.length > 0 ? (published.reduce((s, a) => s + a.note, 0) / published.length).toFixed(1) : null;
+
+  return (
+    <>
+      {pending.length > 0 && (
+        <>
+          <p className="drv-section">À modérer ({pending.length})</p>
+          {pending.map((a) => (
+            <div key={a.id} className="drv-card pending">
+              <div className="drv-row">
+                <span className="drv-name">{a.author_name || "Anonyme"}</span>
+                <span className="drv-badge-pill drv-badge-amber">En attente</span>
+              </div>
+              <div style={{ marginBottom: 6 }}>
+                <Stars n={a.note} />
+              </div>
+              <p style={{ fontSize: 13, color: "#334155", margin: "0 0 12px", lineHeight: 1.5 }}>"{a.commentaire}"</p>
+              <div className="drv-btns">
+                <button className="drv-btn-danger" disabled={!!busy} onClick={() => moderate(a.id, "refused")}>
+                  {busy === a.id ? "…" : "Refuser"}
+                </button>
+                <button className="drv-btn-primary" disabled={!!busy} onClick={() => moderate(a.id, "approved")}>
+                  {busy === a.id ? "…" : "Publier sur le site"}
+                </button>
+              </div>
+            </div>
+          ))}
+          <hr className="drv-divider" />
+        </>
+      )}
+
+      <p className="drv-section">Avis publiés</p>
+      {published.length === 0 ? (
+        <div className="drv-empty">
+          <div style={{ fontSize: 13 }}>Aucun avis publié</div>
+        </div>
+      ) : (
+        <>
+          {published.map((a) => (
+            <div key={a.id} className="drv-card" style={{ opacity: 0.75 }}>
+              <div className="drv-row">
+                <span className="drv-name">{a.author_name || "Anonyme"}</span>
+                <span className="drv-badge-pill drv-badge-green">Publié</span>
+              </div>
+              <div style={{ marginBottom: 4 }}>
+                <Stars n={a.note} />
+              </div>
+              <p style={{ fontSize: 13, color: "#475569", margin: "0 0 8px", lineHeight: 1.5 }}>"{a.commentaire}"</p>
+              <button
+                onClick={() => removeAvis(a.id)}
+                disabled={busy === a.id}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#b91c1c",
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  padding: 0,
+                }}
+              >
+                {busy === a.id ? "…" : "🗑 Supprimer"}
+              </button>
+            </div>
+          ))}
+          {avgNote && (
+            <div style={{ textAlign: "center", marginTop: 20, padding: "16px 0", borderTop: "1px solid #f1f5f9" }}>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 4 }}>Note moyenne publiée</div>
+              <div style={{ fontSize: 36, fontWeight: 800, color: "#0f172a" }}>{avgNote}</div>
+              <div style={{ fontSize: 22, color: "#f59e0b" }}>★★★★★</div>
+            </div>
+          )}
+        </>
+      )}
+    </>
+  );
+}
+
+// ── Onglet Clients ──────────────────────────────────────────────────────────
+function ClientsTab() {
+  const [clients, setClients] = useState<ClientAgg[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
+
+  const load = useCallback(async () => {
+    const [{ data }, { data: clientsRows }] = await Promise.all([
+      (supabase as any)
+        .from("reservations")
+        .select("client_name,client_phone,destination,prix_estime,pickup_datetime,date_heure,status")
+        .not("client_phone", "is", null)
+        .order("pickup_datetime", { ascending: false }),
+      (supabase as any).from("clients").select("id,phone"),
+    ]);
+
+    const normalize = (p: string) => p.replace(/[^0-9]/g, "").replace(/^0/, "33");
+    const idByPhone = new Map<string, string>();
+    for (const c of (clientsRows ?? []) as any[]) {
+      if (c.phone) idByPhone.set(normalize(c.phone), c.id);
+    }
+
+    const rows: any[] = data ?? [];
+    const byPhone = new Map<string, ClientAgg>();
+    for (const r of rows) {
+      const phone = r.client_phone;
+      if (!phone) continue;
+      const existing = byPhone.get(phone);
+      const isCompleted = ["terminee", "completed"].includes(r.status);
+      if (!existing) {
+        byPhone.set(phone, {
+          id: idByPhone.get(normalize(phone)),
+          phone,
+          email: r.client_email ?? r.email ?? null,
+          name: r.client_name || "Client",
+          nbCourses: isCompleted ? 1 : 0,
+          totalDepense: isCompleted ? (r.prix_estime ?? 0) : 0,
+          derniereCourse: r.pickup_datetime ?? r.date_heure,
+          derniereDestination: r.destination,
+        });
+      } else {
+        if (isCompleted) {
+          existing.nbCourses += 1;
+          existing.totalDepense += r.prix_estime ?? 0;
+        }
+        if ((r.pickup_datetime ?? r.date_heure) > existing.derniereCourse) {
+          existing.derniereCourse = r.pickup_datetime ?? r.date_heure;
+          existing.derniereDestination = r.destination;
+        }
+        if (!existing.name || existing.name === "Client") existing.name = r.client_name || existing.name;
+        if (!existing.email && (r.client_email || r.email)) existing.email = r.client_email ?? r.email;
+      }
+    }
+
+    setClients(Array.from(byPhone.values()).sort((a, b) => b.derniereCourse.localeCompare(a.derniereCourse)));
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    load();
+    const ch = (supabase as any)
+      .channel("drv-clients")
+      .on("postgres_changes", { event: "*", schema: "public", table: "reservations" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "clients" }, load)
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [load]);
+
+  const [deletingPhone, setDeletingPhone] = useState<string | null>(null);
+  const removeClient = async (c: ClientAgg) => {
+    if (!confirm(`Supprimer ${c.name} et toutes ses courses ? Action irréversible.`)) return;
+    setDeletingPhone(c.phone);
+    try {
+      const normalize = (p: string) => p.replace(/[^0-9]/g, "").replace(/^0/, "33");
+      const target = normalize(c.phone);
+      const { data: allResas } = await (supabase as any).from("reservations").select("id,client_phone,telephone");
+      const idsToDelete = (allResas ?? [])
+        .filter((r: any) => {
+          const p1 = r.client_phone ? normalize(r.client_phone) : "";
+          const p2 = r.telephone ? normalize(r.telephone) : "";
+          return p1 === target || p2 === target;
+        })
+        .map((r: any) => r.id);
+      if (idsToDelete.length > 0) {
+        await (supabase as any).from("avis").update({ reservation_id: null }).in("reservation_id", idsToDelete);
+        const { error: delErr } = await (supabase as any).from("reservations").delete().in("id", idsToDelete);
+        if (delErr) throw delErr;
+      }
+      if (c.id) {
+        const { error } = await (supabase as any).from("clients").delete().eq("id", c.id);
+        if (error) throw error;
+      }
+      toast.success("Client supprimé");
+      load();
+    } catch (e: any) {
+      toast.error("Suppression impossible : " + (e.message ?? e));
+    } finally {
+      setDeletingPhone(null);
+    }
+  };
+
+  const formatE164 = (phone: string) => {
+    const normalized = phone.replace(/[^0-9]/g, "").replace(/^0/, "33");
+    return normalized.startsWith("33") ? `+${normalized}` : `+${normalized}`;
+  };
+
+  const makeVcardHref = (name: string, phone: string, email?: string | null) => {
+    const tel = formatE164(phone);
+    const safeName = name || "Client";
+    const lines = [`BEGIN:VCARD`, `VERSION:3.0`, `FN:${safeName}`, `TEL;TYPE=CELL:${tel}`];
+    if (email) lines.push(`EMAIL;TYPE=INTERNET:${email}`);
+    lines.push(`END:VCARD`);
+    const vcard = lines.join(`\n`);
+    return `data:text/vcard;charset=utf-8,${encodeURIComponent(vcard)}`;
+  };
+
+  if (loading)
+    return (
+      <div className="drv-empty">
+        <div style={{ fontSize: 14 }}>Chargement…</div>
+      </div>
+    );
+
+  const filtered = query.trim()
+    ? clients.filter(
+        (c) =>
+          c.name.toLowerCase().includes(query.toLowerCase()) ||
+          c.phone.includes(query) ||
+          (c.email?.toLowerCase().includes(query.toLowerCase()) ?? false),
+      )
+    : clients;
+
+  return (
+    <>
+      <input
+        type="text"
+        placeholder="Rechercher un client…"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        style={{
+          width: "100%",
+          padding: "10px 14px",
+          borderRadius: 12,
+          border: "1px solid #e2e8f0",
+          fontSize: 16,
+          fontFamily: "'DM Sans', sans-serif",
+          marginBottom: 14,
+          outline: "none",
+        }}
+      />
+
+      {filtered.length === 0 ? (
+        <div className="drv-empty">
+          <div style={{ fontSize: 14, fontWeight: 600 }}>Aucun client trouvé</div>
+        </div>
+      ) : (
+        filtered.map((c) => (
+          <div key={c.phone} className="drv-card">
+            <div className="drv-row">
+              <span className="drv-name">{c.name}</span>
+              <span className="drv-badge-pill drv-badge-gray">
+                {c.nbCourses} course{c.nbCourses > 1 ? "s" : ""}
+              </span>
+            </div>
+            <div className="drv-sub" style={{ marginBottom: 6 }}>
+              Dernière course : {formatDate(c.derniereCourse)} → {c.derniereDestination}
+            </div>
+            <div
+              className="drv-meta"
+              style={{ margin: "8px 0 12px", flexDirection: "column", display: "flex", gap: 6 }}
+            >
+              <span>📞 {c.phone}</span>
+              {c.email ? <span>✉ {c.email}</span> : null}
+              <span>💶 {c.totalDepense.toFixed(2)} € au total</span>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <a
+                href={`tel:${c.phone}`}
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  background: "#f0fdf4",
+                  border: "1px solid #bbf7d0",
+                  borderRadius: 12,
+                  padding: "10px",
+                  color: "#15803d",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  textDecoration: "none",
+                }}
+              >
+                📞 Appeler
+              </a>
+              <a
+                href={`sms:${c.phone}`}
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  background: "#eff6ff",
+                  border: "1px solid #bfdbfe",
+                  borderRadius: 12,
+                  padding: "10px",
+                  color: "#1d4ed8",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  textDecoration: "none",
+                }}
+              >
+                💬 SMS
+              </a>
+              <a
+                href={`https://wa.me/${c.phone.replace(/[^0-9]/g, "").replace(/^0/, "33")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  background: "#f0fdf4",
+                  border: "1px solid #bbf7d0",
+                  borderRadius: 12,
+                  padding: "10px",
+                  color: "#15803d",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  textDecoration: "none",
+                }}
+              >
+                🟢 WhatsApp
+              </a>
+            </div>
+            <a
+              href={makeVcardHref(c.name, c.phone, c.email)}
+              download={`${c.name.replace(/[^a-zA-Z0-9]/g, "_") || "client"}.vcf`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                width: "100%",
+                background: "#eff6ff",
+                border: "1px solid #bfdbfe",
+                borderRadius: 12,
+                padding: "10px",
+                color: "#1e40af",
+                fontWeight: 700,
+                fontSize: 13,
+                textDecoration: "none",
+                marginTop: 8,
+              }}
+            >
+              📇 Enregistrer
+            </a>
+            <button
+              onClick={() => removeClient(c)}
+              disabled={deletingPhone === c.phone}
+              style={{
+                width: "100%",
+                marginTop: 8,
+                background: "none",
+                border: "none",
+                color: "#b91c1c",
+                fontSize: 11.5,
+                fontWeight: 600,
+                cursor: "pointer",
+                padding: "4px 0",
+              }}
+            >
+              {deletingPhone === c.phone ? "Suppression…" : "🗑 Supprimer ce client"}
+            </button>
+          </div>
+        ))
+      )}
+    </>
+  );
+}
+
+// ── Onglet Chat ─────────────────────────────────────────────────────────────
+function ChatTab() {
+  // Liste des threads : une ligne par reservation_id avec dernier message
+  const [threads, setThreads] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeThread, setActiveThread] = useState<{ id: string; name: string } | null>(null);
+
+  const loadThreads = useCallback(async () => {
+    // Récupère les messages groupés par reservation_id avec le dernier message
+    const { data } = await (supabase as any)
+      .from("direct_messages")
+      .select("reservation_id, content, created_at, sender_role, sender_name")
+      .order("created_at", { ascending: false });
+
+    if (!data) {
+      setLoading(false);
+      return;
+    }
+
+    // Déduplique par reservation_id, garde le plus récent
+    const byThread = new Map<string, any>();
+    for (const m of data) {
+      if (!byThread.has(m.reservation_id)) byThread.set(m.reservation_id, m);
+    }
+
+    // Récupère les noms depuis reservations
+    const ids = Array.from(byThread.keys());
+    let nameMap = new Map<string, string>();
+    if (ids.length > 0) {
+      const { data: resas } = await (supabase as any)
+        .from("reservations")
+        .select("id, client_name, depart")
+        .in("id", ids);
+      for (const r of resas ?? []) {
+        nameMap.set(r.id, r.client_name || r.depart?.slice(0, 20) || "Client");
+      }
+    }
+
+    const seenAt = localStorage.getItem("drv_chat_seen_at") ?? new Date(0).toISOString();
+
+    const result = Array.from(byThread.values())
+      .map((m) => ({
+        reservationId: m.reservation_id,
+        clientName: nameMap.get(m.reservation_id) ?? "Client",
+        lastMessage: m.content,
+        lastAt: m.created_at,
+        lastRole: m.sender_role,
+        unread: m.sender_role === "client" && m.created_at > seenAt,
+      }))
+      .sort((a, b) => b.lastAt.localeCompare(a.lastAt));
+
+    setThreads(result);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    loadThreads();
+    const ch = (supabase as any)
+      .channel("drv-chat-threads")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "direct_messages" }, loadThreads)
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [loadThreads]);
+
+  if (activeThread) {
+    return (
+      <DriverChatConversation
+        reservationId={activeThread.id}
+        clientName={activeThread.name}
+        onBack={() => {
+          setActiveThread(null);
+          loadThreads();
+        }}
+      />
+    );
+  }
+
+  if (loading)
+    return (
+      <div className="drv-empty">
+        <div style={{ fontSize: 14 }}>Chargement…</div>
+      </div>
+    );
+
+  return (
+    <>
+      <p className="drv-section">Conversations clients</p>
+      {threads.length === 0 ? (
+        <div className="drv-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>Aucune conversation</div>
+          <div style={{ fontSize: 12, marginTop: 4 }}>Les messages clients apparaissent ici</div>
+        </div>
+      ) : (
+        threads.map((t) => (
+          <div
+            key={t.reservationId}
+            className={`drv-card${t.unread ? " new" : ""}`}
+            style={{ cursor: "pointer" }}
+            onClick={() => setActiveThread({ id: t.reservationId, name: t.clientName })}
+          >
+            <div className="drv-row">
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div className="drv-chat-avatar">{t.clientName.charAt(0).toUpperCase()}</div>
+                <div>
+                  <div className="drv-name">{t.clientName}</div>
+                  <div
+                    className="drv-sub"
+                    style={{
+                      fontSize: 12,
+                      maxWidth: 180,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {t.lastRole === "driver" ? "Vous : " : ""}
+                    {t.lastMessage}
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+                <span style={{ fontSize: 10, color: "#94a3b8" }}>
+                  {new Date(t.lastAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                </span>
+                {t.unread && (
+                  <span
+                    style={{
+                      background: "#3b82f6",
+                      color: "#fff",
+                      borderRadius: 99,
+                      fontSize: 10,
+                      fontWeight: 700,
+                      padding: "2px 7px",
+                    }}
+                  >
+                    NOUVEAU
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+    </>
+  );
+}
+
+function DriverChatConversation({
+  reservationId,
+  clientName,
+  onBack,
+}: {
+  reservationId: string;
+  clientName: string;
+  onBack: () => void;
+}) {
   const [messages, setMessages] = useState<any[]>([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
-  const [name, setName] = useState(() => localStorage.getItem(`tcb_anon_name_${reservationId}`) || "");
-  const [nameSet, setNameSet] = useState(() => !!localStorage.getItem(`tcb_anon_name_${reservationId}`));
   const endRef = useRef<HTMLDivElement>(null);
-  const anonId = getAnonChatId(reservationId);
 
   const load = useCallback(async () => {
     const { data } = await (supabase as any)
@@ -173,14 +2192,14 @@ function AnonChat({ reservationId }: { reservationId: string }) {
       .select("*")
       .eq("reservation_id", reservationId)
       .order("created_at", { ascending: true })
-      .limit(60);
+      .limit(80);
     setMessages(data ?? []);
   }, [reservationId]);
 
   useEffect(() => {
     load();
     const ch = (supabase as any)
-      .channel(`chat_suivi_${reservationId}`)
+      .channel(`drv-conv-${reservationId}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "direct_messages", filter: `reservation_id=eq.${reservationId}` },
@@ -203,9 +2222,9 @@ function AnonChat({ reservationId }: { reservationId: string }) {
     try {
       const { error } = await (supabase as any).from("direct_messages").insert({
         reservation_id: reservationId,
-        sender_id: anonId,
-        sender_role: "client",
-        sender_name: name || "Client",
+        sender_id: "driver_jose",
+        sender_role: "driver",
+        sender_name: "José",
         content: trimmed,
       });
       if (error) throw error;
@@ -217,90 +2236,68 @@ function AnonChat({ reservationId }: { reservationId: string }) {
     }
   };
 
-  if (!nameSet) {
-    return (
-      <div style={{ padding: "4px 0" }}>
-        <p style={{ fontSize: 13, color: "#64748b", marginBottom: 10 }}>Comment vous appelle-t-on ?</p>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Votre prénom"
-            style={{
-              flex: 1,
-              padding: "10px 12px",
-              borderRadius: 10,
-              border: "1px solid #e2e8f0",
-              fontSize: 16,
-              fontFamily: "inherit",
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && name.trim()) {
-                localStorage.setItem(`tcb_anon_name_${reservationId}`, name.trim());
-                setNameSet(true);
-              }
-            }}
-          />
-          <button
-            onClick={() => {
-              if (name.trim()) {
-                localStorage.setItem(`tcb_anon_name_${reservationId}`, name.trim());
-                setNameSet(true);
-              }
-            }}
-            style={{
-              padding: "10px 16px",
-              background: "#0f172a",
-              color: "#fff",
-              border: "none",
-              borderRadius: 10,
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            OK
-          </button>
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
+      {/* Header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          marginBottom: 12,
+          paddingBottom: 10,
+          borderBottom: "1px solid #f1f5f9",
+        }}
+      >
+        <button
+          onClick={onBack}
+          style={{
+            background: "#f1f5f9",
+            border: "none",
+            borderRadius: 8,
+            padding: "6px 10px",
+            fontSize: 18,
+            cursor: "pointer",
+            lineHeight: 1,
+          }}
+        >
+          ←
+        </button>
+        <div className="drv-chat-avatar">{clientName.charAt(0).toUpperCase()}</div>
+        <div>
+          <div className="drv-name">{clientName}</div>
+          <div className="drv-sub" style={{ fontSize: 11 }}>
+            Course #{reservationId.slice(0, 8)}
+          </div>
         </div>
       </div>
-    );
-  }
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", height: 320 }}>
-      <div style={{ flex: 1, overflowY: "auto", padding: "4px 0", display: "flex", flexDirection: "column", gap: 8 }}>
+      {/* Messages */}
+      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, paddingBottom: 8 }}>
         {messages.length === 0 && (
-          <p style={{ fontSize: 12, color: "#94a3b8", textAlign: "center", padding: "30px 0" }}>
-            Démarrez la conversation avec José 👋
-          </p>
+          <div style={{ textAlign: "center", fontSize: 12, color: "#94a3b8", padding: "30px 0" }}>
+            Aucun message pour cette course
+          </div>
         )}
         {messages.map((m) => {
-          const isMe = m.sender_role === "client";
+          const isMe = m.sender_role === "driver";
           return (
             <div
               key={m.id}
-              className="suivi-fadein"
+              className="drv-msg-in"
               style={{ display: "flex", flexDirection: isMe ? "row-reverse" : "row", gap: 6, alignItems: "flex-end" }}
             >
-              <div
-                style={{
-                  maxWidth: "78%",
-                  background: isMe ? "#0f172a" : "#f1f5f9",
-                  color: isMe ? "#fff" : "#0f172a",
-                  borderRadius: isMe ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
-                  padding: "9px 12px",
-                  fontSize: 13.5,
-                  lineHeight: 1.45,
-                }}
-              >
+              <div className={`drv-chat-bubble ${isMe ? "me" : "them"}`}>
                 {!isMe && (
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", marginBottom: 2 }}>José 🚖</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", marginBottom: 2 }}>
+                    {m.sender_name || clientName}
+                  </div>
                 )}
                 {m.content}
                 <div
                   style={{
                     fontSize: 10,
-                    color: isMe ? "rgba(255,255,255,0.5)" : "#94a3b8",
+                    color: isMe ? "rgba(255,255,255,0.45)" : "#94a3b8",
                     marginTop: 4,
                     textAlign: "right",
                   }}
@@ -313,11 +2310,13 @@ function AnonChat({ reservationId }: { reservationId: string }) {
         })}
         <div ref={endRef} />
       </div>
-      <div style={{ display: "flex", gap: 8, paddingTop: 10, borderTop: "1px solid #f1f5f9" }}>
+
+      {/* Input */}
+      <div style={{ display: "flex", gap: 8, paddingTop: 10, borderTop: "1px solid #f1f5f9", flexShrink: 0 }}>
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Votre message…"
+          placeholder="Répondre…"
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
@@ -330,7 +2329,7 @@ function AnonChat({ reservationId }: { reservationId: string }) {
             borderRadius: 10,
             border: "1px solid #e2e8f0",
             fontSize: 16,
-            fontFamily: "inherit",
+            fontFamily: "'DM Sans', sans-serif",
           }}
         />
         <button
@@ -355,754 +2354,211 @@ function AnonChat({ reservationId }: { reservationId: string }) {
   );
 }
 
-// ─── Formulaire avis post-course ─────────────────────────────────────────────
-function AvisForm({ reservationId, clientName }: { reservationId: string; clientName?: string | null }) {
-  const [note, setNote] = useState(0);
-  const [hover, setHover] = useState(0);
-  const [commentaire, setCommentaire] = useState("");
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(() => !!localStorage.getItem(`tcb_avis_sent_${reservationId}`));
-
-  if (sent) {
-    return (
-      <div style={{ textAlign: "center", padding: "16px 0", color: "#166534" }}>
-        <div style={{ fontSize: 26, marginBottom: 6 }}>⭐ Merci pour votre avis !</div>
-        <div style={{ fontSize: 13, color: "#64748b" }}>Votre retour a bien été transmis à José.</div>
-      </div>
-    );
-  }
-
-  const submit = async () => {
-    if (note === 0) {
-      toast.error("Choisissez une note");
-      return;
-    }
-    setSending(true);
-    try {
-      const { error } = await (supabase as any).from("avis").insert({
-        reservation_id: reservationId,
-        author_name: clientName || "Client",
-        note,
-        commentaire: commentaire.trim() || null,
-        status: "pending",
-      });
-      if (error) throw error;
-      localStorage.setItem(`tcb_avis_sent_${reservationId}`, "1");
-      setSent(true);
-      toast.success("Merci pour votre avis !");
-    } catch {
-      toast.error("Erreur lors de l'envoi");
-    } finally {
-      setSending(false);
-    }
-  };
-
-  return (
-    <div>
-      {/* Étoiles */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 12, justifyContent: "center" }}>
-        {[1, 2, 3, 4, 5].map((i) => (
-          <button
-            key={i}
-            onMouseEnter={() => setHover(i)}
-            onMouseLeave={() => setHover(0)}
-            onClick={() => setNote(i)}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontSize: 34,
-              lineHeight: 1,
-              color: i <= (hover || note) ? "#f59e0b" : "#e2e8f0",
-              transition: "color 0.1s",
-              padding: "0 2px",
-            }}
-          >
-            ★
-          </button>
-        ))}
-      </div>
-      {note > 0 && (
-        <div style={{ fontSize: 12, color: "#64748b", textAlign: "center", marginBottom: 10 }}>
-          {["", "Très insatisfait", "Insatisfait", "Correct", "Satisfait", "Excellent !"][note]}
-        </div>
-      )}
-      <textarea
-        value={commentaire}
-        onChange={(e) => setCommentaire(e.target.value)}
-        placeholder="Commentaire (facultatif)…"
-        rows={3}
-        style={{
-          width: "100%",
-          padding: "10px 12px",
-          borderRadius: 10,
-          border: "1px solid #e2e8f0",
-          fontSize: 14,
-          fontFamily: "inherit",
-          resize: "none",
-          boxSizing: "border-box",
-        }}
-      />
-      <button
-        onClick={submit}
-        disabled={sending || note === 0}
-        style={{
-          width: "100%",
-          marginTop: 10,
-          padding: "12px",
-          background: note === 0 ? "#e2e8f0" : "#f59e0b",
-          color: note === 0 ? "#94a3b8" : "#0f172a",
-          border: "none",
-          borderRadius: 10,
-          fontSize: 14,
-          fontWeight: 800,
-          cursor: note === 0 ? "default" : "pointer",
-          transition: "background 0.15s",
-        }}
-      >
-        {sending ? "Envoi…" : "Envoyer mon avis"}
-      </button>
-    </div>
-  );
-}
-
-// ─── Boutons calendrier ───────────────────────────────────────────────────────
-function CalendarButtons({ reservation }: { reservation: Reservation }) {
-  if (!reservation.pickup_datetime) return null;
-  const dt = new Date(reservation.pickup_datetime);
-  const dtEnd = new Date(dt.getTime() + 60 * 60 * 1000);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const toIcsDate = (d: Date) =>
-    `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00Z`;
-  const title = encodeURIComponent(
-    `Taxi — ${reservation.depart} → ${reservation.destination ?? reservation.arrivee ?? ""}`,
-  );
-  const details = encodeURIComponent(`Suivi : ${typeof window !== "undefined" ? window.location.href : ""}`);
-  const location = encodeURIComponent(reservation.depart);
-  const googleUrl = `https://calendar.google.com/calendar/r/eventedit?text=${title}&dates=${toIcsDate(dt)}/${toIcsDate(dtEnd)}&details=${details}&location=${location}`;
-  const icsContent = [
-    "BEGIN:VCALENDAR",
-    "VERSION:2.0",
-    "PRODID:-//Taxi City Bordeaux//FR",
-    "BEGIN:VEVENT",
-    `UID:tcb-${reservation.id}@taxicitybordeaux.fr`,
-    `DTSTAMP:${toIcsDate(new Date())}`,
-    `DTSTART:${toIcsDate(dt)}`,
-    `DTEND:${toIcsDate(dtEnd)}`,
-    `SUMMARY:Taxi City Bordeaux`,
-    `DESCRIPTION:Départ : ${reservation.depart}\\nDestination : ${reservation.destination ?? reservation.arrivee ?? ""}`,
-    `LOCATION:${reservation.depart}`,
-    "END:VEVENT",
-    "END:VCALENDAR",
-  ].join("\r\n");
-  const icsBlob = `data:text/calendar;charset=utf-8,${encodeURIComponent(icsContent)}`;
-
-  const btnS: React.CSSProperties = {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 6,
-    padding: "9px 14px",
-    borderRadius: 10,
-    border: "1px solid #e2e8f0",
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: "pointer",
-    textDecoration: "none",
-    color: "#0f172a",
-    background: "#f8fafc",
-    fontFamily: "inherit",
-  };
-  return (
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-      <a href={googleUrl} target="_blank" rel="noopener noreferrer" style={btnS}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-          <rect x="3" y="4" width="18" height="18" rx="2" stroke="#4285F4" strokeWidth="2" />
-          <line x1="16" y1="2" x2="16" y2="6" stroke="#4285F4" strokeWidth="2" />
-          <line x1="8" y1="2" x2="8" y2="6" stroke="#4285F4" strokeWidth="2" />
-          <line x1="3" y1="10" x2="21" y2="10" stroke="#4285F4" strokeWidth="2" />
-        </svg>
-        Google Calendar
-      </a>
-      <a href={icsBlob} download={`taxi-${reservation.id}.ics`} style={btnS}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-          <rect x="3" y="4" width="18" height="18" rx="2" stroke="#666" strokeWidth="2" />
-          <line x1="16" y1="2" x2="16" y2="6" stroke="#666" strokeWidth="2" />
-          <line x1="8" y1="2" x2="8" y2="6" stroke="#666" strokeWidth="2" />
-          <line x1="3" y1="10" x2="21" y2="10" stroke="#666" strokeWidth="2" />
-        </svg>
-        iPhone / Mac
-      </a>
-    </div>
-  );
-}
-
-// ─── Partage ──────────────────────────────────────────────────────────────────
-function ShareButton() {
-  const url = typeof window !== "undefined" ? window.location.href : "";
-  const canShare = typeof navigator !== "undefined" && !!navigator.share;
-
-  const handleShare = async () => {
-    if (canShare) {
-      try {
-        await navigator.share({ title: "Suivi taxi", text: "Suivez ma course en temps réel", url });
-        return;
-      } catch {}
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success("Lien copié !");
-    } catch {
-      toast.error("Impossible de copier");
-    }
-  };
-
-  return (
-    <button
-      onClick={handleShare}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        padding: "9px 14px",
-        borderRadius: 10,
-        border: "1px solid #e2e8f0",
-        fontSize: 13,
-        fontWeight: 600,
-        cursor: "pointer",
-        background: "#f8fafc",
-        color: "#0f172a",
-        fontFamily: "inherit",
-      }}
-    >
-      <svg
-        width="15"
-        height="15"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <circle cx="18" cy="5" r="3" />
-        <circle cx="6" cy="12" r="3" />
-        <circle cx="18" cy="19" r="3" />
-        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-      </svg>
-      Partager ce suivi
-    </button>
-  );
-}
-
-// ─── Page principale ──────────────────────────────────────────────────────────
-function SuiviPage() {
-  const { lang } = useI18n();
-  const locale =
-    lang === "fr"
-      ? "fr-FR"
-      : lang === "en"
-        ? "en-US"
-        : lang === "es"
-          ? "es-ES"
-          : lang === "it"
-            ? "it-IT"
-            : lang === "pt"
-              ? "pt-PT"
-              : lang === "ar"
-                ? "ar"
-                : "fr-FR";
-
-  const { id } = Route.useParams();
-  const [reservation, setReservation] = useState<Reservation | null>(null);
+// ── Onglet Stats ────────────────────────────────────────────────────────────
+function StatsTab() {
+  const [stats, setStats] = useState({ revenus: 0, courses: 0, km: 0, note: 0, semCourses: 0, semRevenus: 0 });
   const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const fetchReservation = useServerFn(getReservationForFinPublic);
-  const prevStatusRef = useRef<string | null>(null);
-  const prevPriceRef = useRef<number | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
     (async () => {
-      try {
-        const row = await fetchReservation({ data: { key: id } });
-        if (cancelled) return;
-        if (!row) {
-          setNotFound(true);
-        } else {
-          setReservation(row as Reservation);
-          setLastUpdated(new Date());
-          prevStatusRef.current = (row as any).status ?? null;
-          prevPriceRef.current = (row as any).prix_estime ?? null;
-        }
-      } catch {
-        if (!cancelled) setNotFound(true);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+      const monday = new Date();
+      monday.setDate(monday.getDate() - monday.getDay() + 1);
+      monday.setHours(0, 0, 0, 0);
+
+      const [{ data: semData }, { data: avisData }] = await Promise.all([
+        (supabase as any)
+          .from("reservations")
+          .select("prix_estime,distance_km,pickup_datetime,date_heure")
+          .gte("pickup_datetime", monday.toISOString())
+          .in("status", ["terminee", "completed"]),
+        (supabase as any).from("avis").select("note").eq("status", "approved"),
+      ]);
+
+      const sem: any[] = semData ?? [];
+      const revenus = sem.reduce((s: number, r: any) => s + (r.prix_estime ?? 0), 0);
+      const km = sem.reduce((s: number, r: any) => s + (r.distance_km ?? 0), 0);
+      const note = avisData?.length ? avisData.reduce((s: number, a: any) => s + a.note, 0) / avisData.length : 0;
+
+      setStats({
+        revenus: Math.round(revenus),
+        courses: sem.length,
+        km: Math.round(km),
+        note: Math.round(note * 10) / 10,
+        semCourses: sem.length,
+        semRevenus: Math.round(revenus),
+      });
+      setLoading(false);
     })();
-    return () => {
-      cancelled = true;
-    };
-  }, [fetchReservation, id]);
+  }, []);
 
-  useEffect(() => {
-    if (!id) return;
-    const channel = supabase
-      .channel(`reservations:id=eq.${id}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "reservations", filter: `id=eq.${id}` },
-        (payload: any) => {
-          try {
-            const newRow = payload.new as Reservation;
-            if (!newRow) return;
-            const newStatus = (newRow as any).status ?? null;
-            const newPrice = (newRow as any).prix_estime ?? null;
-            if (prevStatusRef.current && newStatus && prevStatusRef.current !== newStatus) {
-              if (newStatus === "accepted") toast.success("✅ Votre course a été confirmée !");
-              else if (newStatus === "en_route") toast.success("🚕 Le chauffeur est en route !");
-              else if (newStatus === "arrived") toast.success("📍 Le chauffeur est arrivé !");
-              else if (newStatus === "completed") toast.success("🏁 Course terminée. Merci !");
-            }
-            if (prevPriceRef.current != null && newPrice != null && Number(prevPriceRef.current) !== Number(newPrice)) {
-              toast.success("💶 Le prix a été mis à jour.");
-            }
-            setReservation(newRow);
-            setLastUpdated(new Date());
-            prevStatusRef.current = newStatus;
-            prevPriceRef.current = newPrice;
-          } catch {}
-        },
-      )
-      .subscribe();
-    return () => {
-      try {
-        channel.unsubscribe();
-      } catch {}
-    };
-  }, [id]);
-
-  if (loading) {
+  if (loading)
     return (
-      <div style={{ display: "flex", minHeight: "100dvh", alignItems: "center", justifyContent: "center" }}>
-        <Loader2 style={{ width: 32, height: 32 }} className="animate-spin text-primary" />
+      <div className="drv-empty">
+        <div style={{ fontSize: 14 }}>Chargement…</div>
       </div>
     );
-  }
 
-  if (notFound || !reservation) {
-    return (
-      <div style={{ maxWidth: 480, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
-        <AlertTriangle style={{ width: 48, height: 48, margin: "0 auto 16px" }} className="text-destructive" />
-        <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Réservation introuvable</h1>
-        <p style={{ color: "#64748b", marginBottom: 24 }}>Nous n'avons pas trouvé cette réservation.</p>
-        <Link
-          to="/"
-          style={{
-            display: "inline-block",
-            background: "#0f172a",
-            color: "#fff",
-            padding: "12px 24px",
-            borderRadius: 10,
-            fontWeight: 600,
-            textDecoration: "none",
-          }}
-        >
-          Retour à l'accueil
-        </Link>
-      </div>
-    );
-  }
-
-  const st = STATUS_MAP[reservation.status] ?? {
-    label: reservation.status,
-    emoji: "📋",
-    color: "#64748b",
-    bg: "#f8fafc",
-    border: "#e2e8f0",
-  };
-  const dest = reservation.destination ?? reservation.arrivee ?? "—";
-  const josePhone = JOSE_PHONE.replace(/\s/g, "");
-  const isCompleted = reservation.status === "completed";
-  const isCancelled = reservation.status === "cancelled";
-  const isActive = ["en_route", "arrived"].includes(reservation.status);
+  const days = ["L", "M", "M", "J", "V", "S", "D"];
+  const today = new Date().getDay();
+  const todayIdx = today === 0 ? 6 : today - 1;
 
   return (
     <>
-      <style>{globalCss}</style>
-      <div
-        style={{
-          maxWidth: 520,
-          margin: "0 auto",
-          padding: "24px 14px calc(env(safe-area-inset-bottom, 0px) + 40px)",
-          paddingTop: "max(24px, env(safe-area-inset-top, 0px))",
-        }}
-      >
-        {/* En-tête */}
-        <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: "0.2em",
-              textTransform: "uppercase",
-              color: "#94a3b8",
-              marginBottom: 6,
-            }}
-          >
-            Taxi City Bordeaux
-          </div>
-          {reservation.client_name && (
-            <div style={{ fontSize: 15, fontWeight: 600, color: "#0f172a", marginBottom: 4 }}>
-              Bonjour {reservation.client_name} 👋
-            </div>
-          )}
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", margin: "0 0 6px" }}>Suivi de votre course</h1>
-          {reservation.pickup_datetime && (
-            <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>
-              📅 {formatPickup(reservation.pickup_datetime, locale)}
-            </p>
-          )}
+      <p className="drv-section">Cette semaine</p>
+      <div className="drv-stat-grid">
+        <div className="drv-stat">
+          <div className="drv-stat-lbl">Revenus</div>
+          <div className="drv-stat-val">{stats.revenus} €</div>
+          <div className="drv-stat-sub">semaine en cours</div>
         </div>
-
-        {/* Statut banner */}
-        <div
-          className={isActive ? "suivi-pulse" : ""}
-          style={{
-            background: st.bg,
-            border: `1.5px solid ${st.border}`,
-            borderRadius: 14,
-            padding: "13px 16px",
-            marginBottom: 16,
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-          }}
-        >
-          <span style={{ fontSize: 24 }}>{st.emoji}</span>
-          <div style={{ flex: 1 }}>
-            <div
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.12em",
-                color: st.color,
-                opacity: 0.7,
-              }}
-            >
-              Statut
-            </div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: st.color }}>{st.label}</div>
-          </div>
-          {lastUpdated && (
-            <div style={{ fontSize: 10, color: "#94a3b8", textAlign: "right", flexShrink: 0 }}>
-              <div>Mis à jour</div>
-              <div>{lastUpdated.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</div>
-            </div>
-          )}
+        <div className="drv-stat">
+          <div className="drv-stat-lbl">Courses</div>
+          <div className="drv-stat-val">{stats.courses}</div>
+          <div className="drv-stat-sub">cette semaine</div>
         </div>
-
-        {/* Stepper */}
-        {!isCancelled && (
-          <div
-            style={{
-              background: "#fff",
-              border: "1px solid #e2e8f0",
-              borderRadius: 14,
-              padding: "16px 12px 12px",
-              marginBottom: 14,
-            }}
-          >
-            <StatusStepper status={reservation.status} />
-          </div>
-        )}
-
-        {/* Trajet */}
-        <div
-          style={{
-            background: "#fff",
-            border: "1px solid #e2e8f0",
-            borderRadius: 14,
-            padding: "14px 16px",
-            marginBottom: 12,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              textTransform: "uppercase",
-              letterSpacing: "0.12em",
-              color: "#94a3b8",
-              marginBottom: 12,
-            }}
-          >
-            Trajet
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-              <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>📍</span>
-              <div>
-                <div style={{ fontSize: 10, color: "#94a3b8", fontWeight: 600, letterSpacing: "0.08em" }}>DÉPART</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#0f172a" }}>{reservation.depart}</div>
-              </div>
-            </div>
-            <div style={{ borderLeft: "2px dashed #e2e8f0", marginLeft: 9, height: 10 }} />
-            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-              <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>🏁</span>
-              <div>
-                <div style={{ fontSize: 10, color: "#94a3b8", fontWeight: 600, letterSpacing: "0.08em" }}>
-                  DESTINATION
-                </div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#0f172a" }}>{dest}</div>
-              </div>
-            </div>
-          </div>
+        <div className="drv-stat">
+          <div className="drv-stat-lbl">Km parcourus</div>
+          <div className="drv-stat-val">{stats.km}</div>
+          <div className="drv-stat-sub">km cette semaine</div>
         </div>
-
-        {/* Infos détaillées */}
-        {(reservation.nb_passagers != null ||
-          reservation.nb_bagages != null ||
-          reservation.distance_km != null ||
-          reservation.prix_estime != null ||
-          reservation.mode_paiement) && (
-          <div
-            style={{
-              background: "#fff",
-              border: "1px solid #e2e8f0",
-              borderRadius: 14,
-              padding: "14px 16px",
-              marginBottom: 12,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.12em",
-                color: "#94a3b8",
-                marginBottom: 12,
-              }}
-            >
-              Détails
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              {reservation.nb_passagers != null && (
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span style={{ fontSize: 20 }}>👥</span>
-                  <div>
-                    <div style={{ fontSize: 10, color: "#94a3b8" }}>Passagers</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>{reservation.nb_passagers}</div>
-                  </div>
-                </div>
-              )}
-              {reservation.nb_bagages != null && (
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span style={{ fontSize: 20 }}>🧳</span>
-                  <div>
-                    <div style={{ fontSize: 10, color: "#94a3b8" }}>Bagages</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>{reservation.nb_bagages}</div>
-                  </div>
-                </div>
-              )}
-              {reservation.distance_km != null && (
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span style={{ fontSize: 20 }}>🛣️</span>
-                  <div>
-                    <div style={{ fontSize: 10, color: "#94a3b8" }}>Distance</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
-                      {reservation.distance_km.toFixed(1)} km
-                    </div>
-                  </div>
-                </div>
-              )}
-              {reservation.prix_estime != null && (
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span style={{ fontSize: 20 }}>💶</span>
-                  <div>
-                    <div style={{ fontSize: 10, color: "#94a3b8" }}>Prix estimé</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
-                      {new Intl.NumberFormat(locale, { style: "currency", currency: "EUR" }).format(
-                        reservation.prix_estime,
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-              {reservation.mode_paiement && (
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span style={{ fontSize: 20 }}>💳</span>
-                  <div>
-                    <div style={{ fontSize: 10, color: "#94a3b8" }}>Paiement</div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", textTransform: "capitalize" }}>
-                      {reservation.mode_paiement}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+        <div className="drv-stat">
+          <div className="drv-stat-lbl">Note moyenne</div>
+          <div className="drv-stat-val">{stats.note > 0 ? stats.note : "—"}</div>
+          <div className="drv-stat-sub" style={{ color: "#f59e0b" }}>
+            {stats.note > 0 ? "★ sur 5" : "Pas encore d'avis"}
           </div>
-        )}
-
-        {/* Calendrier + Partage */}
-        {!isCompleted && !isCancelled && (
-          <div
-            style={{
-              background: "#fff",
-              border: "1px solid #e2e8f0",
-              borderRadius: 14,
-              padding: "14px 16px",
-              marginBottom: 12,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.12em",
-                color: "#94a3b8",
-                marginBottom: 10,
-              }}
-            >
-              Actions
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <CalendarButtons reservation={reservation} />
-              <ShareButton />
-            </div>
-          </div>
-        )}
-
-        {/* Appeler José */}
-        {!isCompleted && (
-          <div
-            style={{
-              background: "#eff6ff",
-              border: "1px solid #bfdbfe",
-              borderRadius: 14,
-              padding: "14px 16px",
-              marginBottom: 12,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.12em",
-                color: "#1d4ed8",
-                marginBottom: 10,
-              }}
-            >
-              Besoin d'aide ?
-            </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <a
-                href={`tel:${josePhone}`}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 7,
-                  background: "#1d4ed8",
-                  color: "#fff",
-                  padding: "11px 18px",
-                  borderRadius: 10,
-                  fontWeight: 700,
-                  fontSize: 14,
-                  textDecoration: "none",
-                }}
-              >
-                <svg
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.35a2 2 0 0 1 1.97-2.18h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6.1 6.1l1.97-1.97a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-                </svg>
-                Appeler José
-              </a>
-              <a
-                href={`https://wa.me/${josePhone.replace(/^0/, "33")}?text=${encodeURIComponent(`Bonjour José, c'est ${reservation.client_name ?? "votre client"} — course du ${reservation.pickup_datetime ? new Date(reservation.pickup_datetime).toLocaleDateString("fr-FR") : ""}`)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 7,
-                  background: "#16a34a",
-                  color: "#fff",
-                  padding: "11px 18px",
-                  borderRadius: 10,
-                  fontWeight: 700,
-                  fontSize: 14,
-                  textDecoration: "none",
-                }}
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" />
-                </svg>
-                WhatsApp
-              </a>
-            </div>
-          </div>
-        )}
-
-        {/* Chat */}
-        {!isCompleted && (
-          <div
-            style={{
-              background: "#fff",
-              border: "1px solid #e2e8f0",
-              borderRadius: 14,
-              padding: "14px 16px",
-              marginBottom: 12,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-              <span style={{ fontSize: 18 }}>💬</span>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>Chat avec José</div>
-            </div>
-            <AnonChat reservationId={reservation.id} />
-          </div>
-        )}
-
-        {/* Avis post-course */}
-        {isCompleted && (
-          <div
-            className="suivi-fadein"
-            style={{
-              background: "#fff",
-              border: "1.5px solid #fde68a",
-              borderRadius: 14,
-              padding: "16px",
-              marginBottom: 12,
-            }}
-          >
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#92400e", marginBottom: 4 }}>
-              ⭐ Comment s'est passée votre course ?
-            </div>
-            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 14 }}>Votre avis aide José à s'améliorer.</div>
-            <AvisForm reservationId={reservation.id} clientName={reservation.client_name} />
-          </div>
-        )}
-
-        {/* Footer */}
-        <div style={{ textAlign: "center", paddingTop: 8 }}>
-          <Link to="/" style={{ fontSize: 12, color: "#94a3b8", textDecoration: "none" }}>
-            ← taxicitybordeaux.fr
-          </Link>
         </div>
       </div>
+
+      {/* Barre jours de la semaine */}
+      <p className="drv-section">Jours de la semaine</p>
+      <div className="drv-card">
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 60, marginBottom: 6 }}>
+          {days.map((d, i) => (
+            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+              <div
+                style={{
+                  flex: 1,
+                  width: "100%",
+                  borderRadius: "4px 4px 0 0",
+                  background: i === todayIdx ? "#0f172a" : "#e2e8f0",
+                  minHeight: i === todayIdx ? 40 : 20,
+                  alignSelf: "flex-end",
+                }}
+              />
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          {days.map((d, i) => (
+            <div
+              key={i}
+              style={{
+                flex: 1,
+                textAlign: "center",
+                fontSize: 11,
+                color: i === todayIdx ? "#0f172a" : "#94a3b8",
+                fontWeight: i === todayIdx ? 700 : 400,
+              }}
+            >
+              {d}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Diagnostic push */}
+      <PushDiagnostic />
     </>
+  );
+}
+
+// ── Mini diagnostic des échecs push (remplace l'ancien lien /admin/dashboard) ──
+function PushDiagnostic() {
+  const fetchFailures = useServerFn(listPushFailures);
+  const [open, setOpen] = useState(false);
+  const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await fetchFailures({ data: { pin: DRIVER_TOKEN, only_price_update: false, limit: 30 } });
+      setRows((res as any)?.failures ?? []);
+    } catch {
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ marginTop: 16 }}>
+      <button
+        onClick={() => {
+          const next = !open;
+          setOpen(next);
+          if (next && rows.length === 0) load();
+        }}
+        style={{
+          width: "100%",
+          textAlign: "center",
+          background: "none",
+          border: "none",
+          color: "#94a3b8",
+          fontSize: 12,
+          cursor: "pointer",
+          padding: "8px 0",
+        }}
+      >
+        {open ? "▲ Masquer le diagnostic push" : "▼ Diagnostic notifications push"}
+      </button>
+      {open && (
+        <div className="drv-card">
+          {loading ? (
+            <div style={{ fontSize: 13, color: "#64748b", textAlign: "center" }}>Chargement…</div>
+          ) : rows.length === 0 ? (
+            <div style={{ fontSize: 13, color: "#64748b", textAlign: "center" }}>Aucun échec récent ✨</div>
+          ) : (
+            rows.map((r: any) => (
+              <div key={r.id} style={{ fontSize: 11.5, padding: "6px 0", borderBottom: "1px solid #f1f5f9" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", color: "#0f172a", fontWeight: 600 }}>
+                  <span>
+                    {r.audience} · {r.http_status ?? "—"} {r.error_code ?? ""}
+                  </span>
+                  <span style={{ color: "#94a3b8" }}>
+                    {new Date(r.created_at).toLocaleString("fr-FR", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+                <div style={{ color: "#64748b" }}>{r.title ?? ""}</div>
+              </div>
+            ))
+          )}
+          <button
+            onClick={load}
+            disabled={loading}
+            style={{
+              marginTop: 10,
+              width: "100%",
+              background: "#f1f5f9",
+              border: "1px solid #e2e8f0",
+              borderRadius: 10,
+              padding: "8px",
+              fontSize: 12,
+              fontWeight: 700,
+              color: "#0f172a",
+              cursor: "pointer",
+            }}
+          >
+            🔄 Rafraîchir
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
