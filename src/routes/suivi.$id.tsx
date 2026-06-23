@@ -8,6 +8,7 @@ import type { ClientSession } from "@/lib/client-auth.functions";
 import { DirectChatPanel } from "@/components/DirectChatPanel";
 import { getReservationForFinPublic } from "@/lib/reservation.functions";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/suivi/$id")({
   head: () => ({
@@ -97,51 +98,50 @@ function SuiviPage() {
     };
   }, [fetchReservation, id]);
 
-  // Poll reservation periodically to detect status or price changes
+  // Realtime subscription via Supabase to detect status or price changes
   useEffect(() => {
-    let mounted = true;
-    const interval = setInterval(async () => {
-      try {
-        const row = await fetchReservation({ data: { key: id } });
-        if (!mounted || !row) return;
-        const newStatus = (row as any).status ?? null;
-        const newPrice = (row as any).prix_estime ?? null;
+    if (!id) return;
 
-        if (prevStatusRef.current && newStatus && prevStatusRef.current !== newStatus) {
-          if (newStatus === "accepted") {
-            toast.success("Votre course a été acceptée par le chauffeur.");
-          } else if (newStatus === "en_route") {
-            toast.success("Le chauffeur est en route vers vous.");
-          } else if (newStatus === "arrived") {
-            toast.success("Le chauffeur est arrivé.");
+    const channel = supabase
+      .channel(`reservations:id=eq.${id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "reservations", filter: `id=eq.${id}` },
+        (payload: any) => {
+          try {
+            const newRow = payload.new as Reservation;
+            if (!newRow) return;
+            const newStatus = (newRow as any).status ?? null;
+            const newPrice = (newRow as any).prix_estime ?? null;
+
+            if (prevStatusRef.current && newStatus && prevStatusRef.current !== newStatus) {
+              if (newStatus === "accepted") toast.success("Votre course a été acceptée par le chauffeur.");
+              else if (newStatus === "en_route") toast.success("Le chauffeur est en route vers vous.");
+              else if (newStatus === "arrived") toast.success("Le chauffeur est arrivé.");
+            }
+
+            if (prevPriceRef.current != null && newPrice != null && Number(prevPriceRef.current) !== Number(newPrice)) {
+              toast.success("Le prix a été mis à jour.");
+            }
+
+            setReservation(newRow);
+            prevStatusRef.current = newStatus;
+            prevPriceRef.current = newPrice;
+          } catch (e) {
+            // ignore handler errors
           }
         }
+      )
+      .subscribe();
 
-        if (
-          prevPriceRef.current != null &&
-          newPrice != null &&
-          Number(prevPriceRef.current) !== Number(newPrice)
-        ) {
-          toast.success("Le prix a été mis à jour.");
-        }
-
-        setReservation((prev) => {
-          if (!prev) return row as Reservation;
-          const merged = { ...(row as Reservation) };
-          return merged;
-        });
-
-        prevStatusRef.current = newStatus;
-        prevPriceRef.current = newPrice;
-      } catch (e) {
-        // ignore polling errors
-      }
-    }, 5000);
     return () => {
-      mounted = false;
-      clearInterval(interval);
+      try {
+        channel.unsubscribe();
+      } catch {
+        /* noop */
+      }
     };
-  }, [fetchReservation, id]);
+  }, [id]);
 
   if (loading) {
     return (
@@ -211,42 +211,41 @@ function SuiviPage() {
 
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
--              to={`/reservation/${reservation.id}`}
-+              to={`/suivi/${reservation.id}`}
-               className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:border-primary"
-             >
-               Voir ma réservation
-             </Link>
-           </div>
-         </div>
+              to={`/suivi/${reservation.id}`}
+              className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:border-primary"
+            >
+              Voir ma réservation
+            </Link>
+          </div>
+        </div>
 
-         <div className="rounded-3xl border border-border bg-card p-6">
-           <div className="flex items-center gap-3 text-sm text-muted-foreground">
-             <MessageCircle className="h-5 w-5 text-primary" />
-             <span className="font-semibold text-slate-100">Chat avec le chauffeur</span>
-           </div>
-           <div className="mt-5 text-sm leading-6 text-muted-foreground">
-             <p>Échangez directement avec votre chauffeur depuis le bas de cette page.</p>
-           </div>
-           <div className="mt-6 rounded-3xl border border-border bg-background p-4" style={{ minHeight: 220 }}>
-             {session ? (
-               <div className="h-[420px] min-h-[420px]">
-                 <DirectChatPanel accountId={session.id} role="client" peerName="José 🚖" />
-               </div>
-             ) : (
-               <div className="space-y-4 text-sm text-muted-foreground">
-                 <p>Connectez-vous pour ouvrir le chat avec votre chauffeur.</p>
-                 <Link
-                   to="/client/login"
-                   className="inline-flex items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
-                 >
-                   Connexion
-                 </Link>
-               </div>
-             )}
-           </div>
-         </div>
-       </div>
-     </div>
-   );
- }
+        <div className="rounded-3xl border border-border bg-card p-6">
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <MessageCircle className="h-5 w-5 text-primary" />
+            <span className="font-semibold text-slate-100">Chat avec le chauffeur</span>
+          </div>
+          <div className="mt-5 text-sm leading-6 text-muted-foreground">
+            <p>Échangez directement avec votre chauffeur depuis le bas de cette page.</p>
+          </div>
+          <div className="mt-6 rounded-3xl border border-border bg-background p-4" style={{ minHeight: 220 }}>
+            {session ? (
+              <div className="h-[420px] min-h-[420px]">
+                <DirectChatPanel accountId={session.id} role="client" peerName="José 🚖" />
+              </div>
+            ) : (
+              <div className="space-y-4 text-sm text-muted-foreground">
+                <p>Connectez-vous pour ouvrir le chat avec votre chauffeur.</p>
+                <Link
+                  to="/client/login"
+                  className="inline-flex items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+                >
+                  Connexion
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
