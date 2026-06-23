@@ -611,7 +611,7 @@ function ClientDashboard() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {chatId && <ChatPanel reservationId={chatId} role="client" peerName="José 🚖" onClose={() => setChatId(null)} />}
+      {chatId && session && <ChatPanel reservationId={chatId} role="client" peerName="José 🚖" onClose={() => setChatId(null)} clientIdentity={{ account_id: session.id, phone: session.phone, email: session.email }} />}
 
       {/* ── Chat général avec José ── */}
       {session && (

@@ -16,6 +16,7 @@ type Props = {
   role: "client" | "chauffeur";
   onClose: () => void;
   peerName?: string;
+  clientIdentity?: { account_id: string; phone?: string | null; email?: string | null };
 };
 
 const PAGE_SIZE = 30;
@@ -28,7 +29,7 @@ const MSG_COLS = "id,reservation_id,sender,content,read_by_client,read_by_chauff
 const OFFLINE_QUEUE_KEY = (rid: string, role: string) => `chat:offline:${role}:${rid}`;
 type OfflineMsg = { tempId: string; content: string; at: number };
 
-export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
+export function ChatPanel({ reservationId, role, onClose, peerName, clientIdentity }: Props) {
   const peerRole = role === "client" ? "chauffeur" : "client";
   const title = peerName || (role === "client" ? "José 🚖" : "Client");
 
@@ -267,13 +268,22 @@ export function ChatPanel({ reservationId, role, onClose, peerName }: Props) {
   const sendOne = useCallback(
     async (content: string) => {
       if (role === "client") {
-        return await sendClientMessage({ data: { reservation_id: reservationId, content } });
+        if (!clientIdentity?.account_id) throw new Error("MISSING_IDENTITY");
+        return await sendClientMessage({
+          data: {
+            reservation_id: reservationId,
+            content,
+            account_id: clientIdentity.account_id,
+            phone: clientIdentity.phone ?? null,
+            email: clientIdentity.email ?? null,
+          },
+        });
       }
       return await sendChauffeurMessage({
         data: { reservation_id: reservationId, content, skip_push: peerOnline },
       });
     },
-    [reservationId, role, peerOnline],
+    [reservationId, role, peerOnline, clientIdentity],
   );
 
   const flushQueue = useCallback(async () => {
