@@ -1506,7 +1506,8 @@ function PlanningTab() {
               style={{ opacity: ["terminee", "completed"].includes(r.status) ? 0.5 : 1 }}
             >
               <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>
-                {r.depart} → {r.destination}
+                <div>📍 {r.depart}</div>
+                <div style={{ color: "#16a34a" }}>🏁 {r.destination}</div>
               </div>
               <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
                 {r.distance_km ? `${r.distance_km} km · ` : ""}
