@@ -56,6 +56,60 @@ messaging.onBackgroundMessage((payload) => {
   });
 });
 
+// ── iOS Safari PWA (≥ 16.4) ────────────────────────────────────────────────
+// Sur iOS, Apple Web Push utilise APNs en dessous et déclenche un "push" event
+// natif dans le SW — Firebase onBackgroundMessage n'est JAMAIS appelé.
+// Ce handler duplique la logique ci-dessus pour iOS.
+// Sur Android/desktop, FCM intercepte avant ce handler → pas de doublon.
+self.addEventListener("push", (event) => {
+  // Si Firebase a déjà traité le message (Android/desktop), il pose un flag
+  // sur l'event. On vérifie aussi si une notif est déjà visible (tag identique).
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch (_) {
+    try {
+      payload = { notification: { title: event.data?.text() } };
+    } catch (_2) {}
+  }
+
+  // Extraire title/body depuis toutes les structures possibles FCM
+  const notif = payload.notification || payload.webpush?.notification || {};
+  const data = payload.data || payload.webpush?.data || {};
+  const title = notif.title || data.title || "🚖 Taxi City Bordeaux";
+  const body = notif.body || data.body || "";
+
+  if (!title && !body) return; // payload vide — laisser Firebase gérer
+
+  const audience = data.audience;
+  const reservationId = data.reservation_id;
+  let defaultUrl = "/";
+  if (audience === "chauffeur") {
+    defaultUrl = "/driver?token=DSF234";
+  } else if (reservationId) {
+    defaultUrl = "/suivi/" + reservationId;
+  }
+  const url = data.url || data.click_action || notif.click_action || defaultUrl;
+  const tag = data.tag || notif.tag || "taxi-fcm";
+
+  event.waitUntil(
+    self.registration.getNotifications({ tag }).then((existing) => {
+      // Si une notif avec ce tag existe déjà, Firebase l'a déjà affichée → skip
+      if (existing.length > 0) return;
+      existing.forEach((n) => n.close());
+      return self.registration.showNotification(title, {
+        body,
+        icon: notif.icon || "/favicon.ico",
+        badge: "/favicon.ico",
+        tag,
+        data: { url, audience, reservation_id: reservationId, ...data },
+        vibrate: [200, 100, 200],
+        requireInteraction: true,
+      });
+    }),
+  );
+});
+
 self.addEventListener("notificationclick", (event) => {
   const notifData = event.notification.data || {};
   let clickDefault = "/";
