@@ -17,6 +17,10 @@ import {
   FileText,
   Download,
   PrinterIcon,
+  CalendarPlus,
+  Share2,
+  WifiOff,
+  Car,
 } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { getReservationForFinPublic } from "@/lib/reservation.functions";
@@ -467,6 +471,31 @@ function getAnonChatId(reservationId: string): string {
   return id;
 }
 
+// ─── Calendrier ICS ──────────────────────────────────────────────────────────────
+function generateICS(reservation: any): string {
+  if (!reservation.pickup_datetime) return "#";
+  const start = new Date(reservation.pickup_datetime);
+  const end = new Date(start.getTime() + 60 * 60 * 1000); // +1h par défaut
+  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Taxi City Bordeaux//FR",
+    "BEGIN:VEVENT",
+    `UID:tcb-${reservation.id}@taxicitybordeaux.fr`,
+    `DTSTAMP:${fmt(new Date())}`,
+    `DTSTART:${fmt(start)}`,
+    `DTEND:${fmt(end)}`,
+    `SUMMARY:🚕 Taxi City Bordeaux`,
+    `DESCRIPTION:Départ : ${reservation.depart}\nArrivée : ${reservation.destination ?? reservation.arrivee ?? ""}`,
+    `LOCATION:${reservation.depart}`,
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+  const blob = new Blob([lines], { type: "text/calendar" });
+  return URL.createObjectURL(blob);
+}
+
 // ─── Facture ──────────────────────────────────────────────────────────────────────
 const PICKUP_FEE = 2.83;
 const RATE_DAY = 2.16;
@@ -843,7 +872,10 @@ function SuiviPage() {
         if (!row) {
           setError("Réservation introuvable");
         } else {
-          setReservation(row as Reservation);
+          const r = row as Reservation;
+          setReservation(r);
+          isCompletedRef.current = r.status === "completed";
+          isCancelledRef.current = r.status === "cancelled";
           if (silent) toast.success("Statut actualisé ✓");
         }
       } catch (e) {
@@ -861,50 +893,103 @@ function SuiviPage() {
     loadReservation(false);
   }, [loadReservation]);
 
-  // Real-time updates
+  // ── Realtime connection state ──
+  const [realtimeOk, setRealtimeOk] = useState(true);
+  const [staleMinutes, setStaleMinutes] = useState(0);
+  const lastUpdateRef = useRef<number>(Date.now());
+  const channelRef = useRef<any>(null);
+
+  const isCompletedRef = useRef(false);
+  const isCancelledRef = useRef(false);
+
+  // Stale reminder: toutes les 5 min sans update on incrémente le compteur
+  useEffect(() => {
+    if (isCompletedRef.current || isCancelledRef.current) return;
+    const staleTimer = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - lastUpdateRef.current) / 60000);
+      setStaleMinutes(elapsed);
+      // Après 8 min sans update, rafraîchissement silencieux auto
+      if (elapsed > 0 && elapsed % 8 === 0) {
+        loadReservation(true);
+      }
+    }, 60000);
+    return () => clearInterval(staleTimer);
+  }, [isCompleted, isCancelled, loadReservation]);
+
+  // ── Real-time updates with auto-reconnect ──
   useEffect(() => {
     if (!id) return;
-    const taxiSupabase = getTaxiSupabase();
-    const channel = taxiSupabase
-      .channel(`reservations:id=eq.${id}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "reservations", filter: `id=eq.${id}` },
-        (payload: any) => {
-          try {
-            const newRow = payload.new as Reservation;
-            if (!newRow) return;
-            const newStatus = newRow.status;
-            const newPrice = newRow.prix_estime;
 
-            setReservation((prev) => {
-              if (prev && prev.status !== newStatus) {
-                if (newStatus === "accepted") toast.success("✅ Votre course a été confirmée !");
-                else if (newStatus === "en_route") toast.success("🚕 Le chauffeur arrive chez vous !");
-                else if (newStatus === "arrived") toast.success("📍 Le chauffeur est devant chez vous !");
-                else if (newStatus === "completed") toast.success("🏁 Course terminée. Merci !");
-              }
-              if (
-                prev &&
-                prev.prix_estime != null &&
-                newPrice != null &&
-                Number(prev.prix_estime) !== Number(newPrice)
-              ) {
-                toast.success("💶 Le prix a été mis à jour.");
-              }
-              return newRow;
-            });
-          } catch (e) {
-            console.error("Real-time update error:", e);
+    let destroyed = false;
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    function subscribe() {
+      if (destroyed) return;
+      const taxiSupabase = getTaxiSupabase();
+      const channel = taxiSupabase
+        .channel(`reservations:id=eq.${id}_${Date.now()}`)
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "reservations", filter: `id=eq.${id}` },
+          (payload: any) => {
+            try {
+              lastUpdateRef.current = Date.now();
+              setStaleMinutes(0);
+              const newRow = payload.new as Reservation;
+              if (!newRow) return;
+              const newStatus = newRow.status;
+              const newPrice = newRow.prix_estime;
+              setReservation((prev) => {
+                if (prev && prev.status !== newStatus) {
+                  if (newStatus === "accepted") toast.success("✅ Votre course a été confirmée !");
+                  else if (newStatus === "en_route") toast.success("🚕 Le chauffeur arrive chez vous !");
+                  else if (newStatus === "arrived") toast.success("📍 Le chauffeur est devant chez vous !");
+                  else if (newStatus === "completed") toast.success("🏁 Course terminée. Merci !");
+                }
+                if (
+                  prev &&
+                  prev.prix_estime != null &&
+                  newPrice != null &&
+                  Number(prev.prix_estime) !== Number(newPrice)
+                ) {
+                  toast.success("💶 Le prix a été mis à jour.");
+                }
+                isCompletedRef.current = newRow.status === "completed";
+                isCancelledRef.current = newRow.status === "cancelled";
+                return newRow;
+              });
+            } catch (e) {
+              console.error("Real-time update error:", e);
+            }
+          },
+        )
+        .subscribe((status: string) => {
+          console.log("[suivi] Realtime status:", status);
+          if (status === "SUBSCRIBED") {
+            setRealtimeOk(true);
+          } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+            setRealtimeOk(false);
+            // Reconnect after 5s
+            if (!destroyed) {
+              retryTimeout = setTimeout(() => {
+                try {
+                  taxiSupabase.removeChannel(channel);
+                } catch {}
+                subscribe();
+              }, 5000);
+            }
           }
-        },
-      )
-      .subscribe((status) => {
-        console.log("[suivi] Realtime status:", status);
-      });
+        });
+      channelRef.current = channel;
+    }
+
+    subscribe();
+
     return () => {
+      destroyed = true;
+      if (retryTimeout) clearTimeout(retryTimeout);
       try {
-        taxiSupabase.removeChannel(channel);
+        getTaxiSupabase().removeChannel(channelRef.current);
       } catch {}
     };
   }, [id]);
@@ -977,6 +1062,63 @@ function SuiviPage() {
           fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         }}
       >
+        {/* Bandeau reconnexion */}
+        {!realtimeOk && (
+          <div
+            style={{
+              marginBottom: "12px",
+              padding: "10px 14px",
+              background: "rgba(239,68,68,0.15)",
+              border: "1px solid rgba(239,68,68,0.3)",
+              borderRadius: "10px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <WifiOff size={14} style={{ color: "#fca5a5", flexShrink: 0 }} />
+            <span style={{ fontSize: "12px", color: "#fca5a5", fontWeight: 600 }}>
+              Connexion interrompue — Reconnexion en cours…
+            </span>
+          </div>
+        )}
+
+        {/* Bandeau page inactive */}
+        {staleMinutes >= 5 && !isCompleted && !isCancelled && (
+          <div
+            style={{
+              marginBottom: "12px",
+              padding: "10px 14px",
+              background: "rgba(245,158,11,0.15)",
+              border: "1px solid rgba(245,158,11,0.3)",
+              borderRadius: "10px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "8px",
+            }}
+          >
+            <span style={{ fontSize: "12px", color: "#fbbf24", fontWeight: 600 }}>
+              ⏱ Page ouverte depuis {staleMinutes} min — statut à jour ?
+            </span>
+            <button
+              onClick={() => loadReservation(true)}
+              style={{
+                fontSize: "11px",
+                fontWeight: 700,
+                color: "#f59e0b",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                textDecoration: "underline",
+                padding: 0,
+              }}
+            >
+              Actualiser
+            </button>
+          </div>
+        )}
+
         {/* Header Premium */}
         <div className="suivi-premium" style={{ marginBottom: "24px" }}>
           <div
@@ -989,6 +1131,68 @@ function SuiviPage() {
               boxShadow: "0 8px 32px rgba(15, 23, 42, 0.1)",
             }}
           >
+            {/* Heure de prise en charge — très visible */}
+            {reservation.pickup_datetime && !isCompleted && (
+              <div
+                style={{
+                  background: "linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)",
+                  borderRadius: "10px",
+                  padding: "10px 14px",
+                  marginBottom: "14px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                }}
+              >
+                <Clock size={18} style={{ color: "#fff", flexShrink: 0 }} />
+                <div>
+                  <div
+                    style={{
+                      fontSize: "10px",
+                      fontWeight: 600,
+                      color: "rgba(255,255,255,0.7)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                    }}
+                  >
+                    Prise en charge
+                  </div>
+                  <div style={{ fontSize: "16px", fontWeight: 800, color: "#fff", lineHeight: 1.2 }}>
+                    {new Date(reservation.pickup_datetime).toLocaleString(locale, {
+                      weekday: "short",
+                      day: "numeric",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      timeZone: "Europe/Paris",
+                    })}
+                  </div>
+                </div>
+                {/* Lien calendrier */}
+                <a
+                  href={generateICS(reservation)}
+                  download={`taxi-bordeaux-${reservation.id.slice(-6)}.ics`}
+                  title="Ajouter au calendrier"
+                  style={{
+                    marginLeft: "auto",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "5px",
+                    padding: "6px 10px",
+                    background: "rgba(255,255,255,0.15)",
+                    borderRadius: "8px",
+                    color: "#fff",
+                    textDecoration: "none",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    flexShrink: 0,
+                  }}
+                >
+                  <CalendarPlus size={13} /> Cal
+                </a>
+              </div>
+            )}
+
             <div
               style={{
                 display: "flex",
@@ -1004,7 +1208,49 @@ function SuiviPage() {
                 <p style={{ fontSize: "12px", color: "#94a3b8", margin: "4px 0 0 0" }}>
                   Réservation #{reservation.id.slice(-8).toUpperCase()}
                 </p>
+                {/* Nom du chauffeur quand acceptée */}
+                {["accepted", "en_route", "arrived"].includes(reservation.status) && reservation.driver_name && (
+                  <div
+                    style={{
+                      marginTop: "8px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "5px 10px",
+                      background: "linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)",
+                      borderRadius: "20px",
+                      border: "1px solid rgba(34,197,94,0.2)",
+                      width: "fit-content",
+                    }}
+                  >
+                    <Car size={12} style={{ color: "#15803d" }} />
+                    <span style={{ fontSize: "12px", fontWeight: 700, color: "#15803d" }}>
+                      {reservation.driver_name} est votre chauffeur
+                    </span>
+                  </div>
+                )}
               </div>
+              {/* Bouton partager */}
+              {typeof navigator !== "undefined" && navigator.share && (
+                <button
+                  onClick={() => navigator.share({ title: "Suivi de ma course", url: window.location.href })}
+                  style={{
+                    background: "rgba(148,163,184,0.1)",
+                    border: "1px solid rgba(148,163,184,0.2)",
+                    borderRadius: "8px",
+                    padding: "6px 8px",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: "#64748b",
+                  }}
+                >
+                  <Share2 size={13} /> Partager
+                </button>
+              )}
             </div>
 
             {/* Timeline */}
@@ -1069,38 +1315,6 @@ function SuiviPage() {
           </div>
         </div>
 
-        {/* Pickup Time */}
-        {reservation.pickup_datetime && (
-          <div
-            className="suivi-premium suivi-card"
-            style={{ marginBottom: "16px", padding: "16px", display: "flex", gap: "12px", alignItems: "center" }}
-          >
-            <Clock size={20} style={{ color: "#15803d", flexShrink: 0 }} />
-            <div>
-              <div
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  color: "#94a3b8",
-                  textTransform: "uppercase",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
-                }}
-              >
-                <span>🕐</span> Horaire
-              </div>
-              <div style={{ fontSize: "13px", fontWeight: 600, color: "#0f172a", marginTop: "2px" }}>
-                {new Date(reservation.pickup_datetime).toLocaleString(locale, {
-                  dateStyle: "short",
-                  timeStyle: "short",
-                  timeZone: "Europe/Paris",
-                })}
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Details Grid */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
           {reservation.nb_passagers != null && (
@@ -1145,6 +1359,13 @@ function SuiviPage() {
                 </div>
               </div>
             )}
+          {reservation.mode_paiement && (
+            <div className="suivi-premium suivi-card" style={{ padding: "14px", textAlign: "center" }}>
+              <CreditCard size={18} style={{ color: "#0ea5e9", margin: "0 auto 6px", display: "block" }} />
+              <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>Paiement</div>
+              <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a" }}>{reservation.mode_paiement}</div>
+            </div>
+          )}
         </div>
 
         {/* Contact Jose */}
@@ -1183,7 +1404,10 @@ function SuiviPage() {
                 }}
               >
                 <Phone size={16} />
-                Appeler José
+                <span style={{ flex: 1 }}>Appeler José</span>
+                <span style={{ fontSize: "12px", opacity: 0.8, fontWeight: 400 }}>
+                  {josePhone.replace(/(\d{2})(?=\d)/g, "$1 ").trim()}
+                </span>
               </a>
               <a
                 href={`https://wa.me/${josePhone.replace(/^0/, "33")}?text=${encodeURIComponent(`Bonjour José`)}`}
