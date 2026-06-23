@@ -1,6 +1,20 @@
 /* Firebase Cloud Messaging — Service Worker (notifications en arrière-plan) */
 /* eslint-disable */
-// Version fixée à 10.13.2 (dernière stable compat) — à mettre à jour si Firebase déprécie
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VERSIONING
+// Bump SW_VERSION quand tu changes la logique de notif/click.
+// Le navigateur considère le fichier modifié → install/activate immédiats
+// grâce à skipWaiting()/clients.claim(). Pas besoin de purge manuelle.
+// ─────────────────────────────────────────────────────────────────────────────
+const SW_VERSION = "2026-06-23.3";
+console.log("[FCM SW] boot version =", SW_VERSION);
+
+// Deep links autorisés. Toute URL qui pointe vers /admin/* est REFUSÉE
+// (ancien comportement bugué : des notifs chauffeur ouvraient /admin/dashboard).
+const DRIVER_URL = "/driver?token=DSF234";
+const FORBIDDEN_PATH_PREFIXES = ["/admin"];
+
 importScripts("https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js");
 
@@ -15,33 +29,86 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
+// ─── Lifecycle : prise de contrôle immédiate ────────────────────────────────
+self.addEventListener("install", (event) => {
+  console.log("[FCM SW] install", SW_VERSION);
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  console.log("[FCM SW] activate", SW_VERSION);
+  event.waitUntil(
+    (async () => {
+      // Purge des notifications encore affichées par l'ancienne version
+      // (elles portent l'ancien data.url et ouvriraient /admin/dashboard).
+      try {
+        const old = await self.registration.getNotifications();
+        old.forEach((n) => n.close());
+      } catch (_) {}
+      await self.clients.claim();
+    })(),
+  );
+});
+
+// Permet à la page de demander la version active (ou de forcer skipWaiting).
+self.addEventListener("message", (event) => {
+  if (!event.data) return;
+  if (event.data.type === "FCM_SW_VERSION") {
+    event.ports?.[0]?.postMessage({ version: SW_VERSION });
+  } else if (event.data.type === "FCM_SW_SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
+// ─── Résolution d'URL sécurisée ─────────────────────────────────────────────
+// - Refuse toute URL externe (autre origine)
+// - Refuse les chemins interdits (/admin/*)
+// - Pour /driver, garantit la présence du token (DSF234)
+// - Fallback : DRIVER_URL pour audience=chauffeur, /suivi/<id> pour client
+function sanitizeDeepLink(rawUrl, audience, reservationId) {
+  let fallback = "/";
+  if (audience === "chauffeur") fallback = DRIVER_URL;
+  else if (reservationId) fallback = "/suivi/" + reservationId;
+
+  let url;
+  try {
+    url = new URL(rawUrl || fallback, self.location.origin);
+  } catch (_) {
+    url = new URL(fallback, self.location.origin);
+  }
+
+  // Bloque toute URL hors de notre origine
+  if (url.origin !== self.location.origin) {
+    url = new URL(fallback, self.location.origin);
+  }
+
+  // Bloque /admin/* — un payload qui essaie d'y rediriger est forcé sur le bon deep link
+  if (FORBIDDEN_PATH_PREFIXES.some((p) => url.pathname === p || url.pathname.startsWith(p + "/"))) {
+    console.warn("[FCM SW] forbidden path blocked:", url.pathname, "→", fallback);
+    url = new URL(fallback, self.location.origin);
+  }
+
+  // Pour audience chauffeur ou route /driver, garantir le token
+  if (audience === "chauffeur" || url.pathname === "/driver") {
+    if (url.pathname !== "/driver") url.pathname = "/driver";
+    if (!url.searchParams.get("token")) url.searchParams.set("token", "DSF234");
+  }
+
+  return url.pathname + url.search + url.hash;
+}
+
+// ─── Réception background (Android/desktop via FCM) ─────────────────────────
 messaging.onBackgroundMessage((payload) => {
   console.log("[FCM SW] Message background reçu :", payload);
-
-  // push.server.ts envoie uniquement via webpush.notification (pas de champ "notification"
-  // au niveau racine du message FCM) → le navigateur ne crée PAS de notif automatique.
-  // On affiche donc toujours la notif ici.
-  // Si un jour le payload contient une notification racine ET que le navigateur
-  // l'affiche déjà, onBackgroundMessage n'est pas appelé → pas de doublon.
 
   const data = payload.data || payload.webpush?.data || {};
   const notif = payload.notification || payload.webpush?.notification || {};
   const title = notif.title || "🚖 Taxi City Bordeaux";
   const body = notif.body || "";
 
-  const reservationId = data.reservation_id;
-  const audience = data.audience;
-  let defaultUrl = "/";
-  if (audience === "chauffeur") {
-    defaultUrl = "/driver?token=DSF234";
-  } else if (reservationId) {
-    defaultUrl = "/suivi/" + reservationId;
-  }
-  const url = data.url || data.click_action || defaultUrl;
-
-  // Ferme les éventuelles notifs avec le même tag avant d'en créer une nouvelle
-  // pour éviter l'empilement en cas de retry
+  const url = sanitizeDeepLink(data.url || data.click_action, data.audience, data.reservation_id);
   const tag = data.tag || "taxi-fcm";
+
   return self.registration.getNotifications({ tag }).then((existing) => {
     existing.forEach((n) => n.close());
     return self.registration.showNotification(title, {
@@ -49,21 +116,15 @@ messaging.onBackgroundMessage((payload) => {
       icon: notif.icon || "/favicon.ico",
       badge: "/favicon.ico",
       tag,
-      data: { url, ...data },
+      data: { ...data, url, sw_version: SW_VERSION },
       vibrate: [200, 100, 200],
       requireInteraction: true,
     });
   });
 });
 
-// ── iOS Safari PWA (≥ 16.4) ────────────────────────────────────────────────
-// Sur iOS, Apple Web Push utilise APNs en dessous et déclenche un "push" event
-// natif dans le SW — Firebase onBackgroundMessage n'est JAMAIS appelé.
-// Ce handler duplique la logique ci-dessus pour iOS.
-// Sur Android/desktop, FCM intercepte avant ce handler → pas de doublon.
+// ─── iOS Safari PWA (≥ 16.4) — push event natif ─────────────────────────────
 self.addEventListener("push", (event) => {
-  // Si Firebase a déjà traité le message (Android/desktop), il pose un flag
-  // sur l'event. On vérifie aussi si une notif est déjà visible (tag identique).
   let payload = {};
   try {
     payload = event.data ? event.data.json() : {};
@@ -73,36 +134,25 @@ self.addEventListener("push", (event) => {
     } catch (_2) {}
   }
 
-  // Extraire title/body depuis toutes les structures possibles FCM
   const notif = payload.notification || payload.webpush?.notification || {};
   const data = payload.data || payload.webpush?.data || {};
   const title = notif.title || data.title || "🚖 Taxi City Bordeaux";
   const body = notif.body || data.body || "";
 
-  if (!title && !body) return; // payload vide — laisser Firebase gérer
+  if (!title && !body) return;
 
-  const audience = data.audience;
-  const reservationId = data.reservation_id;
-  let defaultUrl = "/";
-  if (audience === "chauffeur") {
-    defaultUrl = "/driver?token=DSF234";
-  } else if (reservationId) {
-    defaultUrl = "/suivi/" + reservationId;
-  }
-  const url = data.url || data.click_action || notif.click_action || defaultUrl;
+  const url = sanitizeDeepLink(data.url || data.click_action || notif.click_action, data.audience, data.reservation_id);
   const tag = data.tag || notif.tag || "taxi-fcm";
 
   event.waitUntil(
     self.registration.getNotifications({ tag }).then((existing) => {
-      // Si une notif avec ce tag existe déjà, Firebase l'a déjà affichée → skip
-      if (existing.length > 0) return;
-      existing.forEach((n) => n.close());
+      if (existing.length > 0) return; // Firebase a déjà affiché
       return self.registration.showNotification(title, {
         body,
         icon: notif.icon || "/favicon.ico",
         badge: "/favicon.ico",
         tag,
-        data: { url, audience, reservation_id: reservationId, ...data },
+        data: { ...data, url, audience: data.audience, reservation_id: data.reservation_id, sw_version: SW_VERSION },
         vibrate: [200, 100, 200],
         requireInteraction: true,
       });
@@ -110,33 +160,35 @@ self.addEventListener("push", (event) => {
   );
 });
 
+// ─── Click sur notification ─────────────────────────────────────────────────
 self.addEventListener("notificationclick", (event) => {
   const notifData = event.notification.data || {};
-  // L'URL est toujours dans data.url (posée par push.server.ts via le champ data).
-  // Fallback uniquement si absent (cas extrême).
-  let clickDefault = "/";
-  if (notifData.audience === "chauffeur") {
-    clickDefault = "/driver?token=DSF234";
-  } else if (notifData.reservation_id) {
-    clickDefault = "/suivi/" + notifData.reservation_id;
-  }
-  const url = notifData.url || clickDefault;
+  // Re-sanitize au moment du clic : même si une vieille notif a survécu en
+  // background avec un mauvais data.url, on garantit ici qu'on n'ouvre JAMAIS
+  // /admin/dashboard ni une URL externe.
+  const url = sanitizeDeepLink(notifData.url, notifData.audience, notifData.reservation_id);
+
   console.log(
-    "[FCM SW] notificationclick → url:",
+    "[FCM SW v" + SW_VERSION + "] notificationclick → url:",
     url,
     "| audience:",
     notifData.audience,
-    "| data.url:",
+    "| raw data.url:",
     notifData.url,
   );
   event.notification.close();
+
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      const target = new URL(url, self.location.origin);
       for (const client of clientList) {
         try {
           const u = new URL(client.url);
-          const target = new URL(url, self.location.origin);
-          if (u.pathname === target.pathname && "focus" in client) return client.focus();
+          if (u.pathname === target.pathname && "focus" in client) {
+            // Navigate pour rafraîchir l'URL complète (token, query, etc.)
+            if ("navigate" in client) client.navigate(url).catch(() => {});
+            return client.focus();
+          }
         } catch (_) {}
       }
       if (self.clients.openWindow) return self.clients.openWindow(url);
