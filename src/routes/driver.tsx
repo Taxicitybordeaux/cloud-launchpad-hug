@@ -43,6 +43,7 @@ interface Avis {
 interface ClientAgg {
   id?: string;
   phone: string;
+  email?: string | null;
   name: string;
   nbCourses: number;
   totalDepense: number;
@@ -1695,6 +1696,7 @@ function ClientsTab() {
         byPhone.set(phone, {
           id: idByPhone.get(normalize(phone)),
           phone,
+          email: r.client_email ?? r.email ?? null,
           name: r.client_name || "Client",
           nbCourses: isCompleted ? 1 : 0,
           totalDepense: isCompleted ? (r.prix_estime ?? 0) : 0,
@@ -1711,6 +1713,7 @@ function ClientsTab() {
           existing.derniereDestination = r.destination;
         }
         if (!existing.name || existing.name === "Client") existing.name = r.client_name || existing.name;
+        if (!existing.email && (r.client_email || r.email)) existing.email = r.client_email ?? r.email;
       }
     }
 
@@ -1768,10 +1771,13 @@ function ClientsTab() {
     return normalized.startsWith("33") ? `+${normalized}` : `+${normalized}`;
   };
 
-  const makeVcardHref = (name: string, phone: string) => {
+  const makeVcardHref = (name: string, phone: string, email?: string | null) => {
     const tel = formatE164(phone);
     const safeName = name || "Client";
-    const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${safeName}\nTEL;TYPE=CELL:${tel}\nEND:VCARD`;
+    const lines = [`BEGIN:VCARD`, `VERSION:3.0`, `FN:${safeName}`, `TEL;TYPE=CELL:${tel}`];
+    if (email) lines.push(`EMAIL;TYPE=INTERNET:${email}`);
+    lines.push(`END:VCARD`);
+    const vcard = lines.join(`\n`);
     return `data:text/vcard;charset=utf-8,${encodeURIComponent(vcard)}`;
   };
 
@@ -1783,7 +1789,12 @@ function ClientsTab() {
     );
 
   const filtered = query.trim()
-    ? clients.filter((c) => c.name.toLowerCase().includes(query.toLowerCase()) || c.phone.includes(query))
+    ? clients.filter(
+        (c) =>
+          c.name.toLowerCase().includes(query.toLowerCase()) ||
+          c.phone.includes(query) ||
+          (c.email?.toLowerCase().includes(query.toLowerCase()) ?? false)
+      )
     : clients;
 
   return (
@@ -1821,7 +1832,9 @@ function ClientsTab() {
             <div className="drv-sub" style={{ marginBottom: 6 }}>
               Dernière course : {formatDate(c.derniereCourse)} → {c.derniereDestination}
             </div>
-            <div className="drv-meta" style={{ margin: "8px 0 12px" }}>
+            <div className="drv-meta" style={{ margin: "8px 0 12px", flexDirection: "column", display: "flex", gap: 6 }}>
+              <span>📞 {c.phone}</span>
+              {c.email ? <span>✉ {c.email}</span> : null}
               <span>💶 {c.totalDepense.toFixed(2)} € au total</span>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
@@ -1889,7 +1902,7 @@ function ClientsTab() {
               </a>
             </div>
             <a
-              href={makeVcardHref(c.name, c.phone)}
+              href={makeVcardHref(c.name, c.phone, c.email)}
               download={`${c.name.replace(/[^a-zA-Z0-9]/g, "_") || "client"}.vcf`}
               style={{
                 display: "flex",
