@@ -263,7 +263,7 @@ function AnonChat({ reservationId }: { reservationId: string }) {
     if (!trimmed || !nameSet) return;
     setSending(true);
     try {
-      await (supabase as any).from("direct_messages").insert([
+      const { error } = await (supabase as any).from("direct_messages").insert([
         {
           reservation_id: reservationId,
           anon_id: anonId,
@@ -272,9 +272,18 @@ function AnonChat({ reservationId }: { reservationId: string }) {
           created_at: new Date().toISOString(),
         },
       ]);
+
+      if (error) {
+        console.error("Chat error:", error);
+        toast.error("Erreur d'envoi du message");
+        return;
+      }
+
       setText("");
+      toast.success("Message envoyé");
     } catch (e) {
-      toast.error("Erreur d'envoi");
+      console.error("Send error:", e);
+      toast.error("Erreur de connexion");
     } finally {
       setSending(false);
     }
@@ -429,24 +438,75 @@ function SuiviPage() {
   const [error, setError] = useState<string | null>(null);
   const josePhone = JOSE_PHONE;
 
-  const getReservation = useServerFn(getReservationForFinPublic);
+  const fetchReservation = useServerFn(getReservationForFinPublic);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
-        const res = await getReservation({ reservationId: id });
-        if (!res) {
+        const row = await fetchReservation({ data: { key: id } });
+        if (cancelled) return;
+        if (!row) {
           setError("Réservation introuvable");
         } else {
-          setReservation(res);
+          setReservation(row as Reservation);
         }
-      } catch {
-        setError("Erreur de chargement");
+      } catch (e) {
+        if (!cancelled) {
+          console.error("Fetch error:", e);
+          setError("Erreur de chargement");
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
-  }, [id, getReservation]);
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchReservation, id]);
+
+  // Real-time updates
+  useEffect(() => {
+    if (!id) return;
+    const channel = supabase
+      .channel(`reservations:id=eq.${id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "reservations", filter: `id=eq.${id}` },
+        (payload: any) => {
+          try {
+            const newRow = payload.new as Reservation;
+            if (!newRow) return;
+            const newStatus = newRow.status;
+            const newPrice = newRow.prix_estime;
+
+            if (reservation && reservation.status !== newStatus) {
+              if (newStatus === "accepted") toast.success("✅ Votre course a été confirmée !");
+              else if (newStatus === "en_route") toast.success("🚕 Le chauffeur est en route !");
+              else if (newStatus === "arrived") toast.success("📍 Le chauffeur est arrivé !");
+              else if (newStatus === "completed") toast.success("🏁 Course terminée. Merci !");
+            }
+            if (
+              reservation &&
+              reservation.prix_estime != null &&
+              newPrice != null &&
+              Number(reservation.prix_estime) !== Number(newPrice)
+            ) {
+              toast.success("💶 Le prix a été mis à jour.");
+            }
+            setReservation(newRow);
+          } catch (e) {
+            console.error("Real-time update error:", e);
+          }
+        },
+      )
+      .subscribe();
+    return () => {
+      try {
+        supabase.removeChannel(channel);
+      } catch {}
+    };
+  }, [id, reservation]);
 
   if (loading) {
     return (
@@ -649,22 +709,25 @@ function SuiviPage() {
               </div>
             </div>
           )}
-          {reservation.prix_estime != null && (
-            <div
-              className="suivi-premium suivi-card"
-              style={{
-                padding: "14px",
-                textAlign: "center",
-                background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
-              }}
-            >
-              <CreditCard size={18} style={{ color: "#92400e", margin: "0 auto 6px", display: "block" }} />
-              <div style={{ fontSize: "11px", color: "#92400e", marginBottom: "4px" }}>Tarif estimé</div>
-              <div style={{ fontSize: "16px", fontWeight: 700, color: "#92400e" }}>
-                {new Intl.NumberFormat(locale, { style: "currency", currency: "EUR" }).format(reservation.prix_estime)}
+          {reservation.prix_estime != null &&
+            ["accepted", "en_route", "arrived", "completed"].includes(reservation.status) && (
+              <div
+                className="suivi-premium suivi-card"
+                style={{
+                  padding: "14px",
+                  textAlign: "center",
+                  background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
+                }}
+              >
+                <CreditCard size={18} style={{ color: "#92400e", margin: "0 auto 6px", display: "block" }} />
+                <div style={{ fontSize: "11px", color: "#92400e", marginBottom: "4px" }}>Tarif estimé</div>
+                <div style={{ fontSize: "16px", fontWeight: 700, color: "#92400e" }}>
+                  {new Intl.NumberFormat(locale, { style: "currency", currency: "EUR" }).format(
+                    reservation.prix_estime,
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
         </div>
 
         {/* Contact Jose */}
