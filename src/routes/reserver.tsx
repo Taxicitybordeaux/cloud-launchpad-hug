@@ -1279,7 +1279,7 @@ function ReservationPage() {
         const { data, error } = await supabase
           .from("reservations")
           .select("id", { count: "exact", head: false })
-          .not("status", "in", '("cancelled","refused","completed")')
+          .in("status", ["accepted", "en_route", "arrived"])
           .limit(1);
         if (error) throw error;
         setTaxiAvailable(!data || data.length === 0);
