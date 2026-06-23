@@ -12,7 +12,7 @@ export type PushPayload = {
   data?: Record<string, string | number | boolean | null | undefined>;
 };
 
-export type PushAudience = "admin" | "chauffeur" | "client";
+export type PushAudience = "chauffeur" | "client";
 
 type ServiceAccount = {
   client_email: string;
@@ -164,7 +164,8 @@ async function sendFcmToToken(
           requireInteraction: !!payload.requireInteraction,
           vibrate: [200, 100, 200],
         },
-        fcm_options: { link: clickUrl },
+        // fcm_options.link supprimé : sur Opera/Chrome Android, FCM utilise ce champ
+        // pour naviguer directement sans déclencher notificationclick dans le SW.
       },
       data,
     },
