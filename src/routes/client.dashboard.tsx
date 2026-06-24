@@ -12,7 +12,6 @@ import {
   RotateCw,
   Plus,
   X,
-  Loader2,
   ArrowLeft,
   RotateCcw,
 } from "lucide-react";
@@ -29,6 +28,7 @@ import {
 import { toast } from "sonner";
 import { ClientAuthHeader } from "@/components/ClientAuthHeader";
 import { ClientBottomNav } from "@/components/ClientBottomNav";
+import { BrandLoader } from "@/components/BrandLoader";
 import { ChatPanel } from "@/components/ChatPanel";
 import { DirectChatPanel } from "@/components/DirectChatPanel";
 import { supabase } from "@/integrations/supabase/client";
