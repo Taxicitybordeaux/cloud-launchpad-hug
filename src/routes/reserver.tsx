@@ -1431,6 +1431,7 @@ function ReservationPage() {
           prix_estime: calculerPrixMixteLocal(distanceKm, new Date(pickupIsoFinal).getTime(), dureeS),
           source: "form",
           lang: lang as any,
+          message: f.message.trim() || null,
         })
         .select("id,suivi_id")
         .single();
