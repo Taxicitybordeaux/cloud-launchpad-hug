@@ -169,6 +169,20 @@ function ClientTrajets() {
                     >
                       <Eye className="h-3.5 w-3.5" /> Suivre la course
                     </a>
+                    <button
+                      onClick={() =>
+                        shareRideTracking({
+                          id: r.id,
+                          suivi_id: r.suivi_id,
+                          tracking_id: r.tracking_id,
+                          depart: r.depart,
+                          destination: r.arrivee || r.destination,
+                        })
+                      }
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white hover:bg-white/10"
+                    >
+                      <Share2 className="h-3.5 w-3.5" /> Partager à un proche
+                    </button>
                     <Link
                       to="/client/dashboard"
                       className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white hover:bg-white/10"
