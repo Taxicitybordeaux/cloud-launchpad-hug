@@ -61,6 +61,7 @@ interface FormState {
   nom: string;
   phone: string;
   email: string;
+  message: string;
 }
 
 interface OrsResult {
@@ -852,6 +853,7 @@ function ReservationPage() {
       nom: "",
       phone: "",
       email: "",
+      message: "",
     };
   });
 
