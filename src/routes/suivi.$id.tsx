@@ -506,7 +506,29 @@ const RATE_DAY = 2.16;
 const RATE_NIGHT = 3.24;
 
 function InvoiceBlock({ reservation, locale, t }: { reservation: any; locale: string; t: (k: string) => string }) {
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+
   const handlePrint = () => window.print();
+
+  const handleSendEmail = async () => {
+    const emailAddr =
+      (reservation as any).email || (reservation as any).client_email || window.prompt("Adresse email du client :");
+    if (!emailAddr) return;
+    setEmailSending(true);
+    try {
+      const { error } = await supabase.functions.invoke("send-receipt", {
+        body: { reservation_id: reservation.id, email: emailAddr },
+      });
+      if (error) throw error;
+      setEmailSent(true);
+      toast.success("📧 Reçu envoyé à " + emailAddr);
+    } catch (e: any) {
+      toast.error("Erreur envoi email : " + (e?.message ?? "inconnue"));
+    } finally {
+      setEmailSending(false);
+    }
+  };
 
   const handleDownloadPDF = () => {
     const invoiceWindow = window.open("", "_blank");
@@ -651,47 +673,309 @@ ${reservation.mode_paiement ? `<div class="row"><span class="label">Paiement</sp
       </div>
 
       {/* Boutons */}
-      <div style={{ display: "flex", gap: "8px" }}>
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
         <button
           onClick={handlePrint}
           style={{
             flex: 1,
+            minWidth: 72,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             gap: "6px",
-            padding: "11px 12px",
+            padding: "11px 10px",
             background: "rgba(255,255,255,0.08)",
             color: "#94a3b8",
             border: "1px solid rgba(148,163,184,0.2)",
             borderRadius: "10px",
-            fontSize: "13px",
+            fontSize: "12px",
             fontWeight: 600,
             cursor: "pointer",
           }}
         >
-          <PrinterIcon size={15} /> {t("suivi.print")}
+          <PrinterIcon size={14} /> {t("suivi.print")}
         </button>
         <button
           onClick={handleDownloadPDF}
           style={{
             flex: 1,
+            minWidth: 72,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             gap: "6px",
-            padding: "11px 12px",
+            padding: "11px 10px",
             background: "linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)",
             color: "#fff",
             border: "none",
             borderRadius: "10px",
-            fontSize: "13px",
+            fontSize: "12px",
             fontWeight: 600,
             cursor: "pointer",
             boxShadow: "0 4px 12px rgba(29,78,216,0.3)",
           }}
         >
-          <Download size={15} /> {t("suivi.download_pdf")}
+          <Download size={14} /> {t("suivi.download_pdf")}
+        </button>
+        {/* ── Email ── */}
+        <button
+          onClick={handleSendEmail}
+          disabled={emailSending || emailSent}
+          style={{
+            flex: 1,
+            minWidth: 72,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "6px",
+            padding: "11px 10px",
+            background: emailSent
+              ? "linear-gradient(135deg, #16a34a 0%, #15803d 100%)"
+              : emailSending
+                ? "#cbd5e1"
+                : "linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)",
+            color: "#fff",
+            border: "none",
+            borderRadius: "10px",
+            fontSize: "12px",
+            fontWeight: 600,
+            cursor: emailSending || emailSent ? "not-allowed" : "pointer",
+            boxShadow: emailSent ? "0 4px 12px rgba(22,163,74,0.3)" : "0 4px 12px rgba(14,165,233,0.3)",
+          }}
+        >
+          {emailSending ? (
+            <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+          ) : emailSent ? (
+            <>✓ Envoyé</>
+          ) : (
+            <>📧 Email</>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Course récurrente ─────────────────────────────────────────────────────────
+const DAYS_FR = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+
+function RecurringModal({ reservation, onClose }: { reservation: any; onClose: () => void }) {
+  const [freq, setFreq] = useState<"weekly" | "biweekly" | "monthly">("weekly");
+  const [dayOfWeek, setDayOfWeek] = useState<number>(() => {
+    if (reservation.pickup_datetime) {
+      return new Date(reservation.pickup_datetime).getDay();
+    }
+    return 1;
+  });
+  const [time, setTime] = useState<string>(() => {
+    if (reservation.pickup_datetime) {
+      const d = new Date(reservation.pickup_datetime);
+      return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    }
+    return "08:00";
+  });
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const { error } = await (supabase as any).from("recurring_rides").insert([
+        {
+          source_reservation_id: reservation.id,
+          depart: reservation.depart,
+          destination: reservation.destination ?? reservation.arrivee,
+          nb_passagers: reservation.nb_passagers ?? 1,
+          nb_bagages: reservation.nb_bagages ?? 0,
+          mode_paiement: reservation.mode_paiement ?? "cb",
+          client_name: reservation.client_name,
+          frequency: freq,
+          day_of_week: dayOfWeek,
+          time_hhmm: time,
+          active: true,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+      if (error) throw error;
+      setSaved(true);
+      toast.success("🗓️ Trajet récurrent activé !");
+      setTimeout(onClose, 1800);
+    } catch (e: any) {
+      toast.error("Erreur : " + (e?.message ?? "inconnue"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const freqLabel: Record<string, string> = {
+    weekly: "Chaque semaine",
+    biweekly: "Toutes les 2 sem.",
+    monthly: "Chaque mois",
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.55)",
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "center",
+        zIndex: 9999,
+        backdropFilter: "blur(4px)",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "#fff",
+          borderRadius: "20px 20px 0 0",
+          padding: "24px 20px 40px",
+          width: "100%",
+          maxWidth: 480,
+          boxShadow: "0 -8px 40px rgba(0,0,0,0.18)",
+        }}
+      >
+        <div style={{ width: 40, height: 4, background: "#e2e8f0", borderRadius: 2, margin: "0 auto 20px" }} />
+        <div style={{ fontSize: 16, fontWeight: 800, color: "#0f172a", marginBottom: 4 }}>
+          🗓️ Réserver ce trajet régulièrement
+        </div>
+        <div style={{ fontSize: 13, color: "#64748b", marginBottom: 20 }}>
+          {reservation.depart} → {reservation.destination ?? reservation.arrivee ?? "—"}
+        </div>
+
+        {/* Fréquence */}
+        <div style={{ marginBottom: 16 }}>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#64748b",
+              textTransform: "uppercase" as const,
+              letterSpacing: "0.05em",
+              marginBottom: 8,
+            }}
+          >
+            Fréquence
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {(["weekly", "biweekly", "monthly"] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFreq(f)}
+                style={{
+                  flex: 1,
+                  padding: "10px 4px",
+                  borderRadius: 10,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  border: "2px solid",
+                  borderColor: freq === f ? "#1d4ed8" : "#e2e8f0",
+                  background: freq === f ? "#eff6ff" : "#fff",
+                  color: freq === f ? "#1d4ed8" : "#64748b",
+                  cursor: "pointer",
+                }}
+              >
+                {freqLabel[f]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Jour */}
+        <div style={{ marginBottom: 16 }}>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#64748b",
+              textTransform: "uppercase" as const,
+              letterSpacing: "0.05em",
+              marginBottom: 8,
+            }}
+          >
+            Jour
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
+            {DAYS_FR.map((label, i) => (
+              <button
+                key={i}
+                onClick={() => setDayOfWeek(i)}
+                style={{
+                  padding: "8px 10px",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  border: "2px solid",
+                  borderColor: dayOfWeek === i ? "#1d4ed8" : "#e2e8f0",
+                  background: dayOfWeek === i ? "#eff6ff" : "#fff",
+                  color: dayOfWeek === i ? "#1d4ed8" : "#64748b",
+                  cursor: "pointer",
+                }}
+              >
+                {label.slice(0, 3)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Heure */}
+        <div style={{ marginBottom: 24 }}>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#64748b",
+              textTransform: "uppercase" as const,
+              letterSpacing: "0.05em",
+              marginBottom: 8,
+            }}
+          >
+            Heure de prise en charge
+          </div>
+          <input
+            type="time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "12px 14px",
+              borderRadius: 10,
+              border: "1.5px solid #e2e8f0",
+              fontSize: 16,
+              color: "#0f172a",
+              fontFamily: "inherit",
+              boxSizing: "border-box" as const,
+            }}
+          />
+        </div>
+
+        <button
+          onClick={handleSave}
+          disabled={saving || saved}
+          style={{
+            width: "100%",
+            padding: "15px 16px",
+            background: saved
+              ? "linear-gradient(135deg, #16a34a 0%, #15803d 100%)"
+              : "linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)",
+            color: "#fff",
+            border: "none",
+            borderRadius: 12,
+            fontSize: 15,
+            fontWeight: 800,
+            cursor: saving || saved ? "not-allowed" : "pointer",
+            boxShadow: "0 4px 16px rgba(29,78,216,0.35)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+          }}
+        >
+          {saving ? <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} /> : null}
+          {saved ? "✓ Activé !" : saving ? "Enregistrement…" : "Activer ce trajet récurrent"}
         </button>
       </div>
     </div>
@@ -868,6 +1152,7 @@ function SuiviPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showRecurring, setShowRecurring] = useState(false);
   const josePhone = JOSE_PHONE;
 
   const fetchReservation = useServerFn(getReservationForFinPublic);
@@ -1589,10 +1874,11 @@ function SuiviPage() {
           <>
             <InvoiceBlock reservation={reservation} locale={locale} t={t} />
             <ReviewBlock reservationId={reservation.id} t={t} />
-            {/* Boutons navigation */}
+            {/* Actions post-course */}
             <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
-              <Link
-                to="/reservation"
+              {/* 🔁 Rebooker le même trajet */}
+              <a
+                href={`/reserver?depart=${encodeURIComponent(reservation.depart ?? "")}&destination=${encodeURIComponent(reservation.destination ?? reservation.arrivee ?? "")}&passagers=${reservation.nb_passagers ?? 1}`}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -1608,8 +1894,29 @@ function SuiviPage() {
                   boxShadow: "0 4px 12px rgba(29, 78, 216, 0.3)",
                 }}
               >
-                {t("suivi.rebook")}
-              </Link>
+                🔁 Réserver le même trajet
+              </a>
+              {/* 🗓️ Trajet récurrent */}
+              <button
+                onClick={() => setShowRecurring(true)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  padding: "13px 16px",
+                  background: "linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "10px",
+                  fontWeight: 700,
+                  fontSize: "14px",
+                  cursor: "pointer",
+                  boxShadow: "0 4px 12px rgba(124, 58, 237, 0.3)",
+                }}
+              >
+                <CalendarPlus size={16} /> Réserver ce trajet chaque semaine
+              </button>
               <Link
                 to="/"
                 style={{
@@ -1629,6 +1936,8 @@ function SuiviPage() {
                 {t("suivi.back_home")}
               </Link>
             </div>
+            {/* Modal récurrent */}
+            {showRecurring && <RecurringModal reservation={reservation} onClose={() => setShowRecurring(false)} />}
           </>
         )}
 
