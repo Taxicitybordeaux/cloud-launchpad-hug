@@ -14,7 +14,9 @@ import {
   X,
   ArrowLeft,
   RotateCcw,
+  Share2,
 } from "lucide-react";
+import { shareRideTracking } from "@/lib/share-ride";
 import {
   AlertDialog,
   AlertDialogContent,
