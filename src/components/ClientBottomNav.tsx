@@ -1,16 +1,18 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Home, Car, History, MessageCircle, User } from "lucide-react";
+import { useT } from "@/i18n/I18nProvider";
 
-const tabs = [
-  { to: "/client/dashboard", label: "Accueil", Icon: Home },
-  { to: "/client/trajets", label: "Trajets", Icon: Car },
-  { to: "/client/historique", label: "Historique", Icon: History },
-  { to: "/client/chat", label: "Chat", Icon: MessageCircle },
-  { to: "/client/profil", label: "Profil", Icon: User },
+const TABS = [
+  { to: "/client/dashboard", key: "nav.client.home", Icon: Home },
+  { to: "/client/trajets", key: "nav.client.trajets", Icon: Car },
+  { to: "/client/historique", key: "nav.client.historique", Icon: History },
+  { to: "/client/chat", key: "nav.client.chat", Icon: MessageCircle },
+  { to: "/client/profil", key: "nav.client.profil", Icon: User },
 ] as const;
 
 export function ClientBottomNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const t = useT();
 
   return (
     <>
@@ -24,7 +26,7 @@ export function ClientBottomNav() {
         }}
       >
         <ul className="mx-auto flex max-w-3xl items-stretch justify-around px-2 py-1.5">
-          {tabs.map(({ to, label, Icon }) => {
+          {TABS.map(({ to, key, Icon }) => {
             const active = pathname === to;
             return (
               <li key={to} className="flex-1">
@@ -40,7 +42,7 @@ export function ClientBottomNav() {
                     className="text-[10px] font-semibold uppercase tracking-wider"
                     style={{ letterSpacing: "0.08em" }}
                   >
-                    {label}
+                    {t(key)}
                   </span>
                   {active && (
                     <span

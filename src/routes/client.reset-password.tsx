@@ -4,6 +4,7 @@ import { Lock, Eye, EyeOff, CheckCircle2, AlertTriangle } from "lucide-react";
 import { ClientAuthHeader } from "@/components/ClientAuthHeader";
 import { BrandLoader } from "@/components/BrandLoader";
 import { clientPerformPasswordReset } from "@/lib/client-auth-reset.functions";
+import { useT } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/client/reset-password")({
   head: () => ({
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/client/reset-password")({
 
 function ResetPasswordPage() {
   const navigate = useNavigate();
+  const t = useT();
   const [token, setToken] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -28,24 +30,24 @@ function ResetPasswordPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    const t = params.get("token");
-    if (!t) {
-      setError("Lien invalide ou expiré.");
+    const tk = params.get("token");
+    if (!tk) {
+      setError(t("client.reset.invalid_link"));
       return;
     }
-    setToken(t);
-  }, []);
+    setToken(tk);
+  }, [t]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     if (!token) return;
     if (password.length < 6) {
-      setError("Mot de passe : 6 caractères minimum");
+      setError(t("client.login.err_pwd_short"));
       return;
     }
     if (password !== confirm) {
-      setError("Les deux mots de passe ne correspondent pas");
+      setError(t("client.reset.err_mismatch"));
       return;
     }
     setLoading(true);
@@ -55,9 +57,9 @@ function ResetPasswordPage() {
       setTimeout(() => navigate({ to: "/client/login" }), 2500);
     } catch (err) {
       const raw = String((err as Error)?.message || err);
-      if (raw.includes("EXPIRED_TOKEN")) setError("Ce lien a expiré. Demandez-en un nouveau.");
-      else if (raw.includes("INVALID_TOKEN")) setError("Lien invalide ou déjà utilisé.");
-      else setError("Une erreur est survenue. Réessayez.");
+      if (raw.includes("EXPIRED_TOKEN")) setError(t("client.reset.err_expired"));
+      else if (raw.includes("INVALID_TOKEN")) setError(t("client.reset.err_invalid_used"));
+      else setError(t("client.login.err_generic"));
     } finally {
       setLoading(false);
     }
@@ -91,9 +93,9 @@ function ResetPasswordPage() {
                 <CheckCircle2 className="h-7 w-7 text-green-400" />
               </div>
               <h1 className="text-xl font-bold text-white" style={{ fontFamily: "'Syne', 'Playfair Display', serif" }}>
-                Mot de passe mis à jour
+                {t("client.reset.done_title")}
               </h1>
-              <p className="mt-3 text-sm text-white/70">Redirection vers la connexion…</p>
+              <p className="mt-3 text-sm text-white/70">{t("client.reset.done_desc")}</p>
             </div>
           ) : !token && error ? (
             <div className="text-center">
@@ -101,14 +103,14 @@ function ResetPasswordPage() {
                 <AlertTriangle className="h-7 w-7 text-red-300" />
               </div>
               <h1 className="text-xl font-bold text-white" style={{ fontFamily: "'Syne', 'Playfair Display', serif" }}>
-                Lien invalide
+                {t("client.reset.invalid_title")}
               </h1>
               <p className="mt-3 text-sm text-white/70">{error}</p>
               <Link
                 to="/client/forgot-password"
                 className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#C9A84C]/40 bg-[#C9A84C]/10 px-4 py-3 text-sm font-semibold text-[#E8C96D]"
               >
-                Demander un nouveau lien
+                {t("client.reset.request_new")}
               </Link>
             </div>
           ) : (
@@ -117,10 +119,10 @@ function ResetPasswordPage() {
                 className="text-center text-2xl font-bold text-white sm:text-3xl"
                 style={{ fontFamily: "'Syne', 'Playfair Display', serif" }}
               >
-                Nouveau mot de passe
+                {t("client.reset.title")}
               </h1>
               <p className="mt-2 text-center text-sm text-white/60">
-                Choisissez un mot de passe d'au moins 6 caractères.
+                {t("client.reset.desc")}
               </p>
               <form onSubmit={onSubmit} className="mt-6 space-y-3.5">
                 <Field>
@@ -128,14 +130,14 @@ function ResetPasswordPage() {
                   <input
                     type={showPwd ? "text" : "password"}
                     autoComplete="new-password"
-                    placeholder="Nouveau mot de passe"
+                    placeholder={t("client.reset.pwd_ph")}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full bg-transparent text-white placeholder:text-white/40 focus:outline-none"
                   />
                   <button
                     type="button"
-                    aria-label={showPwd ? "Masquer" : "Afficher"}
+                    aria-label={showPwd ? t("client.login.hide") : t("client.login.show")}
                     onClick={() => setShowPwd((v) => !v)}
                     className="ml-2 text-white/50 hover:text-white"
                   >
@@ -147,7 +149,7 @@ function ResetPasswordPage() {
                   <input
                     type={showPwd ? "text" : "password"}
                     autoComplete="new-password"
-                    placeholder="Confirmer le mot de passe"
+                    placeholder={t("client.reset.pwd_confirm_ph")}
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
                     className="w-full bg-transparent text-white placeholder:text-white/40 focus:outline-none"
@@ -177,7 +179,7 @@ function ResetPasswordPage() {
                     boxShadow: "0 10px 30px -10px rgba(201,168,76,0.5)",
                   }}
                 >
-                  {loading ? <BrandLoader size={22} /> : "Valider le nouveau mot de passe"}
+                  {loading ? <BrandLoader size={22} /> : t("client.reset.submit")}
                 </button>
               </form>
             </>

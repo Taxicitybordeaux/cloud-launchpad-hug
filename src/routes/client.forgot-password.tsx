@@ -4,6 +4,7 @@ import { Mail, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { ClientAuthHeader } from "@/components/ClientAuthHeader";
 import { BrandLoader } from "@/components/BrandLoader";
 import { clientRequestPasswordReset } from "@/lib/client-auth-reset.functions";
+import { useT } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/client/forgot-password")({
   head: () => ({
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/client/forgot-password")({
 
 function ForgotPasswordPage() {
   const navigate = useNavigate();
+  const t = useT();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -26,7 +28,7 @@ function ForgotPasswordPage() {
     e.preventDefault();
     setError(null);
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
-      setError("Email invalide");
+      setError(t("client.login.err_email_invalid"));
       return;
     }
     setLoading(true);
@@ -34,7 +36,7 @@ function ForgotPasswordPage() {
       await clientRequestPasswordReset({ data: { email: email.trim() } });
       setSent(true);
     } catch {
-      setError("Une erreur est survenue. Réessayez.");
+      setError(t("client.login.err_generic"));
     } finally {
       setLoading(false);
     }
@@ -68,10 +70,10 @@ function ForgotPasswordPage() {
                 className="text-center text-2xl font-bold text-white sm:text-3xl"
                 style={{ fontFamily: "'Syne', 'Playfair Display', serif" }}
               >
-                Mot de passe oublié ?
+                {t("client.forgot.title")}
               </h1>
               <p className="mt-2 text-center text-sm text-white/60">
-                Indiquez votre email — nous vous envoyons un lien sécurisé pour choisir un nouveau mot de passe.
+                {t("client.forgot.desc")}
               </p>
               <form onSubmit={onSubmit} className="mt-6 space-y-3.5">
                 <label
@@ -113,7 +115,7 @@ function ForgotPasswordPage() {
                     boxShadow: "0 10px 30px -10px rgba(201,168,76,0.5)",
                   }}
                 >
-                  {loading ? <BrandLoader size={22} /> : "Envoyer le lien de réinitialisation"}
+                  {loading ? <BrandLoader size={22} /> : t("client.forgot.send")}
                 </button>
               </form>
             </>
@@ -123,17 +125,17 @@ function ForgotPasswordPage() {
                 <CheckCircle2 className="h-7 w-7 text-[#E8C96D]" />
               </div>
               <h1 className="text-xl font-bold text-white" style={{ fontFamily: "'Syne', 'Playfair Display', serif" }}>
-                Email envoyé
+                {t("client.forgot.sent_title")}
               </h1>
               <p className="mt-3 text-sm text-white/70">
-                Si un compte existe pour <span className="text-[#E8C96D]">{email}</span>, vous recevrez sous peu un email contenant un lien sécurisé (valable 30 minutes).
+                {t("client.forgot.sent_desc")} <span className="text-[#E8C96D]">{email}</span>
               </p>
-              <p className="mt-2 text-xs text-white/50">Pensez à vérifier votre dossier spam.</p>
+              <p className="mt-2 text-xs text-white/50">{t("client.forgot.sent_spam")}</p>
               <button
                 onClick={() => navigate({ to: "/client/login" })}
                 className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#C9A84C]/40 bg-[#C9A84C]/10 px-4 py-3 text-sm font-semibold text-[#E8C96D]"
               >
-                Retour à la connexion
+                {t("client.forgot.back_login")}
               </button>
             </div>
           )}
@@ -142,7 +144,7 @@ function ForgotPasswordPage() {
           to="/client/login"
           className="mt-6 inline-flex items-center gap-1.5 text-xs text-white/60 hover:text-white"
         >
-          <ArrowLeft className="h-3 w-3" /> Retour
+          <ArrowLeft className="h-3 w-3" /> {t("client.forgot.back")}
         </Link>
       </div>
     </main>

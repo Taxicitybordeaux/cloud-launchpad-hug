@@ -38,13 +38,13 @@ function ClientLoginPage() {
   }, [navigate]);
 
   function validate(): string | null {
-    if (!email.trim()) return "Email requis";
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) return "Email invalide";
-    if (!password) return "Mot de passe requis";
-    if (password.length < 6) return "Mot de passe : 6 caractères minimum";
+    if (!email.trim()) return t("client.login.err_email_req");
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) return t("client.login.err_email_invalid");
+    if (!password) return t("client.login.err_pwd_req");
+    if (password.length < 6) return t("client.login.err_pwd_short");
     if (mode === "register") {
-      if (!name.trim()) return "Nom requis";
-      if (!phone.trim() || phone.trim().length < 6) return "Téléphone requis";
+      if (!name.trim()) return t("client.login.err_name_req");
+      if (!phone.trim() || phone.trim().length < 6) return t("client.login.err_phone_req");
     }
     return null;
   }
@@ -63,10 +63,10 @@ function ClientLoginPage() {
       navigate({ to: "/client/dashboard" });
     } catch (err) {
       const raw = String((err as Error)?.message || err);
-      if (raw.includes("EMAIL_TAKEN")) setError("Cet email est déjà utilisé. Connectez-vous.");
-      else if (raw.includes("INVALID_CREDENTIALS")) setError("Email ou mot de passe incorrect");
-      else if (raw.includes("CREATE_FAILED")) setError("Création impossible. Réessayez.");
-      else setError("Une erreur est survenue. Réessayez.");
+      if (raw.includes("EMAIL_TAKEN")) setError(t("client.login.err_email_taken"));
+      else if (raw.includes("INVALID_CREDENTIALS")) setError(t("client.login.err_credentials"));
+      else if (raw.includes("CREATE_FAILED")) setError(t("client.login.err_create"));
+      else setError(t("client.login.err_generic"));
     } finally {
       setLoading(false);
     }
@@ -161,7 +161,7 @@ function ClientLoginPage() {
               />
               <button
                 type="button"
-                aria-label={showPwd ? "Masquer" : "Afficher"}
+                aria-label={showPwd ? t("client.login.hide") : t("client.login.show")}
                 onClick={() => setShowPwd((v) => !v)}
                 className="ml-2 text-white/50 transition hover:text-white"
               >
@@ -199,7 +199,7 @@ function ClientLoginPage() {
               to="/client/forgot-password"
               className="mt-4 block text-center text-xs text-white/60 transition hover:text-[#E8C96D]"
             >
-              Mot de passe oublié ?
+              {t("client.login.forgot")}
             </Link>
           )}
 
@@ -217,8 +217,8 @@ function ClientLoginPage() {
         </div>
 
         <p className="mt-6 text-center text-xs text-white/40">
-          En vous connectant vous acceptez nos{" "}
-          <Link to="/mentions-legales" className="underline hover:text-white/70">conditions</Link>.
+          {t("client.login.terms_prefix")}{" "}
+          <Link to="/mentions-legales" className="underline hover:text-white/70">{t("client.login.terms_link")}</Link>.
         </p>
       </div>
     </main>

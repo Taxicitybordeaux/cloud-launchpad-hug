@@ -4,6 +4,7 @@ import { ClientBottomNav } from "@/components/ClientBottomNav";
 import { DirectChatPanel } from "@/components/DirectChatPanel";
 import { getClientSession } from "@/lib/client-session";
 import type { ClientSession } from "@/lib/client-auth.functions";
+import { useT } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/client/chat")({
   head: () => ({
@@ -14,6 +15,7 @@ export const Route = createFileRoute("/client/chat")({
 
 function ClientChatPage() {
   const navigate = useNavigate();
+  const t = useT();
   const [session, setSession] = useState<ClientSession | null>(null);
 
   useEffect(() => {
@@ -34,14 +36,14 @@ function ClientChatPage() {
     >
       <div className="mx-auto w-full max-w-3xl">
         <div className="mb-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-[#E8C96D]">Espace client</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-[#E8C96D]">{t("client.eyebrow")}</p>
           <h1
             className="mt-1 text-2xl font-bold text-white sm:text-3xl"
             style={{ fontFamily: "'Syne', 'Playfair Display', serif" }}
           >
-            Chat Taxi
+            {t("client.chat.title")}
           </h1>
-          <p className="mt-1 text-xs text-white/50">Discutez directement avec José 🚖</p>
+          <p className="mt-1 text-xs text-white/50">{t("client.chat.subtitle")}</p>
         </div>
         <div
           className="flex flex-col overflow-hidden rounded-2xl border border-white/10"
