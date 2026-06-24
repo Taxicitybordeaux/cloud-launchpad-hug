@@ -876,9 +876,7 @@ function RecurringModal({ reservation, onClose }: { reservation: any; onClose: (
         }}
       >
         <div style={{ width: 40, height: 4, background: "#e2e8f0", borderRadius: 2, margin: "0 auto 20px" }} />
-        <div style={{ fontSize: 16, fontWeight: 800, color: "#0f172a", marginBottom: 4 }}>
-          {t("suivi.rec_title")}
-        </div>
+        <div style={{ fontSize: 16, fontWeight: 800, color: "#0f172a", marginBottom: 4 }}>{t("suivi.rec_title")}</div>
         <div style={{ fontSize: 13, color: "#64748b", marginBottom: 20 }}>
           {reservation.depart} → {reservation.destination ?? reservation.arrivee ?? "—"}
         </div>
@@ -1406,6 +1404,21 @@ function SuiviPage() {
   useEffect(() => {
     loadReservation(false);
   }, [loadReservation]);
+
+  // ── Tracking analytics — log l'ouverture du lien de suivi ──
+  useEffect(() => {
+    if (!id) return;
+    const src = new URLSearchParams(window.location.search).get("src") ?? "direct";
+    (supabase as any)
+      .from("tracking_events")
+      .insert({
+        reservation_id: id,
+        event_type: "tracking_opened",
+        source: src,
+        user_agent: navigator.userAgent.slice(0, 200),
+      })
+      .then(() => {}); // fire & forget
+  }, [id]);
 
   // ── Realtime connection state ──
   const [realtimeOk, setRealtimeOk] = useState(true);
