@@ -23,8 +23,12 @@ import { Route as SuiviIdRouteImport } from './routes/suivi.$id'
 import { Route as ReservationIdRouteImport } from './routes/reservation.$id'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as CourseIdRouteImport } from './routes/course.$id'
+import { Route as ClientTrajetsRouteImport } from './routes/client.trajets'
+import { Route as ClientProfilRouteImport } from './routes/client.profil'
 import { Route as ClientLoginRouteImport } from './routes/client.login'
+import { Route as ClientHistoriqueRouteImport } from './routes/client.historique'
 import { Route as ClientDashboardRouteImport } from './routes/client.dashboard'
+import { Route as ClientChatRouteImport } from './routes/client.chat'
 import { Route as ApiManifestRouteImport } from './routes/api/manifest'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as ApiPublicNotifyReservationClientRouteImport } from './routes/api/public/notify-reservation-client'
@@ -108,14 +112,34 @@ const CourseIdRoute = CourseIdRouteImport.update({
   path: '/course/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ClientTrajetsRoute = ClientTrajetsRouteImport.update({
+  id: '/client/trajets',
+  path: '/client/trajets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClientProfilRoute = ClientProfilRouteImport.update({
+  id: '/client/profil',
+  path: '/client/profil',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ClientLoginRoute = ClientLoginRouteImport.update({
   id: '/client/login',
   path: '/client/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ClientHistoriqueRoute = ClientHistoriqueRouteImport.update({
+  id: '/client/historique',
+  path: '/client/historique',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ClientDashboardRoute = ClientDashboardRouteImport.update({
   id: '/client/dashboard',
   path: '/client/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClientChatRoute = ClientChatRouteImport.update({
+  id: '/client/chat',
+  path: '/client/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiManifestRoute = ApiManifestRouteImport.update({
@@ -196,8 +220,12 @@ export interface FileRoutesByFullPath {
   '/services': typeof ServicesRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/manifest': typeof ApiManifestRoute
+  '/client/chat': typeof ClientChatRoute
   '/client/dashboard': typeof ClientDashboardRoute
+  '/client/historique': typeof ClientHistoriqueRoute
   '/client/login': typeof ClientLoginRoute
+  '/client/profil': typeof ClientProfilRoute
+  '/client/trajets': typeof ClientTrajetsRoute
   '/course/$id': typeof CourseIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
@@ -226,8 +254,12 @@ export interface FileRoutesByTo {
   '/services': typeof ServicesRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/manifest': typeof ApiManifestRoute
+  '/client/chat': typeof ClientChatRoute
   '/client/dashboard': typeof ClientDashboardRoute
+  '/client/historique': typeof ClientHistoriqueRoute
   '/client/login': typeof ClientLoginRoute
+  '/client/profil': typeof ClientProfilRoute
+  '/client/trajets': typeof ClientTrajetsRoute
   '/course/$id': typeof CourseIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
@@ -257,8 +289,12 @@ export interface FileRoutesById {
   '/services': typeof ServicesRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/api/manifest': typeof ApiManifestRoute
+  '/client/chat': typeof ClientChatRoute
   '/client/dashboard': typeof ClientDashboardRoute
+  '/client/historique': typeof ClientHistoriqueRoute
   '/client/login': typeof ClientLoginRoute
+  '/client/profil': typeof ClientProfilRoute
+  '/client/trajets': typeof ClientTrajetsRoute
   '/course/$id': typeof CourseIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/reservation/$id': typeof ReservationIdRoute
@@ -289,8 +325,12 @@ export interface FileRouteTypes {
     | '/services'
     | '/sitemap.xml'
     | '/api/manifest'
+    | '/client/chat'
     | '/client/dashboard'
+    | '/client/historique'
     | '/client/login'
+    | '/client/profil'
+    | '/client/trajets'
     | '/course/$id'
     | '/email/unsubscribe'
     | '/reservation/$id'
@@ -319,8 +359,12 @@ export interface FileRouteTypes {
     | '/services'
     | '/sitemap.xml'
     | '/api/manifest'
+    | '/client/chat'
     | '/client/dashboard'
+    | '/client/historique'
     | '/client/login'
+    | '/client/profil'
+    | '/client/trajets'
     | '/course/$id'
     | '/email/unsubscribe'
     | '/reservation/$id'
@@ -349,8 +393,12 @@ export interface FileRouteTypes {
     | '/services'
     | '/sitemap.xml'
     | '/api/manifest'
+    | '/client/chat'
     | '/client/dashboard'
+    | '/client/historique'
     | '/client/login'
+    | '/client/profil'
+    | '/client/trajets'
     | '/course/$id'
     | '/email/unsubscribe'
     | '/reservation/$id'
@@ -380,8 +428,12 @@ export interface RootRouteChildren {
   ServicesRoute: typeof ServicesRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ApiManifestRoute: typeof ApiManifestRoute
+  ClientChatRoute: typeof ClientChatRoute
   ClientDashboardRoute: typeof ClientDashboardRoute
+  ClientHistoriqueRoute: typeof ClientHistoriqueRoute
   ClientLoginRoute: typeof ClientLoginRoute
+  ClientProfilRoute: typeof ClientProfilRoute
+  ClientTrajetsRoute: typeof ClientTrajetsRoute
   CourseIdRoute: typeof CourseIdRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   SuiviIdRoute: typeof SuiviIdRoute
@@ -498,6 +550,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CourseIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/client/trajets': {
+      id: '/client/trajets'
+      path: '/client/trajets'
+      fullPath: '/client/trajets'
+      preLoaderRoute: typeof ClientTrajetsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/client/profil': {
+      id: '/client/profil'
+      path: '/client/profil'
+      fullPath: '/client/profil'
+      preLoaderRoute: typeof ClientProfilRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/client/login': {
       id: '/client/login'
       path: '/client/login'
@@ -505,11 +571,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClientLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/client/historique': {
+      id: '/client/historique'
+      path: '/client/historique'
+      fullPath: '/client/historique'
+      preLoaderRoute: typeof ClientHistoriqueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/client/dashboard': {
       id: '/client/dashboard'
       path: '/client/dashboard'
       fullPath: '/client/dashboard'
       preLoaderRoute: typeof ClientDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/client/chat': {
+      id: '/client/chat'
+      path: '/client/chat'
+      fullPath: '/client/chat'
+      preLoaderRoute: typeof ClientChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/manifest': {
@@ -623,8 +703,12 @@ const rootRouteChildren: RootRouteChildren = {
   ServicesRoute: ServicesRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   ApiManifestRoute: ApiManifestRoute,
+  ClientChatRoute: ClientChatRoute,
   ClientDashboardRoute: ClientDashboardRoute,
+  ClientHistoriqueRoute: ClientHistoriqueRoute,
   ClientLoginRoute: ClientLoginRoute,
+  ClientProfilRoute: ClientProfilRoute,
+  ClientTrajetsRoute: ClientTrajetsRoute,
   CourseIdRoute: CourseIdRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   SuiviIdRoute: SuiviIdRoute,
