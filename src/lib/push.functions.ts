@@ -109,7 +109,7 @@ export const notifyNewReservation = createServerFn({ method: "POST" })
     const { data: r, error: fetchErr } = await supabaseAdmin
       .from("reservations")
       .select(
-        "id, nom, client_name, client_phone, telephone, client_email, email, depart, arrivee, destination, pickup_datetime, nb_passagers, passagers, bagages, service_type",
+        "id, nom, client_name, client_phone, telephone, client_email, email, depart, arrivee, destination, pickup_datetime, nb_passagers, passagers, bagages, service_type, suivi_id, lang",
       )
       .eq("id", data.reservation_id)
       .maybeSingle();
@@ -179,7 +179,57 @@ export const notifyNewReservation = createServerFn({ method: "POST" })
       console.error("[notifyNewReservation] email fetch threw", e);
     }
 
-    return { chauffeur: chauffeurResult, emailSent };
+    // ── Email de confirmation au CLIENT (avec son lien de suivi) ─────────────
+    let clientEmailSent = false;
+    const clientEmail = r.client_email || r.email || "";
+    if (clientEmail) {
+      try {
+        const { serviceKey } = getTaxiSupabaseConfig();
+
+        const clientEmailPayload = {
+          templateName: "reservation-client-confirmation",
+          recipientEmail: clientEmail,
+          idempotencyKey: `new-res-client-${r.id}`,
+          templateData: {
+            lang: (r as any).lang || "fr",
+            nom: clientName,
+            pickup_datetime: r.pickup_datetime ?? "",
+            depart: r.depart,
+            arrivee: r.arrivee || r.destination || "—",
+            passagers: r.nb_passagers || r.passagers || 1,
+            bagages: r.bagages ?? 0,
+            reservation_id: r.id,
+            suivi_url: `${APP_URL}/suivi/${(r as any).suivi_id || r.id}`,
+          },
+        };
+
+        console.log(
+          "[notifyNewReservation] sending client confirmation email via bridge →",
+          `${APP_URL}/lovable/email/transactional/send`,
+        );
+        const clientRes = await fetch(`${APP_URL}/lovable/email/transactional/send`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(serviceKey ? { Authorization: `Bearer ${serviceKey}` } : {}),
+          },
+          body: JSON.stringify(clientEmailPayload),
+        });
+        clientEmailSent = clientRes.ok;
+        if (!clientRes.ok) {
+          const errBody = await clientRes.text().catch(() => "");
+          console.error("[notifyNewReservation] client email bridge failed", clientRes.status, errBody);
+        } else {
+          console.log("[notifyNewReservation] client email queued ok");
+        }
+      } catch (e) {
+        console.error("[notifyNewReservation] client email fetch threw", e);
+      }
+    } else {
+      console.warn("[notifyNewReservation] no client email on reservation", r.id);
+    }
+
+    return { chauffeur: chauffeurResult, emailSent, clientEmailSent };
   });
 
 // Compute ETA in minutes from driver's current GPS to the pickup address
