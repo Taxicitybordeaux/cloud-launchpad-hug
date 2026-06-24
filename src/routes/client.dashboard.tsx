@@ -380,6 +380,9 @@ function ClientDashboard() {
           );
         })()}
 
+        {/* Push notifications opt-in */}
+        <ClientPushOptInCard />
+
         {/* Liste */}
         <section>
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-white/60">{t("client_my_rides")}</h2>
