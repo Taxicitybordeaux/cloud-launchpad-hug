@@ -316,11 +316,11 @@ export async function sendPushToAudience(
         // réveillé). On applique le même délai de grâce que pour les 400 : on ne
         // supprime que si le device n'a pas donné signe de vie depuis longtemps.
         const lastSeen = sub.last_seen_at ? new Date(sub.last_seen_at).getTime() : 0;
-        const gracePeriodAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const gracePeriodAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
         if (lastSeen < gracePeriodAgo) {
           toRemove.push(sub.id);
         } else {
-          console.warn("[push] FCM UNREGISTERED/404 — token conservé (délai de grâce 7j)", sub.id);
+          console.warn("[push] FCM UNREGISTERED/404 — token conservé (délai de grâce 30j)", sub.id);
         }
       } else if (r.status === 400 || r.errorCode === "INVALID_ARGUMENT") {
         // 400/INVALID_ARGUMENT = device en arrière-plan depuis longtemps ou token
