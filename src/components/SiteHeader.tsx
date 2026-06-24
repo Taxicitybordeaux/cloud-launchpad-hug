@@ -1,11 +1,10 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Phone, Menu, X, UserCircle2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Phone, Menu, X } from "lucide-react";
+import { useState } from "react";
 import logo from "@/assets/logo.jpeg";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useT } from "@/i18n/I18nProvider";
-import { getClientSession } from "@/lib/client-session";
 
 const PHONE = "0673072322";
 const PHONE_DISPLAY = "06 73 07 23 22";
@@ -15,13 +14,6 @@ export function SiteHeader() {
   const location = useLocation();
   const [open, setOpen] = useState(false);
   if (location.pathname === "/driver") return null;
-  // Session-aware "Mon espace" — si déjà connecté on saute /client/login.
-  // Hydraté côté client uniquement pour rester SSR-safe.
-  const [hasSession, setHasSession] = useState(false);
-  useEffect(() => {
-    setHasSession(!!getClientSession());
-  }, []);
-  const espaceTarget = hasSession ? "/client/dashboard" : "/client/login";
 
   const links = [
     { to: "/", label: t("nav.home") },
@@ -49,7 +41,6 @@ export function SiteHeader() {
             fetchPriority="high"
             className="site-header-logo-img rounded-md"
           />
-
           <span className="sr-only">Taxi City Bordeaux</span>
         </Link>
 
@@ -70,12 +61,6 @@ export function SiteHeader() {
         <div className="hidden items-center gap-2 md:flex">
           <ThemeToggle />
           <LanguageSwitcher />
-          <Link
-            to={espaceTarget}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground/80 transition hover:border-primary hover:text-primary"
-          >
-            <UserCircle2 className="h-4 w-4" /> {t("nav.account")}
-          </Link>
           <a
             href={`tel:${PHONE}`}
             className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-semibold transition hover:border-primary"
@@ -90,9 +75,7 @@ export function SiteHeader() {
           </Link>
         </div>
 
-        {/* Mobile right side: phone shortcut + theme + burger */}
         <div className="site-header-mobile-actions flex min-w-0 shrink-0 items-center gap-1.5 md:hidden">
-          {/* Quick-call button always visible on mobile — most important action */}
           <a
             href={`tel:${PHONE}`}
             aria-label="Appeler"
@@ -129,13 +112,6 @@ export function SiteHeader() {
               </Link>
             ))}
             <div className="mt-4 mb-3 flex flex-col gap-2.5">
-              <Link
-                to={espaceTarget}
-                onClick={() => setOpen(false)}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-3 text-base font-semibold"
-              >
-                <UserCircle2 className="h-5 w-5 text-primary" /> {t("nav.account_long")}
-              </Link>
               <a
                 href={`tel:${PHONE}`}
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-3 text-base font-semibold"
