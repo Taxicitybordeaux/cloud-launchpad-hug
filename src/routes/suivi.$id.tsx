@@ -1810,7 +1810,7 @@ function SuiviPage() {
             </div>
 
             {/* Véhicule — affiché dès accepted */}
-            {["accepted", "en_route", "arrived"].includes(reservation.status) && (
+            {["accepted", "en_route", "arrived", "completed"].includes(reservation.status) && (
               <div
                 className="vehicle-photo-block"
                 style={{
@@ -2141,7 +2141,7 @@ function SuiviPage() {
               }}
             >
               <MessageCircle size={16} />
-              Chat avec José
+              {t("suivi.chat_title")}
             </div>
             <AnonChat reservationId={reservation.id} />
           </div>
