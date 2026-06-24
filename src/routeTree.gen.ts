@@ -29,6 +29,7 @@ import { Route as ClientProfilRouteImport } from './routes/client.profil'
 import { Route as ClientLoginRouteImport } from './routes/client.login'
 import { Route as ClientHistoriqueRouteImport } from './routes/client.historique'
 import { Route as ClientForgotPasswordRouteImport } from './routes/client.forgot-password'
+import { Route as ClientFacturesRouteImport } from './routes/client.factures'
 import { Route as ClientDashboardRouteImport } from './routes/client.dashboard'
 import { Route as ClientChatRouteImport } from './routes/client.chat'
 import { Route as ApiManifestRouteImport } from './routes/api/manifest'
@@ -145,6 +146,11 @@ const ClientForgotPasswordRoute = ClientForgotPasswordRouteImport.update({
   path: '/client/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ClientFacturesRoute = ClientFacturesRouteImport.update({
+  id: '/client/factures',
+  path: '/client/factures',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ClientDashboardRoute = ClientDashboardRouteImport.update({
   id: '/client/dashboard',
   path: '/client/dashboard',
@@ -241,6 +247,7 @@ export interface FileRoutesByFullPath {
   '/api/manifest': typeof ApiManifestRoute
   '/client/chat': typeof ClientChatRoute
   '/client/dashboard': typeof ClientDashboardRoute
+  '/client/factures': typeof ClientFacturesRoute
   '/client/forgot-password': typeof ClientForgotPasswordRoute
   '/client/historique': typeof ClientHistoriqueRoute
   '/client/login': typeof ClientLoginRoute
@@ -278,6 +285,7 @@ export interface FileRoutesByTo {
   '/api/manifest': typeof ApiManifestRoute
   '/client/chat': typeof ClientChatRoute
   '/client/dashboard': typeof ClientDashboardRoute
+  '/client/factures': typeof ClientFacturesRoute
   '/client/forgot-password': typeof ClientForgotPasswordRoute
   '/client/historique': typeof ClientHistoriqueRoute
   '/client/login': typeof ClientLoginRoute
@@ -316,6 +324,7 @@ export interface FileRoutesById {
   '/api/manifest': typeof ApiManifestRoute
   '/client/chat': typeof ClientChatRoute
   '/client/dashboard': typeof ClientDashboardRoute
+  '/client/factures': typeof ClientFacturesRoute
   '/client/forgot-password': typeof ClientForgotPasswordRoute
   '/client/historique': typeof ClientHistoriqueRoute
   '/client/login': typeof ClientLoginRoute
@@ -355,6 +364,7 @@ export interface FileRouteTypes {
     | '/api/manifest'
     | '/client/chat'
     | '/client/dashboard'
+    | '/client/factures'
     | '/client/forgot-password'
     | '/client/historique'
     | '/client/login'
@@ -392,6 +402,7 @@ export interface FileRouteTypes {
     | '/api/manifest'
     | '/client/chat'
     | '/client/dashboard'
+    | '/client/factures'
     | '/client/forgot-password'
     | '/client/historique'
     | '/client/login'
@@ -429,6 +440,7 @@ export interface FileRouteTypes {
     | '/api/manifest'
     | '/client/chat'
     | '/client/dashboard'
+    | '/client/factures'
     | '/client/forgot-password'
     | '/client/historique'
     | '/client/login'
@@ -467,6 +479,7 @@ export interface RootRouteChildren {
   ApiManifestRoute: typeof ApiManifestRoute
   ClientChatRoute: typeof ClientChatRoute
   ClientDashboardRoute: typeof ClientDashboardRoute
+  ClientFacturesRoute: typeof ClientFacturesRoute
   ClientForgotPasswordRoute: typeof ClientForgotPasswordRoute
   ClientHistoriqueRoute: typeof ClientHistoriqueRoute
   ClientLoginRoute: typeof ClientLoginRoute
@@ -632,6 +645,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClientForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/client/factures': {
+      id: '/client/factures'
+      path: '/client/factures'
+      fullPath: '/client/factures'
+      preLoaderRoute: typeof ClientFacturesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/client/dashboard': {
       id: '/client/dashboard'
       path: '/client/dashboard'
@@ -766,6 +786,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiManifestRoute: ApiManifestRoute,
   ClientChatRoute: ClientChatRoute,
   ClientDashboardRoute: ClientDashboardRoute,
+  ClientFacturesRoute: ClientFacturesRoute,
   ClientForgotPasswordRoute: ClientForgotPasswordRoute,
   ClientHistoriqueRoute: ClientHistoriqueRoute,
   ClientLoginRoute: ClientLoginRoute,
