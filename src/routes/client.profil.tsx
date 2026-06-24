@@ -288,6 +288,8 @@ function ClientProfil() {
 
         <RecurringRidesSection accountId={session.id} />
 
+        <CompanyInfoSection accountId={session.id} />
+
         <button
           onClick={logout}
           className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-4 py-2.5 text-sm text-white/70 hover:bg-white/5"
