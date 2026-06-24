@@ -41,6 +41,9 @@ export const Route = createFileRoute("/suivi/$id")({
 
 // ─────────────────────────────────────────────────────────────────────────────────
 const JOSE_PHONE = "0673072322";
+const VEHICLE_MODEL = "Mercedes-Benz Classe E";
+const VEHICLE_COLOR = "Gris anthracite";
+const VEHICLE_PLATE = "HF-450-JG";
 
 const PREMIUM_CSS = `
   * { box-sizing: border-box; }
@@ -388,7 +391,7 @@ function AnonChat({ reservationId }: { reservationId: string }) {
         }}
       >
         {messages.length === 0 && (
-          <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "12px", padding: "20px 0" }}>
+          <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "12px", paddingY: "20px" }}>
             Pas de messages encore
           </div>
         )}
@@ -413,7 +416,7 @@ function AnonChat({ reservationId }: { reservationId: string }) {
             >
               {msg.message}
             </div>
-            <div style={{ fontSize: "10px", color: "#94a3b8", marginTop: "3px", padding: "0 4px" }}>
+            <div style={{ fontSize: "10px", color: "#94a3b8", marginTop: "3px", paddingX: "4px" }}>
               {msg.anon_name || "José"}
             </div>
           </div>
@@ -854,7 +857,7 @@ function ReviewBlock({ reservationId }: { reservationId: string }) {
 // ─── Main Component ───────────────────────────────────────────────────────────────
 function SuiviPage() {
   const { id } = Route.useParams();
-  const { lang: locale } = useI18n();
+  const { locale } = useI18n();
   const [reservation, setReservation] = useState<Reservation | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -914,7 +917,7 @@ function SuiviPage() {
       }
     }, 60000);
     return () => clearInterval(staleTimer);
-  }, [loadReservation]);
+  }, [isCompleted, isCancelled, loadReservation]);
 
   // ── Real-time updates with auto-reconnect ──
   useEffect(() => {
@@ -1252,6 +1255,118 @@ function SuiviPage() {
                 </button>
               )}
             </div>
+
+            {/* Véhicule — affiché dès accepted */}
+            {["accepted", "en_route", "arrived"].includes(reservation.status) && (
+              <div
+                style={{
+                  marginTop: "12px",
+                  background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
+                  borderRadius: "12px",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  overflow: "hidden",
+                }}
+              >
+                {/* Photo du véhicule */}
+                <div style={{ position: "relative", width: "100%", height: "140px", overflow: "hidden" }}>
+                  <img
+                    src="/vehicle-jose.jpg"
+                    alt="Mercedes-Benz Classe E — Taxi City Bordeaux"
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      objectPosition: "center 30%",
+                      display: "block",
+                    }}
+                  />
+                  {/* Overlay gradient bas */}
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: "60px",
+                      background: "linear-gradient(to top, #0f172a, transparent)",
+                    }}
+                  />
+                  {/* Badge Taxi flottant */}
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "10px",
+                      right: "10px",
+                      background: "rgba(0,0,0,0.6)",
+                      backdropFilter: "blur(8px)",
+                      borderRadius: "20px",
+                      padding: "4px 10px",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      color: "#fff",
+                      border: "1px solid rgba(255,255,255,0.15)",
+                    }}
+                  >
+                    🚕 Votre taxi
+                  </div>
+                </div>
+
+                {/* Infos sous la photo */}
+                <div
+                  style={{
+                    padding: "12px 14px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: "14px", fontWeight: 800, color: "#fff", lineHeight: 1.2 }}>
+                      {VEHICLE_MODEL}
+                    </div>
+                    <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)", marginTop: "2px" }}>
+                      {VEHICLE_COLOR}
+                    </div>
+                  </div>
+                  {/* Plaque d'immatriculation */}
+                  <div
+                    style={{
+                      padding: "5px 10px",
+                      background: "#fff",
+                      borderRadius: "6px",
+                      border: "2px solid #003189",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: "7px",
+                        fontWeight: 800,
+                        color: "#003189",
+                        letterSpacing: "0.3px",
+                        lineHeight: 1,
+                      }}
+                    >
+                      F
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: 900,
+                        color: "#1a1a1a",
+                        letterSpacing: "1px",
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {VEHICLE_PLATE}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Timeline */}
             <PremiumTimeline status={reservation.status} />
