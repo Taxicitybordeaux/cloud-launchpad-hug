@@ -388,6 +388,8 @@ function AnonChat({ reservationId }: { reservationId: string }) {
             fontSize: "14px",
             fontFamily: "inherit",
             transition: "all 0.3s",
+            color: "#0f172a",
+            background: "#ffffff",
           }}
         />
         <button
