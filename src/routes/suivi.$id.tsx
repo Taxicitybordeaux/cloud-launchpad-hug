@@ -22,7 +22,7 @@ import {
   WifiOff,
   Car,
 } from "lucide-react";
-import { useI18n } from "@/i18n/I18nProvider";
+import { useI18n, useT } from "@/i18n/I18nProvider";
 import { getReservationForFinPublic } from "@/lib/reservation.functions";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -133,28 +133,28 @@ const STATUS_CONFIG: Record<
   }
 > = {
   pending: {
-    label: "En attente",
+    label: "suivi.status.pending",
     color: "#92400e",
     bgGradient: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
     borderColor: "rgba(217, 119, 6, 0.2)",
     icon: "⏳",
   },
   accepted: {
-    label: "Confirmée",
+    label: "suivi.status.accepted",
     color: "#15803d",
     bgGradient: "linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)",
     borderColor: "rgba(34, 197, 94, 0.2)",
     icon: "✨",
   },
   en_route: {
-    label: "Le chauffeur arrive chez vous",
+    label: "suivi.status.en_route",
     color: "#1d4ed8",
     bgGradient: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
     borderColor: "rgba(29, 78, 216, 0.2)",
     icon: "🚕",
   },
   arrived: {
-    label: "Arrivé devant chez vous",
+    label: "suivi.status.arrived",
     color: "#7c3aed",
     bgGradient: "linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)",
     borderColor: "rgba(124, 58, 237, 0.2)",
@@ -168,7 +168,7 @@ const STATUS_CONFIG: Record<
     icon: "✓",
   },
   cancelled: {
-    label: "Annulée",
+    label: "suivi.status.cancelled",
     color: "#991b1b",
     bgGradient: "linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)",
     borderColor: "rgba(185, 28, 28, 0.2)",
@@ -178,6 +178,7 @@ const STATUS_CONFIG: Record<
 
 // ─── Timeline Stepper ──────────────────────────────────────────────────────────────
 function PremiumTimeline({ status }: { status: string }) {
+  const t = useT();
   const steps = ["pending", "accepted", "arrived", "completed"];
   if (status === "cancelled") return null;
 
@@ -187,7 +188,7 @@ function PremiumTimeline({ status }: { status: string }) {
     pending: "En attente",
     accepted: "Confirmée",
     arrived: "Devant chez vous",
-    completed: "Terminée",
+    completed: "suivi.status.completed",
   };
 
   return (
@@ -391,7 +392,7 @@ function AnonChat({ reservationId }: { reservationId: string }) {
         }}
       >
         {messages.length === 0 && (
-          <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "12px", padding: "20px 0" }}>
+          <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "12px", paddingY: "20px" }}>
             Pas de messages encore
           </div>
         )}
@@ -416,7 +417,7 @@ function AnonChat({ reservationId }: { reservationId: string }) {
             >
               {msg.message}
             </div>
-            <div style={{ fontSize: "10px", color: "#94a3b8", marginTop: "3px", padding: "0 4px" }}>
+            <div style={{ fontSize: "10px", color: "#94a3b8", marginTop: "3px", paddingX: "4px" }}>
               {msg.anon_name || "José"}
             </div>
           </div>
@@ -504,7 +505,7 @@ const PICKUP_FEE = 2.83;
 const RATE_DAY = 2.16;
 const RATE_NIGHT = 3.24;
 
-function InvoiceBlock({ reservation, locale }: { reservation: any; locale: string }) {
+function InvoiceBlock({ reservation, locale, t }: { reservation: any; locale: string; t: (k: string) => string }) {
   const handlePrint = () => window.print();
 
   const handleDownloadPDF = () => {
@@ -546,10 +547,10 @@ function InvoiceBlock({ reservation, locale }: { reservation: any; locale: strin
   <div class="meta"><strong>Reçu de course</strong>N° ${reservation.id.slice(-8).toUpperCase()}<br/>${dateStr}</div>
 </div>
 <h2>Détails du trajet</h2>
-<div class="row"><span class="label">🟢 Départ</span><span class="value">${reservation.depart ?? "—"}</span></div>
-<div class="row"><span class="label">🔴 Arrivée</span><span class="value">${reservation.destination ?? reservation.arrivee ?? "—"}</span></div>
+<div class="row"><span class="label">{t("suivi.depart_label")} 🟢</span><span class="value">${reservation.depart ?? "—"}</span></div>
+<div class="row"><span class="label">{t("suivi.arrivee_label")} 🔴</span><span class="value">${reservation.destination ?? reservation.arrivee ?? "—"}</span></div>
 ${reservation.distance_km != null ? `<div class="row"><span class="label">Distance</span><span class="value">${Number(reservation.distance_km).toFixed(1)} km</span></div>` : ""}
-${reservation.nb_passagers != null ? `<div class="row"><span class="label">Passagers</span><span class="value">${reservation.nb_passagers}</span></div>` : ""}
+${reservation.nb_passagers != null ? `<div class="row"><span class="label">{t("suivi.passagers")}</span><span class="value">${reservation.nb_passagers}</span></div>` : ""}
 ${reservation.mode_paiement ? `<div class="row"><span class="label">Paiement</span><span class="value">${reservation.mode_paiement}</span></div>` : ""}
 <div class="total-box"><span class="label">Total course</span><span class="amount">${prix}</span></div>
 <div class="no-print" style="text-align:center">
@@ -578,7 +579,7 @@ ${reservation.mode_paiement ? `<div class="row"><span class="label">Paiement</sp
           gap: "6px",
         }}
       >
-        <FileText size={14} /> Reçu de course
+        <FileText size={14} /> {t("suivi.receipt_title")}
       </div>
 
       {/* Récap trajet */}
@@ -592,7 +593,7 @@ ${reservation.mode_paiement ? `<div class="row"><span class="label">Paiement</sp
             borderBottom: "1px solid #f1f5f9",
           }}
         >
-          <span style={{ color: "#64748b" }}>🟢 Départ</span>
+          <span style={{ color: "#64748b" }}>{t("suivi.depart_label")} 🟢</span>
           <span style={{ fontWeight: 600, color: "#0f172a", maxWidth: "60%", textAlign: "right" }}>
             {reservation.depart}
           </span>
@@ -606,7 +607,7 @@ ${reservation.mode_paiement ? `<div class="row"><span class="label">Paiement</sp
             borderBottom: "1px solid #f1f5f9",
           }}
         >
-          <span style={{ color: "#64748b" }}>🔴 Arrivée</span>
+          <span style={{ color: "#64748b" }}>{t("suivi.arrivee_label")} 🔴</span>
           <span style={{ fontWeight: 600, color: "#0f172a", maxWidth: "60%", textAlign: "right" }}>
             {reservation.destination ?? reservation.arrivee ?? "—"}
           </span>
@@ -621,7 +622,7 @@ ${reservation.mode_paiement ? `<div class="row"><span class="label">Paiement</sp
               borderBottom: "1px solid #f1f5f9",
             }}
           >
-            <span style={{ color: "#64748b" }}>Distance</span>
+            <span style={{ color: "#64748b" }}>{t("suivi.distance")}</span>
             <span style={{ fontWeight: 600, color: "#0f172a" }}>{Number(reservation.distance_km).toFixed(1)} km</span>
           </div>
         )}
@@ -635,13 +636,13 @@ ${reservation.mode_paiement ? `<div class="row"><span class="label">Paiement</sp
               borderBottom: "1px solid #f1f5f9",
             }}
           >
-            <span style={{ color: "#64748b" }}>Paiement</span>
+            <span style={{ color: "#64748b" }}>{t("suivi.paiement")}</span>
             <span style={{ fontWeight: 600, color: "#0f172a" }}>{reservation.mode_paiement}</span>
           </div>
         )}
         {reservation.prix_estime != null && (
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "4px" }}>
-            <span style={{ fontSize: "13px", color: "#64748b" }}>Total</span>
+            <span style={{ fontSize: "13px", color: "#64748b" }}>{t("fin.price_label")}</span>
             <span style={{ fontSize: "22px", fontWeight: 900, color: "#1d4ed8" }}>
               {new Intl.NumberFormat(locale, { style: "currency", currency: "EUR" }).format(reservation.prix_estime)}
             </span>
@@ -669,7 +670,7 @@ ${reservation.mode_paiement ? `<div class="row"><span class="label">Paiement</sp
             cursor: "pointer",
           }}
         >
-          <PrinterIcon size={15} /> Imprimer
+          <PrinterIcon size={15} /> {t("suivi.print")}
         </button>
         <button
           onClick={handleDownloadPDF}
@@ -690,7 +691,7 @@ ${reservation.mode_paiement ? `<div class="row"><span class="label">Paiement</sp
             boxShadow: "0 4px 12px rgba(29,78,216,0.3)",
           }}
         >
-          <Download size={15} /> Télécharger PDF
+          <Download size={15} /> {t("suivi.download_pdf")}
         </button>
       </div>
     </div>
@@ -698,7 +699,7 @@ ${reservation.mode_paiement ? `<div class="row"><span class="label">Paiement</sp
 }
 
 // ─── Avis ──────────────────────────────────────────────────────────────────────────
-function ReviewBlock({ reservationId }: { reservationId: string }) {
+function ReviewBlock({ reservationId, t }: { reservationId: string; t: (k: string) => string }) {
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   const [comment, setComment] = useState("");
@@ -747,10 +748,10 @@ function ReviewBlock({ reservationId }: { reservationId: string }) {
     return (
       <div className="suivi-premium suivi-card" style={{ marginBottom: "16px", padding: "20px", textAlign: "center" }}>
         <div style={{ fontSize: "32px", marginBottom: "8px" }}>⭐</div>
-        <div style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a", marginBottom: "4px" }}>Avis envoyé</div>
-        <div style={{ fontSize: "13px", color: "#64748b" }}>
-          Merci pour votre retour, cela nous aide à nous améliorer !
+        <div style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a", marginBottom: "4px" }}>
+          {t("suivi.review_sent")}
         </div>
+        <div style={{ fontSize: "13px", color: "#64748b" }}>{t("suivi.review_sent_sub")}</div>
       </div>
     );
   }
@@ -770,7 +771,7 @@ function ReviewBlock({ reservationId }: { reservationId: string }) {
           gap: "6px",
         }}
       >
-        <Star size={14} /> Votre avis
+        <Star size={14} /> {t("suivi.review_title")}
       </div>
 
       {/* Étoiles */}
@@ -802,13 +803,17 @@ function ReviewBlock({ reservationId }: { reservationId: string }) {
 
       {rating > 0 && (
         <div style={{ fontSize: "13px", fontWeight: 600, color: "#f59e0b", textAlign: "center", marginBottom: "12px" }}>
-          {["", "Très décevant", "Décevant", "Correct", "Bien", "Excellent !"][rating]}
+          {
+            ["", t("fin.star.bad"), t("fin.star.ok"), t("fin.star.good"), t("fin.star.great"), t("fin.star.excellent")][
+              rating
+            ]
+          }
         </div>
       )}
 
       {/* Commentaire */}
       <textarea
-        placeholder="Un commentaire ? (optionnel)"
+        placeholder={t("fin.rating.comment")}
         value={comment}
         onChange={(e) => setComment(e.target.value)}
         rows={3}
@@ -848,7 +853,7 @@ function ReviewBlock({ reservationId }: { reservationId: string }) {
         }}
       >
         {submitting ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <Star size={15} />}
-        {submitting ? "Envoi…" : "Envoyer mon avis"}
+        {submitting ? t("suivi.review_submitting") : t("suivi.review_submit")}
       </button>
     </div>
   );
@@ -857,7 +862,8 @@ function ReviewBlock({ reservationId }: { reservationId: string }) {
 // ─── Main Component ───────────────────────────────────────────────────────────────
 function SuiviPage() {
   const { id } = Route.useParams();
-  const { lang: locale } = useI18n();
+  const { locale } = useI18n();
+  const t = useT();
   const [reservation, setReservation] = useState<Reservation | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -917,7 +923,7 @@ function SuiviPage() {
       }
     }, 60000);
     return () => clearInterval(staleTimer);
-  }, [loadReservation]);
+  }, [isCompleted, isCancelled, loadReservation]);
 
   // ── Real-time updates with auto-reconnect ──
   useEffect(() => {
@@ -944,10 +950,11 @@ function SuiviPage() {
               const newPrice = newRow.prix_estime;
               setReservation((prev) => {
                 if (prev && prev.status !== newStatus) {
-                  if (newStatus === "accepted") toast.success("✅ Votre course a été confirmée !");
-                  else if (newStatus === "en_route") toast.success("🚕 Le chauffeur arrive chez vous !");
-                  else if (newStatus === "arrived") toast.success("📍 Le chauffeur est devant chez vous !");
-                  else if (newStatus === "completed") toast.success("🏁 Course terminée. Merci !");
+                  if (newStatus === "accepted") toast.success("✅ " + t("suivi.status.accepted") + " !");
+                  else if (newStatus === "en_route") toast.success("🚕 " + t("suivi.status.en_route") + " !");
+                  else if (newStatus === "arrived") toast.success("📍 " + t("suivi.status.arrived") + " !");
+                  else if (newStatus === "completed")
+                    toast.success("🏁 " + t("suivi.status.completed") + " — " + t("suivi.completed_title"));
                 }
                 if (
                   prev &&
@@ -1080,9 +1087,7 @@ function SuiviPage() {
             }}
           >
             <WifiOff size={14} style={{ color: "#fca5a5", flexShrink: 0 }} />
-            <span style={{ fontSize: "12px", color: "#fca5a5", fontWeight: 600 }}>
-              Connexion interrompue — Reconnexion en cours…
-            </span>
+            <span style={{ fontSize: "12px", color: "#fca5a5", fontWeight: 600 }}>{t("suivi.offline_banner")}</span>
           </div>
         )}
 
@@ -1102,7 +1107,7 @@ function SuiviPage() {
             }}
           >
             <span style={{ fontSize: "12px", color: "#fbbf24", fontWeight: 600 }}>
-              ⏱ Page ouverte depuis {staleMinutes} min — statut à jour ?
+              {t("suivi.stale_warning")} {staleMinutes} min — statut à jour ?
             </span>
             <button
               onClick={() => loadReservation(true)}
@@ -1117,7 +1122,7 @@ function SuiviPage() {
                 padding: 0,
               }}
             >
-              Actualiser
+              {t("suivi.stale_refresh")}
             </button>
           </div>
         )}
@@ -1158,7 +1163,7 @@ function SuiviPage() {
                       letterSpacing: "0.5px",
                     }}
                   >
-                    Prise en charge
+                    {t("suivi.pickup_label")}
                   </div>
                   <div style={{ fontSize: "16px", fontWeight: 800, color: "#fff", lineHeight: 1.2 }}>
                     {new Date(reservation.pickup_datetime).toLocaleString(locale, {
@@ -1191,7 +1196,8 @@ function SuiviPage() {
                     flexShrink: 0,
                   }}
                 >
-                  <CalendarPlus size={13} /> Cal
+                  <CalendarPlus size={13} />
+                  {t("suivi.add_to_cal")}
                 </a>
               </div>
             )}
@@ -1206,10 +1212,11 @@ function SuiviPage() {
             >
               <div>
                 <h1 style={{ fontSize: "16px", fontWeight: 800, color: "#0f172a", margin: 0, lineHeight: 1.2 }}>
-                  {config.icon} {config.label}
+                  {config.icon} {t(config.label)}
                 </h1>
                 <p style={{ fontSize: "12px", color: "#94a3b8", margin: "4px 0 0 0" }}>
-                  Réservation #{reservation.id.slice(-8).toUpperCase()}
+                  {t("suivi.booking_ref")}
+                  {reservation.id.slice(-8).toUpperCase()}
                 </p>
                 {/* Nom du chauffeur quand acceptée */}
                 {["accepted", "en_route", "arrived"].includes(reservation.status) && reservation.driver_name && (
@@ -1228,7 +1235,7 @@ function SuiviPage() {
                   >
                     <Car size={12} style={{ color: "#15803d" }} />
                     <span style={{ fontSize: "12px", fontWeight: 700, color: "#15803d" }}>
-                      {reservation.driver_name} est votre chauffeur
+                      {reservation.driver_name} {t("suivi.driver_label")}
                     </span>
                   </div>
                 )}
@@ -1251,7 +1258,8 @@ function SuiviPage() {
                     color: "#64748b",
                   }}
                 >
-                  <Share2 size={13} /> Partager
+                  <Share2 size={13} />
+                  {t("suivi.share")}
                 </button>
               )}
             </div>
@@ -1307,7 +1315,7 @@ function SuiviPage() {
                       border: "1px solid rgba(255,255,255,0.15)",
                     }}
                   >
-                    🚕 Votre taxi
+                    🚕 {t("suivi.your_taxi")}
                   </div>
                 </div>
 
@@ -1393,7 +1401,7 @@ function SuiviPage() {
                   gap: "4px",
                 }}
               >
-                <span>🟢</span> Départ
+                <span>🟢</span> {t("suivi.depart_label")}
               </div>
               <div style={{ fontSize: "13px", fontWeight: 600, color: "#0f172a", marginTop: "2px" }}>
                 {reservation.depart}
@@ -1421,7 +1429,7 @@ function SuiviPage() {
                   gap: "4px",
                 }}
               >
-                <span>🔴</span> Arrivée
+                <span>🔴</span> {t("suivi.arrivee_label")}
               </div>
               <div style={{ fontSize: "13px", fontWeight: 600, color: "#0f172a", marginTop: "2px" }}>
                 {reservation.destination || reservation.arrivee || "À définir"}
@@ -1442,14 +1450,14 @@ function SuiviPage() {
           {reservation.nb_bagages != null && (
             <div className="suivi-premium suivi-card" style={{ padding: "14px", textAlign: "center" }}>
               <Package size={18} style={{ color: "#f59e0b", margin: "0 auto 6px", display: "block" }} />
-              <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>Bagages</div>
+              <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>{t("suivi.bagages")}</div>
               <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a" }}>{reservation.nb_bagages}</div>
             </div>
           )}
           {reservation.distance_km != null && (
             <div className="suivi-premium suivi-card" style={{ padding: "14px", textAlign: "center" }}>
               <Gauge size={18} style={{ color: "#8b5cf6", margin: "0 auto 6px", display: "block" }} />
-              <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>Distance</div>
+              <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>{t("suivi.distance")}</div>
               <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a" }}>
                 {reservation.distance_km.toFixed(1)} km
               </div>
@@ -1466,7 +1474,7 @@ function SuiviPage() {
                 }}
               >
                 <CreditCard size={18} style={{ color: "#92400e", margin: "0 auto 6px", display: "block" }} />
-                <div style={{ fontSize: "13px", color: "#92400e", marginBottom: "4px" }}>Tarif estimé</div>
+                <div style={{ fontSize: "13px", color: "#92400e", marginBottom: "4px" }}>{t("suivi.tarif_estime")}</div>
                 <div style={{ fontSize: "13px", fontWeight: 700, color: "#92400e" }}>
                   {new Intl.NumberFormat(locale, { style: "currency", currency: "EUR" }).format(
                     reservation.prix_estime,
@@ -1477,7 +1485,7 @@ function SuiviPage() {
           {reservation.mode_paiement && (
             <div className="suivi-premium suivi-card" style={{ padding: "14px", textAlign: "center" }}>
               <CreditCard size={18} style={{ color: "#0ea5e9", margin: "0 auto 6px", display: "block" }} />
-              <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>Paiement</div>
+              <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>{t("suivi.paiement")}</div>
               <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a" }}>{reservation.mode_paiement}</div>
             </div>
           )}
@@ -1496,7 +1504,7 @@ function SuiviPage() {
                 marginBottom: "12px",
               }}
             >
-              📞 Besoin d'aide ?
+              📞 {t("suivi.contact_title")}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               <a
@@ -1519,7 +1527,7 @@ function SuiviPage() {
                 }}
               >
                 <Phone size={16} />
-                <span style={{ flex: 1 }}>Appeler José</span>
+                <span style={{ flex: 1 }}>{t("suivi.call_jose")}</span>
                 <span style={{ fontSize: "12px", opacity: 0.8, fontWeight: 400 }}>
                   {josePhone.replace(/(\d{2})(?=\d)/g, "$1 ").trim()}
                 </span>
@@ -1546,7 +1554,7 @@ function SuiviPage() {
                 }}
               >
                 <MessageCircle size={16} />
-                WhatsApp
+                {t("suivi.whatsapp_jose")}
               </a>
             </div>
           </div>
@@ -1579,8 +1587,8 @@ function SuiviPage() {
         {/* Bloc Course terminée — Facture + Avis */}
         {isCompleted && (
           <>
-            <InvoiceBlock reservation={reservation} locale={locale} />
-            <ReviewBlock reservationId={reservation.id} />
+            <InvoiceBlock reservation={reservation} locale={locale} t={t} />
+            <ReviewBlock reservationId={reservation.id} t={t} />
             {/* Boutons navigation */}
             <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
               <Link
@@ -1600,7 +1608,7 @@ function SuiviPage() {
                   boxShadow: "0 4px 12px rgba(29, 78, 216, 0.3)",
                 }}
               >
-                🚕 Réserver un nouveau trajet
+                {t("suivi.rebook")}
               </Link>
               <Link
                 to="/"
@@ -1618,7 +1626,7 @@ function SuiviPage() {
                   border: "1px solid rgba(148,163,184,0.15)",
                 }}
               >
-                ← Retour à l'accueil
+                {t("suivi.back_home")}
               </Link>
             </div>
           </>
@@ -1653,7 +1661,7 @@ function SuiviPage() {
               ) : (
                 <span style={{ fontSize: "16px" }}>🔄</span>
               )}
-              {refreshing ? "Actualisation…" : "Actualiser le statut"}
+              {refreshing ? t("suivi.refreshing") : t("suivi.refresh")}
             </button>
           </div>
         )}
