@@ -857,7 +857,7 @@ function ReviewBlock({ reservationId }: { reservationId: string }) {
 // ─── Main Component ───────────────────────────────────────────────────────────────
 function SuiviPage() {
   const { id } = Route.useParams();
-  const { locale } = useI18n();
+  const { lang: locale } = useI18n();
   const [reservation, setReservation] = useState<Reservation | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
