@@ -10,15 +10,13 @@ import { APP_VERSION } from "@/lib/version";
 
 const v = `?v=${encodeURIComponent(APP_VERSION)}`;
 
-
 export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
       {
         name: "viewport",
-        content:
-          "width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover",
+        content: "width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover",
       },
       { title: "Taxi City Bordeaux" },
       { name: "app-version", content: APP_VERSION },
@@ -67,22 +65,24 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   React.useEffect(() => {
     let cleanup: (() => void) | undefined;
-    import("@/lib/firebase").then(({ setupForegroundNotifications }) => {
-      cleanup = setupForegroundNotifications();
-    });
+    // setupForegroundNotifications appelle requestPermission via getFcmToken.
+    // On ne l'active qu'en contexte chauffeur (routes /reservation, /suivi, /admin)
+    // pour ne pas déclencher la popup navigateur côté client sans son consentement.
+    const isDriverContext =
+      pathname.startsWith("/reservation") || pathname.startsWith("/suivi") || pathname.startsWith("/admin");
+    if (isDriverContext) {
+      import("@/lib/firebase").then(({ setupForegroundNotifications }) => {
+        cleanup = setupForegroundNotifications();
+      });
+    }
     // Nettoie l'ancien cache PWA en production sans casser la preview.
     import("@/lib/pwa").then(({ registerPWA }) => registerPWA());
     // Surveille les nouvelles versions et propose un rechargement.
-    import("@/lib/versionWatcher").then(({ startVersionWatcher }) =>
-      startVersionWatcher(),
-    );
+    import("@/lib/versionWatcher").then(({ startVersionWatcher }) => startVersionWatcher());
     // Vérification au démarrage de la clé Google Maps (warning dev si absente).
-    import("@/lib/googleConfig").then(({ assertGoogleConfigOnStartup }) =>
-      assertGoogleConfigOnStartup(),
-    );
+    import("@/lib/googleConfig").then(({ assertGoogleConfigOnStartup }) => assertGoogleConfigOnStartup());
     return () => cleanup?.();
   }, []);
-
 
   const showHeader =
     !pathname.startsWith("/reserver") &&
