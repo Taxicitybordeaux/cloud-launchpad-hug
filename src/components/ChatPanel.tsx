@@ -10,7 +10,6 @@ import {
 } from "@/lib/chat.functions";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
-
 type Props = {
   reservationId: string;
   role: "client" | "chauffeur";
@@ -114,7 +113,6 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
     }
   }, [reservationId, messages, hasMore, loadingMore]);
 
-
   // ── Realtime channel: presence + typing broadcast only ──
   // postgres_changes on reservation_messages is locked to admins by RLS,
   // so non-admins poll via listReservationMessages below. We keep the
@@ -199,7 +197,6 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
       clearInterval(id);
     };
   }, [reservationId, peerRole, markRead]);
-
 
   // ── Scroll handling: stick-to-bottom + restore on prepend ──
   useEffect(() => {
@@ -341,7 +338,6 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
       setMessages((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]));
       channelRef.current?.send({ type: "broadcast", event: "new_message", payload: msg });
       setInput("");
-
     } catch (e) {
       console.error("[chat] send failed, queuing for retry", e);
       const q = [...readQueue(), { tempId: crypto.randomUUID(), content, at: Date.now() }];
@@ -364,8 +360,7 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
   // Filtrage local (sur l'historique chargé : pages courantes) — mot-clé +
   // plage de dates. Si l'utilisateur veut filtrer plus ancien que ce qui est
   // chargé, il scrolle vers le haut (loadOlder) et le filtre s'applique.
-  const filterActive =
-    searchKw.trim().length > 0 || searchFrom.length > 0 || searchTo.length > 0;
+  const filterActive = searchKw.trim().length > 0 || searchFrom.length > 0 || searchTo.length > 0;
   const fromTs = searchFrom ? new Date(searchFrom + "T00:00:00").getTime() : null;
   const toTs = searchTo ? new Date(searchTo + "T23:59:59").getTime() : null;
   const kwLower = searchKw.trim().toLowerCase();
@@ -407,9 +402,7 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `tchat-${reservationId.slice(0, 8)}-${new Date()
-      .toISOString()
-      .slice(0, 10)}.csv`;
+    a.download = `tchat-${reservationId.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -431,15 +424,13 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
         <div
           className="flex items-center justify-between border-b border-white/10 px-4 py-3"
           style={{
-            background:
-              "linear-gradient(180deg, rgba(201,168,76,0.12) 0%, transparent 100%)",
+            background: "linear-gradient(180deg, rgba(201,168,76,0.12) 0%, transparent 100%)",
           }}
         >
           <div className="min-w-0">
             <div className="truncate text-sm font-semibold text-white">{title}</div>
             <div className={`flex items-center gap-1.5 text-[11px] ${statusColor}`}>
-              <span className={`inline-block h-1.5 w-1.5 rounded-full ${dotColor}`} />{" "}
-              {statusLabel}
+              <span className={`inline-block h-1.5 w-1.5 rounded-full ${dotColor}`} /> {statusLabel}
             </div>
           </div>
           <div className="flex items-center gap-1">
@@ -531,11 +522,7 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
                 {visibleMessages.length > 1 ? "s" : ""} sur {messages.length} chargé
                 {messages.length > 1 ? "s" : ""}.{" "}
                 {hasMore && (
-                  <button
-                    type="button"
-                    onClick={loadOlder}
-                    className="underline hover:text-white/80"
-                  >
+                  <button type="button" onClick={loadOlder} className="underline hover:text-white/80">
                     charger plus d'historique
                   </button>
                 )}
@@ -545,11 +532,7 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
         )}
 
         {/* Messages */}
-        <div
-          ref={scrollRef}
-          onScroll={onScroll}
-          className="flex-1 overflow-y-auto px-4 py-4"
-        >
+        <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto px-4 py-4">
           {hasMore && messages.length > 0 && (
             <div className="mb-2 flex justify-center">
               <button
@@ -558,11 +541,7 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
                 disabled={loadingMore}
                 className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-white/60 hover:bg-white/10 disabled:opacity-50"
               >
-                {loadingMore ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <ChevronUp className="h-3 w-3" />
-                )}
+                {loadingMore ? <Loader2 className="h-3 w-3 animate-spin" /> : <ChevronUp className="h-3 w-3" />}
                 Messages plus anciens
               </button>
             </div>
@@ -587,16 +566,9 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
           <ul className="space-y-2.5">
             {visibleMessages.map((m) => {
               const mine = m.sender === role;
-              const isRead = mine
-                ? role === "client"
-                  ? m.read_by_chauffeur
-                  : m.read_by_client
-                : false;
+              const isRead = mine ? (role === "client" ? m.read_by_chauffeur : m.read_by_client) : false;
               return (
-                <li
-                  key={m.id}
-                  className={`flex ${mine ? "justify-end" : "justify-start"}`}
-                >
+                <li key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                   <div
                     className={`max-w-[78%] rounded-2xl px-3.5 py-2 text-sm leading-snug ${
                       mine ? "text-black" : "text-white"
@@ -621,9 +593,9 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
                       </span>
                       {mine &&
                         (isRead ? (
-                          <CheckCheck className="h-3 w-3" />
+                          <CheckCheck className="h-3 w-3" style={{ color: "#1d4ed8" }} title="Lu" />
                         ) : (
-                          <Check className="h-3 w-3" />
+                          <Check className="h-3 w-3 opacity-60" title="Envoyé" />
                         ))}
                     </div>
                   </div>
