@@ -426,11 +426,20 @@ function ClientDashboard() {
                       onClick={() => setOpenId(isOpen ? null : r.id)}
                       className="flex w-full flex-col gap-2.5 p-4 text-left transition hover:bg-white/[0.03] sm:p-5"
                     >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
+                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="inline-flex items-center gap-1.5 text-xs text-white/60">
                           <Calendar className="h-3.5 w-3.5" /> {fmtDate(r.pickup_datetime, locale)}
                         </span>
                         <div className="flex flex-wrap items-center gap-1.5">
+                          {r.source === "recurring" && (
+                            <span
+                              className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+                              style={{ background: "rgba(232,201,109,0.14)", color: "#E8C96D", border: "1px solid rgba(232,201,109,0.35)" }}
+                              title="Créé automatiquement depuis un trajet récurrent"
+                            >
+                              🔁 Récurrent
+                            </span>
+                          )}
                           {r.phone_cancel_requested_at && (
                             <span
                               className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
