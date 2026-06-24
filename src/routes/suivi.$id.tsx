@@ -204,10 +204,10 @@ function PremiumTimeline({ status }: { status: string }) {
   const currentIdx = steps.indexOf(status as any);
 
   const stepLabels: Record<string, string> = {
-    pending: "En attente",
-    accepted: "Confirmée",
-    arrived: "Devant chez vous",
-    completed: "suivi.status.completed",
+    pending: t("suivi.timeline.pending"),
+    accepted: t("suivi.timeline.accepted"),
+    arrived: t("suivi.timeline.arrived"),
+    completed: t("suivi.timeline.completed"),
   };
 
   return (
@@ -297,6 +297,7 @@ function getAnonChatId(reservationId: string): string {
 
 // ─── Chat Component ───────────────────────────────────────────────────────────────
 function AnonChat({ reservationId }: { reservationId: string }) {
+  const t = useT();
   const [messages, setMessages] = useState<any[]>([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -351,15 +352,15 @@ function AnonChat({ reservationId }: { reservationId: string }) {
 
       if (error) {
         console.error("Chat error:", error);
-        toast.error("Erreur d'envoi du message");
+        toast.error(t("suivi.chat_send_error"));
         return;
       }
 
       setText("");
-      toast.success("Message envoyé");
+      toast.success(t("suivi.chat_sent"));
     } catch (e) {
       console.error("Send error:", e);
-      toast.error("Erreur de connexion");
+      toast.error(t("suivi.chat_conn_error"));
     } finally {
       setSending(false);
     }
@@ -376,7 +377,7 @@ function AnonChat({ reservationId }: { reservationId: string }) {
       <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
         <input
           type="text"
-          placeholder="Votre prénom..."
+          placeholder={t("suivi.chat_first_name")}
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && setNameAndContinue()}
@@ -403,7 +404,7 @@ function AnonChat({ reservationId }: { reservationId: string }) {
             transition: "all 0.3s",
           }}
         >
-          Continuer
+          {t("suivi.chat_continue")}
         </button>
       </div>
     );
@@ -423,7 +424,7 @@ function AnonChat({ reservationId }: { reservationId: string }) {
       >
         {messages.length === 0 && (
           <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "12px", padding: "20px 0" }}>
-            Pas de messages encore
+            {t("suivi.chat_empty")}
           </div>
         )}
         {messages.map((msg, i) => (
@@ -457,7 +458,7 @@ function AnonChat({ reservationId }: { reservationId: string }) {
       <div style={{ display: "flex", gap: "8px" }}>
         <input
           type="text"
-          placeholder="Message..."
+          placeholder={t("suivi.chat_placeholder")}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send()}
@@ -543,7 +544,7 @@ function InvoiceBlock({ reservation, locale, t }: { reservation: any; locale: st
 
   const handleSendEmail = async () => {
     const emailAddr =
-      (reservation as any).email || (reservation as any).client_email || window.prompt("Adresse email du client :");
+      (reservation as any).email || (reservation as any).client_email || window.prompt(t("suivi.invoice_email_prompt"));
     if (!emailAddr) return;
     setEmailSending(true);
     try {
@@ -552,9 +553,9 @@ function InvoiceBlock({ reservation, locale, t }: { reservation: any; locale: st
       });
       if (error) throw error;
       setEmailSent(true);
-      toast.success("📧 Reçu envoyé à " + emailAddr);
+      toast.success(t("suivi.invoice_email_sent") + " " + emailAddr);
     } catch (e: any) {
-      toast.error("Erreur envoi email : " + (e?.message ?? "inconnue"));
+      toast.error(t("suivi.invoice_email_error") + " " + (e?.message ?? "inconnue"));
     } finally {
       setEmailSending(false);
     }
@@ -774,9 +775,9 @@ ${reservation.mode_paiement ? `<div class="row"><span class="label">Paiement</sp
           {emailSending ? (
             <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} />
           ) : emailSent ? (
-            <>✓ Reçu envoyé</>
+            <>{t("suivi.invoice_email_done")}</>
           ) : (
-            <>📧 Envoyer le reçu par email</>
+            <>{t("suivi.invoice_email_send")}</>
           )}
         </button>
       </div>
@@ -785,9 +786,17 @@ ${reservation.mode_paiement ? `<div class="row"><span class="label">Paiement</sp
 }
 
 // ─── Course récurrente ─────────────────────────────────────────────────────────
-const DAYS_FR = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
-
 function RecurringModal({ reservation, onClose }: { reservation: any; onClose: () => void }) {
+  const t = useT();
+  const DAYS = [
+    t("suivi.day.sun"),
+    t("suivi.day.mon"),
+    t("suivi.day.tue"),
+    t("suivi.day.wed"),
+    t("suivi.day.thu"),
+    t("suivi.day.fri"),
+    t("suivi.day.sat"),
+  ];
   const [freq, setFreq] = useState<"weekly" | "biweekly" | "monthly">("weekly");
   const [dayOfWeek, setDayOfWeek] = useState<number>(() => {
     if (reservation.pickup_datetime) {
@@ -826,19 +835,19 @@ function RecurringModal({ reservation, onClose }: { reservation: any; onClose: (
       ]);
       if (error) throw error;
       setSaved(true);
-      toast.success("🗓️ Trajet récurrent activé !");
+      toast.success(t("suivi.rec_success"));
       setTimeout(onClose, 1800);
     } catch (e: any) {
-      toast.error("Erreur : " + (e?.message ?? "inconnue"));
+      toast.error(t("suivi.rec_error") + " " + (e?.message ?? "inconnue"));
     } finally {
       setSaving(false);
     }
   };
 
   const freqLabel: Record<string, string> = {
-    weekly: "Chaque semaine",
-    biweekly: "Toutes les 2 sem.",
-    monthly: "Chaque mois",
+    weekly: t("suivi.rec_weekly"),
+    biweekly: t("suivi.rec_biweekly"),
+    monthly: t("suivi.rec_monthly"),
   };
 
   return (
@@ -868,7 +877,7 @@ function RecurringModal({ reservation, onClose }: { reservation: any; onClose: (
       >
         <div style={{ width: 40, height: 4, background: "#e2e8f0", borderRadius: 2, margin: "0 auto 20px" }} />
         <div style={{ fontSize: 16, fontWeight: 800, color: "#0f172a", marginBottom: 4 }}>
-          🗓️ Réserver ce trajet régulièrement
+          {t("suivi.rec_title")}
         </div>
         <div style={{ fontSize: 13, color: "#64748b", marginBottom: 20 }}>
           {reservation.depart} → {reservation.destination ?? reservation.arrivee ?? "—"}
@@ -886,7 +895,7 @@ function RecurringModal({ reservation, onClose }: { reservation: any; onClose: (
               marginBottom: 8,
             }}
           >
-            Fréquence
+            {t("suivi.rec_freq")}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             {(["weekly", "biweekly", "monthly"] as const).map((f) => (
@@ -924,10 +933,10 @@ function RecurringModal({ reservation, onClose }: { reservation: any; onClose: (
               marginBottom: 8,
             }}
           >
-            Jour
+            {t("suivi.rec_day")}
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
-            {DAYS_FR.map((label, i) => (
+            {DAYS.map((label, i) => (
               <button
                 key={i}
                 onClick={() => setDayOfWeek(i)}
@@ -961,7 +970,7 @@ function RecurringModal({ reservation, onClose }: { reservation: any; onClose: (
               marginBottom: 8,
             }}
           >
-            Heure de prise en charge
+            {t("suivi.rec_time")}
           </div>
           <input
             type="time"
@@ -1003,7 +1012,7 @@ function RecurringModal({ reservation, onClose }: { reservation: any; onClose: (
           }}
         >
           {saving ? <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} /> : null}
-          {saved ? "✓ Activé !" : saving ? "Enregistrement…" : "Activer ce trajet récurrent"}
+          {saved ? t("suivi.rec_saved") : saving ? t("suivi.rec_saving") : t("suivi.rec_activate")}
         </button>
       </div>
     </div>
@@ -1033,7 +1042,7 @@ function ReviewBlock({ reservationId, t }: { reservationId: string; t: (k: strin
 
   const handleSubmit = async () => {
     if (rating === 0) {
-      toast.error("Veuillez sélectionner une note");
+      toast.error(t("suivi.review_select"));
       return;
     }
     setSubmitting(true);
@@ -1048,9 +1057,9 @@ function ReviewBlock({ reservationId, t }: { reservationId: string; t: (k: strin
       ]);
       if (error) throw error;
       setSubmitted(true);
-      toast.success("⭐ Merci pour votre avis !");
+      toast.success(t("suivi.review_thanks"));
     } catch (e: any) {
-      toast.error("Erreur : " + (e.message ?? "impossible d'envoyer l'avis"));
+      toast.error(t("suivi.review_error") + " " + (e.message ?? t("suivi.review_impossible")));
     } finally {
       setSubmitting(false);
     }
@@ -1173,6 +1182,7 @@ function ReviewBlock({ reservationId, t }: { reservationId: string; t: (k: strin
 
 // ─── Partage de trajet enrichi ────────────────────────────────────────────────
 function ShareTrajetButton({ reservation }: { reservation: any }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
 
   // Arrivée estimée : pickup_datetime + duree_s si dispo, sinon "en cours"
@@ -1188,11 +1198,11 @@ function ShareTrajetButton({ reservation }: { reservation: any }) {
   const suiviUrl = typeof window !== "undefined" ? window.location.href : "";
   const dest = reservation.destination ?? reservation.arrivee ?? "";
 
-  const buildMessage = (canal: "sms" | "whatsapp" | "copy"): string => {
+  const buildMessage = (_canal: "sms" | "whatsapp" | "copy"): string => {
     const lines = [
-      `🚕 Je suis en route vers ${dest || "ma destination"}`,
-      eta ? `⏱️ Arrivée estimée : ${eta}` : null,
-      `📍 Suis mon trajet en direct :`,
+      `${t("suivi.share_msg_route")} ${dest || t("suivi.share_msg_dest_default")}`,
+      eta ? `${t("suivi.share_msg_eta")} ${eta}` : null,
+      t("suivi.share_msg_follow"),
       suiviUrl,
     ].filter(Boolean);
     return lines.join("\n");
@@ -1201,10 +1211,8 @@ function ShareTrajetButton({ reservation }: { reservation: any }) {
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(buildMessage("copy"));
-      // petit toast visuel sans dépendance
       setOpen(false);
-      // toast from sonner already imported
-      toast.success("📋 Lien copié !");
+      toast.success(t("suivi.share_link_copied"));
     } catch {
       /* noop */
     }
@@ -1230,7 +1238,7 @@ function ShareTrajetButton({ reservation }: { reservation: any }) {
         }}
       >
         <Share2 size={13} />
-        Partager
+        {t("suivi.share")}
       </button>
     );
   }
@@ -1265,7 +1273,7 @@ function ShareTrajetButton({ reservation }: { reservation: any }) {
         }}
       >
         <div style={{ width: 40, height: 4, background: "#e2e8f0", borderRadius: 2, margin: "0 auto 18px" }} />
-        <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", marginBottom: 4 }}>📱 Partager mon trajet</div>
+        <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", marginBottom: 4 }}>{t("suivi.share_title")}</div>
         {/* Aperçu du message */}
         <div
           style={{
@@ -1306,7 +1314,7 @@ function ShareTrajetButton({ reservation }: { reservation: any }) {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
               <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
             </svg>
-            Envoyer sur WhatsApp
+            {t("suivi.share_whatsapp")}
           </a>
           {/* SMS */}
           <a
@@ -1327,7 +1335,7 @@ function ShareTrajetButton({ reservation }: { reservation: any }) {
             }}
           >
             <MessageCircle size={18} />
-            Envoyer par SMS
+            {t("suivi.share_sms")}
           </a>
           {/* Copier */}
           <button
@@ -1347,7 +1355,7 @@ function ShareTrajetButton({ reservation }: { reservation: any }) {
               cursor: "pointer",
             }}
           >
-            📋 Copier le lien
+            {t("suivi.share_copy")}
           </button>
         </div>
       </div>
@@ -1376,17 +1384,17 @@ function SuiviPage() {
       try {
         const row = await fetchReservation({ data: { key: id } });
         if (!row) {
-          setError("Réservation introuvable");
+          setError(t("suivi.not_found"));
         } else {
           const r = row as Reservation;
           setReservation(r);
           isCompletedRef.current = r.status === "completed";
           isCancelledRef.current = r.status === "cancelled";
-          if (silent) toast.success("Statut actualisé ✓");
+          if (silent) toast.success(t("suivi.status_refreshed"));
         }
       } catch (e) {
         console.error("Fetch error:", e);
-        setError("Erreur de chargement");
+        setError(t("suivi.load_error"));
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -1459,7 +1467,7 @@ function SuiviPage() {
                   newPrice != null &&
                   Number(prev.prix_estime) !== Number(newPrice)
                 ) {
-                  toast.success("💶 Le prix a été mis à jour.");
+                  toast.success(t("suivi.price_updated"));
                 }
                 isCompletedRef.current = newRow.status === "completed";
                 isCancelledRef.current = newRow.status === "cancelled";
@@ -1534,7 +1542,7 @@ function SuiviPage() {
         <div className="suivi-card" style={{ maxWidth: "400px", padding: "40px 24px", textAlign: "center" }}>
           <AlertTriangle size={48} style={{ color: "#991b1b", marginBottom: "16px" }} />
           <h1 style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a", marginBottom: "8px" }}>
-            {error || "Réservation non trouvée"}
+            {error || t("suivi.not_found")}
           </h1>
           <Link
             to="/"
@@ -1546,7 +1554,7 @@ function SuiviPage() {
               display: "inline-block",
             }}
           >
-            ← Retour à l'accueil
+            {t("suivi.back_home_arrow")}
           </Link>
         </div>
       </div>
@@ -1570,11 +1578,10 @@ function SuiviPage() {
         <div className="suivi-card" style={{ maxWidth: "400px", padding: "40px 24px", textAlign: "center" }}>
           <div style={{ fontSize: "48px", marginBottom: "16px" }}>🔏</div>
           <h1 style={{ fontSize: "16px", fontWeight: 800, color: "#0f172a", marginBottom: "8px" }}>
-            Ce suivi a expiré
+            {t("suivi.expired_title")}
           </h1>
           <p style={{ fontSize: "13px", color: "#64748b", marginBottom: "24px", lineHeight: 1.6 }}>
-            Le lien de suivi est accessible pendant {SUIVI_EXPIRY_DAYS} jours après la course. Pour revoir votre
-            historique, connectez-vous à votre espace client.
+            {t("suivi.expired_desc").replace("{days}", String(SUIVI_EXPIRY_DAYS))}
           </p>
           <a
             href="/reserver"
@@ -1592,7 +1599,7 @@ function SuiviPage() {
               boxShadow: "0 4px 12px rgba(29,78,216,0.3)",
             }}
           >
-            🚕 Réserver un taxi
+            {t("suivi.expired_cta")}
           </a>
         </div>
       </div>
@@ -1650,7 +1657,7 @@ function SuiviPage() {
             }}
           >
             <span style={{ fontSize: "12px", color: "#fbbf24", fontWeight: 600 }}>
-              {t("suivi.stale_warning")} {staleMinutes} min — statut à jour ?
+              {t("suivi.stale_warning")} {staleMinutes} min — {t("suivi.status_up_to_date")}
             </span>
             <button
               onClick={() => loadReservation(true)}
@@ -1996,7 +2003,7 @@ function SuiviPage() {
           {reservation.nb_passagers != null && (
             <div className="suivi-premium suivi-card" style={{ padding: "14px", textAlign: "center" }}>
               <Users size={18} style={{ color: "#1d4ed8", margin: "0 auto 6px", display: "block" }} />
-              <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>Passagers</div>
+              <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>{t("suivi.passagers")}</div>
               <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a" }}>{reservation.nb_passagers}</div>
             </div>
           )}
@@ -2020,9 +2027,9 @@ function SuiviPage() {
           {reservation.duree_s != null && (
             <div className="suivi-premium suivi-card" style={{ padding: "14px", textAlign: "center" }}>
               <Clock size={18} style={{ color: "#0ea5e9", margin: "0 auto 6px", display: "block" }} />
-              <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>Durée estimée</div>
+              <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>{t("suivi.duration_label")}</div>
               <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a" }}>
-                {Math.round(reservation.duree_s / 60)} min
+                {Math.round(reservation.duree_s / 60)} {t("suivi.minutes_short")}
               </div>
             </div>
           )}
@@ -2172,7 +2179,7 @@ function SuiviPage() {
                   boxShadow: "0 4px 12px rgba(29, 78, 216, 0.3)",
                 }}
               >
-                🔁 Réserver le même trajet
+                🔁 {t("suivi.rebook_same").replace("🔁 ", "")}
               </a>
               {/* 🗓️ Trajet récurrent */}
               <button
@@ -2193,7 +2200,7 @@ function SuiviPage() {
                   boxShadow: "0 4px 12px rgba(124, 58, 237, 0.3)",
                 }}
               >
-                <CalendarPlus size={16} /> Réserver ce trajet chaque semaine
+                <CalendarPlus size={16} /> {t("suivi.rebook_weekly")}
               </button>
               <Link
                 to="/"
@@ -2265,7 +2272,7 @@ function SuiviPage() {
                 transition: "color 0.3s",
               }}
             >
-              ← Retour à l'accueil
+              {t("suivi.back_home_arrow")}
             </Link>
           </div>
         )}
