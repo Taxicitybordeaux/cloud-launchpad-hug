@@ -143,6 +143,33 @@ function ClientDashboard() {
     if (ready) refresh();
   }, [ready, refresh]);
 
+  // Notification "trajet récurrent créé" : on toaste une fois par réservation
+  // dont source='recurring' apparaît pour la première fois côté client.
+  useEffect(() => {
+    if (!rows || !session) return;
+    const key = `tc:recurring-seen:${session.id}`;
+    let seen: string[] = [];
+    try {
+      seen = JSON.parse(localStorage.getItem(key) || "[]");
+    } catch {}
+    const fresh = rows.filter(
+      (r) =>
+        r.source === "recurring" &&
+        !seen.includes(r.id) &&
+        ["pending", "accepted", "confirmed", "en_route"].includes(r.status),
+    );
+    if (fresh.length > 0) {
+      for (const r of fresh) {
+        toast.success("🔁 Nouveau trajet récurrent confirmé", {
+          description: `${fmtDate(r.pickup_datetime, locale)} — ${r.depart} → ${r.arrivee || r.destination || ""}`,
+          duration: 8000,
+        });
+      }
+      const next = [...seen, ...fresh.map((r) => r.id)].slice(-100);
+      localStorage.setItem(key, JSON.stringify(next));
+    }
+  }, [rows, session, locale]);
+
   // Unread counts (messages from chauffeur not yet read by client) — via
   // server fn because the table is locked to admins at the RLS level.
   const loadUnread = useCallback(async (ids: string[]) => {
