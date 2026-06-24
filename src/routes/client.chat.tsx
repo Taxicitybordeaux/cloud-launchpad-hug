@@ -4,6 +4,7 @@ import { ClientBottomNav } from "@/components/ClientBottomNav";
 import { DirectChatPanel } from "@/components/DirectChatPanel";
 import { getClientSession } from "@/lib/client-session";
 import type { ClientSession } from "@/lib/client-auth.functions";
+import { useT } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/client/chat")({
   head: () => ({
