@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { LogOut, Plus, Trash2, Home, Briefcase, Plane, MapPin, ExternalLink, Repeat, Power } from "lucide-react";
 import { BrandLoader } from "@/components/BrandLoader";
