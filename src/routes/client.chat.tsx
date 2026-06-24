@@ -15,6 +15,7 @@ export const Route = createFileRoute("/client/chat")({
 
 function ClientChatPage() {
   const navigate = useNavigate();
+  const t = useT();
   const [session, setSession] = useState<ClientSession | null>(null);
 
   useEffect(() => {
