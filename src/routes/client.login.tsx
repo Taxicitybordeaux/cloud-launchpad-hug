@@ -199,7 +199,7 @@ function ClientLoginPage() {
               to="/client/forgot-password"
               className="mt-4 block text-center text-xs text-white/60 transition hover:text-[#E8C96D]"
             >
-              Mot de passe oublié ?
+              {t("client.login.forgot")}
             </Link>
           )}
 
@@ -217,8 +217,8 @@ function ClientLoginPage() {
         </div>
 
         <p className="mt-6 text-center text-xs text-white/40">
-          En vous connectant vous acceptez nos{" "}
-          <Link to="/mentions-legales" className="underline hover:text-white/70">conditions</Link>.
+          {t("client.login.terms_prefix")}{" "}
+          <Link to="/mentions-legales" className="underline hover:text-white/70">{t("client.login.terms_link")}</Link>.
         </p>
       </div>
     </main>
