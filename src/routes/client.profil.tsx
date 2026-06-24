@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { LogOut, Plus, Trash2, Home, Briefcase, Plane, MapPin, ExternalLink } from "lucide-react";
+import { LogOut, Plus, Trash2, Home, Briefcase, Plane, MapPin, ExternalLink, Repeat, Power } from "lucide-react";
 import { BrandLoader } from "@/components/BrandLoader";
 import { toast } from "sonner";
 import { ClientBottomNav } from "@/components/ClientBottomNav";
@@ -12,6 +12,13 @@ import {
   deleteClientFavorite,
   type ClientFavorite,
 } from "@/lib/client-favorites.functions";
+import {
+  listRecurringRides,
+  createRecurringRide,
+  toggleRecurringRide,
+  deleteRecurringRide,
+  type RecurringRide,
+} from "@/lib/client-recurring.functions";
 
 export const Route = createFileRoute("/client/profil")({
   head: () => ({
