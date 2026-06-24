@@ -98,6 +98,8 @@ const PREMIUM_CSS = `
     border: 1px solid rgba(148, 163, 184, 0.1);
     border-radius: 16px;
     box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08);
+    /* Fix #8 — préfixe webkit pour iOS < 15 */
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
@@ -109,6 +111,8 @@ const PREMIUM_CSS = `
   
   .suivi-glass {
     background: rgba(255, 255, 255, 0.7);
+    /* Fix #8 — préfixe webkit pour iOS < 15 */
+    -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
     border: 1px solid rgba(148, 163, 184, 0.15);
     border-radius: 12px;
@@ -176,7 +180,7 @@ const STATUS_CONFIG: Record<
     icon: "📍",
   },
   completed: {
-    label: "Complétée",
+    label: "suivi.status.completed",
     color: "#475569",
     bgGradient: "linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)",
     borderColor: "rgba(71, 85, 105, 0.2)",
@@ -278,6 +282,17 @@ function PremiumTimeline({ status }: { status: string }) {
       })}
     </div>
   );
+}
+
+// ─── Chat helpers ─────────────────────────────────────────────────────────────────
+function getAnonChatId(reservationId: string): string {
+  const key = `tcb_anon_chat_${reservationId}`;
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = `anon_${reservationId}_${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem(key, id);
+  }
+  return id;
 }
 
 // ─── Chat Component ───────────────────────────────────────────────────────────────
@@ -395,7 +410,7 @@ function AnonChat({ reservationId }: { reservationId: string }) {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "12px", height: "320px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "12px", height: "min(320px, 40dvh)" }}>
       <div
         style={{
           flex: 1,
@@ -480,21 +495,13 @@ function AnonChat({ reservationId }: { reservationId: string }) {
   );
 }
 
-function getAnonChatId(reservationId: string): string {
-  const key = `tcb_anon_chat_${reservationId}`;
-  let id = localStorage.getItem(key);
-  if (!id) {
-    id = `anon_${reservationId}_${Math.random().toString(36).slice(2, 10)}`;
-    localStorage.setItem(key, id);
-  }
-  return id;
-}
-
 // ─── Calendrier ICS ──────────────────────────────────────────────────────────────
 function generateICS(reservation: any): string {
   if (!reservation.pickup_datetime) return "#";
   const start = new Date(reservation.pickup_datetime);
-  const end = new Date(start.getTime() + 60 * 60 * 1000); // +1h par défaut
+  // Utilise duree_s si disponible, sinon 1h par défaut
+  const durationMs = reservation.duree_s ? reservation.duree_s * 1000 : 60 * 60 * 1000;
+  const end = new Date(start.getTime() + durationMs);
   const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
   const lines = [
     "BEGIN:VCALENDAR",
@@ -524,13 +531,19 @@ function InvoiceBlock({ reservation, locale, t }: { reservation: any; locale: st
   const [emailSending, setEmailSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
 
-  const handlePrint = () => window.print();
+  // Fix #7 — sur mobile, "Imprimer" ouvre la facture PDF plutôt que window.print() sur toute la page
+  const isMobile = typeof navigator !== "undefined" && /Mobi|Android/i.test(navigator.userAgent);
+  const handlePrint = () => {
+    if (isMobile) {
+      handleDownloadPDF();
+    } else {
+      window.print();
+    }
+  };
 
   const handleSendEmail = async () => {
     const emailAddr =
-      (reservation as any).email ||
-      (reservation as any).client_email ||
-      window.prompt("Adresse email du client :");
+      (reservation as any).email || (reservation as any).client_email || window.prompt("Adresse email du client :");
     if (!emailAddr) return;
     setEmailSending(true);
     try {
@@ -560,6 +573,10 @@ function InvoiceBlock({ reservation, locale, t }: { reservation: any; locale: st
     const prix = reservation.prix_estime
       ? new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(reservation.prix_estime)
       : "—";
+    // Fix #1 — résoudre les labels i18n avant le template string
+    const labelDepart = t("suivi.depart_label");
+    const labelArrivee = t("suivi.arrivee_label");
+    const labelPassagers = t("suivi.passagers");
     const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/>
 <title>Facture — Taxi City Bordeaux</title>
 <style>
@@ -586,10 +603,10 @@ function InvoiceBlock({ reservation, locale, t }: { reservation: any; locale: st
   <div class="meta"><strong>Reçu de course</strong>N° ${reservation.id.slice(-8).toUpperCase()}<br/>${dateStr}</div>
 </div>
 <h2>Détails du trajet</h2>
-<div class="row"><span class="label">{t("suivi.depart_label")} 🟢</span><span class="value">${reservation.depart ?? "—"}</span></div>
-<div class="row"><span class="label">{t("suivi.arrivee_label")} 🔴</span><span class="value">${reservation.destination ?? reservation.arrivee ?? "—"}</span></div>
+<div class="row"><span class="label">${labelDepart} 🟢</span><span class="value">${reservation.depart ?? "—"}</span></div>
+<div class="row"><span class="label">${labelArrivee} 🔴</span><span class="value">${reservation.destination ?? reservation.arrivee ?? "—"}</span></div>
 ${reservation.distance_km != null ? `<div class="row"><span class="label">Distance</span><span class="value">${Number(reservation.distance_km).toFixed(1)} km</span></div>` : ""}
-${reservation.nb_passagers != null ? `<div class="row"><span class="label">{t("suivi.passagers")}</span><span class="value">${reservation.nb_passagers}</span></div>` : ""}
+${reservation.nb_passagers != null ? `<div class="row"><span class="label">${labelPassagers}</span><span class="value">${reservation.nb_passagers}</span></div>` : ""}
 ${reservation.mode_paiement ? `<div class="row"><span class="label">Paiement</span><span class="value">${reservation.mode_paiement}</span></div>` : ""}
 <div class="total-box"><span class="label">Total course</span><span class="amount">${prix}</span></div>
 <div class="no-print" style="text-align:center">
@@ -689,85 +706,77 @@ ${reservation.mode_paiement ? `<div class="row"><span class="label">Paiement</sp
         )}
       </div>
 
-      {/* Boutons */}
-      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+      {/* Boutons — 2 colonnes sur mobile */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
         <button
           onClick={handlePrint}
           style={{
-            flex: 1,
-            minWidth: 72,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             gap: "6px",
-            padding: "11px 10px",
+            padding: "12px 10px",
             background: "rgba(255,255,255,0.08)",
             color: "#94a3b8",
             border: "1px solid rgba(148,163,184,0.2)",
             borderRadius: "10px",
-            fontSize: "12px",
+            fontSize: "13px",
             fontWeight: 600,
             cursor: "pointer",
           }}
         >
-          <PrinterIcon size={14} /> {t("suivi.print")}
+          <PrinterIcon size={15} /> {t("suivi.print")}
         </button>
         <button
           onClick={handleDownloadPDF}
           style={{
-            flex: 1,
-            minWidth: 72,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             gap: "6px",
-            padding: "11px 10px",
+            padding: "12px 10px",
             background: "linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)",
             color: "#fff",
             border: "none",
             borderRadius: "10px",
-            fontSize: "12px",
+            fontSize: "13px",
             fontWeight: 600,
             cursor: "pointer",
             boxShadow: "0 4px 12px rgba(29,78,216,0.3)",
           }}
         >
-          <Download size={14} /> {t("suivi.download_pdf")}
+          <Download size={15} /> {t("suivi.download_pdf")}
         </button>
-        {/* ── Email ── */}
         <button
           onClick={handleSendEmail}
           disabled={emailSending || emailSent}
           style={{
-            flex: 1,
-            minWidth: 72,
+            gridColumn: "1 / -1",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             gap: "6px",
-            padding: "11px 10px",
+            padding: "12px 10px",
             background: emailSent
               ? "linear-gradient(135deg, #16a34a 0%, #15803d 100%)"
               : emailSending
-              ? "#cbd5e1"
-              : "linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)",
+                ? "#cbd5e1"
+                : "linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)",
             color: "#fff",
             border: "none",
             borderRadius: "10px",
-            fontSize: "12px",
+            fontSize: "13px",
             fontWeight: 600,
             cursor: emailSending || emailSent ? "not-allowed" : "pointer",
-            boxShadow: emailSent
-              ? "0 4px 12px rgba(22,163,74,0.3)"
-              : "0 4px 12px rgba(14,165,233,0.3)",
+            boxShadow: emailSent ? "0 4px 12px rgba(22,163,74,0.3)" : "0 4px 12px rgba(14,165,233,0.3)",
           }}
         >
           {emailSending ? (
-            <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+            <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} />
           ) : emailSent ? (
-            <>✓ Envoyé</>
+            <>✓ Reçu envoyé</>
           ) : (
-            <>📧 Email</>
+            <>📧 Envoyer le reçu par email</>
           )}
         </button>
       </div>
@@ -775,17 +784,10 @@ ${reservation.mode_paiement ? `<div class="row"><span class="label">Paiement</sp
   );
 }
 
-
 // ─── Course récurrente ─────────────────────────────────────────────────────────
 const DAYS_FR = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
 
-function RecurringModal({
-  reservation,
-  onClose,
-}: {
-  reservation: any;
-  onClose: () => void;
-}) {
+function RecurringModal({ reservation, onClose }: { reservation: any; onClose: () => void }) {
   const [freq, setFreq] = useState<"weekly" | "biweekly" | "monthly">("weekly");
   const [dayOfWeek, setDayOfWeek] = useState<number>(() => {
     if (reservation.pickup_datetime) {
@@ -806,20 +808,22 @@ function RecurringModal({
   const handleSave = async () => {
     setSaving(true);
     try {
-      const { error } = await (supabase as any).from("recurring_rides").insert([{
-        source_reservation_id: reservation.id,
-        depart: reservation.depart,
-        destination: reservation.destination ?? reservation.arrivee,
-        nb_passagers: reservation.nb_passagers ?? 1,
-        nb_bagages: reservation.nb_bagages ?? 0,
-        mode_paiement: reservation.mode_paiement ?? "cb",
-        client_name: reservation.client_name,
-        frequency: freq,
-        day_of_week: dayOfWeek,
-        time_hhmm: time,
-        active: true,
-        created_at: new Date().toISOString(),
-      }]);
+      const { error } = await (supabase as any).from("recurring_rides").insert([
+        {
+          source_reservation_id: reservation.id,
+          depart: reservation.depart,
+          destination: reservation.destination ?? reservation.arrivee,
+          nb_passagers: reservation.nb_passagers ?? 1,
+          nb_bagages: reservation.nb_bagages ?? 0,
+          mode_paiement: reservation.mode_paiement ?? "cb",
+          client_name: reservation.client_name,
+          frequency: freq,
+          day_of_week: dayOfWeek,
+          time_hhmm: time,
+          active: true,
+          created_at: new Date().toISOString(),
+        },
+      ]);
       if (error) throw error;
       setSaved(true);
       toast.success("🗓️ Trajet récurrent activé !");
@@ -841,9 +845,14 @@ function RecurringModal({
     <div
       onClick={onClose}
       style={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)",
-        display: "flex", alignItems: "flex-end", justifyContent: "center",
-        zIndex: 9999, backdropFilter: "blur(4px)",
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.55)",
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "center",
+        zIndex: 9999,
+        backdropFilter: "blur(4px)",
       }}
     >
       <div
@@ -867,7 +876,16 @@ function RecurringModal({
 
         {/* Fréquence */}
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, letterSpacing: "0.05em", marginBottom: 8 }}>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#64748b",
+              textTransform: "uppercase" as const,
+              letterSpacing: "0.05em",
+              marginBottom: 8,
+            }}
+          >
             Fréquence
           </div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -876,7 +894,11 @@ function RecurringModal({
                 key={f}
                 onClick={() => setFreq(f)}
                 style={{
-                  flex: 1, padding: "10px 4px", borderRadius: 10, fontSize: 11, fontWeight: 700,
+                  flex: 1,
+                  padding: "10px 4px",
+                  borderRadius: 10,
+                  fontSize: 11,
+                  fontWeight: 700,
                   border: "2px solid",
                   borderColor: freq === f ? "#1d4ed8" : "#e2e8f0",
                   background: freq === f ? "#eff6ff" : "#fff",
@@ -892,7 +914,16 @@ function RecurringModal({
 
         {/* Jour */}
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, letterSpacing: "0.05em", marginBottom: 8 }}>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#64748b",
+              textTransform: "uppercase" as const,
+              letterSpacing: "0.05em",
+              marginBottom: 8,
+            }}
+          >
             Jour
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
@@ -901,7 +932,10 @@ function RecurringModal({
                 key={i}
                 onClick={() => setDayOfWeek(i)}
                 style={{
-                  padding: "8px 10px", borderRadius: 8, fontSize: 12, fontWeight: 700,
+                  padding: "8px 10px",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 700,
                   border: "2px solid",
                   borderColor: dayOfWeek === i ? "#1d4ed8" : "#e2e8f0",
                   background: dayOfWeek === i ? "#eff6ff" : "#fff",
@@ -917,7 +951,16 @@ function RecurringModal({
 
         {/* Heure */}
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" as const, letterSpacing: "0.05em", marginBottom: 8 }}>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#64748b",
+              textTransform: "uppercase" as const,
+              letterSpacing: "0.05em",
+              marginBottom: 8,
+            }}
+          >
             Heure de prise en charge
           </div>
           <input
@@ -925,9 +968,14 @@ function RecurringModal({
             value={time}
             onChange={(e) => setTime(e.target.value)}
             style={{
-              width: "100%", padding: "12px 14px", borderRadius: 10,
-              border: "1.5px solid #e2e8f0", fontSize: 16, color: "#0f172a",
-              fontFamily: "inherit", boxSizing: "border-box" as const,
+              width: "100%",
+              padding: "12px 14px",
+              borderRadius: 10,
+              border: "1.5px solid #e2e8f0",
+              fontSize: 16,
+              color: "#0f172a",
+              fontFamily: "inherit",
+              boxSizing: "border-box" as const,
             }}
           />
         </div>
@@ -936,14 +984,22 @@ function RecurringModal({
           onClick={handleSave}
           disabled={saving || saved}
           style={{
-            width: "100%", padding: "15px 16px",
+            width: "100%",
+            padding: "15px 16px",
             background: saved
               ? "linear-gradient(135deg, #16a34a 0%, #15803d 100%)"
               : "linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)",
-            color: "#fff", border: "none", borderRadius: 12,
-            fontSize: 15, fontWeight: 800, cursor: saving || saved ? "not-allowed" : "pointer",
+            color: "#fff",
+            border: "none",
+            borderRadius: 12,
+            fontSize: 15,
+            fontWeight: 800,
+            cursor: saving || saved ? "not-allowed" : "pointer",
             boxShadow: "0 4px 16px rgba(29,78,216,0.35)",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
           }}
         >
           {saving ? <Loader2 size={18} style={{ animation: "spin 1s linear infinite" }} /> : null}
@@ -1115,7 +1171,6 @@ function ReviewBlock({ reservationId, t }: { reservationId: string; t: (k: strin
   );
 }
 
-
 // ─── Partage de trajet enrichi ────────────────────────────────────────────────
 function ShareTrajetButton({ reservation }: { reservation: any }) {
   const [open, setOpen] = useState(false);
@@ -1123,9 +1178,7 @@ function ShareTrajetButton({ reservation }: { reservation: any }) {
   // Arrivée estimée : pickup_datetime + duree_s si dispo, sinon "en cours"
   const getETA = (): string => {
     if (reservation.pickup_datetime && reservation.duree_s) {
-      const eta = new Date(
-        new Date(reservation.pickup_datetime).getTime() + reservation.duree_s * 1000,
-      );
+      const eta = new Date(new Date(reservation.pickup_datetime).getTime() + reservation.duree_s * 1000);
       return eta.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
     }
     return null as any;
@@ -1188,31 +1241,43 @@ function ShareTrajetButton({ reservation }: { reservation: any }) {
       <div
         onClick={() => setOpen(false)}
         style={{
-          position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
-          zIndex: 9998, backdropFilter: "blur(3px)",
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0,0,0,0.45)",
+          zIndex: 9998,
+          backdropFilter: "blur(3px)",
         }}
       />
       {/* Sheet */}
       <div
         style={{
-          position: "fixed", bottom: 0, left: 0, right: 0,
-          background: "#fff", borderRadius: "20px 20px 0 0",
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: "#fff",
+          borderRadius: "20px 20px 0 0",
           padding: "20px 20px 40px",
           zIndex: 9999,
           boxShadow: "0 -8px 40px rgba(0,0,0,0.18)",
-          maxWidth: 480, margin: "0 auto",
+          maxWidth: 480,
+          margin: "0 auto",
         }}
       >
         <div style={{ width: 40, height: 4, background: "#e2e8f0", borderRadius: 2, margin: "0 auto 18px" }} />
-        <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", marginBottom: 4 }}>
-          📱 Partager mon trajet
-        </div>
+        <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", marginBottom: 4 }}>📱 Partager mon trajet</div>
         {/* Aperçu du message */}
         <div
           style={{
-            background: "#f8fafc", borderRadius: 10, padding: "12px 14px",
-            marginBottom: 16, fontSize: 13, color: "#334155", lineHeight: 1.6,
-            border: "1px solid #e2e8f0", whiteSpace: "pre-line",
+            background: "#f8fafc",
+            borderRadius: 10,
+            padding: "12px 14px",
+            marginBottom: 16,
+            fontSize: 13,
+            color: "#334155",
+            lineHeight: 1.6,
+            border: "1px solid #e2e8f0",
+            whiteSpace: "pre-line",
           }}
         >
           {buildMessage("copy")}
@@ -1225,16 +1290,21 @@ function ShareTrajetButton({ reservation }: { reservation: any }) {
             rel="noopener noreferrer"
             onClick={() => setOpen(false)}
             style={{
-              display: "flex", alignItems: "center", gap: 10,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
               padding: "13px 16px",
               background: "linear-gradient(135deg, #16a34a 0%, #15803d 100%)",
-              color: "#fff", borderRadius: 12, textDecoration: "none",
-              fontWeight: 700, fontSize: 14,
+              color: "#fff",
+              borderRadius: 12,
+              textDecoration: "none",
+              fontWeight: 700,
+              fontSize: 14,
               boxShadow: "0 4px 12px rgba(22,163,74,0.3)",
             }}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
             </svg>
             Envoyer sur WhatsApp
           </a>
@@ -1243,11 +1313,16 @@ function ShareTrajetButton({ reservation }: { reservation: any }) {
             href={`sms:?body=${encodeURIComponent(buildMessage("sms"))}`}
             onClick={() => setOpen(false)}
             style={{
-              display: "flex", alignItems: "center", gap: 10,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
               padding: "13px 16px",
               background: "linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)",
-              color: "#fff", borderRadius: 12, textDecoration: "none",
-              fontWeight: 700, fontSize: 14,
+              color: "#fff",
+              borderRadius: 12,
+              textDecoration: "none",
+              fontWeight: 700,
+              fontSize: 14,
               boxShadow: "0 4px 12px rgba(29,78,216,0.3)",
             }}
           >
@@ -1258,11 +1333,18 @@ function ShareTrajetButton({ reservation }: { reservation: any }) {
           <button
             onClick={handleCopy}
             style={{
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
               padding: "13px 16px",
               background: "rgba(248,250,252,1)",
-              color: "#334155", border: "1px solid #e2e8f0",
-              borderRadius: 12, fontWeight: 700, fontSize: 14, cursor: "pointer",
+              color: "#334155",
+              border: "1px solid #e2e8f0",
+              borderRadius: 12,
+              fontWeight: 700,
+              fontSize: 14,
+              cursor: "pointer",
             }}
           >
             📋 Copier le lien
@@ -1485,17 +1567,14 @@ function SuiviPage() {
         }}
       >
         <style>{PREMIUM_CSS}</style>
-        <div
-          className="suivi-card"
-          style={{ maxWidth: "400px", padding: "40px 24px", textAlign: "center" }}
-        >
+        <div className="suivi-card" style={{ maxWidth: "400px", padding: "40px 24px", textAlign: "center" }}>
           <div style={{ fontSize: "48px", marginBottom: "16px" }}>🔏</div>
           <h1 style={{ fontSize: "16px", fontWeight: 800, color: "#0f172a", marginBottom: "8px" }}>
             Ce suivi a expiré
           </h1>
           <p style={{ fontSize: "13px", color: "#64748b", marginBottom: "24px", lineHeight: 1.6 }}>
-            Le lien de suivi est accessible pendant {SUIVI_EXPIRY_DAYS} jours après la course.
-            Pour revoir votre historique, connectez-vous à votre espace client.
+            Le lien de suivi est accessible pendant {SUIVI_EXPIRY_DAYS} jours après la course. Pour revoir votre
+            historique, connectez-vous à votre espace client.
           </p>
           <a
             href="/reserver"
@@ -1532,7 +1611,7 @@ function SuiviPage() {
           background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
           minHeight: "100vh",
           padding: "16px",
-          paddingBottom: "32px",
+          paddingBottom: "calc(32px + env(safe-area-inset-bottom, 0px))",
           fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         }}
       >
@@ -1733,6 +1812,7 @@ function SuiviPage() {
             {/* Véhicule — affiché dès accepted */}
             {["accepted", "en_route", "arrived"].includes(reservation.status) && (
               <div
+                className="vehicle-photo-block"
                 style={{
                   marginTop: "12px",
                   background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
@@ -1746,6 +1826,13 @@ function SuiviPage() {
                   <img
                     src="/vehicle-jose.jpg"
                     alt="Mercedes-Benz Classe E — Taxi City Bordeaux"
+                    onError={(e) => {
+                      // Masque le bloc image si le fichier n'existe pas
+                      const parent = (e.target as HTMLImageElement).closest(
+                        ".vehicle-photo-block",
+                      ) as HTMLElement | null;
+                      if (parent) parent.style.display = "none";
+                    }}
                     style={{
                       width: "100%",
                       height: "100%",
@@ -1926,6 +2013,16 @@ function SuiviPage() {
               <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>{t("suivi.distance")}</div>
               <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a" }}>
                 {reservation.distance_km.toFixed(1)} km
+              </div>
+            </div>
+          )}
+          {/* Fix #11 — durée estimée si duree_s disponible */}
+          {reservation.duree_s != null && (
+            <div className="suivi-premium suivi-card" style={{ padding: "14px", textAlign: "center" }}>
+              <Clock size={18} style={{ color: "#0ea5e9", margin: "0 auto 6px", display: "block" }} />
+              <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>Durée estimée</div>
+              <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a" }}>
+                {Math.round(reservation.duree_s / 60)} min
               </div>
             </div>
           )}
@@ -2118,17 +2215,12 @@ function SuiviPage() {
               </Link>
             </div>
             {/* Modal récurrent */}
-            {showRecurring && (
-              <RecurringModal
-                reservation={reservation}
-                onClose={() => setShowRecurring(false)}
-              />
-            )}
+            {showRecurring && <RecurringModal reservation={reservation} onClose={() => setShowRecurring(false)} />}
           </>
         )}
 
-        {/* Bouton Rafraîchir — masqué si course terminée */}
-        {!isCompleted && (
+        {/* Bouton Rafraîchir — masqué si course terminée ou annulée */}
+        {!isCompleted && !isCancelled && (
           <div style={{ marginBottom: "16px" }}>
             <button
               onClick={() => loadReservation(true)}
@@ -2161,8 +2253,8 @@ function SuiviPage() {
           </div>
         )}
 
-        {/* Footer — masqué si completed (boutons dans le bloc terminée) */}
-        {!isCompleted && (
+        {/* Footer — masqué si completed ou cancelled (boutons dans le bloc terminée) */}
+        {!isCompleted && !isCancelled && (
           <div style={{ textAlign: "center" }}>
             <Link
               to="/"
