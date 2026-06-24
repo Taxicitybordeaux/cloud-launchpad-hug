@@ -1639,6 +1639,28 @@ function SuiviPage() {
           fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         }}
       >
+        {/* Bouton retour vers site */}
+        <div style={{ marginBottom: "12px" }}>
+          <a
+            href="https://taxicitybordeaux.fr"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "8px 14px",
+              background: "rgba(255,255,255,0.08)",
+              border: "1px solid rgba(255,255,255,0.15)",
+              borderRadius: "10px",
+              color: "#94a3b8",
+              fontSize: "13px",
+              fontWeight: 600,
+              textDecoration: "none",
+            }}
+          >
+            ← Taxi City Bordeaux
+          </a>
+        </div>
+
         {/* Bandeau reconnexion */}
         {!realtimeOk && (
           <div
