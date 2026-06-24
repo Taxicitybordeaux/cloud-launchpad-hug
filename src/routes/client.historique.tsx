@@ -36,6 +36,7 @@ function fmtDate(iso: string) {
 
 function ClientHistorique() {
   const navigate = useNavigate();
+  const t = useT();
   const [session, setSession] = useState<ClientSession | null>(null);
   const [rows, setRows] = useState<ClientReservation[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,11 +62,11 @@ function ClientHistorique() {
       });
       setRows(data.filter((r) => PAST.has(r.status)));
     } catch {
-      toast.error("Impossible de charger votre historique");
+      toast.error(t("client.historique.load_err"));
     } finally {
       setLoading(false);
     }
-  }, [session]);
+  }, [session, t]);
 
   useEffect(() => {
     if (session) refresh();
