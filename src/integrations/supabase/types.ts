@@ -893,6 +893,7 @@ export type Database = {
           read_ct: number
         }[]
       }
+      unsubscribe_push: { Args: { p_endpoint: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user"
