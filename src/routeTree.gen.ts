@@ -44,6 +44,7 @@ import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/l
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
+import { Route as ApiPublicHooksRideRemindersTickRouteImport } from './routes/api/public/hooks/ride-reminders-tick'
 import { Route as ApiPublicHooksRecurringRidesTickRouteImport } from './routes/api/public/hooks/recurring-rides-tick'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -226,6 +227,12 @@ const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
   path: '/lovable/email/auth/preview',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksRideRemindersTickRoute =
+  ApiPublicHooksRideRemindersTickRouteImport.update({
+    id: '/api/public/hooks/ride-reminders-tick',
+    path: '/api/public/hooks/ride-reminders-tick',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksRecurringRidesTickRoute =
   ApiPublicHooksRecurringRidesTickRouteImport.update({
     id: '/api/public/hooks/recurring-rides-tick',
@@ -265,6 +272,7 @@ export interface FileRoutesByFullPath {
   '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/recurring-rides-tick': typeof ApiPublicHooksRecurringRidesTickRoute
+  '/api/public/hooks/ride-reminders-tick': typeof ApiPublicHooksRideRemindersTickRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -303,6 +311,7 @@ export interface FileRoutesByTo {
   '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/recurring-rides-tick': typeof ApiPublicHooksRecurringRidesTickRoute
+  '/api/public/hooks/ride-reminders-tick': typeof ApiPublicHooksRideRemindersTickRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -342,6 +351,7 @@ export interface FileRoutesById {
   '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/recurring-rides-tick': typeof ApiPublicHooksRecurringRidesTickRoute
+  '/api/public/hooks/ride-reminders-tick': typeof ApiPublicHooksRideRemindersTickRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -382,6 +392,7 @@ export interface FileRouteTypes {
     | '/api/public/notify-reservation-client'
     | '/lovable/email/suppression'
     | '/api/public/hooks/recurring-rides-tick'
+    | '/api/public/hooks/ride-reminders-tick'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
@@ -420,6 +431,7 @@ export interface FileRouteTypes {
     | '/api/public/notify-reservation-client'
     | '/lovable/email/suppression'
     | '/api/public/hooks/recurring-rides-tick'
+    | '/api/public/hooks/ride-reminders-tick'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
@@ -458,6 +470,7 @@ export interface FileRouteTypes {
     | '/api/public/notify-reservation-client'
     | '/lovable/email/suppression'
     | '/api/public/hooks/recurring-rides-tick'
+    | '/api/public/hooks/ride-reminders-tick'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
@@ -496,6 +509,7 @@ export interface RootRouteChildren {
   ApiPublicNotifyReservationClientRoute: typeof ApiPublicNotifyReservationClientRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   ApiPublicHooksRecurringRidesTickRoute: typeof ApiPublicHooksRecurringRidesTickRoute
+  ApiPublicHooksRideRemindersTickRoute: typeof ApiPublicHooksRideRemindersTickRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
@@ -750,6 +764,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailAuthPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/ride-reminders-tick': {
+      id: '/api/public/hooks/ride-reminders-tick'
+      path: '/api/public/hooks/ride-reminders-tick'
+      fullPath: '/api/public/hooks/ride-reminders-tick'
+      preLoaderRoute: typeof ApiPublicHooksRideRemindersTickRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/recurring-rides-tick': {
       id: '/api/public/hooks/recurring-rides-tick'
       path: '/api/public/hooks/recurring-rides-tick'
@@ -803,6 +824,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicNotifyReservationClientRoute: ApiPublicNotifyReservationClientRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   ApiPublicHooksRecurringRidesTickRoute: ApiPublicHooksRecurringRidesTickRoute,
+  ApiPublicHooksRideRemindersTickRoute: ApiPublicHooksRideRemindersTickRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,

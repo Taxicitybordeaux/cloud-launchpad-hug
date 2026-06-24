@@ -696,6 +696,7 @@ export type Database = {
           pickup_datetime: string
           prix_estime: number | null
           refus_motif: string | null
+          reminder_j1_sent_at: string | null
           route_coords: Json | null
           route_label: string | null
           service_type: string
@@ -734,6 +735,7 @@ export type Database = {
           pickup_datetime: string
           prix_estime?: number | null
           refus_motif?: string | null
+          reminder_j1_sent_at?: string | null
           route_coords?: Json | null
           route_label?: string | null
           service_type?: string
@@ -772,6 +774,7 @@ export type Database = {
           pickup_datetime?: string
           prix_estime?: number | null
           refus_motif?: string | null
+          reminder_j1_sent_at?: string | null
           route_coords?: Json | null
           route_label?: string | null
           service_type?: string
@@ -962,6 +965,7 @@ export type Database = {
           pickup_datetime: string
           prix_estime: number | null
           refus_motif: string | null
+          reminder_j1_sent_at: string | null
           route_coords: Json | null
           route_label: string | null
           service_type: string

@@ -182,6 +182,39 @@ export const notifyNewReservation = createServerFn({ method: "POST" })
     return { chauffeur: chauffeurResult, emailSent };
   });
 
+// Compute ETA in minutes from driver's current GPS to the pickup address
+// using Google Distance Matrix REST. Returns null on failure / no data.
+async function computeEtaMinutes(_reservationId: string, depart: string): Promise<number | null> {
+  try {
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    if (!apiKey || !depart) return null;
+    const { getTaxiSupabaseAdmin } = await import("@/lib/taxi-supabase.server");
+    const supabaseAdmin = getTaxiSupabaseAdmin();
+    const { data: gps } = await supabaseAdmin
+      .from("driver_gps" as any)
+      .select("latitude, longitude, captured_at, updated_at")
+      .order("updated_at", { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle();
+    const lat = (gps as any)?.latitude;
+    const lng = (gps as any)?.longitude;
+    if (typeof lat !== "number" || typeof lng !== "number") return null;
+    const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${lat},${lng}&destinations=${encodeURIComponent(
+      depart,
+    )}&mode=driving&departure_time=now&key=${apiKey}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const json: any = await res.json();
+    const el = json?.rows?.[0]?.elements?.[0];
+    const sec = el?.duration_in_traffic?.value ?? el?.duration?.value;
+    if (typeof sec !== "number") return null;
+    return Math.max(1, Math.round(sec / 60));
+  } catch (e) {
+    console.warn("[notifyReservationStatus] eta compute failed", e);
+    return null;
+  }
+}
+
 export const notifyReservationStatus = createServerFn({ method: "POST" })
   .inputValidator((input) =>
     z
@@ -190,6 +223,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
         status: z.enum(["accepted", "refused", "en_route", "arrived", "completed", "cancelled"]),
         update_status: z.boolean().optional(),
         suivi_key: z.string().min(1).max(120).optional(),
+        eta_minutes: z.number().int().positive().max(180).optional(),
       })
       .parse(input),
   )
@@ -232,9 +266,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
     const smsPhone = phone.replace(/[^\d]/g, "").replace(/^0/, "+33");
     const url = `/reservation/${r.id}`;
 
-    // ⚠️ Plus de push au CLIENT — le client est notifié visuellement via le
-    // bandeau d'étapes sur la page /reservation/$id (realtime Supabase).
-    // On garde uniquement la push CHAUFFEUR à l'acceptation (rappel GPS).
+    // ── Push CHAUFFEUR (acceptation → rappel GPS) ────────────────────────
     let chauffeurResult = { sent: 0, removed: 0 };
     if (data.status === "accepted") {
       chauffeurResult = await sendPushToAudience("chauffeur", {
@@ -244,6 +276,38 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
         tag: `chauffeur-res-${r.id}`,
         requireInteraction: true,
       });
+    }
+
+    // ── Push CLIENT pour "en route" (avec ETA) et "arrivé" ──────────────
+    let clientResult = { sent: 0, removed: 0 };
+    if (data.status === "en_route") {
+      const eta = data.eta_minutes ?? (await computeEtaMinutes(r.id, r.depart || ""));
+      const etaTxt = eta ? ` (arrivée dans ~${eta} min)` : "";
+      clientResult = await sendPushToAudience(
+        "client",
+        {
+          title: "🚖 Votre chauffeur est en route",
+          body: `José arrive vers ${r.depart}${etaTxt}.`,
+          url,
+          tag: `client-en-route-${r.id}`,
+          requireInteraction: false,
+          data: { reservation_id: r.id, status: "en_route", eta_minutes: eta ?? null },
+        },
+        { reservationId: r.id },
+      );
+    } else if (data.status === "arrived") {
+      clientResult = await sendPushToAudience(
+        "client",
+        {
+          title: "✅ Votre taxi est arrivé",
+          body: `Votre chauffeur vous attend au point de prise en charge.`,
+          url,
+          tag: `client-arrived-${r.id}`,
+          requireInteraction: true,
+          data: { reservation_id: r.id, status: "arrived" },
+        },
+        { reservationId: r.id },
+      );
     }
 
     // SMS optionnel (lien wa.me/sms côté UI) — conservé
@@ -259,7 +323,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
       );
     }
 
-    return { client: { sent: 0, removed: 0 }, chauffeur: chauffeurResult, smsPhone: smsPhone || null, smsBody };
+    return { client: clientResult, chauffeur: chauffeurResult, smsPhone: smsPhone || null, smsBody };
   });
 
 // ── Mise à jour du trajet (km + prix) par le chauffeur depuis la page suivi ──
