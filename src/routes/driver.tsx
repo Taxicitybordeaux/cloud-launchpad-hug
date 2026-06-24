@@ -2372,6 +2372,371 @@ function DriverChatConversation({
   );
 }
 
+// ── Analytics : ouvertures du lien de suivi ────────────────────────────────
+function TrackingAnalytics() {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<{
+    totalOuvertures: number;
+    coursesAvecSuivi: number;
+    totalCourses: number;
+    tauxOuverture: number;
+    parJour: { jour: string; count: number }[];
+    parSource: { source: string; count: number }[];
+    dernierEvents: { reservation_id: string; client_name: string | null; created_at: string; source: string | null }[];
+  } | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const since30j = new Date();
+      since30j.setDate(since30j.getDate() - 30);
+
+      const [{ data: events }, { count: totalCourses }] = await Promise.all([
+        (supabase as any)
+          .from("tracking_events")
+          .select("reservation_id, created_at, source, reservations(client_name)")
+          .eq("event_type", "tracking_opened")
+          .gte("created_at", since30j.toISOString())
+          .order("created_at", { ascending: false })
+          .limit(500),
+        (supabase as any)
+          .from("reservations")
+          .select("id", { count: "exact", head: true })
+          .in("status", ["accepted", "en_route", "arrived", "completed"])
+          .gte("pickup_datetime", since30j.toISOString()),
+      ]);
+
+      const evts: any[] = events ?? [];
+
+      const uniqueResas = new Set(evts.map((e: any) => e.reservation_id));
+
+      const parJourMap = new Map<string, number>();
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        parJourMap.set(d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" }), 0);
+      }
+      const sept = new Date();
+      sept.setDate(sept.getDate() - 6);
+      sept.setHours(0, 0, 0, 0);
+      for (const e of evts) {
+        const d = new Date(e.created_at);
+        if (d >= sept) {
+          const k = d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" });
+          parJourMap.set(k, (parJourMap.get(k) ?? 0) + 1);
+        }
+      }
+      const parJour = Array.from(parJourMap.entries()).map(([jour, count]) => ({ jour, count }));
+
+      const parSourceMap = new Map<string, number>();
+      for (const e of evts) {
+        const src = e.source ?? "direct";
+        parSourceMap.set(src, (parSourceMap.get(src) ?? 0) + 1);
+      }
+      const parSource = Array.from(parSourceMap.entries())
+        .map(([source, count]) => ({ source, count }))
+        .sort((a, b) => b.count - a.count);
+
+      const dernierEvents = evts.slice(0, 5).map((e: any) => ({
+        reservation_id: e.reservation_id,
+        client_name: e.reservations?.client_name ?? null,
+        created_at: e.created_at,
+        source: e.source ?? "direct",
+      }));
+
+      const tauxOuverture = totalCourses && totalCourses > 0 ? Math.round((uniqueResas.size / totalCourses) * 100) : 0;
+
+      setData({
+        totalOuvertures: evts.length,
+        coursesAvecSuivi: uniqueResas.size,
+        totalCourses: totalCourses ?? 0,
+        tauxOuverture,
+        parJour,
+        parSource,
+        dernierEvents,
+      });
+    } catch (e) {
+      console.error("[TrackingAnalytics]", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sourceEmoji: Record<string, string> = {
+    push: "🔔",
+    email: "✉️",
+    sms: "💬",
+    whatsapp: "🟢",
+    direct: "🔗",
+  };
+
+  const maxJour = data ? Math.max(...data.parJour.map((d) => d.count), 1) : 1;
+
+  return (
+    <div style={{ marginTop: 4, marginBottom: 4 }}>
+      <button
+        onClick={() => {
+          const next = !open;
+          setOpen(next);
+          if (next && !data) load();
+        }}
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          background: open ? "#0f172a" : "#f8fafc",
+          border: `1px solid ${open ? "#0f172a" : "#e2e8f0"}`,
+          borderRadius: 14,
+          padding: "12px 16px",
+          fontSize: 13,
+          fontWeight: 700,
+          color: open ? "#fff" : "#0f172a",
+          cursor: "pointer",
+          marginBottom: open ? 10 : 0,
+          fontFamily: "'DM Sans', sans-serif",
+        }}
+      >
+        <span>📈 Analytics — Suivi client</span>
+        <span style={{ fontSize: 11, fontWeight: 400, opacity: 0.7 }}>30 derniers jours {open ? "▲" : "▼"}</span>
+      </button>
+
+      {open && (
+        <div className="drv-card" style={{ borderRadius: 14, padding: 16 }}>
+          {loading ? (
+            <div style={{ textAlign: "center", fontSize: 13, color: "#64748b", padding: "20px 0" }}>Chargement…</div>
+          ) : !data ? (
+            <div style={{ textAlign: "center", fontSize: 13, color: "#64748b", padding: "20px 0" }}>Aucune donnée</div>
+          ) : (
+            <>
+              {/* KPIs */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
+                <div style={{ background: "#f8fafc", borderRadius: 12, padding: "10px 8px", textAlign: "center" }}>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: "#0f172a" }}>{data.totalOuvertures}</div>
+                  <div style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>Ouvertures</div>
+                </div>
+                <div style={{ background: "#f0fdf4", borderRadius: 12, padding: "10px 8px", textAlign: "center" }}>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: "#15803d" }}>{data.tauxOuverture}%</div>
+                  <div style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>Taux suivi</div>
+                </div>
+                <div style={{ background: "#eff6ff", borderRadius: 12, padding: "10px 8px", textAlign: "center" }}>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: "#1d4ed8" }}>
+                    {data.coursesAvecSuivi}/{data.totalCourses}
+                  </div>
+                  <div style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>Courses</div>
+                </div>
+              </div>
+
+              {/* Graphique 7 jours */}
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: "#94a3b8",
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  marginBottom: 8,
+                }}
+              >
+                7 derniers jours
+              </div>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 56, marginBottom: 4 }}>
+                {data.parJour.map((d, i) => (
+                  <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                    <div
+                      style={{
+                        width: "100%",
+                        borderRadius: "4px 4px 0 0",
+                        background: i === data.parJour.length - 1 ? "#0f172a" : "#bfdbfe",
+                        height: `${Math.max(4, Math.round((d.count / maxJour) * 44))}px`,
+                        transition: "height 0.3s ease",
+                        position: "relative",
+                      }}
+                    >
+                      {d.count > 0 && (
+                        <span
+                          style={{
+                            position: "absolute",
+                            top: -16,
+                            left: "50%",
+                            transform: "translateX(-50%)",
+                            fontSize: 9,
+                            fontWeight: 700,
+                            color: "#0f172a",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {d.count}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 4, marginBottom: 14 }}>
+                {data.parJour.map((d, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      flex: 1,
+                      textAlign: "center",
+                      fontSize: 9,
+                      color: i === data.parJour.length - 1 ? "#0f172a" : "#94a3b8",
+                      fontWeight: i === data.parJour.length - 1 ? 700 : 400,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {d.jour}
+                  </div>
+                ))}
+              </div>
+
+              {/* Par source */}
+              {data.parSource.length > 0 && (
+                <>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#94a3b8",
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      marginBottom: 8,
+                    }}
+                  >
+                    Provenance
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 }}>
+                    {data.parSource.map((s) => {
+                      const total = data.parSource.reduce((acc, x) => acc + x.count, 0);
+                      const pct = total > 0 ? Math.round((s.count / total) * 100) : 0;
+                      return (
+                        <div key={s.source} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span
+                            style={{
+                              width: 70,
+                              fontSize: 12,
+                              color: "#334155",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 4,
+                            }}
+                          >
+                            {sourceEmoji[s.source] ?? "🔗"} {s.source}
+                          </span>
+                          <div
+                            style={{ flex: 1, background: "#f1f5f9", borderRadius: 4, overflow: "hidden", height: 8 }}
+                          >
+                            <div
+                              style={{
+                                width: `${pct}%`,
+                                height: "100%",
+                                background: "#0f172a",
+                                borderRadius: 4,
+                                transition: "width 0.4s ease",
+                              }}
+                            />
+                          </div>
+                          <span
+                            style={{ fontSize: 11, fontWeight: 700, color: "#0f172a", width: 32, textAlign: "right" }}
+                          >
+                            {s.count}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {/* Dernières ouvertures */}
+              {data.dernierEvents.length > 0 && (
+                <>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#94a3b8",
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      marginBottom: 8,
+                    }}
+                  >
+                    Dernières ouvertures
+                  </div>
+                  {data.dernierEvents.map((e, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "6px 0",
+                        borderBottom: i < data.dernierEvents.length - 1 ? "1px solid #f1f5f9" : "none",
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "#0f172a" }}>
+                          {e.client_name ?? "Client"}
+                        </div>
+                        <div style={{ fontSize: 10, color: "#94a3b8" }}>
+                          {sourceEmoji[e.source ?? "direct"] ?? "🔗"} {e.source ?? "direct"} · #
+                          {e.reservation_id.slice(0, 6)}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 10, color: "#94a3b8", textAlign: "right" }}>
+                        {new Date(e.created_at).toLocaleString("fr-FR", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+
+              {data.totalOuvertures === 0 && (
+                <div style={{ textAlign: "center", padding: "16px 0", color: "#94a3b8", fontSize: 12 }}>
+                  Aucune ouverture enregistrée sur cette période.
+                  <br />
+                  <span style={{ fontSize: 11 }}>
+                    Assure-toi que <code>suivi.$id.tsx</code> insère bien dans <code>tracking_events</code>.
+                  </span>
+                </div>
+              )}
+
+              <button
+                onClick={load}
+                disabled={loading}
+                style={{
+                  marginTop: 12,
+                  width: "100%",
+                  background: "#f1f5f9",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 10,
+                  padding: "8px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "#0f172a",
+                  cursor: "pointer",
+                  fontFamily: "'DM Sans', sans-serif",
+                }}
+              >
+                🔄 Rafraîchir
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Onglet Stats ────────────────────────────────────────────────────────────
 function StatsTab() {
   const [stats, setStats] = useState({ revenus: 0, courses: 0, km: 0, note: 0, semCourses: 0, semRevenus: 0 });
@@ -2484,6 +2849,9 @@ function StatsTab() {
           ))}
         </div>
       </div>
+
+      {/* Analytics suivi */}
+      <TrackingAnalytics />
 
       {/* Diagnostic push */}
       <PushDiagnostic />
