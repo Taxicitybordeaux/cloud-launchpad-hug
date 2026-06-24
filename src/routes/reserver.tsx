@@ -1420,6 +1420,7 @@ function ReservationPage() {
           client_email: f.email,
           destination: f.destination,
           distance_km: distanceKm,
+          duree_s: dureeS > 0 ? dureeS : null,
           nb_passagers: f.passagers,
           bagages: f.bagages,
           paiement: f.paiement,
