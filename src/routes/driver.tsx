@@ -2038,79 +2038,46 @@ function ClientsTab() {
   );
 }
 
-// ── Onglet Chat ─────────────────────────────────────────────────────────────
+// ── Onglet Chat (fusion direct ↔ course par client) ──────────────────────
 function ChatTab() {
-  // Liste des threads : une ligne par reservation_id avec dernier message
   const [threads, setThreads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeThread, setActiveThread] = useState<{ id: string; name: string } | null>(null);
+  const [active, setActive] = useState<any | null>(null);
 
   const loadThreads = useCallback(async () => {
-    // Récupère les messages groupés par reservation_id avec le dernier message
-    const { data } = await (supabase as any)
-      .from("direct_messages")
-      .select("reservation_id, content, created_at, sender_role, sender_name")
-      .order("created_at", { ascending: false });
-
-    if (!data) {
+    try {
+      const { listMergedChauffeurThreads } = await import("@/lib/chat.functions");
+      const data = await listMergedChauffeurThreads();
+      setThreads(data ?? []);
+    } catch (e) {
+      console.warn("[driver chat] load threads failed", e);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // Déduplique par reservation_id, garde le plus récent
-    const byThread = new Map<string, any>();
-    for (const m of data) {
-      if (!byThread.has(m.reservation_id)) byThread.set(m.reservation_id, m);
-    }
-
-    // Récupère les noms depuis reservations
-    const ids = Array.from(byThread.keys());
-    let nameMap = new Map<string, string>();
-    if (ids.length > 0) {
-      const { data: resas } = await (supabase as any)
-        .from("reservations")
-        .select("id, client_name, depart")
-        .in("id", ids);
-      for (const r of resas ?? []) {
-        nameMap.set(r.id, r.client_name || r.depart?.slice(0, 20) || "Client");
-      }
-    }
-
-    const seenAt = localStorage.getItem("drv_chat_seen_at") ?? new Date(0).toISOString();
-
-    const result = Array.from(byThread.values())
-      .map((m) => ({
-        reservationId: m.reservation_id,
-        clientName: nameMap.get(m.reservation_id) ?? "Client",
-        lastMessage: m.content,
-        lastAt: m.created_at,
-        lastRole: m.sender_role,
-        unread: m.sender_role === "client" && m.created_at > seenAt,
-      }))
-      .sort((a, b) => b.lastAt.localeCompare(a.lastAt));
-
-    setThreads(result);
-    setLoading(false);
   }, []);
 
   useEffect(() => {
     loadThreads();
-    const ch = (supabase as any)
-      .channel("drv-chat-threads")
+    const ch1 = (supabase as any)
+      .channel("drv-merged-direct")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "direct_messages" }, loadThreads)
       .subscribe();
+    const ch2 = (supabase as any)
+      .channel("drv-merged-resa")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "reservation_messages" }, loadThreads)
+      .subscribe();
     return () => {
-      supabase.removeChannel(ch);
+      supabase.removeChannel(ch1);
+      supabase.removeChannel(ch2);
     };
   }, [loadThreads]);
 
-  if (activeThread) {
+  if (active) {
     return (
       <DriverChatConversation
-        reservationId={activeThread.id}
-        clientName={activeThread.name}
+        thread={active}
         onBack={() => {
-          setActiveThread(null);
+          setActive(null);
           loadThreads();
         }}
       />
@@ -2136,98 +2103,147 @@ function ChatTab() {
           <div style={{ fontSize: 12, marginTop: 4 }}>Les messages clients apparaissent ici</div>
         </div>
       ) : (
-        threads.map((t) => (
-          <div
-            key={t.reservationId}
-            className={`drv-card${t.unread ? " new" : ""}`}
-            style={{ cursor: "pointer" }}
-            onClick={() => setActiveThread({ id: t.reservationId, name: t.clientName })}
-          >
-            <div className="drv-row">
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div className="drv-chat-avatar">{t.clientName.charAt(0).toUpperCase()}</div>
-                <div>
-                  <div className="drv-name">{t.clientName}</div>
-                  <div
-                    className="drv-sub"
-                    style={{
-                      fontSize: 12,
-                      maxWidth: 180,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {t.lastRole === "driver" ? "Vous : " : ""}
-                    {t.lastMessage}
+        threads.map((t) => {
+          const sourceBadge =
+            t.last_message_source === "reservation"
+              ? { label: t.active_reservation_label ? `🚖 ${t.active_reservation_label.split(" · ")[0]}` : "🚖 Course", bg: "#eff6ff", fg: "#1d4ed8" }
+              : { label: "💬 Direct", bg: "#f5f3ff", fg: "#6d28d9" };
+          return (
+            <div
+              key={t.thread_key}
+              className={`drv-card${t.unread_chauffeur > 0 ? " new" : ""}`}
+              style={{ cursor: "pointer" }}
+              onClick={() => setActive(t)}
+            >
+              <div className="drv-row">
+                <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
+                  <div className="drv-chat-avatar">{(t.client_name ?? "C").charAt(0).toUpperCase()}</div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div className="drv-name" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <span>{t.client_name ?? "Client"}</span>
+                      <span
+                        style={{
+                          background: sourceBadge.bg,
+                          color: sourceBadge.fg,
+                          fontSize: 9,
+                          fontWeight: 700,
+                          padding: "1px 6px",
+                          borderRadius: 99,
+                          letterSpacing: 0.3,
+                        }}
+                      >
+                        {sourceBadge.label}
+                      </span>
+                    </div>
+                    <div
+                      className="drv-sub"
+                      style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                    >
+                      {t.last_message_content}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
-                <span style={{ fontSize: 10, color: "#94a3b8" }}>
-                  {new Date(t.lastAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                </span>
-                {t.unread && (
-                  <span
-                    style={{
-                      background: "#3b82f6",
-                      color: "#fff",
-                      borderRadius: 99,
-                      fontSize: 10,
-                      fontWeight: 700,
-                      padding: "2px 7px",
-                    }}
-                  >
-                    NOUVEAU
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+                  <span style={{ fontSize: 10, color: "#94a3b8" }}>
+                    {new Date(t.last_message_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                   </span>
-                )}
+                  {t.unread_chauffeur > 0 && (
+                    <span
+                      style={{
+                        background: "#3b82f6",
+                        color: "#fff",
+                        borderRadius: 99,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        padding: "2px 7px",
+                      }}
+                    >
+                      {t.unread_chauffeur}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        ))
+          );
+        })
       )}
     </>
   );
 }
 
 function DriverChatConversation({
-  reservationId,
-  clientName,
+  thread,
   onBack,
 }: {
-  reservationId: string;
-  clientName: string;
+  thread: {
+    thread_key: string;
+    client_account_id: string | null;
+    client_name: string | null;
+    client_phone: string | null;
+    reservation_ids: string[];
+    active_reservation_id: string | null;
+    active_reservation_label: string | null;
+  };
   onBack: () => void;
 }) {
   const [messages, setMessages] = useState<any[]>([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [replyMode, setReplyMode] = useState<"direct" | "reservation">(
+    thread.active_reservation_id ? "reservation" : "direct",
+  );
   const endRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
-    const { data } = await (supabase as any)
-      .from("direct_messages")
-      .select("*")
-      .eq("reservation_id", reservationId)
-      .order("created_at", { ascending: true })
-      .limit(80);
+    const { loadMergedConversation, markMergedConversationRead } = await import("@/lib/chat.functions");
+    const data = await loadMergedConversation({
+      data: {
+        client_account_id: thread.client_account_id,
+        reservation_ids: thread.reservation_ids,
+        limit: 300,
+      },
+    });
     setMessages(data ?? []);
-  }, [reservationId]);
+    // marque lu
+    markMergedConversationRead({
+      data: {
+        client_account_id: thread.client_account_id,
+        reservation_ids: thread.reservation_ids,
+      },
+    }).catch(() => {});
+  }, [thread.client_account_id, thread.reservation_ids]);
 
   useEffect(() => {
     load();
-    const ch = (supabase as any)
-      .channel(`drv-conv-${reservationId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "direct_messages", filter: `reservation_id=eq.${reservationId}` },
-        load,
-      )
-      .subscribe();
+    const channels: any[] = [];
+    if (thread.client_account_id) {
+      channels.push(
+        (supabase as any)
+          .channel(`drv-conv-acct-${thread.client_account_id}`)
+          .on(
+            "postgres_changes",
+            { event: "INSERT", schema: "public", table: "direct_messages", filter: `client_account_id=eq.${thread.client_account_id}` },
+            load,
+          )
+          .subscribe(),
+      );
+    }
+    for (const rid of thread.reservation_ids) {
+      channels.push(
+        (supabase as any)
+          .channel(`drv-conv-resa-${rid}`)
+          .on(
+            "postgres_changes",
+            { event: "INSERT", schema: "public", table: "reservation_messages", filter: `reservation_id=eq.${rid}` },
+            load,
+          )
+          .subscribe(),
+      );
+    }
     return () => {
-      supabase.removeChannel(ch);
+      for (const c of channels) supabase.removeChannel(c);
     };
-  }, [reservationId, load]);
+  }, [load, thread.client_account_id, thread.reservation_ids]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -2238,21 +2254,29 @@ function DriverChatConversation({
     if (!trimmed) return;
     setSending(true);
     try {
-      const { error } = await (supabase as any).from("direct_messages").insert({
-        reservation_id: reservationId,
-        sender_id: "driver_jose",
-        sender_role: "driver",
-        sender_name: "José",
-        content: trimmed,
-      });
-      if (error) throw error;
+      if (replyMode === "reservation") {
+        if (!thread.active_reservation_id) throw new Error("Aucune course active");
+        const { sendChauffeurMessage } = await import("@/lib/chat.functions");
+        await sendChauffeurMessage({
+          data: { reservation_id: thread.active_reservation_id, content: trimmed },
+        });
+      } else {
+        if (!thread.client_account_id) throw new Error("Client sans compte — impossible de répondre en direct");
+        const { sendDirectChauffeurMessage } = await import("@/lib/chat.functions");
+        await sendDirectChauffeurMessage({
+          data: { client_account_id: thread.client_account_id, content: trimmed },
+        });
+      }
       setText("");
-    } catch {
-      toast.error("Envoi impossible");
+    } catch (e: any) {
+      toast.error(e?.message || "Envoi impossible");
     } finally {
       setSending(false);
     }
   };
+
+  const canDirect = !!thread.client_account_id;
+  const canResa = !!thread.active_reservation_id;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
@@ -2262,55 +2286,100 @@ function DriverChatConversation({
           display: "flex",
           alignItems: "center",
           gap: 10,
-          marginBottom: 12,
+          marginBottom: 10,
           paddingBottom: 10,
           borderBottom: "1px solid #f1f5f9",
         }}
       >
         <button
           onClick={onBack}
-          style={{
-            background: "#f1f5f9",
-            border: "none",
-            borderRadius: 8,
-            padding: "6px 10px",
-            fontSize: 18,
-            cursor: "pointer",
-            lineHeight: 1,
-          }}
+          style={{ background: "#f1f5f9", border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 18, cursor: "pointer", lineHeight: 1 }}
         >
           ←
         </button>
-        <div className="drv-chat-avatar">{clientName.charAt(0).toUpperCase()}</div>
-        <div>
-          <div className="drv-name">{clientName}</div>
+        <div className="drv-chat-avatar">{(thread.client_name ?? "C").charAt(0).toUpperCase()}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="drv-name">{thread.client_name ?? "Client"}</div>
           <div className="drv-sub" style={{ fontSize: 11 }}>
-            Course #{reservationId.slice(0, 8)}
+            {thread.client_phone || (thread.client_account_id ? "Compte VIP" : "Sans compte")}
+            {thread.active_reservation_label ? ` · ${thread.active_reservation_label}` : ""}
           </div>
         </div>
+      </div>
+
+      {/* Sélecteur de mode de réponse */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+        <button
+          onClick={() => canResa && setReplyMode("reservation")}
+          disabled={!canResa}
+          style={{
+            flex: 1,
+            padding: "8px 10px",
+            borderRadius: 8,
+            border: "1px solid",
+            borderColor: replyMode === "reservation" ? "#1d4ed8" : "#e2e8f0",
+            background: replyMode === "reservation" ? "#eff6ff" : "#fff",
+            color: replyMode === "reservation" ? "#1d4ed8" : canResa ? "#475569" : "#cbd5e1",
+            fontSize: 11,
+            fontWeight: 700,
+            cursor: canResa ? "pointer" : "not-allowed",
+          }}
+        >
+          🚖 Course {thread.active_reservation_label ? `(${thread.active_reservation_label.split(" · ")[0]})` : ""}
+        </button>
+        <button
+          onClick={() => canDirect && setReplyMode("direct")}
+          disabled={!canDirect}
+          style={{
+            flex: 1,
+            padding: "8px 10px",
+            borderRadius: 8,
+            border: "1px solid",
+            borderColor: replyMode === "direct" ? "#6d28d9" : "#e2e8f0",
+            background: replyMode === "direct" ? "#f5f3ff" : "#fff",
+            color: replyMode === "direct" ? "#6d28d9" : canDirect ? "#475569" : "#cbd5e1",
+            fontSize: 11,
+            fontWeight: 700,
+            cursor: canDirect ? "pointer" : "not-allowed",
+          }}
+        >
+          💬 Chat direct
+        </button>
       </div>
 
       {/* Messages */}
       <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, paddingBottom: 8 }}>
         {messages.length === 0 && (
           <div style={{ textAlign: "center", fontSize: 12, color: "#94a3b8", padding: "30px 0" }}>
-            Aucun message pour cette course
+            Aucun message pour ce client
           </div>
         )}
         {messages.map((m) => {
-          const isMe = m.sender_role === "driver";
+          const isMe = m.sender === "chauffeur";
+          const chip = m.source === "reservation" ? (m.reservation_label ?? "🚖 Course") : "💬 Direct";
+          const chipBg = m.source === "reservation" ? "#dbeafe" : "#ede9fe";
+          const chipFg = m.source === "reservation" ? "#1d4ed8" : "#6d28d9";
           return (
             <div
-              key={m.id}
-              className="drv-msg-in"
+              key={`${m.source}-${m.id}`}
               style={{ display: "flex", flexDirection: isMe ? "row-reverse" : "row", gap: 6, alignItems: "flex-end" }}
             >
-              <div className={`drv-chat-bubble ${isMe ? "me" : "them"}`}>
-                {!isMe && (
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", marginBottom: 2 }}>
-                    {m.sender_name || clientName}
-                  </div>
-                )}
+              <div className={`drv-chat-bubble ${isMe ? "me" : "them"}`} style={{ position: "relative" }}>
+                <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
+                  <span
+                    style={{
+                      background: chipBg,
+                      color: chipFg,
+                      fontSize: 8.5,
+                      fontWeight: 700,
+                      padding: "1px 6px",
+                      borderRadius: 99,
+                      letterSpacing: 0.3,
+                    }}
+                  >
+                    {chip}
+                  </span>
+                </div>
                 {m.content}
                 <div
                   style={{
@@ -2334,13 +2403,20 @@ function DriverChatConversation({
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Répondre…"
+          placeholder={
+            replyMode === "reservation"
+              ? "Répondre dans la course…"
+              : canDirect
+                ? "Répondre en chat direct…"
+                : "Pas de compte client pour le direct"
+          }
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               send();
             }
           }}
+          disabled={(replyMode === "direct" && !canDirect) || (replyMode === "reservation" && !canResa)}
           style={{
             flex: 1,
             padding: "10px 12px",
