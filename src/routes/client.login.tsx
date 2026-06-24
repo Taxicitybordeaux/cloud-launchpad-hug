@@ -1,9 +1,9 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Mail, Lock, Eye, EyeOff, User, Phone, Loader2 } from "lucide-react";
 import { ClientAuthHeader } from "@/components/ClientAuthHeader";
 import { clientLogin, clientRegister } from "@/lib/client-auth.functions";
-import { setClientSession } from "@/lib/client-session";
+import { setClientSession, getClientSession } from "@/lib/client-session";
 import { useI18n, useT } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/client/login")({
@@ -31,6 +31,10 @@ function ClientLoginPage() {
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (getClientSession()) navigate({ to: "/client/dashboard" });
+  }, [navigate]);
 
   function validate(): string | null {
     if (!email.trim()) return "Email requis";
