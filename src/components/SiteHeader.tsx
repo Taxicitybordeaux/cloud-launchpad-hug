@@ -68,6 +68,13 @@ export function SiteHeader() {
             <Phone className="h-4 w-4 text-primary" /> {PHONE_DISPLAY}
           </a>
           <Link
+            to="/client/login"
+            aria-label="Espace client"
+            className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-semibold transition hover:border-primary"
+          >
+            <UserCircle2 className="h-4 w-4 text-primary" /> {t("nav.client_area")}
+          </Link>
+          <Link
             to="/reservation"
             className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-gold)] transition hover:opacity-90"
           >
