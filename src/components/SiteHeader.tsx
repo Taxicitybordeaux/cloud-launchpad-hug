@@ -123,8 +123,13 @@ export function SiteHeader() {
                 href={`tel:${PHONE}`}
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-3 text-base font-semibold"
               >
-                <Phone className="h-5 w-5 text-primary" /> {PHONE_DISPLAY}
-              </a>
+            <Link
+              to="/client/login"
+              onClick={() => setOpen(false)}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-3 text-base font-semibold"
+            >
+              <UserCircle2 className="h-5 w-5 text-primary" /> {t("nav.client_area")}
+            </Link>
               <Link
                 to="/reservation"
                 onClick={() => setOpen(false)}
