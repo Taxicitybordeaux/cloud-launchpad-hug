@@ -11,6 +11,7 @@ import {
   listClientReservations,
   type ClientReservation,
 } from "@/lib/client-reservations.functions";
+import { useT } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/client/trajets")({
   head: () => ({
