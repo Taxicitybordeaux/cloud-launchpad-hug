@@ -184,7 +184,7 @@ export const notifyNewReservation = createServerFn({ method: "POST" })
 
 // Compute ETA in minutes from driver's current GPS to the pickup address
 // using Google Distance Matrix REST. Returns null on failure / no data.
-async function computeEtaMinutes(reservationId: string, depart: string): Promise<number | null> {
+async function computeEtaMinutes(_reservationId: string, depart: string): Promise<number | null> {
   try {
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;
     if (!apiKey || !depart) return null;
@@ -209,7 +209,6 @@ async function computeEtaMinutes(reservationId: string, depart: string): Promise
     const sec = el?.duration_in_traffic?.value ?? el?.duration?.value;
     if (typeof sec !== "number") return null;
     return Math.max(1, Math.round(sec / 60));
-    void reservationId;
   } catch (e) {
     console.warn("[notifyReservationStatus] eta compute failed", e);
     return null;
