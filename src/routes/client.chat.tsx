@@ -36,14 +36,14 @@ function ClientChatPage() {
     >
       <div className="mx-auto w-full max-w-3xl">
         <div className="mb-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-[#E8C96D]">Espace client</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-[#E8C96D]">{t("client.eyebrow")}</p>
           <h1
             className="mt-1 text-2xl font-bold text-white sm:text-3xl"
             style={{ fontFamily: "'Syne', 'Playfair Display', serif" }}
           >
-            Chat Taxi
+            {t("client.chat.title")}
           </h1>
-          <p className="mt-1 text-xs text-white/50">Discutez directement avec José 🚖</p>
+          <p className="mt-1 text-xs text-white/50">{t("client.chat.subtitle")}</p>
         </div>
         <div
           className="flex flex-col overflow-hidden rounded-2xl border border-white/10"
