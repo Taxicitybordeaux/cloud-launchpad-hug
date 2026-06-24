@@ -17,6 +17,8 @@ export type ClientReservation = {
   paiement: string | null;
   client_account_id: string | null;
   phone_cancel_requested_at: string | null;
+  source: string | null;
+  created_at: string | null;
 };
 
 const IdentitySchema = z.object({
