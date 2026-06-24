@@ -189,7 +189,7 @@ function ClientLoginPage() {
                 boxShadow: "0 10px 30px -10px rgba(201,168,76,0.5)",
               }}
             >
-              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : (mode === "login" ? t("client_login_btn") : t("client_register_btn"))}
+              {loading ? <BrandLoader size={22} /> : (mode === "login" ? t("client_login_btn") : t("client_register_btn"))}
             </button>
           </form>
 
