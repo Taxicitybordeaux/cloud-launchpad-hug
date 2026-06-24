@@ -32,6 +32,10 @@ function ClientLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (getClientSession()) navigate({ to: "/client/dashboard" });
+  }, [navigate]);
+
   function validate(): string | null {
     if (!email.trim()) return "Email requis";
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) return "Email invalide";
