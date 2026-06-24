@@ -18,6 +18,7 @@ const schema = z.object({
   passagers: z.union([z.number(), z.string()]).optional(),
   bagages: z.union([z.number(), z.string()]).optional(),
   reservation_id: z.string().uuid(),
+  suivi_url: z.string().url().optional(),
 });
 
 export const Route = createFileRoute("/api/public/notify-reservation-client")({
@@ -97,7 +98,7 @@ export const Route = createFileRoute("/api/public/notify-reservation-client")({
           return Response.json({ error: "log" }, { status: 500 });
         }
 
-        const element = React.createElement(tpl.component, data);
+        const element = React.createElement(tpl.component, { ...data, unsubscribe_token: unsubscribeToken });
         const html = await render(element);
         const text = await render(element, { plainText: true });
         const subject = typeof tpl.subject === "function" ? tpl.subject(data as any) : tpl.subject;
