@@ -392,7 +392,7 @@ function AnonChat({ reservationId }: { reservationId: string }) {
         }}
       >
         {messages.length === 0 && (
-          <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "12px", paddingY: "20px" }}>
+          <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "12px", padding: "20px 0" }}>
             Pas de messages encore
           </div>
         )}
@@ -417,7 +417,7 @@ function AnonChat({ reservationId }: { reservationId: string }) {
             >
               {msg.message}
             </div>
-            <div style={{ fontSize: "10px", color: "#94a3b8", marginTop: "3px", paddingX: "4px" }}>
+            <div style={{ fontSize: "10px", color: "#94a3b8", marginTop: "3px", padding: "0 4px" }}>
               {msg.anon_name || "José"}
             </div>
           </div>
@@ -862,7 +862,7 @@ function ReviewBlock({ reservationId, t }: { reservationId: string; t: (k: strin
 // ─── Main Component ───────────────────────────────────────────────────────────────
 function SuiviPage() {
   const { id } = Route.useParams();
-  const { locale } = useI18n();
+  const { lang: locale } = useI18n();
   const t = useT();
   const [reservation, setReservation] = useState<Reservation | null>(null);
   const [loading, setLoading] = useState(true);
@@ -923,7 +923,7 @@ function SuiviPage() {
       }
     }, 60000);
     return () => clearInterval(staleTimer);
-  }, [isCompleted, isCancelled, loadReservation]);
+  }, [loadReservation]);
 
   // ── Real-time updates with auto-reconnect ──
   useEffect(() => {
