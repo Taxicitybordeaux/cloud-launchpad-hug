@@ -24,9 +24,11 @@ import { Route as ReservationIdRouteImport } from './routes/reservation.$id'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as CourseIdRouteImport } from './routes/course.$id'
 import { Route as ClientTrajetsRouteImport } from './routes/client.trajets'
+import { Route as ClientResetPasswordRouteImport } from './routes/client.reset-password'
 import { Route as ClientProfilRouteImport } from './routes/client.profil'
 import { Route as ClientLoginRouteImport } from './routes/client.login'
 import { Route as ClientHistoriqueRouteImport } from './routes/client.historique'
+import { Route as ClientForgotPasswordRouteImport } from './routes/client.forgot-password'
 import { Route as ClientDashboardRouteImport } from './routes/client.dashboard'
 import { Route as ClientChatRouteImport } from './routes/client.chat'
 import { Route as ApiManifestRouteImport } from './routes/api/manifest'
@@ -41,6 +43,7 @@ import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/l
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
+import { Route as ApiPublicHooksRecurringRidesTickRouteImport } from './routes/api/public/hooks/recurring-rides-tick'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -117,6 +120,11 @@ const ClientTrajetsRoute = ClientTrajetsRouteImport.update({
   path: '/client/trajets',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ClientResetPasswordRoute = ClientResetPasswordRouteImport.update({
+  id: '/client/reset-password',
+  path: '/client/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ClientProfilRoute = ClientProfilRouteImport.update({
   id: '/client/profil',
   path: '/client/profil',
@@ -130,6 +138,11 @@ const ClientLoginRoute = ClientLoginRouteImport.update({
 const ClientHistoriqueRoute = ClientHistoriqueRouteImport.update({
   id: '/client/historique',
   path: '/client/historique',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClientForgotPasswordRoute = ClientForgotPasswordRouteImport.update({
+  id: '/client/forgot-password',
+  path: '/client/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ClientDashboardRoute = ClientDashboardRouteImport.update({
@@ -207,6 +220,12 @@ const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
   path: '/lovable/email/auth/preview',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksRecurringRidesTickRoute =
+  ApiPublicHooksRecurringRidesTickRouteImport.update({
+    id: '/api/public/hooks/recurring-rides-tick',
+    path: '/api/public/hooks/recurring-rides-tick',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -222,9 +241,11 @@ export interface FileRoutesByFullPath {
   '/api/manifest': typeof ApiManifestRoute
   '/client/chat': typeof ClientChatRoute
   '/client/dashboard': typeof ClientDashboardRoute
+  '/client/forgot-password': typeof ClientForgotPasswordRoute
   '/client/historique': typeof ClientHistoriqueRoute
   '/client/login': typeof ClientLoginRoute
   '/client/profil': typeof ClientProfilRoute
+  '/client/reset-password': typeof ClientResetPasswordRoute
   '/client/trajets': typeof ClientTrajetsRoute
   '/course/$id': typeof CourseIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
@@ -236,6 +257,7 @@ export interface FileRoutesByFullPath {
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
+  '/api/public/hooks/recurring-rides-tick': typeof ApiPublicHooksRecurringRidesTickRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -256,9 +278,11 @@ export interface FileRoutesByTo {
   '/api/manifest': typeof ApiManifestRoute
   '/client/chat': typeof ClientChatRoute
   '/client/dashboard': typeof ClientDashboardRoute
+  '/client/forgot-password': typeof ClientForgotPasswordRoute
   '/client/historique': typeof ClientHistoriqueRoute
   '/client/login': typeof ClientLoginRoute
   '/client/profil': typeof ClientProfilRoute
+  '/client/reset-password': typeof ClientResetPasswordRoute
   '/client/trajets': typeof ClientTrajetsRoute
   '/course/$id': typeof CourseIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
@@ -270,6 +294,7 @@ export interface FileRoutesByTo {
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
+  '/api/public/hooks/recurring-rides-tick': typeof ApiPublicHooksRecurringRidesTickRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -291,9 +316,11 @@ export interface FileRoutesById {
   '/api/manifest': typeof ApiManifestRoute
   '/client/chat': typeof ClientChatRoute
   '/client/dashboard': typeof ClientDashboardRoute
+  '/client/forgot-password': typeof ClientForgotPasswordRoute
   '/client/historique': typeof ClientHistoriqueRoute
   '/client/login': typeof ClientLoginRoute
   '/client/profil': typeof ClientProfilRoute
+  '/client/reset-password': typeof ClientResetPasswordRoute
   '/client/trajets': typeof ClientTrajetsRoute
   '/course/$id': typeof CourseIdRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
@@ -305,6 +332,7 @@ export interface FileRoutesById {
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
+  '/api/public/hooks/recurring-rides-tick': typeof ApiPublicHooksRecurringRidesTickRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -327,9 +355,11 @@ export interface FileRouteTypes {
     | '/api/manifest'
     | '/client/chat'
     | '/client/dashboard'
+    | '/client/forgot-password'
     | '/client/historique'
     | '/client/login'
     | '/client/profil'
+    | '/client/reset-password'
     | '/client/trajets'
     | '/course/$id'
     | '/email/unsubscribe'
@@ -341,6 +371,7 @@ export interface FileRouteTypes {
     | '/api/public/notify-reservation'
     | '/api/public/notify-reservation-client'
     | '/lovable/email/suppression'
+    | '/api/public/hooks/recurring-rides-tick'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
@@ -361,9 +392,11 @@ export interface FileRouteTypes {
     | '/api/manifest'
     | '/client/chat'
     | '/client/dashboard'
+    | '/client/forgot-password'
     | '/client/historique'
     | '/client/login'
     | '/client/profil'
+    | '/client/reset-password'
     | '/client/trajets'
     | '/course/$id'
     | '/email/unsubscribe'
@@ -375,6 +408,7 @@ export interface FileRouteTypes {
     | '/api/public/notify-reservation'
     | '/api/public/notify-reservation-client'
     | '/lovable/email/suppression'
+    | '/api/public/hooks/recurring-rides-tick'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
@@ -395,9 +429,11 @@ export interface FileRouteTypes {
     | '/api/manifest'
     | '/client/chat'
     | '/client/dashboard'
+    | '/client/forgot-password'
     | '/client/historique'
     | '/client/login'
     | '/client/profil'
+    | '/client/reset-password'
     | '/client/trajets'
     | '/course/$id'
     | '/email/unsubscribe'
@@ -409,6 +445,7 @@ export interface FileRouteTypes {
     | '/api/public/notify-reservation'
     | '/api/public/notify-reservation-client'
     | '/lovable/email/suppression'
+    | '/api/public/hooks/recurring-rides-tick'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
@@ -430,9 +467,11 @@ export interface RootRouteChildren {
   ApiManifestRoute: typeof ApiManifestRoute
   ClientChatRoute: typeof ClientChatRoute
   ClientDashboardRoute: typeof ClientDashboardRoute
+  ClientForgotPasswordRoute: typeof ClientForgotPasswordRoute
   ClientHistoriqueRoute: typeof ClientHistoriqueRoute
   ClientLoginRoute: typeof ClientLoginRoute
   ClientProfilRoute: typeof ClientProfilRoute
+  ClientResetPasswordRoute: typeof ClientResetPasswordRoute
   ClientTrajetsRoute: typeof ClientTrajetsRoute
   CourseIdRoute: typeof CourseIdRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
@@ -443,6 +482,7 @@ export interface RootRouteChildren {
   ApiPublicNotifyReservationRoute: typeof ApiPublicNotifyReservationRoute
   ApiPublicNotifyReservationClientRoute: typeof ApiPublicNotifyReservationClientRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
+  ApiPublicHooksRecurringRidesTickRoute: typeof ApiPublicHooksRecurringRidesTickRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
@@ -557,6 +597,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClientTrajetsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/client/reset-password': {
+      id: '/client/reset-password'
+      path: '/client/reset-password'
+      fullPath: '/client/reset-password'
+      preLoaderRoute: typeof ClientResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/client/profil': {
       id: '/client/profil'
       path: '/client/profil'
@@ -576,6 +623,13 @@ declare module '@tanstack/react-router' {
       path: '/client/historique'
       fullPath: '/client/historique'
       preLoaderRoute: typeof ClientHistoriqueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/client/forgot-password': {
+      id: '/client/forgot-password'
+      path: '/client/forgot-password'
+      fullPath: '/client/forgot-password'
+      preLoaderRoute: typeof ClientForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/client/dashboard': {
@@ -676,6 +730,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailAuthPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/recurring-rides-tick': {
+      id: '/api/public/hooks/recurring-rides-tick'
+      path: '/api/public/hooks/recurring-rides-tick'
+      fullPath: '/api/public/hooks/recurring-rides-tick'
+      preLoaderRoute: typeof ApiPublicHooksRecurringRidesTickRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -705,9 +766,11 @@ const rootRouteChildren: RootRouteChildren = {
   ApiManifestRoute: ApiManifestRoute,
   ClientChatRoute: ClientChatRoute,
   ClientDashboardRoute: ClientDashboardRoute,
+  ClientForgotPasswordRoute: ClientForgotPasswordRoute,
   ClientHistoriqueRoute: ClientHistoriqueRoute,
   ClientLoginRoute: ClientLoginRoute,
   ClientProfilRoute: ClientProfilRoute,
+  ClientResetPasswordRoute: ClientResetPasswordRoute,
   ClientTrajetsRoute: ClientTrajetsRoute,
   CourseIdRoute: CourseIdRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
@@ -718,6 +781,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicNotifyReservationRoute: ApiPublicNotifyReservationRoute,
   ApiPublicNotifyReservationClientRoute: ApiPublicNotifyReservationClientRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
+  ApiPublicHooksRecurringRidesTickRoute: ApiPublicHooksRecurringRidesTickRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,

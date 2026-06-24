@@ -71,7 +71,7 @@ export const listRecurringRides = createServerFn({ method: "POST" })
       .order("day_of_week", { ascending: true })
       .order("hour", { ascending: true });
     if (error) throw new Error(error.message);
-    return (rows ?? []) as RecurringRide[];
+    return ((rows ?? []) as unknown) as RecurringRide[];
   });
 
 export const createRecurringRide = createServerFn({ method: "POST" })
@@ -99,7 +99,7 @@ export const createRecurringRide = createServerFn({ method: "POST" })
       .select("*")
       .single();
     if (error || !row) throw new Error(error?.message || "CREATE_FAILED");
-    return row as RecurringRide;
+    return (row as unknown) as RecurringRide;
   });
 
 export const toggleRecurringRide = createServerFn({ method: "POST" })
