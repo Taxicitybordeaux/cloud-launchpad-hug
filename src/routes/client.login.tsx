@@ -161,7 +161,7 @@ function ClientLoginPage() {
               />
               <button
                 type="button"
-                aria-label={showPwd ? "Masquer" : "Afficher"}
+                aria-label={showPwd ? t("client.login.hide") : t("client.login.show")}
                 onClick={() => setShowPwd((v) => !v)}
                 className="ml-2 text-white/50 transition hover:text-white"
               >
