@@ -30,6 +30,7 @@ import {
 import { toast } from "sonner";
 import { ClientAuthHeader } from "@/components/ClientAuthHeader";
 import { ClientBottomNav } from "@/components/ClientBottomNav";
+import { ClientPushOptInCard } from "@/components/ClientPushOptInCard";
 import { BrandLoader } from "@/components/BrandLoader";
 import { ChatPanel } from "@/components/ChatPanel";
 import { DirectChatPanel } from "@/components/DirectChatPanel";
