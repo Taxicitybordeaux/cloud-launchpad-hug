@@ -257,14 +257,13 @@ function ClientProfil() {
                       <div className="truncate text-sm font-semibold text-white">{f.label}</div>
                       <div className="truncate text-xs text-white/60">{f.address}</div>
                     </div>
-                    <Link
-                      to="/reserver"
-                      search={{ depart: f.address } as never}
+                    <a
+                      href={`/reserver?depart=${encodeURIComponent(f.address)}`}
                       className="inline-flex items-center gap-1 rounded-lg border border-[#C9A84C]/40 bg-[#C9A84C]/10 px-2.5 py-1.5 text-[11px] font-semibold text-[#E8C96D]"
                       title="Réserver depuis cette adresse"
                     >
                       <ExternalLink className="h-3 w-3" /> Réserver
-                    </Link>
+                    </a>
                     <button
                       onClick={() => onDelete(f.id)}
                       className="rounded-lg p-2 text-white/40 hover:bg-white/5 hover:text-red-300"
