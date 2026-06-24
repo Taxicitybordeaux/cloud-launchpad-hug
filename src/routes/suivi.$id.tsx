@@ -416,7 +416,7 @@ function AnonChat({ reservationId }: { reservationId: string }) {
             >
               {msg.message}
             </div>
-            <div style={{ fontSize: "10px", color: "#94a3b8", marginTop: "3px", paddingX: "4px" }}>
+            <div style={{ fontSize: "10px", color: "#94a3b8", marginTop: "3px", padding: "0 4px" }}>
               {msg.anon_name || "José"}
             </div>
           </div>
