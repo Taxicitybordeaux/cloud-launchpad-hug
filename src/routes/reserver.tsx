@@ -1421,8 +1421,7 @@ function ReservationPage() {
           destination: f.destination,
           distance_km: distanceKm,
           duree_s: dureeS > 0 ? dureeS : null,
-          
-          
+
           nb_passagers: f.passagers,
           bagages: f.bagages,
           paiement: f.paiement,
@@ -1453,6 +1452,28 @@ function ReservationPage() {
         ]);
       } catch (e) {
         console.warn("[notify] chauffeur notify failed (non-blocking)", e);
+      }
+
+      // ── Email de confirmation client avec lien de suivi ───────────────────
+      // Fire & forget — ne bloque pas la navigation si ça échoue
+      if (f.email) {
+        const suiviUrl = `https://taxicitybordeaux.fr/suivi/${inserted.suivi_id}?src=email`;
+        fetch("/api/public/notify-reservation-client", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lang: lang as string,
+            nom: fullName,
+            email: f.email,
+            pickup_datetime: pickupIsoFinal,
+            depart: f.depart,
+            arrivee: f.destination,
+            passagers: f.passagers,
+            bagages: f.bagages,
+            reservation_id: inserted.id,
+            suivi_url: suiviUrl,
+          }),
+        }).catch((e) => console.warn("[notify-client] email failed (non-blocking)", e));
       }
 
       navigate({ to: "/suivi/$id", params: { id: inserted.suivi_id } });
