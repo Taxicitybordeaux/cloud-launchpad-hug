@@ -108,12 +108,12 @@ function ClientHistorique() {
       />
       <div className="relative mx-auto max-w-3xl">
         <div className="mb-6">
-          <p className="text-xs uppercase tracking-[0.2em] text-[#E8C96D]">Espace client</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-[#E8C96D]">{t("client.eyebrow")}</p>
           <h1
             className="mt-1 text-2xl font-bold text-white sm:text-3xl"
             style={{ fontFamily: "'Syne', 'Playfair Display', serif" }}
           >
-            Historique & facturation
+            {t("client.historique.title")}
           </h1>
         </div>
 
@@ -124,7 +124,7 @@ function ClientHistorique() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Rechercher (départ, arrivée, réf.)"
+              placeholder={t("client.historique.search_ph")}
               className="w-full rounded-lg border border-white/15 bg-black/40 py-2 pl-9 pr-3 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#E8C96D]"
             />
           </label>
@@ -144,26 +144,26 @@ function ClientHistorique() {
 
         <div className="mb-4 flex items-center justify-between gap-2">
           <div className="text-xs text-white/60">
-            {filtered ? `${filtered.length} course(s) — ${totalEur.toFixed(2)} €` : "—"}
+            {filtered ? `${filtered.length} ${t("client.historique.courses_total")} — ${totalEur.toFixed(2)} €` : "—"}
           </div>
           <button
             disabled={!filtered || filtered.length === 0}
             onClick={() => filtered && exportReservationsCSV(filtered)}
             className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white hover:bg-white/10 disabled:opacity-40"
           >
-            <Download className="h-3.5 w-3.5" /> Export CSV (notes de frais)
+            <Download className="h-3.5 w-3.5" /> {t("client.historique.export_csv")}
           </button>
         </div>
 
         {loading && (
           <div className="flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-10 text-white/60">
-            <BrandLoader size={20} /> Chargement…
+            <BrandLoader size={20} /> {t("client.trajets.loading")}
           </div>
         )}
 
         {!loading && filtered && filtered.length === 0 && (
           <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-sm text-white/60">
-            Aucune course dans cette période.
+            {t("client.historique.empty")}
           </div>
         )}
 
@@ -188,7 +188,11 @@ function ClientHistorique() {
                         color: isCompleted ? "#cbd5e1" : "#fca5a5",
                       }}
                     >
-                      {isCompleted ? "Terminée" : r.status === "cancelled" ? "Annulée" : "Refusée"}
+                      {isCompleted
+                        ? t("client.historique.completed")
+                        : r.status === "cancelled"
+                          ? t("client.historique.cancelled")
+                          : t("client.historique.refused")}
                     </span>
                   </div>
                   <div className="flex items-start gap-2 text-sm text-white">
@@ -201,7 +205,7 @@ function ClientHistorique() {
                   </div>
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                     <div className="text-xs text-white/60">
-                      Réf. {(r.tracking_id || r.id).slice(0, 10)}
+                      {t("client.historique.ref")} {(r.tracking_id || r.id).slice(0, 10)}
                       {r.prix_estime != null && (
                         <>
                           {" — "}
@@ -223,7 +227,7 @@ function ClientHistorique() {
                         className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-black"
                         style={{ background: "linear-gradient(135deg, #C9A84C 0%, #E8C96D 100%)" }}
                       >
-                        <FileText className="h-3.5 w-3.5" /> Reçu PDF
+                        <FileText className="h-3.5 w-3.5" /> {t("client.historique.receipt_pdf")}
                       </button>
                     )}
                   </div>
