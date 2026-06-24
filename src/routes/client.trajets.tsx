@@ -22,12 +22,12 @@ export const Route = createFileRoute("/client/trajets")({
 
 const ACTIVE = new Set(["nouvelle", "pending", "accepted", "en_route", "arrived"]);
 
-const STATUS_LABEL: Record<string, { label: string; bg: string; fg: string }> = {
-  nouvelle: { label: "En attente", bg: "rgba(234,179,8,0.15)", fg: "#facc15" },
-  pending: { label: "En attente", bg: "rgba(234,179,8,0.15)", fg: "#facc15" },
-  accepted: { label: "Confirmée", bg: "rgba(34,197,94,0.15)", fg: "#4ade80" },
-  en_route: { label: "Chauffeur en route", bg: "rgba(59,130,246,0.18)", fg: "#60a5fa" },
-  arrived: { label: "Chauffeur arrivé", bg: "rgba(99,102,241,0.18)", fg: "#a5b4fc" },
+const STATUS_KEY: Record<string, { key: string; bg: string; fg: string }> = {
+  nouvelle: { key: "cd_status_pending", bg: "rgba(234,179,8,0.15)", fg: "#facc15" },
+  pending: { key: "cd_status_pending", bg: "rgba(234,179,8,0.15)", fg: "#facc15" },
+  accepted: { key: "cd_status_accepted", bg: "rgba(34,197,94,0.15)", fg: "#4ade80" },
+  en_route: { key: "cd_status_en_route", bg: "rgba(59,130,246,0.18)", fg: "#60a5fa" },
+  arrived: { key: "cd_status_arrived", bg: "rgba(99,102,241,0.18)", fg: "#a5b4fc" },
 };
 
 function fmtDate(iso: string) {
