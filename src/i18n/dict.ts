@@ -690,10 +690,12 @@ const fr: Dict = {
   "client.login.show": "Afficher",
   "client.login.hide": "Masquer",
   "client.forgot.title": "Mot de passe oublié ?",
-  "client.forgot.desc": "Indiquez votre email — nous vous envoyons un lien sécurisé pour choisir un nouveau mot de passe.",
+  "client.forgot.desc":
+    "Indiquez votre email — nous vous envoyons un lien sécurisé pour choisir un nouveau mot de passe.",
   "client.forgot.send": "Envoyer le lien de réinitialisation",
   "client.forgot.sent_title": "Email envoyé",
-  "client.forgot.sent_desc": "Si un compte existe pour cet email, vous recevrez sous peu un lien sécurisé (valable 30 minutes).",
+  "client.forgot.sent_desc":
+    "Si un compte existe pour cet email, vous recevrez sous peu un lien sécurisé (valable 30 minutes).",
   "client.forgot.sent_spam": "Pensez à vérifier votre dossier spam.",
   "client.forgot.back_login": "Retour à la connexion",
   "client.forgot.back": "Retour",
@@ -907,6 +909,7 @@ const fr: Dict = {
   "suivi.share_msg_dest_default": "ma destination",
   "suivi.share_msg_eta": "⏱️ Arrivée estimée :",
   "suivi.share_msg_follow": "📍 Suis mon trajet en direct :",
+  "suivi.chat_title": "Chat avec Taxi City Bordeaux",
   "suivi.chat_first_name": "Votre prénom...",
   "suivi.chat_continue": "Continuer",
   "suivi.chat_empty": "Pas de messages encore",
@@ -943,7 +946,6 @@ const fr: Dict = {
   "suivi.day.fri": "Vendredi",
   "suivi.day.sat": "Samedi",
 };
-
 
 const en: Dict = {
   "nav.home": "Home",
@@ -1588,7 +1590,8 @@ const en: Dict = {
   "client.forgot.desc": "Enter your email — we'll send you a secure link to choose a new password.",
   "client.forgot.send": "Send reset link",
   "client.forgot.sent_title": "Email sent",
-  "client.forgot.sent_desc": "If an account exists for this email, you will shortly receive a secure link (valid 30 minutes).",
+  "client.forgot.sent_desc":
+    "If an account exists for this email, you will shortly receive a secure link (valid 30 minutes).",
   "client.forgot.sent_spam": "Don't forget to check your spam folder.",
   "client.forgot.back_login": "Back to sign in",
   "client.forgot.back": "Back",
@@ -1606,7 +1609,7 @@ const en: Dict = {
   "client.reset.err_expired": "This link has expired. Request a new one.",
   "client.reset.err_invalid_used": "Invalid or already-used link.",
   "client.push.enable_title": "Push notifications",
-  "client.push.enable_desc": "Get the day-before reminder and the \"driver on the way\" alert.",
+  "client.push.enable_desc": 'Get the day-before reminder and the "driver on the way" alert.',
   "client.push.enable_btn": "Enable notifications",
   "client.push.enabled": "Notifications enabled",
   "client.push.denied": "Notifications blocked in the browser.",
@@ -1802,6 +1805,7 @@ const en: Dict = {
   "suivi.share_msg_dest_default": "my destination",
   "suivi.share_msg_eta": "⏱️ ETA:",
   "suivi.share_msg_follow": "📍 Track me live:",
+  "suivi.chat_title": "Chat with Taxi City Bordeaux",
   "suivi.chat_first_name": "Your first name...",
   "suivi.chat_continue": "Continue",
   "suivi.chat_empty": "No messages yet",
@@ -1838,7 +1842,6 @@ const en: Dict = {
   "suivi.day.fri": "Friday",
   "suivi.day.sat": "Saturday",
 };
-
 
 const es: Dict = {
   "nav.home": "Inicio",
@@ -2488,7 +2491,8 @@ const es: Dict = {
   "client.forgot.desc": "Indique su email — le enviaremos un enlace seguro para elegir una nueva contraseña.",
   "client.forgot.send": "Enviar enlace de restablecimiento",
   "client.forgot.sent_title": "Email enviado",
-  "client.forgot.sent_desc": "Si existe una cuenta para este email, recibirá en breve un enlace seguro (válido 30 minutos).",
+  "client.forgot.sent_desc":
+    "Si existe una cuenta para este email, recibirá en breve un enlace seguro (válido 30 minutos).",
   "client.forgot.sent_spam": "Recuerde revisar su carpeta de spam.",
   "client.forgot.back_login": "Volver al inicio de sesión",
   "client.forgot.back": "Volver",
@@ -2676,6 +2680,7 @@ const es: Dict = {
   "suivi.status.completed": "Finalizada",
   "suivi.status.cancelled": "Cancelada",
   "suivi.back_home_arrow": "← Volver al inicio",
+  "suivi.chat_title": "Chat con Taxi City Bordeaux",
   "suivi.chat_conn_error": "Error de conexión",
   "suivi.chat_continue": "Continuar",
   "suivi.chat_empty": "Aún no hay mensajes",
@@ -3389,7 +3394,8 @@ const it: Dict = {
   "client.forgot.desc": "Inserisci la tua email — ti invieremo un link sicuro per scegliere una nuova password.",
   "client.forgot.send": "Invia link di reimpostazione",
   "client.forgot.sent_title": "Email inviata",
-  "client.forgot.sent_desc": "Se esiste un account per questa email, riceverai a breve un link sicuro (valido 30 minuti).",
+  "client.forgot.sent_desc":
+    "Se esiste un account per questa email, riceverai a breve un link sicuro (valido 30 minuti).",
   "client.forgot.sent_spam": "Ricorda di controllare la cartella spam.",
   "client.forgot.back_login": "Torna all'accesso",
   "client.forgot.back": "Indietro",
@@ -3577,6 +3583,7 @@ const it: Dict = {
   "suivi.status.completed": "Completata",
   "suivi.status.cancelled": "Annullata",
   "suivi.back_home_arrow": "← Torna alla home",
+  "suivi.chat_title": "Chat con Taxi City Bordeaux",
   "suivi.chat_conn_error": "Errore di connessione",
   "suivi.chat_continue": "Continua",
   "suivi.chat_empty": "Nessun messaggio per ora",
@@ -4465,6 +4472,7 @@ const ar: Dict = {
   "suivi.status.completed": "مكتملة",
   "suivi.status.cancelled": "ملغاة",
   "suivi.back_home_arrow": "← العودة إلى الرئيسية",
+  "suivi.chat_title": "محادثة مع Taxi City Bordeaux",
   "suivi.chat_conn_error": "خطأ في الاتصال",
   "suivi.chat_continue": "متابعة",
   "suivi.chat_empty": "لا توجد رسائل بعد",
@@ -5194,7 +5202,8 @@ const pt: Dict = {
   "client.forgot.desc": "Indique o seu email — enviamos-lhe um link seguro para escolher uma nova palavra-passe.",
   "client.forgot.send": "Enviar link de redefinição",
   "client.forgot.sent_title": "Email enviado",
-  "client.forgot.sent_desc": "Se existir uma conta para este email, receberá em breve um link seguro (válido 30 minutos).",
+  "client.forgot.sent_desc":
+    "Se existir uma conta para este email, receberá em breve um link seguro (válido 30 minutos).",
   "client.forgot.sent_spam": "Verifique também a pasta de spam.",
   "client.forgot.back_login": "Voltar ao início de sessão",
   "client.forgot.back": "Voltar",
@@ -5382,6 +5391,7 @@ const pt: Dict = {
   "suivi.status.completed": "Concluída",
   "suivi.status.cancelled": "Cancelada",
   "suivi.back_home_arrow": "← Voltar ao início",
+  "suivi.chat_title": "Chat com a Taxi City Bordeaux",
   "suivi.chat_conn_error": "Erro de ligação",
   "suivi.chat_continue": "Continuar",
   "suivi.chat_empty": "Ainda sem mensagens",
