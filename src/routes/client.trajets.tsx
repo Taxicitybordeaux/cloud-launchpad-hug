@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { Calendar, MapPin, ArrowRight, Eye, Plus, RefreshCw } from "lucide-react";
+import { BrandLoader } from "@/components/BrandLoader";
 import { toast } from "sonner";
 import { ClientBottomNav } from "@/components/ClientBottomNav";
 import { getClientSession } from "@/lib/client-session";

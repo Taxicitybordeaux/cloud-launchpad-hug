@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Mail, Lock, Eye, EyeOff, User, Phone } from "lucide-react";
+import { BrandLoader } from "@/components/BrandLoader";
 import { ClientAuthHeader } from "@/components/ClientAuthHeader";
 import { clientLogin, clientRegister } from "@/lib/client-auth.functions";
 import { setClientSession, getClientSession } from "@/lib/client-session";

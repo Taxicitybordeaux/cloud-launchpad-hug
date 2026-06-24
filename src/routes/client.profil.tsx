@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { LogOut, Plus, Trash2, Home, Briefcase, Plane, MapPin, ExternalLink } from "lucide-react";
+import { BrandLoader } from "@/components/BrandLoader";
 import { toast } from "sonner";
 import { ClientBottomNav } from "@/components/ClientBottomNav";
 import { getClientSession, clearClientSession } from "@/lib/client-session";
