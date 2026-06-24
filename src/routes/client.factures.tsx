@@ -96,7 +96,7 @@ function ClientFactures() {
         year,
         month,
         rows: list,
-        client: { name: session.client_name || "", email: session.email || "", phone: session.phone || "" },
+        client: { name: session.name || "", email: session.email || "", phone: session.phone || "" },
         company,
       });
     } finally {
@@ -112,7 +112,7 @@ function ClientFactures() {
         accountId: session.id,
         year,
         rows,
-        client: { name: session.client_name || "", email: session.email || "", phone: session.phone || "" },
+        client: { name: session.name || "", email: session.email || "", phone: session.phone || "" },
         company,
       });
     } finally {
