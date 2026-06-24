@@ -1142,8 +1142,7 @@ function ShareTrajetButton({ reservation }: { reservation: any }) {
       `📍 Suis mon trajet en direct :`,
       suiviUrl,
     ].filter(Boolean);
-    return lines.join("
-");
+    return lines.join("\n");
   };
 
   const handleCopy = async () => {
