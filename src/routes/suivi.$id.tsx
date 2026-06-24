@@ -388,7 +388,7 @@ function AnonChat({ reservationId }: { reservationId: string }) {
         }}
       >
         {messages.length === 0 && (
-          <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "12px", paddingY: "20px" }}>
+          <div style={{ textAlign: "center", color: "#94a3b8", fontSize: "12px", padding: "20px 0" }}>
             Pas de messages encore
           </div>
         )}
