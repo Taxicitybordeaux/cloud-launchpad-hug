@@ -923,7 +923,7 @@ function SuiviPage() {
       }
     }, 60000);
     return () => clearInterval(staleTimer);
-  }, [isCompleted, isCancelled, loadReservation]);
+  }, [loadReservation]);
 
   // ── Real-time updates with auto-reconnect ──
   useEffect(() => {
