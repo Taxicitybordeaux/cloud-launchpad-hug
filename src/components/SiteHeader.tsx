@@ -72,7 +72,7 @@ export function SiteHeader() {
             aria-label="Espace client"
             className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-semibold transition hover:border-primary"
           >
-            <UserCircle2 className="h-4 w-4 text-primary" /> {t("nav.client_area")}
+            <UserCircle2 className="h-4 w-4 text-primary" /> {t("nav.account")}
           </Link>
           <Link
             to="/reservation"
@@ -130,7 +130,7 @@ export function SiteHeader() {
                 onClick={() => setOpen(false)}
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-3 text-base font-semibold"
               >
-                <UserCircle2 className="h-5 w-5 text-primary" /> {t("nav.client_area")}
+                <UserCircle2 className="h-5 w-5 text-primary" /> {t("nav.account")}
               </Link>
               <Link
                 to="/reservation"
