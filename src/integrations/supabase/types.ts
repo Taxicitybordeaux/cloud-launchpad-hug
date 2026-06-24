@@ -100,6 +100,109 @@ export type Database = {
           },
         ]
       }
+      client_password_resets: {
+        Row: {
+          client_account_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          token_hash: string
+          used_at: string | null
+        }
+        Insert: {
+          client_account_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          token_hash: string
+          used_at?: string | null
+        }
+        Update: {
+          client_account_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          token_hash?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_password_resets_client_account_id_fkey"
+            columns: ["client_account_id"]
+            isOneToOne: false
+            referencedRelation: "client_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_recurring_rides: {
+        Row: {
+          active: boolean
+          bagages: number
+          client_account_id: string
+          created_at: string
+          day_of_week: number
+          depart: string
+          destination: string
+          hour: number
+          id: string
+          label: string
+          last_run_at: string | null
+          message: string | null
+          minute: number
+          next_run_at: string
+          paiement: string
+          passagers: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          bagages?: number
+          client_account_id: string
+          created_at?: string
+          day_of_week: number
+          depart: string
+          destination: string
+          hour: number
+          id?: string
+          label: string
+          last_run_at?: string | null
+          message?: string | null
+          minute?: number
+          next_run_at: string
+          paiement?: string
+          passagers?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          bagages?: number
+          client_account_id?: string
+          created_at?: string
+          day_of_week?: number
+          depart?: string
+          destination?: string
+          hour?: number
+          id?: string
+          label?: string
+          last_run_at?: string | null
+          message?: string | null
+          minute?: number
+          next_run_at?: string
+          paiement?: string
+          passagers?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_recurring_rides_client_account_id_fkey"
+            columns: ["client_account_id"]
+            isOneToOne: false
+            referencedRelation: "client_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           created_at: string

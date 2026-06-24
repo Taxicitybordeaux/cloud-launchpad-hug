@@ -12,7 +12,6 @@ import {
   RotateCw,
   Plus,
   X,
-  Loader2,
   ArrowLeft,
   RotateCcw,
 } from "lucide-react";
@@ -29,6 +28,7 @@ import {
 import { toast } from "sonner";
 import { ClientAuthHeader } from "@/components/ClientAuthHeader";
 import { ClientBottomNav } from "@/components/ClientBottomNav";
+import { BrandLoader } from "@/components/BrandLoader";
 import { ChatPanel } from "@/components/ChatPanel";
 import { DirectChatPanel } from "@/components/DirectChatPanel";
 import { supabase } from "@/integrations/supabase/client";
@@ -357,7 +357,7 @@ function ClientDashboard() {
 
           {loading && (
             <div className="flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-10 text-white/60">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("cd_loading")}
+              <BrandLoader size={20} /> {t("cd_loading")}
             </div>
           )}
 
@@ -602,7 +602,7 @@ function ClientDashboard() {
               style={{ background: "linear-gradient(135deg, #C9A84C 0%, #E8C96D 100%)" }}
             >
               {phoneModalBusy ? (
-                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                <BrandLoader size={16} />
               ) : (
                 <Phone className="mr-1 h-3.5 w-3.5" />
               )}

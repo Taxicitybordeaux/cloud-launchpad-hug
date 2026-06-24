@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Mail, Lock, Eye, EyeOff, User, Phone, Loader2 } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, User, Phone } from "lucide-react";
+import { BrandLoader } from "@/components/BrandLoader";
 import { ClientAuthHeader } from "@/components/ClientAuthHeader";
 import { clientLogin, clientRegister } from "@/lib/client-auth.functions";
 import { setClientSession, getClientSession } from "@/lib/client-session";
@@ -189,9 +190,18 @@ function ClientLoginPage() {
                 boxShadow: "0 10px 30px -10px rgba(201,168,76,0.5)",
               }}
             >
-              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : (mode === "login" ? t("client_login_btn") : t("client_register_btn"))}
+              {loading ? <BrandLoader size={22} /> : (mode === "login" ? t("client_login_btn") : t("client_register_btn"))}
             </button>
           </form>
+
+          {mode === "login" && (
+            <Link
+              to="/client/forgot-password"
+              className="mt-4 block text-center text-xs text-white/60 transition hover:text-[#E8C96D]"
+            >
+              Mot de passe oublié ?
+            </Link>
+          )}
 
           <button
             type="button"

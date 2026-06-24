@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Calendar, MapPin, ArrowRight, Download, FileText, Search } from "lucide-react";
+import { Calendar, MapPin, ArrowRight, Download, FileText, Search } from "lucide-react";
+import { BrandLoader } from "@/components/BrandLoader";
 import { toast } from "sonner";
 import { ClientBottomNav } from "@/components/ClientBottomNav";
 import { getClientSession } from "@/lib/client-session";
@@ -154,7 +155,7 @@ function ClientHistorique() {
 
         {loading && (
           <div className="flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-10 text-white/60">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Chargement…
+            <BrandLoader size={20} /> Chargement…
           </div>
         )}
 

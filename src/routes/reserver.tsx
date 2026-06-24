@@ -61,6 +61,7 @@ interface FormState {
   nom: string;
   phone: string;
   email: string;
+  message: string;
 }
 
 interface OrsResult {
@@ -852,6 +853,7 @@ function ReservationPage() {
       nom: "",
       phone: "",
       email: "",
+      message: "",
     };
   });
 
@@ -1429,6 +1431,7 @@ function ReservationPage() {
           prix_estime: calculerPrixMixteLocal(distanceKm, new Date(pickupIsoFinal).getTime(), dureeS),
           source: "form",
           lang: lang as any,
+          message: f.message.trim() || null,
         })
         .select("id,suivi_id")
         .single();
@@ -2287,6 +2290,58 @@ function ReservationPage() {
                 </div>
               </div>
             </div>
+
+            {/* ── Demandes spéciales (siège bébé, animal, bagages volumineux…) ── */}
+            <div
+              style={{
+                background: "linear-gradient(135deg, rgba(255,253,247,0.7) 0%, rgba(252,247,234,0.6) 100%)",
+                border: "1px solid rgba(201,168,76,0.18)",
+                borderRadius: 16,
+                padding: "16px 18px",
+                boxShadow: "0 1px 3px rgba(26,18,9,0.04)",
+              }}
+            >
+              <label
+                style={{
+                  fontSize: 11,
+                  color: "#7a6a50",
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  marginBottom: 8,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                <span>✨</span>
+                Demandes spéciales (optionnel)
+              </label>
+              <textarea
+                value={f.message}
+                onChange={(e) => set("message", e.target.value.slice(0, 500))}
+                placeholder="Ex : siège bébé, animal de compagnie, valise XXL, arrêt intermédiaire, préférence chauffeur…"
+                rows={3}
+                style={{
+                  width: "100%",
+                  resize: "vertical",
+                  padding: "12px 14px",
+                  background: "rgba(255,255,255,0.7)",
+                  border: "1.5px solid rgba(201,168,76,0.25)",
+                  borderRadius: 12,
+                  fontSize: 14,
+                  color: "#1a1209",
+                  fontFamily: "inherit",
+                  outline: "none",
+                  lineHeight: 1.5,
+                }}
+              />
+              <div style={{ marginTop: 6, fontSize: 11, color: "#a8956a", textAlign: "right" }}>
+                {f.message.length}/500
+              </div>
+            </div>
+
+
 
             {/* ── Bouton réserver ── */}
             <button
