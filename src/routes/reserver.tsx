@@ -1457,27 +1457,8 @@ function ReservationPage() {
         console.warn("[notify] chauffeur notify failed (non-blocking)", e);
       }
 
-      // ── Email de confirmation client avec lien de suivi ───────────────────
-      // Fire & forget — ne bloque pas la navigation si ça échoue
-      if (f.email) {
-        const suiviUrl = `https://taxicitybordeaux.fr/suivi/${inserted.suivi_id}?src=email`;
-        fetch("/api/public/notify-reservation-client", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            lang: lang as string,
-            nom: fullName,
-            email: f.email,
-            pickup_datetime: pickupIsoFinal,
-            depart: f.depart,
-            arrivee: f.destination,
-            passagers: f.passagers,
-            bagages: f.bagages,
-            reservation_id: inserted.id,
-            suivi_url: suiviUrl,
-          }),
-        }).catch((e) => console.warn("[notify-client] email failed (non-blocking)", e));
-      }
+      // ── Email client géré par notify-new-reservation (Edge Function) ────────
+      // L'envoi est déclenché par notifyNewReservation() ci-dessus — pas de doublon ici.
 
       navigate({ to: "/suivi/$id", params: { id: inserted.suivi_id } });
     } catch (err: any) {
@@ -2340,8 +2321,6 @@ function ReservationPage() {
                 {f.message.length}/500
               </div>
             </div>
-
-
 
             {/* ── Bouton réserver ── */}
             <button
