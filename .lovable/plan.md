@@ -1,60 +1,71 @@
-# Notifications Push Web
+# Plan — Fusion chat José + factures fiscales
 
-## 1. Base de données
+## 1. Fusion du chat côté José (vue unifiée par client)
 
-Nouvelle table `push_subscriptions` :
-- `audience` : `'admin' | 'chauffeur' | 'client'`
-- `endpoint` (unique), `p256dh`, `auth`
-- `user_id` (nullable, pour admin/chauffeur connectés)
-- `reservation_id` (nullable, pour clients liés à une course via tracking)
-- `user_agent`, `created_at`, `last_seen_at`
+**Principe** : les deux tables (`reservation_messages` côté course + `direct_messages` côté espace client) restent en base. C'est l'UI de José qui agrège en **un seul thread par client**.
 
-RLS :
-- Admin : full CRUD via `has_role(auth.uid(),'admin')`
-- Insert public autorisé (les visiteurs/clients doivent pouvoir s'abonner sans compte) avec validation côté serveur
-- Delete par endpoint propre (désinscription)
+**Onglet Chat driver — refonte**
+- Liste des threads : regroupés par client (priorité `client_account_id`, fallback `client_phone` 9 derniers chiffres).
+- Chaque thread affiche : avatar/nom, dernier message (toutes sources confondues), badge "💬 Direct" ou "🚖 Course #ABCD" selon la source, compteur non-lus combiné.
+- Tri par dernier message reçu.
 
-## 2. Service worker
+**Conversation fusionnée**
+- Chargement parallèle des deux tables filtrées sur le client.
+- Fusion → tri chronologique unique, avec un petit chip discret au-dessus de chaque bulle indiquant le contexte (Direct / Course #ABCD).
+- Marquage lu : pour les 2 tables en une fois.
 
-Fichier `public/sw.js` :
-- `push` event → affiche notification (titre, corps, icône, URL cible)
-- `notificationclick` → ouvre/focus l'URL associée (ex: `/admin/courses`, `/chauffeur`, `/suivi/$id`)
+**Réponse intelligente de José**
+- Sélecteur en haut de la zone de saisie : "Répondre dans → Chat direct" ou "Course en cours (#ABCD)".
+- Défaut auto : si le dernier message entrant vient d'une course active → répond dans cette course ; sinon → direct.
+- Le client voit donc la réponse au bon endroit (sur `/suivi/$id` OU `/client/chat`).
 
-## 3. Library
+**Réalisation**
+- Refonte `ChatTab` et `DriverChatConversation` dans `src/routes/driver.tsx`.
+- Pas de migration SQL — uniquement de la logique UI/lecture.
+- Realtime sur les 2 channels (`direct_messages` + `reservation_messages`).
 
-Installation `web-push` côté serveur (compatible Workers via nodejs_compat).
+## 2. Documents fiscaux pour entreprises
 
-## 4. Server functions / routes
+**Nouvelle page `/client/factures`** (5ᵉ onglet "Factures" ou sous-section du profil)
+- Liste des courses **terminées** groupées par mois.
+- Boutons :
+  - **PDF du mois** — toutes les courses du mois sélectionné, total HT/TTC, TVA 10 %, numéro de facture séquentiel.
+  - **PDF de l'année** — récap annuel pour bilan/notes de frais.
+  - **Envoi par email** — bouton "Recevoir par email" qui utilise la file `transactional_emails` existante.
+- En-tête : raison sociale optionnelle (nouveau champ `company_name` + `siret` + `tva_intracom` dans `client_accounts`).
 
-- `subscribe.functions.ts` : enregistre une souscription (audience + reservation_id optionnel)
-- `unsubscribe.functions.ts` : supprime par endpoint
-- Helper `push.server.ts` : `sendPushTo(audience, payload)` qui itère les souscriptions, envoie via web-push, supprime les 410/404
+**Tech**
+- Réutilise `src/lib/client-receipt.ts` (jsPDF déjà installé) → on ajoute `generateMonthlyInvoicePDF()` et `generateYearlyInvoicePDF()`.
+- Migration : ajoute 3 colonnes nullables à `client_accounts` (`company_name`, `siret`, `tva_intracom`) + section "Infos entreprise" dans `/client/profil`.
 
-## 5. Intégration des déclencheurs
+## 3. Ce qu'on peut encore ajouter (roadmap — à arbitrer après)
 
-- `api/public/notify-reservation.ts` (création) → push **admin**
-- Nouvelle update du status (admin/chauffeur action) → push **client** (via souscription liée au `reservation_id`) + push **chauffeur** quand `status='acceptee'` ou course assignée
-- Réutiliser les emails existants, ajouter le push en parallèle
+Idées triées par valeur/effort, à valider plus tard :
 
-## 6. UI
+**Quick wins (1 itération chacun)**
+- **Estimateur de prix sans engagement** : mini-formulaire départ/arrivée → prix instantané, pas besoin d'être logué.
+- **QR de réservation rapide** : QR code unique par client à coller dans son agenda → ouvre `/reserver` pré-rempli.
+- **Wallet Apple/Google Pay** : ajout du billet de course (date, ETA, chauffeur) au portefeuille.
+- **Musique préférée** : champ texte "votre playlist Spotify/style" envoyé à José avec la course.
+- **Cadeau anniversaire** : course offerte (ou -20 %) le mois d'anniversaire, alerte automatique.
 
-- **Admin** : bouton "Activer les notifications" dans `admin.dashboard.tsx` (header)
-- **Chauffeur** : bouton dans `chauffeur.tsx`
-- **Client** : prompt automatique sur `/suivi/$id` et `/reservation/$id` ("Recevoir les mises à jour")
+**Plus stratégique**
+- **Mode Entreprise multi-collaborateurs** : 1 compte société → plusieurs voyageurs autorisés, facturation centralisée.
+- **PWA installable + mode hors-ligne** : icône sur l'écran d'accueil, courses récentes accessibles sans réseau.
+- **Parrainage** : code unique, X € pour parrain + filleul à la 1ʳᵉ course.
+- **Programme VIP** : paliers Silver/Gold/Platinum avec avantages (priorité, eau, surclassement).
+- **Notifications push intelligentes** : J-1, chauffeur en route avec ETA temps réel, demande d'avis post-course.
 
-Composant partagé `<EnablePushButton audience="..." reservationId="..." />` qui gère :
-- Vérification support navigateur
-- Permission `Notification.requestPermission()`
-- `serviceWorker.register('/sw.js')` + `pushManager.subscribe({ applicationServerKey: VAPID_PUBLIC })`
-- Appel de la server function `subscribe`
-- État visuel (activé / désactivé / non supporté / refusé)
+## Détails techniques (pour info)
 
-La clé publique VAPID est exposée via `import.meta.env.VITE_VAPID_PUBLIC_KEY` (à ajouter au build) **ou** récupérée via une server function GET publique pour éviter une variable d'env supplémentaire — j'utiliserai la **server function** (plus simple, pas de config build).
+- Pas de touche à `reservation_messages` / `direct_messages` au niveau schéma.
+- `ChatTab` réécrit en agrégateur dual-source avec `Map<clientKey, Thread>`.
+- Realtime : 2 channels Supabase combinés dans un seul effet.
+- PDF factures : jsPDF + jspdf-autotable (déjà présents), numérotation `TC-YYYY-MM-NNN` séquentielle par client.
+- Aucun secret nouveau, pas de cron supplémentaire.
 
-## Détails techniques
+## Ce qui sera livré dans cette itération
 
-- `web-push` package, payload chiffré côté serveur via `sendNotification(subscription, JSON.stringify({title,body,url}))`
-- Sur erreur 410/404 → suppression auto de la souscription expirée
-- Service worker en cache `no-store` (déjà géré par TanStack au niveau `public/`)
-- iOS Safari ≥16.4 : push fonctionne uniquement si l'app est "Add to Home Screen" — afficher un hint contextuel
-- Test : route `/api/admin/test-push` pour envoyer une notif de test à l'admin connecté
+1. ✅ Fusion chat côté José (point 1 en entier)
+2. ✅ Factures fiscales mensuelles + annuelles (point 2 en entier)
+3. ❌ Roadmap (point 3) — proposé pour discussion, pas codé

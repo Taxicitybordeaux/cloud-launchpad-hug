@@ -375,3 +375,285 @@ export const listAdminDirectThreads = createServerFn({ method: "GET" }).handler(
     })
     .sort((a, b) => b.last_message_at.localeCompare(a.last_message_at));
 });
+
+// ─── Vue FUSIONNÉE pour José (espace chauffeur) ──────────────────────────────
+// Agrège direct_messages (par compte client) et reservation_messages (par
+// course) en UN seul thread par client. Sert uniquement côté driver — le
+// client reste sur ses 2 UI séparées (/suivi/$id pour la course, /client/chat
+// pour la conversation persistante).
+
+export type MergedSource = "direct" | "reservation";
+
+export type MergedThread = {
+  // Clé stable pour grouper côté UI (account_id si dispo, sinon phone tail)
+  thread_key: string;
+  client_account_id: string | null;
+  client_phone: string | null;
+  client_name: string | null;
+  // Toutes les réservations rattachées à ce client (utile pour scoper la réponse)
+  reservation_ids: string[];
+  // Course "active" (la plus récente non terminée) — cible privilégiée d'une réponse
+  active_reservation_id: string | null;
+  active_reservation_label: string | null;
+  last_message_at: string;
+  last_message_content: string;
+  last_message_source: MergedSource;
+  unread_chauffeur: number;
+};
+
+export type MergedMessage = {
+  id: string;
+  source: MergedSource;
+  reservation_id: string | null;
+  reservation_label: string | null;
+  sender: "client" | "chauffeur";
+  content: string;
+  read_by_chauffeur: boolean;
+  created_at: string;
+};
+
+function normPhone(p?: string | null): string | null {
+  if (!p) return null;
+  const d = p.replace(/\D+/g, "");
+  return d.length >= 6 ? d.slice(-9) : null;
+}
+
+export const listMergedChauffeurThreads = createServerFn({ method: "GET" }).handler(async () => {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  // 1) Direct messages (par compte)
+  const { data: directs } = await supabaseAdmin
+    .from("direct_messages")
+    .select("client_account_id,sender,content,read_by_chauffeur,created_at")
+    .order("created_at", { ascending: false })
+    .limit(2000);
+
+  // 2) Reservation messages (par course)
+  const { data: resaMsgs } = await supabaseAdmin
+    .from("reservation_messages")
+    .select("reservation_id,sender,content,read_by_chauffeur,created_at")
+    .order("created_at", { ascending: false })
+    .limit(2000);
+
+  // Récupère les réservations pour résoudre account_id / phone / nom / statut
+  const resaIds = Array.from(new Set((resaMsgs ?? []).map((m: any) => m.reservation_id)));
+  let resaMap = new Map<string, any>();
+  if (resaIds.length > 0) {
+    const { data: resas } = await supabaseAdmin
+      .from("reservations")
+      .select("id, client_account_id, client_name, nom, client_phone, telephone, depart, destination, arrivee, status, pickup_datetime")
+      .in("id", resaIds);
+    resaMap = new Map((resas ?? []).map((r: any) => [r.id, r]));
+  }
+
+  // Récupère les comptes
+  const acctIds = new Set<string>();
+  for (const m of directs ?? []) if ((m as any).client_account_id) acctIds.add((m as any).client_account_id);
+  for (const r of resaMap.values()) if (r.client_account_id) acctIds.add(r.client_account_id);
+  let acctMap = new Map<string, any>();
+  if (acctIds.size > 0) {
+    const { data: accts } = await supabaseAdmin
+      .from("client_accounts")
+      .select("id, client_name, email, phone")
+      .in("id", Array.from(acctIds));
+    acctMap = new Map((accts ?? []).map((a: any) => [a.id, a]));
+  }
+
+  type Bucket = {
+    thread_key: string;
+    client_account_id: string | null;
+    client_phone: string | null;
+    client_name: string | null;
+    reservation_ids: Set<string>;
+    active_reservation_id: string | null;
+    active_pickup_at: string | null;
+    active_reservation_label: string | null;
+    last_at: string;
+    last_content: string;
+    last_source: MergedSource;
+    unread: number;
+  };
+  const buckets = new Map<string, Bucket>();
+
+  function bucketFor(key: string, init: () => Omit<Bucket, "reservation_ids" | "last_at" | "last_content" | "last_source" | "unread">): Bucket {
+    let b = buckets.get(key);
+    if (!b) {
+      const i = init();
+      b = {
+        ...i,
+        reservation_ids: new Set<string>(),
+        last_at: "",
+        last_content: "",
+        last_source: "direct",
+        unread: 0,
+      };
+      buckets.set(key, b);
+    }
+    return b;
+  }
+
+  function updateLast(b: Bucket, m: { content: string; created_at: string }, source: MergedSource) {
+    if (!b.last_at || m.created_at > b.last_at) {
+      b.last_at = m.created_at;
+      b.last_content = m.content;
+      b.last_source = source;
+    }
+  }
+
+  // Direct
+  for (const m of (directs ?? []) as any[]) {
+    const acct = acctMap.get(m.client_account_id);
+    const key = `a:${m.client_account_id}`;
+    const b = bucketFor(key, () => ({
+      thread_key: key,
+      client_account_id: m.client_account_id,
+      client_phone: acct?.phone ?? null,
+      client_name: acct?.client_name ?? acct?.email ?? "Client",
+      active_reservation_id: null,
+      active_pickup_at: null,
+      active_reservation_label: null,
+    }));
+    updateLast(b, m, "direct");
+    if (m.sender === "client" && !m.read_by_chauffeur) b.unread += 1;
+  }
+
+  // Reservation
+  for (const m of (resaMsgs ?? []) as any[]) {
+    const r = resaMap.get(m.reservation_id);
+    if (!r) continue;
+    const acct = r.client_account_id ? acctMap.get(r.client_account_id) : null;
+    const phoneTail = normPhone(r.client_phone || r.telephone);
+    const key = r.client_account_id ? `a:${r.client_account_id}` : phoneTail ? `p:${phoneTail}` : `r:${r.id}`;
+    const b = bucketFor(key, () => ({
+      thread_key: key,
+      client_account_id: r.client_account_id ?? null,
+      client_phone: r.client_phone || r.telephone || null,
+      client_name: acct?.client_name ?? r.client_name ?? r.nom ?? "Client",
+      active_reservation_id: null,
+      active_pickup_at: null,
+      active_reservation_label: null,
+    }));
+    b.reservation_ids.add(m.reservation_id);
+    // active = course pas terminée la plus récente
+    const isActive = !["completed", "cancelled", "no_show"].includes(r.status);
+    if (isActive && (!b.active_pickup_at || (r.pickup_datetime ?? "") > b.active_pickup_at)) {
+      b.active_reservation_id = r.id;
+      b.active_pickup_at = r.pickup_datetime ?? null;
+      const dest = r.destination || r.arrivee || "";
+      b.active_reservation_label = `#${String(r.id).slice(0, 6).toUpperCase()} · ${dest.slice(0, 24)}`;
+    }
+    updateLast(b, m, "reservation");
+    if (m.sender === "client" && !m.read_by_chauffeur) b.unread += 1;
+  }
+
+  const out: MergedThread[] = Array.from(buckets.values()).map((b) => ({
+    thread_key: b.thread_key,
+    client_account_id: b.client_account_id,
+    client_phone: b.client_phone,
+    client_name: b.client_name,
+    reservation_ids: Array.from(b.reservation_ids),
+    active_reservation_id: b.active_reservation_id,
+    active_reservation_label: b.active_reservation_label,
+    last_message_at: b.last_at,
+    last_message_content: b.last_content,
+    last_message_source: b.last_source,
+    unread_chauffeur: b.unread,
+  }));
+  out.sort((a, b) => b.last_message_at.localeCompare(a.last_message_at));
+  return out;
+});
+
+export const loadMergedConversation = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z
+      .object({
+        client_account_id: z.string().uuid().nullable().optional(),
+        reservation_ids: z.array(z.string().uuid()).max(50).optional(),
+        limit: z.number().int().min(1).max(500).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const lim = data.limit ?? 200;
+    const out: MergedMessage[] = [];
+
+    if (data.client_account_id) {
+      const { data: rows } = await supabaseAdmin
+        .from("direct_messages")
+        .select("id,sender,content,read_by_chauffeur,created_at")
+        .eq("client_account_id", data.client_account_id)
+        .order("created_at", { ascending: false })
+        .limit(lim);
+      for (const r of (rows ?? []) as any[]) {
+        out.push({
+          id: r.id,
+          source: "direct",
+          reservation_id: null,
+          reservation_label: null,
+          sender: r.sender,
+          content: r.content,
+          read_by_chauffeur: r.read_by_chauffeur,
+          created_at: r.created_at,
+        });
+      }
+    }
+
+    const rids = data.reservation_ids ?? [];
+    if (rids.length > 0) {
+      const { data: rows } = await supabaseAdmin
+        .from("reservation_messages")
+        .select("id,reservation_id,sender,content,read_by_chauffeur,created_at")
+        .in("reservation_id", rids)
+        .order("created_at", { ascending: false })
+        .limit(lim);
+      const labels = new Map<string, string>();
+      for (const id of rids) labels.set(id, `#${String(id).slice(0, 6).toUpperCase()}`);
+      for (const r of (rows ?? []) as any[]) {
+        out.push({
+          id: r.id,
+          source: "reservation",
+          reservation_id: r.reservation_id,
+          reservation_label: labels.get(r.reservation_id) ?? null,
+          sender: r.sender,
+          content: r.content,
+          read_by_chauffeur: r.read_by_chauffeur,
+          created_at: r.created_at,
+        });
+      }
+    }
+
+    out.sort((a, b) => a.created_at.localeCompare(b.created_at));
+    return out;
+  });
+
+export const markMergedConversationRead = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z
+      .object({
+        client_account_id: z.string().uuid().nullable().optional(),
+        reservation_ids: z.array(z.string().uuid()).max(50).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (data.client_account_id) {
+      await supabaseAdmin
+        .from("direct_messages")
+        .update({ read_by_chauffeur: true })
+        .eq("client_account_id", data.client_account_id)
+        .eq("sender", "client")
+        .eq("read_by_chauffeur", false);
+    }
+    const rids = data.reservation_ids ?? [];
+    if (rids.length > 0) {
+      await supabaseAdmin
+        .from("reservation_messages")
+        .update({ read_by_chauffeur: true })
+        .in("reservation_id", rids)
+        .eq("sender", "client")
+        .eq("read_by_chauffeur", false);
+    }
+    return { ok: true };
+  });

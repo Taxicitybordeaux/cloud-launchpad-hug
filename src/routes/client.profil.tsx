@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { LogOut, Plus, Trash2, Home, Briefcase, Plane, MapPin, ExternalLink, Repeat, Power } from "lucide-react";
 import { BrandLoader } from "@/components/BrandLoader";
@@ -287,6 +287,8 @@ function ClientProfil() {
         </section>
 
         <RecurringRidesSection accountId={session.id} />
+
+        <CompanyInfoSection accountId={session.id} />
 
         <button
           onClick={logout}
@@ -579,6 +581,127 @@ function RecurringRidesSection({ accountId }: { accountId: string }) {
             </li>
           ))}
         </ul>
+      )}
+    </section>
+  );
+}
+
+function CompanyInfoSection({ accountId }: { accountId: string }) {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [company, setCompany] = useState({
+    company_name: "",
+    siret: "",
+    tva_intracom: "",
+    billing_address: "",
+  });
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { getClientCompanyInfo } = await import("@/lib/client-billing.functions");
+      const data = await getClientCompanyInfo({ data: { account_id: accountId } });
+      setCompany({
+        company_name: data.company_name ?? "",
+        siret: data.siret ?? "",
+        tva_intracom: data.tva_intracom ?? "",
+        billing_address: data.billing_address ?? "",
+      });
+    } catch {
+      // silencieux : section optionnelle
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  async function save() {
+    setSaving(true);
+    try {
+      const { updateClientCompanyInfo } = await import("@/lib/client-billing.functions");
+      await updateClientCompanyInfo({
+        data: {
+          account_id: accountId,
+          company_name: company.company_name.trim() || null,
+          siret: company.siret.trim() || null,
+          tva_intracom: company.tva_intracom.trim() || null,
+          billing_address: company.billing_address.trim() || null,
+        },
+      });
+      toast.success("Informations enregistrées");
+    } catch {
+      toast.error("Échec de l'enregistrement");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="mb-6">
+      <div className="mb-3 flex items-center justify-between">
+        <h2
+          className="flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-[#E8C96D]"
+          style={{ fontFamily: "'Syne', serif" }}
+        >
+          <Briefcase className="h-3.5 w-3.5" /> Facturation entreprise
+        </h2>
+        <Link
+          to="/client/factures"
+          className="inline-flex items-center gap-1 rounded-lg border border-[#E8C96D]/40 bg-[#E8C96D]/10 px-3 py-1.5 text-[11px] font-semibold text-[#E8C96D] hover:bg-[#E8C96D]/20"
+        >
+          Mes factures →
+        </Link>
+      </div>
+      {loading ? (
+        <div className="flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-6 text-white/60">
+          <BrandLoader size={18} /> Chargement…
+        </div>
+      ) : (
+        <div className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+          <p className="mb-2 text-xs text-white/50">
+            Optionnel — apparaîtra en haut de vos factures mensuelles et annuelles.
+          </p>
+          <input
+            value={company.company_name}
+            onChange={(e) => setCompany({ ...company, company_name: e.target.value })}
+            placeholder="Raison sociale"
+            className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#E8C96D]"
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              value={company.siret}
+              onChange={(e) => setCompany({ ...company, siret: e.target.value })}
+              placeholder="SIRET"
+              className="rounded-lg border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#E8C96D]"
+            />
+            <input
+              value={company.tva_intracom}
+              onChange={(e) => setCompany({ ...company, tva_intracom: e.target.value })}
+              placeholder="TVA intracom."
+              className="rounded-lg border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#E8C96D]"
+            />
+          </div>
+          <textarea
+            value={company.billing_address}
+            onChange={(e) => setCompany({ ...company, billing_address: e.target.value })}
+            placeholder="Adresse de facturation"
+            rows={2}
+            className="w-full resize-none rounded-lg border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#E8C96D]"
+          />
+          <div className="flex justify-end">
+            <button
+              onClick={save}
+              disabled={saving}
+              className="rounded-lg px-4 py-2 text-xs font-semibold text-black disabled:opacity-60"
+              style={{ background: "linear-gradient(135deg, #C9A84C 0%, #E8C96D 100%)" }}
+            >
+              {saving ? "…" : "Enregistrer"}
+            </button>
+          </div>
+        </div>
       )}
     </section>
   );
