@@ -593,9 +593,13 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
                       </span>
                       {mine &&
                         (isRead ? (
-                          <CheckCheck className="h-3 w-3" style={{ color: "#1d4ed8" }} title="Lu" />
+                          <span title="Lu">
+                            <CheckCheck className="h-3 w-3" style={{ color: "#1d4ed8" }} />
+                          </span>
                         ) : (
-                          <Check className="h-3 w-3 opacity-60" title="Envoyé" />
+                          <span title="Envoyé">
+                            <Check className="h-3 w-3 opacity-60" />
+                          </span>
                         ))}
                     </div>
                   </div>
