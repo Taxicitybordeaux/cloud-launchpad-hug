@@ -34,28 +34,40 @@ export type Database = {
       }
       client_accounts: {
         Row: {
+          billing_address: string | null
           client_name: string | null
+          company_name: string | null
           created_at: string
           email: string
           id: string
           password_hash: string
           phone: string | null
+          siret: string | null
+          tva_intracom: string | null
         }
         Insert: {
+          billing_address?: string | null
           client_name?: string | null
+          company_name?: string | null
           created_at?: string
           email: string
           id?: string
           password_hash: string
           phone?: string | null
+          siret?: string | null
+          tva_intracom?: string | null
         }
         Update: {
+          billing_address?: string | null
           client_name?: string | null
+          company_name?: string | null
           created_at?: string
           email?: string
           id?: string
           password_hash?: string
           phone?: string | null
+          siret?: string | null
+          tva_intracom?: string | null
         }
         Relationships: []
       }
