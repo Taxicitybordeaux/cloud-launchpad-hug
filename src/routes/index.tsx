@@ -15,9 +15,6 @@ import {
   Quote,
   HelpCircle,
   MessageCircle,
-  UserCircle2,
-  BellRing,
-  History,
 } from "lucide-react";
 import logo from "@/assets/logo.jpeg";
 import heroCar from "@/assets/hero-bordeaux.jpg";
