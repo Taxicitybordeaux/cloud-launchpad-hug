@@ -193,6 +193,15 @@ function ClientLoginPage() {
             </button>
           </form>
 
+          {mode === "login" && (
+            <Link
+              to="/client/forgot-password"
+              className="mt-4 block text-center text-xs text-white/60 transition hover:text-[#E8C96D]"
+            >
+              Mot de passe oublié ?
+            </Link>
+          )}
+
           <button
             type="button"
             onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(null); }}
