@@ -17,6 +17,8 @@ export type ClientReservation = {
   paiement: string | null;
   client_account_id: string | null;
   phone_cancel_requested_at: string | null;
+  source: string | null;
+  created_at: string | null;
 };
 
 const IdentitySchema = z.object({
@@ -37,7 +39,7 @@ export const listClientReservations = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const cols =
-      "id, pickup_datetime, depart, arrivee, destination, status, prix_estime, nb_passagers, passagers, bagages, suivi_id, tracking_id, paiement, client_account_id, phone_cancel_requested_at, client_phone, telephone, client_email, email";
+      "id, pickup_datetime, depart, arrivee, destination, status, prix_estime, nb_passagers, passagers, bagages, suivi_id, tracking_id, paiement, client_account_id, phone_cancel_requested_at, source, created_at, client_phone, telephone, client_email, email";
 
     const { data: byAccount } = await supabaseAdmin
       .from("reservations")
@@ -92,6 +94,8 @@ export const listClientReservations = createServerFn({ method: "POST" })
       paiement: r.paiement,
       client_account_id: r.client_account_id,
       phone_cancel_requested_at: r.phone_cancel_requested_at ?? null,
+      source: (r as any).source ?? null,
+      created_at: (r as any).created_at ?? null,
     }));
   });
 
