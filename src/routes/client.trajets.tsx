@@ -7,11 +7,9 @@ import { toast } from "sonner";
 import { ClientBottomNav } from "@/components/ClientBottomNav";
 import { getClientSession } from "@/lib/client-session";
 import type { ClientSession } from "@/lib/client-auth.functions";
-import {
-  listClientReservations,
-  type ClientReservation,
-} from "@/lib/client-reservations.functions";
+import { listClientReservations, type ClientReservation } from "@/lib/client-reservations.functions";
 import { useT } from "@/i18n/I18nProvider";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/client/trajets")({
   head: () => ({
@@ -76,6 +74,23 @@ function ClientTrajets() {
   useEffect(() => {
     if (session) refresh();
   }, [session, refresh]);
+
+  // Realtime — re-fetch dès qu'une réservation active change
+  useEffect(() => {
+    if (!session || !rows || rows.length === 0) return;
+    const ids = rows.map((r) => r.id);
+    const channel = supabase
+      .channel("trajets-realtime")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "reservations", filter: `id=in.(${ids.join(",")})` },
+        () => refresh(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [session, rows, refresh]);
 
   if (!session) return null;
 
@@ -160,7 +175,8 @@ function ClientTrajets() {
                   </div>
                   {r.prix_estime != null && (
                     <div className="mt-2 text-xs text-white/60">
-                      {t("client.trajets.estimated")} : <span className="font-semibold text-[#E8C96D]">{Number(r.prix_estime).toFixed(2)} €</span>
+                      {t("client.trajets.estimated")} :{" "}
+                      <span className="font-semibold text-[#E8C96D]">{Number(r.prix_estime).toFixed(2)} €</span>
                     </div>
                   )}
                   <div className="mt-3 flex flex-wrap gap-2">
