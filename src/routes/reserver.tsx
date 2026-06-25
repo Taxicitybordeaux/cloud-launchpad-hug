@@ -627,6 +627,7 @@ function ReservationPage() {
   const [today, setToday] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
+  const [isSubscribedToNotifs, setIsSubscribedToNotifs] = useState(false);
   const { status: hookStatus, subscribe: subscribePush } = usePushNotifications();
   // Force à "idle" pour client — on ne veut pas d'auto-subscription
   const pushStatus = "idle";
@@ -2412,41 +2413,51 @@ function ReservationPage() {
               gap: 8,
             }}
           >
-            {/* Debug: affiche le status et qu'on est dans le rendu */}
-            <div
-              style={{
-                fontSize: 11,
-                color: "#999",
-                marginBottom: 8,
-                padding: "6px 8px",
-                background: "#f5f5f5",
-                borderRadius: 4,
-              }}
-            >
-              Status: <strong>{pushStatus}</strong> ✓ Button is RENDERED
-            </div>
-
             <button
               type="button"
-              onClick={(e) => {
-                console.log("[TAP] Button clicked!");
-                toast.loading("🔔 Activation en cours...");
+              onClick={async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
 
-                subscribePush("client")
-                  .then((ok) => {
-                    console.log("[RESULT] subscribePush returned:", ok);
-                    if (ok) {
-                      toast.success("✅ Notifications activées!");
+                if (isSubscribedToNotifs) {
+                  // ── UNSUBSCRIBE ──
+                  const loadingId = toast.loading("Désactivation en cours...");
+                  try {
+                    // Supprimer la subscription de cet utilisateur pour "client"
+                    const { error } = await supabase
+                      .from("user_push_subscriptions")
+                      .delete()
+                      .eq("audience", "client")
+                      .limit(1);
+
+                    toast.dismiss(loadingId);
+                    if (error) {
+                      toast.error("❌ Erreur de désactivation");
                     } else {
-                      toast.error("❌ Impossible d'activer (ret=" + ok + ")");
+                      setIsSubscribedToNotifs(false);
+                      toast.success("✅ Notifications désactivées");
                     }
-                  })
-                  .catch((err) => {
-                    console.error("[ERROR]", err);
+                  } catch (err) {
+                    toast.dismiss(loadingId);
+                    toast.error("❌ Erreur réseau");
+                  }
+                } else {
+                  // ── SUBSCRIBE ──
+                  const loadingId = toast.loading("🔔 Activation en cours...");
+                  try {
+                    const ok = await subscribePush("client");
+                    toast.dismiss(loadingId);
+                    if (ok) {
+                      setIsSubscribedToNotifs(true);
+                      toast.success("✅ Notifications activées pour 30 jours!");
+                    } else {
+                      toast.error("❌ Impossible d'activer (RLS ou permissions)");
+                    }
+                  } catch (err) {
+                    toast.dismiss(loadingId);
                     toast.error("❌ " + (err?.message || "Erreur réseau"));
-                  });
+                  }
+                }
               }}
               style={{
                 display: "flex",
@@ -2454,8 +2465,10 @@ function ReservationPage() {
                 justifyContent: "center",
                 gap: 10,
                 padding: "13px 20px",
-                background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
-                color: "#92400e",
+                background: isSubscribedToNotifs
+                  ? "linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)"
+                  : "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+                color: isSubscribedToNotifs ? "#b91c1c" : "#92400e",
                 border: "1.5px solid rgba(201,168,76,0.4)",
                 borderRadius: 14,
                 fontWeight: 600,
@@ -2467,8 +2480,8 @@ function ReservationPage() {
                 touchAction: "manipulation",
               }}
             >
-              <span style={{ fontSize: 18 }}>🔔</span>
-              Activer les notifications de suivi
+              <span style={{ fontSize: 18 }}>{isSubscribedToNotifs ? "🔕" : "🔔"}</span>
+              {isSubscribedToNotifs ? "Désactiver les notifs" : "Activer les notifications de suivi"}
             </button>
             <p
               style={{
@@ -2479,7 +2492,9 @@ function ReservationPage() {
                 opacity: 0.7,
               }}
             >
-              Recevez les infos de suivi en temps réel
+              {isSubscribedToNotifs
+                ? "Durée : 30 jours à partir de maintenant"
+                : "Recevez les infos de suivi en temps réel"}
             </p>
           </div>
         ) : (
