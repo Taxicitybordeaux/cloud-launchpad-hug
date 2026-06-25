@@ -407,28 +407,26 @@ function Home() {
         <div className="mx-auto max-w-7xl px-4 py-12 sm:py-16 md:py-20">
           <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-card p-8 sm:p-10 md:p-14">
             <div className="absolute inset-0 bg-[var(--gradient-gold)] opacity-5" />
-            <div className="relative flex flex-col items-center gap-8 md:flex-row md:items-center md:gap-14">
-              {/* Icône */}
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-4xl">
-                🧳
-              </div>
+            <div className="relative flex flex-col gap-8 md:flex-row md:items-center md:gap-14">
               {/* Texte */}
-              <div className="flex-1 text-center md:text-left">
+              <div className="flex-1">
                 <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">Espace client</p>
-                <h2 className="mt-2 font-display text-2xl font-bold sm:text-3xl">Gérez vos réservations en ligne</h2>
+                <h2 className="mt-2 font-display text-2xl font-bold sm:text-3xl">Tout vos trajets au même endroit</h2>
                 <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
-                  Retrouvez toutes vos courses, suivez votre trajet en temps réel, modifiez ou annulez une réservation
-                  directement depuis votre espace personnel.
+                  Connectez-vous avec votre numéro de téléphone ou email pour accéder à votre espace personnel.
                 </p>
-                <ul className="mt-4 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground md:justify-start">
-                  <li className="flex items-center gap-1.5">
-                    <span className="text-primary">✓</span> Suivi GPS en direct
+                <ul className="mt-5 grid grid-cols-2 gap-x-6 gap-y-2.5 text-sm text-muted-foreground">
+                  <li className="flex items-center gap-2">
+                    <span className="text-primary">🚕</span> Trajets actifs
                   </li>
-                  <li className="flex items-center gap-1.5">
-                    <span className="text-primary">✓</span> Modifier / annuler
+                  <li className="flex items-center gap-2">
+                    <span className="text-primary">📋</span> Historique
                   </li>
-                  <li className="flex items-center gap-1.5">
-                    <span className="text-primary">✓</span> Historique des courses
+                  <li className="flex items-center gap-2">
+                    <span className="text-primary">💬</span> Écrire à José
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-primary">👤</span> Mon profil
                   </li>
                 </ul>
               </div>
