@@ -576,7 +576,7 @@ function TabRides({
                       {r.suivi_id && (
                         <button
                           type="button"
-                          onClick={() => shareRideTracking(r.suivi_id)}
+                          onClick={() => shareRideTracking(r)}
                           style={{
                             display: "inline-flex",
                             alignItems: "center",
