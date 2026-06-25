@@ -402,8 +402,55 @@ function Home() {
         </div>
       </section>
 
-      {/* ESPACE CLIENT — supprimé */}
-
+      {/* ESPACE CLIENT */}
+      <section className="border-t border-border bg-card/20">
+        <div className="mx-auto max-w-7xl px-4 py-12 sm:py-16 md:py-20">
+          <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-card p-8 sm:p-10 md:p-14">
+            <div className="absolute inset-0 bg-[var(--gradient-gold)] opacity-5" />
+            <div className="relative flex flex-col items-center gap-8 md:flex-row md:items-center md:gap-14">
+              {/* Icône */}
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-4xl">
+                🧳
+              </div>
+              {/* Texte */}
+              <div className="flex-1 text-center md:text-left">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">Espace client</p>
+                <h2 className="mt-2 font-display text-2xl font-bold sm:text-3xl">Gérez vos réservations en ligne</h2>
+                <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
+                  Retrouvez toutes vos courses, suivez votre trajet en temps réel, modifiez ou annulez une réservation
+                  directement depuis votre espace personnel.
+                </p>
+                <ul className="mt-4 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground md:justify-start">
+                  <li className="flex items-center gap-1.5">
+                    <span className="text-primary">✓</span> Suivi GPS en direct
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    <span className="text-primary">✓</span> Modifier / annuler
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    <span className="text-primary">✓</span> Historique des courses
+                  </li>
+                </ul>
+              </div>
+              {/* CTA */}
+              <div className="flex shrink-0 flex-col items-stretch gap-3 sm:flex-row md:flex-col">
+                <Link
+                  to="/client"
+                  className="rounded-xl bg-primary px-7 py-3.5 text-center font-semibold text-primary-foreground shadow-[var(--shadow-gold)] active:scale-95"
+                >
+                  Accéder à mon espace
+                </Link>
+                <Link
+                  to="/reservation"
+                  className="rounded-xl border border-border bg-background px-7 py-3.5 text-center font-semibold active:scale-95"
+                >
+                  Nouvelle réservation
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* TESTIMONIALS */}
       <Testimonials />
