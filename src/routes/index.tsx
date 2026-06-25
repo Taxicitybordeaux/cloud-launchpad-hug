@@ -410,23 +410,29 @@ function Home() {
             <div className="relative flex flex-col gap-8 md:flex-row md:items-center md:gap-14">
               {/* Texte */}
               <div className="flex-1">
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">Espace client</p>
-                <h2 className="mt-2 font-display text-2xl font-bold sm:text-3xl">Tout vos trajets au même endroit</h2>
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">
+                  {t("home.client.eyebrow")}
+                </p>
+                <h2 className="mt-2 font-display text-2xl font-bold sm:text-3xl">
+                  {t("home.client.title.before")}
+                  <span className="italic text-primary">{t("home.client.title.italic")}</span>
+                  {t("home.client.title.after")}
+                </h2>
                 <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
-                  Connectez-vous avec votre numéro de téléphone ou email pour accéder à votre espace personnel.
+                  {t("home.client.desc")}
                 </p>
                 <ul className="mt-5 grid grid-cols-2 gap-x-6 gap-y-2.5 text-sm text-muted-foreground">
                   <li className="flex items-center gap-2">
-                    <span className="text-primary">🚕</span> Trajets actifs
+                    <span className="text-primary">🚕</span> {t("home.client.li.rides")}
                   </li>
                   <li className="flex items-center gap-2">
-                    <span className="text-primary">📋</span> Historique
+                    <span className="text-primary">📋</span> {t("home.client.li.history")}
                   </li>
                   <li className="flex items-center gap-2">
-                    <span className="text-primary">💬</span> Écrire à José
+                    <span className="text-primary">💬</span> {t("home.client.li.chat")}
                   </li>
                   <li className="flex items-center gap-2">
-                    <span className="text-primary">👤</span> Mon profil
+                    <span className="text-primary">👤</span> {t("home.client.li.profile")}
                   </li>
                 </ul>
               </div>
@@ -436,13 +442,13 @@ function Home() {
                   to="/client"
                   className="rounded-xl bg-primary px-7 py-3.5 text-center font-semibold text-primary-foreground shadow-[var(--shadow-gold)] active:scale-95"
                 >
-                  Accéder à mon espace
+                  {t("home.client.cta_login")}
                 </Link>
                 <Link
                   to="/reservation"
                   className="rounded-xl border border-border bg-background px-7 py-3.5 text-center font-semibold active:scale-95"
                 >
-                  Nouvelle réservation
+                  {t("home.client.cta_book")}
                 </Link>
               </div>
             </div>
