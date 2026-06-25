@@ -314,7 +314,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
     const trajet = `${r.depart} → ${r.arrivee || r.destination || "—"}`;
     const phone = r.client_phone || r.telephone || "";
     const smsPhone = phone.replace(/[^\d]/g, "").replace(/^0/, "+33");
-    const url = `/reservation/${r.id}`;
+    const url = `/suivi/${(r as any).suivi_id || r.id}`;
 
     // ── Push CHAUFFEUR (acceptation → rappel GPS) ────────────────────────
     let chauffeurResult = { sent: 0, removed: 0 };
