@@ -7,7 +7,7 @@ import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import appCss from "@/styles.css?url";
 import logoUrl from "@/assets/logo.jpeg?url";
 import { APP_VERSION } from "@/lib/version";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/integrations/supabase/client";
 
 const v = `?v=${encodeURIComponent(APP_VERSION)}`;
 
