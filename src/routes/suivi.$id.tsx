@@ -21,8 +21,12 @@ import {
   Share2,
   WifiOff,
   Car,
+  Bell,
+  BellRing,
+  BellOff,
 } from "lucide-react";
 import { useI18n, useT } from "@/i18n/I18nProvider";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { getReservationForFinPublic } from "@/lib/reservation.functions";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -1376,6 +1380,8 @@ function SuiviPage() {
   const [error, setError] = useState<string | null>(null);
   const [showRecurring, setShowRecurring] = useState(false);
   const josePhone = JOSE_PHONE;
+  const [pushDismissed, setPushDismissed] = useState(false);
+  const { status: pushStatus, subscribe: pushSubscribe } = usePushNotifications();
 
   const fetchReservation = useServerFn(getReservationForFinPublic);
 
@@ -1713,6 +1719,85 @@ function SuiviPage() {
             >
               {t("suivi.stale_refresh")}
             </button>
+          </div>
+        )}
+
+        {/* Bannière activation push — visible si non accordé et non fermé */}
+        {!pushDismissed &&
+          pushStatus !== "granted" &&
+          pushStatus !== "denied" &&
+          pushStatus !== "unsupported" &&
+          !isCompleted &&
+          !isCancelled && (
+            <div
+              style={{
+                marginBottom: "12px",
+                padding: "12px 14px",
+                background: "rgba(29,78,216,0.15)",
+                border: "1px solid rgba(29,78,216,0.35)",
+                borderRadius: "12px",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+              }}
+            >
+              <Bell size={16} style={{ color: "#93c5fd", flexShrink: 0 }} />
+              <span style={{ flex: 1, fontSize: "13px", color: "#bfdbfe", fontWeight: 500 }}>
+                {t("suivi.push_invite")}
+              </span>
+              <button
+                onClick={async () => {
+                  const ok = await pushSubscribe("client", reservation.id);
+                  if (ok) toast.success(t("suivi.push_ok"));
+                  else setPushDismissed(true);
+                }}
+                style={{
+                  padding: "6px 12px",
+                  background: "linear-gradient(135deg,#1d4ed8,#2563eb)",
+                  border: "none",
+                  borderRadius: "8px",
+                  color: "#fff",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <BellRing size={12} style={{ display: "inline", marginRight: "4px", verticalAlign: "-1px" }} />
+                {t("suivi.push_enable")}
+              </button>
+              <button
+                onClick={() => setPushDismissed(true)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#64748b",
+                  cursor: "pointer",
+                  padding: "4px",
+                  fontSize: "16px",
+                  lineHeight: 1,
+                }}
+                aria-label="Fermer"
+              >
+                ×
+              </button>
+            </div>
+          )}
+        {pushStatus === "granted" && !isCompleted && !isCancelled && (
+          <div
+            style={{
+              marginBottom: "12px",
+              padding: "8px 14px",
+              background: "rgba(34,197,94,0.1)",
+              border: "1px solid rgba(34,197,94,0.25)",
+              borderRadius: "10px",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "7px",
+            }}
+          >
+            <BellRing size={13} style={{ color: "#4ade80" }} />
+            <span style={{ fontSize: "12px", color: "#86efac", fontWeight: 600 }}>{t("suivi.push_active")}</span>
           </div>
         )}
 
