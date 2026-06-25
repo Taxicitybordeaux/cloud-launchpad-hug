@@ -7,8 +7,42 @@ import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import appCss from "@/styles.css?url";
 import logoUrl from "@/assets/logo.jpeg?url";
 import { APP_VERSION } from "@/lib/version";
+import { supabase } from "@/lib/supabaseClient";
 
 const v = `?v=${encodeURIComponent(APP_VERSION)}`;
+
+// ── Heartbeat visiteur actif ──────────────────────────────────────────────
+function useVisitorHeartbeat(pathname: string) {
+  React.useEffect(() => {
+    // Exclure les pages internes (José ne compte pas comme visiteur client)
+    if (pathname.startsWith("/reservation") || pathname.startsWith("/admin") || pathname.startsWith("/driver")) return;
+
+    const sid =
+      sessionStorage.getItem("visitor_sid") ??
+      (() => {
+        const id = crypto.randomUUID();
+        sessionStorage.setItem("visitor_sid", id);
+        return id;
+      })();
+
+    const upsert = () =>
+      (supabase as any)
+        .from("active_visitors")
+        .upsert({ session_id: sid, page: pathname, last_seen: new Date().toISOString() }, { onConflict: "session_id" });
+
+    upsert();
+    const iv = setInterval(upsert, 30_000);
+
+    const remove = () => (supabase as any).from("active_visitors").delete().eq("session_id", sid);
+
+    window.addEventListener("beforeunload", remove);
+    return () => {
+      clearInterval(iv);
+      window.removeEventListener("beforeunload", remove);
+      remove();
+    };
+  }, [pathname]);
+}
 
 export const Route = createRootRoute({
   head: () => ({
@@ -63,6 +97,7 @@ export const Route = createRootRoute({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  useVisitorHeartbeat(pathname);
   React.useEffect(() => {
     let cleanup: (() => void) | undefined;
     // setupForegroundNotifications appelle requestPermission via getFcmToken.
