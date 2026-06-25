@@ -185,6 +185,8 @@ const css = `
   .drv-chat-bubble.them { background: #f1f5f9; color: #0f172a; border-radius: 14px 14px 14px 4px; }
   @keyframes drv-fadein { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:none; } }
   .drv-msg-in { animation: drv-fadein 0.25s ease both; }
+  @keyframes drv-pulse { 0%, 100% { opacity:1; box-shadow: 0 0 0 3px rgba(34,197,94,0.3); } 50% { opacity:0.6; box-shadow: 0 0 0 6px rgba(34,197,94,0.1); } }
+  .drv-visitor-dot-active { animation: drv-pulse 2s ease-in-out infinite; }
 `;
 
 // ── Icons ──────────────────────────────────────────────────────────────────
@@ -2106,7 +2108,11 @@ function ChatTab() {
         threads.map((t) => {
           const sourceBadge =
             t.last_message_source === "reservation"
-              ? { label: t.active_reservation_label ? `🚖 ${t.active_reservation_label.split(" · ")[0]}` : "🚖 Course", bg: "#eff6ff", fg: "#1d4ed8" }
+              ? {
+                  label: t.active_reservation_label ? `🚖 ${t.active_reservation_label.split(" · ")[0]}` : "🚖 Course",
+                  bg: "#eff6ff",
+                  fg: "#1d4ed8",
+                }
               : { label: "💬 Direct", bg: "#f5f3ff", fg: "#6d28d9" };
           return (
             <div
@@ -2119,7 +2125,10 @@ function ChatTab() {
                 <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
                   <div className="drv-chat-avatar">{(t.client_name ?? "C").charAt(0).toUpperCase()}</div>
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div className="drv-name" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                    <div
+                      className="drv-name"
+                      style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}
+                    >
                       <span>{t.client_name ?? "Client"}</span>
                       <span
                         style={{
@@ -2143,7 +2152,9 @@ function ChatTab() {
                     </div>
                   </div>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+                <div
+                  style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}
+                >
                   <span style={{ fontSize: 10, color: "#94a3b8" }}>
                     {new Date(t.last_message_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                   </span>
@@ -2222,7 +2233,12 @@ function DriverChatConversation({
           .channel(`drv-conv-acct-${thread.client_account_id}`)
           .on(
             "postgres_changes",
-            { event: "INSERT", schema: "public", table: "direct_messages", filter: `client_account_id=eq.${thread.client_account_id}` },
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "direct_messages",
+              filter: `client_account_id=eq.${thread.client_account_id}`,
+            },
             load,
           )
           .subscribe(),
@@ -2293,7 +2309,15 @@ function DriverChatConversation({
       >
         <button
           onClick={onBack}
-          style={{ background: "#f1f5f9", border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 18, cursor: "pointer", lineHeight: 1 }}
+          style={{
+            background: "#f1f5f9",
+            border: "none",
+            borderRadius: 8,
+            padding: "6px 10px",
+            fontSize: 18,
+            cursor: "pointer",
+            lineHeight: 1,
+          }}
         >
           ←
         </button>
@@ -2813,6 +2837,71 @@ function TrackingAnalytics() {
   );
 }
 
+// ── Visiteurs actifs en temps réel ───────────────────────────────────────────
+function ActiveVisitors() {
+  const [count, setCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    const CUTOFF_MS = 90_000;
+
+    const fetchCount = async () => {
+      const cutoff = new Date(Date.now() - CUTOFF_MS).toISOString();
+      // Supprime les sessions périmées (best-effort, ignoré si RLS bloque)
+      await (supabase as any).from("active_visitors").delete().lt("last_seen", cutoff);
+      const { count: c } = await (supabase as any)
+        .from("active_visitors")
+        .select("session_id", { count: "exact", head: true })
+        .gte("last_seen", cutoff);
+      setCount(c ?? 0);
+    };
+
+    fetchCount();
+
+    const channel = (supabase as any)
+      .channel("active_visitors_realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "active_visitors" }, fetchCount)
+      .subscribe();
+
+    return () => {
+      (supabase as any).removeChannel(channel);
+    };
+  }, []);
+
+  const isActive = count !== null && count > 0;
+
+  return (
+    <div
+      className="drv-card"
+      style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", marginBottom: 4 }}
+    >
+      <span
+        className={isActive ? "drv-visitor-dot-active" : undefined}
+        style={{
+          width: 10,
+          height: 10,
+          borderRadius: "50%",
+          background: count === null ? "#94a3b8" : isActive ? "#22c55e" : "#e2e8f0",
+          flexShrink: 0,
+          display: "inline-block",
+        }}
+      />
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+          {count === null
+            ? "…"
+            : count === 0
+              ? "Personne sur une page suivi"
+              : count === 1
+                ? "1 client consulte son suivi"
+                : `${count} clients consultent leur suivi`}
+        </div>
+        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 1 }}>Temps réel · pages /suivi actives</div>
+      </div>
+      {isActive && <span style={{ fontSize: 20 }}>👁</span>}
+    </div>
+  );
+}
+
 // ── Onglet Stats ────────────────────────────────────────────────────────────
 function StatsTab() {
   const [stats, setStats] = useState({ revenus: 0, courses: 0, km: 0, note: 0, semCourses: 0, semRevenus: 0 });
@@ -2925,6 +3014,10 @@ function StatsTab() {
           ))}
         </div>
       </div>
+
+      {/* Visiteurs actifs */}
+      <p className="drv-section">En ce moment</p>
+      <ActiveVisitors />
 
       {/* Analytics suivi */}
       <TrackingAnalytics />
