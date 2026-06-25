@@ -2397,54 +2397,71 @@ function ReservationPage() {
             </a>
           </form>
 
-          {/* ── Bouton notifs client (hors form pour éviter interception mobile) ── */}
-          {notifPermission !== "granted" && "Notification" in window && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
-              <button
-                type="button"
-                onClick={async () => {
+          <div style={{ height: 20 }} />
+        </div>
+
+        {/* ── Bouton notifs client FIXE (hors scrollable) ── */}
+        {notifPermission !== "granted" && "Notification" in window && (
+          <div
+            style={{
+              background: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(250,249,247,0.95) 100%)",
+              borderTop: "1px solid rgba(201,168,76,0.2)",
+              padding: "12px 16px max(16px, env(safe-area-inset-bottom, 0px))",
+              flexShrink: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+            }}
+          >
+            <button
+              type="button"
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                try {
                   const ok = await subscribePush("client");
                   if (ok || Notification.permission === "granted") {
                     setNotifPermission("granted");
                   }
-                }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 10,
-                  padding: "13px 20px",
-                  background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
-                  color: "#92400e",
-                  border: "1.5px solid rgba(201,168,76,0.4)",
-                  borderRadius: 14,
-                  fontWeight: 600,
-                  fontSize: 14,
-                  cursor: "pointer",
-                  letterSpacing: "0.01em",
-                  width: "100%",
-                }}
-              >
-                <span style={{ fontSize: 18 }}>🔔</span>
-                Activer les notifications de suivi
-              </button>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 12,
-                  color: "#92400e",
-                  textAlign: "center",
-                  opacity: 0.8,
-                }}
-              >
-                N'oubliez pas d'appuyer sur le bouton notification pour recevoir les dernières informations sur votre
-                course.
-              </p>
-            </div>
-          )}
-
-          <div style={{ height: 20 }} />
-        </div>
+                } catch (err) {
+                  console.error("[notif button] subscribePush error:", err);
+                }
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 10,
+                padding: "13px 20px",
+                background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+                color: "#92400e",
+                border: "1.5px solid rgba(201,168,76,0.4)",
+                borderRadius: 14,
+                fontWeight: 600,
+                fontSize: 14,
+                cursor: "pointer",
+                letterSpacing: "0.01em",
+                width: "100%",
+                pointerEvents: "auto",
+                touchAction: "manipulation",
+              }}
+            >
+              <span style={{ fontSize: 18 }}>🔔</span>
+              Activer les notifications de suivi
+            </button>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 12,
+                color: "#92400e",
+                textAlign: "center",
+                opacity: 0.7,
+              }}
+            >
+              Recevez les infos de suivi en temps réel
+            </p>
+          </div>
+        )}
       </div>
       <ListeningOverlay
         open={anyListening}
