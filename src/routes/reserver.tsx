@@ -1440,7 +1440,11 @@ function ReservationPage() {
 
       // ⚠️ Push client retirée — le client est notifié visuellement sur /suivi/$id.
 
-      toast.success(`${t("conf.ok.title")} ${f.prenom}`);
+      toast.success(`${t("conf.ok.title")} ${f.prenom}`, {
+        description:
+          "Un email de confirmation vous a été envoyé. Pensez à vérifier vos spams si vous ne le trouvez pas.",
+        duration: 8000,
+      });
       setSending(false);
 
       // ── Notifier le chauffeur José (push FCM + email) ─────────────────────
