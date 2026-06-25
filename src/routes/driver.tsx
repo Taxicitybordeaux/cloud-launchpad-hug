@@ -2448,6 +2448,8 @@ function DriverChatConversation({
             border: "1px solid #e2e8f0",
             fontSize: 16,
             fontFamily: "'DM Sans', sans-serif",
+            color: "#0f172a",
+            background: "#fff",
           }}
         />
         <button
