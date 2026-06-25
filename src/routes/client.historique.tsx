@@ -6,12 +6,10 @@ import { toast } from "sonner";
 import { ClientBottomNav } from "@/components/ClientBottomNav";
 import { getClientSession } from "@/lib/client-session";
 import type { ClientSession } from "@/lib/client-auth.functions";
-import {
-  listClientReservations,
-  type ClientReservation,
-} from "@/lib/client-reservations.functions";
+import { listClientReservations, type ClientReservation } from "@/lib/client-reservations.functions";
 import { downloadReceiptPDF, exportReservationsCSV } from "@/lib/client-receipt";
 import { useT } from "@/i18n/I18nProvider";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/client/historique")({
   head: () => ({
@@ -70,6 +68,18 @@ function ClientHistorique() {
 
   useEffect(() => {
     if (session) refresh();
+  }, [session, refresh]);
+
+  // Realtime — re-fetch si une course terminée/annulée apparaît
+  useEffect(() => {
+    if (!session) return;
+    const channel = supabase
+      .channel("historique-realtime")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "reservations" }, () => refresh())
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [session, refresh]);
 
   const filtered = useMemo(() => {
@@ -173,10 +183,7 @@ function ClientHistorique() {
               const dest = r.arrivee || r.destination || "—";
               const isCompleted = r.status === "completed";
               return (
-                <li
-                  key={r.id}
-                  className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur sm:p-5"
-                >
+                <li key={r.id} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur sm:p-5">
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                     <span className="inline-flex items-center gap-1.5 text-xs text-white/60">
                       <Calendar className="h-3.5 w-3.5" /> {fmtDate(r.pickup_datetime)}
@@ -209,9 +216,7 @@ function ClientHistorique() {
                       {r.prix_estime != null && (
                         <>
                           {" — "}
-                          <span className="font-semibold text-[#E8C96D]">
-                            {Number(r.prix_estime).toFixed(2)} €
-                          </span>
+                          <span className="font-semibold text-[#E8C96D]">{Number(r.prix_estime).toFixed(2)} €</span>
                         </>
                       )}
                     </div>
