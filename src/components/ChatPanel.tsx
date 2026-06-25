@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Send, X, Loader2, Check, CheckCheck, ChevronUp, Search, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useT } from "@/i18n/I18nProvider";
 import {
   sendClientMessage,
   sendChauffeurMessage,
