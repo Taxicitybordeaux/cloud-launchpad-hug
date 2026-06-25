@@ -627,7 +627,7 @@ function ReservationPage() {
   const [today, setToday] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
-  const { status: pushStatus, subscribe: subscribePush } = usePushNotifications({ autoAudience: "client" });
+  const { status: pushStatus, subscribe: subscribePush } = usePushNotifications();
 
   const [fromCoord, setFromCoord] = useState<[number, number] | null>(null);
   const [toCoord, setToCoord] = useState<[number, number] | null>(null);
@@ -2415,13 +2415,15 @@ function ReservationPage() {
               onClick={async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                console.log("[notif] pushStatus:", pushStatus);
                 try {
                   const ok = await subscribePush("client");
+                  console.log("[notif] subscribePush result:", ok);
                   if (ok) {
                     toast.success("Notifications activées ✅");
                   }
                 } catch (err) {
-                  console.error("[notif button] subscribePush error:", err);
+                  console.error("[notif button] error:", err);
                   toast.error(`Erreur : ${err?.message || "Impossible d'activer"}`);
                 }
               }}
