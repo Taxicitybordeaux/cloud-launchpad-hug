@@ -560,6 +560,11 @@ const fr: Dict = {
   "home.client.li3.rest": " avec votre chauffeur pendant la course.",
   "home.client.cta_login": "Accéder à mon espace",
   "home.client.cta_register": "Créer un compte",
+  "home.client.cta_book": "Nouvelle réservation",
+  "home.client.li.rides": "Trajets actifs",
+  "home.client.li.history": "Historique",
+  "home.client.li.chat": "Écrire à José",
+  "home.client.li.profile": "Mon profil",
   "home.client.mock.hello": "Bonjour Camille",
   "home.client.mock.connected": "Connectée à l'instant",
   "home.client.mock.status_done": "Terminée",
@@ -967,7 +972,8 @@ const fr: Dict = {
   "profil.logout": "Se déconnecter",
   "profil.recurring.title": "Trajets récurrents",
   "profil.recurring.new": "Nouveau",
-  "profil.recurring.empty": "Aucun trajet récurrent. Programmez vos déplacements habituels (domicile → aéroport, bureau…) pour qu'ils soient réservés automatiquement chaque semaine.",
+  "profil.recurring.empty":
+    "Aucun trajet récurrent. Programmez vos déplacements habituels (domicile → aéroport, bureau…) pour qu'ils soient réservés automatiquement chaque semaine.",
   "profil.recurring.label_ph": "Nom du trajet (ex. Aéroport vendredi matin)",
   "profil.recurring.depart_ph": "Adresse de départ",
   "profil.recurring.dest_ph": "Adresse d'arrivée",
@@ -1024,7 +1030,6 @@ const fr: Dict = {
   "chat.results": "résultat(s)",
   "chat.of": "sur",
   "chat.loaded": "chargé(s)",
-
 };
 
 const en: Dict = {
@@ -1537,6 +1542,11 @@ const en: Dict = {
   "home.client.li3.rest": " with your driver during the ride.",
   "home.client.cta_login": "Access my account",
   "home.client.cta_register": "Create an account",
+  "home.client.cta_book": "New booking",
+  "home.client.li.rides": "Active rides",
+  "home.client.li.history": "History",
+  "home.client.li.chat": "Message José",
+  "home.client.li.profile": "My profile",
   "home.client.mock.hello": "Hello Camille",
   "home.client.mock.connected": "Connected just now",
   "home.client.mock.status_done": "Completed",
@@ -1943,7 +1953,8 @@ const en: Dict = {
   "profil.logout": "Sign out",
   "profil.recurring.title": "Recurring rides",
   "profil.recurring.new": "New",
-  "profil.recurring.empty": "No recurring rides. Schedule your regular trips (home → airport, office…) to be booked automatically every week.",
+  "profil.recurring.empty":
+    "No recurring rides. Schedule your regular trips (home → airport, office…) to be booked automatically every week.",
   "profil.recurring.label_ph": "Trip name (e.g. Airport Friday morning)",
   "profil.recurring.depart_ph": "Pickup address",
   "profil.recurring.dest_ph": "Drop-off address",
@@ -2000,7 +2011,6 @@ const en: Dict = {
   "chat.results": "result(s)",
   "chat.of": "of",
   "chat.loaded": "loaded",
-
 };
 
 const es: Dict = {
@@ -2518,6 +2528,11 @@ const es: Dict = {
   "home.client.li3.rest": " con tu conductor durante el trayecto.",
   "home.client.cta_login": "Acceder a mi espacio",
   "home.client.cta_register": "Crear una cuenta",
+  "home.client.cta_book": "Nueva reserva",
+  "home.client.li.rides": "Trayectos activos",
+  "home.client.li.history": "Historial",
+  "home.client.li.chat": "Escribir a José",
+  "home.client.li.profile": "Mi perfil",
   "home.client.mock.hello": "Hola Camille",
   "home.client.mock.connected": "Conectada ahora mismo",
   "home.client.mock.status_done": "Terminada",
@@ -2907,7 +2922,8 @@ const es: Dict = {
   "profil.client_vip": "Cliente VIP",
   "profil.favorites.title": "Direcciones favoritas",
   "profil.favorites.add": "Añadir",
-  "profil.favorites.empty": "Aún no hay direcciones favoritas. Añada Casa, Oficina, Aeropuerto… para reservar en 1 clic.",
+  "profil.favorites.empty":
+    "Aún no hay direcciones favoritas. Añada Casa, Oficina, Aeropuerto… para reservar en 1 clic.",
   "profil.favorites.book_from": "Reservar desde esta dirección",
   "profil.favorites.book": "Reservar",
   "profil.favorites.delete": "Eliminar",
@@ -2923,7 +2939,8 @@ const es: Dict = {
   "profil.logout": "Cerrar sesión",
   "profil.recurring.title": "Viajes recurrentes",
   "profil.recurring.new": "Nuevo",
-  "profil.recurring.empty": "Sin viajes recurrentes. Programe sus trayectos habituales (casa → aeropuerto, oficina…) para reservarlos automáticamente cada semana.",
+  "profil.recurring.empty":
+    "Sin viajes recurrentes. Programe sus trayectos habituales (casa → aeropuerto, oficina…) para reservarlos automáticamente cada semana.",
   "profil.recurring.label_ph": "Nombre del trayecto (ej. Aeropuerto viernes mañana)",
   "profil.recurring.depart_ph": "Dirección de origen",
   "profil.recurring.dest_ph": "Dirección de destino",
@@ -2980,7 +2997,6 @@ const es: Dict = {
   "chat.results": "resultado(s)",
   "chat.of": "de",
   "chat.loaded": "cargado(s)",
-
 };
 
 const it: Dict = {
@@ -3500,6 +3516,11 @@ const it: Dict = {
   "home.client.li3.rest": " con il conducente durante la corsa.",
   "home.client.cta_login": "Accedi alla mia area",
   "home.client.cta_register": "Crea un account",
+  "home.client.cta_book": "Nuova prenotazione",
+  "home.client.li.rides": "Corse attive",
+  "home.client.li.history": "Cronologia",
+  "home.client.li.chat": "Scrivi a José",
+  "home.client.li.profile": "Il mio profilo",
   "home.client.mock.hello": "Ciao Camille",
   "home.client.mock.connected": "Connessa adesso",
   "home.client.mock.status_done": "Terminata",
@@ -3906,7 +3927,8 @@ const it: Dict = {
   "profil.logout": "Disconnetti",
   "profil.recurring.title": "Corse ricorrenti",
   "profil.recurring.new": "Nuovo",
-  "profil.recurring.empty": "Nessuna corsa ricorrente. Programma i tuoi spostamenti abituali (casa → aeroporto, ufficio…) per prenotarli automaticamente ogni settimana.",
+  "profil.recurring.empty":
+    "Nessuna corsa ricorrente. Programma i tuoi spostamenti abituali (casa → aeroporto, ufficio…) per prenotarli automaticamente ogni settimana.",
   "profil.recurring.label_ph": "Nome del viaggio (es. Aeroporto venerdì mattina)",
   "profil.recurring.depart_ph": "Indirizzo di partenza",
   "profil.recurring.dest_ph": "Indirizzo di arrivo",
@@ -3963,7 +3985,6 @@ const it: Dict = {
   "chat.results": "risultato(i)",
   "chat.of": "su",
   "chat.loaded": "caricato(i)",
-
 };
 
 // Dictionnaire arabe — traductions clés ; fallback automatique sur le français pour les clés manquantes.
@@ -4471,6 +4492,11 @@ const ar: Dict = {
   "home.client.li3.rest": " مع سائقك خلال الرحلة.",
   "home.client.cta_login": "الوصول إلى حسابي",
   "home.client.cta_register": "إنشاء حساب",
+  "home.client.cta_book": "حجز جديد",
+  "home.client.li.rides": "الرحلات النشطة",
+  "home.client.li.history": "السجل",
+  "home.client.li.chat": "مراسلة José",
+  "home.client.li.profile": "ملفي الشخصي",
   "home.client.mock.hello": "مرحباً كاميل",
   "home.client.mock.connected": "متصلة الآن",
   "home.client.mock.status_done": "مكتملة",
@@ -4875,7 +4901,8 @@ const ar: Dict = {
   "profil.logout": "تسجيل الخروج",
   "profil.recurring.title": "الرحلات المتكررة",
   "profil.recurring.new": "جديد",
-  "profil.recurring.empty": "لا توجد رحلات متكررة. جدول رحلاتك المعتادة (المنزل → المطار، المكتب…) ليتم حجزها تلقائياً كل أسبوع.",
+  "profil.recurring.empty":
+    "لا توجد رحلات متكررة. جدول رحلاتك المعتادة (المنزل → المطار، المكتب…) ليتم حجزها تلقائياً كل أسبوع.",
   "profil.recurring.label_ph": "اسم الرحلة (مثل المطار صباح الجمعة)",
   "profil.recurring.depart_ph": "عنوان الانطلاق",
   "profil.recurring.dest_ph": "عنوان الوصول",
@@ -4932,7 +4959,6 @@ const ar: Dict = {
   "chat.results": "نتيجة",
   "chat.of": "من",
   "chat.loaded": "محملة",
-
 };
 
 const pt: Dict = {
@@ -5469,6 +5495,11 @@ const pt: Dict = {
   "home.client.li3.rest": " com o seu motorista durante a corrida.",
   "home.client.cta_login": "Aceder à minha área",
   "home.client.cta_register": "Criar uma conta",
+  "home.client.cta_book": "Nova reserva",
+  "home.client.li.rides": "Corridas ativas",
+  "home.client.li.history": "Histórico",
+  "home.client.li.chat": "Escrever ao José",
+  "home.client.li.profile": "O meu perfil",
   "home.client.mock.hello": "Olá Camille",
   "home.client.mock.connected": "Ligada agora mesmo",
   "home.client.mock.status_done": "Concluída",
@@ -5858,7 +5889,8 @@ const pt: Dict = {
   "profil.client_vip": "Cliente VIP",
   "profil.favorites.title": "Endereços favoritos",
   "profil.favorites.add": "Adicionar",
-  "profil.favorites.empty": "Ainda não há endereços favoritos. Adicione Casa, Escritório, Aeroporto… para reservar em 1 clique.",
+  "profil.favorites.empty":
+    "Ainda não há endereços favoritos. Adicione Casa, Escritório, Aeroporto… para reservar em 1 clique.",
   "profil.favorites.book_from": "Reservar a partir deste endereço",
   "profil.favorites.book": "Reservar",
   "profil.favorites.delete": "Eliminar",
@@ -5874,7 +5906,8 @@ const pt: Dict = {
   "profil.logout": "Terminar sessão",
   "profil.recurring.title": "Viagens recorrentes",
   "profil.recurring.new": "Novo",
-  "profil.recurring.empty": "Sem viagens recorrentes. Agende os seus trajetos habituais (casa → aeroporto, escritório…) para serem reservados automaticamente todas as semanas.",
+  "profil.recurring.empty":
+    "Sem viagens recorrentes. Agende os seus trajetos habituais (casa → aeroporto, escritório…) para serem reservados automaticamente todas as semanas.",
   "profil.recurring.label_ph": "Nome da viagem (ex. Aeroporto sexta de manhã)",
   "profil.recurring.depart_ph": "Endereço de partida",
   "profil.recurring.dest_ph": "Endereço de chegada",
@@ -5931,7 +5964,6 @@ const pt: Dict = {
   "chat.results": "resultado(s)",
   "chat.of": "de",
   "chat.loaded": "carregado(s)",
-
 };
 
 export const DICTS: Record<Lang, Dict> = { fr, en, es, pt, it, ar };
