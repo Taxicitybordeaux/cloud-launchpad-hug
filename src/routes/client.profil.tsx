@@ -4,6 +4,7 @@ import { LogOut, Plus, Trash2, Home, Briefcase, Plane, MapPin, ExternalLink, Rep
 import { BrandLoader } from "@/components/BrandLoader";
 import { toast } from "sonner";
 import { ClientBottomNav } from "@/components/ClientBottomNav";
+import { useT } from "@/i18n/I18nProvider";
 import { getClientSession, clearClientSession } from "@/lib/client-session";
 import type { ClientSession } from "@/lib/client-auth.functions";
 import {
@@ -35,13 +36,14 @@ const ICONS: Record<string, typeof Home> = {
 };
 
 const PRESETS = [
-  { label: "Maison", icon: "home" },
-  { label: "Bureau", icon: "briefcase" },
-  { label: "Aéroport", icon: "plane" },
-  { label: "Autre", icon: "pin" },
+  { label: "Maison", icon: "home", tKey: "profil.favorites.preset.home" },
+  { label: "Bureau", icon: "briefcase", tKey: "profil.favorites.preset.office" },
+  { label: "Aéroport", icon: "plane", tKey: "profil.favorites.preset.airport" },
+  { label: "Autre", icon: "pin", tKey: "profil.favorites.preset.other" },
 ];
 
 function ClientProfil() {
+  const t = useT();
   const navigate = useNavigate();
   const [session, setSession] = useState<ClientSession | null>(null);
   const [favorites, setFavorites] = useState<ClientFavorite[] | null>(null);
@@ -100,7 +102,7 @@ function ClientProfil() {
       setFormAddress("");
       refresh();
     } catch {
-      toast.error("Échec de l'enregistrement");
+      toast.error(t("profil.company.toast.failed"));
     } finally {
       setBusy(false);
     }
@@ -136,12 +138,12 @@ function ClientProfil() {
       />
       <div className="relative mx-auto max-w-3xl">
         <div className="mb-6">
-          <p className="text-xs uppercase tracking-[0.2em] text-[#E8C96D]">Espace client</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-[#E8C96D]">{t("profil.eyebrow")}</p>
           <h1
             className="mt-1 text-2xl font-bold text-white sm:text-3xl"
             style={{ fontFamily: "'Syne', 'Playfair Display', serif" }}
           >
-            Mon profil
+            {t("profil.title")}
           </h1>
         </div>
 
@@ -155,7 +157,7 @@ function ClientProfil() {
               {(session.name || session.email).slice(0, 2).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-base font-semibold text-white">{session.name || "Client VIP"}</div>
+              <div className="truncate text-base font-semibold text-white">{session.name || t("profil.client_vip")}</div>
               <div className="truncate text-xs text-white/60">{session.email}</div>
               <div className="truncate text-xs text-white/60">{session.phone}</div>
             </div>
@@ -165,14 +167,14 @@ function ClientProfil() {
         {/* Favorites */}
         <section className="mb-6">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-white/60">Adresses favorites</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-white/60">{t("profil.favorites.title")}</h2>
             {!adding && (
               <button
                 onClick={() => setAdding(true)}
                 className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-black"
                 style={{ background: "linear-gradient(135deg, #C9A84C 0%, #E8C96D 100%)" }}
               >
-                <Plus className="h-3.5 w-3.5" /> Ajouter
+                <Plus className="h-3.5 w-3.5" /> {t("profil.favorites.add")}
               </button>
             )}
           </div>
@@ -198,7 +200,7 @@ function ClientProfil() {
                         color: active ? "#E8C96D" : "rgba(255,255,255,0.75)",
                       }}
                     >
-                      <Icon className="h-3.5 w-3.5" /> {p.label}
+                      <Icon className="h-3.5 w-3.5" /> {t(p.tKey)}
                     </button>
                   );
                 })}
@@ -206,13 +208,13 @@ function ClientProfil() {
               <input
                 value={formLabel}
                 onChange={(e) => setFormLabel(e.target.value)}
-                placeholder="Nom (ex. Maison)"
+                placeholder={t("profil.favorites.name_ph")}
                 className="mb-2 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#E8C96D]"
               />
               <input
                 value={formAddress}
                 onChange={(e) => setFormAddress(e.target.value)}
-                placeholder="Adresse complète"
+                placeholder={t("profil.favorites.address_ph")}
                 className="mb-3 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#E8C96D]"
               />
               <div className="flex gap-2">
@@ -222,13 +224,13 @@ function ClientProfil() {
                   className="flex-1 rounded-lg px-4 py-2 text-xs font-semibold text-black disabled:opacity-60"
                   style={{ background: "linear-gradient(135deg, #C9A84C 0%, #E8C96D 100%)" }}
                 >
-                  {busy ? "…" : "Enregistrer"}
+                  {busy ? "…" : t("profil.common.save")}
                 </button>
                 <button
                   onClick={() => setAdding(false)}
                   className="rounded-lg border border-white/10 px-4 py-2 text-xs text-white/70 hover:bg-white/5"
                 >
-                  Annuler
+                  {t("profil.common.cancel")}
                 </button>
               </div>
             </div>
@@ -236,13 +238,13 @@ function ClientProfil() {
 
           {loading && (
             <div className="flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-8 text-white/60">
-              <BrandLoader size={20} /> Chargement…
+              <BrandLoader size={20} /> {t("profil.common.loading")}
             </div>
           )}
 
           {!loading && favorites && favorites.length === 0 && !adding && (
             <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center text-sm text-white/60">
-              Aucune adresse favorite. Ajoutez Maison, Bureau, Aéroport… pour réserver en 1 clic.
+              {t("profil.favorites.empty")}
             </div>
           )}
 
@@ -268,14 +270,14 @@ function ClientProfil() {
                     <a
                       href={`/reserver?depart=${encodeURIComponent(f.address)}`}
                       className="inline-flex items-center gap-1 rounded-lg border border-[#C9A84C]/40 bg-[#C9A84C]/10 px-2.5 py-1.5 text-[11px] font-semibold text-[#E8C96D]"
-                      title="Réserver depuis cette adresse"
+                      title={t("profil.favorites.book_from")}
                     >
-                      <ExternalLink className="h-3 w-3" /> Réserver
+                      <ExternalLink className="h-3 w-3" /> {t("profil.favorites.book")}
                     </a>
                     <button
                       onClick={() => onDelete(f.id)}
                       className="rounded-lg p-2 text-white/40 hover:bg-white/5 hover:text-red-300"
-                      aria-label="Supprimer"
+                      aria-label={t("profil.favorites.delete")}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -294,7 +296,7 @@ function ClientProfil() {
           onClick={logout}
           className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-4 py-2.5 text-sm text-white/70 hover:bg-white/5"
         >
-          <LogOut className="h-4 w-4" /> Se déconnecter
+          <LogOut className="h-4 w-4" /> {t("profil.logout")}
         </button>
       </div>
 
@@ -306,6 +308,7 @@ function ClientProfil() {
 const DAYS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 
 function RecurringRidesSection({ accountId }: { accountId: string }) {
+  const t = useT();
   const [rides, setRides] = useState<RecurringRide[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -329,7 +332,7 @@ function RecurringRidesSection({ accountId }: { accountId: string }) {
       const data = await listRecurringRides({ data: { account_id: accountId } });
       setRides(data);
     } catch {
-      toast.error("Impossible de charger vos trajets récurrents");
+      toast.error(t("profil.recurring.toast.load_failed"));
     } finally {
       setLoading(false);
     }
@@ -341,13 +344,13 @@ function RecurringRidesSection({ accountId }: { accountId: string }) {
 
   async function onCreate() {
     if (!form.depart.trim() || !form.destination.trim()) {
-      toast.error("Départ et destination requis");
+      toast.error(t("profil.recurring.toast.required"));
       return;
     }
     setBusy(true);
     try {
       await createRecurringRide({ data: { account_id: accountId, ...form } });
-      toast.success("Trajet récurrent créé");
+      toast.success(t("profil.recurring.toast.created"));
       setAdding(false);
       setForm({
         label: "Domicile → Aéroport",
@@ -363,7 +366,7 @@ function RecurringRidesSection({ accountId }: { accountId: string }) {
       });
       refresh();
     } catch {
-      toast.error("Échec de la création");
+      toast.error(t("profil.recurring.toast.create_failed"));
     } finally {
       setBusy(false);
     }
@@ -374,17 +377,17 @@ function RecurringRidesSection({ accountId }: { accountId: string }) {
       await toggleRecurringRide({ data: { account_id: accountId, id: r.id, active: !r.active } });
       refresh();
     } catch {
-      toast.error("Échec");
+      toast.error(t("profil.recurring.toast.failed"));
     }
   }
 
   async function onDelete(id: string) {
-    if (!confirm("Supprimer ce trajet récurrent ?")) return;
+    if (!confirm(t("profil.recurring.confirm_delete"))) return;
     try {
       await deleteRecurringRide({ data: { account_id: accountId, id } });
       refresh();
     } catch {
-      toast.error("Échec");
+      toast.error(t("profil.recurring.toast.failed"));
     }
   }
 
@@ -392,7 +395,7 @@ function RecurringRidesSection({ accountId }: { accountId: string }) {
     <section className="mb-6">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-white/60">
-          <Repeat className="h-4 w-4" /> Trajets récurrents
+          <Repeat className="h-4 w-4" /> {t("profil.recurring.title")}
         </h2>
         {!adding && (
           <button
@@ -400,7 +403,7 @@ function RecurringRidesSection({ accountId }: { accountId: string }) {
             className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-black"
             style={{ background: "linear-gradient(135deg, #C9A84C 0%, #E8C96D 100%)" }}
           >
-            <Plus className="h-3.5 w-3.5" /> Nouveau
+            <Plus className="h-3.5 w-3.5" /> {t("profil.recurring.new")}
           </button>
         )}
       </div>
@@ -410,19 +413,19 @@ function RecurringRidesSection({ accountId }: { accountId: string }) {
           <input
             value={form.label}
             onChange={(e) => setForm({ ...form, label: e.target.value })}
-            placeholder="Nom du trajet (ex. Aéroport vendredi matin)"
+            placeholder={t("profil.recurring.label_ph")}
             className="mb-2 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#E8C96D]"
           />
           <input
             value={form.depart}
             onChange={(e) => setForm({ ...form, depart: e.target.value })}
-            placeholder="Adresse de départ"
+            placeholder={t("profil.recurring.depart_ph")}
             className="mb-2 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#E8C96D]"
           />
           <input
             value={form.destination}
             onChange={(e) => setForm({ ...form, destination: e.target.value })}
-            placeholder="Adresse d'arrivée"
+            placeholder={t("profil.recurring.dest_ph")}
             className="mb-3 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#E8C96D]"
           />
           <div className="mb-3 grid grid-cols-3 gap-2">
@@ -499,7 +502,7 @@ function RecurringRidesSection({ accountId }: { accountId: string }) {
           <textarea
             value={form.message}
             onChange={(e) => setForm({ ...form, message: e.target.value.slice(0, 500) })}
-            placeholder="Demandes spéciales (siège bébé, animal…)"
+            placeholder={t("profil.recurring.msg_ph")}
             rows={2}
             className="mb-3 w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#E8C96D]"
           />
@@ -510,30 +513,30 @@ function RecurringRidesSection({ accountId }: { accountId: string }) {
               className="flex-1 rounded-lg px-4 py-2 text-xs font-semibold text-black disabled:opacity-60"
               style={{ background: "linear-gradient(135deg, #C9A84C 0%, #E8C96D 100%)" }}
             >
-              {busy ? "…" : "Créer le trajet récurrent"}
+              {busy ? "…" : t("profil.recurring.create")}
             </button>
             <button
               onClick={() => setAdding(false)}
               className="rounded-lg border border-white/10 px-4 py-2 text-xs text-white/70 hover:bg-white/5"
             >
-              Annuler
+              {t("profil.common.cancel")}
             </button>
           </div>
           <p className="mt-2 text-[11px] text-white/40">
-            Chaque semaine, votre course est réservée automatiquement 24h à l'avance.
+            {t("profil.recurring.auto_note")}
           </p>
         </div>
       )}
 
       {loading && (
         <div className="flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-8 text-white/60">
-          <BrandLoader size={20} /> Chargement…
+          <BrandLoader size={20} /> {t("profil.common.loading")}
         </div>
       )}
 
       {!loading && rides && rides.length === 0 && !adding && (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center text-sm text-white/60">
-          Aucun trajet récurrent. Programmez vos déplacements habituels (domicile → aéroport, bureau…) pour qu'ils soient réservés automatiquement chaque semaine.
+          {t("profil.recurring.empty")}
         </div>
       )}
 
@@ -558,15 +561,14 @@ function RecurringRidesSection({ accountId }: { accountId: string }) {
                     {r.depart} → {r.destination}
                   </div>
                   <div className="mt-1 text-[11px] text-[#E8C96D]">
-                    Chaque {DAYS[r.day_of_week]}. à {String(r.hour).padStart(2, "0")}h
-                    {String(r.minute).padStart(2, "0")} · {r.passagers} pax · {r.bagages} bag.
+                    {t("profil.recurring.every")} {t(`profil.recurring.day.${["sun","mon","tue","wed","thu","fri","sat"][r.day_of_week]}`)}. {t("profil.recurring.at")} {String(r.hour).padStart(2, "0")}h{String(r.minute).padStart(2, "0")} · {r.passagers} {t("profil.recurring.pax")} · {r.bagages} {t("profil.recurring.bag")}
                   </div>
                 </div>
                 <button
                   onClick={() => onToggle(r)}
                   className="rounded-lg p-2 text-white/40 hover:bg-white/5 hover:text-[#E8C96D]"
-                  aria-label={r.active ? "Mettre en pause" : "Activer"}
-                  title={r.active ? "Mettre en pause" : "Activer"}
+                  aria-label={r.active ? t("profil.recurring.pause") : t("profil.recurring.activate")}
+                  title={r.active ? t("profil.recurring.pause") : t("profil.recurring.activate")}
                 >
                   <Power className="h-4 w-4" />
                 </button>
@@ -587,6 +589,7 @@ function RecurringRidesSection({ accountId }: { accountId: string }) {
 }
 
 function CompanyInfoSection({ accountId }: { accountId: string }) {
+  const t = useT();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [company, setCompany] = useState({
@@ -631,9 +634,9 @@ function CompanyInfoSection({ accountId }: { accountId: string }) {
           billing_address: company.billing_address.trim() || null,
         },
       });
-      toast.success("Informations enregistrées");
+      toast.success(t("profil.company.toast.saved"));
     } catch {
-      toast.error("Échec de l'enregistrement");
+      toast.error(t("profil.company.toast.failed"));
     } finally {
       setSaving(false);
     }
@@ -646,48 +649,48 @@ function CompanyInfoSection({ accountId }: { accountId: string }) {
           className="flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-[#E8C96D]"
           style={{ fontFamily: "'Syne', serif" }}
         >
-          <Briefcase className="h-3.5 w-3.5" /> Facturation entreprise
+          <Briefcase className="h-3.5 w-3.5" /> {t("profil.company.title")}
         </h2>
         <Link
           to="/client/factures"
           className="inline-flex items-center gap-1 rounded-lg border border-[#E8C96D]/40 bg-[#E8C96D]/10 px-3 py-1.5 text-[11px] font-semibold text-[#E8C96D] hover:bg-[#E8C96D]/20"
         >
-          Mes factures →
+          {t("profil.company.invoices_link")}
         </Link>
       </div>
       {loading ? (
         <div className="flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-6 text-white/60">
-          <BrandLoader size={18} /> Chargement…
+          <BrandLoader size={18} /> {t("profil.common.loading")}
         </div>
       ) : (
         <div className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
           <p className="mb-2 text-xs text-white/50">
-            Optionnel — apparaîtra en haut de vos factures mensuelles et annuelles.
+            {t("profil.company.optional")}
           </p>
           <input
             value={company.company_name}
             onChange={(e) => setCompany({ ...company, company_name: e.target.value })}
-            placeholder="Raison sociale"
+            placeholder={t("profil.company.name_ph")}
             className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#E8C96D]"
           />
           <div className="grid grid-cols-2 gap-2">
             <input
               value={company.siret}
               onChange={(e) => setCompany({ ...company, siret: e.target.value })}
-              placeholder="SIRET"
+              placeholder={t("profil.company.siret_ph")}
               className="rounded-lg border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#E8C96D]"
             />
             <input
               value={company.tva_intracom}
               onChange={(e) => setCompany({ ...company, tva_intracom: e.target.value })}
-              placeholder="TVA intracom."
+              placeholder={t("profil.company.tva_ph")}
               className="rounded-lg border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#E8C96D]"
             />
           </div>
           <textarea
             value={company.billing_address}
             onChange={(e) => setCompany({ ...company, billing_address: e.target.value })}
-            placeholder="Adresse de facturation"
+            placeholder={t("profil.company.billing_ph")}
             rows={2}
             className="w-full resize-none rounded-lg border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#E8C96D]"
           />
@@ -698,7 +701,7 @@ function CompanyInfoSection({ accountId }: { accountId: string }) {
               className="rounded-lg px-4 py-2 text-xs font-semibold text-black disabled:opacity-60"
               style={{ background: "linear-gradient(135deg, #C9A84C 0%, #E8C96D 100%)" }}
             >
-              {saving ? "…" : "Enregistrer"}
+              {saving ? "…" : t("profil.common.save")}
             </button>
           </div>
         </div>

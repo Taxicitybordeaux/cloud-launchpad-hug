@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Send, X, Loader2, Check, CheckCheck, ChevronUp, Search, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useT } from "@/i18n/I18nProvider";
 import {
   sendClientMessage,
   sendChauffeurMessage,
@@ -29,6 +30,7 @@ const OFFLINE_QUEUE_KEY = (rid: string, role: string) => `chat:offline:${role}:$
 type OfflineMsg = { tempId: string; content: string; at: number };
 
 export function ChatPanel({ reservationId, role, onClose, peerName, clientIdentity }: Props) {
+  const t = useT();
   const peerRole = role === "client" ? "chauffeur" : "client";
   const title = peerName || (role === "client" ? "José 🚖" : "Client");
 
@@ -440,7 +442,7 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
               className={`rounded-full p-1.5 transition hover:bg-white/10 ${
                 showSearch || filterActive ? "text-[#E8C96D]" : "text-white/60 hover:text-white"
               }`}
-              aria-label="Rechercher"
+              aria-label={t("chat.search")}
               aria-pressed={showSearch}
             >
               <Search className="h-4 w-4" />
@@ -450,15 +452,15 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
               onClick={exportCsv}
               disabled={visibleMessages.length === 0}
               className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white disabled:opacity-40"
-              aria-label="Exporter la conversation en CSV"
-              title="Exporter en CSV"
+              aria-label={t("chat.export_csv")}
+              title={t("chat.export_csv_short")}
             >
               <Download className="h-4 w-4" />
             </button>
             <button
               onClick={onClose}
               className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white"
-              aria-label="Fermer"
+              aria-label={t("chat.close")}
             >
               <X className="h-4 w-4" />
             </button>
@@ -467,7 +469,7 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
 
         {queued.length > 0 && (
           <div className="border-b border-amber-500/20 bg-amber-500/10 px-4 py-2 text-[11px] text-amber-300">
-            📡 {queued.length} message{queued.length > 1 ? "s" : ""} en attente — envoi automatique au retour en ligne.
+            📡 {queued.length} {queued.length > 1 ? t("chat.queued") : t("chat.queued_one")}
           </div>
         )}
 
@@ -479,13 +481,13 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
                 type="search"
                 value={searchKw}
                 onChange={(e) => setSearchKw(e.target.value)}
-                placeholder="Rechercher un mot-clé…"
+                placeholder={t("chat.search_ph")}
                 className="w-full rounded-lg border border-white/10 bg-white/5 py-1.5 pl-8 pr-2 text-xs text-white placeholder-white/40 outline-none focus:border-[#E8C96D]"
               />
             </div>
             <div className="flex items-center gap-1.5 text-[11px] text-white/60">
               <label className="flex-1">
-                <span className="mb-0.5 block text-[10px] uppercase tracking-wider text-white/40">Du</span>
+                <span className="mb-0.5 block text-[10px] uppercase tracking-wider text-white/40">{t("chat.from")}</span>
                 <input
                   type="date"
                   value={searchFrom}
@@ -494,7 +496,7 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
                 />
               </label>
               <label className="flex-1">
-                <span className="mb-0.5 block text-[10px] uppercase tracking-wider text-white/40">Au</span>
+                <span className="mb-0.5 block text-[10px] uppercase tracking-wider text-white/40">{t("chat.to")}</span>
                 <input
                   type="date"
                   value={searchTo}
@@ -512,18 +514,16 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
                   }}
                   className="self-end rounded-md border border-white/10 px-2 py-1 text-[10px] text-white/60 transition hover:bg-white/10 hover:text-white"
                 >
-                  Réinitialiser
+                  {t("chat.reset")}
                 </button>
               )}
             </div>
             {filterActive && (
               <div className="text-[10px] text-white/50">
-                {visibleMessages.length} message{visibleMessages.length > 1 ? "s" : ""} trouvé
-                {visibleMessages.length > 1 ? "s" : ""} sur {messages.length} chargé
-                {messages.length > 1 ? "s" : ""}.{" "}
+                {visibleMessages.length} {t("chat.results")} {t("chat.of")} {messages.length} {t("chat.loaded")}.{" "}
                 {hasMore && (
                   <button type="button" onClick={loadOlder} className="underline hover:text-white/80">
-                    charger plus d'historique
+                    {t("chat.load_more_history")}
                   </button>
                 )}
               </div>
@@ -542,7 +542,7 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
                 className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-white/60 hover:bg-white/10 disabled:opacity-50"
               >
                 {loadingMore ? <Loader2 className="h-3 w-3 animate-spin" /> : <ChevronUp className="h-3 w-3" />}
-                Messages plus anciens
+                {t("chat.older")}
               </button>
             </div>
           )}
@@ -554,12 +554,12 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
           )}
           {!loading && messages.length === 0 && (
             <div className="pt-10 text-center text-sm text-white/40">
-              Aucun message pour l'instant. Écrivez le premier !
+              {t("chat.empty")}
             </div>
           )}
           {!loading && messages.length > 0 && filterActive && visibleMessages.length === 0 && (
             <div className="pt-10 text-center text-sm text-white/40">
-              Aucun message ne correspond à votre recherche.
+              {t("chat.empty_filter")}
             </div>
           )}
 
@@ -593,11 +593,11 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
                       </span>
                       {mine &&
                         (isRead ? (
-                          <span title="Lu">
+                          <span title={t("chat.read")}>
                             <CheckCheck className="h-3 w-3" style={{ color: "#1d4ed8" }} />
                           </span>
                         ) : (
-                          <span title="Envoyé">
+                          <span title={t("chat.sent")}>
                             <Check className="h-3 w-3 opacity-60" />
                           </span>
                         ))}
@@ -613,7 +613,7 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
               <div
                 className="flex items-center gap-1 rounded-2xl px-3 py-2"
                 style={{ background: "rgba(255,255,255,0.08)" }}
-                aria-label="L'autre personne est en train d'écrire"
+                aria-label={t("chat.typing")}
               >
                 <Dot delay="0ms" />
                 <Dot delay="150ms" />
@@ -643,7 +643,7 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
                 send();
               }
             }}
-            placeholder="Écrire un message…"
+            placeholder={t("chat.input_ph")}
             rows={1}
             className="max-h-32 flex-1 resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/40 outline-none focus:border-[#E8C96D]"
           />
@@ -652,7 +652,7 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
             disabled={sending || !input.trim()}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-black transition active:scale-95 disabled:opacity-50"
             style={{ background: "linear-gradient(135deg, #C9A84C 0%, #E8C96D 100%)" }}
-            aria-label="Envoyer"
+            aria-label={t("chat.send")}
           >
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </button>
