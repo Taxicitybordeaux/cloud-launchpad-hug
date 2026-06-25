@@ -4,7 +4,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { TEMPLATES } from "@/lib/email-templates/registry";
 
 const SITE_NAME = "Taxi City Bordeaux";
-const SENDER_DOMAIN = "notify.taxicitybordeaux.fr";
+const SENDER_DOMAIN = "mail.taxicitybordeaux.fr";
 const FROM_DOMAIN = "taxicitybordeaux.fr";
 
 function redactEmail(email: string | null | undefined): string {
