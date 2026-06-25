@@ -627,10 +627,7 @@ function ReservationPage() {
   const [today, setToday] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
-  const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
-    typeof window !== "undefined" && "Notification" in window ? Notification.permission : "default",
-  );
-  const { subscribe: subscribePush } = usePushNotifications();
+  const { status: pushStatus, subscribe: subscribePush } = usePushNotifications({ autoAudience: "client" });
 
   const [fromCoord, setFromCoord] = useState<[number, number] | null>(null);
   const [toCoord, setToCoord] = useState<[number, number] | null>(null);
@@ -2401,7 +2398,7 @@ function ReservationPage() {
         </div>
 
         {/* ── Bouton notifs client FIXE (hors scrollable) ── */}
-        {notifPermission !== "granted" && "Notification" in window && (
+        {pushStatus !== "granted" && "Notification" in window && (
           <div
             style={{
               background: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(250,249,247,0.95) 100%)",
@@ -2420,11 +2417,12 @@ function ReservationPage() {
                 e.stopPropagation();
                 try {
                   const ok = await subscribePush("client");
-                  if (ok || Notification.permission === "granted") {
-                    setNotifPermission("granted");
+                  if (ok) {
+                    toast.success("Notifications activées ✅");
                   }
                 } catch (err) {
                   console.error("[notif button] subscribePush error:", err);
+                  toast.error(`Erreur : ${err?.message || "Impossible d'activer"}`);
                 }
               }}
               style={{
