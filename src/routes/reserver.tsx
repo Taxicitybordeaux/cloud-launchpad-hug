@@ -2397,6 +2397,20 @@ function ReservationPage() {
           <div style={{ height: 20 }} />
         </div>
 
+        {/* DEBUG: affiche le status */}
+        <div
+          style={{
+            padding: "12px 16px",
+            fontSize: 10,
+            color: "#666",
+            background: "#f0f0f0",
+            marginTop: 12,
+            borderRadius: 8,
+          }}
+        >
+          DEBUG pushStatus: <strong>{pushStatus}</strong> | Notification in window: {String("Notification" in window)}
+        </div>
+
         {/* ── Bouton notifs client FIXE (hors scrollable) ── */}
         {pushStatus !== "granted" && "Notification" in window && (
           <div
@@ -2415,12 +2429,15 @@ function ReservationPage() {
               onClick={async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log("[notif] pushStatus:", pushStatus);
+                console.log("[notif] tap detected, pushStatus=", pushStatus);
                 try {
                   const ok = await subscribePush("client");
                   console.log("[notif] subscribePush result:", ok);
                   if (ok) {
                     toast.success("Notifications activées ✅");
+                  } else {
+                    console.error("[notif] subscribePush returned false (possible RLS issue)");
+                    toast.error("Erreur : impossible d'activer les notifications (RLS ou permissions)");
                   }
                 } catch (err) {
                   console.error("[notif button] error:", err);
