@@ -627,7 +627,9 @@ function ReservationPage() {
   const [today, setToday] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
-  const { status: pushStatus, subscribe: subscribePush } = usePushNotifications();
+  const { status: hookStatus, subscribe: subscribePush } = usePushNotifications();
+  // Force à "idle" pour client — on ne veut pas d'auto-subscription
+  const pushStatus = "idle";
 
   const [fromCoord, setFromCoord] = useState<[number, number] | null>(null);
   const [toCoord, setToCoord] = useState<[number, number] | null>(null);
@@ -2397,22 +2399,8 @@ function ReservationPage() {
           <div style={{ height: 20 }} />
         </div>
 
-        {/* DEBUG: affiche le status */}
-        <div
-          style={{
-            padding: "12px 16px",
-            fontSize: 10,
-            color: "#666",
-            background: "#f0f0f0",
-            marginTop: 12,
-            borderRadius: 8,
-          }}
-        >
-          DEBUG pushStatus: <strong>{pushStatus}</strong> | Notification in window: {String("Notification" in window)}
-        </div>
-
         {/* ── Bouton notifs client FIXE (hors scrollable) ── */}
-        {pushStatus !== "granted" && "Notification" in window && (
+        {pushStatus !== "granted" && "Notification" in window ? (
           <div
             style={{
               background: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(250,249,247,0.95) 100%)",
@@ -2424,25 +2412,41 @@ function ReservationPage() {
               gap: 8,
             }}
           >
+            {/* Debug: affiche le status et qu'on est dans le rendu */}
+            <div
+              style={{
+                fontSize: 11,
+                color: "#999",
+                marginBottom: 8,
+                padding: "6px 8px",
+                background: "#f5f5f5",
+                borderRadius: 4,
+              }}
+            >
+              Status: <strong>{pushStatus}</strong> ✓ Button is RENDERED
+            </div>
+
             <button
               type="button"
-              onClick={async (e) => {
+              onClick={(e) => {
+                console.log("[TAP] Button clicked!");
+                toast.loading("🔔 Activation en cours...");
                 e.preventDefault();
                 e.stopPropagation();
-                console.log("[notif] tap detected, pushStatus=", pushStatus);
-                try {
-                  const ok = await subscribePush("client");
-                  console.log("[notif] subscribePush result:", ok);
-                  if (ok) {
-                    toast.success("Notifications activées ✅");
-                  } else {
-                    console.error("[notif] subscribePush returned false (possible RLS issue)");
-                    toast.error("Erreur : impossible d'activer les notifications (RLS ou permissions)");
-                  }
-                } catch (err) {
-                  console.error("[notif button] error:", err);
-                  toast.error(`Erreur : ${err?.message || "Impossible d'activer"}`);
-                }
+
+                subscribePush("client")
+                  .then((ok) => {
+                    console.log("[RESULT] subscribePush returned:", ok);
+                    if (ok) {
+                      toast.success("✅ Notifications activées!");
+                    } else {
+                      toast.error("❌ Impossible d'activer (ret=" + ok + ")");
+                    }
+                  })
+                  .catch((err) => {
+                    console.error("[ERROR]", err);
+                    toast.error("❌ " + (err?.message || "Erreur réseau"));
+                  });
               }}
               style={{
                 display: "flex",
@@ -2477,6 +2481,10 @@ function ReservationPage() {
             >
               Recevez les infos de suivi en temps réel
             </p>
+          </div>
+        ) : (
+          <div style={{ fontSize: 11, color: "#999", padding: "8px 16px", textAlign: "center" }}>
+            ⚠️ Bouton caché: pushStatus={pushStatus} | Notification={String("Notification" in window)}
           </div>
         )}
       </div>
