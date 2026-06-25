@@ -56,8 +56,7 @@ async function assertClientOwnsReservation(
   const phoneTail = normalizePhone(identity.phone);
   const matchPhone =
     !!phoneTail &&
-    (normalizePhone((r as any).client_phone) === phoneTail ||
-      normalizePhone((r as any).telephone) === phoneTail);
+    (normalizePhone((r as any).client_phone) === phoneTail || normalizePhone((r as any).telephone) === phoneTail);
   const matchEmail =
     !!identity.email &&
     (((r as any).client_email || "").toLowerCase() === identity.email.toLowerCase() ||
@@ -80,6 +79,15 @@ export const sendClientMessage = createServerFn({ method: "POST" })
       email: data.email ?? null,
     });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Récupère nom client pour le titre push
+    const { data: r } = await supabaseAdmin
+      .from("reservations")
+      .select("client_name, nom, suivi_id")
+      .eq("id", data.reservation_id)
+      .maybeSingle();
+    const clientName = (r as any)?.client_name || (r as any)?.nom || "Client";
+
     const { data: row, error } = await supabaseAdmin
       .from("reservation_messages")
       .insert({
@@ -92,15 +100,38 @@ export const sendClientMessage = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error) throw new Error(error.message);
+
+    // ── Push chauffeur : nouveau message client (course) ─────────────────────
+    if (!data.skip_push) {
+      try {
+        const { sendPushToAudience } = await import("@/lib/push.server");
+        await sendPushToAudience("chauffeur", {
+          title: `💬 Message de ${clientName}`,
+          body: data.content.slice(0, 100),
+          url: "/driver?token=DSF234",
+          tag: `chat-driver-resa-${data.reservation_id}`,
+          requireInteraction: false,
+        });
+      } catch (e) {
+        console.warn("[chat] push chauffeur (resa) failed (non-blocking)", e);
+      }
+    }
+
     return row as ChatMessage;
   });
-
 
 export const sendChauffeurMessage = createServerFn({ method: "POST" })
   .inputValidator((input) => sendSchema.parse(input))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { sendPushToAudience } = await import("@/lib/push.server");
+
+    // Récupère suivi_id pour construire l'URL de redirection client
+    const { data: resa } = await supabaseAdmin
+      .from("reservations")
+      .select("suivi_id")
+      .eq("id", data.reservation_id)
+      .maybeSingle();
+    const suiviId = (resa as any)?.suivi_id || data.reservation_id;
 
     const { data: row, error } = await supabaseAdmin
       .from("reservation_messages")
@@ -115,8 +146,26 @@ export const sendChauffeurMessage = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
 
-    // ⚠️ Plus de push au CLIENT — la réponse du chauffeur apparaît en temps
-    // réel dans le panneau chat (Supabase realtime). Bandeau visuel suffisant.
+    // ── Push client : réponse chauffeur (redirige vers /suivi/$id) ───────────
+    if (!data.skip_push) {
+      try {
+        const { sendPushToAudience } = await import("@/lib/push.server");
+        await sendPushToAudience(
+          "client",
+          {
+            title: "💬 José a répondu à votre message",
+            body: data.content.slice(0, 100),
+            url: `/suivi/${suiviId}`,
+            tag: `chat-client-resa-${data.reservation_id}`,
+            requireInteraction: false,
+            data: { reservation_id: data.reservation_id },
+          },
+          { reservationId: data.reservation_id },
+        );
+      } catch (e) {
+        console.warn("[chat] push client (resa) failed (non-blocking)", e);
+      }
+    }
 
     return row as ChatMessage;
   });
@@ -263,6 +312,15 @@ export const sendDirectClientMessage = createServerFn({ method: "POST" })
   .inputValidator((input) => directSendSchema.parse(input))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Récupère nom client pour le titre push
+    const { data: acct } = await supabaseAdmin
+      .from("client_accounts")
+      .select("client_name, email")
+      .eq("id", data.client_account_id)
+      .maybeSingle();
+    const clientName = (acct as any)?.client_name || (acct as any)?.email || "Client";
+
     const { data: row, error } = await supabaseAdmin
       .from("direct_messages")
       .insert({
@@ -275,6 +333,21 @@ export const sendDirectClientMessage = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error) throw new Error(error.message);
+
+    // ── Push chauffeur : nouveau message direct client ────────────────────────
+    try {
+      const { sendPushToAudience } = await import("@/lib/push.server");
+      await sendPushToAudience("chauffeur", {
+        title: `💬 Message de ${clientName}`,
+        body: data.content.slice(0, 100),
+        url: "/driver?token=DSF234",
+        tag: `chat-driver-direct-${data.client_account_id}`,
+        requireInteraction: false,
+      });
+    } catch (e) {
+      console.warn("[chat] push chauffeur (direct) failed (non-blocking)", e);
+    }
+
     return row as DirectMessage;
   });
 
@@ -294,9 +367,26 @@ export const sendDirectChauffeurMessage = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error) throw new Error(error.message);
-    // ⚠️ Plus de push au CLIENT — message visible en realtime dans le chat.
-    return row as DirectMessage;
 
+    // ── Push client : réponse chauffeur (direct → /client/chat) ─────────────
+    try {
+      const { sendPushToAudience } = await import("@/lib/push.server");
+      await sendPushToAudience(
+        "client",
+        {
+          title: "💬 José a répondu à votre message",
+          body: data.content.slice(0, 100),
+          url: "/client/chat",
+          tag: `chat-client-direct-${data.client_account_id}`,
+          requireInteraction: false,
+        },
+        // Pas de reservationId — on cible par client_account_id via la table push_subscriptions
+      );
+    } catch (e) {
+      console.warn("[chat] push client (direct) failed (non-blocking)", e);
+    }
+
+    return row as DirectMessage;
   });
 
 export const listDirectMessages = createServerFn({ method: "POST" })
@@ -441,7 +531,9 @@ export const listMergedChauffeurThreads = createServerFn({ method: "GET" }).hand
   if (resaIds.length > 0) {
     const { data: resas } = await supabaseAdmin
       .from("reservations")
-      .select("id, client_account_id, client_name, nom, client_phone, telephone, depart, destination, arrivee, status, pickup_datetime")
+      .select(
+        "id, client_account_id, client_name, nom, client_phone, telephone, depart, destination, arrivee, status, pickup_datetime",
+      )
       .in("id", resaIds);
     resaMap = new Map((resas ?? []).map((r: any) => [r.id, r]));
   }
@@ -475,7 +567,10 @@ export const listMergedChauffeurThreads = createServerFn({ method: "GET" }).hand
   };
   const buckets = new Map<string, Bucket>();
 
-  function bucketFor(key: string, init: () => Omit<Bucket, "reservation_ids" | "last_at" | "last_content" | "last_source" | "unread">): Bucket {
+  function bucketFor(
+    key: string,
+    init: () => Omit<Bucket, "reservation_ids" | "last_at" | "last_content" | "last_source" | "unread">,
+  ): Bucket {
     let b = buckets.get(key);
     if (!b) {
       const i = init();
