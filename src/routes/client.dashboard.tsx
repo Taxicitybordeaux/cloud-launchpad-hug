@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Phone, Eye, Car, MessageCircle, History, User, ChevronRight } from "lucide-react";
 import { ClientBottomNav } from "@/components/ClientBottomNav";
-import { ClientPushOptInCard } from "@/components/ClientPushOptInCard";
+
 import { BrandLoader } from "@/components/BrandLoader";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { getClientSession, clearClientSession } from "@/lib/client-session";
@@ -388,11 +388,6 @@ function ClientDashboard() {
                 <ChevronRight style={{ width: 14, height: 14, color: "rgba(255,255,255,0.25)" }} />
               </Link>
             ))}
-          </div>
-
-          {/* Push opt-in */}
-          <div style={{ marginBottom: 8 }}>
-            <ClientPushOptInCard />
           </div>
         </div>
 
