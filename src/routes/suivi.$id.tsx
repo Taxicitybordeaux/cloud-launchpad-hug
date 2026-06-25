@@ -1382,6 +1382,15 @@ function SuiviPage() {
   const josePhone = JOSE_PHONE;
   const [pushDismissed, setPushDismissed] = useState(false);
   const { status: pushStatus, subscribe: pushSubscribe } = usePushNotifications();
+  const [pushActivatedHere, setPushActivatedHere] = useState(false);
+  useEffect(() => {
+    if (!reservation) return;
+    try {
+      setPushActivatedHere(localStorage.getItem(`push_client_${reservation.id}`) === "1");
+    } catch {
+      /* ignore */
+    }
+  }, [reservation?.id]);
 
   const fetchReservation = useServerFn(getReservationForFinPublic);
 
@@ -1724,7 +1733,7 @@ function SuiviPage() {
 
         {/* Bannière activation push — visible si non accordé et non fermé */}
         {!pushDismissed &&
-          pushStatus !== "granted" &&
+          !pushActivatedHere &&
           pushStatus !== "denied" &&
           pushStatus !== "unsupported" &&
           !isCompleted &&
@@ -1748,8 +1757,17 @@ function SuiviPage() {
               <button
                 onClick={async () => {
                   const ok = await pushSubscribe("client", reservation.id);
-                  if (ok) toast.success(t("suivi.push_ok"));
-                  else setPushDismissed(true);
+                  if (ok) {
+                    try {
+                      localStorage.setItem(`push_client_${reservation.id}`, "1");
+                    } catch {
+                      /* ignore */
+                    }
+                    setPushActivatedHere(true);
+                    toast.success(t("suivi.push_ok"));
+                  } else {
+                    setPushDismissed(true);
+                  }
                 }}
                 style={{
                   padding: "6px 12px",
@@ -1783,7 +1801,7 @@ function SuiviPage() {
               </button>
             </div>
           )}
-        {pushStatus === "granted" && !isCompleted && !isCancelled && (
+        {pushActivatedHere && !isCompleted && !isCancelled && (
           <div
             style={{
               marginBottom: "12px",
