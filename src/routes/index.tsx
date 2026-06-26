@@ -27,6 +27,7 @@ import bestSaintEmilion from "@/assets/best-saint-emilion.jpg";
 import bestMiroirEau from "@/assets/best-miroir-eau.jpg";
 import { useT } from "@/i18n/I18nProvider";
 import installIosGuide from "@/assets/install-ios-guide.jpg";
+import installAndroidGuide from "@/assets/install-android-guide.jpg";
 import { ReviewForm } from "@/components/ReviewForm";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -532,6 +533,15 @@ function Home() {
               </div>
               <h3 className="font-display text-xl font-semibold">{t("home.install.android.title")}</h3>
             </div>
+
+            <img
+              src={installAndroidGuide}
+              alt={t("home.install.android.img_alt")}
+              className="mb-4 w-full rounded-xl border border-border"
+              loading="lazy"
+              width={1024}
+              height={1024}
+            />
 
             <ol className="space-y-3 text-sm">
               <li className="flex gap-3">
