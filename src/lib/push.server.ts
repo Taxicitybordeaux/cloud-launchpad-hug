@@ -233,17 +233,17 @@ export async function sendPushToAudience(
     .not("fcm_token", "is", null)
     .order("last_seen_at", { ascending: false });
   if (audience === "client" && opts.reservationId) {
-    // Cible : réservation précise OU compte client lié OU abonnements génériques.
-    // Les lignes génériques sont conservées pour les activations faites depuis /reserver
-    // avant qu'une réservation existe, afin que les pushs client partent toujours.
-    const filters = [`reservation_id.eq.${opts.reservationId}`, "reservation_id.is.null"];
+    // Cible uniquement la réservation précise, ou le compte client lié.
+    // Ne jamais inclure tous les abonnements génériques (reservation_id IS NULL)
+    // pour éviter d'envoyer une notification de course à un mauvais client.
+    const filters = [`reservation_id.eq.${opts.reservationId}`];
     if (opts.accountId) {
       filters.push(`client_account_id.eq.${opts.accountId}`, `user_id.eq.${opts.accountId}`);
     }
     q = q.or(filters.join(","));
   } else if (audience === "client" && opts.accountId) {
-    // Chat direct espace client : priorité au compte client, fallback générique.
-    q = q.or(`client_account_id.eq.${opts.accountId},user_id.eq.${opts.accountId},reservation_id.is.null`);
+    // Chat direct espace client : uniquement le compte client ciblé.
+    q = q.or(`client_account_id.eq.${opts.accountId},user_id.eq.${opts.accountId}`);
   }
   const { data, error } = await q;
   if (error || !data || data.length === 0) return { sent: 0, removed: 0 };
