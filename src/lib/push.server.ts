@@ -213,11 +213,10 @@ async function sendFcmToToken(
 
 type SubRow = {
   id: string;
+  endpoint: string | null;
   fcm_token: string | null;
   user_agent: string | null;
   last_seen_at: string | null;
-  reservation_id?: string | null;
-  user_id?: string | null;
 };
 
 
@@ -229,16 +228,17 @@ export async function sendPushToAudience(
   const supabaseAdmin = getTaxiSupabaseAdmin();
   let q = supabaseAdmin
     .from("push_subscriptions" as any)
-    .select("id, fcm_token, user_agent, last_seen_at, reservation_id, user_id")
+    .select("id, endpoint, fcm_token, user_agent, last_seen_at")
     .eq("audience", audience)
     .not("fcm_token", "is", null)
     .order("last_seen_at", { ascending: false });
-  if (audience === "client" && opts.reservationId) {
-    const filters = [`reservation_id.eq.${opts.reservationId}`];
-    if (opts.accountId) filters.push(`user_id.eq.${opts.accountId}`);
-    q = q.or(filters.join(","));
-  } else if (audience === "client" && opts.accountId) {
-    q = q.eq("user_id", opts.accountId);
+  if (audience === "client") {
+    const endpointFilters: string[] = [];
+    if (opts.reservationId) endpointFilters.push(`endpoint.like.*-client-reservation-${opts.reservationId}`);
+    if (opts.accountId) endpointFilters.push(`endpoint.like.*-client-account-${opts.accountId}`);
+    if (endpointFilters.length > 0) {
+      q = q.or(endpointFilters.join(","));
+    }
   }
 
   const { data, error } = await q;
