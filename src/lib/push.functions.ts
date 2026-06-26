@@ -33,54 +33,25 @@ export const subscribePush = createServerFn({ method: "POST" })
     const endpoint = `${data.fcm_token}-${data.audience}-${targetKey}`;
     const nowIso = new Date().toISOString();
 
-    // ── Stratégie delete-then-insert (plus robuste que upsert/onConflict,
-    //    qui échoue avec 42P10 quand PostgREST n'a pas rechargé le schéma).
-    // 1) Purge uniquement la même cible. On ne supprime plus tous les autres
-    //    abonnements du même device, sinon une nouvelle réservation coupait
-    //    les pushs des réservations précédentes.
+    // ── Stratégie compatible schéma legacy ────────────────────────────────
+    // Le backend taxi utilisé en production peut avoir un cache PostgREST sans
+    // colonnes user_id/client_account_id. Pour ne jamais casser l'activation
+    // chauffeur/client, la cible est encodée dans endpoint et l'insert n'écrit
+    // que les colonnes historiques garanties.
     try {
       await supabaseAdmin
         .from("push_subscriptions")
         .delete()
         .eq("endpoint", endpoint);
-
-      if (data.reservation_id) {
-        await supabaseAdmin
-          .from("push_subscriptions")
-          .delete()
-          .eq("audience", data.audience)
-          .eq("fcm_token", data.fcm_token)
-          .eq("reservation_id", data.reservation_id);
-      } else if (clientAccountId) {
-        await supabaseAdmin
-          .from("push_subscriptions")
-          .delete()
-          .eq("audience", data.audience)
-          .eq("fcm_token", data.fcm_token)
-          .eq("user_id", clientAccountId);
-      } else {
-        // Nettoie seulement les anciennes lignes génériques/legacy.
-        await supabaseAdmin
-          .from("push_subscriptions")
-          .delete()
-          .eq("audience", data.audience)
-          .eq("fcm_token", data.fcm_token)
-          .is("reservation_id", null)
-          .is("user_id", null);
-      }
     } catch (e) {
       console.warn("[push] pre-insert cleanup non-fatal error", e);
     }
 
     // 2) Insert de la souscription propre.
-    // NB : la colonne `client_account_id` n'existe pas sur ce backend ; on
-    // stocke l'identifiant du compte client dans `user_id` (legacy schema).
     const insertPayload: any = {
       audience: data.audience,
       endpoint,
       fcm_token: data.fcm_token,
-      reservation_id: data.reservation_id ?? null,
-      user_id: clientAccountId,
       user_agent: ua,
       last_seen_at: nowIso,
     };
