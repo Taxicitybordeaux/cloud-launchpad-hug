@@ -606,7 +606,7 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
       .select(
         "id,depart,destination,pickup_datetime,status,prix_estime,distance_km,client_name,client_phone,client_email,suivi_id",
       )
-      .in("status", ["pending", "accepted"])
+      .in("status", ["pending", "accepted", "en_route", "arrived"])
       .order("pickup_datetime", { ascending: true });
     const list: Resa[] = data ?? [];
     setCourses(list);
@@ -633,7 +633,7 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
     );
 
   const nouvelles = courses.filter((r) => r.status === "pending");
-  const encours = courses.filter((r) => r.status === "accepted");
+  const encours = courses.filter((r) => r.status === "accepted" || r.status === "en_route" || r.status === "arrived");
 
   if (courses.length === 0)
     return (
