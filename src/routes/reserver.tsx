@@ -2444,7 +2444,7 @@ function ReservationPage() {
                   // ── SUBSCRIBE ──
                   const loadingId = toast.loading("🔔 Activation en cours...");
                   try {
-                    const ok = await subscribePush("client", f.phone);
+                    const ok = await subscribePush("client");
                     toast.dismiss(loadingId);
                     if (ok) {
                       setIsSubscribedToNotifs(true);
