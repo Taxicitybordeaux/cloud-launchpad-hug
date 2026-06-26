@@ -200,15 +200,15 @@ function ClientDashboard() {
               }}
             >
               <p style={{ color: "rgba(255,255,255,0.72)", fontSize: 14, lineHeight: 1.75, margin: "0 0 10px" }}>
-                Bienvenue dans votre espace personnel <strong style={{ color: "#E8C96D" }}>Taxi City Bordeaux</strong>.
-                Ici, tout est centralisé pour simplifier vos déplacements.
+                {t("client.dashboard.welcome_intro")} <strong style={{ color: "#E8C96D" }}>Taxi City Bordeaux</strong>.
+                {" "}{t("client.dashboard.welcome_centralized")}
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 14 }}>
                 {[
-                  { icon: "🚕", title: "Mes trajets", desc: "Suivez vos courses actives en temps réel" },
-                  { icon: "📋", title: "Historique", desc: "Retrouvez et re-réservez vos anciens trajets" },
-                  { icon: "💬", title: "Contacter José", desc: "Envoyez un message directement au chauffeur" },
-                  { icon: "👤", title: "Mon profil", desc: "Gérez vos informations personnelles" },
+                  { icon: "🚕", title: t("client.trajets.title"), desc: t("client.dashboard.feat.trips_desc") },
+                  { icon: "📋", title: t("client.dashboard.feat.history_title"), desc: t("client.dashboard.feat.history_desc") },
+                  { icon: "💬", title: t("client.dashboard.feat.chat_title"), desc: t("client.dashboard.feat.chat_desc") },
+                  { icon: "👤", title: t("client.profil.title"), desc: t("client.dashboard.feat.profile_desc") },
                 ].map((item) => (
                   <div key={item.title} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
                     <span style={{ fontSize: 16, lineHeight: 1, marginTop: 1 }}>{item.icon}</span>

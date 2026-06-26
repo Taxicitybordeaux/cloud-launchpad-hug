@@ -28,6 +28,7 @@ function monthLabel(year: number, month: number) {
 
 function ClientFactures() {
   const navigate = useNavigate();
+  const t = useT();
   const [session, setSession] = useState<ClientSession | null>(null);
   const [company, setCompany] = useState<CompanyInfo | null>(null);
   const [year, setYear] = useState(new Date().getFullYear());
@@ -150,15 +151,15 @@ function ClientFactures() {
         </div>
 
         <div className="mb-6">
-          <p className="text-xs uppercase tracking-[0.2em] text-[#E8C96D]">Espace client</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-[#E8C96D]">{t("client.eyebrow")}</p>
           <h1
             className="mt-1 flex items-center gap-2 text-2xl font-bold text-white sm:text-3xl"
             style={{ fontFamily: "'Syne', 'Playfair Display', serif" }}
           >
-            <FileText className="h-6 w-6 text-[#E8C96D]" /> Mes factures
+            <FileText className="h-6 w-6 text-[#E8C96D]" /> {t("client.factures.title")}
           </h1>
           <p className="mt-1 text-sm text-white/60">
-            Documents fiscaux pour notes de frais — TVA 10 % incluse
+            {t("client.factures.subtitle")}
           </p>
         </div>
 
@@ -167,12 +168,12 @@ function ClientFactures() {
             <div className="flex items-start gap-3">
               <Briefcase className="mt-0.5 h-4 w-4 shrink-0 text-[#E8C96D]" />
               <div className="flex-1 text-sm text-white/80">
-                Ajoutez vos informations d'entreprise (raison sociale, SIRET, TVA) pour les faire apparaître sur vos factures.
+                {t("client.factures.company_prompt")}
                 <Link
                   to="/client/profil"
                   className="ml-2 font-semibold text-[#E8C96D] underline-offset-2 hover:underline"
                 >
-                  Compléter mon profil
+                  {t("client.factures.complete_profile")}
                 </Link>
               </div>
             </div>
@@ -181,11 +182,11 @@ function ClientFactures() {
 
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-12 text-white/60">
-            <BrandLoader size={20} /> Chargement…
+            <BrandLoader size={20} /> {t("client.trajets.loading")}
           </div>
         ) : (rows ?? []).length === 0 ? (
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center text-sm text-white/60">
-            Aucune course terminée en {year}.
+            {t("client.factures.empty_year")} {year}.
           </div>
         ) : (
           <>
@@ -196,13 +197,13 @@ function ClientFactures() {
             >
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-[#E8C96D]">Année {year}</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-[#E8C96D]">{t("client.factures.year_label")} {year}</p>
                   <p
                     className="mt-1 text-2xl font-bold text-white"
                     style={{ fontFamily: "'Syne', serif" }}
                   >
                     {totalYear.toFixed(2)} €{" "}
-                    <span className="text-sm font-normal text-white/60">/ {(rows ?? []).length} courses</span>
+                    <span className="text-sm font-normal text-white/60">/ {(rows ?? []).length} {t("client.factures.courses")}</span>
                   </p>
                 </div>
                 <button
@@ -211,13 +212,13 @@ function ClientFactures() {
                   className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-black disabled:opacity-60"
                   style={{ background: "linear-gradient(135deg, #C9A84C 0%, #E8C96D 100%)" }}
                 >
-                  <Download className="h-4 w-4" /> Récap annuel PDF
+                  <Download className="h-4 w-4" /> {t("client.factures.year_pdf")}
                 </button>
               </div>
             </div>
 
             {/* Par mois */}
-            <p className="mb-3 text-xs uppercase tracking-[0.2em] text-white/50">Par mois</p>
+            <p className="mb-3 text-xs uppercase tracking-[0.2em] text-white/50">{t("client.factures.by_month")}</p>
             <div className="space-y-2.5">
               {Array.from(byMonth.entries())
                 .sort(([a], [b]) => b - a)
