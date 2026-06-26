@@ -2430,11 +2430,11 @@ function ReservationPage() {
                   const loadingId = toast.loading("Désactivation en cours...");
                   try {
                     // Supprimer la subscription de cet utilisateur pour "client"
-                    const { error } = await supabase
-                      .from("user_push_subscriptions")
+                    const { error } = await (supabase as any)
+                      .from("push_subscriptions")
                       .delete()
                       .eq("audience", "client")
-                      .eq("client_account_id", clientAccountId)
+                      .eq("user_id", clientAccountId)
                       .limit(1);
 
                     toast.dismiss(loadingId);
