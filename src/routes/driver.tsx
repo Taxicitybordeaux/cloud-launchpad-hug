@@ -2082,6 +2082,13 @@ function ChatTab() {
   const [threads, setThreads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<any | null>(null);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" ? window.innerWidth < 768 : true);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const loadThreads = useCallback(async () => {
     try {
@@ -2151,86 +2158,105 @@ function ChatTab() {
                   fg: "#1d4ed8",
                 }
               : { label: "💬 Direct", bg: "#f5f3ff", fg: "#6d28d9" };
-          return (
-            <SwipeableThread
-              key={t.thread_key}
-              onDelete={async () => {
-                if (!confirm(`Supprimer la conversation avec ${t.client_name ?? "ce client"} ?`)) return;
-                try {
-                  const { deleteMergedThread } = await import("@/lib/chat.functions");
-                  await deleteMergedThread({
-                    data: {
-                      client_account_id: t.client_account_id ?? undefined,
-                      reservation_ids: t.reservation_ids ?? [],
-                    },
-                  });
-                  setThreads((prev) => prev.filter((x) => x.thread_key !== t.thread_key));
-                  toast.success("Conversation supprimée");
-                } catch (e: any) {
-                  toast.error("Suppression impossible : " + (e?.message ?? e));
-                }
-              }}
+
+          const handleDelete = async () => {
+            if (!confirm(`Supprimer la conversation avec ${t.client_name ?? "ce client"} ?`)) return;
+            try {
+              const { deleteMergedThread } = await import("@/lib/chat.functions");
+              await deleteMergedThread({
+                data: {
+                  client_account_id: t.client_account_id ?? undefined,
+                  reservation_ids: t.reservation_ids ?? [],
+                },
+              });
+              setThreads((prev) => prev.filter((x) => x.thread_key !== t.thread_key));
+              toast.success("Conversation supprimée");
+            } catch (e: any) {
+              toast.error("Suppression impossible : " + (e?.message ?? e));
+            }
+          };
+
+          const card = (
+            <div
+              className={`drv-card${t.unread_chauffeur > 0 ? " new" : ""}`}
+              style={{ cursor: "pointer", marginBottom: 0, flex: 1 }}
+              onClick={() => setActive(t)}
             >
-              <div
-                className={`drv-card${t.unread_chauffeur > 0 ? " new" : ""}`}
-                style={{ cursor: "pointer", marginBottom: 0 }}
-                onClick={() => setActive(t)}
-              >
-                <div className="drv-row">
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
-                    <div className="drv-chat-avatar">{(t.client_name ?? "C").charAt(0).toUpperCase()}</div>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div
-                        className="drv-name"
-                        style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}
-                      >
-                        <span>{t.client_name ?? "Client"}</span>
-                        <span
-                          style={{
-                            background: sourceBadge.bg,
-                            color: sourceBadge.fg,
-                            fontSize: 9,
-                            fontWeight: 700,
-                            padding: "1px 6px",
-                            borderRadius: 99,
-                            letterSpacing: 0.3,
-                          }}
-                        >
-                          {sourceBadge.label}
-                        </span>
-                      </div>
-                      <div
-                        className="drv-sub"
-                        style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                      >
-                        {t.last_message_content}
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}
-                  >
-                    <span style={{ fontSize: 10, color: "#94a3b8" }}>
-                      {new Date(t.last_message_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                    </span>
-                    {t.unread_chauffeur > 0 && (
+              <div className="drv-row">
+                <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
+                  <div className="drv-chat-avatar">{(t.client_name ?? "C").charAt(0).toUpperCase()}</div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div
+                      className="drv-name"
+                      style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}
+                    >
+                      <span>{t.client_name ?? "Client"}</span>
                       <span
                         style={{
-                          background: "#3b82f6",
-                          color: "#fff",
-                          borderRadius: 99,
-                          fontSize: 10,
+                          background: sourceBadge.bg,
+                          color: sourceBadge.fg,
+                          fontSize: 9,
                           fontWeight: 700,
-                          padding: "2px 7px",
+                          padding: "1px 6px",
+                          borderRadius: 99,
+                          letterSpacing: 0.3,
                         }}
                       >
-                        {t.unread_chauffeur}
+                        {sourceBadge.label}
                       </span>
-                    )}
+                    </div>
+                    <div
+                      className="drv-sub"
+                      style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                    >
+                      {t.last_message_content}
+                    </div>
                   </div>
                 </div>
+                <div
+                  style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}
+                >
+                  <span style={{ fontSize: 10, color: "#94a3b8" }}>
+                    {new Date(t.last_message_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                  {t.unread_chauffeur > 0 && (
+                    <span
+                      style={{
+                        background: "#3b82f6",
+                        color: "#fff",
+                        borderRadius: 99,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        padding: "2px 7px",
+                      }}
+                    >
+                      {t.unread_chauffeur}
+                    </span>
+                  )}
+                </div>
               </div>
+            </div>
+          );
+
+          return isMobile ? (
+            <SwipeableThread key={t.thread_key} onDelete={handleDelete}>
+              {card}
             </SwipeableThread>
+          ) : (
+            <div key={t.thread_key} style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
+              {card}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDelete();
+                }}
+                className="drv-btn-danger"
+                style={{ flex: "none", minHeight: 46, whiteSpace: "nowrap" }}
+              >
+                🗑 Suppr.
+              </button>
+            </div>
           );
         })
       )}
@@ -2317,15 +2343,6 @@ function SwipeableThread({ children, onDelete }: { children: React.ReactNode; on
         onTouchStart={(e) => onStart(e.touches[0].clientX, e.touches[0].clientY)}
         onTouchMove={(e) => onMove(e.touches[0].clientX, e.touches[0].clientY)}
         onTouchEnd={onEnd}
-        onPointerDown={(e) => {
-          if (e.pointerType === "mouse") onStart(e.clientX, e.clientY);
-        }}
-        onPointerMove={(e) => {
-          if (e.pointerType === "mouse" && startX.current != null) onMove(e.clientX, e.clientY);
-        }}
-        onPointerUp={(e) => {
-          if (e.pointerType === "mouse") onEnd();
-        }}
         onClickCapture={(e) => {
           // si la carte est ouverte en mode "suppr", un clic referme au lieu d'ouvrir la conv
           if (dx < -10) {
