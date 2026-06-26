@@ -471,9 +471,14 @@ function Home() {
         </div>
 
         <div className="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 sm:p-5">
-          <p className="text-sm text-amber-200">
-            <span dangerouslySetInnerHTML={{ __html: t("home.install.push_warning") }} />
-          </p>
+          <div className="flex items-start gap-3">
+            <span className="text-xl">🔔</span>
+            <div className="text-sm text-amber-200">
+              <p className="font-semibold">{t("home.install.push_title")}</p>
+              <p className="mt-1" dangerouslySetInnerHTML={{ __html: t("home.install.push_how") }} />
+              <p className="mt-1" dangerouslySetInnerHTML={{ __html: t("home.install.push_why") }} />
+            </div>
+          </div>
         </div>
 
         <div className="mt-8 grid gap-8 md:grid-cols-2">
