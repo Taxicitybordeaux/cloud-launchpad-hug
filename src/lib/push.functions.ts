@@ -20,52 +20,49 @@ export const subscribePush = createServerFn({ method: "POST" })
     const supabaseAdmin = getTaxiSupabaseAdmin();
     const ua = data.user_agent ?? null;
 
-    // 1) Upsert la souscription courante — endpoint unique par token+audience
-    // Format: "token-chauffeur" ou "token-client" pour éviter les collisions
-    // entre audiences et rester compatible avec les anciens tokens "fcm://token-chauffeur"
+    // Endpoint stable par token+audience.
+    // Format: "<token>-<audience>" — évite les collisions entre audiences
+    // (un même device peut être à la fois chauffeur et client en dev/test).
     const endpoint = `${data.fcm_token}-${data.audience}`;
-    const { error: upErr } = await supabaseAdmin.from("push_subscriptions").upsert(
-      {
-        audience: data.audience,
-        endpoint,
-        fcm_token: data.fcm_token,
-        reservation_id: data.reservation_id ?? null,
-        user_agent: ua,
-        last_seen_at: new Date().toISOString(),
-      },
-      { onConflict: "endpoint" },
-    );
-    if (upErr) {
-      console.error("[push] subscribe failed", upErr);
-      throw new Error("subscribe_failed");
+    const nowIso = new Date().toISOString();
+
+    // ── Stratégie delete-then-insert (plus robuste que upsert/onConflict,
+    //    qui échoue avec 42P10 quand PostgREST n'a pas rechargé le schéma).
+    // 1) Purge toute ligne préexistante pour ce même endpoint OU même
+    //    fcm_token+audience (ancien format sans suffixe) OU ancien token
+    //    du même device (user_agent identique → token rotaté).
+    try {
+      // Supprime par endpoint exact (nouveau format) ET par fcm_token+audience (ancien format)
+      await supabaseAdmin
+        .from("push_subscriptions")
+        .delete()
+        .or(`endpoint.eq.${endpoint},and(audience.eq.${data.audience},fcm_token.eq.${data.fcm_token})`);
+
+      // Purge des tokens rotatés sur le même device (même UA + audience, token différent)
+      if (ua) {
+        await supabaseAdmin
+          .from("push_subscriptions")
+          .delete()
+          .eq("audience", data.audience)
+          .eq("user_agent", ua)
+          .neq("fcm_token", data.fcm_token);
+      }
+    } catch (e) {
+      console.warn("[push] pre-insert cleanup non-fatal error", e);
     }
 
-    // 2) Purge des anciens tokens du même device (même user_agent + audience).
-    // iOS Safari/PWA régénère parfois le fcm_token à chaque session ou install,
-    // ce qui laissait s'accumuler plusieurs lignes pour le même device →
-    // notifications dupliquées (×8 observé sur iPhone).
-    // IMPORTANT : on ne purge que les tokens dont les 8 derniers chars diffèrent
-    // du token actuel — évite de supprimer un autre appareil avec le même user_agent
-    // (ex: 2 iPhone 15 Safari du même modèle).
-    if (ua) {
-      // Récupère tous les tokens du même UA + audience (sauf le token actuel)
-      const { data: stale, error: fetchErr } = await supabaseAdmin
-        .from("push_subscriptions")
-        .select("id, fcm_token")
-        .eq("audience", data.audience)
-        .eq("user_agent", ua)
-        .neq("fcm_token", data.fcm_token);
-
-      if (!fetchErr && stale && stale.length > 0) {
-        // Ne purge que les tokens qui partagent les mêmes 8 derniers chars
-        // (variantes du même token régénéré sur le même device)
-        const currentSuffix = data.fcm_token.slice(-8);
-        const toDelete = stale.filter((r) => r.fcm_token && r.fcm_token.slice(-8) === currentSuffix).map((r) => r.id);
-        if (toDelete.length > 0) {
-          const { error: delErr } = await supabaseAdmin.from("push_subscriptions").delete().in("id", toDelete);
-          if (delErr) console.warn("[push] dedupe stale tokens failed", delErr);
-        }
-      }
+    // 2) Insert de la souscription propre
+    const { error: insErr } = await supabaseAdmin.from("push_subscriptions").insert({
+      audience: data.audience,
+      endpoint,
+      fcm_token: data.fcm_token,
+      reservation_id: data.reservation_id ?? null,
+      user_agent: ua,
+      last_seen_at: nowIso,
+    });
+    if (insErr) {
+      console.error("[push] subscribe insert failed", insErr);
+      throw new Error("subscribe_failed");
     }
 
     return { ok: true };
