@@ -142,6 +142,7 @@ type Reservation = {
   mode_paiement?: string | null;
   driver_name?: string | null;
   driver_phone?: string | null;
+  client_account_id?: string | null;
 };
 
 // ─── Status Config ─────────────────────────────────────────────────────────────────
@@ -1756,7 +1757,7 @@ function SuiviPage() {
               </span>
               <button
                 onClick={async () => {
-                  const ok = await pushSubscribe("client", reservation.id);
+                  const ok = await pushSubscribe("client", reservation.id, reservation.client_account_id ?? null);
                   if (ok) {
                     try {
                       localStorage.setItem(`push_client_${reservation.id}`, "1");
