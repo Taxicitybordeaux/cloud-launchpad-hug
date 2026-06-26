@@ -631,7 +631,7 @@ function ReservationPage() {
   const [clientAccountId, setClientAccountId] = useState<string | null>(null);
   const { status: hookStatus, subscribe: subscribePush } = usePushNotifications();
   // Force à "idle" pour client — on ne veut pas d'auto-subscription
-  const pushStatus = "idle";
+  const pushStatus: string = "idle";
 
   const [fromCoord, setFromCoord] = useState<[number, number] | null>(null);
   const [toCoord, setToCoord] = useState<[number, number] | null>(null);
@@ -2430,11 +2430,11 @@ function ReservationPage() {
                   const loadingId = toast.loading("Désactivation en cours...");
                   try {
                     // Supprimer la subscription de cet utilisateur pour "client"
-                    const { error } = await supabase
-                      .from("user_push_subscriptions")
+                    const { error } = await (supabase as any)
+                      .from("push_subscriptions")
                       .delete()
                       .eq("audience", "client")
-                      .eq("client_account_id", clientAccountId)
+                      .eq("user_id", clientAccountId)
                       .limit(1);
 
                     toast.dismiss(loadingId);
@@ -2455,11 +2455,11 @@ function ReservationPage() {
                     const ok = await subscribePush("client");
                     if (ok && clientAccountId) {
                       // Mettre à jour la subscription avec le client_account_id
-                      const { error: updateError } = await supabase
-                        .from("user_push_subscriptions")
-                        .update({ client_account_id: clientAccountId })
+                      const { error: updateError } = await (supabase as any)
+                        .from("push_subscriptions")
+                        .update({ user_id: clientAccountId })
                         .eq("audience", "client")
-                        .is("client_account_id", null)
+                        .is("user_id", null)
                         .limit(1);
 
                       if (updateError) console.warn("[notif] update client_account_id failed", updateError);
@@ -2473,7 +2473,7 @@ function ReservationPage() {
                     }
                   } catch (err) {
                     toast.dismiss(loadingId);
-                    toast.error("❌ " + (err?.message || "Erreur réseau"));
+                    toast.error("❌ " + ((err as Error)?.message || "Erreur réseau"));
                   }
                 }
               }}
