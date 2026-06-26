@@ -26,6 +26,7 @@ import bestDunePilat from "@/assets/best-dune-pilat.jpg";
 import bestSaintEmilion from "@/assets/best-saint-emilion.jpg";
 import bestMiroirEau from "@/assets/best-miroir-eau.jpg";
 import { useT } from "@/i18n/I18nProvider";
+import installIosGuide from "@/assets/install-ios-guide.jpg";
 import { ReviewForm } from "@/components/ReviewForm";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -470,9 +471,14 @@ function Home() {
         </div>
 
         <div className="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 sm:p-5">
-          <p className="text-sm text-amber-200">
-            <span dangerouslySetInnerHTML={{ __html: t("home.install.push_warning") }} />
-          </p>
+          <div className="flex items-start gap-3">
+            <span className="text-xl">🔔</span>
+            <div className="text-sm text-amber-200">
+              <p className="font-semibold">{t("home.install.push_title")}</p>
+              <p className="mt-1" dangerouslySetInnerHTML={{ __html: t("home.install.push_how") }} />
+              <p className="mt-1" dangerouslySetInnerHTML={{ __html: t("home.install.push_why") }} />
+            </div>
+          </div>
         </div>
 
         <div className="mt-8 grid gap-8 md:grid-cols-2">
@@ -484,6 +490,15 @@ function Home() {
               </div>
               <h3 className="font-display text-xl font-semibold">{t("home.install.ios.title")}</h3>
             </div>
+
+            <img
+              src={installIosGuide}
+              alt={t("home.install.ios.img_alt")}
+              className="mb-4 w-full rounded-xl border border-border"
+              loading="lazy"
+              width={1024}
+              height={512}
+            />
 
             <ol className="space-y-3 text-sm">
               <li className="flex gap-3">
