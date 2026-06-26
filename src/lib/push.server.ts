@@ -145,6 +145,7 @@ async function sendFcmToToken(
   // passent vraiment — un ID stable ferait ignorer les retries par FCM
   // si la 1ère tentative a été reçue côté FCM mais le réseau a timeout.
   const baseIdem = `${payload.tag || "taxi-fcm"}:${token.slice(-12)}:${Date.now()}`;
+  const isIosPwa = /\b(iPhone|iPad|iPod)\b/i.test(token) ? false : false;
   const body = {
     message: {
       token,
@@ -157,6 +158,7 @@ async function sendFcmToToken(
       },
       webpush: {
         headers: { Urgency: "high", TTL: "86400" },
+        fcm_options: { link: clickUrl },
         // data dans webpush : accessible dans payload.data côté SW Firebase SDK
         data,
         notification: {
