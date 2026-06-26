@@ -459,6 +459,136 @@ function Home() {
       {/* TESTIMONIALS */}
       <Testimonials />
 
+      {/* INSTALL APP */}
+      <section className="mx-auto max-w-4xl px-4 py-12 sm:py-16 md:py-20">
+        <div className="text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">Installation</p>
+          <h2 className="mt-3 font-display text-3xl font-bold sm:text-4xl md:text-5xl">Installez l'appli mobile</h2>
+          <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground sm:mt-4 sm:text-base">
+            Réservez votre taxi en un instant, même sans connexion. Recevez les notifications de suivi en temps réel.
+          </p>
+        </div>
+
+        <div className="mt-12 grid gap-8 md:grid-cols-2">
+          {/* iPhone / iOS */}
+          <div className="rounded-2xl border border-border bg-card/50 p-6 sm:p-8">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                <span className="text-lg">🍎</span>
+              </div>
+              <h3 className="font-display text-xl font-semibold">iPhone / iOS</h3>
+            </div>
+
+            <ol className="space-y-3 text-sm">
+              <li className="flex gap-3">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
+                  1
+                </span>
+                <span>
+                  Ouvrez <strong>Safari</strong> et allez sur <strong>taxicitybordeaux.fr</strong>
+                </span>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
+                  2
+                </span>
+                <span>
+                  Tapez le bouton <strong>Partager</strong> (carré avec flèche)
+                </span>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
+                  3
+                </span>
+                <span>
+                  Sélectionnez <strong>Sur l'écran d'accueil</strong>
+                </span>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
+                  4
+                </span>
+                <span>
+                  Tapez <strong>Ajouter</strong> — l'appli apparaît sur votre écran d'accueil
+                </span>
+              </li>
+            </ol>
+
+            <p className="mt-5 text-xs text-muted-foreground border-t border-border pt-4">
+              💡 <strong>Astuce :</strong> Activez les notifications dans les paramètres iOS (Paramètres → Taxi City
+              Bordeaux → Notifications).
+            </p>
+          </div>
+
+          {/* Android */}
+          <div className="rounded-2xl border border-border bg-card/50 p-6 sm:p-8">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                <span className="text-lg">🤖</span>
+              </div>
+              <h3 className="font-display text-xl font-semibold">Android</h3>
+            </div>
+
+            <ol className="space-y-3 text-sm">
+              <li className="flex gap-3">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
+                  1
+                </span>
+                <span>
+                  Ouvrez <strong>Chrome</strong> ou votre navigateur et allez sur <strong>taxicitybordeaux.fr</strong>
+                </span>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
+                  2
+                </span>
+                <span>
+                  Attendez que <strong>"Installer"</strong> s'affiche en bas (peut prendre quelques secondes)
+                </span>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
+                  3
+                </span>
+                <span>
+                  Tapez <strong>Installer</strong>
+                </span>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
+                  4
+                </span>
+                <span>L'appli s'installe automatiquement sur votre écran d'accueil</span>
+              </li>
+            </ol>
+
+            <p className="mt-5 text-xs text-muted-foreground border-t border-border pt-4">
+              💡 <strong>Astuce :</strong> Acceptez les notifications quand Chrome le demande pour recevoir les alertes
+              de suivi.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-8 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
+          <p className="text-sm">
+            <strong>✨ Besoin d'aide ?</strong> Appelez-nous au{" "}
+            <a href="tel:+33673072322" className="font-semibold text-primary hover:underline">
+              06 73 07 23 22
+            </a>{" "}
+            ou écrivez-nous sur{" "}
+            <a
+              href={WHATSAPP}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-primary hover:underline"
+            >
+              WhatsApp
+            </a>
+            .
+          </p>
+        </div>
+      </section>
+
       {/* FAQ */}
       <section id="faq" className="scroll-mt-24 border-t border-border">
         <div className="mx-auto max-w-4xl px-4 py-12 sm:py-16 md:py-20">
