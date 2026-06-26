@@ -2324,15 +2324,6 @@ function SwipeableThread({ children, onDelete }: { children: React.ReactNode; on
         onTouchStart={(e) => onStart(e.touches[0].clientX, e.touches[0].clientY)}
         onTouchMove={(e) => onMove(e.touches[0].clientX, e.touches[0].clientY)}
         onTouchEnd={onEnd}
-        onPointerDown={(e) => {
-          if (e.pointerType === "mouse") onStart(e.clientX, e.clientY);
-        }}
-        onPointerMove={(e) => {
-          if (e.pointerType === "mouse" && startX.current != null) onMove(e.clientX, e.clientY);
-        }}
-        onPointerUp={(e) => {
-          if (e.pointerType === "mouse") onEnd();
-        }}
         onClickCapture={(e) => {
           // si la carte est ouverte en mode "suppr", un clic referme au lieu d'ouvrir la conv
           if (dx < -10) {
