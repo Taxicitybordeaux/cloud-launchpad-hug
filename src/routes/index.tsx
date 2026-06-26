@@ -462,61 +462,50 @@ function Home() {
       {/* INSTALL APP */}
       <section className="mx-auto max-w-4xl px-4 py-12 sm:py-16 md:py-20">
         <div className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">Installation</p>
-          <h2 className="mt-3 font-display text-3xl font-bold sm:text-4xl md:text-5xl">Installez l'appli mobile</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">{t("home.install.eyebrow")}</p>
+          <h2 className="mt-3 font-display text-3xl font-bold sm:text-4xl md:text-5xl">{t("home.install.title")}</h2>
           <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground sm:mt-4 sm:text-base">
-            Réservez votre taxi en un instant, même sans connexion. Recevez les notifications de suivi en temps réel.
+            {t("home.install.desc")}
           </p>
         </div>
 
-        <div className="mt-12 grid gap-8 md:grid-cols-2">
+        <div className="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 sm:p-5">
+          <p className="text-sm text-amber-200">
+            <span dangerouslySetInnerHTML={{ __html: t("home.install.push_warning") }} />
+          </p>
+        </div>
+
+        <div className="mt-8 grid gap-8 md:grid-cols-2">
           {/* iPhone / iOS */}
           <div className="rounded-2xl border border-border bg-card/50 p-6 sm:p-8">
             <div className="flex items-center gap-3 mb-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
                 <span className="text-lg">🍎</span>
               </div>
-              <h3 className="font-display text-xl font-semibold">iPhone / iOS</h3>
+              <h3 className="font-display text-xl font-semibold">{t("home.install.ios.title")}</h3>
             </div>
 
             <ol className="space-y-3 text-sm">
               <li className="flex gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
-                  1
-                </span>
-                <span>
-                  Ouvrez <strong>Safari</strong> et allez sur <strong>taxicitybordeaux.fr</strong>
-                </span>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">1</span>
+                <span dangerouslySetInnerHTML={{ __html: t("home.install.ios.step1") }} />
               </li>
               <li className="flex gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
-                  2
-                </span>
-                <span>
-                  Tapez le bouton <strong>Partager</strong> (carré avec flèche)
-                </span>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">2</span>
+                <span dangerouslySetInnerHTML={{ __html: t("home.install.ios.step2") }} />
               </li>
               <li className="flex gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
-                  3
-                </span>
-                <span>
-                  Sélectionnez <strong>Sur l'écran d'accueil</strong>
-                </span>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">3</span>
+                <span dangerouslySetInnerHTML={{ __html: t("home.install.ios.step3") }} />
               </li>
               <li className="flex gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
-                  4
-                </span>
-                <span>
-                  Tapez <strong>Ajouter</strong> — l'appli apparaît sur votre écran d'accueil
-                </span>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">4</span>
+                <span dangerouslySetInnerHTML={{ __html: t("home.install.ios.step4") }} />
               </li>
             </ol>
 
             <p className="mt-5 text-xs text-muted-foreground border-t border-border pt-4">
-              💡 <strong>Astuce :</strong> Activez les notifications dans les paramètres iOS (Paramètres → Taxi City
-              Bordeaux → Notifications).
+              <span dangerouslySetInnerHTML={{ __html: t("home.install.ios.tip") }} />
             </p>
           </div>
 
@@ -526,45 +515,30 @@ function Home() {
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
                 <span className="text-lg">🤖</span>
               </div>
-              <h3 className="font-display text-xl font-semibold">Android</h3>
+              <h3 className="font-display text-xl font-semibold">{t("home.install.android.title")}</h3>
             </div>
 
             <ol className="space-y-3 text-sm">
               <li className="flex gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
-                  1
-                </span>
-                <span>
-                  Ouvrez <strong>Chrome</strong> ou votre navigateur et allez sur <strong>taxicitybordeaux.fr</strong>
-                </span>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">1</span>
+                <span dangerouslySetInnerHTML={{ __html: t("home.install.android.step1") }} />
               </li>
               <li className="flex gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
-                  2
-                </span>
-                <span>
-                  Attendez que <strong>"Installer"</strong> s'affiche en bas (peut prendre quelques secondes)
-                </span>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">2</span>
+                <span dangerouslySetInnerHTML={{ __html: t("home.install.android.step2") }} />
               </li>
               <li className="flex gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
-                  3
-                </span>
-                <span>
-                  Tapez <strong>Installer</strong>
-                </span>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">3</span>
+                <span dangerouslySetInnerHTML={{ __html: t("home.install.android.step3") }} />
               </li>
               <li className="flex gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
-                  4
-                </span>
-                <span>L'appli s'installe automatiquement sur votre écran d'accueil</span>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">4</span>
+                <span dangerouslySetInnerHTML={{ __html: t("home.install.android.step4") }} />
               </li>
             </ol>
 
             <p className="mt-5 text-xs text-muted-foreground border-t border-border pt-4">
-              💡 <strong>Astuce :</strong> Acceptez les notifications quand Chrome le demande pour recevoir les alertes
-              de suivi.
+              <span dangerouslySetInnerHTML={{ __html: t("home.install.android.tip") }} />
             </p>
           </div>
         </div>

@@ -1030,6 +1030,23 @@ const fr: Dict = {
   "chat.results": "résultat(s)",
   "chat.of": "sur",
   "chat.loaded": "chargé(s)",
+
+  "home.install.eyebrow": "Installation",
+  "home.install.title": "Installez l'appli mobile",
+  "home.install.desc": "Réservez votre taxi en un instant, même sans connexion. Recevez les notifications de suivi en temps réel.",
+  "home.install.push_warning": "⚠️ <strong>Notifications push :</strong> les alertes de suivi de course (chauffeur en route, arrivé, terminé) ne fonctionnent que si l'application est installée sur votre téléphone. Sans installation, vous ne recevrez pas les alertes en temps réel.",
+  "home.install.ios.title": "iPhone / iOS",
+  "home.install.ios.step1": "Ouvrez <strong>Safari</strong> et allez sur <strong>taxicitybordeaux.fr</strong>",
+  "home.install.ios.step2": "Tapez le bouton <strong>Partager</strong> (carré avec flèche)",
+  "home.install.ios.step3": "Sélectionnez <strong>Sur l'écran d'accueil</strong>",
+  "home.install.ios.step4": "Tapez <strong>Ajouter</strong> — l'appli apparaît sur votre écran d'accueil",
+  "home.install.ios.tip": "💡 <strong>Astuce :</strong> Activez les notifications dans les paramètres iOS (Paramètres → Taxi City Bordeaux → Notifications).",
+  "home.install.android.title": "Android",
+  "home.install.android.step1": "Ouvrez <strong>Chrome</strong> et allez sur <strong>taxicitybordeaux.fr</strong>",
+  "home.install.android.step2": "Tapez le menu <strong>⋮</strong> (trois points) en haut à droite",
+  "home.install.android.step3": "Sélectionnez <strong>Ajouter à l'écran d'accueil</strong>",
+  "home.install.android.step4": "Tapez <strong>Ajouter</strong> — l'icône apparaît sur votre écran d'accueil",
+  "home.install.android.tip": "💡 <strong>Astuce :</strong> Acceptez les notifications quand Chrome le demande pour recevoir les alertes de suivi.",
 };
 
 const en: Dict = {
@@ -2011,6 +2028,23 @@ const en: Dict = {
   "chat.results": "result(s)",
   "chat.of": "of",
   "chat.loaded": "loaded",
+
+  "home.install.eyebrow": "Installation",
+  "home.install.title": "Install the mobile app",
+  "home.install.desc": "Book your taxi in an instant, even offline. Receive real-time tracking notifications.",
+  "home.install.push_warning": "⚠️ <strong>Push notifications:</strong> ride tracking alerts (driver on the way, arrived, completed) only work if the app is installed on your phone. Without installation, you will not receive real-time alerts.",
+  "home.install.ios.title": "iPhone / iOS",
+  "home.install.ios.step1": "Open <strong>Safari</strong> and go to <strong>taxicitybordeaux.fr</strong>",
+  "home.install.ios.step2": "Tap the <strong>Share</strong> button (square with arrow)",
+  "home.install.ios.step3": "Select <strong>Add to Home Screen</strong>",
+  "home.install.ios.step4": "Tap <strong>Add</strong> — the app appears on your home screen",
+  "home.install.ios.tip": "💡 <strong>Tip:</strong> Enable notifications in iOS settings (Settings → Taxi City Bordeaux → Notifications).",
+  "home.install.android.title": "Android",
+  "home.install.android.step1": "Open <strong>Chrome</strong> and go to <strong>taxicitybordeaux.fr</strong>",
+  "home.install.android.step2": "Tap the <strong>⋮</strong> menu (three dots) at the top right",
+  "home.install.android.step3": "Select <strong>Add to Home Screen</strong>",
+  "home.install.android.step4": "Tap <strong>Add</strong> — the icon appears on your home screen",
+  "home.install.android.tip": "💡 <strong>Tip:</strong> Accept notifications when Chrome asks to receive tracking alerts.",
 };
 
 const es: Dict = {
@@ -2997,6 +3031,23 @@ const es: Dict = {
   "chat.results": "resultado(s)",
   "chat.of": "de",
   "chat.loaded": "cargado(s)",
+
+  "home.install.eyebrow": "Instalación",
+  "home.install.title": "Instala la app móvil",
+  "home.install.desc": "Reserva tu taxi en un instante, incluso sin conexión. Recibe notificaciones de seguimiento en tiempo real.",
+  "home.install.push_warning": "⚠️ <strong>Notificaciones push:</strong> las alertas de seguimiento del viaje (conductor en camino, llegado, terminado) solo funcionan si la aplicación está instalada en tu teléfono. Sin instalación, no recibirás alertas en tiempo real.",
+  "home.install.ios.title": "iPhone / iOS",
+  "home.install.ios.step1": "Abre <strong>Safari</strong> y ve a <strong>taxicitybordeaux.fr</strong>",
+  "home.install.ios.step2": "Toca el botón <strong>Compartir</strong> (cuadrado con flecha)",
+  "home.install.ios.step3": "Selecciona <strong>En la pantalla de inicio</strong>",
+  "home.install.ios.step4": "Toca <strong>Añadir</strong> — la app aparece en tu pantalla de inicio",
+  "home.install.ios.tip": "💡 <strong>Consejo:</strong> Activa las notificaciones en los ajustes de iOS (Ajustes → Taxi City Bordeaux → Notificaciones).",
+  "home.install.android.title": "Android",
+  "home.install.android.step1": "Abre <strong>Chrome</strong> y ve a <strong>taxicitybordeaux.fr</strong>",
+  "home.install.android.step2": "Toca el menú <strong>⋮</strong> (tres puntos) arriba a la derecha",
+  "home.install.android.step3": "Selecciona <strong>Añadir a la pantalla de inicio</strong>",
+  "home.install.android.step4": "Toca <strong>Añadir</strong> — el icono aparece en tu pantalla de inicio",
+  "home.install.android.tip": "💡 <strong>Consejo:</strong> Acepta las notificaciones cuando Chrome lo pida para recibir alertas de seguimiento.",
 };
 
 const it: Dict = {
@@ -3985,6 +4036,23 @@ const it: Dict = {
   "chat.results": "risultato(i)",
   "chat.of": "su",
   "chat.loaded": "caricato(i)",
+
+  "home.install.eyebrow": "Installazione",
+  "home.install.title": "Installa l'app mobile",
+  "home.install.desc": "Prenota il tuo taxi in un attimo, anche offline. Ricevi notifiche di tracciamento in tempo reale.",
+  "home.install.push_warning": "⚠️ <strong>Notifiche push:</strong> gli avvisi di tracciamento della corsa (autista in viaggio, arrivato, completata) funzionano solo se l'app è installata sul telefono. Senza installazione, non riceverai avvisi in tempo reale.",
+  "home.install.ios.title": "iPhone / iOS",
+  "home.install.ios.step1": "Apri <strong>Safari</strong> e vai su <strong>taxicitybordeaux.fr</strong>",
+  "home.install.ios.step2": "Tocca il pulsante <strong>Condividi</strong> (quadrato con freccia)",
+  "home.install.ios.step3": "Seleziona <strong>Sulla schermata Home</strong>",
+  "home.install.ios.step4": "Tocca <strong>Aggiungi</strong> — l'app appare sulla schermata Home",
+  "home.install.ios.tip": "💡 <strong>Suggerimento:</strong> Attiva le notifiche nelle impostazioni iOS (Impostazioni → Taxi City Bordeaux → Notifiche).",
+  "home.install.android.title": "Android",
+  "home.install.android.step1": "Apri <strong>Chrome</strong> e vai su <strong>taxicitybordeaux.fr</strong>",
+  "home.install.android.step2": "Tocca il menu <strong>⋮</strong> (tre punti) in alto a destra",
+  "home.install.android.step3": "Seleziona <strong>Aggiungi alla schermata Home</strong>",
+  "home.install.android.step4": "Tocca <strong>Aggiungi</strong> — l'icona appare sulla schermata Home",
+  "home.install.android.tip": "💡 <strong>Suggerimento:</strong> Accetta le notifiche quando Chrome le richiede per ricevere gli avvisi di tracciamento.",
 };
 
 // Dictionnaire arabe — traductions clés ; fallback automatique sur le français pour les clés manquantes.
@@ -4959,6 +5027,23 @@ const ar: Dict = {
   "chat.results": "نتيجة",
   "chat.of": "من",
   "chat.loaded": "محملة",
+
+  "home.install.eyebrow": "التثبيت",
+  "home.install.title": "ثبّت تطبيق الجوال",
+  "home.install.desc": "احجز سيارتك الأجرة في لحظة، حتى بدون اتصال. استلم إشعارات التتبع في الوقت الفعلي.",
+  "home.install.push_warning": "⚠️ <strong>إشعارات الدفع:</strong> تنبيهات تتبع الرحلة (السائق في الطريق، وصل، انتهى) تعمل فقط إذا كان التطبيق مثبتًا على هاتفك. بدون تثبيت، لن تتلقى تنبيهات في الوقت الفعلي.",
+  "home.install.ios.title": "iPhone / iOS",
+  "home.install.ios.step1": "افتح <strong>Safari</strong> وانتقل إلى <strong>taxicitybordeaux.fr</strong>",
+  "home.install.ios.step2": "اضغط على زر <strong>مشاركة</strong> (مربع مع سهم)",
+  "home.install.ios.step3": "اختر <strong>على الشاشة الرئيسية</strong>",
+  "home.install.ios.step4": "اضغط <strong>إضافة</strong> — يظهر التطبيق على الشاشة الرئيسية",
+  "home.install.ios.tip": "💡 <strong>نصيحة:</strong> فعّل الإشعارات في إعدادات iOS (الإعدادات → Taxi City Bordeaux → الإشعارات).",
+  "home.install.android.title": "Android",
+  "home.install.android.step1": "افتح <strong>Chrome</strong> وانتقل إلى <strong>taxicitybordeaux.fr</strong>",
+  "home.install.android.step2": "اضغط على قائمة <strong>⋮</strong> (ثلاث نقاط) أعلى اليمين",
+  "home.install.android.step3": "اختر <strong>إضافة إلى الشاشة الرئيسية</strong>",
+  "home.install.android.step4": "اضغط <strong>إضافة</strong> — يظهر الأيقونة على الشاشة الرئيسية",
+  "home.install.android.tip": "💡 <strong>نصيحة:</strong> اقبل الإشعارات عندما يطلب Chrome ذلك لتلقي تنبيهات التتبع.",
 };
 
 const pt: Dict = {
@@ -5964,6 +6049,23 @@ const pt: Dict = {
   "chat.results": "resultado(s)",
   "chat.of": "de",
   "chat.loaded": "carregado(s)",
+
+  "home.install.eyebrow": "Instalação",
+  "home.install.title": "Instale a aplicação móvel",
+  "home.install.desc": "Reserve o seu táxi num instante, mesmo sem ligação. Receba notificações de acompanhamento em tempo real.",
+  "home.install.push_warning": "⚠️ <strong>Notificações push:</strong> os alertas de acompanhamento da corrida (motorista a caminho, chegado, terminado) só funcionam se a aplicação estiver instalada no telemóvel. Sem instalação, não receberá alertas em tempo real.",
+  "home.install.ios.title": "iPhone / iOS",
+  "home.install.ios.step1": "Abra o <strong>Safari</strong> e vá a <strong>taxicitybordeaux.fr</strong>",
+  "home.install.ios.step2": "Toque no botão <strong>Partilhar</strong> (quadrado com seta)",
+  "home.install.ios.step3": "Selecione <strong>No ecrã inicial</strong>",
+  "home.install.ios.step4": "Toque em <strong>Adicionar</strong> — a app aparece no ecrã inicial",
+  "home.install.ios.tip": "💡 <strong>Dica:</strong> Ative as notificações nas definições do iOS (Definições → Taxi City Bordeaux → Notificações).",
+  "home.install.android.title": "Android",
+  "home.install.android.step1": "Abra o <strong>Chrome</strong> e vá a <strong>taxicitybordeaux.fr</strong>",
+  "home.install.android.step2": "Toque no menu <strong>⋮</strong> (três pontos) no canto superior direito",
+  "home.install.android.step3": "Selecione <strong>Adicionar ao ecrã inicial</strong>",
+  "home.install.android.step4": "Toque em <strong>Adicionar</strong> — o ícone aparece no ecrã inicial",
+  "home.install.android.tip": "💡 <strong>Dica:</strong> Aceite as notificações quando o Chrome pedir para receber os alertas de acompanhamento.",
 };
 
 export const DICTS: Record<Lang, Dict> = { fr, en, es, pt, it, ar };
