@@ -8,15 +8,19 @@ import { useT } from "@/i18n/I18nProvider";
  * Card shown on the client dashboard so VIP clients can opt into push
  * notifications (J-1 reminder + "driver on the way" ETA alerts).
  */
-export function ClientPushOptInCard() {
+type ClientPushOptInCardProps = {
+  clientAccountId?: string | null;
+};
+
+export function ClientPushOptInCard({ clientAccountId }: ClientPushOptInCardProps) {
   const t = useT();
-  const { status, subscribe } = usePushNotifications();
+  const { status, subscribe } = usePushNotifications({ clientAccountId });
   const [busy, setBusy] = useState(false);
 
   async function enable() {
     setBusy(true);
     try {
-      const ok = await subscribe("client");
+      const ok = await subscribe("client", null, clientAccountId ?? null);
       if (ok) toast.success(t("client.push.toast_ok"));
       else toast.error(t("client.push.toast_fail"));
     } finally {
@@ -49,14 +53,16 @@ export function ClientPushOptInCard() {
             <div className="mt-2 text-xs text-white/40">{t("client.push.unsupported")}</div>
           ) : isDenied ? (
             <div className="mt-2 text-xs text-red-300/80">{t("client.push.denied")}</div>
-          ) : isGranted ? (
-            <div
-              className="mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
-              style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}
-            >
-              <BellRing className="h-3 w-3" /> {t("client.push.enabled")}
-            </div>
           ) : (
+            <>
+              {isGranted && (
+                <div
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+                  style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}
+                >
+                  <BellRing className="h-3 w-3" /> {t("client.push.enabled")}
+                </div>
+              )}
             <button
               type="button"
               onClick={enable}
@@ -70,10 +76,11 @@ export function ClientPushOptInCard() {
                 </>
               ) : (
                 <>
-                  <Bell className="h-3.5 w-3.5" /> {t("client.push.enable_btn")}
+                  <Bell className="h-3.5 w-3.5" /> {isGranted ? "Réparer / réinscrire cet appareil" : t("client.push.enable_btn")}
                 </>
               )}
             </button>
+            </>
           )}
         </div>
       </div>
