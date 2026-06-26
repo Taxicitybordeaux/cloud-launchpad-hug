@@ -4,6 +4,7 @@ import { FileText, Download, ArrowLeft, Briefcase } from "lucide-react";
 import { toast } from "sonner";
 import { BrandLoader } from "@/components/BrandLoader";
 import { ClientBottomNav } from "@/components/ClientBottomNav";
+import { useT } from "@/i18n/I18nProvider";
 import { getClientSession } from "@/lib/client-session";
 import type { ClientSession } from "@/lib/client-auth.functions";
 import {
