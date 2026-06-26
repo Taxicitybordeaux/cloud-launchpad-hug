@@ -2473,7 +2473,7 @@ function ReservationPage() {
                     }
                   } catch (err) {
                     toast.dismiss(loadingId);
-                    toast.error("❌ " + (err?.message || "Erreur réseau"));
+                    toast.error("❌ " + ((err as Error)?.message || "Erreur réseau"));
                   }
                 }
               }}
