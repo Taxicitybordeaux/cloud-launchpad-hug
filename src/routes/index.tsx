@@ -99,13 +99,29 @@ const WHATSAPP = `https://wa.me/33${PHONE.replace(/^0/, "")}`;
 function Home() {
   const t = useT();
 
+  // Sync <title> and meta description with the active language (head() runs at SSR with the default FR).
+  useEffect(() => {
+    const title = t("home.meta.title");
+    const desc = t("home.meta.description");
+    if (typeof document !== "undefined") {
+      document.title = title;
+      const setMeta = (selector: string, content: string) => {
+        const el = document.head.querySelector(selector) as HTMLMetaElement | null;
+        if (el) el.content = content;
+      };
+      setMeta('meta[name="description"]', desc);
+      setMeta('meta[property="og:title"]', title);
+      setMeta('meta[property="og:description"]', desc);
+    }
+  }, [t]);
+
   return (
     <>
       {/* HERO */}
       <section className="relative isolate overflow-hidden">
         <img
           src={heroCar}
-          alt="Bordeaux la nuit – Pont Chaban-Delmas illuminé sur la Garonne"
+          alt={t("home.hero.alt")}
           className="absolute inset-0 -z-10 h-full w-full object-cover object-center"
           width={1920}
           height={1080}
