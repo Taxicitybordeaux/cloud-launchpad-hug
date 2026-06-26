@@ -630,7 +630,7 @@ function ReservationPage() {
   const [isSubscribedToNotifs, setIsSubscribedToNotifs] = useState(false);
   const { status: hookStatus, subscribe: subscribePush } = usePushNotifications();
   // Force à "idle" pour client — on ne veut pas d'auto-subscription
-  const pushStatus = "idle";
+  const pushStatus = hookStatus;
 
   const [fromCoord, setFromCoord] = useState<[number, number] | null>(null);
   const [toCoord, setToCoord] = useState<[number, number] | null>(null);
@@ -2425,7 +2425,7 @@ function ReservationPage() {
                   try {
                     // Supprimer la subscription de cet utilisateur pour "client"
                     const { error } = await supabase
-                      .from("user_push_subscriptions")
+                      .from("push_subscriptions")
                       .delete()
                       .eq("audience", "client")
                       .limit(1);
@@ -2455,7 +2455,7 @@ function ReservationPage() {
                     }
                   } catch (err) {
                     toast.dismiss(loadingId);
-                    toast.error("❌ " + (err?.message || "Erreur réseau"));
+                    toast.error("❌ " + ((err as Error)?.message || "Erreur réseau"));
                   }
                 }
               }}
