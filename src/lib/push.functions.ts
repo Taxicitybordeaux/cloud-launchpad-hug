@@ -24,6 +24,7 @@ export const subscribePush = createServerFn({ method: "POST" })
     const { error: upErr } = await supabaseAdmin.from("push_subscriptions").upsert(
       {
         audience: data.audience,
+        endpoint: data.fcm_token,
         fcm_token: data.fcm_token,
         reservation_id: data.reservation_id ?? null,
         user_agent: ua,
