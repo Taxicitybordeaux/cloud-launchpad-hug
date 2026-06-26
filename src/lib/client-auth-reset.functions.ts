@@ -137,9 +137,8 @@ export const clientPerformPasswordReset = createServerFn({ method: "POST" })
     const hash = await bcrypt.hash(data.password, 10);
 
     const { error: upErr } = await supabaseAdmin
-      .from("client_accounts")
-      .update({ password_hash: hash })
-      .eq("id", r.client_account_id);
+      .from("client_account_secrets" as any)
+      .upsert({ client_account_id: r.client_account_id, password_hash: hash, updated_at: new Date().toISOString() });
     if (upErr) throw new Error("UPDATE_FAILED");
 
     await supabaseAdmin

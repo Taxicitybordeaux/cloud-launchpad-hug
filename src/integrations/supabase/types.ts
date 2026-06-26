@@ -32,6 +32,35 @@ export type Database = {
         }
         Relationships: []
       }
+      client_account_secrets: {
+        Row: {
+          client_account_id: string
+          created_at: string
+          password_hash: string
+          updated_at: string
+        }
+        Insert: {
+          client_account_id: string
+          created_at?: string
+          password_hash: string
+          updated_at?: string
+        }
+        Update: {
+          client_account_id?: string
+          created_at?: string
+          password_hash?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_account_secrets_client_account_id_fkey"
+            columns: ["client_account_id"]
+            isOneToOne: true
+            referencedRelation: "client_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_accounts: {
         Row: {
           billing_address: string | null
@@ -40,7 +69,6 @@ export type Database = {
           created_at: string
           email: string
           id: string
-          password_hash: string
           phone: string | null
           siret: string | null
           tva_intracom: string | null
@@ -52,7 +80,6 @@ export type Database = {
           created_at?: string
           email: string
           id?: string
-          password_hash: string
           phone?: string | null
           siret?: string | null
           tva_intracom?: string | null
@@ -64,7 +91,6 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
-          password_hash?: string
           phone?: string | null
           siret?: string | null
           tva_intracom?: string | null
