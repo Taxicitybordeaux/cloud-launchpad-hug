@@ -630,7 +630,7 @@ function ReservationPage() {
   const [isSubscribedToNotifs, setIsSubscribedToNotifs] = useState(false);
   const { status: hookStatus, subscribe: subscribePush } = usePushNotifications();
   // Force à "idle" pour client — on ne veut pas d'auto-subscription
-  const pushStatus = "idle";
+  const pushStatus: string = hookStatus;
 
   const [fromCoord, setFromCoord] = useState<[number, number] | null>(null);
   const [toCoord, setToCoord] = useState<[number, number] | null>(null);
@@ -2424,10 +2424,10 @@ function ReservationPage() {
                   const loadingId = toast.loading("Désactivation en cours...");
                   try {
                     const { error } = await supabase
-                      .from("client_push_subscriptions")
+                      .from("push_subscriptions")
                       .delete()
-                      .eq("client_phone", f.phone)
-                      .limit(1);
+                      .eq("audience", "client")
+                      .eq("user_agent", navigator.userAgent.slice(0, 500));
 
                     toast.dismiss(loadingId);
                     if (error) {
@@ -2454,7 +2454,7 @@ function ReservationPage() {
                     }
                   } catch (err) {
                     toast.dismiss(loadingId);
-                    toast.error("❌ " + (err?.message || "Erreur réseau"));
+                    toast.error("❌ " + ((err as Error)?.message || "Erreur réseau"));
                   }
                 }
               }}
