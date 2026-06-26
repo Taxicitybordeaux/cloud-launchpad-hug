@@ -2425,7 +2425,7 @@ function ReservationPage() {
                   try {
                     // Supprimer la subscription de cet utilisateur pour "client"
                     const { error } = await supabase
-                      .from("user_push_subscriptions")
+                      .from("push_subscriptions")
                       .delete()
                       .eq("audience", "client")
                       .limit(1);
