@@ -631,7 +631,7 @@ function ReservationPage() {
   const [clientAccountId, setClientAccountId] = useState<string | null>(null);
   const { status: hookStatus, subscribe: subscribePush } = usePushNotifications();
   // Force à "idle" pour client — on ne veut pas d'auto-subscription
-  const pushStatus = "idle";
+  const pushStatus: string = "idle";
 
   const [fromCoord, setFromCoord] = useState<[number, number] | null>(null);
   const [toCoord, setToCoord] = useState<[number, number] | null>(null);
