@@ -2225,7 +2225,7 @@ function SuiviPage() {
               <MessageCircle size={16} />
               {t("suivi.chat_title")}
             </div>
-            <AnonChat reservationId={reservation.id} />
+            <AnonChat suiviKey={id} reservationId={reservation.id} />
           </div>
         )}
 
