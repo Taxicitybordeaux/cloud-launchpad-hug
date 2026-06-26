@@ -2424,10 +2424,10 @@ function ReservationPage() {
                   const loadingId = toast.loading("Désactivation en cours...");
                   try {
                     const { error } = await supabase
-                      .from("client_push_subscriptions")
+                      .from("push_subscriptions")
                       .delete()
-                      .eq("client_phone", f.phone)
-                      .limit(1);
+                      .eq("audience", "client")
+                      .eq("user_agent", navigator.userAgent.slice(0, 500));
 
                     toast.dismiss(loadingId);
                     if (error) {
@@ -2454,7 +2454,7 @@ function ReservationPage() {
                     }
                   } catch (err) {
                     toast.dismiss(loadingId);
-                    toast.error("❌ " + (err?.message || "Erreur réseau"));
+                    toast.error("❌ " + ((err as Error)?.message || "Erreur réseau"));
                   }
                 }
               }}
