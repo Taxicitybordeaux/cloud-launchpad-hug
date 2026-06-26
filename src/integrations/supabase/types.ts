@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      active_visitors: {
+        Row: {
+          created_at: string
+          last_seen: string
+          page: string | null
+          session_id: string
+        }
+        Insert: {
+          created_at?: string
+          last_seen?: string
+          page?: string | null
+          session_id: string
+        }
+        Update: {
+          created_at?: string
+          last_seen?: string
+          page?: string | null
+          session_id?: string
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           id: number
