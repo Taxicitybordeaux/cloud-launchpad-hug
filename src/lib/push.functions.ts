@@ -20,17 +20,20 @@ export const subscribePush = createServerFn({ method: "POST" })
     const supabaseAdmin = getTaxiSupabaseAdmin();
     const ua = data.user_agent ?? null;
 
-    // 1) Upsert la souscription courante — utilise fcm_token comme clé unique
+    // 1) Upsert la souscription courante — endpoint unique par token+audience
+    // Format: "token-chauffeur" ou "token-client" pour éviter les collisions
+    // entre audiences et rester compatible avec les anciens tokens "fcm://token-chauffeur"
+    const endpoint = `${data.fcm_token}-${data.audience}`;
     const { error: upErr } = await supabaseAdmin.from("push_subscriptions").upsert(
       {
         audience: data.audience,
-        endpoint: data.fcm_token,
+        endpoint,
         fcm_token: data.fcm_token,
         reservation_id: data.reservation_id ?? null,
         user_agent: ua,
         last_seen_at: new Date().toISOString(),
       },
-      { onConflict: "fcm_token" },
+      { onConflict: "endpoint" },
     );
     if (upErr) {
       console.error("[push] subscribe failed", upErr);
