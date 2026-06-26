@@ -22,32 +22,51 @@ export const subscribePush = createServerFn({ method: "POST" })
     const ua = data.user_agent ?? null;
     const clientAccountId = data.audience === "client" ? (data.client_account_id ?? null) : null;
 
-    // Endpoint stable par token+audience.
-    // Format: "<token>-<audience>" — évite les collisions entre audiences
-    // (un même device peut être à la fois chauffeur et client en dev/test).
-    const endpoint = `${data.fcm_token}-${data.audience}`;
+    // Endpoint stable par token + audience + cible.
+    // Important : un même client peut avoir plusieurs réservations actives ;
+    // l'ancien endpoint token+audience écrasait l'abonnement précédent.
+    const targetKey = clientAccountId
+      ? `account-${clientAccountId}`
+      : data.reservation_id
+        ? `reservation-${data.reservation_id}`
+        : "generic";
+    const endpoint = `${data.fcm_token}-${data.audience}-${targetKey}`;
     const nowIso = new Date().toISOString();
 
     // ── Stratégie delete-then-insert (plus robuste que upsert/onConflict,
     //    qui échoue avec 42P10 quand PostgREST n'a pas rechargé le schéma).
-    // 1) Purge toute ligne préexistante pour ce même endpoint OU même
-    //    fcm_token+audience (ancien format sans suffixe) OU ancien token
-    //    du même device (user_agent identique → token rotaté).
+    // 1) Purge uniquement la même cible. On ne supprime plus tous les autres
+    //    abonnements du même device, sinon une nouvelle réservation coupait
+    //    les pushs des réservations précédentes.
     try {
-      // Supprime par endpoint exact (nouveau format) ET par fcm_token+audience (ancien format)
       await supabaseAdmin
         .from("push_subscriptions")
         .delete()
-        .or(`endpoint.eq.${endpoint},and(audience.eq.${data.audience},fcm_token.eq.${data.fcm_token})`);
+        .eq("endpoint", endpoint);
 
-      // Purge des tokens rotatés sur le même device (même UA + audience, token différent)
-      if (ua) {
+      if (data.reservation_id) {
         await supabaseAdmin
           .from("push_subscriptions")
           .delete()
           .eq("audience", data.audience)
-          .eq("user_agent", ua)
-          .neq("fcm_token", data.fcm_token);
+          .eq("fcm_token", data.fcm_token)
+          .eq("reservation_id", data.reservation_id);
+      } else if (clientAccountId) {
+        await supabaseAdmin
+          .from("push_subscriptions")
+          .delete()
+          .eq("audience", data.audience)
+          .eq("fcm_token", data.fcm_token)
+          .eq("client_account_id", clientAccountId);
+      } else {
+        // Nettoie seulement les anciennes lignes génériques/legacy.
+        await supabaseAdmin
+          .from("push_subscriptions")
+          .delete()
+          .eq("audience", data.audience)
+          .eq("fcm_token", data.fcm_token)
+          .is("reservation_id", null)
+          .is("client_account_id", null);
       }
     } catch (e) {
       console.warn("[push] pre-insert cleanup non-fatal error", e);
