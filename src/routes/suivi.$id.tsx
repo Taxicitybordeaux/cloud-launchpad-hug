@@ -290,49 +290,41 @@ function PremiumTimeline({ status }: { status: string }) {
   );
 }
 
-// ─── Chat helpers ─────────────────────────────────────────────────────────────────
-function getAnonChatId(reservationId: string): string {
-  const key = `tcb_anon_chat_${reservationId}`;
-  let id = localStorage.getItem(key);
-  if (!id) {
-    id = `anon_${reservationId}_${Math.random().toString(36).slice(2, 10)}`;
-    localStorage.setItem(key, id);
-  }
-  return id;
-}
-
-// ─── Chat Component ───────────────────────────────────────────────────────────────
-function AnonChat({ reservationId }: { reservationId: string }) {
+// ─── Chat Component (anonyme, scopé par clé URL /suivi/$id) ──────────────────
+function AnonChat({ suiviKey, reservationId }: { suiviKey: string; reservationId: string }) {
   const t = useT();
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
-  const [name, setName] = useState(() => localStorage.getItem(`tcb_anon_name_${reservationId}`) || "");
-  const [nameSet, setNameSet] = useState(() => !!localStorage.getItem(`tcb_anon_name_${reservationId}`));
   const endRef = useRef<HTMLDivElement>(null);
-  const anonId = getAnonChatId(reservationId);
+  const listFn = useServerFn(listSuiviMessages);
+  const sendFn = useServerFn(sendSuiviClientMessage);
 
   const load = useCallback(async () => {
-    const { data } = await (supabase as any)
-      .from("direct_messages")
-      .select("*")
-      .eq("reservation_id", reservationId)
-      .order("created_at", { ascending: true })
-      .limit(60);
-    setMessages(data ?? []);
-  }, [reservationId]);
+    try {
+      const rows = await listFn({ data: { suivi_key: suiviKey, limit: 60 } });
+      setMessages(rows as ChatMessage[]);
+    } catch (e) {
+      console.warn("[suivi-chat] load failed", e);
+    }
+  }, [suiviKey, listFn]);
 
   useEffect(() => {
     load();
+    const id = setInterval(() => {
+      if (!document.hidden) load();
+    }, 4000);
+    // Realtime best-effort: si la policy le permet, on rafraîchit aussi sur INSERT
     const ch = (supabase as any)
       .channel(`chat_suivi_${reservationId}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "direct_messages", filter: `reservation_id=eq.${reservationId}` },
-        load,
+        { event: "INSERT", schema: "public", table: "reservation_messages", filter: `reservation_id=eq.${reservationId}` },
+        () => load(),
       )
       .subscribe();
     return () => {
+      clearInterval(id);
       supabase.removeChannel(ch);
     };
   }, [reservationId, load]);
@@ -343,80 +335,19 @@ function AnonChat({ reservationId }: { reservationId: string }) {
 
   const send = async () => {
     const trimmed = text.trim();
-    if (!trimmed || !nameSet) return;
+    if (!trimmed) return;
     setSending(true);
     try {
-      const { error } = await (supabase as any).from("direct_messages").insert([
-        {
-          reservation_id: reservationId,
-          anon_id: anonId,
-          anon_name: name,
-          message: trimmed,
-          created_at: new Date().toISOString(),
-        },
-      ]);
-
-      if (error) {
-        console.error("Chat error:", error);
-        toast.error(t("suivi.chat_send_error"));
-        return;
-      }
-
+      const row = await sendFn({ data: { suivi_key: suiviKey, content: trimmed } });
+      setMessages((prev) => (prev.some((m) => m.id === (row as ChatMessage).id) ? prev : [...prev, row as ChatMessage]));
       setText("");
-      toast.success(t("suivi.chat_sent"));
-    } catch (e) {
-      console.error("Send error:", e);
-      toast.error(t("suivi.chat_conn_error"));
+    } catch (e: any) {
+      console.error("[suivi-chat] send failed", e);
+      toast.error(t("suivi.chat_send_error"));
     } finally {
       setSending(false);
     }
   };
-
-  const setNameAndContinue = () => {
-    if (!name.trim()) return;
-    localStorage.setItem(`tcb_anon_name_${reservationId}`, name);
-    setNameSet(true);
-  };
-
-  if (!nameSet) {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-        <input
-          type="text"
-          placeholder={t("suivi.chat_first_name")}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && setNameAndContinue()}
-          style={{
-            padding: "10px 12px",
-            borderRadius: "8px",
-            border: "1px solid #e2e8f0",
-            fontSize: "14px",
-            fontFamily: "inherit",
-            transition: "all 0.3s",
-            color: "#0f172a",
-            background: "#ffffff",
-          }}
-        />
-        <button
-          onClick={setNameAndContinue}
-          style={{
-            padding: "10px 14px",
-            background: "linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)",
-            color: "#fff",
-            border: "none",
-            borderRadius: "8px",
-            fontWeight: 600,
-            fontSize: "13px",
-            cursor: "pointer",
-            transition: "all 0.3s",
-          }}
-        >
-          {t("suivi.chat_continue")}
-        </button>
-      </div>
-    );
-  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "12px", height: "min(320px, 40dvh)" }}>
@@ -435,32 +366,32 @@ function AnonChat({ reservationId }: { reservationId: string }) {
             {t("suivi.chat_empty")}
           </div>
         )}
-        {messages.map((msg, i) => (
-          <div
-            key={i}
-            className="suivi-slide"
-            style={{
-              alignSelf: msg.anon_id === anonId ? "flex-end" : "flex-start",
-              maxWidth: "75%",
-            }}
-          >
+        {messages.map((msg) => {
+          const mine = msg.sender === "client";
+          return (
             <div
-              style={{
-                background: msg.anon_id === anonId ? "linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)" : "#f1f5f9",
-                color: msg.anon_id === anonId ? "#fff" : "#0f172a",
-                padding: "8px 12px",
-                borderRadius: "10px",
-                fontSize: "13px",
-                wordBreak: "break-word",
-              }}
+              key={msg.id}
+              className="suivi-slide"
+              style={{ alignSelf: mine ? "flex-end" : "flex-start", maxWidth: "75%" }}
             >
-              {msg.message}
+              <div
+                style={{
+                  background: mine ? "linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)" : "#f1f5f9",
+                  color: mine ? "#fff" : "#0f172a",
+                  padding: "8px 12px",
+                  borderRadius: "10px",
+                  fontSize: "13px",
+                  wordBreak: "break-word",
+                }}
+              >
+                {msg.content}
+              </div>
+              <div style={{ fontSize: "10px", color: "#94a3b8", marginTop: "3px", padding: "0 4px" }}>
+                {mine ? t("suivi.chat_you") || "Vous" : "José"}
+              </div>
             </div>
-            <div style={{ fontSize: "10px", color: "#94a3b8", marginTop: "3px", padding: "0 4px" }}>
-              {msg.anon_name || "José"}
-            </div>
-          </div>
-        ))}
+          );
+        })}
         <div ref={endRef} />
       </div>
       <div style={{ display: "flex", gap: "8px" }}>
