@@ -54,13 +54,21 @@ export const clientRegister = createServerFn({ method: "POST" })
       .from("client_accounts")
       .insert({
         email: data.email,
-        password_hash: hash,
         client_name: data.name,
         phone: data.phone,
       })
       .select("id, email, client_name, phone")
       .single();
     if (error || !row) throw new Error("CREATE_FAILED");
+
+    const { error: secretErr } = await supabaseAdmin
+      .from("client_account_secrets" as any)
+      .insert({ client_account_id: row.id, password_hash: hash });
+    if (secretErr) {
+      // best-effort rollback
+      await supabaseAdmin.from("client_accounts").delete().eq("id", row.id);
+      throw new Error("CREATE_FAILED");
+    }
 
     return {
       id: row.id,
@@ -78,13 +86,20 @@ export const clientLogin = createServerFn({ method: "POST" })
 
     const { data: row } = await supabaseAdmin
       .from("client_accounts")
-      .select("id, email, client_name, phone, password_hash")
+      .select("id, email, client_name, phone")
       .eq("email", data.email)
       .maybeSingle();
     if (!row) throw new Error("INVALID_CREDENTIALS");
 
+    const { data: secret } = await supabaseAdmin
+      .from("client_account_secrets" as any)
+      .select("password_hash")
+      .eq("client_account_id", row.id)
+      .maybeSingle();
+    if (!secret) throw new Error("INVALID_CREDENTIALS");
+
     const { default: bcrypt } = await import("bcryptjs");
-    const ok = await bcrypt.compare(data.password, row.password_hash);
+    const ok = await bcrypt.compare(data.password, (secret as any).password_hash);
     if (!ok) throw new Error("INVALID_CREDENTIALS");
 
     return {
