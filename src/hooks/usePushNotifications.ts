@@ -14,10 +14,12 @@ interface UsePushOptions {
   autoAudience?: PushAudience;
   /** reservation_id à associer (pour audience "client"). */
   reservationId?: string;
+  /** client_account_id à associer (chat direct + espace client). */
+  clientAccountId?: string | null;
 }
 
 export function usePushNotifications(opts: UsePushOptions = {}) {
-  const { autoAudience, reservationId } = opts;
+  const { autoAudience, reservationId, clientAccountId } = opts;
   const [status, setStatus] = useState<PushStatus>("idle");
   const [token, setToken] = useState<string | null>(null);
 
@@ -60,6 +62,7 @@ export function usePushNotifications(opts: UsePushOptions = {}) {
             audience: autoAudience,
             fcm_token: fcm,
             reservation_id: reservationId ?? null,
+            client_account_id: clientAccountId ?? null,
             user_agent: navigator.userAgent.slice(0, 500),
           },
         });
@@ -90,11 +93,11 @@ export function usePushNotifications(opts: UsePushOptions = {}) {
     };
     // reservationId volontairement exclu : on ne re-subscribe pas si l'id change après le montage
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoAudience]);
+  }, [autoAudience, clientAccountId]);
 
   // ── Subscribe manuel (pour les appels explicites) ──
   const subscribe = useCallback(
-    async (audience: PushAudience = "client", resId?: string): Promise<boolean> => {
+    async (audience: PushAudience = "client", resId?: string | null, accountId?: string | null): Promise<boolean> => {
       setStatus("loading");
       try {
         const fcm = await getFcmToken();
@@ -107,6 +110,7 @@ export function usePushNotifications(opts: UsePushOptions = {}) {
             audience,
             fcm_token: fcm,
             reservation_id: resId ?? reservationId ?? null,
+            client_account_id: accountId ?? clientAccountId ?? null,
             user_agent: navigator.userAgent.slice(0, 500),
           },
         });
@@ -115,11 +119,13 @@ export function usePushNotifications(opts: UsePushOptions = {}) {
         return true;
       } catch (err) {
         console.error("[push] subscribe error", err);
-        setStatus("denied");
+        setStatus(
+          typeof window !== "undefined" && "Notification" in window && Notification.permission === "denied" ? "denied" : "idle",
+        );
         return false;
       }
     },
-    [subscribeFn, reservationId],
+    [subscribeFn, reservationId, clientAccountId],
   );
 
   const testNotification = useCallback(async () => {
@@ -142,6 +148,7 @@ export function usePushNotifications(opts: UsePushOptions = {}) {
             audience,
             fcm_token: fcm,
             reservation_id: reservationId ?? null,
+            client_account_id: clientAccountId ?? null,
             user_agent: navigator.userAgent.slice(0, 500),
           },
         });
@@ -151,7 +158,7 @@ export function usePushNotifications(opts: UsePushOptions = {}) {
         console.warn("[push] refreshToken failed", e);
       }
     },
-    [subscribeFn, reservationId],
+    [subscribeFn, reservationId, clientAccountId],
   );
 
   return { status, subscription: token, subscribe, testNotification, refreshToken };

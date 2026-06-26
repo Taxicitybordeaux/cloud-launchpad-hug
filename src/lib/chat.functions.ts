@@ -380,7 +380,7 @@ export const sendDirectChauffeurMessage = createServerFn({ method: "POST" })
           tag: `chat-client-direct-${data.client_account_id}`,
           requireInteraction: false,
         },
-        // Pas de reservationId — on cible par client_account_id via la table push_subscriptions
+        { accountId: data.client_account_id },
       );
     } catch (e) {
       console.warn("[chat] push client (direct) failed (non-blocking)", e);

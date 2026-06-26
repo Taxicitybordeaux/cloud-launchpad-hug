@@ -10,6 +10,7 @@ const subSchema = z.object({
   audience: z.enum(["chauffeur", "client"]),
   fcm_token: z.string().regex(FCM_TOKEN_RE, "fcm_token format invalide"),
   reservation_id: z.string().uuid().optional().nullable(),
+  client_account_id: z.string().uuid().optional().nullable(),
   user_agent: z.string().max(500).optional().nullable(),
 });
 
@@ -19,6 +20,7 @@ export const subscribePush = createServerFn({ method: "POST" })
     const { getTaxiSupabaseAdmin } = await import("@/lib/taxi-supabase.server");
     const supabaseAdmin = getTaxiSupabaseAdmin();
     const ua = data.user_agent ?? null;
+    const clientAccountId = data.audience === "client" ? (data.client_account_id ?? null) : null;
 
     // Endpoint stable par token+audience.
     // Format: "<token>-<audience>" — évite les collisions entre audiences
@@ -52,14 +54,18 @@ export const subscribePush = createServerFn({ method: "POST" })
     }
 
     // 2) Insert de la souscription propre
-    const { error: insErr } = await supabaseAdmin.from("push_subscriptions").insert({
+    const insertPayload: any = {
       audience: data.audience,
       endpoint,
       fcm_token: data.fcm_token,
       reservation_id: data.reservation_id ?? null,
+      client_account_id: clientAccountId,
+      // Compatibilité avec l'ancien schéma : pour les clients connectés, on remplit aussi user_id.
+      user_id: clientAccountId,
       user_agent: ua,
       last_seen_at: nowIso,
-    });
+    };
+    const { error: insErr } = await supabaseAdmin.from("push_subscriptions").insert(insertPayload);
     if (insErr) {
       console.error("[push] subscribe insert failed", insErr);
       throw new Error("subscribe_failed");
@@ -284,7 +290,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
     const supabaseAdmin = getTaxiSupabaseAdmin();
     const { data: r, error: fetchErr } = await supabaseAdmin
       .from("reservations")
-      .select("id, nom, client_name, client_phone, telephone, depart, arrivee, destination, suivi_id, lang")
+      .select("id, nom, client_name, client_phone, telephone, depart, arrivee, destination, suivi_id, lang, client_account_id")
       .eq("id", data.reservation_id)
       .maybeSingle();
     if (fetchErr) {
@@ -327,9 +333,23 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
       });
     }
 
-    // ── Push CLIENT pour "en route" (avec ETA) et "arrivé" ──────────────
+    // ── Push CLIENT : confirmation, approche, arrivée, fin de course ─────
     let clientResult = { sent: 0, removed: 0 };
-    if (data.status === "en_route") {
+    const target = { reservationId: r.id, accountId: (r as any).client_account_id ?? undefined };
+    if (data.status === "accepted") {
+      clientResult = await sendPushToAudience(
+        "client",
+        {
+          title: "✅ Course confirmée",
+          body: `José a confirmé votre course : ${trajet}.`,
+          url,
+          tag: `client-accepted-${r.id}`,
+          requireInteraction: false,
+          data: { reservation_id: r.id, status: "accepted" },
+        },
+        target,
+      );
+    } else if (data.status === "en_route") {
       const eta = data.eta_minutes ?? (await computeEtaMinutes(r.id, r.depart || ""));
       const etaTxt = eta ? ` (arrivée dans ~${eta} min)` : "";
       clientResult = await sendPushToAudience(
@@ -342,7 +362,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
           requireInteraction: false,
           data: { reservation_id: r.id, status: "en_route", eta_minutes: eta ?? null },
         },
-        { reservationId: r.id },
+        target,
       );
     } else if (data.status === "arrived") {
       clientResult = await sendPushToAudience(
@@ -355,7 +375,20 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
           requireInteraction: true,
           data: { reservation_id: r.id, status: "arrived" },
         },
-        { reservationId: r.id },
+        target,
+      );
+    } else if (data.status === "completed") {
+      clientResult = await sendPushToAudience(
+        "client",
+        {
+          title: "🏁 Course terminée",
+          body: "Merci pour votre trajet avec Taxi City Bordeaux.",
+          url,
+          tag: `client-completed-${r.id}`,
+          requireInteraction: false,
+          data: { reservation_id: r.id, status: "completed" },
+        },
+        target,
       );
     }
 
