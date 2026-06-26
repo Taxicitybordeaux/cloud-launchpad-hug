@@ -633,7 +633,7 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
     );
 
   const nouvelles = courses.filter((r) => r.status === "pending");
-  const encours = courses.filter((r) => r.status === "accepted");
+  const encours = courses.filter((r) => r.status === "accepted" || r.status === "en_route" || r.status === "arrived");
 
   if (courses.length === 0)
     return (
