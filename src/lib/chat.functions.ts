@@ -283,6 +283,83 @@ export const listAdminChatThreads = createServerFn({ method: "GET" }).handler(as
   return threads;
 });
 
+// ─── Chat anonyme depuis /suivi/$id (clé URL = preuve d'identité) ────────────
+
+const suiviSendSchema = z.object({
+  suivi_key: z.string().trim().min(6).max(200),
+  content: z.string().trim().min(1).max(2000),
+});
+
+async function resolveSuiviReservation(suiviKey: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin.rpc("get_reservation_for_suivi", { p_key: suiviKey });
+  if (error) throw new Error(error.message);
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) throw new Error("NOT_FOUND");
+  return row as any;
+}
+
+export const listSuiviMessages = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z
+      .object({
+        suivi_key: z.string().trim().min(6).max(200),
+        before: z.string().datetime().optional(),
+        limit: z.number().int().min(1).max(100).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const r = await resolveSuiviReservation(data.suivi_key);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let q = supabaseAdmin
+      .from("reservation_messages")
+      .select("id,reservation_id,sender,content,read_by_client,read_by_chauffeur,created_at")
+      .eq("reservation_id", r.id)
+      .order("created_at", { ascending: false })
+      .limit(data.limit ?? 60);
+    if (data.before) q = q.lt("created_at", data.before);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    return ((rows ?? []) as ChatMessage[]).slice().reverse();
+  });
+
+export const sendSuiviClientMessage = createServerFn({ method: "POST" })
+  .inputValidator((input) => suiviSendSchema.parse(input))
+  .handler(async ({ data }) => {
+    const r = await resolveSuiviReservation(data.suivi_key);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const clientName = (r as any).client_name || (r as any).nom || "Client";
+
+    const { data: row, error } = await supabaseAdmin
+      .from("reservation_messages")
+      .insert({
+        reservation_id: r.id,
+        sender: "client",
+        content: data.content,
+        read_by_client: true,
+        read_by_chauffeur: false,
+      })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+
+    try {
+      const { sendPushToAudience } = await import("@/lib/push.server");
+      await sendPushToAudience("chauffeur", {
+        title: `💬 Message de ${clientName}`,
+        body: data.content.slice(0, 100),
+        url: "/driver?token=DSF234",
+        tag: `chat-driver-resa-${r.id}`,
+        requireInteraction: false,
+      });
+    } catch (e) {
+      console.warn("[chat] push chauffeur (suivi) failed (non-blocking)", e);
+    }
+
+    return row as ChatMessage;
+  });
+
 // ─── Chat général client ↔ José (sans réservation) ───────────────────────────
 
 export type DirectMessage = {
