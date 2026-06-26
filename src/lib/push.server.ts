@@ -236,9 +236,7 @@ export async function sendPushToAudience(
     const endpointFilters: string[] = [];
     if (opts.reservationId) endpointFilters.push(`endpoint.like.*-client-reservation-${opts.reservationId}`);
     if (opts.accountId) endpointFilters.push(`endpoint.like.*-client-account-${opts.accountId}`);
-    if (endpointFilters.length === 1) {
-      q = q.like("endpoint", endpointFilters[0].replace("endpoint.like.", ""));
-    } else if (endpointFilters.length > 1) {
+    if (endpointFilters.length > 0) {
       q = q.or(endpointFilters.join(","));
     }
   }
