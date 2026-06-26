@@ -28,6 +28,7 @@ import {
 import { useI18n, useT } from "@/i18n/I18nProvider";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { getReservationForFinPublic } from "@/lib/reservation.functions";
+import { listSuiviMessages, sendSuiviClientMessage, type ChatMessage } from "@/lib/chat.functions";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getTaxiSupabase } from "@/lib/taxi-supabase";
