@@ -491,6 +491,15 @@ function Home() {
               <h3 className="font-display text-xl font-semibold">{t("home.install.ios.title")}</h3>
             </div>
 
+            <img
+              src={installIosGuide}
+              alt={t("home.install.ios.img_alt")}
+              className="mb-4 w-full rounded-xl border border-border"
+              loading="lazy"
+              width={1024}
+              height={512}
+            />
+
             <ol className="space-y-3 text-sm">
               <li className="flex gap-3">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">1</span>
