@@ -586,11 +586,11 @@ function Home() {
 
         <div className="mt-8 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
           <p className="text-sm">
-            <strong>✨ Besoin d'aide ?</strong> Appelez-nous au{" "}
+            <strong>✨ {t("home.help.title")}</strong> {t("home.help.call_prefix")}{" "}
             <a href="tel:+33673072322" className="font-semibold text-primary hover:underline">
-              06 73 07 23 22
+              {PHONE_DISPLAY}
             </a>{" "}
-            ou écrivez-nous sur{" "}
+            {t("home.help.or_write")}{" "}
             <a
               href={WHATSAPP}
               target="_blank"
