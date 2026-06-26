@@ -57,7 +57,7 @@ export const subscribePush = createServerFn({ method: "POST" })
           .delete()
           .eq("audience", data.audience)
           .eq("fcm_token", data.fcm_token)
-          .eq("client_account_id", clientAccountId);
+          .eq("user_id", clientAccountId);
       } else {
         // Nettoie seulement les anciennes lignes génériques/legacy.
         await supabaseAdmin
@@ -66,24 +66,25 @@ export const subscribePush = createServerFn({ method: "POST" })
           .eq("audience", data.audience)
           .eq("fcm_token", data.fcm_token)
           .is("reservation_id", null)
-          .is("client_account_id", null);
+          .is("user_id", null);
       }
     } catch (e) {
       console.warn("[push] pre-insert cleanup non-fatal error", e);
     }
 
-    // 2) Insert de la souscription propre
+    // 2) Insert de la souscription propre.
+    // NB : la colonne `client_account_id` n'existe pas sur ce backend ; on
+    // stocke l'identifiant du compte client dans `user_id` (legacy schema).
     const insertPayload: any = {
       audience: data.audience,
       endpoint,
       fcm_token: data.fcm_token,
       reservation_id: data.reservation_id ?? null,
-      client_account_id: clientAccountId,
-      // Compatibilité avec l'ancien schéma : pour les clients connectés, on remplit aussi user_id.
       user_id: clientAccountId,
       user_agent: ua,
       last_seen_at: nowIso,
     };
+
     const { error: insErr } = await supabaseAdmin.from("push_subscriptions").insert(insertPayload);
     if (insErr) {
       console.error("[push] subscribe insert failed", insErr);

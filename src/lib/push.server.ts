@@ -217,9 +217,9 @@ type SubRow = {
   user_agent: string | null;
   last_seen_at: string | null;
   reservation_id?: string | null;
-  client_account_id?: string | null;
   user_id?: string | null;
 };
+
 
 export async function sendPushToAudience(
   audience: PushAudience,
@@ -229,23 +229,18 @@ export async function sendPushToAudience(
   const supabaseAdmin = getTaxiSupabaseAdmin();
   let q = supabaseAdmin
     .from("push_subscriptions" as any)
-    .select("id, fcm_token, user_agent, last_seen_at, reservation_id, client_account_id, user_id")
+    .select("id, fcm_token, user_agent, last_seen_at, reservation_id, user_id")
     .eq("audience", audience)
     .not("fcm_token", "is", null)
     .order("last_seen_at", { ascending: false });
   if (audience === "client" && opts.reservationId) {
-    // Cible uniquement la réservation précise, ou le compte client lié.
-    // Ne jamais inclure tous les abonnements génériques (reservation_id IS NULL)
-    // pour éviter d'envoyer une notification de course à un mauvais client.
     const filters = [`reservation_id.eq.${opts.reservationId}`];
-    if (opts.accountId) {
-      filters.push(`client_account_id.eq.${opts.accountId}`, `user_id.eq.${opts.accountId}`);
-    }
+    if (opts.accountId) filters.push(`user_id.eq.${opts.accountId}`);
     q = q.or(filters.join(","));
   } else if (audience === "client" && opts.accountId) {
-    // Chat direct espace client : uniquement le compte client ciblé.
-    q = q.or(`client_account_id.eq.${opts.accountId},user_id.eq.${opts.accountId}`);
+    q = q.eq("user_id", opts.accountId);
   }
+
   const { data, error } = await q;
   if (error || !data || data.length === 0) return { sent: 0, removed: 0 };
 
