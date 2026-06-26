@@ -830,3 +830,35 @@ export const markMergedConversationRead = createServerFn({ method: "POST" })
     }
     return { ok: true };
   });
+
+// Supprime définitivement une conversation fusionnée côté chauffeur
+// (direct_messages du client + reservation_messages de toutes ses courses listées)
+export const deleteMergedThread = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z
+      .object({
+        client_account_id: z.string().uuid().nullable().optional(),
+        reservation_ids: z.array(z.string().uuid()).max(100).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let deleted = 0;
+    if (data.client_account_id) {
+      const { count } = await supabaseAdmin
+        .from("direct_messages")
+        .delete({ count: "exact" })
+        .eq("client_account_id", data.client_account_id);
+      deleted += count ?? 0;
+    }
+    const rids = data.reservation_ids ?? [];
+    if (rids.length > 0) {
+      const { count } = await supabaseAdmin
+        .from("reservation_messages")
+        .delete({ count: "exact" })
+        .in("reservation_id", rids);
+      deleted += count ?? 0;
+    }
+    return { ok: true, deleted };
+  });
