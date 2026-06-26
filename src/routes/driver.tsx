@@ -2877,7 +2877,23 @@ function TrackingAnalytics() {
 }
 
 // ── Visiteurs actifs en temps réel ───────────────────────────────────────────
-function ActiveVisitors() {
+function VisitorCounter({
+  scope,
+  title,
+  emptyLabel,
+  singleLabel,
+  pluralLabel,
+  subtitle,
+  emoji,
+}: {
+  scope: "site" | "suivi";
+  title: string;
+  emptyLabel: string;
+  singleLabel: string;
+  pluralLabel: (n: number) => string;
+  subtitle: string;
+  emoji: string;
+}) {
   const [count, setCount] = useState<number | null>(null);
 
   useEffect(() => {
@@ -2885,26 +2901,31 @@ function ActiveVisitors() {
 
     const fetchCount = async () => {
       const cutoff = new Date(Date.now() - CUTOFF_MS).toISOString();
-      // Supprime les sessions périmées (best-effort, ignoré si RLS bloque)
-      await (supabase as any).from("active_visitors").delete().lt("last_seen", cutoff);
-      const { count: c } = await (supabase as any)
+      if (scope === "site") {
+        await (supabase as any).from("active_visitors").delete().lt("last_seen", cutoff);
+      }
+      let q = (supabase as any)
         .from("active_visitors")
         .select("session_id", { count: "exact", head: true })
         .gte("last_seen", cutoff);
+      if (scope === "suivi") q = q.like("page", "/suivi%");
+      const { count: c } = await q;
       setCount(c ?? 0);
     };
 
     fetchCount();
+    const poll = setInterval(fetchCount, 30_000);
 
     const channel = (supabase as any)
-      .channel("active_visitors_realtime")
+      .channel(`active_visitors_${scope}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "active_visitors" }, fetchCount)
       .subscribe();
 
     return () => {
+      clearInterval(poll);
       (supabase as any).removeChannel(channel);
     };
-  }, []);
+  }, [scope]);
 
   const isActive = count !== null && count > 0;
 
@@ -2926,20 +2947,42 @@ function ActiveVisitors() {
       />
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
-          {count === null
-            ? "…"
-            : count === 0
-              ? "Personne sur une page suivi"
-              : count === 1
-                ? "1 client consulte son suivi"
-                : `${count} clients consultent leur suivi`}
+          {count === null ? "…" : count === 0 ? emptyLabel : count === 1 ? singleLabel : pluralLabel(count)}
         </div>
-        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 1 }}>Temps réel · pages /suivi actives</div>
+        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 1 }}>
+          {title} · {subtitle}
+        </div>
       </div>
-      {isActive && <span style={{ fontSize: 20 }}>👁</span>}
+      {isActive && <span style={{ fontSize: 20 }}>{emoji}</span>}
     </div>
   );
 }
+
+function ActiveVisitors() {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <VisitorCounter
+        scope="site"
+        title="Site"
+        subtitle="visiteurs sur le site"
+        emptyLabel="Aucun visiteur sur le site"
+        singleLabel="1 visiteur sur le site"
+        pluralLabel={(n) => `${n} visiteurs sur le site`}
+        emoji="🌐"
+      />
+      <VisitorCounter
+        scope="suivi"
+        title="Suivi"
+        subtitle="pages /suivi actives"
+        emptyLabel="Personne sur une page suivi"
+        singleLabel="1 client consulte son suivi"
+        pluralLabel={(n) => `${n} clients consultent leur suivi`}
+        emoji="👁"
+      />
+    </div>
+  );
+}
+
 
 // ── Onglet Stats ────────────────────────────────────────────────────────────
 function StatsTab() {

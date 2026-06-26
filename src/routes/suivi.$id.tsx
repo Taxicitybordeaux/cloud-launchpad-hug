@@ -311,10 +311,7 @@ function AnonChat({ suiviKey, reservationId }: { suiviKey: string; reservationId
 
   useEffect(() => {
     load();
-    const id = setInterval(() => {
-      if (!document.hidden) load();
-    }, 4000);
-    // Realtime best-effort: si la policy le permet, on rafraîchit aussi sur INSERT
+    // Realtime: synchronisation instantanée via Supabase Realtime (sans polling)
     const ch = (supabase as any)
       .channel(`chat_suivi_${reservationId}`)
       .on(
@@ -323,11 +320,17 @@ function AnonChat({ suiviKey, reservationId }: { suiviKey: string; reservationId
         () => load(),
       )
       .subscribe();
+    // Re-sync au retour de l'onglet (filet de sécurité si la connexion realtime a été coupée)
+    const onVisible = () => {
+      if (!document.hidden) load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
-      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
       supabase.removeChannel(ch);
     };
   }, [reservationId, load]);
+
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
