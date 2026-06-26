@@ -99,13 +99,29 @@ const WHATSAPP = `https://wa.me/33${PHONE.replace(/^0/, "")}`;
 function Home() {
   const t = useT();
 
+  // Sync <title> and meta description with the active language (head() runs at SSR with the default FR).
+  useEffect(() => {
+    const title = t("home.meta.title");
+    const desc = t("home.meta.description");
+    if (typeof document !== "undefined") {
+      document.title = title;
+      const setMeta = (selector: string, content: string) => {
+        const el = document.head.querySelector(selector) as HTMLMetaElement | null;
+        if (el) el.content = content;
+      };
+      setMeta('meta[name="description"]', desc);
+      setMeta('meta[property="og:title"]', title);
+      setMeta('meta[property="og:description"]', desc);
+    }
+  }, [t]);
+
   return (
     <>
       {/* HERO */}
       <section className="relative isolate overflow-hidden">
         <img
           src={heroCar}
-          alt="Bordeaux la nuit – Pont Chaban-Delmas illuminé sur la Garonne"
+          alt={t("home.hero.alt")}
           className="absolute inset-0 -z-10 h-full w-full object-cover object-center"
           width={1920}
           height={1080}
@@ -570,11 +586,11 @@ function Home() {
 
         <div className="mt-8 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
           <p className="text-sm">
-            <strong>✨ Besoin d'aide ?</strong> Appelez-nous au{" "}
+            <strong>✨ {t("home.help.title")}</strong> {t("home.help.call_prefix")}{" "}
             <a href="tel:+33673072322" className="font-semibold text-primary hover:underline">
-              06 73 07 23 22
+              {PHONE_DISPLAY}
             </a>{" "}
-            ou écrivez-nous sur{" "}
+            {t("home.help.or_write")}{" "}
             <a
               href={WHATSAPP}
               target="_blank"
