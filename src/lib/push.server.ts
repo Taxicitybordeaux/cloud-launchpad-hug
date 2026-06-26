@@ -217,9 +217,9 @@ type SubRow = {
   user_agent: string | null;
   last_seen_at: string | null;
   reservation_id?: string | null;
-  client_account_id?: string | null;
   user_id?: string | null;
 };
+
 
 export async function sendPushToAudience(
   audience: PushAudience,
