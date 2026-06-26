@@ -628,9 +628,10 @@ function ReservationPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
   const [isSubscribedToNotifs, setIsSubscribedToNotifs] = useState(false);
+  const [clientAccountId, setClientAccountId] = useState<string | null>(null);
   const { status: hookStatus, subscribe: subscribePush } = usePushNotifications();
   // Force à "idle" pour client — on ne veut pas d'auto-subscription
-  const pushStatus = hookStatus;
+  const pushStatus = "idle";
 
   const [fromCoord, setFromCoord] = useState<[number, number] | null>(null);
   const [toCoord, setToCoord] = useState<[number, number] | null>(null);
@@ -1435,10 +1436,15 @@ function ReservationPage() {
           lang: lang as any,
           message: f.message.trim() || null,
         })
-        .select("id,suivi_id")
+        .select("id,suivi_id,client_account_id")
         .single();
 
       if (error) throw error;
+
+      // ── Stocker le client_account_id pour la souscription notifs ──
+      if (inserted?.client_account_id) {
+        setClientAccountId(inserted.client_account_id);
+      }
 
       // ⚠️ Push client retirée — le client est notifié visuellement sur /suivi/$id.
 
@@ -2425,9 +2431,10 @@ function ReservationPage() {
                   try {
                     // Supprimer la subscription de cet utilisateur pour "client"
                     const { error } = await supabase
-                      .from("push_subscriptions")
+                      .from("user_push_subscriptions")
                       .delete()
                       .eq("audience", "client")
+                      .eq("client_account_id", clientAccountId)
                       .limit(1);
 
                     toast.dismiss(loadingId);
@@ -2446,6 +2453,17 @@ function ReservationPage() {
                   const loadingId = toast.loading("🔔 Activation en cours...");
                   try {
                     const ok = await subscribePush("client");
+                    if (ok && clientAccountId) {
+                      // Mettre à jour la subscription avec le client_account_id
+                      const { error: updateError } = await supabase
+                        .from("user_push_subscriptions")
+                        .update({ client_account_id: clientAccountId })
+                        .eq("audience", "client")
+                        .is("client_account_id", null)
+                        .limit(1);
+
+                      if (updateError) console.warn("[notif] update client_account_id failed", updateError);
+                    }
                     toast.dismiss(loadingId);
                     if (ok) {
                       setIsSubscribedToNotifs(true);
@@ -2455,7 +2473,7 @@ function ReservationPage() {
                     }
                   } catch (err) {
                     toast.dismiss(loadingId);
-                    toast.error("❌ " + ((err as Error)?.message || "Erreur réseau"));
+                    toast.error("❌ " + (err?.message || "Erreur réseau"));
                   }
                 }
               }}
