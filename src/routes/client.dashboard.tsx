@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Phone, Eye, Car, MessageCircle, History, User, ChevronRight } from "lucide-react";
 import { ClientBottomNav } from "@/components/ClientBottomNav";
+import { ClientPushOptInCard } from "@/components/ClientPushOptInCard";
 
 import { BrandLoader } from "@/components/BrandLoader";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -220,6 +221,8 @@ function ClientDashboard() {
               </div>
             </div>
           </div>
+
+          <ClientPushOptInCard clientAccountId={session.id} />
 
           {/* Course active */}
           {activeRide && (

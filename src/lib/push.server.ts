@@ -157,6 +157,7 @@ async function sendFcmToToken(
       },
       webpush: {
         headers: { Urgency: "high", TTL: "86400" },
+        fcm_options: { link: clickUrl },
         // data dans webpush : accessible dans payload.data côté SW Firebase SDK
         data,
         notification: {
@@ -215,6 +216,9 @@ type SubRow = {
   fcm_token: string | null;
   user_agent: string | null;
   last_seen_at: string | null;
+  reservation_id?: string | null;
+  client_account_id?: string | null;
+  user_id?: string | null;
 };
 
 export async function sendPushToAudience(
@@ -224,20 +228,24 @@ export async function sendPushToAudience(
 ): Promise<{ sent: number; removed: number }> {
   const supabaseAdmin = getTaxiSupabaseAdmin();
   let q = supabaseAdmin
-    .from("push_subscriptions")
-    .select("id, fcm_token, user_agent, last_seen_at")
+    .from("push_subscriptions" as any)
+    .select("id, fcm_token, user_agent, last_seen_at, reservation_id, client_account_id, user_id")
     .eq("audience", audience)
     .not("fcm_token", "is", null)
     .order("last_seen_at", { ascending: false });
   if (audience === "client" && opts.reservationId) {
-    // Cible les abonnements liés à cette réservation OU les abonnements client génériques
-    // (un client qui a activé les notifs depuis la PWA sans contexte de réservation
-    // doit quand même recevoir les mises à jour de course).
-    q = q.or(`reservation_id.eq.${opts.reservationId},reservation_id.is.null`);
+    // Cible uniquement la réservation précise, ou le compte client lié.
+    // Ne jamais inclure tous les abonnements génériques (reservation_id IS NULL)
+    // pour éviter d'envoyer une notification de course à un mauvais client.
+    const filters = [`reservation_id.eq.${opts.reservationId}`];
+    if (opts.accountId) {
+      filters.push(`client_account_id.eq.${opts.accountId}`, `user_id.eq.${opts.accountId}`);
+    }
+    q = q.or(filters.join(","));
+  } else if (audience === "client" && opts.accountId) {
+    // Chat direct espace client : uniquement le compte client ciblé.
+    q = q.or(`client_account_id.eq.${opts.accountId},user_id.eq.${opts.accountId}`);
   }
-  // accountId is accepted for API symmetry with direct chat callers; no
-  // column filter today — push_subscriptions has no client_account_id.
-  void opts.accountId;
   const { data, error } = await q;
   if (error || !data || data.length === 0) return { sent: 0, removed: 0 };
 
@@ -257,7 +265,7 @@ export async function sendPushToAudience(
   //  - par user_agent (un même device iOS peut avoir plusieurs fcm_token
   //    régénérés au fil des sessions / installs PWA → cause des notifs ×N)
   // On garde la ligne la plus récente (les rows sont déjà triées DESC).
-  const rows = (data as SubRow[]).filter((r) => !!r.fcm_token);
+  const rows = (data as unknown as SubRow[]).filter((r) => !!r.fcm_token);
   const byToken = new Map<string, SubRow>();
   for (const r of rows) if (!byToken.has(r.fcm_token!)) byToken.set(r.fcm_token!, r);
   const seenUa = new Set<string>();

@@ -607,6 +607,7 @@ export type Database = {
         Row: {
           audience: string
           auth: string | null
+          client_account_id: string | null
           created_at: string
           endpoint: string
           fcm_token: string | null
@@ -621,6 +622,7 @@ export type Database = {
         Insert: {
           audience: string
           auth?: string | null
+          client_account_id?: string | null
           created_at?: string
           endpoint: string
           fcm_token?: string | null
@@ -635,6 +637,7 @@ export type Database = {
         Update: {
           audience?: string
           auth?: string | null
+          client_account_id?: string | null
           created_at?: string
           endpoint?: string
           fcm_token?: string | null
@@ -647,6 +650,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_client_account_id_fkey"
+            columns: ["client_account_id"]
+            isOneToOne: false
+            referencedRelation: "client_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "push_subscriptions_reservation_id_fkey"
             columns: ["reservation_id"]

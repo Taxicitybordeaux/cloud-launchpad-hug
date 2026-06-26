@@ -65,10 +65,10 @@ export function PushDebug() {
         log("ok", `✅ Token obtenu: ${token.slice(0, 20)}…${token.slice(-10)}`);
         const ua = navigator.userAgent.slice(0, 500);
         await Promise.all([
-          subscribePush({ data: { audience: "admin", fcm_token: token, reservation_id: null, user_agent: ua } }),
+          subscribePush({ data: { audience: "client", fcm_token: token, reservation_id: null, user_agent: ua } }),
           subscribePush({ data: { audience: "chauffeur", fcm_token: token, reservation_id: null, user_agent: ua } }),
         ]);
-        log("ok", "✅ Token enregistré pour admin + chauffeur sur cet appareil");
+        log("ok", "✅ Token enregistré pour client + chauffeur sur cet appareil");
       } else {
         log("error", "❌ Token vide (null) — permission refusée ou SW introuvable");
       }
@@ -78,8 +78,8 @@ export function PushDebug() {
 
     // 4. Test FCM serveur → téléphone
     try {
-      log("info", "Envoi d'une notification FCM serveur vers admin...");
-      const result = await sendTestPush({ data: { audience: "admin" } });
+      log("info", "Envoi d'une notification FCM serveur vers client...");
+      const result = await sendTestPush({ data: { audience: "client" } });
       log(result.sent > 0 ? "ok" : "error", `FCM serveur: sent=${result.sent}, removed=${result.removed}`);
     } catch (e: any) {
       log("error", `sendTestPush failed: ${e?.message ?? String(e)}`);

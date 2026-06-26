@@ -125,13 +125,14 @@ export const sendChauffeurMessage = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // Récupère suivi_id pour construire l'URL de redirection client
+    // Récupère suivi_id + compte client pour construire l'URL et cibler la push
     const { data: resa } = await supabaseAdmin
       .from("reservations")
-      .select("suivi_id")
+      .select("suivi_id, client_account_id")
       .eq("id", data.reservation_id)
       .maybeSingle();
     const suiviId = (resa as any)?.suivi_id || data.reservation_id;
+    const accountId = (resa as any)?.client_account_id || undefined;
 
     const { data: row, error } = await supabaseAdmin
       .from("reservation_messages")
@@ -160,7 +161,7 @@ export const sendChauffeurMessage = createServerFn({ method: "POST" })
             requireInteraction: false,
             data: { reservation_id: data.reservation_id },
           },
-          { reservationId: data.reservation_id },
+          { reservationId: data.reservation_id, accountId },
         );
       } catch (e) {
         console.warn("[chat] push client (resa) failed (non-blocking)", e);
@@ -380,7 +381,7 @@ export const sendDirectChauffeurMessage = createServerFn({ method: "POST" })
           tag: `chat-client-direct-${data.client_account_id}`,
           requireInteraction: false,
         },
-        // Pas de reservationId — on cible par client_account_id via la table push_subscriptions
+        { accountId: data.client_account_id },
       );
     } catch (e) {
       console.warn("[chat] push client (direct) failed (non-blocking)", e);

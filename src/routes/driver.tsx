@@ -6,7 +6,7 @@ import { loadGoogleMapsWhenVisible } from "@/lib/googleMaps";
 import { geocodeAddress } from "@/lib/googleGeocode";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useServerFn } from "@tanstack/react-start";
-import { listPushFailures } from "@/lib/push.functions";
+import { listPushFailures, notifyReservationStatus } from "@/lib/push.functions";
 import { calculerPrixMixte, estTarifJourParis } from "@/lib/tarif";
 
 // ── Token guard ────────────────────────────────────────────────────────────
@@ -698,6 +698,7 @@ function CourseCard({
   const [selectedRoute, setSelectedRoute] = useState(0);
   const [loadingRoutes, setLoadingRoutes] = useState(false);
   const [busy, setBusy] = useState(false);
+  const notifyStatus = useServerFn(notifyReservationStatus);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInst = useRef<any>(null);
   const rendererRef = useRef<any>(null);
@@ -831,6 +832,11 @@ function CourseCard({
       }
       const { error } = await (supabase as any).from("reservations").update(updates).eq("id", resa.id);
       if (error) throw error;
+      try {
+        await notifyStatus({ data: { reservation_id: resa.id, status: "accepted" } });
+      } catch (pushErr) {
+        console.warn("[driver] client accepted push failed", pushErr);
+      }
       toast.success("Course acceptée ✓");
       onRefresh();
     } catch (e: any) {
@@ -1007,6 +1013,11 @@ function CourseCard({
     try {
       const { error } = await (supabase as any).from("reservations").update({ status: "completed" }).eq("id", resa.id);
       if (error) throw error;
+      try {
+        await notifyStatus({ data: { reservation_id: resa.id, status: "completed" } });
+      } catch (pushErr) {
+        console.warn("[driver] client completed push failed", pushErr);
+      }
       toast.success("🏁 Course terminée");
       onRefresh();
     } catch (e: any) {
@@ -1023,6 +1034,11 @@ function CourseCard({
     try {
       const { error } = await (supabase as any).from("reservations").update({ status: nextStatus }).eq("id", resa.id);
       if (error) throw error;
+      try {
+        await notifyStatus({ data: { reservation_id: resa.id, status: nextStatus as any } });
+      } catch (pushErr) {
+        console.warn("[driver] client status push failed", pushErr);
+      }
       toast.success(label);
       onRefresh();
     } catch (e: any) {
@@ -1447,6 +1463,27 @@ function CourseCard({
           )}
 
           {resa.status === "accepted" && (
+            <button
+              onClick={() => handleProgressStatus("en_route", "🚖 Statut : chauffeur en route vers le client")}
+              disabled={progressing}
+              style={{
+                width: "100%",
+                background: "#eff6ff",
+                border: "2px solid #2563eb",
+                color: "#1d4ed8",
+                borderRadius: 12,
+                padding: "12px",
+                fontSize: 14,
+                fontWeight: 800,
+                cursor: "pointer",
+                marginBottom: 10,
+              }}
+            >
+              {progressing ? "…" : "🚖 Je pars vers le client"}
+            </button>
+          )}
+
+          {(resa.status === "accepted" || resa.status === "en_route") && (
             <button
               onClick={() => handleProgressStatus("arrived", "📍 Statut : arrivé devant chez le client")}
               disabled={progressing}

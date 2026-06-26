@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,7 +15,8 @@ import { reverseGeocode, searchAddress } from "@/lib/googleGeocode";
 import { getDistanceAndDurationKm } from "@/lib/googleRoute";
 
 import { newSuiviId } from "@/lib/suivi-id";
-import { notifyNewReservation } from "@/lib/push.functions";
+import { notifyNewReservation, subscribePush as subscribePushServer } from "@/lib/push.functions";
+import { getFcmToken } from "@/lib/firebase";
 import { ensureMicAccess, describeGeoError } from "@/lib/permissions";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { ListeningOverlay } from "@/components/ListeningOverlay";
@@ -629,6 +631,7 @@ function ReservationPage() {
   const [sending, setSending] = useState(false);
   const [isSubscribedToNotifs, setIsSubscribedToNotifs] = useState(false);
   const { status: hookStatus, subscribe: subscribePush } = usePushNotifications();
+  const repairClientPushRegistration = useServerFn(subscribePushServer);
   // Force à "idle" pour client — on ne veut pas d'auto-subscription
   const pushStatus: string = hookStatus;
 
@@ -1439,6 +1442,28 @@ function ReservationPage() {
         .single();
 
       if (error) throw error;
+
+      // Si le navigateur est déjà en "granted", on ré-attache immédiatement
+      // l'abonnement push client à la réservation créée. Sinon le bouton peut
+      // afficher granted mais la DB n'a qu'une ligne générique ou absente.
+      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+        try {
+          const fcm = await getFcmToken();
+          if (fcm) {
+            await repairClientPushRegistration({
+              data: {
+                audience: "client",
+                fcm_token: fcm,
+                reservation_id: inserted.id,
+                user_agent: navigator.userAgent.slice(0, 500),
+              },
+            });
+            setIsSubscribedToNotifs(true);
+          }
+        } catch (pushLinkErr) {
+          console.warn("[push] impossible de rattacher la réservation au client", pushLinkErr);
+        }
+      }
 
       // ⚠️ Push client retirée — le client est notifié visuellement sur /suivi/$id.
 
@@ -2401,7 +2426,7 @@ function ReservationPage() {
         </div>
 
         {/* ── Bouton notifs client FIXE (hors scrollable) ── */}
-        {pushStatus !== "granted" && "Notification" in window ? (
+        {"Notification" in window ? (
           <div
             style={{
               background: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(250,249,247,0.95) 100%)",
@@ -2441,14 +2466,14 @@ function ReservationPage() {
                     toast.error("❌ Erreur réseau");
                   }
                 } else {
-                  // ── SUBSCRIBE ──
-                  const loadingId = toast.loading("🔔 Activation en cours...");
+                  // ── SUBSCRIBE / REPAIR ──
+                  const loadingId = toast.loading(pushStatus === "granted" ? "🔧 Réinscription en cours..." : "🔔 Activation en cours...");
                   try {
                     const ok = await subscribePush("client");
                     toast.dismiss(loadingId);
                     if (ok) {
                       setIsSubscribedToNotifs(true);
-                      toast.success("✅ Notifications activées pour 30 jours!");
+                      toast.success(pushStatus === "granted" ? "✅ Appareil réinscrit aux notifications client" : "✅ Notifications activées pour 30 jours!");
                     } else {
                       toast.error("❌ Impossible d'activer (RLS ou permissions)");
                     }
@@ -2480,7 +2505,11 @@ function ReservationPage() {
               }}
             >
               <span style={{ fontSize: 18 }}>{isSubscribedToNotifs ? "🔕" : "🔔"}</span>
-              {isSubscribedToNotifs ? "Désactiver les notifs" : "Activer les notifications de suivi"}
+              {isSubscribedToNotifs
+                ? "Désactiver les notifs"
+                : pushStatus === "granted"
+                  ? "Réparer / réinscrire les notifications"
+                  : "Activer les notifications de suivi"}
             </button>
             <p
               style={{
@@ -2493,7 +2522,9 @@ function ReservationPage() {
             >
               {isSubscribedToNotifs
                 ? "Durée : 30 jours à partir de maintenant"
-                : "Recevez les infos de suivi en temps réel"}
+                : pushStatus === "granted"
+                  ? "Permission accordée : cliquez ici si aucune notification n’arrive"
+                  : "Recevez les infos de suivi en temps réel"}
             </p>
           </div>
         ) : (
