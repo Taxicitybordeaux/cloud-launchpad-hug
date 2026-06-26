@@ -1044,8 +1044,6 @@ const fr: Dict = {
   "home.install.ios.step3": "Sélectionnez <strong>Sur l'écran d'accueil</strong>",
   "home.install.ios.step4": "Tapez <strong>Ajouter</strong> — l'appli apparaît sur votre écran d'accueil",
   "home.install.ios.img_alt": "Guide d'installation iPhone : Safari, Partager, Ajouter à l'écran d'accueil",
-
-    "home.install.ios.img_alt": "Guide d'installation iPhone : Safari, Partager, Ajouter à l'écran d'accueil",
   "home.install.ios.tip": "💡 <strong>Astuce :</strong> Activez les notifications dans les paramètres iOS (Paramètres → Taxi City Bordeaux → Notifications).",
   "home.install.android.title": "Android",
   "home.install.android.step1": "Ouvrez <strong>Chrome</strong> et allez sur <strong>taxicitybordeaux.fr</strong>",
