@@ -219,7 +219,6 @@ type SubRow = {
   last_seen_at: string | null;
 };
 
-
 export async function sendPushToAudience(
   audience: PushAudience,
   payload: PushPayload,
@@ -257,9 +256,15 @@ export async function sendPushToAudience(
 
   // Dédoublonnage à deux niveaux :
   //  - par fcm_token (évidence)
-  //  - par user_agent (un même device iOS peut avoir plusieurs fcm_token
-  //    régénérés au fil des sessions / installs PWA → cause des notifs ×N)
-  // On garde la ligne la plus récente (les rows sont déjà triées DESC).
+  //  - par user_agent SEUL (un même device iOS régénère régulièrement son
+  //    fcm_token sans que l'ancienne ligne soit supprimée en base → sans
+  //    inclure le token dans la clé, on regroupe correctement toutes les
+  //    lignes d'un même appareil malgré les tokens différents, et on ne
+  //    garde que la plus récente). Inclure le token dans la clé (comme
+  //    avant) empêchait toute déduplication réelle car deux tokens du même
+  //    device n'ont jamais le même suffixe → c'était la cause des envois ×N.
+  //  Risque accepté : 2 devices distincts avec un user_agent strictement
+  //  identique seraient fusionnés à tort (cas rare vs. le bug ×N observé).
   const rows = (data as unknown as SubRow[]).filter((r) => !!r.fcm_token);
   const byToken = new Map<string, SubRow>();
   for (const r of rows) if (!byToken.has(r.fcm_token!)) byToken.set(r.fcm_token!, r);
@@ -267,9 +272,7 @@ export async function sendPushToAudience(
   const staleIds: string[] = [];
   const uniqueSubs: SubRow[] = [];
   for (const sub of byToken.values()) {
-    // Clé = user_agent + derniers 8 chars du token pour éviter de confondre
-    // 2 appareils différents ayant le même user_agent (ex: 2 iPhone 15 Safari).
-    const uaKey = sub.user_agent ? `${sub.user_agent}::${sub.fcm_token!.slice(-8)}` : "";
+    const uaKey = sub.user_agent || "";
     if (uaKey && seenUa.has(uaKey)) {
       staleIds.push(sub.id);
       continue;
