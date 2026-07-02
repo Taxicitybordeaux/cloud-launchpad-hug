@@ -310,6 +310,23 @@ function DriverPage() {
     }
   }, [token]);
 
+  // ── Fix conflit manifest PWA ────────────────────────────────────────────
+  // __root.tsx injecte inconditionnellement <link rel="manifest" href="/manifest.json">
+  // sur TOUTES les routes, y compris /driver qui ajoute le sien
+  // (/api/manifest?role=driver). iOS Safari retient le PREMIER <link
+  // rel="manifest"> du DOM — donc le manifest global (start_url "/") gagne
+  // et "Ajouter à l'écran d'accueil" installe la homepage au lieu du driver.
+  // On supprime ici toute balise manifest autre que celle de /driver dès le
+  // montage, pour qu'il n'en reste qu'une seule quand l'utilisateur ouvre le
+  // menu de partage iOS.
+  useEffect(() => {
+    const links = Array.from(document.querySelectorAll('link[rel="manifest"]')) as HTMLLinkElement[];
+    const keep = links.find((l) => l.href.includes("/api/manifest"));
+    links.forEach((l) => {
+      if (l !== keep) l.remove();
+    });
+  }, []);
+
   const savedToken = typeof window !== "undefined" ? localStorage.getItem("driver_token") : null;
   const validToken = token === DRIVER_TOKEN || savedToken === DRIVER_TOKEN;
 
@@ -2082,7 +2099,7 @@ function ChatTab() {
   const [threads, setThreads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<any | null>(null);
-  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" ? window.innerWidth < 768 : true);
+  const [isMobile, setIsMobile] = useState(() => (typeof window !== "undefined" ? window.innerWidth < 768 : true));
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
@@ -3121,7 +3138,6 @@ function ActiveVisitors() {
     </div>
   );
 }
-
 
 // ── Onglet Stats ────────────────────────────────────────────────────────────
 function StatsTab() {
