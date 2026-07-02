@@ -129,6 +129,8 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     <html lang="fr">
       <head>
         <HeadContent />
+        {/* Anti rebond (rubber-band) iOS, surtout visible en PWA standalone */}
+        <style>{`html, body { overscroll-behavior-y: none; overscroll-behavior-x: none; }`}</style>
       </head>
       <body>
         <I18nProvider>
