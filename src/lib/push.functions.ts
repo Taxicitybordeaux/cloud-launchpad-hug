@@ -6,6 +6,20 @@ export type PushAudience = "chauffeur" | "client";
 
 const FCM_TOKEN_RE = /^[A-Za-z0-9_\-:]{50,500}$/;
 
+// Hash court et stable du user_agent, utilisé comme identifiant de device
+// dans endpoint. Pas cryptographique — juste besoin de stabilité, pas de
+// sécurité. "no-ua" si absent pour éviter que tous les UA vides collisionnent
+// silencieusement avec un vrai device (cas déjà rare, accepté).
+function hashUserAgent(ua: string | null): string {
+  if (!ua) return "no-ua";
+  let hash = 0;
+  for (let i = 0; i < ua.length; i++) {
+    hash = (hash << 5) - hash + ua.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
 const subSchema = z.object({
   audience: z.enum(["chauffeur", "client"]),
   fcm_token: z.string().regex(FCM_TOKEN_RE, "fcm_token format invalide"),
@@ -22,15 +36,24 @@ export const subscribePush = createServerFn({ method: "POST" })
     const ua = data.user_agent ?? null;
     const clientAccountId = data.audience === "client" ? (data.client_account_id ?? null) : null;
 
-    // Endpoint stable par token + audience + cible.
+    // Endpoint stable par DEVICE (via hash du user_agent) + audience + cible.
     // Important : un même client peut avoir plusieurs réservations actives ;
     // l'ancien endpoint token+audience écrasait l'abonnement précédent.
+    //
+    // ⚠️ CORRECTIF : l'endpoint ne doit JAMAIS inclure fcm_token. iOS régénère
+    // le token régulièrement (rotation auto 50j dans getFcmToken, refresh sur
+    // visibilitychange, etc.) — si le token fait partie de la clé, chaque
+    // rotation génère un endpoint différent, le delete-before-insert ne trouve
+    // jamais l'ancienne ligne, et on accumule des lignes actives pour le même
+    // device → notifications ×N côté iPhone. En gardant l'endpoint stable par
+    // device (hash UA), la rotation de token remplace bien l'ancienne ligne.
     const targetKey = clientAccountId
       ? `account-${clientAccountId}`
       : data.reservation_id
         ? `reservation-${data.reservation_id}`
         : "generic";
-    const endpoint = `${data.fcm_token}-${data.audience}-${targetKey}`;
+    const deviceKey = hashUserAgent(ua);
+    const endpoint = `${data.audience}-${targetKey}-${deviceKey}`;
     const nowIso = new Date().toISOString();
 
     // ── Stratégie compatible schéma legacy ────────────────────────────────
@@ -39,10 +62,7 @@ export const subscribePush = createServerFn({ method: "POST" })
     // chauffeur/client, la cible est encodée dans endpoint et l'insert n'écrit
     // que les colonnes historiques garanties.
     try {
-      await supabaseAdmin
-        .from("push_subscriptions")
-        .delete()
-        .eq("endpoint", endpoint);
+      await supabaseAdmin.from("push_subscriptions").delete().eq("endpoint", endpoint);
     } catch (e) {
       console.warn("[push] pre-insert cleanup non-fatal error", e);
     }
@@ -281,7 +301,9 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
     const supabaseAdmin = getTaxiSupabaseAdmin();
     const { data: r, error: fetchErr } = await supabaseAdmin
       .from("reservations")
-      .select("id, nom, client_name, client_phone, telephone, depart, arrivee, destination, suivi_id, lang, client_account_id")
+      .select(
+        "id, nom, client_name, client_phone, telephone, depart, arrivee, destination, suivi_id, lang, client_account_id",
+      )
       .eq("id", data.reservation_id)
       .maybeSingle();
     if (fetchErr) {
