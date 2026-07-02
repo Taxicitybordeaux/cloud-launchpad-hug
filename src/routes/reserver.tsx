@@ -2341,7 +2341,7 @@ function ReservationPage() {
                   background: "rgba(255,255,255,0.7)",
                   border: "1.5px solid rgba(201,168,76,0.25)",
                   borderRadius: 12,
-                  fontSize: 14,
+                  fontSize: 16,
                   color: "#1a1209",
                   fontFamily: "inherit",
                   outline: "none",
@@ -2467,13 +2467,19 @@ function ReservationPage() {
                   }
                 } else {
                   // ── SUBSCRIBE / REPAIR ──
-                  const loadingId = toast.loading(pushStatus === "granted" ? "🔧 Réinscription en cours..." : "🔔 Activation en cours...");
+                  const loadingId = toast.loading(
+                    pushStatus === "granted" ? "🔧 Réinscription en cours..." : "🔔 Activation en cours...",
+                  );
                   try {
                     const ok = await subscribePush("client");
                     toast.dismiss(loadingId);
                     if (ok) {
                       setIsSubscribedToNotifs(true);
-                      toast.success(pushStatus === "granted" ? "✅ Appareil réinscrit aux notifications client" : "✅ Notifications activées pour 30 jours!");
+                      toast.success(
+                        pushStatus === "granted"
+                          ? "✅ Appareil réinscrit aux notifications client"
+                          : "✅ Notifications activées pour 30 jours!",
+                      );
                     } else {
                       toast.error("❌ Impossible d'activer (RLS ou permissions)");
                     }
