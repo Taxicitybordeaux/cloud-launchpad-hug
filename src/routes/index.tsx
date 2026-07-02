@@ -173,7 +173,7 @@ function Home() {
           <p className="max-w-md text-sm text-muted-foreground">{t("home.dest.intro")}</p>
         </div>
 
-        <div className="mt-8 grid auto-cols-[80vw] grid-flow-col gap-4 overflow-x-auto pb-3 [overflow-scrolling:touch] [-webkit-overflow-scrolling:touch] sm:auto-cols-[60vw] md:grid-flow-row md:grid-cols-3 md:overflow-visible md:pb-0 md:gap-5">
+        <div className="mt-8 grid auto-cols-[80vw] grid-flow-col gap-4 overflow-x-auto snap-x snap-mandatory pb-3 [-webkit-overflow-scrolling:touch] [overscroll-behavior-x:contain] sm:auto-cols-[60vw] md:grid-flow-row md:grid-cols-3 md:overflow-visible md:pb-0 md:gap-5">
           {[
             { img: destGare, title: t("home.dest.gare.title"), sub: t("home.dest.gare.sub") },
             { img: destAeroport, title: t("home.dest.airport.title"), sub: t("home.dest.airport.sub") },
@@ -182,12 +182,13 @@ function Home() {
             <Link
               key={d.title}
               to="/reservation"
-              className="group relative block aspect-[4/5] overflow-hidden rounded-3xl border border-border"
+              className="group relative block aspect-[4/5] snap-start touch-manipulation overflow-hidden rounded-3xl border border-border [-webkit-tap-highlight-color:transparent]"
             >
               <img
                 src={d.img}
                 alt={d.title}
                 loading="lazy"
+                decoding="async"
                 width={1024}
                 height={1280}
                 className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
@@ -224,12 +225,13 @@ function Home() {
               <Link
                 key={b.title}
                 to="/reservation"
-                className="group relative block aspect-[4/5] overflow-hidden rounded-2xl border border-border sm:rounded-3xl"
+                className="group relative block aspect-[4/5] touch-manipulation overflow-hidden rounded-2xl border border-border [-webkit-tap-highlight-color:transparent] sm:rounded-3xl"
               >
                 <img
                   src={b.img}
                   alt={b.title}
                   loading="lazy"
+                  decoding="async"
                   width={1024}
                   height={1280}
                   className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
@@ -253,18 +255,17 @@ function Home() {
         <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:py-16 md:grid-cols-2 md:items-center md:py-20">
           <div className="relative">
             <div className="overflow-hidden rounded-3xl border border-primary/20 bg-card p-8 sm:p-10">
-              <img
-                src={logo}
-                alt="Taxi City Bordeaux"
-                width={512}
-                height={512}
-                loading="lazy"
-                decoding="async"
-                className="mx-auto h-auto w-full max-w-xs cursor-pointer select-none sm:max-w-sm"
-                onClick={() => {
-                  window.location.href = "/login";
-                }}
-              />
+              <Link to="/login" className="block touch-manipulation [-webkit-tap-highlight-color:transparent]">
+                <img
+                  src={logo}
+                  alt="Taxi City Bordeaux"
+                  width={512}
+                  height={512}
+                  loading="lazy"
+                  decoding="async"
+                  className="mx-auto h-auto w-full max-w-xs select-none sm:max-w-sm"
+                />
+              </Link>
             </div>
           </div>
 
@@ -321,7 +322,7 @@ function Home() {
           ];
 
           const cardClass =
-            "group relative flex h-full flex-col rounded-2xl border border-border bg-card p-5 transition hover:-translate-y-0.5 hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:p-6";
+            "group relative flex h-full flex-col touch-manipulation rounded-2xl border border-border bg-card p-5 transition hover:-translate-y-0.5 hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [-webkit-tap-highlight-color:transparent] sm:p-6";
 
           const inner = (s: (typeof steps)[number]) => (
             <>
@@ -359,7 +360,7 @@ function Home() {
         <div className="mt-8 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center">
           <Link
             to="/reservation"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-gold)] active:scale-95"
+            className="inline-flex touch-manipulation items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-gold)] [-webkit-tap-highlight-color:transparent] active:scale-95"
           >
             {t("home.hero.book_now")} <ArrowRight className="h-4 w-4" />
           </Link>
@@ -396,7 +397,7 @@ function Home() {
         <div className="mt-8 text-center sm:mt-10">
           <Link
             to="/services"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
+            className="inline-flex touch-manipulation items-center gap-2 text-sm font-semibold text-primary [-webkit-tap-highlight-color:transparent] hover:underline"
           >
             {t("home.services.see_all")} <ArrowRight className="h-4 w-4" />
           </Link>
@@ -458,13 +459,13 @@ function Home() {
               <div className="flex shrink-0 flex-col items-stretch gap-3 sm:flex-row md:flex-col">
                 <Link
                   to="/client"
-                  className="rounded-xl bg-primary px-7 py-3.5 text-center font-semibold text-primary-foreground shadow-[var(--shadow-gold)] active:scale-95"
+                  className="touch-manipulation rounded-xl bg-primary px-7 py-3.5 text-center font-semibold text-primary-foreground shadow-[var(--shadow-gold)] [-webkit-tap-highlight-color:transparent] active:scale-95"
                 >
                   {t("home.client.cta_login")}
                 </Link>
                 <Link
                   to="/reservation"
-                  className="rounded-xl border border-border bg-background px-7 py-3.5 text-center font-semibold active:scale-95"
+                  className="touch-manipulation rounded-xl border border-border bg-background px-7 py-3.5 text-center font-semibold [-webkit-tap-highlight-color:transparent] active:scale-95"
                 >
                   {t("home.client.cta_book")}
                 </Link>
@@ -513,25 +514,34 @@ function Home() {
               alt={t("home.install.ios.img_alt")}
               className="mb-4 w-full rounded-xl border border-border"
               loading="lazy"
+              decoding="async"
               width={1024}
               height={512}
             />
 
             <ol className="space-y-3 text-sm">
               <li className="flex gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">1</span>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
+                  1
+                </span>
                 <span dangerouslySetInnerHTML={{ __html: t("home.install.ios.step1") }} />
               </li>
               <li className="flex gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">2</span>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
+                  2
+                </span>
                 <span dangerouslySetInnerHTML={{ __html: t("home.install.ios.step2") }} />
               </li>
               <li className="flex gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">3</span>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
+                  3
+                </span>
                 <span dangerouslySetInnerHTML={{ __html: t("home.install.ios.step3") }} />
               </li>
               <li className="flex gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">4</span>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
+                  4
+                </span>
                 <span dangerouslySetInnerHTML={{ __html: t("home.install.ios.step4") }} />
               </li>
             </ol>
@@ -555,25 +565,34 @@ function Home() {
               alt={t("home.install.android.img_alt")}
               className="mb-4 w-full rounded-xl border border-border"
               loading="lazy"
+              decoding="async"
               width={1024}
               height={1024}
             />
 
             <ol className="space-y-3 text-sm">
               <li className="flex gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">1</span>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
+                  1
+                </span>
                 <span dangerouslySetInnerHTML={{ __html: t("home.install.android.step1") }} />
               </li>
               <li className="flex gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">2</span>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
+                  2
+                </span>
                 <span dangerouslySetInnerHTML={{ __html: t("home.install.android.step2") }} />
               </li>
               <li className="flex gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">3</span>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
+                  3
+                </span>
                 <span dangerouslySetInnerHTML={{ __html: t("home.install.android.step3") }} />
               </li>
               <li className="flex gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">4</span>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
+                  4
+                </span>
                 <span dangerouslySetInnerHTML={{ __html: t("home.install.android.step4") }} />
               </li>
             </ol>
@@ -587,7 +606,10 @@ function Home() {
         <div className="mt-8 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
           <p className="text-sm">
             <strong>✨ {t("home.help.title")}</strong> {t("home.help.call_prefix")}{" "}
-            <a href="tel:+33673072322" className="font-semibold text-primary hover:underline">
+            <a
+              href="tel:+33673072322"
+              className="touch-manipulation font-semibold text-primary [-webkit-tap-highlight-color:transparent] hover:underline"
+            >
               {PHONE_DISPLAY}
             </a>{" "}
             {t("home.help.or_write")}{" "}
@@ -595,7 +617,7 @@ function Home() {
               href={WHATSAPP}
               target="_blank"
               rel="noopener noreferrer"
-              className="font-semibold text-primary hover:underline"
+              className="touch-manipulation font-semibold text-primary [-webkit-tap-highlight-color:transparent] hover:underline"
             >
               WhatsApp
             </a>
@@ -621,7 +643,7 @@ function Home() {
                 key={i}
                 className="group rounded-xl border border-border bg-card/50 p-4 transition hover:border-primary/40 sm:p-5"
               >
-                <summary className="flex cursor-pointer list-none items-start gap-3 font-semibold">
+                <summary className="flex cursor-pointer touch-manipulation list-none items-start gap-3 font-semibold [-webkit-tap-highlight-color:transparent] [&::-webkit-details-marker]:hidden [&::marker]:hidden">
                   <HelpCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                   <span className="flex-1 text-sm sm:text-base">{t(`faq.q${i}`)}</span>
                   <span className="ml-2 text-primary transition group-open:rotate-45">+</span>
@@ -634,7 +656,7 @@ function Home() {
       </section>
 
       {/* CTA */}
-      <section className="mx-auto max-w-7xl px-4 py-12 pb-32 sm:py-16 sm:pb-36 md:py-20 md:pb-40">
+      <section className="mx-auto max-w-7xl px-4 py-12 pb-[calc(8rem+env(safe-area-inset-bottom))] sm:py-16 sm:pb-[calc(9rem+env(safe-area-inset-bottom))] md:py-20 md:pb-[calc(10rem+env(safe-area-inset-bottom))]">
         <div className="relative overflow-hidden rounded-3xl border border-primary/30 bg-card p-8 text-center sm:p-10 md:p-16">
           <div className="absolute inset-0 bg-[var(--gradient-gold)] opacity-10" />
           <div className="relative">
@@ -645,13 +667,13 @@ function Home() {
             <div className="mt-6 flex flex-col items-stretch gap-3 sm:mt-8 sm:flex-row sm:flex-wrap sm:justify-center sm:items-center">
               <Link
                 to="/reservation"
-                className="rounded-xl bg-primary px-8 py-3.5 font-semibold text-primary-foreground shadow-[var(--shadow-gold)] active:scale-95"
+                className="touch-manipulation rounded-xl bg-primary px-8 py-3.5 font-semibold text-primary-foreground shadow-[var(--shadow-gold)] [-webkit-tap-highlight-color:transparent] active:scale-95"
               >
                 {t("home.cta.online")}
               </Link>
               <a
                 href={`tel:${PHONE}`}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-8 py-3.5 font-semibold active:scale-95"
+                className="inline-flex touch-manipulation items-center justify-center gap-2 rounded-xl border border-border bg-background px-8 py-3.5 font-semibold [-webkit-tap-highlight-color:transparent] active:scale-95"
               >
                 <Phone className="h-4 w-4" /> {PHONE_DISPLAY}
               </a>
@@ -712,11 +734,11 @@ function Testimonials() {
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">{t("home.test.eyebrow")}</p>
           <h2 className="mt-3 font-display text-3xl font-bold sm:text-4xl md:text-5xl">{t("home.test.title")}</h2>
         </div>
-        <div className="mt-8 grid auto-cols-[85vw] grid-flow-col gap-4 overflow-x-auto pb-3 [overflow-scrolling:touch] [-webkit-overflow-scrolling:touch] sm:auto-cols-[60vw] md:grid-flow-row md:grid-cols-3 md:overflow-visible md:pb-0 md:gap-6 md:mt-12">
+        <div className="mt-8 grid auto-cols-[85vw] grid-flow-col gap-4 overflow-x-auto snap-x snap-mandatory pb-3 [-webkit-overflow-scrolling:touch] [overscroll-behavior-x:contain] sm:auto-cols-[60vw] md:grid-flow-row md:grid-cols-3 md:overflow-visible md:pb-0 md:gap-6 md:mt-12">
           {items.map((r) => (
             <figure
               key={r.id}
-              className="flex h-full flex-col rounded-2xl border border-border bg-background p-5 sm:p-6"
+              className="flex h-full flex-col snap-start rounded-2xl border border-border bg-background p-5 sm:p-6"
             >
               <Quote className="h-5 w-5 text-primary sm:h-6 sm:w-6" />
               <div className="mt-3 flex gap-0.5">
