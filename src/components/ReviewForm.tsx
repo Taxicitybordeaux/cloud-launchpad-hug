@@ -24,6 +24,7 @@ export function ReviewForm({ onSubmitted }: { onSubmitted?: () => void }) {
       author_name: name.trim().slice(0, 80),
       note: rating,
       commentaire: text.trim().slice(0, 900),
+      status: "pending",
     });
     setLoading(false);
     if (error) {
@@ -76,7 +77,7 @@ export function ReviewForm({ onSubmitted }: { onSubmitted?: () => void }) {
           maxLength={80}
           required
           placeholder={t("review.name.placeholder")}
-          className="rounded-xl border border-border bg-background px-4 py-3 text-base sm:text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="rounded-xl border border-border bg-background px-4 py-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         />
         <textarea
           value={text}
@@ -85,7 +86,7 @@ export function ReviewForm({ onSubmitted }: { onSubmitted?: () => void }) {
           required
           rows={4}
           placeholder={t("review.text.placeholder")}
-          className="rounded-xl border border-border bg-background px-4 py-3 text-base sm:text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="rounded-xl border border-border bg-background px-4 py-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         />
       </div>
 
