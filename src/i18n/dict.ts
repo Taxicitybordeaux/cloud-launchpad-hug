@@ -1033,34 +1033,42 @@ const fr: Dict = {
 
   "home.install.eyebrow": "Installation",
   "home.install.title": "Installez l'appli mobile",
-  "home.install.desc": "Réservez votre taxi en un instant, même sans connexion. Recevez les notifications de suivi en temps réel.",
-  "home.install.push_warning": "⚠️ <strong>Notifications push :</strong> les alertes de suivi de course (chauffeur en route, arrivé, terminé) ne fonctionnent que si l'application est installée sur votre téléphone. Sans installation, vous ne recevrez pas les alertes en temps réel.",
+  "home.install.desc":
+    "Réservez votre taxi en un instant, même sans connexion. Recevez les notifications de suivi en temps réel.",
+  "home.install.push_warning":
+    "⚠️ <strong>Notifications push :</strong> les alertes de suivi de course (chauffeur en route, arrivé, terminé) ne fonctionnent que si l'application est installée sur votre téléphone. Sans installation, vous ne recevrez pas les alertes en temps réel.",
   "home.install.push_title": "Notifications de suivi",
-  "home.install.push_how": "<strong>Comment activer ?</strong> Installez l'appli sur votre écran d'accueil (voir ci-dessous), puis acceptez les notifications quand Safari ou Chrome le propose.",
-  "home.install.push_why": "<strong>Pourquoi ?</strong> Sans installation, votre navigateur ne peut pas envoyer d'alertes en arrière-plan. Vous ne recevrez pas les messages \"Chauffeur en route\", \"Arrivé\" ou \"Course terminée\".",
+  "home.install.push_how":
+    "<strong>Comment activer ?</strong> Installez l'appli sur votre écran d'accueil (voir ci-dessous), puis acceptez les notifications quand Safari ou Chrome le propose.",
+  "home.install.push_why":
+    '<strong>Pourquoi ?</strong> Sans installation, votre navigateur ne peut pas envoyer d\'alertes en arrière-plan. Vous ne recevrez pas les messages "Chauffeur en route", "Arrivé" ou "Course terminée".',
   "home.install.ios.title": "iPhone / iOS",
   "home.install.ios.step1": "Ouvrez <strong>Safari</strong> et allez sur <strong>taxicitybordeaux.fr</strong>",
   "home.install.ios.step2": "Tapez le bouton <strong>Partager</strong> (carré avec flèche)",
   "home.install.ios.step3": "Sélectionnez <strong>Sur l'écran d'accueil</strong>",
   "home.install.ios.step4": "Tapez <strong>Ajouter</strong> — l'appli apparaît sur votre écran d'accueil",
   "home.install.ios.img_alt": "Guide d'installation iPhone : Safari, Partager, Ajouter à l'écran d'accueil",
-  "home.install.ios.tip": "💡 <strong>Astuce :</strong> Activez les notifications dans les paramètres iOS (Paramètres → Taxi City Bordeaux → Notifications).",
+  "home.install.ios.tip":
+    "💡 <strong>Astuce :</strong> Activez les notifications dans les paramètres iOS (Paramètres → Taxi City Bordeaux → Notifications).",
   "home.install.android.title": "Android",
   "home.install.android.img_alt": "Guide d'installation Android : Chrome, menu ⋮, Ajouter à l'écran d'accueil",
   "home.install.android.step1": "Ouvrez <strong>Chrome</strong> et allez sur <strong>taxicitybordeaux.fr</strong>",
   "home.install.android.step2": "Tapez le menu <strong>⋮</strong> (trois points) en haut à droite",
   "home.install.android.step3": "Sélectionnez <strong>Ajouter à l'écran d'accueil</strong>",
   "home.install.android.step4": "Tapez <strong>Ajouter</strong> — l'icône apparaît sur votre écran d'accueil",
-  "home.install.android.tip": "💡 <strong>Astuce :</strong> Acceptez les notifications quand Chrome le demande pour recevoir les alertes de suivi.",
+  "home.install.android.tip":
+    "💡 <strong>Astuce :</strong> Acceptez les notifications quand Chrome le demande pour recevoir les alertes de suivi.",
   "home.meta.title": "Taxi City Bordeaux – Taxi 7j/7 à Bordeaux & en Gironde",
-  "home.meta.description": "Réservez votre taxi à Bordeaux : aéroport Mérignac, gare Saint-Jean, vignobles, longues distances. Conventionné CPAM. Service ponctuel et confortable, jour & nuit.",
+  "home.meta.description":
+    "Réservez votre taxi à Bordeaux : aéroport Mérignac, gare Saint-Jean, vignobles, longues distances. Conventionné CPAM. Service ponctuel et confortable, jour & nuit.",
   "home.hero.alt": "Bordeaux la nuit – Pont Chaban-Delmas illuminé sur la Garonne",
   "home.help.title": "Besoin d'aide ?",
   "home.help.call_prefix": "Appelez-nous au",
   "home.help.or_write": "ou écrivez-nous sur",
   "client.factures.title": "Mes factures",
   "client.factures.subtitle": "Documents fiscaux pour notes de frais — TVA 10 % incluse",
-  "client.factures.company_prompt": "Ajoutez vos informations d'entreprise (raison sociale, SIRET, TVA) pour les faire apparaître sur vos factures.",
+  "client.factures.company_prompt":
+    "Ajoutez vos informations d'entreprise (raison sociale, SIRET, TVA) pour les faire apparaître sur vos factures.",
   "client.factures.complete_profile": "Compléter mon profil",
   "client.factures.empty_year": "Aucune course terminée en",
   "client.factures.year_label": "Année",
@@ -2060,33 +2068,40 @@ const en: Dict = {
   "home.install.eyebrow": "Installation",
   "home.install.title": "Install the mobile app",
   "home.install.desc": "Book your taxi in an instant, even offline. Receive real-time tracking notifications.",
-  "home.install.push_warning": "⚠️ <strong>Push notifications:</strong> ride tracking alerts (driver on the way, arrived, completed) only work if the app is installed on your phone. Without installation, you will not receive real-time alerts.",
+  "home.install.push_warning":
+    "⚠️ <strong>Push notifications:</strong> ride tracking alerts (driver on the way, arrived, completed) only work if the app is installed on your phone. Without installation, you will not receive real-time alerts.",
   "home.install.push_title": "Tracking notifications",
-  "home.install.push_how": "<strong>How to enable?</strong> Install the app on your home screen (see below), then accept notifications when Safari or Chrome asks.",
-  "home.install.push_why": "<strong>Why?</strong> Without installation, your browser cannot send background alerts. You will not receive \"Driver on the way\", \"Arrived\" or \"Ride completed\" messages.",
+  "home.install.push_how":
+    "<strong>How to enable?</strong> Install the app on your home screen (see below), then accept notifications when Safari or Chrome asks.",
+  "home.install.push_why":
+    '<strong>Why?</strong> Without installation, your browser cannot send background alerts. You will not receive "Driver on the way", "Arrived" or "Ride completed" messages.',
   "home.install.ios.title": "iPhone / iOS",
   "home.install.ios.step1": "Open <strong>Safari</strong> and go to <strong>taxicitybordeaux.fr</strong>",
   "home.install.ios.step2": "Tap the <strong>Share</strong> button (square with arrow)",
   "home.install.ios.step3": "Select <strong>Add to Home Screen</strong>",
   "home.install.ios.step4": "Tap <strong>Add</strong> — the app appears on your home screen",
   "home.install.ios.img_alt": "iPhone installation guide: Safari, Share, Add to Home Screen",
-  "home.install.ios.tip": "💡 <strong>Tip:</strong> Enable notifications in iOS settings (Settings → Taxi City Bordeaux → Notifications).",
+  "home.install.ios.tip":
+    "💡 <strong>Tip:</strong> Enable notifications in iOS settings (Settings → Taxi City Bordeaux → Notifications).",
   "home.install.android.title": "Android",
   "home.install.android.img_alt": "Android installation guide: Chrome, ⋮ menu, Add to Home screen",
   "home.install.android.step1": "Open <strong>Chrome</strong> and go to <strong>taxicitybordeaux.fr</strong>",
   "home.install.android.step2": "Tap the <strong>⋮</strong> menu (three dots) at the top right",
   "home.install.android.step3": "Select <strong>Add to Home Screen</strong>",
   "home.install.android.step4": "Tap <strong>Add</strong> — the icon appears on your home screen",
-  "home.install.android.tip": "💡 <strong>Tip:</strong> Accept notifications when Chrome asks to receive tracking alerts.",
+  "home.install.android.tip":
+    "💡 <strong>Tip:</strong> Accept notifications when Chrome asks to receive tracking alerts.",
   "home.meta.title": "Taxi City Bordeaux – 7-day Taxi Service in Bordeaux & Gironde",
-  "home.meta.description": "Book your taxi in Bordeaux: Mérignac airport, Saint-Jean station, vineyards, long distances. CPAM-certified. Punctual and comfortable service, day & night.",
+  "home.meta.description":
+    "Book your taxi in Bordeaux: Mérignac airport, Saint-Jean station, vineyards, long distances. CPAM-certified. Punctual and comfortable service, day & night.",
   "home.hero.alt": "Bordeaux at night – Chaban-Delmas Bridge lit up over the Garonne",
   "home.help.title": "Need help?",
   "home.help.call_prefix": "Call us at",
   "home.help.or_write": "or message us on",
   "client.factures.title": "My invoices",
   "client.factures.subtitle": "Tax documents for expense reports — 10% VAT included",
-  "client.factures.company_prompt": "Add your company information (legal name, VAT number) to display them on your invoices.",
+  "client.factures.company_prompt":
+    "Add your company information (legal name, VAT number) to display them on your invoices.",
   "client.factures.complete_profile": "Complete my profile",
   "client.factures.empty_year": "No completed rides in",
   "client.factures.year_label": "Year",
@@ -3090,34 +3105,42 @@ const es: Dict = {
 
   "home.install.eyebrow": "Instalación",
   "home.install.title": "Instala la app móvil",
-  "home.install.desc": "Reserva tu taxi en un instante, incluso sin conexión. Recibe notificaciones de seguimiento en tiempo real.",
-  "home.install.push_warning": "⚠️ <strong>Notificaciones push:</strong> las alertas de seguimiento del viaje (conductor en camino, llegado, terminado) solo funcionan si la aplicación está instalada en tu teléfono. Sin instalación, no recibirás alertas en tiempo real.",
+  "home.install.desc":
+    "Reserva tu taxi en un instante, incluso sin conexión. Recibe notificaciones de seguimiento en tiempo real.",
+  "home.install.push_warning":
+    "⚠️ <strong>Notificaciones push:</strong> las alertas de seguimiento del viaje (conductor en camino, llegado, terminado) solo funcionan si la aplicación está instalada en tu teléfono. Sin instalación, no recibirás alertas en tiempo real.",
   "home.install.push_title": "Notificaciones de seguimiento",
-  "home.install.push_how": "<strong>¿Cómo activar?</strong> Instala la app en tu pantalla de inicio (ver abajo), luego acepta las notificaciones cuando Safari o Chrome lo pida.",
-  "home.install.push_why": "<strong>¿Por qué?</strong> Sin instalación, tu navegador no puede enviar alertas en segundo plano. No recibirás los mensajes \"Conductor en camino\", \"Llegado\" o \"Viaje terminado\".",
+  "home.install.push_how":
+    "<strong>¿Cómo activar?</strong> Instala la app en tu pantalla de inicio (ver abajo), luego acepta las notificaciones cuando Safari o Chrome lo pida.",
+  "home.install.push_why":
+    '<strong>¿Por qué?</strong> Sin instalación, tu navegador no puede enviar alertas en segundo plano. No recibirás los mensajes "Conductor en camino", "Llegado" o "Viaje terminado".',
   "home.install.ios.title": "iPhone / iOS",
   "home.install.ios.step1": "Abre <strong>Safari</strong> y ve a <strong>taxicitybordeaux.fr</strong>",
   "home.install.ios.step2": "Toca el botón <strong>Compartir</strong> (cuadrado con flecha)",
   "home.install.ios.step3": "Selecciona <strong>En la pantalla de inicio</strong>",
   "home.install.ios.step4": "Toca <strong>Añadir</strong> — la app aparece en tu pantalla de inicio",
   "home.install.ios.img_alt": "Guía de instalación iPhone: Safari, Compartir, Añadir a la pantalla de inicio",
-  "home.install.ios.tip": "💡 <strong>Consejo:</strong> Activa las notificaciones en los ajustes de iOS (Ajustes → Taxi City Bordeaux → Notificaciones).",
+  "home.install.ios.tip":
+    "💡 <strong>Consejo:</strong> Activa las notificaciones en los ajustes de iOS (Ajustes → Taxi City Bordeaux → Notificaciones).",
   "home.install.android.title": "Android",
   "home.install.android.img_alt": "Guía de instalación Android: Chrome, menú ⋮, Añadir a pantalla de inicio",
   "home.install.android.step1": "Abre <strong>Chrome</strong> y ve a <strong>taxicitybordeaux.fr</strong>",
   "home.install.android.step2": "Toca el menú <strong>⋮</strong> (tres puntos) arriba a la derecha",
   "home.install.android.step3": "Selecciona <strong>Añadir a la pantalla de inicio</strong>",
   "home.install.android.step4": "Toca <strong>Añadir</strong> — el icono aparece en tu pantalla de inicio",
-  "home.install.android.tip": "💡 <strong>Consejo:</strong> Acepta las notificaciones cuando Chrome lo pida para recibir alertas de seguimiento.",
+  "home.install.android.tip":
+    "💡 <strong>Consejo:</strong> Acepta las notificaciones cuando Chrome lo pida para recibir alertas de seguimiento.",
   "home.meta.title": "Taxi City Bordeaux – Taxi 7/7 en Burdeos y Gironda",
-  "home.meta.description": "Reserva tu taxi en Burdeos: aeropuerto Mérignac, estación Saint-Jean, viñedos, largas distancias. Convencionado CPAM. Servicio puntual y cómodo, día y noche.",
+  "home.meta.description":
+    "Reserva tu taxi en Burdeos: aeropuerto Mérignac, estación Saint-Jean, viñedos, largas distancias. Convencionado CPAM. Servicio puntual y cómodo, día y noche.",
   "home.hero.alt": "Burdeos de noche – Puente Chaban-Delmas iluminado sobre el Garona",
   "home.help.title": "¿Necesitas ayuda?",
   "home.help.call_prefix": "Llámanos al",
   "home.help.or_write": "o escríbenos por",
   "client.factures.title": "Mis facturas",
   "client.factures.subtitle": "Documentos fiscales para gastos — IVA 10% incluido",
-  "client.factures.company_prompt": "Añade los datos de tu empresa (razón social, NIF/IVA) para que aparezcan en tus facturas.",
+  "client.factures.company_prompt":
+    "Añade los datos de tu empresa (razón social, NIF/IVA) para que aparezcan en tus facturas.",
   "client.factures.complete_profile": "Completar mi perfil",
   "client.factures.empty_year": "Sin viajes completados en",
   "client.factures.year_label": "Año",
@@ -4123,31 +4146,43 @@ const it: Dict = {
 
   "home.install.eyebrow": "Installazione",
   "home.install.title": "Installa l'app mobile",
-  "home.install.desc": "Prenota il tuo taxi in un attimo, anche offline. Ricevi notifiche di tracciamento in tempo reale.",
-  "home.install.push_warning": "⚠️ <strong>Notifiche push:</strong> gli avvisi di tracciamento della corsa (autista in viaggio, arrivato, completata) funzionano solo se l'app è installata sul telefono. Senza installazione, non riceverai avvisi in tempo reale.",
+  "home.install.desc":
+    "Prenota il tuo taxi in un attimo, anche offline. Ricevi notifiche di tracciamento in tempo reale.",
+
+  "home.install.push_title": "Notifiche di tracciamento",
+  "home.install.push_how":
+    "<strong>Come attivarle?</strong> Installa l'app sulla schermata home (vedi sotto), poi accetta le notifiche quando Safari o Chrome lo richiede.",
+  "home.install.push_why":
+    '<strong>Perché?</strong> Senza installazione, il tuo browser non può inviare avvisi in background. Non riceverai i messaggi "Autista in arrivo", "Arrivato" o "Corsa terminata".',
+  "home.install.push_warning":
+    "⚠️ <strong>Notifiche push:</strong> gli avvisi di tracciamento della corsa (autista in viaggio, arrivato, completata) funzionano solo se l'app è installata sul telefono. Senza installazione, non riceverai avvisi in tempo reale.",
   "home.install.ios.title": "iPhone / iOS",
   "home.install.ios.step1": "Apri <strong>Safari</strong> e vai su <strong>taxicitybordeaux.fr</strong>",
   "home.install.ios.step2": "Tocca il pulsante <strong>Condividi</strong> (quadrato con freccia)",
   "home.install.ios.step3": "Seleziona <strong>Sulla schermata Home</strong>",
   "home.install.ios.step4": "Tocca <strong>Aggiungi</strong> — l'app appare sulla schermata Home",
   "home.install.ios.img_alt": "Guida installazione iPhone: Safari, Condividi, Aggiungi alla schermata Home",
-  "home.install.ios.tip": "💡 <strong>Suggerimento:</strong> Attiva le notifiche nelle impostazioni iOS (Impostazioni → Taxi City Bordeaux → Notifiche).",
+  "home.install.ios.tip":
+    "💡 <strong>Suggerimento:</strong> Attiva le notifiche nelle impostazioni iOS (Impostazioni → Taxi City Bordeaux → Notifiche).",
   "home.install.android.title": "Android",
   "home.install.android.img_alt": "Guida installazione Android: Chrome, menu ⋮, Aggiungi alla schermata Home",
   "home.install.android.step1": "Apri <strong>Chrome</strong> e vai su <strong>taxicitybordeaux.fr</strong>",
   "home.install.android.step2": "Tocca il menu <strong>⋮</strong> (tre punti) in alto a destra",
   "home.install.android.step3": "Seleziona <strong>Aggiungi alla schermata Home</strong>",
   "home.install.android.step4": "Tocca <strong>Aggiungi</strong> — l'icona appare sulla schermata Home",
-  "home.install.android.tip": "💡 <strong>Suggerimento:</strong> Accetta le notifiche quando Chrome le richiede per ricevere gli avvisi di tracciamento.",
+  "home.install.android.tip":
+    "💡 <strong>Suggerimento:</strong> Accetta le notifiche quando Chrome le richiede per ricevere gli avvisi di tracciamento.",
   "home.meta.title": "Taxi City Bordeaux – Taxi 7/7 a Bordeaux e in Gironda",
-  "home.meta.description": "Prenota il tuo taxi a Bordeaux: aeroporto Mérignac, stazione Saint-Jean, vigneti, lunghe distanze. Convenzionato CPAM. Servizio puntuale e confortevole, giorno e notte.",
+  "home.meta.description":
+    "Prenota il tuo taxi a Bordeaux: aeroporto Mérignac, stazione Saint-Jean, vigneti, lunghe distanze. Convenzionato CPAM. Servizio puntuale e confortevole, giorno e notte.",
   "home.hero.alt": "Bordeaux di notte – Ponte Chaban-Delmas illuminato sulla Garonna",
   "home.help.title": "Hai bisogno di aiuto?",
   "home.help.call_prefix": "Chiamaci al",
   "home.help.or_write": "o scrivici su",
   "client.factures.title": "Le mie fatture",
   "client.factures.subtitle": "Documenti fiscali per note spese — IVA 10% inclusa",
-  "client.factures.company_prompt": "Aggiungi i dati della tua azienda (ragione sociale, P.IVA) per farli apparire sulle fatture.",
+  "client.factures.company_prompt":
+    "Aggiungi i dati della tua azienda (ragione sociale, P.IVA) per farli apparire sulle fatture.",
   "client.factures.complete_profile": "Completa il mio profilo",
   "client.factures.empty_year": "Nessuna corsa completata nel",
   "client.factures.year_label": "Anno",
@@ -5140,14 +5175,22 @@ const ar: Dict = {
   "home.install.eyebrow": "التثبيت",
   "home.install.title": "ثبّت تطبيق الجوال",
   "home.install.desc": "احجز سيارتك الأجرة في لحظة، حتى بدون اتصال. استلم إشعارات التتبع في الوقت الفعلي.",
-  "home.install.push_warning": "⚠️ <strong>إشعارات الدفع:</strong> تنبيهات تتبع الرحلة (السائق في الطريق، وصل، انتهى) تعمل فقط إذا كان التطبيق مثبتًا على هاتفك. بدون تثبيت، لن تتلقى تنبيهات في الوقت الفعلي.",
+
+  "home.install.push_title": "إشعارات التتبع",
+  "home.install.push_how":
+    "<strong>كيف أفعّلها؟</strong> ثبّت التطبيق على شاشتك الرئيسية (انظر أدناه)، ثم اقبل الإشعارات عندما يطلب منك Safari أو Chrome ذلك.",
+  "home.install.push_why":
+    '<strong>لماذا؟</strong> بدون التثبيت، لا يمكن لمتصفحك إرسال تنبيهات في الخلفية. لن تستلم رسائل "السائق في الطريق" أو "وصل" أو "انتهت الرحلة".',
+  "home.install.push_warning":
+    "⚠️ <strong>إشعارات الدفع:</strong> تنبيهات تتبع الرحلة (السائق في الطريق، وصل، انتهى) تعمل فقط إذا كان التطبيق مثبتًا على هاتفك. بدون تثبيت، لن تتلقى تنبيهات في الوقت الفعلي.",
   "home.install.ios.title": "iPhone / iOS",
   "home.install.ios.step1": "افتح <strong>Safari</strong> وانتقل إلى <strong>taxicitybordeaux.fr</strong>",
   "home.install.ios.step2": "اضغط على زر <strong>مشاركة</strong> (مربع مع سهم)",
   "home.install.ios.step3": "اختر <strong>على الشاشة الرئيسية</strong>",
   "home.install.ios.step4": "اضغط <strong>إضافة</strong> — يظهر التطبيق على الشاشة الرئيسية",
   "home.install.ios.img_alt": "دليل تثبيت iPhone: Safari، مشاركة، إضافة إلى الشاشة الرئيسية",
-  "home.install.ios.tip": "💡 <strong>نصيحة:</strong> فعّل الإشعارات في إعدادات iOS (الإعدادات → Taxi City Bordeaux → الإشعارات).",
+  "home.install.ios.tip":
+    "💡 <strong>نصيحة:</strong> فعّل الإشعارات في إعدادات iOS (الإعدادات → Taxi City Bordeaux → الإشعارات).",
   "home.install.android.title": "Android",
   "home.install.android.img_alt": "دليل تثبيت أندرويد: كروم، قائمة ⋮، إضافة إلى الشاشة الرئيسية",
   "home.install.android.step1": "افتح <strong>Chrome</strong> وانتقل إلى <strong>taxicitybordeaux.fr</strong>",
@@ -5156,7 +5199,8 @@ const ar: Dict = {
   "home.install.android.step4": "اضغط <strong>إضافة</strong> — يظهر الأيقونة على الشاشة الرئيسية",
   "home.install.android.tip": "💡 <strong>نصيحة:</strong> اقبل الإشعارات عندما يطلب Chrome ذلك لتلقي تنبيهات التتبع.",
   "home.meta.title": "تاكسي سيتي بوردو – تاكسي 7/7 في بوردو وجيروند",
-  "home.meta.description": "احجز سيارة الأجرة في بوردو: مطار ميرينياك، محطة سان-جان، الكروم، المسافات الطويلة. معتمد لدى CPAM. خدمة دقيقة ومريحة، ليلاً ونهاراً.",
+  "home.meta.description":
+    "احجز سيارة الأجرة في بوردو: مطار ميرينياك، محطة سان-جان، الكروم، المسافات الطويلة. معتمد لدى CPAM. خدمة دقيقة ومريحة، ليلاً ونهاراً.",
   "home.hero.alt": "بوردو ليلاً – جسر شابان-دلماس المضاء فوق نهر الجارون",
   "home.help.title": "هل تحتاج إلى مساعدة؟",
   "home.help.call_prefix": "اتصل بنا على",
@@ -6186,31 +6230,43 @@ const pt: Dict = {
 
   "home.install.eyebrow": "Instalação",
   "home.install.title": "Instale a aplicação móvel",
-  "home.install.desc": "Reserve o seu táxi num instante, mesmo sem ligação. Receba notificações de acompanhamento em tempo real.",
-  "home.install.push_warning": "⚠️ <strong>Notificações push:</strong> os alertas de acompanhamento da corrida (motorista a caminho, chegado, terminado) só funcionam se a aplicação estiver instalada no telemóvel. Sem instalação, não receberá alertas em tempo real.",
+  "home.install.desc":
+    "Reserve o seu táxi num instante, mesmo sem ligação. Receba notificações de acompanhamento em tempo real.",
+
+  "home.install.push_title": "Notificações de acompanhamento",
+  "home.install.push_how":
+    "<strong>Como ativar?</strong> Instale a aplicação no ecrã principal (ver abaixo) e depois aceite as notificações quando o Safari ou o Chrome pedir.",
+  "home.install.push_why":
+    '<strong>Porquê?</strong> Sem a instalação, o seu navegador não consegue enviar alertas em segundo plano. Não receberá as mensagens "Motorista a caminho", "Chegou" ou "Corrida concluída".',
+  "home.install.push_warning":
+    "⚠️ <strong>Notificações push:</strong> os alertas de acompanhamento da corrida (motorista a caminho, chegado, terminado) só funcionam se a aplicação estiver instalada no telemóvel. Sem instalação, não receberá alertas em tempo real.",
   "home.install.ios.title": "iPhone / iOS",
   "home.install.ios.step1": "Abra o <strong>Safari</strong> e vá a <strong>taxicitybordeaux.fr</strong>",
   "home.install.ios.step2": "Toque no botão <strong>Partilhar</strong> (quadrado com seta)",
   "home.install.ios.step3": "Selecione <strong>No ecrã inicial</strong>",
   "home.install.ios.step4": "Toque em <strong>Adicionar</strong> — a app aparece no ecrã inicial",
   "home.install.ios.img_alt": "Guia de instalação iPhone: Safari, Partilhar, Adicionar ao ecrã inicial",
-  "home.install.ios.tip": "💡 <strong>Dica:</strong> Ative as notificações nas definições do iOS (Definições → Taxi City Bordeaux → Notificações).",
+  "home.install.ios.tip":
+    "💡 <strong>Dica:</strong> Ative as notificações nas definições do iOS (Definições → Taxi City Bordeaux → Notificações).",
   "home.install.android.title": "Android",
   "home.install.android.img_alt": "Guia de instalação Android: Chrome, menu ⋮, Adicionar ao ecrã principal",
   "home.install.android.step1": "Abra o <strong>Chrome</strong> e vá a <strong>taxicitybordeaux.fr</strong>",
   "home.install.android.step2": "Toque no menu <strong>⋮</strong> (três pontos) no canto superior direito",
   "home.install.android.step3": "Selecione <strong>Adicionar ao ecrã inicial</strong>",
   "home.install.android.step4": "Toque em <strong>Adicionar</strong> — o ícone aparece no ecrã inicial",
-  "home.install.android.tip": "💡 <strong>Dica:</strong> Aceite as notificações quando o Chrome pedir para receber os alertas de acompanhamento.",
+  "home.install.android.tip":
+    "💡 <strong>Dica:</strong> Aceite as notificações quando o Chrome pedir para receber os alertas de acompanhamento.",
   "home.meta.title": "Taxi City Bordeaux – Táxi 7j/7 em Bordéus e na Gironda",
-  "home.meta.description": "Reserve o seu táxi em Bordéus: aeroporto Mérignac, estação Saint-Jean, vinhedos, longas distâncias. Convencionado CPAM. Serviço pontual e confortável, dia e noite.",
+  "home.meta.description":
+    "Reserve o seu táxi em Bordéus: aeroporto Mérignac, estação Saint-Jean, vinhedos, longas distâncias. Convencionado CPAM. Serviço pontual e confortável, dia e noite.",
   "home.hero.alt": "Bordéus à noite – Ponte Chaban-Delmas iluminada sobre o Garonne",
   "home.help.title": "Precisa de ajuda?",
   "home.help.call_prefix": "Ligue-nos para",
   "home.help.or_write": "ou envie-nos uma mensagem em",
   "client.factures.title": "Minhas faturas",
   "client.factures.subtitle": "Documentos fiscais para notas de despesa — IVA 10% incluído",
-  "client.factures.company_prompt": "Adicione os dados da sua empresa (razão social, NIF) para aparecerem nas suas faturas.",
+  "client.factures.company_prompt":
+    "Adicione os dados da sua empresa (razão social, NIF) para aparecerem nas suas faturas.",
   "client.factures.complete_profile": "Completar o meu perfil",
   "client.factures.empty_year": "Sem corridas concluídas em",
   "client.factures.year_label": "Ano",
