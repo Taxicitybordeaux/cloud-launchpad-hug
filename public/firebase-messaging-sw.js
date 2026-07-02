@@ -7,7 +7,7 @@
 // Le navigateur considère le fichier modifié → install/activate immédiats
 // grâce à skipWaiting()/clients.claim(). Pas besoin de purge manuelle.
 // ─────────────────────────────────────────────────────────────────────────────
-const SW_VERSION = "2026-06-23.4";
+const SW_VERSION = "2026-07-02.1";
 console.log("[FCM SW] boot version =", SW_VERSION);
 
 // Deep links autorisés. Toute URL qui pointe vers /admin/* est REFUSÉE
@@ -28,6 +28,29 @@ firebase.initializeApp({
 });
 
 const messaging = firebase.messaging();
+
+// ─── Verrou anti-double-affichage ───────────────────────────────────────────
+// messaging.onBackgroundMessage (interne au SDK Firebase, qui s'abonne
+// lui-même à l'event "push") ET notre propre self.addEventListener("push",…)
+// réagissent TOUS LES DEUX au même push physique entrant — ce ne sont pas
+// des chemins alternatifs, ce sont deux listeners sur le même événement.
+// L'ancien garde-fou (getNotifications({tag}) avant showNotification) est
+// asynchrone : les deux handlers peuvent lancer leur vérification avant que
+// l'un des deux ait fini d'afficher sa notif → race condition → doublon.
+// Ce verrou est vérifié de façon SYNCHRONE (avant tout await) donc il ferme
+// la race : le premier handler à s'exécuter marque la clé, le second la
+// trouve déjà posée et sort immédiatement.
+const recentlyHandled = new Map();
+function claimOnce(key) {
+  const now = Date.now();
+  for (const [k, ts] of recentlyHandled) if (now - ts > 15000) recentlyHandled.delete(k);
+  if (recentlyHandled.has(key)) return false;
+  recentlyHandled.set(key, now);
+  return true;
+}
+function dedupeKey(data, notif) {
+  return [data.tag || notif.tag || "taxi-fcm", data.reservation_id || "", notif.title || data.title || ""].join("|");
+}
 
 // ─── Lifecycle : prise de contrôle immédiate ────────────────────────────────
 self.addEventListener("install", (event) => {
@@ -110,6 +133,12 @@ messaging.onBackgroundMessage((payload) => {
 
   console.log("[FCM SW] data:", JSON.stringify(data), "audience:", data.audience, "url:", data.url);
 
+  // Verrou synchrone AVANT tout await — ferme la race avec le listener push natif.
+  if (!claimOnce(dedupeKey(data, notif))) {
+    console.log("[FCM SW] onBackgroundMessage: doublon détecté, skip");
+    return;
+  }
+
   const url = sanitizeDeepLink(data.url || data.click_action, data.audience, data.reservation_id);
   const tag = data.tag || "taxi-fcm";
 
@@ -144,6 +173,13 @@ self.addEventListener("push", (event) => {
   const body = notif.body || data.body || "";
 
   if (!title && !body) return;
+
+  // Même verrou synchrone que onBackgroundMessage — si l'autre handler a
+  // déjà réclamé cette clé (même push physique), on sort sans afficher.
+  if (!claimOnce(dedupeKey(data, notif))) {
+    console.log("[FCM SW] push natif: doublon détecté, skip");
+    return;
+  }
 
   const url = sanitizeDeepLink(data.url || data.click_action || notif.click_action, data.audience, data.reservation_id);
   const tag = data.tag || notif.tag || "taxi-fcm";
