@@ -38,6 +38,12 @@ export function trackCtaClick(event: CtaEvent): void {
     .insert({
       event: event.event_type,
       session_id: `cta_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      variant: payload.variant,
+      has_draft: payload.has_draft,
+      lang: payload.lang,
+      page: payload.page,
+      referrer: payload.referrer,
+      user_agent: payload.user_agent,
     })
     .then(({ error }) => {
       if (error && import.meta.env.DEV) {
