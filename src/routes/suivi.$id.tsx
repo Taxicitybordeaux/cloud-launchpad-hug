@@ -316,7 +316,12 @@ function AnonChat({ suiviKey, reservationId }: { suiviKey: string; reservationId
       .channel(`chat_suivi_${reservationId}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "reservation_messages", filter: `reservation_id=eq.${reservationId}` },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "reservation_messages",
+          filter: `reservation_id=eq.${reservationId}`,
+        },
         () => load(),
       )
       .subscribe();
@@ -331,7 +336,6 @@ function AnonChat({ suiviKey, reservationId }: { suiviKey: string; reservationId
     };
   }, [reservationId, load]);
 
-
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -342,7 +346,9 @@ function AnonChat({ suiviKey, reservationId }: { suiviKey: string; reservationId
     setSending(true);
     try {
       const row = await sendFn({ data: { suivi_key: suiviKey, content: trimmed } });
-      setMessages((prev) => (prev.some((m) => m.id === (row as ChatMessage).id) ? prev : [...prev, row as ChatMessage]));
+      setMessages((prev) =>
+        prev.some((m) => m.id === (row as ChatMessage).id) ? prev : [...prev, row as ChatMessage],
+      );
       setText("");
     } catch (e: any) {
       console.error("[suivi-chat] send failed", e);
@@ -1311,6 +1317,12 @@ function SuiviPage() {
   const { lang: locale } = useI18n();
   const t = useT();
   const [reservation, setReservation] = useState<Reservation | null>(null);
+  // ⚠️ IMPORTANT : le vrai id (clé primaire) de la réservation, résolu après
+  // chargement. L'URL /suivi/$id peut contenir soit le vrai id, soit le
+  // suivi_id (lien public à expiration 30j) — resolvedId est TOUJOURS le
+  // vrai id une fois `reservation` chargée, et doit être utilisé pour tout
+  // filtre/insert basé sur reservations.id (Realtime, tracking_events...).
+  const resolvedId = reservation?.id ?? null;
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1361,19 +1373,22 @@ function SuiviPage() {
   }, [loadReservation]);
 
   // ── Tracking analytics — log l'ouverture du lien de suivi ──
+  // Même correctif : on attend resolvedId (vrai id) plutôt que le param URL
+  // brut, sinon reservation_id inséré ici peut être le suivi_id au lieu du
+  // vrai id — ce qui fausse silencieusement les analytics du dashboard driver.
   useEffect(() => {
-    if (!id) return;
+    if (!resolvedId) return;
     const src = new URLSearchParams(window.location.search).get("src") ?? "direct";
     (supabase as any)
       .from("tracking_events")
       .insert({
-        reservation_id: id,
+        reservation_id: resolvedId,
         event_type: "tracking_opened",
         source: src,
         user_agent: navigator.userAgent.slice(0, 200),
       })
       .then(() => {}); // fire & forget
-  }, [id]);
+  }, [resolvedId]);
 
   // ── Realtime connection state ──
   const [realtimeOk, setRealtimeOk] = useState(true);
@@ -1399,8 +1414,18 @@ function SuiviPage() {
   }, [loadReservation]);
 
   // ── Real-time updates with auto-reconnect ──
+  // ⚠️ IMPORTANT : on utilise reservation?.id (le vrai id / clé primaire,
+  // résolu par le serveur via getReservationForFinPublic) et NON le param
+  // d'URL brut `id`. L'URL /suivi/$id peut contenir soit le vrai id, soit
+  // le suivi_id (lien public à expiration 30j) — c'est pour ça que le
+  // chargement initial passe par `{ key: id }` côté serveur, qui sait
+  // résoudre les deux. Le driver, lui, met à jour via `.eq("id", resa.id)`
+  // avec le vrai id. Si on filtre le Realtime sur le param URL brut alors
+  // que ce n'est pas le vrai id (cas suivi_id), le filtre Postgres
+  // `id=eq.<suivi_id>` ne matche jamais aucun UPDATE → aucune mise à jour
+  // temps réel ne remonte jamais, silencieusement.
   useEffect(() => {
-    if (!id) return;
+    if (!resolvedId) return;
 
     let destroyed = false;
     let retryTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -1409,10 +1434,10 @@ function SuiviPage() {
       if (destroyed) return;
       const taxiSupabase = getTaxiSupabase();
       const channel = taxiSupabase
-        .channel(`reservations:id=eq.${id}_${Date.now()}`)
+        .channel(`reservations:id=eq.${resolvedId}_${Date.now()}`)
         .on(
           "postgres_changes",
-          { event: "UPDATE", schema: "public", table: "reservations", filter: `id=eq.${id}` },
+          { event: "UPDATE", schema: "public", table: "reservations", filter: `id=eq.${resolvedId}` },
           (payload: any) => {
             try {
               lastUpdateRef.current = Date.now();
@@ -1475,7 +1500,7 @@ function SuiviPage() {
         getTaxiSupabase().removeChannel(channelRef.current);
       } catch {}
     };
-  }, [id]);
+  }, [resolvedId]);
 
   if (loading) {
     return (
