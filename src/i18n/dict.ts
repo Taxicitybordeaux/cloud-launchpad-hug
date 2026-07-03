@@ -1099,6 +1099,23 @@ const fr: Dict = {
   "client.dashboard.feat.chat_title": "Contacter José",
   "client.dashboard.feat.chat_desc": "Envoyez un message directement au chauffeur",
   "client.dashboard.feat.profile_desc": "Gérez vos informations personnelles",
+
+  // Réserver — bouton notifications
+  "reserver.notif.disable_btn": "Désactiver les notifs",
+  "reserver.notif.repair_btn": "Réparer / réinscrire les notifications",
+  "reserver.notif.enable_btn": "Activer les notifications de suivi",
+  "reserver.notif.duration_sub": "Durée : 30 jours à partir de maintenant",
+  "reserver.notif.permission_hint_sub": "Permission accordée : cliquez ici si aucune notification n'arrive",
+  "reserver.notif.enable_sub": "Recevez les infos de suivi en temps réel",
+  "reserver.notif.disabling_loading": "Désactivation en cours...",
+  "reserver.notif.disable_error": "❌ Erreur de désactivation",
+  "reserver.notif.disabled_success": "✅ Notifications désactivées",
+  "reserver.notif.repairing_loading": "🔧 Réinscription en cours...",
+  "reserver.notif.activating_loading": "🔔 Activation en cours...",
+  "reserver.notif.resubscribed_success": "✅ Appareil réinscrit aux notifications client",
+  "reserver.notif.activated_success": "✅ Notifications activées pour 30 jours!",
+  "reserver.notif.activate_error": "❌ Impossible d'activer (RLS ou permissions)",
+  "reserver.notif.network_error": "❌ Erreur réseau",
 };
 
 const en: Dict = {
@@ -2147,6 +2164,23 @@ const en: Dict = {
   "client.dashboard.feat.chat_title": "Contact José",
   "client.dashboard.feat.chat_desc": "Send a message directly to the driver",
   "client.dashboard.feat.profile_desc": "Manage your personal information",
+
+  // Book — notifications button
+  "reserver.notif.disable_btn": "Disable notifications",
+  "reserver.notif.repair_btn": "Repair / re-subscribe notifications",
+  "reserver.notif.enable_btn": "Enable tracking notifications",
+  "reserver.notif.duration_sub": "Duration: 30 days from now",
+  "reserver.notif.permission_hint_sub": "Permission granted: click here if no notification arrives",
+  "reserver.notif.enable_sub": "Get real-time tracking updates",
+  "reserver.notif.disabling_loading": "Disabling...",
+  "reserver.notif.disable_error": "❌ Disable error",
+  "reserver.notif.disabled_success": "✅ Notifications disabled",
+  "reserver.notif.repairing_loading": "🔧 Re-subscribing...",
+  "reserver.notif.activating_loading": "🔔 Enabling...",
+  "reserver.notif.resubscribed_success": "✅ Device re-subscribed to client notifications",
+  "reserver.notif.activated_success": "✅ Notifications enabled for 30 days!",
+  "reserver.notif.activate_error": "❌ Unable to enable (RLS or permissions)",
+  "reserver.notif.network_error": "❌ Network error",
 };
 
 const es: Dict = {
@@ -3201,6 +3235,23 @@ const es: Dict = {
   "client.dashboard.feat.chat_title": "Contactar a José",
   "client.dashboard.feat.chat_desc": "Envía un mensaje directamente al conductor",
   "client.dashboard.feat.profile_desc": "Gestiona tu información personal",
+
+  // Reservar — botón de notificaciones
+  "reserver.notif.disable_btn": "Desactivar notificaciones",
+  "reserver.notif.repair_btn": "Reparar / reinscribir notificaciones",
+  "reserver.notif.enable_btn": "Activar notificaciones de seguimiento",
+  "reserver.notif.duration_sub": "Duración: 30 días a partir de ahora",
+  "reserver.notif.permission_hint_sub": "Permiso concedido: haz clic aquí si no llega ninguna notificación",
+  "reserver.notif.enable_sub": "Recibe la información de seguimiento en tiempo real",
+  "reserver.notif.disabling_loading": "Desactivando...",
+  "reserver.notif.disable_error": "❌ Error al desactivar",
+  "reserver.notif.disabled_success": "✅ Notificaciones desactivadas",
+  "reserver.notif.repairing_loading": "🔧 Reinscribiendo...",
+  "reserver.notif.activating_loading": "🔔 Activando...",
+  "reserver.notif.resubscribed_success": "✅ Dispositivo reinscrito a las notificaciones del cliente",
+  "reserver.notif.activated_success": "✅ ¡Notificaciones activadas durante 30 días!",
+  "reserver.notif.activate_error": "❌ No se pudo activar (RLS o permisos)",
+  "reserver.notif.network_error": "❌ Error de red",
 };
 
 const it: Dict = {
@@ -4258,6 +4309,23 @@ const it: Dict = {
   "client.dashboard.feat.chat_title": "Contatta José",
   "client.dashboard.feat.chat_desc": "Invia un messaggio direttamente all'autista",
   "client.dashboard.feat.profile_desc": "Gestisci le tue informazioni personali",
+
+  // Prenota — pulsante notifiche
+  "reserver.notif.disable_btn": "Disattiva notifiche",
+  "reserver.notif.repair_btn": "Ripara / reiscrivi notifiche",
+  "reserver.notif.enable_btn": "Attiva le notifiche di tracciamento",
+  "reserver.notif.duration_sub": "Durata: 30 giorni da adesso",
+  "reserver.notif.permission_hint_sub": "Permesso concesso: clicca qui se non arriva alcuna notifica",
+  "reserver.notif.enable_sub": "Ricevi gli aggiornamenti di tracciamento in tempo reale",
+  "reserver.notif.disabling_loading": "Disattivazione in corso...",
+  "reserver.notif.disable_error": "❌ Errore di disattivazione",
+  "reserver.notif.disabled_success": "✅ Notifiche disattivate",
+  "reserver.notif.repairing_loading": "🔧 Reiscrizione in corso...",
+  "reserver.notif.activating_loading": "🔔 Attivazione in corso...",
+  "reserver.notif.resubscribed_success": "✅ Dispositivo reiscritto alle notifiche del cliente",
+  "reserver.notif.activated_success": "✅ Notifiche attivate per 30 giorni!",
+  "reserver.notif.activate_error": "❌ Impossibile attivare (RLS o permessi)",
+  "reserver.notif.network_error": "❌ Errore di rete",
 };
 
 // Dictionnaire arabe — traductions clés ; fallback automatique sur le français pour les clés manquantes.
@@ -5298,6 +5366,23 @@ const ar: Dict = {
   "client.dashboard.feat.chat_title": "تواصل مع خوسيه",
   "client.dashboard.feat.chat_desc": "أرسل رسالة مباشرة إلى السائق",
   "client.dashboard.feat.profile_desc": "إدارة معلوماتك الشخصية",
+
+  // الحجز — زر الإشعارات
+  "reserver.notif.disable_btn": "إيقاف الإشعارات",
+  "reserver.notif.repair_btn": "إصلاح / إعادة الاشتراك في الإشعارات",
+  "reserver.notif.enable_btn": "تفعيل إشعارات التتبع",
+  "reserver.notif.duration_sub": "المدة: 30 يومًا اعتبارًا من الآن",
+  "reserver.notif.permission_hint_sub": "تم منح الإذن: انقر هنا إذا لم يصلك أي إشعار",
+  "reserver.notif.enable_sub": "احصل على معلومات التتبع في الوقت الفعلي",
+  "reserver.notif.disabling_loading": "جارٍ الإيقاف...",
+  "reserver.notif.disable_error": "❌ خطأ في الإيقاف",
+  "reserver.notif.disabled_success": "✅ تم إيقاف الإشعارات",
+  "reserver.notif.repairing_loading": "🔧 جارٍ إعادة الاشتراك...",
+  "reserver.notif.activating_loading": "🔔 جارٍ التفعيل...",
+  "reserver.notif.resubscribed_success": "✅ تمت إعادة اشتراك الجهاز في إشعارات العميل",
+  "reserver.notif.activated_success": "✅ تم تفعيل الإشعارات لمدة 30 يومًا!",
+  "reserver.notif.activate_error": "❌ تعذّر التفعيل (RLS أو الأذونات)",
+  "reserver.notif.network_error": "❌ خطأ في الشبكة",
 };
 
 const pt: Dict = {
@@ -6373,6 +6458,23 @@ const pt: Dict = {
   "client.dashboard.feat.chat_title": "Contactar José",
   "client.dashboard.feat.chat_desc": "Envie uma mensagem diretamente ao motorista",
   "client.dashboard.feat.profile_desc": "Gerir as suas informações pessoais",
+
+  // Reservar — botão de notificações
+  "reserver.notif.disable_btn": "Desativar notificações",
+  "reserver.notif.repair_btn": "Reparar / reinscrever notificações",
+  "reserver.notif.enable_btn": "Ativar notificações de acompanhamento",
+  "reserver.notif.duration_sub": "Duração: 30 dias a partir de agora",
+  "reserver.notif.permission_hint_sub": "Permissão concedida: clique aqui se nenhuma notificação chegar",
+  "reserver.notif.enable_sub": "Receba as informações de acompanhamento em tempo real",
+  "reserver.notif.disabling_loading": "A desativar...",
+  "reserver.notif.disable_error": "❌ Erro ao desativar",
+  "reserver.notif.disabled_success": "✅ Notificações desativadas",
+  "reserver.notif.repairing_loading": "🔧 A reinscrever...",
+  "reserver.notif.activating_loading": "🔔 A ativar...",
+  "reserver.notif.resubscribed_success": "✅ Dispositivo reinscrito nas notificações do cliente",
+  "reserver.notif.activated_success": "✅ Notificações ativadas por 30 dias!",
+  "reserver.notif.activate_error": "❌ Não foi possível ativar (RLS ou permissões)",
+  "reserver.notif.network_error": "❌ Erro de rede",
 };
 
 export const DICTS: Record<Lang, Dict> = { fr, en, es, pt, it, ar };
