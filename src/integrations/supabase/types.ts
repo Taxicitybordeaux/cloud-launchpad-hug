@@ -582,6 +582,27 @@ export type Database = {
         }
         Relationships: []
       }
+      push_dedup: {
+        Row: {
+          audience: string
+          expires_at: string
+          first_sent_at: string
+          tag: string
+        }
+        Insert: {
+          audience: string
+          expires_at: string
+          first_sent_at?: string
+          tag: string
+        }
+        Update: {
+          audience?: string
+          expires_at?: string
+          first_sent_at?: string
+          tag?: string
+        }
+        Relationships: []
+      }
       push_send_failures: {
         Row: {
           audience: string
