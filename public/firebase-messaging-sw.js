@@ -124,20 +124,40 @@ function sanitizeDeepLink(rawUrl, audience, reservationId) {
 messaging.onBackgroundMessage((payload) => {
   console.log("[FCM SW] Message background reçu :", JSON.stringify(payload));
 
-  // Firebase SDK remonte webpush.data dans payload.data — on fusionne les deux
-  // pour être sûr d'avoir audience, url, tag peu importe la source.
   const data = Object.assign({}, payload.webpush?.data || {}, payload.data || {});
   const notif = payload.webpush?.notification || payload.notification || {};
   const title = notif.title || data.title || "🚖 Taxi City Bordeaux";
   const body = notif.body || data.body || "";
 
-  console.log("[FCM SW] data:", JSON.stringify(data), "audience:", data.audience, "url:", data.url);
+  // Si la payload contient un champ `notification` racine, FCM/APNs affiche
+  // déjà la notif système → on N'affiche PAS pour éviter le doublon.
+  // On sert quand même de fallback pour les payloads data-only.
+  if (payload.notification) {
+    console.log("[FCM SW] payload avec notification racine → skip showNotification (système affiche)");
+    return;
+  }
 
-  // Verrou synchrone AVANT tout await — ferme la race avec le listener push natif.
   if (!claimOnce(dedupeKey(data, notif))) {
     console.log("[FCM SW] onBackgroundMessage: doublon détecté, skip");
     return;
   }
+
+  const url = sanitizeDeepLink(data.url || data.click_action, data.audience, data.reservation_id);
+  const tag = data.tag || "taxi-fcm";
+
+  return self.registration.getNotifications({ tag }).then((existing) => {
+    existing.forEach((n) => n.close());
+    return self.registration.showNotification(title, {
+      body,
+      icon: notif.icon || "/favicon.ico",
+      badge: "/favicon.ico",
+      tag,
+      data: { ...data, url, audience: data.audience, reservation_id: data.reservation_id, sw_version: SW_VERSION },
+      vibrate: [200, 100, 200],
+      requireInteraction: true,
+    });
+  });
+});
 
   const url = sanitizeDeepLink(data.url || data.click_action, data.audience, data.reservation_id);
   const tag = data.tag || "taxi-fcm";
