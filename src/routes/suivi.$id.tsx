@@ -1372,6 +1372,35 @@ function SuiviPage() {
     loadReservation(false);
   }, [loadReservation]);
 
+  // ── Fallback temps réel via Supabase Broadcast ──
+  // La table `reservations` n'expose aucune policy SELECT à `anon` (PII),
+  // donc les événements postgres_changes UPDATE ne sont jamais livrés au
+  // client public. Le driver déclenche un broadcast `suivi:<id>` après
+  // chaque changement (statut, itinéraire, prix, heure) — on l'écoute ici
+  // et on rafraîchit via la RPC SECURITY DEFINER qui contourne RLS.
+  useEffect(() => {
+    if (!resolvedId) return;
+    const ch = (supabase as any)
+      .channel(`suivi:${resolvedId}`, { config: { broadcast: { self: false } } })
+      .on("broadcast", { event: "update" }, () => {
+        loadReservation(true);
+      })
+      .subscribe();
+    // Refresh au retour d'onglet (iOS suspend souvent la connexion realtime)
+    const onVisible = () => {
+      if (!document.hidden) loadReservation(true);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+      try {
+        supabase.removeChannel(ch);
+      } catch {}
+    };
+  }, [resolvedId, loadReservation]);
+
   // ── Tracking analytics — log l'ouverture du lien de suivi ──
   // Même correctif : on attend resolvedId (vrai id) plutôt que le param URL
   // brut, sinon reservation_id inséré ici peut être le suivi_id au lieu du
