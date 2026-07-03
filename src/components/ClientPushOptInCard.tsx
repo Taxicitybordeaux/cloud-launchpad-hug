@@ -44,28 +44,17 @@ export function ClientPushOptInCard({ clientAccountId }: ClientPushOptInCardProp
     }
     setBusy(true);
     try {
-      const { getFcmToken } = await import("@/lib/firebase");
-      const { subscribePush } = await import("@/lib/push.functions");
-      const fcm = await getFcmToken({ forceRefresh: true });
-      if (!fcm) {
-        toast.error("Token FCM introuvable — vérifiez que l'app est installée sur l'écran d'accueil (iOS)");
-        return;
-      }
-      try {
-        await subscribePush({
-          data: {
-            audience: "client",
-            fcm_token: fcm,
-            client_account_id: clientAccountId ?? null,
-            user_agent: navigator.userAgent.slice(0, 500),
-          },
-        });
+      // Le hook usePushNotifications s'occupe déjà de : demander la permission,
+      // récupérer le token FCM (avec rotation), puis appeler subscribePush côté
+      // serveur. Inutile de refaire tout ça en direct — ça produisait deux
+      // inscriptions back-to-back pour la même cible.
+      const ok = await subscribe("client", null, clientAccountId ?? null);
+      if (ok) {
         toast.success(t("client.push.toast_ok"));
-        // Fallback: refléter l'état dans le hook aussi
-        await subscribe("client", null, clientAccountId ?? null);
-      } catch (e: any) {
-        console.error("[push client] subscribe failed", e);
-        toast.error(`Erreur d'activation : ${e?.message || "inconnue"}`);
+      } else if (typeof Notification !== "undefined" && Notification.permission === "denied") {
+        toast.error("Notifications refusées dans les réglages du navigateur.");
+      } else {
+        toast.error("Token FCM introuvable — vérifiez que l'app est installée sur l'écran d'accueil (iOS)");
       }
     } catch (e: any) {
       console.error("[push client] fatal", e);
@@ -74,6 +63,7 @@ export function ClientPushOptInCard({ clientAccountId }: ClientPushOptInCardProp
       setBusy(false);
     }
   }
+
 
 
   const isGranted = status === "granted";
