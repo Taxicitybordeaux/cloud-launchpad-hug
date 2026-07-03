@@ -55,7 +55,7 @@ export function usePushNotifications(opts: UsePushOptions = {}) {
     let cancelled = false;
     const run = async () => {
       try {
-        const fcm = await getFcmToken(); // rotation auto si token > 50 jours
+        const fcm = await getFcmToken({ requestPermission: false }); // rotation auto si token > 50 jours
         if (!fcm || cancelled) return;
         await subscribeFn({
           data: {
@@ -98,9 +98,31 @@ export function usePushNotifications(opts: UsePushOptions = {}) {
   // ── Subscribe manuel (pour les appels explicites) ──
   const subscribe = useCallback(
     async (audience: PushAudience = "client", resId?: string | null, accountId?: string | null): Promise<boolean> => {
+      if (
+        typeof window === "undefined" ||
+        !("Notification" in window) ||
+        !("serviceWorker" in navigator) ||
+        !("PushManager" in window)
+      ) {
+        setStatus("unsupported");
+        return false;
+      }
+
+      const permissionPromise = Notification.permission === "default" ? Notification.requestPermission() : null;
       setStatus("loading");
       try {
-        const fcm = await getFcmToken();
+        if (permissionPromise) {
+          const permission = await permissionPromise;
+          if (permission !== "granted") {
+            setStatus(permission === "denied" ? "denied" : "idle");
+            return false;
+          }
+        } else if (Notification.permission === "denied") {
+          setStatus("denied");
+          return false;
+        }
+
+        const fcm = await getFcmToken({ requestPermission: false });
         if (!fcm) {
           setStatus(Notification.permission === "denied" ? "denied" : "unsupported");
           return false;
@@ -141,7 +163,7 @@ export function usePushNotifications(opts: UsePushOptions = {}) {
   const refreshToken = useCallback(
     async (audience: PushAudience = "chauffeur") => {
       try {
-        const fcm = await getFcmToken({ forceRefresh: true });
+        const fcm = await getFcmToken({ forceRefresh: true, requestPermission: false });
         if (!fcm) return;
         await subscribeFn({
           data: {
