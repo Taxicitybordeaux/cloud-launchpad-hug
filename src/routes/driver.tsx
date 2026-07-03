@@ -2088,7 +2088,9 @@ function ClientsTab() {
             <div className="drv-sub" style={{ marginBottom: 6 }}>
               Dernière course : {formatDate(c.derniereCourse)}
               <br />
-              {c.derniereDepart || "—"} → {c.derniereDestination || "—"}
+              <span>📍 {c.derniereDepart || "—"}</span>
+              <br />
+              <span>🏁 {c.derniereDestination || "—"}</span>
             </div>
             <div
               className="drv-meta"
