@@ -37,6 +37,12 @@ export const Route = createFileRoute("/reserver")({
       { property: "og:description", content: RESERVER_DESC },
       { property: "og:url", content: RESERVER_URL },
       { property: "og:type", content: "website" },
+      {
+        name: "viewport",
+        content:
+          "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content",
+      },
+      { name: "theme-color", content: "#1a1209" },
     ],
     links: [{ rel: "canonical", href: RESERVER_URL }],
   }),
@@ -1537,6 +1543,8 @@ function ReservationPage() {
         input, select, button { font-family: 'DM Sans', sans-serif; }
         input[type=date], input[type=time] { color-scheme: light; }
         input[type=text], input[type=tel], input[type=email] { font-size: 16px !important; }
+        button, a { touch-action: manipulation; }
+        select { touch-action: manipulation; }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
         @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
@@ -1573,7 +1581,8 @@ function ReservationPage() {
                 border: "1px solid rgba(201,168,76,0.35)",
                 color: "#e8c96a",
                 borderRadius: 99,
-                padding: "7px 14px",
+                padding: "10px 14px",
+                minHeight: 40,
                 fontSize: 13,
                 fontWeight: 700,
                 cursor: "pointer",
@@ -1593,7 +1602,8 @@ function ReservationPage() {
                 border: "1px solid rgba(201,168,76,0.3)",
                 color: "#e8c96a",
                 borderRadius: 8,
-                padding: "6px 8px",
+                padding: "9px 10px",
+                minHeight: 40,
                 fontSize: 13,
                 cursor: "pointer",
               }}
@@ -1619,11 +1629,10 @@ function ReservationPage() {
           style={{
             background: "rgba(201,168,76,0.08)",
             borderBottom: "1px solid rgba(201,168,76,0.2)",
-            padding: "10px 16px",
-            display: "flex",
-            gap: 0,
-            overflowX: "auto",
-            WebkitOverflowScrolling: "touch",
+            padding: "10px 12px",
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 8,
             flexShrink: 0,
           }}
         >
@@ -1632,25 +1641,41 @@ function ReservationPage() {
             { icon: "🌙", label: "Tarif nuit", detail: "19h – 7h", price: "3,24 €/km" },
             { icon: "🚩", label: "Prise en charge", detail: "", price: "2,83 €" },
             { icon: "ℹ️", label: "Frais de réservation", detail: "peuvent être appliqués", price: "" },
-          ].map((item, i, arr) => (
+          ].map((item) => (
             <div
               key={item.label}
               style={{
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
+                justifyContent: "center",
                 gap: 2,
-                padding: "6px 14px",
-                borderRight: i < arr.length - 1 ? "1px solid rgba(201,168,76,0.2)" : "none",
-                minWidth: 90,
-                flexShrink: 0,
+                padding: "8px 6px",
+                borderRadius: 10,
+                background: "rgba(255,255,255,0.5)",
+                border: "1px solid rgba(201,168,76,0.15)",
+                minWidth: 0,
+                textAlign: "center",
               }}
             >
               <span style={{ fontSize: 16 }}>{item.icon}</span>
-              <span style={{ fontSize: 10, fontWeight: 700, color: "#9a7427", textAlign: "center", lineHeight: 1.2 }}>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: "#9a7427",
+                  textAlign: "center",
+                  lineHeight: 1.2,
+                  overflowWrap: "break-word",
+                }}
+              >
                 {item.label}
               </span>
-              {item.detail && <span style={{ fontSize: 9, color: "#b89a5a", textAlign: "center" }}>{item.detail}</span>}
+              {item.detail && (
+                <span style={{ fontSize: 9, color: "#b89a5a", textAlign: "center", lineHeight: 1.2 }}>
+                  {item.detail}
+                </span>
+              )}
               {item.price && (
                 <span style={{ fontSize: 12, fontWeight: 700, color: "#1a1209", marginTop: 1 }}>{item.price}</span>
               )}
@@ -1747,7 +1772,8 @@ function ReservationPage() {
                     background: voiceBothListening || voiceListening ? "rgba(220,38,38,0.08)" : "rgba(201,168,76,0.1)",
                     border: `1.5px solid ${voiceBothListening || voiceListening ? "rgba(220,38,38,0.4)" : "rgba(201,168,76,0.5)"}`,
                     borderRadius: 8,
-                    padding: "5px 10px",
+                    padding: "8px 10px",
+                    minHeight: 40,
                     cursor: "pointer",
                     fontSize: 12,
                     fontWeight: 700,
@@ -1819,6 +1845,11 @@ function ReservationPage() {
                         cursor: geolocLoading ? "wait" : "pointer",
                         color: "#fff",
                         padding: "8px 10px",
+                        minWidth: 40,
+                        minHeight: 40,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                         fontSize: 16,
                         fontWeight: 700,
                       }}
