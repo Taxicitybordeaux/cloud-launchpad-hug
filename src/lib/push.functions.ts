@@ -18,38 +18,32 @@ const subSchema = z.object({
 export const subscribePush = createServerFn({ method: "POST" })
   .inputValidator((input) => subSchema.parse(input))
   .handler(async ({ data }) => {
-    const rows = [
-      {
-        audience: data.audience,
-        endpoint: `fcm://${data.fcm_token}`,
-        fcm_token: data.fcm_token,
-        reservation_id: data.reservation_id ?? null,
-        user_agent: data.user_agent ?? null,
-        last_seen_at: new Date().toISOString(),
-      },
-    ];
+    // Une seule inscription par appareil (endpoint = fcm://TOKEN).
+    // Plus de duplication admin→chauffeur : le driver s'abonne directement
+    // en audience "chauffeur", donc envoyer à cette audience = 1 push = 1 notif.
+    const row = {
+      audience: data.audience,
+      endpoint: `fcm://${data.fcm_token}`,
+      fcm_token: data.fcm_token,
+      reservation_id: data.reservation_id ?? null,
+      user_agent: data.user_agent ?? null,
+      last_seen_at: new Date().toISOString(),
+    };
 
-    // Si l'utilisateur s'abonne en tant qu'admin, on enregistre aussi
-    // la même device comme "chauffeur" (même token FCM, endpoint distinct)
-    if (data.audience === "admin") {
-      rows.push({
-        audience: "chauffeur",
-        endpoint: `fcm://${data.fcm_token}-chauffeur`,
-        fcm_token: data.fcm_token,
-        reservation_id: null,
-        user_agent: data.user_agent ?? null,
-        last_seen_at: new Date().toISOString(),
-      });
-    }
+    // Purge tout ancien doublon éventuel pour ce token (ex: endpoint
+    // fcm://TOKEN-chauffeur créé par l'ancienne version → causait 2 notifs).
+    await supabaseAdmin
+      .from("push_subscriptions")
+      .delete()
+      .eq("fcm_token", data.fcm_token)
+      .neq("endpoint", row.endpoint);
 
-    for (const row of rows) {
-      const { error } = await supabaseAdmin
-        .from("push_subscriptions")
-        .upsert(row, { onConflict: "endpoint" });
-      if (error) {
-        console.error("[push] subscribe failed", error);
-        throw new Error("subscribe_failed");
-      }
+    const { error } = await supabaseAdmin
+      .from("push_subscriptions")
+      .upsert(row, { onConflict: "endpoint" });
+    if (error) {
+      console.error("[push] subscribe failed", error);
+      throw new Error("subscribe_failed");
     }
     return { ok: true };
   });

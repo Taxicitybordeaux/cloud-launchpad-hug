@@ -129,11 +129,9 @@ async function sendFcmToToken(
   const body = {
     message: {
       token,
-      // notification au niveau racine = affiché par Android même écran verrouillé
-      notification: {
-        title: payload.title,
-        body: payload.body,
-      },
+      // NOTE: on n'envoie PAS de champ `notification` racine — sinon iOS/Android
+      // affichent une notif système EN PLUS de celle affichée par notre SW
+      // (doublon). On garde uniquement le bloc `webpush` qui passe par le SW.
       webpush: {
         headers: payload.requireInteraction ? { Urgency: "high", TTL: "86400" } : { TTL: "3600" },
         notification: {

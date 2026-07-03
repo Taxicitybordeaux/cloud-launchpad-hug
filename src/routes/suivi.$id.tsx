@@ -1340,6 +1340,23 @@ function SuiviPage() {
     }
   }, [reservation?.id]);
 
+  // Auto-subscribe push client dès que la réservation est chargée et que la
+  // permission est déjà accordée (rebind le fcm_token avec le bon reservation_id
+  // — sinon sendPushToAudience("client", {reservationId}) ne trouve rien).
+  useEffect(() => {
+    if (!reservation?.id) return;
+    if (pushStatus !== "granted") return;
+    void pushSubscribe("client", reservation.id).then((ok) => {
+      if (ok) {
+        try {
+          localStorage.setItem(`push_client_${reservation.id}`, "1");
+        } catch {
+          /* ignore */
+        }
+      }
+    });
+  }, [reservation?.id, pushStatus, pushSubscribe]);
+
   const fetchReservation = useServerFn(getReservationForFinPublic);
 
   const loadReservation = useCallback(
