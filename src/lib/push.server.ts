@@ -11,7 +11,8 @@ export type PushPayload = {
   requireInteraction?: boolean;
 };
 
-export type PushAudience = "admin" | "chauffeur" | "client";
+// "admin" n'existe plus — seules "chauffeur" et "client" restent.
+export type PushAudience = "chauffeur" | "client";
 
 type ServiceAccount = {
   client_email: string;
@@ -27,8 +28,6 @@ let cachedToken: { token: string; exp: number } | null = null;
 
 function getServiceAccount(): ServiceAccount {
   if (cachedAccount) return cachedAccount;
-  // Lovable/Vite expose les variables serveur via import.meta.env (sans préfixe VITE_)
-  // Node.js les expose via process.env — on tente les deux
   const raw =
     process.env.FIREBASE_SERVICE_ACCOUNT_JSON ||
     process.env.FIREBASE_SERVICE_ACCOUNT ||
@@ -123,9 +122,17 @@ async function sendFcmToToken(
   projectId: string,
   token: string,
   payload: PushPayload,
+  audience: PushAudience,
+  reservationId?: string,
 ): Promise<{ ok: boolean; status: number; errorCode?: string }> {
   const url = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
   const clickUrl = resolvePushUrl(payload.url);
+  const extraData = {
+    url: clickUrl,
+    tag: payload.tag || "taxi-fcm",
+    audience,
+    ...(reservationId ? { reservation_id: reservationId } : {}),
+  };
   const body = {
     message: {
       token,
@@ -146,9 +153,9 @@ async function sendFcmToToken(
           vibrate: [200, 100, 200],
         },
         fcm_options: { link: clickUrl },
-        data: { url: clickUrl, tag: payload.tag || "taxi-fcm" },
+        data: extraData,
       },
-      data: { url: clickUrl, tag: payload.tag || "taxi-fcm" },
+      data: extraData,
     },
   };
   const res = await fetch(url, {
@@ -186,6 +193,17 @@ export async function sendPushToAudience(
   const { data, error } = await q;
   if (error || !data || data.length === 0) return { sent: 0, removed: 0 };
 
+  // Filet de sécurité supplémentaire : même avec la contrainte unique
+  // (fcm_token, audience) en base, on dédoublonne ici par fcm_token avant
+  // l'envoi. Ça protège contre toute ligne résiduelle qui aurait échappé au
+  // nettoyage, sans jamais bloquer l'envoi normal.
+  const seenTokens = new Set<string>();
+  const uniqueSubs = (data as SubRow[]).filter((s) => {
+    if (!s.fcm_token || seenTokens.has(s.fcm_token)) return false;
+    seenTokens.add(s.fcm_token);
+    return true;
+  });
+
   let accessToken: string;
   let projectId: string;
   try {
@@ -200,9 +218,9 @@ export async function sendPushToAudience(
   const toRemove: string[] = [];
 
   await Promise.all(
-    (data as SubRow[]).map(async (sub) => {
+    uniqueSubs.map(async (sub) => {
       if (!sub.fcm_token) return;
-      const r = await sendFcmToToken(accessToken, projectId, sub.fcm_token, payload);
+      const r = await sendFcmToToken(accessToken, projectId, sub.fcm_token, payload, audience, opts.reservationId);
       if (r.ok) {
         sent++;
       } else if (
