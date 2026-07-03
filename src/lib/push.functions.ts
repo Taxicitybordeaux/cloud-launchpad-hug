@@ -147,10 +147,10 @@ const APP_URL = "https://taxicitybordeaux.fr";
 export const notifyNewReservation = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ reservation_id: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
-    const [{ getTaxiSupabaseAdmin, getTaxiSupabaseConfig }, { sendPushToAudience }] = await Promise.all([
+    const [{ getTaxiSupabaseAdmin, getTaxiSupabaseConfig }] = await Promise.all([
       import("@/lib/taxi-supabase.server"),
-      import("@/lib/push.server"),
     ]);
+
     const supabaseAdmin = getTaxiSupabaseAdmin();
     console.log("[notifyNewReservation] start", data.reservation_id);
 
