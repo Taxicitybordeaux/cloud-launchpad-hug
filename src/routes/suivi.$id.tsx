@@ -1343,7 +1343,7 @@ function SuiviPage() {
   const fetchReservation = useServerFn(getReservationForFinPublic);
 
   const loadReservation = useCallback(
-    async (silent = false) => {
+    async (silent = false, quiet = false) => {
       if (!silent) setLoading(true);
       else setRefreshing(true);
       try {
@@ -1355,7 +1355,9 @@ function SuiviPage() {
           setReservation(r);
           isCompletedRef.current = r.status === "completed";
           isCancelledRef.current = r.status === "cancelled";
-          if (silent) toast.success(t("suivi.status_refreshed"));
+          if (silent && !quiet) toast.success(t("suivi.status_refreshed"));
+          lastUpdateRef.current = Date.now();
+          setStaleMinutes(0);
         }
       } catch (e) {
         console.error("Fetch error:", e);
