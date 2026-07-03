@@ -49,6 +49,7 @@ interface ClientAgg {
   nbCourses: number;
   totalDepense: number;
   derniereCourse: string;
+  derniereDepart: string;
   derniereDestination: string;
 }
 
