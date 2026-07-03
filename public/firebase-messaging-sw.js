@@ -202,12 +202,7 @@ self.addEventListener("push", (event) => {
   );
 });
 
-        vibrate: [200, 100, 200],
-        requireInteraction: true,
-      });
-    }),
-  );
-});
+
 
 // ─── Click sur notification ─────────────────────────────────────────────────
 self.addEventListener("notificationclick", (event) => {
