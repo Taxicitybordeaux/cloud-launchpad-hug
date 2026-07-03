@@ -36,7 +36,7 @@ async function runCheck(request: Request): Promise<Response> {
   const supabase = getTaxiSupabaseAdmin();
   const config = getTaxiSupabaseConfig();
   const dbHost = (() => {
-    try { return new URL(config.url).host; } catch { return config.url; }
+    try { return new URL(config.supabaseUrl).host; } catch { return config.supabaseUrl; }
   })();
 
   const report: Record<string, unknown> = {

@@ -34,6 +34,7 @@ import { Route as ClientDashboardRouteImport } from './routes/client.dashboard'
 import { Route as ClientChatRouteImport } from './routes/client.chat'
 import { Route as ApiManifestRouteImport } from './routes/api/manifest'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
+import { Route as ApiPublicPushDedupCheckRouteImport } from './routes/api/public/push-dedup-check'
 import { Route as ApiPublicNotifyReservationClientRouteImport } from './routes/api/public/notify-reservation-client'
 import { Route as ApiPublicNotifyReservationRouteImport } from './routes/api/public/notify-reservation'
 import { Route as ApiPublicDriverLocationRouteImport } from './routes/api/public/driver-location'
@@ -172,6 +173,11 @@ const LovableEmailSuppressionRoute = LovableEmailSuppressionRouteImport.update({
   path: '/lovable/email/suppression',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPushDedupCheckRoute = ApiPublicPushDedupCheckRouteImport.update({
+  id: '/api/public/push-dedup-check',
+  path: '/api/public/push-dedup-check',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicNotifyReservationClientRoute =
   ApiPublicNotifyReservationClientRouteImport.update({
     id: '/api/public/notify-reservation-client',
@@ -270,6 +276,7 @@ export interface FileRoutesByFullPath {
   '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
+  '/api/public/push-dedup-check': typeof ApiPublicPushDedupCheckRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/recurring-rides-tick': typeof ApiPublicHooksRecurringRidesTickRoute
   '/api/public/hooks/ride-reminders-tick': typeof ApiPublicHooksRideRemindersTickRoute
@@ -309,6 +316,7 @@ export interface FileRoutesByTo {
   '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
+  '/api/public/push-dedup-check': typeof ApiPublicPushDedupCheckRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/recurring-rides-tick': typeof ApiPublicHooksRecurringRidesTickRoute
   '/api/public/hooks/ride-reminders-tick': typeof ApiPublicHooksRideRemindersTickRoute
@@ -349,6 +357,7 @@ export interface FileRoutesById {
   '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
+  '/api/public/push-dedup-check': typeof ApiPublicPushDedupCheckRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/recurring-rides-tick': typeof ApiPublicHooksRecurringRidesTickRoute
   '/api/public/hooks/ride-reminders-tick': typeof ApiPublicHooksRideRemindersTickRoute
@@ -390,6 +399,7 @@ export interface FileRouteTypes {
     | '/api/public/driver-location'
     | '/api/public/notify-reservation'
     | '/api/public/notify-reservation-client'
+    | '/api/public/push-dedup-check'
     | '/lovable/email/suppression'
     | '/api/public/hooks/recurring-rides-tick'
     | '/api/public/hooks/ride-reminders-tick'
@@ -429,6 +439,7 @@ export interface FileRouteTypes {
     | '/api/public/driver-location'
     | '/api/public/notify-reservation'
     | '/api/public/notify-reservation-client'
+    | '/api/public/push-dedup-check'
     | '/lovable/email/suppression'
     | '/api/public/hooks/recurring-rides-tick'
     | '/api/public/hooks/ride-reminders-tick'
@@ -468,6 +479,7 @@ export interface FileRouteTypes {
     | '/api/public/driver-location'
     | '/api/public/notify-reservation'
     | '/api/public/notify-reservation-client'
+    | '/api/public/push-dedup-check'
     | '/lovable/email/suppression'
     | '/api/public/hooks/recurring-rides-tick'
     | '/api/public/hooks/ride-reminders-tick'
@@ -507,6 +519,7 @@ export interface RootRouteChildren {
   ApiPublicDriverLocationRoute: typeof ApiPublicDriverLocationRoute
   ApiPublicNotifyReservationRoute: typeof ApiPublicNotifyReservationRoute
   ApiPublicNotifyReservationClientRoute: typeof ApiPublicNotifyReservationClientRoute
+  ApiPublicPushDedupCheckRoute: typeof ApiPublicPushDedupCheckRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   ApiPublicHooksRecurringRidesTickRoute: typeof ApiPublicHooksRecurringRidesTickRoute
   ApiPublicHooksRideRemindersTickRoute: typeof ApiPublicHooksRideRemindersTickRoute
@@ -694,6 +707,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailSuppressionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/push-dedup-check': {
+      id: '/api/public/push-dedup-check'
+      path: '/api/public/push-dedup-check'
+      fullPath: '/api/public/push-dedup-check'
+      preLoaderRoute: typeof ApiPublicPushDedupCheckRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/notify-reservation-client': {
       id: '/api/public/notify-reservation-client'
       path: '/api/public/notify-reservation-client'
@@ -822,6 +842,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicDriverLocationRoute: ApiPublicDriverLocationRoute,
   ApiPublicNotifyReservationRoute: ApiPublicNotifyReservationRoute,
   ApiPublicNotifyReservationClientRoute: ApiPublicNotifyReservationClientRoute,
+  ApiPublicPushDedupCheckRoute: ApiPublicPushDedupCheckRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   ApiPublicHooksRecurringRidesTickRoute: ApiPublicHooksRecurringRidesTickRoute,
   ApiPublicHooksRideRemindersTickRoute: ApiPublicHooksRideRemindersTickRoute,
