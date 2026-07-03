@@ -1072,6 +1072,7 @@ function CourseCard({
     try {
       const { error } = await (supabase as any).from("reservations").update({ status: "completed" }).eq("id", resa.id);
       if (error) throw error;
+      broadcastSuiviUpdate(resa.id, "completed");
       try {
         await notifyStatus({ data: { reservation_id: resa.id, status: "completed" } });
       } catch (pushErr) {
