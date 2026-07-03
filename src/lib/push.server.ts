@@ -179,7 +179,7 @@ type SubRow = { id: string; fcm_token: string | null };
 export async function sendPushToAudience(
   audience: PushAudience,
   payload: PushPayload,
-  opts: { reservationId?: string } = {},
+  opts: { reservationId?: string; accountId?: string } = {},
 ): Promise<{ sent: number; removed: number }> {
   let q = supabaseAdmin
     .from("push_subscriptions")
@@ -241,7 +241,7 @@ export async function sendPushToAudience(
 }
 
 // Placeholder de compat — la vérif dedup était utilisée par un endpoint diag.
-export type DedupHealth = { ok: boolean; note?: string };
+export type DedupHealth = { ok: boolean; note?: string; error?: string };
 export async function checkPushDedupHealth(_force = false): Promise<DedupHealth> {
   return { ok: true, note: "dedup check disabled" };
 }
