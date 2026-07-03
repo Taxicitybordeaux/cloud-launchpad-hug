@@ -131,6 +131,29 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
           // On ne fait pas échouer la requête si le push échoue — l'email est déjà parti.
         }
 
+        // Push CLIENT — accusé de réception "en attente de validation par le taxi"
+        try {
+          const suiviUrl = `/suivi/${(reservation as any).suivi_id || reservationId}`;
+          const clientResult = await sendPushToAudience(
+            "client",
+            {
+              title: "⏳ Réservation reçue",
+              body: `En attente de validation par le taxi : ${trajet}.`,
+              url: suiviUrl,
+              tag: `client-pending-${reservationId}`,
+              requireInteraction: false,
+              data: { reservation_id: reservationId, status: "pending" },
+            },
+            {
+              reservationId,
+              accountId: (reservation as any).client_account_id ?? undefined,
+            },
+          );
+          console.log("[notify-reservation] push client:", JSON.stringify(clientResult));
+        } catch (pushErr) {
+          console.error("[notify-reservation] push client failed", pushErr);
+        }
+
         return Response.json({ success: true, emailQueued });
       },
     },
