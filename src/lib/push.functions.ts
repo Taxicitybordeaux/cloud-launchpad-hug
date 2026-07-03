@@ -56,7 +56,10 @@ export const subscribePush = createServerFn({ method: "POST" })
     const endpoint = `${data.audience}-${targetKey}-${deviceKey}`;
     const nowIso = new Date().toISOString();
 
-    // Cleanup ancienne ligne pour ce device/cible
+    // Cleanup ancienne ligne pour ce device/cible.
+    // La base taxi historique n'a pas toujours toutes les colonnes récentes
+    // (ex: client_account_id). On reste compatible en ne s'appuyant que sur
+    // endpoint, qui encode déjà audience + cible + device.
     try {
       await supabaseAdmin.from("push_subscriptions").delete().eq("endpoint", endpoint);
     } catch (e) {
@@ -70,11 +73,17 @@ export const subscribePush = createServerFn({ method: "POST" })
       fcm_token: data.fcm_token,
       user_agent: ua,
       last_seen_at: nowIso,
-      client_account_id: clientAccountId,
       reservation_id: data.reservation_id ?? null,
     };
 
-    const { error: insErr } = await supabaseAdmin.from("push_subscriptions").insert(insertPayload);
+    let { error: insErr } = await supabaseAdmin.from("push_subscriptions").insert(insertPayload);
+    if ((insErr as any)?.code === "23505") {
+      // Certaines bases anciennes ont encore un index unique global sur fcm_token.
+      // Dans ce cas on remplace la ligne du token pour ne pas bloquer Android/iOS.
+      await supabaseAdmin.from("push_subscriptions").delete().eq("fcm_token", data.fcm_token);
+      const retry = await supabaseAdmin.from("push_subscriptions").insert(insertPayload);
+      insErr = retry.error;
+    }
     if (insErr) {
       console.error("[push] subscribe insert failed", insErr);
       throw new Error("subscribe_failed");
