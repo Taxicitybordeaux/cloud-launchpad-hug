@@ -225,6 +225,32 @@ type SubRow = {
 // et rechargements service worker sans bloquer les vrais changements d'état.
 const DEDUP_WINDOW_MS = 5 * 60 * 1000;
 
+// Vérification unique (mise en cache) de la présence de la table push_dedup
+// sur la base réellement utilisée. Si la table est absente, on log une alerte
+// visible dans les logs Worker et on désactive la dedup (fail-open) pour ne
+// pas bloquer les notifs. Statut consultable via /api/public/push-dedup-check.
+type DedupHealth = { ok: boolean; error?: string; checkedAt: number };
+let cachedDedupHealth: DedupHealth | null = null;
+
+export async function checkPushDedupHealth(force = false): Promise<DedupHealth> {
+  if (!force && cachedDedupHealth && Date.now() - cachedDedupHealth.checkedAt < 60_000) {
+    return cachedDedupHealth;
+  }
+  const supabaseAdmin = getTaxiSupabaseAdmin();
+  const { error } = await supabaseAdmin
+    .from("push_dedup" as any)
+    .select("tag", { count: "exact", head: true })
+    .limit(1);
+  if (error) {
+    cachedDedupHealth = { ok: false, error: `${(error as any).code ?? ""} ${error.message}`.trim(), checkedAt: Date.now() };
+    console.warn("[push] ⚠️ push_dedup table missing on active DB → dedup DISABLED:", cachedDedupHealth.error);
+  } else {
+    cachedDedupHealth = { ok: true, checkedAt: Date.now() };
+  }
+  return cachedDedupHealth;
+}
+
+
 export async function sendPushToAudience(
   audience: PushAudience,
   payload: PushPayload,
