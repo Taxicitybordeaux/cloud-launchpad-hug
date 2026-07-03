@@ -932,6 +932,7 @@ function CourseCard({
         .update({ distance_km: chosen.distanceKm, prix_estime: chosen.prix_estime })
         .eq("id", resa.id);
       if (error) throw error;
+      broadcastSuiviUpdate(resa.id, "route");
       toast.success(`Itinéraire mis à jour — ${chosen.distanceKm} km · ${chosen.prix_estime.toFixed(2)} €`);
       onRefresh();
     } catch (e: any) {
