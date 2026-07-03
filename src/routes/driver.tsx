@@ -768,6 +768,17 @@ function CourseCard({
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInst = useRef<any>(null);
   const rendererRef = useRef<any>(null);
+  const actionLocks = useRef<Set<string>>(new Set());
+
+  const claimAction = (key: string) => {
+    if (actionLocks.current.has(key)) return false;
+    actionLocks.current.add(key);
+    return true;
+  };
+
+  const releaseAction = (key: string) => {
+    actionLocks.current.delete(key);
+  };
 
   // Charger les itinéraires quand on ouvre la carte
   useEffect(() => {
@@ -888,6 +899,8 @@ function CourseCard({
   const st = statusLabel[resa.status] ?? { label: resa.status, cls: "drv-badge-gray" };
 
   const handleAccept = async () => {
+    const actionKey = `${resa.id}:accepted`;
+    if (!claimAction(actionKey)) return;
     setBusy(true);
     try {
       const chosen = routes[selectedRoute];
@@ -896,8 +909,19 @@ function CourseCard({
         updates.distance_km = chosen.distanceKm;
         updates.prix_estime = chosen.prix_estime;
       }
-      const { error } = await (supabase as any).from("reservations").update(updates).eq("id", resa.id);
+      const { data: updated, error } = await (supabase as any)
+        .from("reservations")
+        .update(updates)
+        .eq("id", resa.id)
+        .neq("status", "accepted")
+        .select("id")
+        .maybeSingle();
       if (error) throw error;
+      if (!updated) {
+        toast("Action déjà prise en compte");
+        onRefresh();
+        return;
+      }
       broadcastSuiviUpdate(resa.id, "accepted");
       try {
         await notifyStatus({ data: { reservation_id: resa.id, status: "accepted" } });
@@ -910,6 +934,7 @@ function CourseCard({
       toast.error("Erreur : " + (e.message ?? e));
     } finally {
       setBusy(false);
+      releaseAction(actionKey);
     }
   };
 
@@ -1080,10 +1105,23 @@ function CourseCard({
   const [completing, setCompleting] = useState(false);
   const handleComplete = async () => {
     if (!confirm("Marquer cette course comme terminée ?")) return;
+    const actionKey = `${resa.id}:completed`;
+    if (!claimAction(actionKey)) return;
     setCompleting(true);
     try {
-      const { error } = await (supabase as any).from("reservations").update({ status: "completed" }).eq("id", resa.id);
+      const { data: updated, error } = await (supabase as any)
+        .from("reservations")
+        .update({ status: "completed" })
+        .eq("id", resa.id)
+        .neq("status", "completed")
+        .select("id")
+        .maybeSingle();
       if (error) throw error;
+      if (!updated) {
+        toast("Action déjà prise en compte");
+        onRefresh();
+        return;
+      }
       broadcastSuiviUpdate(resa.id, "completed");
       try {
         await notifyStatus({ data: { reservation_id: resa.id, status: "completed" } });
@@ -1096,16 +1134,30 @@ function CourseCard({
       toast.error("Erreur : " + (e.message ?? e));
     } finally {
       setCompleting(false);
+      releaseAction(actionKey);
     }
   };
 
   // ── Progression de statut ──
   const [progressing, setProgressing] = useState(false);
   const handleProgressStatus = async (nextStatus: string, label: string) => {
+    const actionKey = `${resa.id}:${nextStatus}`;
+    if (!claimAction(actionKey)) return;
     setProgressing(true);
     try {
-      const { error } = await (supabase as any).from("reservations").update({ status: nextStatus }).eq("id", resa.id);
+      const { data: updated, error } = await (supabase as any)
+        .from("reservations")
+        .update({ status: nextStatus })
+        .eq("id", resa.id)
+        .neq("status", nextStatus)
+        .select("id")
+        .maybeSingle();
       if (error) throw error;
+      if (!updated) {
+        toast("Action déjà prise en compte");
+        onRefresh();
+        return;
+      }
       broadcastSuiviUpdate(resa.id, `status:${nextStatus}`);
       try {
         await notifyStatus({ data: { reservation_id: resa.id, status: nextStatus as any } });
@@ -1118,6 +1170,7 @@ function CourseCard({
       toast.error("Erreur : " + (e.message ?? e));
     } finally {
       setProgressing(false);
+      releaseAction(actionKey);
     }
   };
 
