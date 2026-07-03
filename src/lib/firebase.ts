@@ -273,6 +273,7 @@ export async function getFcmToken(options: { forceRefresh?: boolean; requestPerm
         window.localStorage.setItem("fcm_token_last_refresh", String(Date.now()));
         return token;
       }
+      return null;
     }
 
     const msg = await initFirebase();
