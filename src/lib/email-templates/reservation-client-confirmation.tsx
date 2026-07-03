@@ -13,7 +13,7 @@ import {
 } from "@react-email/components";
 import type { TemplateEntry } from "./registry";
 
-type Lang = "fr" | "en" | "es" | "it" | "ar";
+type Lang = "fr" | "en" | "es" | "pt" | "it" | "ar";
 
 interface Props {
   lang?: Lang;
@@ -94,6 +94,22 @@ const STR: Record<Lang, Record<string, string>> = {
     unsub: "Stai ricevendo questa email perché hai effettuato una prenotazione. Annulla iscrizione",
     subj: "Conferma della sua prenotazione — Taxi City Bordeaux",
   },
+  pt: {
+    preview: "Confirmação da sua reserva — o seu link de acompanhamento está aqui",
+    hi: "Olá",
+    thanks: "Recebemos o seu pedido de reserva. Vamos ligar-lhe em breve para confirmar a corrida.",
+    when: "Data / hora",
+    from: "Partida",
+    to: "Chegada",
+    pax: "Passageiros",
+    lug: "Bagagem",
+    ref: "N.º de reserva",
+    suivi_btn: "📍 Acompanhar a minha corrida em tempo real",
+    suivi_label: "Link de acompanhamento:",
+    foot: "Alguma dúvida? +33 6 73 07 23 22 — Taxi City Bordeaux",
+    unsub: "Está a receber este email porque fez uma reserva. Cancelar subscrição",
+    subj: "Confirmação da sua reserva — Taxi City Bordeaux",
+  },
   ar: {
     preview: "تأكيد الحجز — رابط التتبع الخاص بك هنا",
     hi: "مرحبا",
@@ -118,6 +134,7 @@ function fmtDate(iso?: string, lang: Lang = "fr"): string {
     fr: "fr-FR",
     en: "en-GB",
     es: "es-ES",
+    pt: "pt-PT",
     it: "it-IT",
     ar: "ar-SA",
   };
