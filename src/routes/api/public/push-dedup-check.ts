@@ -32,6 +32,7 @@ async function runCheck(request: Request): Promise<Response> {
   }
 
   const { getTaxiSupabaseAdmin, getTaxiSupabaseConfig } = await import("@/lib/taxi-supabase.server");
+  const { checkPushDedupHealth } = await import("@/lib/push.server");
   const supabase = getTaxiSupabaseAdmin();
   const config = getTaxiSupabaseConfig();
   const dbHost = (() => {
@@ -43,12 +44,11 @@ async function runCheck(request: Request): Promise<Response> {
     checked_at: new Date().toISOString(),
   };
 
-  // 1) Health check (existence table) — probe direct
-  const probe = await supabase.from("push_dedup" as any).select("tag").limit(1);
-  const healthOk = !probe.error;
-  report.table_exists = healthOk;
-  if (!healthOk) {
-    report.table_error = probe.error?.message;
+  // 1) Health check (existence table)
+  const health = await checkPushDedupHealth(true);
+  report.table_exists = health.ok;
+  if (!health.ok) {
+    report.table_error = health.error;
     return new Response(JSON.stringify({ ok: false, ...report }, null, 2), {
       status: 500,
       headers: { "Content-Type": "application/json" },
@@ -87,7 +87,7 @@ async function runCheck(request: Request): Promise<Response> {
   // 4) Cleanup de la ligne de test
   await supabase.from("push_dedup" as any).delete().eq("tag", testTag).eq("audience", audience);
 
-  const allGood = healthOk && !first.error && secondCode === "23505";
+  const allGood = health.ok && !first.error && secondCode === "23505";
   return new Response(JSON.stringify({ ok: allGood, ...report }, null, 2), {
     status: allGood ? 200 : 500,
     headers: { "Content-Type": "application/json" },

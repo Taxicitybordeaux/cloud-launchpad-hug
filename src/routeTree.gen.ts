@@ -13,7 +13,6 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as ReserverRouteImport } from './routes/reserver'
 import { Route as ReservationRouteImport } from './routes/reservation'
-import { Route as MesCoursesRouteImport } from './routes/mes-courses'
 import { Route as MentionsLegalesRouteImport } from './routes/mentions-legales'
 import { Route as DriverRouteImport } from './routes/driver'
 import { Route as ContactRouteImport } from './routes/contact'
@@ -67,11 +66,6 @@ const ReserverRoute = ReserverRouteImport.update({
 const ReservationRoute = ReservationRouteImport.update({
   id: '/reservation',
   path: '/reservation',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MesCoursesRoute = MesCoursesRouteImport.update({
-  id: '/mes-courses',
-  path: '/mes-courses',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MentionsLegalesRoute = MentionsLegalesRouteImport.update({
@@ -259,7 +253,6 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/driver': typeof DriverRoute
   '/mentions-legales': typeof MentionsLegalesRoute
-  '/mes-courses': typeof MesCoursesRoute
   '/reservation': typeof ReservationRouteWithChildren
   '/reserver': typeof ReserverRoute
   '/services': typeof ServicesRoute
@@ -300,7 +293,6 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/driver': typeof DriverRoute
   '/mentions-legales': typeof MentionsLegalesRoute
-  '/mes-courses': typeof MesCoursesRoute
   '/reservation': typeof ReservationRouteWithChildren
   '/reserver': typeof ReserverRoute
   '/services': typeof ServicesRoute
@@ -342,7 +334,6 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/driver': typeof DriverRoute
   '/mentions-legales': typeof MentionsLegalesRoute
-  '/mes-courses': typeof MesCoursesRoute
   '/reservation': typeof ReservationRouteWithChildren
   '/reserver': typeof ReserverRoute
   '/services': typeof ServicesRoute
@@ -385,7 +376,6 @@ export interface FileRouteTypes {
     | '/contact'
     | '/driver'
     | '/mentions-legales'
-    | '/mes-courses'
     | '/reservation'
     | '/reserver'
     | '/services'
@@ -426,7 +416,6 @@ export interface FileRouteTypes {
     | '/contact'
     | '/driver'
     | '/mentions-legales'
-    | '/mes-courses'
     | '/reservation'
     | '/reserver'
     | '/services'
@@ -467,7 +456,6 @@ export interface FileRouteTypes {
     | '/contact'
     | '/driver'
     | '/mentions-legales'
-    | '/mes-courses'
     | '/reservation'
     | '/reserver'
     | '/services'
@@ -509,7 +497,6 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   DriverRoute: typeof DriverRoute
   MentionsLegalesRoute: typeof MentionsLegalesRoute
-  MesCoursesRoute: typeof MesCoursesRoute
   ReservationRoute: typeof ReservationRouteWithChildren
   ReserverRoute: typeof ReserverRoute
   ServicesRoute: typeof ServicesRoute
@@ -571,13 +558,6 @@ declare module '@tanstack/react-router' {
       path: '/reservation'
       fullPath: '/reservation'
       preLoaderRoute: typeof ReservationRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mes-courses': {
-      id: '/mes-courses'
-      path: '/mes-courses'
-      fullPath: '/mes-courses'
-      preLoaderRoute: typeof MesCoursesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mentions-legales': {
@@ -840,7 +820,6 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   DriverRoute: DriverRoute,
   MentionsLegalesRoute: MentionsLegalesRoute,
-  MesCoursesRoute: MesCoursesRoute,
   ReservationRoute: ReservationRouteWithChildren,
   ReserverRoute: ReserverRoute,
   ServicesRoute: ServicesRoute,

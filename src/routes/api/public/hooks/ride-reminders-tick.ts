@@ -63,7 +63,7 @@ export const Route = createFileRoute("/api/public/hooks/ride-reminders-tick")({
                 url: `/reservation/${r.id}`,
                 tag: `client-j1-${r.id}`,
                 requireInteraction: false,
-                
+                data: { reservation_id: r.id, kind: "j1_reminder" },
               },
               { reservationId: r.id },
             );

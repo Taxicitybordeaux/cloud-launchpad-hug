@@ -1,154 +1,138 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { createClient } from '@supabase/supabase-js'
-import * as React from 'react'
-import { render } from '@react-email/components'
-import { z } from 'zod'
-import { TEMPLATES } from '@/lib/email-templates/registry'
-import { sendPushToAudience } from '@/lib/push.server'
+import { createFileRoute } from "@tanstack/react-router";
+import { z } from "zod";
+import { TEMPLATES } from "@/lib/email-templates/registry";
 
-const SITE_NAME = 'Taxi City Bordeaux'
-const SENDER_DOMAIN = 'notify.taxicitybordeaux.fr'
-const FROM_DOMAIN = 'taxicitybordeaux.fr'
-const TEMPLATE_NAME = 'new-reservation-admin'
+const TEMPLATE_NAME = "new-reservation-admin";
+const INTERNAL_NOTIFY_SECRET = "taxi-city-reservation-trigger-v1";
 
 const schema = z.object({
   reservation_id: z.string().uuid(),
-})
+});
 
-export const Route = createFileRoute('/api/public/notify-reservation')({
+export const Route = createFileRoute("/api/public/notify-reservation")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-        const serviceKey = process.env.SERVICE_ROLE_KEY
-        if (!supabaseUrl || !serviceKey) {
-          return Response.json({ error: 'Server config error' }, { status: 500 })
+        const [{ getTaxiSupabaseAdmin, getTaxiSupabaseConfig }, { sendPushToAudience }] = await Promise.all([
+          import("@/lib/taxi-supabase.server"),
+          import("@/lib/push.server"),
+        ]);
+        let serviceKey = "";
+        try {
+          const cfg = getTaxiSupabaseConfig();
+          serviceKey = cfg.serviceKey;
+          console.log(
+            "[notify-reservation] backend:",
+            cfg.targetRef,
+            "key:",
+            cfg.selectedKeyName,
+            "keyRef:",
+            cfg.selectedRef,
+          );
+        } catch (err) {
+          console.error("[notify-reservation] backend config failed", err);
         }
 
-        let raw: unknown
-        try { raw = await request.json() } catch {
-          return Response.json({ error: 'Invalid JSON' }, { status: 400 })
+        if (!serviceKey) {
+          return Response.json({ error: "Server config error" }, { status: 500 });
         }
-        const parsed = schema.safeParse(raw)
+
+        const internalSecret = request.headers.get("X-Internal-Notify-Secret");
+        const hasServiceBearer = request.headers.get("Authorization") === `Bearer ${serviceKey}`;
+        if (internalSecret !== INTERNAL_NOTIFY_SECRET && !hasServiceBearer) {
+          return Response.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        let raw: unknown;
+        try {
+          raw = await request.json();
+        } catch {
+          return Response.json({ error: "Invalid JSON" }, { status: 400 });
+        }
+        const parsed = schema.safeParse(raw);
         if (!parsed.success) {
-          return Response.json({ error: 'Invalid payload' }, { status: 400 })
+          return Response.json({ error: "Invalid payload" }, { status: 400 });
         }
-        const reservationId = parsed.data.reservation_id
+        const reservationId = parsed.data.reservation_id;
+        console.log("[notify-reservation] reservationId:", reservationId);
 
-        const supabase = createClient(supabaseUrl, serviceKey)
+        const supabase = getTaxiSupabaseAdmin();
 
-        // Pull the reservation server-side. The caller only sends an id, so they
-        // cannot fabricate the contents of the notification email to the operator.
         const { data: reservation, error: lookupError } = await supabase
-          .from('reservations')
-          .select('id, nom, telephone, email, pickup_datetime, depart, arrivee, passagers, bagages, service_type, message')
-          .eq('id', reservationId)
-          .maybeSingle()
-        if (lookupError) return Response.json({ error: 'lookup' }, { status: 500 })
-        if (!reservation) return Response.json({ error: 'not_found' }, { status: 404 })
+          .from("reservations")
+          .select(
+            "id, nom, client_name, telephone, client_phone, email, pickup_datetime, depart, arrivee, destination, passagers, bagages, service_type",
+          )
+          .eq("id", reservationId)
+          .maybeSingle();
+        if (lookupError) {
+          console.error("[notify-reservation] lookupError:", JSON.stringify(lookupError));
+          return Response.json({ error: "lookup" }, { status: 500 });
+        }
+        if (!reservation) return Response.json({ error: "not_found" }, { status: 404 });
 
         const data = {
           ...reservation,
           phone: reservation.telephone,
-          admin_url: `${process.env.APP_URL || 'https://taxicitybordeaux.fr'}/admin/dashboard`,
-        }
-        const template = TEMPLATES[TEMPLATE_NAME]
+          admin_url: "https://taxicitybordeaux.fr/admin/dashboard",
+        };
+        const template = TEMPLATES[TEMPLATE_NAME];
         if (!template || !template.to) {
-          return Response.json({ error: 'Template not configured' }, { status: 500 })
+          return Response.json({ error: "Template not configured" }, { status: 500 });
         }
-        const recipient = template.to
-        const messageId = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)
-        const idempotencyKey = `reservation-${reservationId}`
+        const recipient = template.to;
+        const idempotencyKey = `reservation-${reservationId}`;
 
-        // Idempotency gate: insert log row first; the unique index on
-        // idempotency_key (where status <> 'failed') rejects duplicates.
-        const { error: logError } = await supabase.from('email_send_log').insert({
-          message_id: messageId,
-          template_name: TEMPLATE_NAME,
-          recipient_email: recipient,
-          status: 'pending',
-          idempotency_key: idempotencyKey,
-        })
-        if (logError) {
-          if ((logError as any).code === '23505') {
-            return Response.json({ success: true, deduped: true })
-          }
-          return Response.json({ error: 'log' }, { status: 500 })
-        }
+        const EMAIL_BRIDGE_URL = "https://taxicitybordeaux.fr/lovable/email/transactional/send";
+        console.log("[notify-reservation] → bridge:", EMAIL_BRIDGE_URL, "reservation:", reservationId);
 
-        const element = React.createElement(template.component, data)
-        const html = await render(element)
-        const text = await render(element, { plainText: true })
-        const subject = typeof template.subject === 'function'
-          ? template.subject(data as any)
-          : template.subject
-
-        // ensure unsubscribe token (one per email address)
-        const normalized = recipient.toLowerCase()
-        let unsubscribeToken: string
-        const { data: existing } = await supabase
-          .from('email_unsubscribe_tokens')
-          .select('token, used_at')
-          .eq('email', normalized)
-          .maybeSingle()
-        if (existing && !existing.used_at) {
-          unsubscribeToken = existing.token
-        } else {
-          const bytes = new Uint8Array(32)
-          crypto.getRandomValues(bytes)
-          unsubscribeToken = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
-          await supabase.from('email_unsubscribe_tokens').upsert(
-            { token: unsubscribeToken, email: normalized },
-            { onConflict: 'email', ignoreDuplicates: true },
-          )
-          const { data: stored } = await supabase
-            .from('email_unsubscribe_tokens')
-            .select('token').eq('email', normalized).maybeSingle()
-          if (stored?.token) unsubscribeToken = stored.token
-        }
-
-        const { error: enqueueError } = await supabase.rpc('enqueue_email', {
-          queue_name: 'transactional_emails',
-          payload: {
-            message_id: messageId,
-            to: recipient,
-            from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
-            sender_domain: SENDER_DOMAIN,
-            subject,
-            html,
-            text,
-            purpose: 'transactional',
-            label: TEMPLATE_NAME,
-            idempotency_key: idempotencyKey,
-            unsubscribe_token: unsubscribeToken,
-            queued_at: new Date().toISOString(),
-          },
-        })
-
-        if (enqueueError) {
-          // Mark as failed so the unique index allows a retry.
-          await supabase.from('email_send_log')
-            .update({ status: 'failed', error_message: 'Failed to enqueue' })
-            .eq('message_id', messageId)
-          return Response.json({ error: 'Enqueue failed' }, { status: 500 })
-        }
-
-        // Fire-and-forget push to chauffeurs only (one taxi notification that opens the driver page)
+        let emailQueued = false;
         try {
-          await sendPushToAudience('chauffeur', {
-            title: '🚕 Nouvelle course en attente',
-            body: `${reservation.nom} · ${reservation.depart} → ${reservation.arrivee}`,
-            url: '/driver',
-            tag: `new-res-chauffeur-${reservationId}`,
-            requireInteraction: true,
-          })
-        } catch (e) {
-          console.error('[push] notify failed', e)
+          const sendResp = await fetch(EMAIL_BRIDGE_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${serviceKey}`,
+            },
+            body: JSON.stringify({
+              templateName: TEMPLATE_NAME,
+              recipientEmail: recipient,
+              idempotencyKey,
+              templateData: data,
+            }),
+          });
+
+          emailQueued = sendResp.ok;
+          if (!sendResp.ok) {
+            const errBody = await sendResp.text().catch(() => "");
+            console.error("[notify-reservation] bridge error", sendResp.status, errBody);
+          } else {
+            console.log("[notify-reservation] email queued ok, reservation:", reservationId);
+          }
+        } catch (emailErr) {
+          console.error("[notify-reservation] email bridge threw", emailErr);
         }
 
-        return Response.json({ success: true })
+        // Push chauffeur — envoyé ici (côté serveur, à la création de
+        // la résa) pour ne plus dépendre d'un onglet dashboard ouvert.
+        const clientName = reservation.client_name || reservation.nom || "Client";
+        const trajet = `${reservation.depart} → ${reservation.arrivee || reservation.destination || "—"}`;
+        try {
+          const chauffeurResult = await sendPushToAudience("chauffeur", {
+            title: "🚕 Nouvelle course en attente",
+            body: `${clientName} — ${trajet}`,
+            url: "/driver?token=DSF234",
+            tag: `chauffeur-res-${reservationId}`,
+            requireInteraction: true,
+          });
+          console.log("[notify-reservation] push chauffeur:", JSON.stringify(chauffeurResult));
+        } catch (pushErr) {
+          console.error("[notify-reservation] push failed", pushErr);
+          // On ne fait pas échouer la requête si le push échoue — l'email est déjà parti.
+        }
+
+        return Response.json({ success: true, emailQueued });
       },
     },
   },
-})
-
+});
