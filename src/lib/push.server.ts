@@ -123,32 +123,30 @@ async function sendFcmToToken(
   projectId: string,
   token: string,
   payload: PushPayload,
+  audience: PushAudience,
+  reservationId?: string,
 ): Promise<{ ok: boolean; status: number; errorCode?: string }> {
   const url = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
   const clickUrl = resolvePushUrl(payload.url);
   const tag = payload.tag || "taxi-fcm";
+  const dataPayload: Record<string, string> = {
+    url: clickUrl,
+    tag,
+    audience,
+  };
+  if (reservationId) dataPayload.reservation_id = reservationId;
   const body = {
     message: {
       token,
-      // Root `notification` REQUIS pour la livraison iOS Safari PWA (APNs).
-      // Sans ce champ, iOS ne réveille pas le device → 0 notif reçue.
-      // Le SW détecte payload.notification et NE réaffiche PAS → pas de doublon.
+      // Root `notification` requis pour iOS/iPad PWA. On ne met PAS de
+      // webpush.notification en plus : un seul affichage système, pas deux.
       notification: { title: payload.title, body: payload.body },
       webpush: {
         headers: payload.requireInteraction ? { Urgency: "high", TTL: "86400" } : { TTL: "3600" },
-        notification: {
-          title: payload.title,
-          body: payload.body,
-          icon: payload.icon || "/favicon.ico",
-          badge: "/favicon.ico",
-          tag,
-          requireInteraction: !!payload.requireInteraction,
-          vibrate: [200, 100, 200],
-        },
         fcm_options: { link: clickUrl },
-        data: { url: clickUrl, tag },
+        data: dataPayload,
       },
-      data: { url: clickUrl, tag },
+      data: dataPayload,
     },
   };
   const res = await fetch(url, {
@@ -174,7 +172,25 @@ export async function sendPushToAudience(
   audience: PushAudience,
   payload: PushPayload,
   opts: { reservationId?: string } = {},
-): Promise<{ sent: number; removed: number }> {
+): Promise<{ sent: number; removed: number; deduped?: boolean }> {
+  if (payload.tag) {
+    try {
+      await supabaseAdmin.from("push_dedup" as any).delete().lt("expires_at", new Date().toISOString());
+      const { error: dedupError } = await supabaseAdmin.from("push_dedup" as any).insert({
+        tag: payload.tag,
+        audience,
+        expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      });
+      if (dedupError && (dedupError as any).code === "23505") {
+        console.log("[push] dedup skip", audience, payload.tag);
+        return { sent: 0, removed: 0, deduped: true };
+      }
+      if (dedupError) console.warn("[push] dedup unavailable", dedupError.message);
+    } catch (e) {
+      console.warn("[push] dedup check failed", e);
+    }
+  }
+
   let q = supabaseAdmin
     .from("push_subscriptions")
     .select("id, fcm_token")
@@ -198,11 +214,14 @@ export async function sendPushToAudience(
 
   let sent = 0;
   const toRemove: string[] = [];
+  const seenTokens = new Set<string>();
 
   await Promise.all(
     (data as SubRow[]).map(async (sub) => {
       if (!sub.fcm_token) return;
-      const r = await sendFcmToToken(accessToken, projectId, sub.fcm_token, payload);
+      if (seenTokens.has(sub.fcm_token)) return;
+      seenTokens.add(sub.fcm_token);
+      const r = await sendFcmToToken(accessToken, projectId, sub.fcm_token, payload, audience, opts.reservationId);
       if (r.ok) {
         sent++;
       } else if (
