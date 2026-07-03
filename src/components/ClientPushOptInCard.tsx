@@ -38,12 +38,15 @@ export function ClientPushOptInCard({ clientAccountId }: ClientPushOptInCardProp
   const iosNeedsInstall = ios && !standalone;
 
   async function enable() {
+    if (iosNeedsInstall) {
+      toast.error("Sur iPhone, installez d'abord l'app : Safari → Partager → Sur l'écran d'accueil, puis rouvrez depuis l'icône.");
+      return;
+    }
     setBusy(true);
     try {
-      // Surfacer l'erreur réelle du serverFn (RLS, réseau, FCM token null, etc.)
-      // au lieu du toast générique — permet de diagnostiquer pourquoi la ligne
-      // DB n'apparaît pas malgré Notification.permission === "granted".
       const { getFcmToken } = await import("@/lib/firebase");
+      const { subscribePush } = await import("@/lib/push.functions");
+      const fcm = await getFcmToken({ forceRefresh: true });
       const { subscribePush } = await import("@/lib/push.functions");
       const fcm = await getFcmToken({ forceRefresh: true });
       if (!fcm) {
