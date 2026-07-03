@@ -38,7 +38,12 @@ export const Route = createFileRoute("/suivi/$id")({
     meta: [
       { title: "Suivi de votre taxi — Taxi City Bordeaux" },
       { name: "robots", content: "noindex" },
-      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" },
+      {
+        name: "viewport",
+        content:
+          "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content",
+      },
+      { name: "theme-color", content: "#0f172a" },
     ],
   }),
   component: SuiviPage,
@@ -64,7 +69,11 @@ const VEHICLE_PLATE = "HF-450-JG";
 
 const PREMIUM_CSS = `
   * { box-sizing: border-box; }
-  body { margin: 0; padding: 0; }
+  html, body { margin: 0; padding: 0; overflow-x: hidden; overscroll-behavior-y: contain; }
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  button, a { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  input, textarea { -webkit-tap-highlight-color: transparent; }
+  .suivi-root { overscroll-behavior-y: contain; }
   
   @keyframes gradient-flow {
     0%, 100% { background-position: 0% 50%; }
@@ -413,21 +422,25 @@ function AnonChat({ suiviKey, reservationId }: { suiviKey: string; reservationId
           disabled={sending}
           style={{
             flex: 1,
-            padding: "10px 12px",
+            padding: "12px 12px",
             borderRadius: "8px",
             border: "1px solid #e2e8f0",
-            fontSize: "13px",
+            fontSize: "16px",
             fontFamily: "inherit",
             transition: "all 0.3s",
             color: "#0f172a",
             background: "#ffffff",
+            minHeight: "44px",
+            boxSizing: "border-box",
           }}
         />
         <button
           onClick={send}
           disabled={sending || !text.trim()}
           style={{
-            padding: "10px 14px",
+            padding: "10px 16px",
+            minWidth: "44px",
+            minHeight: "44px",
             background: sending || !text.trim() ? "#cbd5e1" : "linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)",
             color: "#fff",
             border: "none",
@@ -435,6 +448,7 @@ function AnonChat({ suiviKey, reservationId }: { suiviKey: string; reservationId
             cursor: sending || !text.trim() ? "not-allowed" : "pointer",
             display: "flex",
             alignItems: "center",
+            justifyContent: "center",
             gap: "6px",
             transition: "all 0.3s",
           }}
@@ -819,10 +833,13 @@ function RecurringModal({ reservation, onClose }: { reservation: any; onClose: (
         style={{
           background: "#fff",
           borderRadius: "20px 20px 0 0",
-          padding: "24px 20px 40px",
+          padding: "24px 20px calc(24px + env(safe-area-inset-bottom, 0px))",
           width: "100%",
           maxWidth: 480,
+          maxHeight: "90dvh",
+          overflowY: "auto",
           boxShadow: "0 -8px 40px rgba(0,0,0,0.18)",
+          boxSizing: "border-box",
         }}
       >
         <div style={{ width: 40, height: 4, background: "#e2e8f0", borderRadius: 2, margin: "0 auto 20px" }} />
@@ -1055,7 +1072,12 @@ function ReviewBlock({ reservationId, t }: { reservationId: string; t: (k: strin
               background: "none",
               border: "none",
               cursor: "pointer",
-              padding: "4px",
+              padding: "6px",
+              minWidth: "44px",
+              minHeight: "44px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               transition: "transform 0.15s",
               transform: (hover || rating) >= star ? "scale(1.2)" : "scale(1)",
             }}
@@ -1091,7 +1113,7 @@ function ReviewBlock({ reservationId, t }: { reservationId: string; t: (k: strin
           padding: "10px 12px",
           borderRadius: "10px",
           border: "1px solid #e2e8f0",
-          fontSize: "13px",
+          fontSize: "16px",
           fontFamily: "inherit",
           resize: "vertical",
           marginBottom: "12px",
@@ -1174,7 +1196,8 @@ function ShareTrajetButton({ reservation }: { reservation: any }) {
           background: "linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)",
           border: "none",
           borderRadius: "8px",
-          padding: "6px 10px",
+          padding: "8px 12px",
+          minHeight: "36px",
           cursor: "pointer",
           display: "flex",
           alignItems: "center",
@@ -1213,11 +1236,14 @@ function ShareTrajetButton({ reservation }: { reservation: any }) {
           right: 0,
           background: "#fff",
           borderRadius: "20px 20px 0 0",
-          padding: "20px 20px 40px",
+          padding: "20px 20px calc(24px + env(safe-area-inset-bottom, 0px))",
           zIndex: 9999,
           boxShadow: "0 -8px 40px rgba(0,0,0,0.18)",
           maxWidth: 480,
+          maxHeight: "90dvh",
+          overflowY: "auto",
           margin: "0 auto",
+          boxSizing: "border-box",
         }}
       >
         <div style={{ width: 40, height: 4, background: "#e2e8f0", borderRadius: 2, margin: "0 auto 18px" }} />
@@ -1537,7 +1563,7 @@ function SuiviPage() {
     return (
       <div
         style={{
-          minHeight: "100vh",
+          minHeight: "100dvh",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -1554,7 +1580,7 @@ function SuiviPage() {
     return (
       <div
         style={{
-          minHeight: "100vh",
+          minHeight: "100dvh",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -1590,7 +1616,7 @@ function SuiviPage() {
     return (
       <div
         style={{
-          minHeight: "100vh",
+          minHeight: "100dvh",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -1638,12 +1664,17 @@ function SuiviPage() {
     <>
       <style>{PREMIUM_CSS}</style>
       <div
+        className="suivi-root"
         style={{
           background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
-          minHeight: "100vh",
+          minHeight: "100dvh",
           padding: "16px",
+          paddingTop: "calc(16px + env(safe-area-inset-top, 0px))",
           paddingBottom: "calc(32px + env(safe-area-inset-bottom, 0px))",
           fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+          maxWidth: "100vw",
+          overflowX: "hidden",
+          boxSizing: "border-box",
         }}
       >
         {/* Bouton retour vers site */}
@@ -1848,7 +1879,8 @@ function SuiviPage() {
                     background: "rgba(148,163,184,0.1)",
                     border: "1px solid rgba(148,163,184,0.2)",
                     borderRadius: "8px",
-                    padding: "6px 8px",
+                    padding: "8px 10px",
+                    minHeight: "36px",
                     cursor: "pointer",
                     display: "flex",
                     alignItems: "center",
