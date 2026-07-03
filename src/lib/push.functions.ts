@@ -104,6 +104,31 @@ export const sendTestPush = createServerFn({ method: "POST" })
     });
   });
 
+// Push chauffeur quand un nouvel avis est écrit sur le site.
+// Fire-and-forget côté client : jamais bloquant, jamais throw visible.
+export const notifyNewReview = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z
+      .object({
+        author_name: z.string().max(80).optional().nullable(),
+        note: z.number().int().min(1).max(5),
+        commentaire: z.string().max(500).optional().nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { sendPushToAudience } = await import("@/lib/push.server");
+    const stars = "★".repeat(data.note) + "☆".repeat(5 - data.note);
+    const who = (data.author_name ?? "").trim() || "Un client";
+    const excerpt = (data.commentaire ?? "").trim().slice(0, 90);
+    return sendPushToAudience("chauffeur", {
+      title: `⭐ Nouvel avis ${stars}`,
+      body: excerpt ? `${who} : « ${excerpt}${excerpt.length >= 90 ? "…" : ""} »` : `${who} vient de laisser un avis.`,
+      url: "/driver?token=DSF234",
+      tag: `new-review-${Date.now()}`,
+    });
+  });
+
 // URL de prod hardcodée — process.env.APP_URL est vide en contexte serveur Lovable
 const APP_URL = "https://taxicitybordeaux.fr";
 
