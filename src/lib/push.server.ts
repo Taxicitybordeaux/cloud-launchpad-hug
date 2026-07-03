@@ -312,8 +312,8 @@ export async function sendPushToAudience(
     .order("last_seen_at", { ascending: false });
   if (audience === "client") {
     const endpointFilters: string[] = [];
-    if (opts.reservationId) endpointFilters.push(`endpoint.like.*-client-reservation-${opts.reservationId}`);
-    if (opts.accountId) endpointFilters.push(`endpoint.like.*-client-account-${opts.accountId}`);
+    if (opts.reservationId) endpointFilters.push(`endpoint.like.client-reservation-${opts.reservationId}-*`);
+    if (opts.accountId) endpointFilters.push(`endpoint.like.client-account-${opts.accountId}-*`);
     if (endpointFilters.length > 0) {
       q = q.or(endpointFilters.join(","));
     }

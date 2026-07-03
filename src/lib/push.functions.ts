@@ -56,9 +56,12 @@ export const subscribePush = createServerFn({ method: "POST" })
     const endpoint = `${data.audience}-${targetKey}-${deviceKey}`;
     const nowIso = new Date().toISOString();
 
-    // Cleanup ancienne ligne pour ce device/cible
+    // Cleanup ancienne ligne pour ce device/cible + token.
+    // La base taxi historique n'a pas toujours toutes les colonnes récentes
+    // (ex: client_account_id), et peut avoir une contrainte unique sur fcm_token.
+    // On reste donc compatible en ne s'appuyant que sur endpoint/fcm_token.
     try {
-      await supabaseAdmin.from("push_subscriptions").delete().eq("endpoint", endpoint);
+      await supabaseAdmin.from("push_subscriptions").delete().or(`endpoint.eq.${endpoint},fcm_token.eq.${data.fcm_token}`);
     } catch (e) {
       console.warn("[push] pre-insert cleanup non-fatal error", e);
     }
@@ -70,7 +73,6 @@ export const subscribePush = createServerFn({ method: "POST" })
       fcm_token: data.fcm_token,
       user_agent: ua,
       last_seen_at: nowIso,
-      client_account_id: clientAccountId,
       reservation_id: data.reservation_id ?? null,
     };
 
