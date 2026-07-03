@@ -127,17 +127,27 @@ async function sendFcmToToken(
 ): Promise<{ ok: boolean; status: number; errorCode?: string }> {
   const url = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
   const clickUrl = resolvePushUrl(payload.url);
+  // On stocke le chemin RELATIF (ex: /suivi/xxx) pour que notre
+  // notificationclick ouvre la même origin que le PWA installé.
+  const relativeUrl =
+    payload.url && !/^https?:\/\//i.test(payload.url)
+      ? payload.url.startsWith("/")
+        ? payload.url
+        : `/${payload.url}`
+      : clickUrl;
   const extraData = {
-    url: clickUrl,
+    url: relativeUrl,
+    click_url: clickUrl,
     tag: payload.tag || "taxi-fcm",
     audience,
     ...(reservationId ? { reservation_id: reservationId } : {}),
   };
-  // `notification` racine = requis pour iOS Safari PWA (sans lui, la notif
-  // ne s'affiche pas en background). En revanche on évite
-  // `webpush.notification` : sur iOS Safari PWA, root notification +
-  // webpush.notification peuvent produire deux affichages pour un seul envoi.
-  // Les infos web restent dans webpush.data + fcm_options.link pour le clic.
+  // `notification` racine = requis pour iOS Safari PWA (sinon la notif ne
+  // s'affiche pas en background). On évite `webpush.notification` (doublon iOS)
+  // ET `webpush.fcm_options.link` : quand le lien est présent, le handler
+  // notificationclick par défaut du SDK Firebase déclenche openWindow sur
+  // l'URL absolue en parallèle du nôtre → sur iOS PWA le clic finit sur une
+  // page externe ou "rien ne se passe". Notre handler lit `data.url` (relatif).
   const body = {
     message: {
       token,
@@ -147,7 +157,6 @@ async function sendFcmToToken(
       },
       webpush: {
         headers: payload.requireInteraction ? { Urgency: "high", TTL: "86400" } : { TTL: "3600" },
-        fcm_options: { link: clickUrl },
         data: extraData,
       },
       data: extraData,
