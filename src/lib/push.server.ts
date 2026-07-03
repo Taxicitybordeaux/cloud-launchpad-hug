@@ -181,6 +181,17 @@ export async function sendPushToAudience(
   payload: PushPayload,
   opts: { reservationId?: string } = {},
 ): Promise<{ sent: number; removed: number; deduped?: boolean }> {
+  let q = supabaseAdmin
+    .from("push_subscriptions")
+    .select("id, fcm_token")
+    .eq("audience", audience)
+    .not("fcm_token", "is", null);
+  if (audience === "client" && opts.reservationId) {
+    q = q.eq("reservation_id", opts.reservationId);
+  }
+  const { data, error } = await q;
+  if (error || !data || data.length === 0) return { sent: 0, removed: 0 };
+
   if (payload.tag) {
     try {
       await supabaseAdmin.from("push_dedup" as any).delete().lt("expires_at", new Date().toISOString());
@@ -198,17 +209,6 @@ export async function sendPushToAudience(
       console.warn("[push] dedup check failed", e);
     }
   }
-
-  let q = supabaseAdmin
-    .from("push_subscriptions")
-    .select("id, fcm_token")
-    .eq("audience", audience)
-    .not("fcm_token", "is", null);
-  if (audience === "client" && opts.reservationId) {
-    q = q.eq("reservation_id", opts.reservationId);
-  }
-  const { data, error } = await q;
-  if (error || !data || data.length === 0) return { sent: 0, removed: 0 };
 
   let accessToken: string;
   let projectId: string;
