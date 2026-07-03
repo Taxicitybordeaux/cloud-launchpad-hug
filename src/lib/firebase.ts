@@ -30,13 +30,14 @@ function ensureFirebaseApp(): FirebaseApp {
   return app;
 }
 
-function base64UrlToUint8Array(base64Url: string): Uint8Array {
+function base64UrlToArrayBuffer(base64Url: string): ArrayBuffer {
   const padding = "=".repeat((4 - (base64Url.length % 4)) % 4);
   const base64 = (base64Url + padding).replace(/-/g, "+").replace(/_/g, "/");
   const raw = window.atob(base64);
-  const output = new Uint8Array(raw.length);
+  const buffer = new ArrayBuffer(raw.length);
+  const output = new Uint8Array(buffer);
   for (let i = 0; i < raw.length; i += 1) output[i] = raw.charCodeAt(i);
-  return output;
+  return buffer;
 }
 
 function arrayBufferToBase64Url(buffer: ArrayBuffer | null): string {
@@ -99,7 +100,7 @@ async function getFirebaseMessagingSwRegistration(): Promise<ServiceWorkerRegist
 }
 
 function subscriptionUsesCurrentVapidKey(subscription: PushSubscription): boolean {
-  const currentKey = base64UrlToUint8Array(FCM_VAPID_KEY);
+  const currentKey = new Uint8Array(base64UrlToArrayBuffer(FCM_VAPID_KEY));
   const existingKey = subscription.options?.applicationServerKey;
   if (!existingKey) return true;
   const existing = new Uint8Array(existingKey);
@@ -121,7 +122,7 @@ async function getNativePushSubscription(swReg: ServiceWorkerRegistration, force
 
   return pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: base64UrlToUint8Array(FCM_VAPID_KEY),
+    applicationServerKey: base64UrlToArrayBuffer(FCM_VAPID_KEY),
   });
 }
 
@@ -206,8 +207,8 @@ export async function initFirebase(): Promise<Messaging | null> {
       }
       console.warn("[FCM] SDK support check failed on iOS PWA — trying token flow anyway", getPushSupportIssue());
     }
-    ensureFirebaseApp();
-    if (!messaging) messaging = getMessaging(app);
+    const appInstance = ensureFirebaseApp();
+    if (!messaging) messaging = getMessaging(appInstance);
     return messaging;
   } catch (err) {
     console.error("[FCM] init failed", err);
