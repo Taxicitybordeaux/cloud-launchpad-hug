@@ -68,7 +68,6 @@ function useVisitorHeartbeat(pathname: string) {
   }, [pathname]);
 }
 
-
 export const Route = createRootRoute({
   head: () => ({
     meta: [
@@ -154,8 +153,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     <html lang="fr">
       <head>
         <HeadContent />
-        {/* Anti rebond (rubber-band) iOS, surtout visible en PWA standalone */}
-        <style>{`html, body { overscroll-behavior-y: none; overscroll-behavior-x: none; }`}</style>
+        {/* Anti rebond (rubber-band) iOS, surtout visible en PWA standalone.
+            IMPORTANT : "contain" (pas "none") et uniquement sur html — appliquer
+            "overscroll-behavior: none" à la fois sur html ET body casse le chaînage
+            du scroll molette sur certains navigateurs (scrollbar OK mais wheel mort). */}
+        <style>{`html { overscroll-behavior-y: contain; overscroll-behavior-x: contain; }`}</style>
       </head>
       <body>
         <I18nProvider>
