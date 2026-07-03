@@ -629,11 +629,13 @@ function ReservationPage() {
   const [today, setToday] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const [isSubscribedToNotifs, setIsSubscribedToNotifs] = useState(false);
   const { status: hookStatus, subscribe: subscribePush } = usePushNotifications();
   const repairClientPushRegistration = useServerFn(subscribePushServer);
   // Force à "idle" pour client — on ne veut pas d'auto-subscription
   const pushStatus: string = hookStatus;
+  const supportsNotifications = isMounted && typeof window !== "undefined" && "Notification" in window;
 
   const [fromCoord, setFromCoord] = useState<[number, number] | null>(null);
   const [toCoord, setToCoord] = useState<[number, number] | null>(null);
@@ -662,6 +664,10 @@ function ReservationPage() {
   const skipNextDepartResolveRef = useRef(false);
   // true quand le champ destination est en focus — empêche d'écraser le texte en cours de saisie
   const destinationFocusedRef = useRef(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const startVoiceRecognition = useCallback(async () => {
     if (voiceRecogRef.current) {
@@ -1448,7 +1454,7 @@ function ReservationPage() {
       // afficher granted mais la DB n'a qu'une ligne générique ou absente.
       if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
         try {
-          const fcm = await getFcmToken();
+          const fcm = await getFcmToken({ requestPermission: false });
           if (fcm) {
             await repairClientPushRegistration({
               data: {
@@ -2426,7 +2432,6 @@ function ReservationPage() {
         </div>
 
         {/* ── Bouton notifs client FIXE (hors scrollable) ── */}
-        {"Notification" in window ? (
           <div
             style={{
               background: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(250,249,247,0.95) 100%)",
@@ -2443,6 +2448,11 @@ function ReservationPage() {
               onClick={async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+
+                if (!supportsNotifications) {
+                  toast.error("❌ Notifications non supportées sur ce navigateur.");
+                  return;
+                }
 
                 if (isSubscribedToNotifs) {
                   // ── UNSUBSCRIBE ──
@@ -2580,11 +2590,6 @@ function ReservationPage() {
                   : "Recevez les infos de suivi en temps réel"}
             </p>
           </div>
-        ) : (
-          <div style={{ fontSize: 11, color: "#999", padding: "8px 16px", textAlign: "center" }}>
-            ⚠️ Bouton caché: pushStatus={pushStatus} | Notification={String("Notification" in window)}
-          </div>
-        )}
       </div>
       <ListeningOverlay
         open={anyListening}

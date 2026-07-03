@@ -39,20 +39,36 @@ export async function initFirebase(): Promise<Messaging | null> {
   }
 }
 
-export async function getFcmToken(options: { forceRefresh?: boolean } = {}): Promise<string | null> {
+export async function getFcmToken(options: { forceRefresh?: boolean; requestPermission?: boolean } = {}): Promise<string | null> {
   if (typeof window === "undefined") return null;
   if (!("Notification" in window) || !("serviceWorker" in navigator)) return null;
 
-  const msg = await initFirebase();
-  if (!msg) return null;
+  const currentPermission = Notification.permission;
+  if (currentPermission === "denied") {
+    console.warn("[FCM] Permission refusée :", currentPermission);
+    return null;
+  }
 
-  try {
+  if (currentPermission === "default") {
+    if (options.requestPermission === false) {
+      console.warn("[FCM] Permission non demandée dans ce contexte");
+      return null;
+    }
+
     const perm = await Notification.requestPermission();
     if (perm !== "granted") {
       console.warn("[FCM] Permission refusée :", perm);
       return null;
     }
+  } else if (currentPermission !== "granted") {
+    console.warn("[FCM] Permission inconnue :", currentPermission);
+    return null;
+  }
 
+  const msg = await initFirebase();
+  if (!msg) return null;
+
+  try {
     // On cherche le SW Firebase par son scriptURL exact parmi tous les SW enregistrés.
     // getRegistration("/") retourne n'importe quel SW sur le scope "/" (ex: Vite HMR)
     // ce qui fait que FCM reçoit le mauvais SW → token OK sur desktop mais notifs silencieuses sur mobile.
