@@ -33,14 +33,19 @@ function decodeJwtRef(token: string | undefined): string | null {
 }
 
 function serviceKeyCandidates(): KeyCandidate[] {
+  // Ordre de priorité : TAXI_SERVICE_KEY est LA clé dédiée au projet taxi
+  // (auiagkpdpnfqxfngisfc). Les autres appartiennent au projet Lovable Cloud
+  // (yxbbkzugsreztiacnswf) et NE DOIVENT PAS être utilisées ici — utiliser
+  // SUPABASE_SERVICE_ROLE_KEY comme fallback pointerait sur la mauvaise base
+  // et casserait toutes les lectures/écritures push (RLS / permission denied).
   return [
+    { name: "TAXI_SERVICE_KEY", value: process.env.TAXI_SERVICE_KEY || "", ref: decodeJwtRef(process.env.TAXI_SERVICE_KEY) },
+    { name: "SERVICE_ROLE_KEY", value: process.env.SERVICE_ROLE_KEY || "", ref: decodeJwtRef(process.env.SERVICE_ROLE_KEY) },
     {
       name: "SUPABASE_SERVICE_ROLE_KEY",
       value: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
       ref: decodeJwtRef(process.env.SUPABASE_SERVICE_ROLE_KEY),
     },
-    { name: "SERVICE_ROLE_KEY", value: process.env.SERVICE_ROLE_KEY || "", ref: decodeJwtRef(process.env.SERVICE_ROLE_KEY) },
-    { name: "TAXI_SERVICE_KEY", value: process.env.TAXI_SERVICE_KEY || "", ref: decodeJwtRef(process.env.TAXI_SERVICE_KEY) },
   ].filter((candidate) => candidate.value.length > 0);
 }
 
@@ -48,17 +53,38 @@ export function getTaxiSupabaseConfig() {
   const supabaseUrl = TAXI_SUPABASE_URL;
   const targetRef = projectRefFromUrl(supabaseUrl);
   const candidates = serviceKeyCandidates();
-  const matched = candidates.find((candidate) => candidate.ref && candidate.ref === targetRef) ?? candidates[0];
+
+  // 1) Priorité : une clé dont le ref JWT matche exactement le projet taxi.
+  // 2) Sinon : TAXI_SERVICE_KEY même si non-JWT (format sb_secret_*), on lui
+  //    fait confiance car elle est explicitement nommée pour ce projet.
+  // 3) Sinon : rejeter — refuser de tomber sur une clé d'un AUTRE projet
+  //    (Lovable Cloud) qui provoquerait des erreurs RLS silencieuses.
+  const exactMatch = candidates.find((c) => c.ref && c.ref === targetRef);
+  const taxiExplicit = candidates.find((c) => c.name === "TAXI_SERVICE_KEY");
+  const wrongProject = candidates.filter((c) => c.ref && c.ref !== targetRef);
+  const matched = exactMatch ?? taxiExplicit;
 
   if (!matched) {
-    throw new Error("Missing service key for Taxi City backend");
+    if (wrongProject.length > 0) {
+      throw new Error(
+        `Missing TAXI_SERVICE_KEY for project ${targetRef}. Found service keys for other projects: ${wrongProject
+          .map((c) => `${c.name}(${c.ref})`)
+          .join(", ")}. Refusing to use them — set TAXI_SERVICE_KEY to the service_role key of ${targetRef}.`,
+      );
+    }
+    throw new Error(`Missing service key for Taxi City backend (${targetRef})`);
   }
 
-  if (matched.ref && targetRef && matched.ref !== targetRef) {
-    console.error("[taxi-backend] service key project mismatch", { targetRef, selectedRef: matched.ref, key: matched.name });
-  } else {
-    console.log("[taxi-backend] service key selected", { targetRef, key: matched.name });
+  if (matched.ref && matched.ref !== targetRef) {
+    // Ne devrait jamais arriver via la logique ci-dessus, garde-fou.
+    throw new Error(`Service key ${matched.name} belongs to project ${matched.ref}, not ${targetRef}`);
   }
+
+  console.log("[taxi-backend] service key selected", {
+    targetRef,
+    key: matched.name,
+    keyFormat: matched.ref ? "jwt" : "opaque",
+  });
 
   return { supabaseUrl, serviceKey: matched.value, targetRef, selectedKeyName: matched.name, selectedRef: matched.ref };
 }
