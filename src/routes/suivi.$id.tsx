@@ -461,13 +461,15 @@ function AnonChat({ suiviKey, reservationId }: { suiviKey: string; reservationId
 }
 
 // ─── Calendrier ICS ──────────────────────────────────────────────────────────────
-function generateICS(reservation: any): string {
+function generateICS(reservation: any, t: (k: string) => string): string {
   if (!reservation.pickup_datetime) return "#";
   const start = new Date(reservation.pickup_datetime);
   // Utilise duree_s si disponible, sinon 1h par défaut
   const durationMs = reservation.duree_s ? reservation.duree_s * 1000 : 60 * 60 * 1000;
   const end = new Date(start.getTime() + durationMs);
   const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+  const labelDepart = t("suivi.depart_label");
+  const labelArrivee = t("suivi.arrivee_label");
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -478,7 +480,7 @@ function generateICS(reservation: any): string {
     `DTSTART:${fmt(start)}`,
     `DTEND:${fmt(end)}`,
     `SUMMARY:🚕 Taxi City Bordeaux`,
-    `DESCRIPTION:Départ : ${reservation.depart}\nArrivée : ${reservation.destination ?? reservation.arrivee ?? ""}`,
+    `DESCRIPTION:${labelDepart} : ${reservation.depart}\n${labelArrivee} : ${reservation.destination ?? reservation.arrivee ?? ""}`,
     `LOCATION:${reservation.depart}`,
     "END:VEVENT",
     "END:VCALENDAR",
@@ -519,7 +521,7 @@ function InvoiceBlock({ reservation, locale, t }: { reservation: any; locale: st
       setEmailSent(true);
       toast.success(t("suivi.invoice_email_sent") + " " + emailAddr);
     } catch (e: any) {
-      toast.error(t("suivi.invoice_email_error") + " " + (e?.message ?? "inconnue"));
+      toast.error(t("suivi.invoice_email_error") + " " + (e?.message ?? t("suivi.error_unknown")));
     } finally {
       setEmailSending(false);
     }
@@ -528,22 +530,42 @@ function InvoiceBlock({ reservation, locale, t }: { reservation: any; locale: st
   const handleDownloadPDF = () => {
     const invoiceWindow = window.open("", "_blank");
     if (!invoiceWindow) return;
+    const RECEIPT_LOCALE: Record<string, string> = {
+      fr: "fr-FR",
+      en: "en-GB",
+      es: "es-ES",
+      pt: "pt-PT",
+      it: "it-IT",
+      ar: "ar-SA",
+    };
+    const intlLocale = RECEIPT_LOCALE[locale] ?? "fr-FR";
     const dateStr = reservation.pickup_datetime
-      ? new Date(reservation.pickup_datetime).toLocaleString("fr-FR", {
+      ? new Date(reservation.pickup_datetime).toLocaleString(intlLocale, {
           dateStyle: "long",
           timeStyle: "short",
           timeZone: "Europe/Paris",
         })
-      : new Date().toLocaleDateString("fr-FR");
+      : new Date().toLocaleDateString(intlLocale);
     const prix = reservation.prix_estime
-      ? new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(reservation.prix_estime)
+      ? new Intl.NumberFormat(intlLocale, { style: "currency", currency: "EUR" }).format(reservation.prix_estime)
       : "—";
     // Fix #1 — résoudre les labels i18n avant le template string
     const labelDepart = t("suivi.depart_label");
     const labelArrivee = t("suivi.arrivee_label");
     const labelPassagers = t("suivi.passagers");
-    const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/>
-<title>Facture — Taxi City Bordeaux</title>
+    const labelDocTitle = t("suivi.receipt.doc_title");
+    const labelReceiptTitle = t("suivi.receipt.title");
+    const labelDetailsTitle = t("suivi.receipt.details_title");
+    const labelDistance = t("suivi.receipt.distance");
+    const labelPayment = t("suivi.receipt.payment");
+    const labelTotal = t("suivi.receipt.total");
+    const labelPrint = t("suivi.receipt.print");
+    const labelClose = t("suivi.receipt.close");
+    const labelFooterLegal = t("suivi.receipt.footer_legal");
+    const labelFooterThanks = t("suivi.receipt.footer_thanks");
+    const dir = locale === "ar" ? "rtl" : "ltr";
+    const html = `<!DOCTYPE html><html lang="${locale}" dir="${dir}"><head><meta charset="UTF-8"/>
+<title>${labelDocTitle}</title>
 <style>
   @media print { body { margin: 0; } .no-print { display: none; } }
   body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1a1a1a; max-width: 700px; margin: 40px auto; padding: 0 24px; }
@@ -565,20 +587,20 @@ function InvoiceBlock({ reservation, locale, t }: { reservation: any; locale: st
 </style></head><body>
 <div class="header">
   <div class="brand">🚕 Taxi City Bordeaux<small>taxicitybordeaux.fr · 06 73 07 23 22</small></div>
-  <div class="meta"><strong>Reçu de course</strong>N° ${reservation.id.slice(-8).toUpperCase()}<br/>${dateStr}</div>
+  <div class="meta"><strong>${labelReceiptTitle}</strong>N° ${reservation.id.slice(-8).toUpperCase()}<br/>${dateStr}</div>
 </div>
-<h2>Détails du trajet</h2>
+<h2>${labelDetailsTitle}</h2>
 <div class="row"><span class="label">${labelDepart} 🟢</span><span class="value">${reservation.depart ?? "—"}</span></div>
 <div class="row"><span class="label">${labelArrivee} 🔴</span><span class="value">${reservation.destination ?? reservation.arrivee ?? "—"}</span></div>
-${reservation.distance_km != null ? `<div class="row"><span class="label">Distance</span><span class="value">${Number(reservation.distance_km).toFixed(1)} km</span></div>` : ""}
+${reservation.distance_km != null ? `<div class="row"><span class="label">${labelDistance}</span><span class="value">${Number(reservation.distance_km).toFixed(1)} km</span></div>` : ""}
 ${reservation.nb_passagers != null ? `<div class="row"><span class="label">${labelPassagers}</span><span class="value">${reservation.nb_passagers}</span></div>` : ""}
-${reservation.mode_paiement ? `<div class="row"><span class="label">Paiement</span><span class="value">${reservation.mode_paiement}</span></div>` : ""}
-<div class="total-box"><span class="label">Total course</span><span class="amount">${prix}</span></div>
+${reservation.mode_paiement ? `<div class="row"><span class="label">${labelPayment}</span><span class="value">${reservation.mode_paiement}</span></div>` : ""}
+<div class="total-box"><span class="label">${labelTotal}</span><span class="amount">${prix}</span></div>
 <div class="no-print" style="text-align:center">
-  <button class="btn" onclick="window.print()">🖨️ Imprimer</button>
-  <button class="btn" onclick="window.close()" style="background:#64748b">Fermer</button>
+  <button class="btn" onclick="window.print()">${labelPrint}</button>
+  <button class="btn" onclick="window.close()" style="background:#64748b">${labelClose}</button>
 </div>
-<div class="footer">Taxi City Bordeaux — SIRET : à compléter — TVA non applicable, art. 293 B du CGI<br/>Merci de votre confiance !</div>
+<div class="footer">${labelFooterLegal}<br/>${labelFooterThanks}</div>
 </body></html>`;
     invoiceWindow.document.write(html);
     invoiceWindow.document.close();
@@ -669,6 +691,16 @@ ${reservation.mode_paiement ? `<div class="row"><span class="label">Paiement</sp
             </span>
           </div>
         )}
+        <div
+          style={{
+            fontSize: "11px",
+            color: "#94a3b8",
+            textAlign: "right",
+            marginTop: "2px",
+          }}
+        >
+          {t("suivi.receipt.footer_legal")}
+        </div>
       </div>
 
       {/* Boutons — 2 colonnes sur mobile */}
@@ -802,7 +834,7 @@ function RecurringModal({ reservation, onClose }: { reservation: any; onClose: (
       toast.success(t("suivi.rec_success"));
       setTimeout(onClose, 1800);
     } catch (e: any) {
-      toast.error(t("suivi.rec_error") + " " + (e?.message ?? "inconnue"));
+      toast.error(t("suivi.rec_error") + " " + (e?.message ?? t("suivi.error_unknown")));
     } finally {
       setSaving(false);
     }
@@ -1153,13 +1185,26 @@ function ReviewBlock({ reservationId, t }: { reservationId: string; t: (k: strin
 // ─── Partage de trajet enrichi ────────────────────────────────────────────────
 function ShareTrajetButton({ reservation }: { reservation: any }) {
   const t = useT();
+  const { lang: locale } = useI18n();
   const [open, setOpen] = useState(false);
 
   // Arrivée estimée : pickup_datetime + duree_s si dispo, sinon "en cours"
   const getETA = (): string => {
     if (reservation.pickup_datetime && reservation.duree_s) {
       const eta = new Date(new Date(reservation.pickup_datetime).getTime() + reservation.duree_s * 1000);
-      return eta.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+      const ETA_LOCALE: Record<string, string> = {
+        fr: "fr-FR",
+        en: "en-GB",
+        es: "es-ES",
+        pt: "pt-PT",
+        it: "it-IT",
+        ar: "ar-SA",
+      };
+      return eta.toLocaleTimeString(ETA_LOCALE[locale] ?? "fr-FR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "Europe/Paris",
+      });
     }
     return null as any;
   };
@@ -1807,9 +1852,9 @@ function SuiviPage() {
                 </div>
                 {/* Lien calendrier */}
                 <a
-                  href={generateICS(reservation)}
+                  href={generateICS(reservation, t)}
                   download={`taxi-bordeaux-${reservation.id.slice(-6)}.ics`}
-                  title="Ajouter au calendrier"
+                  title={t("suivi.calendar_add_title")}
                   style={{
                     marginLeft: "auto",
                     display: "flex",
@@ -1912,7 +1957,7 @@ function SuiviPage() {
                 <div style={{ position: "relative", width: "100%", height: "140px", overflow: "hidden" }}>
                   <img
                     src="/vehicle-jose.jpg"
-                    alt="Mercedes-Benz Classe E — Taxi City Bordeaux"
+                    alt={t("suivi.car_alt")}
                     onError={(e) => {
                       // Masque le bloc image si le fichier n'existe pas
                       const parent = (e.target as HTMLImageElement).closest(
