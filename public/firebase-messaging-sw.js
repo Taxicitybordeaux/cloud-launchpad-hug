@@ -159,23 +159,6 @@ messaging.onBackgroundMessage((payload) => {
   });
 });
 
-  const url = sanitizeDeepLink(data.url || data.click_action, data.audience, data.reservation_id);
-  const tag = data.tag || "taxi-fcm";
-
-  return self.registration.getNotifications({ tag }).then((existing) => {
-    existing.forEach((n) => n.close());
-    return self.registration.showNotification(title, {
-      body,
-      icon: notif.icon || "/favicon.ico",
-      badge: "/favicon.ico",
-      tag,
-      data: { ...data, url, audience: data.audience, reservation_id: data.reservation_id, sw_version: SW_VERSION },
-      vibrate: [200, 100, 200],
-      requireInteraction: true,
-    });
-  });
-});
-
 // ─── iOS Safari PWA (≥ 16.4) — push event natif ─────────────────────────────
 self.addEventListener("push", (event) => {
   let payload = {};
