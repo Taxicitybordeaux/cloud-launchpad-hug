@@ -189,6 +189,9 @@ export async function sendPushToAudience(
   if (audience === "client" && opts.reservationId) {
     q = q.eq("reservation_id", opts.reservationId);
   }
+  if (audience === "client" && opts.accountId) {
+    q = q.eq("client_account_id", opts.accountId);
+  }
   const { data, error } = await q;
   if (error || !data || data.length === 0) return { sent: 0, removed: 0 };
 
