@@ -292,8 +292,13 @@ export async function getFcmToken(options: { forceRefresh?: boolean; requestPerm
         serviceWorkerRegistration: swReg,
       });
     } catch (sdkErr) {
-      console.warn("[FCM] SDK getToken failed, trying native Push API fallback", sdkErr);
-      token = await getFcmTokenViaNativePush(swReg, true);
+      console.warn("[FCM] SDK getToken failed", sdkErr);
+      if (isIOSPwa()) {
+        console.warn("[FCM] iOS PWA detected — trying native Push API fallback");
+        token = await getFcmTokenViaNativePush(swReg, true);
+      } else {
+        return null;
+      }
     }
 
     if (token) {
