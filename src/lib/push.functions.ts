@@ -12,31 +12,37 @@ const subSchema = z.object({
   audience: z.enum(["admin", "chauffeur", "client"]),
   fcm_token: z.string().regex(FCM_TOKEN_RE, "fcm_token format invalide"),
   reservation_id: z.string().uuid().optional().nullable(),
+  client_account_id: z.string().uuid().optional().nullable(),
   user_agent: z.string().max(500).optional().nullable(),
 });
+
+function pushEndpoint(data: z.infer<typeof subSchema>): string {
+  const target = data.reservation_id ? `reservation:${data.reservation_id}` : data.client_account_id ? `account:${data.client_account_id}` : "device";
+  return `fcm://${data.fcm_token}:${data.audience}:${target}`;
+}
 
 export const subscribePush = createServerFn({ method: "POST" })
   .inputValidator((input) => subSchema.parse(input))
   .handler(async ({ data }) => {
-    // Une seule inscription par appareil (endpoint = fcm://TOKEN).
-    // Plus de duplication admin→chauffeur : le driver s'abonne directement
-    // en audience "chauffeur", donc envoyer à cette audience = 1 push = 1 notif.
+    // Un même appareil peut être chauffeur ET client : endpoint séparé par
+    // audience/cible, mais l'envoi déduplique par fcm_token avant FCM.
     const row = {
       audience: data.audience,
-      endpoint: `fcm://${data.fcm_token}`,
+      endpoint: pushEndpoint(data),
       fcm_token: data.fcm_token,
       reservation_id: data.reservation_id ?? null,
+      client_account_id: data.client_account_id ?? null,
       user_agent: data.user_agent ?? null,
       last_seen_at: new Date().toISOString(),
     };
 
-    // Purge tout ancien doublon éventuel pour ce token (ex: endpoint
-    // fcm://TOKEN-chauffeur créé par l'ancienne version → causait 2 notifs).
+    // Purge uniquement les anciennes lignes legacy exactes, sans supprimer
+    // l'autre rôle du même iPad/iPhone.
     await supabaseAdmin
       .from("push_subscriptions")
       .delete()
       .eq("fcm_token", data.fcm_token)
-      .neq("endpoint", row.endpoint);
+      .eq("endpoint", `fcm://${data.fcm_token}`);
 
     const { error } = await supabaseAdmin
       .from("push_subscriptions")
@@ -142,7 +148,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { data: r } = await supabaseAdmin
       .from("reservations")
-      .select("id, nom, client_name, client_phone, telephone, depart, arrivee, destination, tracking_id, lang")
+      .select("id, nom, client_name, client_phone, telephone, depart, arrivee, destination, tracking_id, suivi_id, lang")
       .eq("id", data.reservation_id)
       .maybeSingle();
     if (!r) throw new Error("not_found");
@@ -151,7 +157,8 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
     const trajet = `${r.depart} → ${r.arrivee || r.destination || "—"}`;
     const phone = r.client_phone || r.telephone || "";
     const smsPhone = phone.replace(/[^\d]/g, "").replace(/^0/, "+33");
-    const url = r.tracking_id ? `/suivi/${r.tracking_id}` : `/reservation/${r.id}`;
+    const suiviKey = (r as any).suivi_id || r.tracking_id || r.id;
+    const url = `/suivi/${suiviKey}`;
 
     const resLang = ((r as any).lang as Lang) || "fr";
 
@@ -220,7 +227,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
       {
         ...l,
         url: `${APP_URL}${url}`,
-        tag: `res-${r.id}`,
+        tag: `res-${r.id}-${data.status}`,
         requireInteraction: ["en_route", "arrived"].includes(data.status),
       },
       { reservationId: r.id },

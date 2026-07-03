@@ -7,7 +7,7 @@
 // Le navigateur considère le fichier modifié → install/activate immédiats
 // grâce à skipWaiting()/clients.claim(). Pas besoin de purge manuelle.
 // ─────────────────────────────────────────────────────────────────────────────
-const SW_VERSION = "2026-07-03.2";
+const SW_VERSION = "2026-07-03.3";
 console.log("[FCM SW] boot version =", SW_VERSION);
 
 // Deep links autorisés. Toute URL qui pointe vers /admin/* est REFUSÉE
@@ -115,6 +115,11 @@ function sanitizeDeepLink(rawUrl, audience, reservationId) {
   if (audience === "chauffeur" || url.pathname === "/driver") {
     if (url.pathname !== "/driver") url.pathname = "/driver";
     if (!url.searchParams.get("token")) url.searchParams.set("token", "DSF234");
+  }
+
+  // Pour les clients, toute notif avec reservation_id doit ouvrir le suivi.
+  if (audience === "client" && reservationId && !url.pathname.startsWith("/suivi/")) {
+    url = new URL("/suivi/" + reservationId, self.location.origin);
   }
 
   return url.pathname + url.search + url.hash;
