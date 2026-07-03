@@ -119,7 +119,7 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
         const trajet = `${reservation.depart} → ${reservation.arrivee || reservation.destination || "—"}`;
         try {
           const chauffeurResult = await sendPushToAudience("chauffeur", {
-            title: "🚕 Nouvelle course en attente",
+            title: "🚕 Nouvelle résa",
             body: `${clientName} — ${trajet}`,
             url: "/driver?token=DSF234",
             tag: `chauffeur-res-${reservationId}`,
