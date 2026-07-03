@@ -4,56 +4,46 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sendPushToAudience } from "@/lib/push.server";
 
-export type PushAudience = "admin" | "chauffeur" | "client";
+// "admin" n'existe plus comme audience distincte — il ne reste que
+// "chauffeur" et "client". On garde le type large pour compat mais on ne
+// génère plus jamais de ligne "admin" côté serveur.
+export type PushAudience = "chauffeur" | "client";
 
 const FCM_TOKEN_RE = /^[A-Za-z0-9_\-:]{50,500}$/;
 
 const subSchema = z.object({
-  audience: z.enum(["admin", "chauffeur", "client"]),
+  audience: z.enum(["chauffeur", "client"]),
   fcm_token: z.string().regex(FCM_TOKEN_RE, "fcm_token format invalide"),
   reservation_id: z.string().uuid().optional().nullable(),
+  client_account_id: z.string().uuid().optional().nullable(),
   user_agent: z.string().max(500).optional().nullable(),
 });
 
 export const subscribePush = createServerFn({ method: "POST" })
   .inputValidator((input) => subSchema.parse(input))
   .handler(async ({ data }) => {
-    const rows = [
-      {
-        audience: data.audience,
-        endpoint: `fcm://${data.fcm_token}`,
-        fcm_token: data.fcm_token,
-        reservation_id: data.reservation_id ?? null,
-        user_agent: data.user_agent ?? null,
-        last_seen_at: new Date().toISOString(),
-      },
-    ];
+    // Une seule ligne par (fcm_token, audience). Un même appareil peut avoir
+    // une ligne "client" ET une ligne "chauffeur" — c'est volontaire et
+    // autorisé par la contrainte unique (fcm_token, audience).
+    // On n'écrit plus jamais de ligne "admin" ni de duplication automatique
+    // en "chauffeur" : c'était la cause des doublons de notif sur iOS.
+    const row = {
+      audience: data.audience,
+      endpoint: `fcm://${data.fcm_token}-${data.audience}`,
+      fcm_token: data.fcm_token,
+      reservation_id: data.reservation_id ?? null,
+      client_account_id: data.client_account_id ?? null,
+      user_agent: data.user_agent ?? null,
+      last_seen_at: new Date().toISOString(),
+    };
 
-    // Si l'utilisateur s'abonne en tant qu'admin, on enregistre aussi
-    // la même device comme "chauffeur" (même token FCM, endpoint distinct)
-    if (data.audience === "admin") {
-      rows.push({
-        audience: "chauffeur",
-        endpoint: `fcm://${data.fcm_token}-chauffeur`,
-        fcm_token: data.fcm_token,
-        reservation_id: null,
-        user_agent: data.user_agent ?? null,
-        last_seen_at: new Date().toISOString(),
-      });
-    }
-
-    for (const row of rows) {
-      const { error } = await supabaseAdmin
-        .from("push_subscriptions")
-        .upsert(row, { onConflict: "endpoint" });
-      if (error) {
-        console.error("[push] subscribe failed", error);
-        throw new Error("subscribe_failed");
-      }
+    const { error } = await supabaseAdmin.from("push_subscriptions").upsert(row, { onConflict: "fcm_token,audience" });
+    if (error) {
+      console.error("[push] subscribe failed", error);
+      throw new Error("subscribe_failed");
     }
     return { ok: true };
   });
-
 
 export const unsubscribePush = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ fcm_token: z.string().min(10).max(500) }).parse(input))
@@ -63,12 +53,12 @@ export const unsubscribePush = createServerFn({ method: "POST" })
   });
 
 export const sendTestPush = createServerFn({ method: "POST" })
-  .inputValidator((input) => z.object({ audience: z.enum(["admin", "chauffeur", "client"]) }).parse(input))
+  .inputValidator((input) => z.object({ audience: z.enum(["chauffeur", "client"]) }).parse(input))
   .handler(async ({ data }) => {
     return sendPushToAudience(data.audience, {
       title: "🔔 Test notification",
       body: `Notification test envoyée à l'audience « ${data.audience} ».`,
-      url: data.audience === "client" ? "/" : "/admin/dashboard",
+      url: data.audience === "client" ? "/" : "/driver",
       tag: "test-push",
     });
   });
@@ -249,7 +239,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
       chauffeurResult = await sendPushToAudience("chauffeur", {
         title: "🚕 Nouvelle course assignée",
         body: `${clientName} — ${trajet}`,
-        url: "/admin/dashboard",
+        url: "/driver",
         tag: `assign-${r.id}`,
         requireInteraction: true,
       });
