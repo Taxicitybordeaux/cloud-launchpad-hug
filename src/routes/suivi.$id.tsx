@@ -1343,7 +1343,7 @@ function SuiviPage() {
   const fetchReservation = useServerFn(getReservationForFinPublic);
 
   const loadReservation = useCallback(
-    async (silent = false) => {
+    async (silent = false, quiet = false) => {
       if (!silent) setLoading(true);
       else setRefreshing(true);
       try {
@@ -1355,7 +1355,9 @@ function SuiviPage() {
           setReservation(r);
           isCompletedRef.current = r.status === "completed";
           isCancelledRef.current = r.status === "cancelled";
-          if (silent) toast.success(t("suivi.status_refreshed"));
+          if (silent && !quiet) toast.success(t("suivi.status_refreshed"));
+          lastUpdateRef.current = Date.now();
+          setStaleMinutes(0);
         }
       } catch (e) {
         console.error("Fetch error:", e);
@@ -1371,6 +1373,35 @@ function SuiviPage() {
   useEffect(() => {
     loadReservation(false);
   }, [loadReservation]);
+
+  // ── Fallback temps réel via Supabase Broadcast ──
+  // La table `reservations` n'expose aucune policy SELECT à `anon` (PII),
+  // donc les événements postgres_changes UPDATE ne sont jamais livrés au
+  // client public. Le driver déclenche un broadcast `suivi:<id>` après
+  // chaque changement (statut, itinéraire, prix, heure) — on l'écoute ici
+  // et on rafraîchit via la RPC SECURITY DEFINER qui contourne RLS.
+  useEffect(() => {
+    if (!resolvedId) return;
+    const ch = (supabase as any)
+      .channel(`suivi:${resolvedId}`, { config: { broadcast: { self: false } } })
+      .on("broadcast", { event: "update" }, () => {
+        loadReservation(true, true);
+      })
+      .subscribe();
+    // Refresh au retour d'onglet (iOS suspend souvent la connexion realtime)
+    const onVisible = () => {
+      if (!document.hidden) loadReservation(true, true);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+      try {
+        supabase.removeChannel(ch);
+      } catch {}
+    };
+  }, [resolvedId, loadReservation]);
 
   // ── Tracking analytics — log l'ouverture du lien de suivi ──
   // Même correctif : on attend resolvedId (vrai id) plutôt que le param URL

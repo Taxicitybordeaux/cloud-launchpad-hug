@@ -8,6 +8,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useServerFn } from "@tanstack/react-start";
 import { listPushFailures, notifyReservationStatus } from "@/lib/push.functions";
 import { calculerPrixMixte, estTarifJourParis } from "@/lib/tarif";
+import { broadcastSuiviUpdate } from "@/lib/suivi-broadcast";
 
 // ── Token guard ────────────────────────────────────────────────────────────
 const DRIVER_TOKEN = "DSF234";
@@ -459,7 +460,19 @@ function DriverApp() {
         load
       )
       .subscribe();
+    // Filets de sécurité : rafraîchir le compteur au retour d'onglet et
+    // au focus fenêtre (Realtime peut être coupé en arrière-plan sur iOS).
+    const onVisible = () => {
+      if (!document.hidden) load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    // Refresh périodique de secours (60s) au cas où le canal serait muet.
+    const poll = setInterval(load, 60000);
     return () => {
+      clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
       supabase.removeChannel(ch);
     };
   }, []);
@@ -885,6 +898,7 @@ function CourseCard({
       }
       const { error } = await (supabase as any).from("reservations").update(updates).eq("id", resa.id);
       if (error) throw error;
+      broadcastSuiviUpdate(resa.id, "accepted");
       try {
         await notifyStatus({ data: { reservation_id: resa.id, status: "accepted" } });
       } catch (pushErr) {
@@ -905,6 +919,7 @@ function CourseCard({
     try {
       const { error } = await (supabase as any).from("reservations").update({ status: "cancelled" }).eq("id", resa.id);
       if (error) throw error;
+      broadcastSuiviUpdate(resa.id, "cancelled");
       toast("Course refusée");
       onRefresh();
     } catch (e: any) {
@@ -929,6 +944,7 @@ function CourseCard({
         .update({ distance_km: chosen.distanceKm, prix_estime: chosen.prix_estime })
         .eq("id", resa.id);
       if (error) throw error;
+      broadcastSuiviUpdate(resa.id, "route");
       toast.success(`Itinéraire mis à jour — ${chosen.distanceKm} km · ${chosen.prix_estime.toFixed(2)} €`);
       onRefresh();
     } catch (e: any) {
@@ -1004,6 +1020,7 @@ function CourseCard({
       }
     }
     await (supabase as any).from("reservations").update({ prix_estime: val }).eq("id", resa.id);
+    broadcastSuiviUpdate(resa.id, "price");
     onRefresh();
   };
 
@@ -1020,6 +1037,7 @@ function CourseCard({
         .update({ date_heure: newDatetime })
         .eq("id", resa.id);
       if (error) throw error;
+      broadcastSuiviUpdate(resa.id, "reschedule");
       const email = resa.client_email || resa.email;
       const name = resa.client_name || "Client";
       if (email) {
@@ -1066,6 +1084,7 @@ function CourseCard({
     try {
       const { error } = await (supabase as any).from("reservations").update({ status: "completed" }).eq("id", resa.id);
       if (error) throw error;
+      broadcastSuiviUpdate(resa.id, "completed");
       try {
         await notifyStatus({ data: { reservation_id: resa.id, status: "completed" } });
       } catch (pushErr) {
@@ -1087,6 +1106,7 @@ function CourseCard({
     try {
       const { error } = await (supabase as any).from("reservations").update({ status: nextStatus }).eq("id", resa.id);
       if (error) throw error;
+      broadcastSuiviUpdate(resa.id, `status:${nextStatus}`);
       try {
         await notifyStatus({ data: { reservation_id: resa.id, status: nextStatus as any } });
       } catch (pushErr) {
