@@ -907,6 +907,7 @@ function CourseCard({
     try {
       const { error } = await (supabase as any).from("reservations").update({ status: "cancelled" }).eq("id", resa.id);
       if (error) throw error;
+      broadcastSuiviUpdate(resa.id, "cancelled");
       toast("Course refusée");
       onRefresh();
     } catch (e: any) {
