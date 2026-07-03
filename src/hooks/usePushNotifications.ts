@@ -3,7 +3,7 @@
 // Usage chauffeur : usePushNotifications({ autoAudience: "chauffeur" })
 // Usage manuel  : usePushNotifications() puis appeler subscribe(audience, reservationId)
 import { useEffect, useState, useCallback } from "react";
-import { useServerFn } from "@tanstack/react-start";
+import { useServerFn } from "@tanstack/react-start/useServerFn";
 import { subscribePush, type PushAudience } from "@/lib/push.functions";
 import { getFcmToken } from "@/lib/firebase";
 

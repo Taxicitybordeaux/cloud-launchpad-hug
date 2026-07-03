@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useServerFn } from "@tanstack/react-start";
+import { useServerFn } from "@tanstack/react-start/useServerFn";
 import {
   Clock,
   MapPin,

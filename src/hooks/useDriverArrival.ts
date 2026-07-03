@@ -4,7 +4,7 @@
  * 2) Envoie une push au client via notifyReservationStatus (server function)
  */
 import { useCallback, useState } from 'react';
-import { useServerFn } from '@tanstack/react-start';
+import { useServerFn } from '@tanstack/react-start/useServerFn';
 import { supabase } from '@/integrations/supabase/client';
 import { notifyReservationStatus } from '@/lib/push.functions';
 

@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { loadGoogleMapsWhenVisible } from "@/lib/googleMaps";
 import { geocodeAddress } from "@/lib/googleGeocode";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
-import { useServerFn } from "@tanstack/react-start";
+import { useServerFn } from "@tanstack/react-start/useServerFn";
 import { listPushFailures, notifyReservationStatus } from "@/lib/push.functions";
 import { calculerPrixMixte, estTarifJourParis } from "@/lib/tarif";
 import { broadcastSuiviUpdate } from "@/lib/suivi-broadcast";
