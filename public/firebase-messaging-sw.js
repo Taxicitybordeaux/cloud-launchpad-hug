@@ -7,7 +7,7 @@
 // Le navigateur considère le fichier modifié → install/activate immédiats
 // grâce à skipWaiting()/clients.claim(). Pas besoin de purge manuelle.
 // ─────────────────────────────────────────────────────────────────────────────
-const SW_VERSION = "2026-07-03.dedup-fix";
+const SW_VERSION = "2026-07-03.ios-single-display";
 console.log("[FCM SW] boot version =", SW_VERSION);
 
 // Deep links autorisés. Toute URL qui pointe vers /admin/* est REFUSÉE
@@ -50,6 +50,27 @@ function claimOnce(key) {
 }
 function dedupeKey(data, notif) {
   return [data.tag || notif.tag || "taxi-fcm", data.reservation_id || "", notif.title || data.title || ""].join("|");
+}
+
+function firebasePayloadFromNotificationData(notifData) {
+  return notifData?.FCM_MSG || notifData?.fcmMessage || notifData?.firebaseMessagingPayload || null;
+}
+
+function mergedDataFromPayload(payload, notifData) {
+  return Object.assign({}, payload?.webpush?.data || {}, payload?.data || {}, notifData || {});
+}
+
+function clickUrlFromPayload(payload, notifData, data) {
+  return (
+    notifData?.url ||
+    notifData?.click_action ||
+    data?.url ||
+    data?.click_action ||
+    payload?.webpush?.fcm_options?.link ||
+    payload?.fcmOptions?.link ||
+    payload?.notification?.click_action ||
+    payload?.webpush?.notification?.click_action
+  );
 }
 
 // ─── Lifecycle : prise de contrôle immédiate ────────────────────────────────
@@ -133,6 +154,15 @@ messaging.onBackgroundMessage((payload) => {
 
   console.log("[FCM SW] data:", JSON.stringify(data), "audience:", data.audience, "url:", data.url);
 
+  // Si le payload contient `notification`/`webpush.notification`, le SDK
+  // Firebase affiche déjà la notification (obligatoire pour iOS Safari PWA).
+  // Ne pas appeler showNotification ici, sinon iOS affiche 2 notifs.
+  if (payload.notification || payload.webpush?.notification) {
+    claimOnce(dedupeKey(data, notif));
+    console.log("[FCM SW] onBackgroundMessage: affichage laissé au SDK Firebase");
+    return;
+  }
+
   // Verrou synchrone AVANT tout await — ferme la race avec le listener push natif.
   if (!claimOnce(dedupeKey(data, notif))) {
     console.log("[FCM SW] onBackgroundMessage: doublon détecté, skip");
@@ -207,18 +237,24 @@ self.addEventListener("push", (event) => {
 // ─── Click sur notification ─────────────────────────────────────────────────
 self.addEventListener("notificationclick", (event) => {
   const notifData = event.notification.data || {};
+  const firebasePayload = firebasePayloadFromNotificationData(notifData);
+  const mergedData = mergedDataFromPayload(firebasePayload, notifData);
   // Re-sanitize au moment du clic : même si une vieille notif a survécu en
   // background avec un mauvais data.url, on garantit ici qu'on n'ouvre JAMAIS
   // /admin/dashboard ni une URL externe.
-  const url = sanitizeDeepLink(notifData.url, notifData.audience, notifData.reservation_id);
+  const url = sanitizeDeepLink(
+    clickUrlFromPayload(firebasePayload, notifData, mergedData),
+    mergedData.audience,
+    mergedData.reservation_id,
+  );
 
   console.log(
     "[FCM SW v" + SW_VERSION + "] notificationclick → url:",
     url,
     "| audience:",
-    notifData.audience,
+    mergedData.audience,
     "| raw data.url:",
-    notifData.url,
+    notifData.url || mergedData.url,
   );
   event.notification.close();
 
