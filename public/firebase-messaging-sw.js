@@ -156,7 +156,12 @@ messaging.onBackgroundMessage((payload) => {
   });
 });
 
-// ─── iOS Safari PWA (≥ 16.4) — push event natif ─────────────────────────────
+// ─── Fallback push natif ────────────────────────────────────────────────────
+// Le SDK Firebase affiche AUTOMATIQUEMENT la notification dès que le payload
+// contient un champ `notification` (racine) ou `webpush.notification`. Si on
+// affiche AUSSI ici, on obtient un doublon systématique.
+// → On ne prend le relais que pour les messages 100% "data-only" (sans
+// aucun champ notification), cas où le SDK ne fait rien.
 self.addEventListener("push", (event) => {
   let payload = {};
   try {
@@ -167,32 +172,36 @@ self.addEventListener("push", (event) => {
     } catch (_2) {}
   }
 
-  const notif = payload.notification || payload.webpush?.notification || {};
-  const data = payload.data || payload.webpush?.data || {};
-  const title = notif.title || data.title || "🚖 Taxi City Bordeaux";
-  const body = notif.body || data.body || "";
-
-  if (!title && !body) return;
-
-  // Même verrou synchrone que onBackgroundMessage — si l'autre handler a
-  // déjà réclamé cette clé (même push physique), on sort sans afficher.
-  if (!claimOnce(dedupeKey(data, notif))) {
-    console.log("[FCM SW] push natif: doublon détecté, skip");
+  const hasNotifPayload = !!(payload.notification || payload.webpush?.notification);
+  if (hasNotifPayload) {
+    // Le SDK Firebase s'en occupe. On ne fait RIEN pour éviter le doublon.
     return;
   }
 
-  const url = sanitizeDeepLink(data.url || data.click_action || notif.click_action, data.audience, data.reservation_id);
-  const tag = data.tag || notif.tag || "taxi-fcm";
+  const notif = {};
+  const data = payload.data || {};
+  const title = data.title || "🚖 Taxi City Bordeaux";
+  const body = data.body || "";
+  if (!title && !body) return;
+
+  if (!claimOnce(dedupeKey(data, notif))) return;
+
+  const url = sanitizeDeepLink(data.url || data.click_action, data.audience, data.reservation_id);
+  const tag = data.tag || "taxi-fcm";
 
   event.waitUntil(
-    self.registration.getNotifications({ tag }).then((existing) => {
-      if (existing.length > 0) return; // Firebase a déjà affiché
-      return self.registration.showNotification(title, {
-        body,
-        icon: notif.icon || "/favicon.ico",
-        badge: "/favicon.ico",
-        tag,
-        data: { ...data, url, audience: data.audience, reservation_id: data.reservation_id, sw_version: SW_VERSION },
+    self.registration.showNotification(title, {
+      body,
+      icon: "/favicon.ico",
+      badge: "/favicon.ico",
+      tag,
+      data: { ...data, url, audience: data.audience, reservation_id: data.reservation_id, sw_version: SW_VERSION },
+      vibrate: [200, 100, 200],
+      requireInteraction: true,
+    }),
+  );
+});
+
         vibrate: [200, 100, 200],
         requireInteraction: true,
       });
