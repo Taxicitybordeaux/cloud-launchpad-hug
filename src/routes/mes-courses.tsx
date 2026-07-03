@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useLang } from "@/hooks/useLang";
 import { searchAddress } from "@/lib/googleGeocode";
-import { fetchRouteCoordinates } from "@/lib/googleRoute";
+import { getRouteGeoCoords } from "@/lib/googleRoute";
 
 export const Route = createFileRoute("/mes-courses")({
   head: () => ({ meta: [{ title: "Mes courses — Taxi City Bordeaux" }] }),
