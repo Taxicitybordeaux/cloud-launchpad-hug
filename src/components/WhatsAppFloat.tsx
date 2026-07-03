@@ -86,10 +86,9 @@ export function WhatsAppFloat() {
 
   const content = (
     <>
-      {/* Mobile : barre fixe 3 boutons */}
+      {/* Barre horizontale fixe (mobile + desktop) — 3 boutons */}
       <div
         ref={barRef}
-        className="sm:hidden"
         style={{
           position: "fixed",
           left: 0,
@@ -136,87 +135,9 @@ export function WhatsAppFloat() {
           <span>{t("wa.btn.quote")}</span>
         </Link>
       </div>
-
-      {/* Desktop : cluster flottant bas-droite */}
-      <div
-        className="hidden sm:flex"
-        style={{
-          position: "fixed",
-          right: 24,
-          bottom: 24,
-          zIndex: 9999,
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        <a
-          href={waHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={handleClick("whatsapp", "desktop_float")}
-          aria-label={t("wa.aria.whatsapp")}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 10,
-            background: "#25D366",
-            color: "#fff",
-            padding: "12px 18px",
-            borderRadius: 999,
-            fontWeight: 700,
-            fontSize: 15,
-            textDecoration: "none",
-            boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
-          }}
-        >
-          <MessageCircle size={20} aria-hidden="true" />
-          {t("wa.btn.whatsapp")}
-        </a>
-        <a
-          href={`tel:${PHONE}`}
-          onClick={handleClick("call", "desktop_float")}
-          aria-label={t("wa.btn.call")}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 10,
-            background: "#1d4ed8",
-            color: "#fff",
-            padding: "12px 18px",
-            borderRadius: 999,
-            fontWeight: 700,
-            fontSize: 15,
-            textDecoration: "none",
-            boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
-          }}
-        >
-          <Phone size={20} aria-hidden="true" />
-          {t("wa.btn.call")}
-        </a>
-        <Link
-          to="/reserver"
-          onClick={handleClick("quote", "desktop_float")}
-          aria-label={t("wa.btn.quote")}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 10,
-            background: "#0ea5e9",
-            color: "#fff",
-            padding: "12px 18px",
-            borderRadius: 999,
-            fontWeight: 700,
-            fontSize: 15,
-            textDecoration: "none",
-            boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
-          }}
-        >
-          <FileText size={20} aria-hidden="true" />
-          {t("wa.btn.quote")}
-        </Link>
-      </div>
     </>
   );
+
 
   return createPortal(content, document.body);
 }

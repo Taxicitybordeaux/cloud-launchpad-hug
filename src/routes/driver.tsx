@@ -49,6 +49,7 @@ interface ClientAgg {
   nbCourses: number;
   totalDepense: number;
   derniereCourse: string;
+  derniereDepart: string;
   derniereDestination: string;
 }
 
@@ -1926,7 +1927,7 @@ function ClientsTab() {
     const [{ data }, { data: clientsRows }] = await Promise.all([
       (supabase as any)
         .from("reservations")
-        .select("client_name,client_phone,destination,prix_estime,pickup_datetime,date_heure,status")
+        .select("client_name,client_phone,depart,destination,prix_estime,pickup_datetime,date_heure,status")
         .not("client_phone", "is", null)
         .order("pickup_datetime", { ascending: false }),
       (supabase as any).from("clients").select("id,phone"),
@@ -1954,7 +1955,8 @@ function ClientsTab() {
           nbCourses: isCompleted ? 1 : 0,
           totalDepense: isCompleted ? (r.prix_estime ?? 0) : 0,
           derniereCourse: r.pickup_datetime ?? r.date_heure,
-          derniereDestination: r.destination,
+          derniereDepart: r.depart ?? "",
+          derniereDestination: r.destination ?? "",
         });
       } else {
         if (isCompleted) {
@@ -1963,7 +1965,8 @@ function ClientsTab() {
         }
         if ((r.pickup_datetime ?? r.date_heure) > existing.derniereCourse) {
           existing.derniereCourse = r.pickup_datetime ?? r.date_heure;
-          existing.derniereDestination = r.destination;
+          existing.derniereDepart = r.depart ?? existing.derniereDepart;
+          existing.derniereDestination = r.destination ?? existing.derniereDestination;
         }
         if (!existing.name || existing.name === "Client") existing.name = r.client_name || existing.name;
         if (!existing.email && (r.client_email || r.email)) existing.email = r.client_email ?? r.email;
@@ -2083,7 +2086,9 @@ function ClientsTab() {
               </span>
             </div>
             <div className="drv-sub" style={{ marginBottom: 6 }}>
-              Dernière course : {formatDate(c.derniereCourse)} → {c.derniereDestination}
+              Dernière course : {formatDate(c.derniereCourse)}
+              <br />
+              {c.derniereDepart || "—"} → {c.derniereDestination || "—"}
             </div>
             <div
               className="drv-meta"
