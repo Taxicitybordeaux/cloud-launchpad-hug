@@ -39,13 +39,23 @@ function useVisitorHeartbeat(pathname: string) {
       });
 
     // 2) Heartbeat active_visitors → compteur temps réel
-    const upsert = () =>
-      (supabase as any)
-        .from("active_visitors")
-        .upsert({ session_id: sid, page: pathname, last_seen: new Date().toISOString() }, { onConflict: "session_id" });
+    //    Delete-then-insert : la policy UPDATE a été supprimée pour empêcher
+    //    qu'une session anonyme n'écrase la ligne d'une autre. On garde
+    //    l'INSERT anonyme (validé par la policy) et on nettoie l'ancienne
+    //    ligne du même session_id juste avant.
+    const heartbeat = async () => {
+      try {
+        await (supabase as any).from("active_visitors").delete().eq("session_id", sid);
+        await (supabase as any)
+          .from("active_visitors")
+          .insert({ session_id: sid, page: pathname, last_seen: new Date().toISOString() });
+      } catch {
+        /* non-fatal : compteur best-effort */
+      }
+    };
 
-    upsert();
-    const iv = setInterval(upsert, 30_000);
+    heartbeat();
+    const iv = setInterval(heartbeat, 30_000);
 
     const remove = () => (supabase as any).from("active_visitors").delete().eq("session_id", sid);
 
