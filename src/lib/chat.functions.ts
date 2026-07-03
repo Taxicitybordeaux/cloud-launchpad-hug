@@ -159,9 +159,8 @@ export const sendChauffeurMessage = createServerFn({ method: "POST" })
             url: `/suivi/${suiviId}`,
             tag: `chat-client-resa-${data.reservation_id}`,
             requireInteraction: false,
-            data: { reservation_id: data.reservation_id },
           },
-          { reservationId: data.reservation_id, accountId },
+          { reservationId: data.reservation_id },
         );
       } catch (e) {
         console.warn("[chat] push client (resa) failed (non-blocking)", e);
@@ -458,7 +457,7 @@ export const sendDirectChauffeurMessage = createServerFn({ method: "POST" })
           tag: `chat-client-direct-${data.client_account_id}`,
           requireInteraction: false,
         },
-        { accountId: data.client_account_id },
+        {},
       );
     } catch (e) {
       console.warn("[chat] push client (direct) failed (non-blocking)", e);

@@ -6,7 +6,7 @@ import { loadGoogleMapsWhenVisible } from "@/lib/googleMaps";
 import { geocodeAddress } from "@/lib/googleGeocode";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useServerFn } from "@tanstack/react-start";
-import { listPushFailures, notifyReservationStatus } from "@/lib/push.functions";
+import { notifyReservationStatus } from "@/lib/push.functions";
 import { calculerPrixMixte, estTarifJourParis } from "@/lib/tarif";
 import { broadcastSuiviUpdate } from "@/lib/suivi-broadcast";
 
@@ -3323,21 +3323,12 @@ function StatsTab() {
 
 // ── Mini diagnostic des échecs push (remplace l'ancien lien /admin/dashboard) ──
 function PushDiagnostic() {
-  const fetchFailures = useServerFn(listPushFailures);
   const [open, setOpen] = useState(false);
-  const [rows, setRows] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [rows] = useState<any[]>([]);
+  const [loading] = useState(false);
 
   const load = async () => {
-    setLoading(true);
-    try {
-      const res = await fetchFailures({ data: { pin: DRIVER_TOKEN, only_price_update: false, limit: 30 } });
-      setRows((res as any)?.failures ?? []);
-    } catch {
-      setRows([]);
-    } finally {
-      setLoading(false);
-    }
+    // Diagnostic push désactivé (endpoint indisponible)
   };
 
   return (
