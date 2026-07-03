@@ -179,7 +179,12 @@ async function sendFcmToToken(
   return { ok: false, status: res.status, errorCode };
 }
 
-type SubRow = { id: string; fcm_token: string | null };
+type SubRow = { id: string; fcm_token: string | null; user_agent: string | null; last_seen_at: string | null; created_at: string | null };
+
+function isLikelyIosWebPush(userAgent: string | null): boolean {
+  if (!userAgent) return false;
+  return /iPhone|iPad|iPod/i.test(userAgent) || (/Macintosh/i.test(userAgent) && /Mobile|Safari/i.test(userAgent));
+}
 
 export async function sendPushToAudience(
   audience: PushAudience,
@@ -188,7 +193,7 @@ export async function sendPushToAudience(
 ): Promise<{ sent: number; removed: number }> {
   let q = supabaseAdmin
     .from("push_subscriptions")
-    .select("id, fcm_token")
+    .select("id, fcm_token, user_agent, last_seen_at, created_at")
     .eq("audience", audience)
     .not("fcm_token", "is", null);
   if (audience === "client" && opts.reservationId) {
@@ -200,12 +205,23 @@ export async function sendPushToAudience(
   const { data, error } = await q;
   if (error || !data || data.length === 0) return { sent: 0, removed: 0 };
 
-  // Dédup device (même fcm_token) pour ne pas envoyer 2× la même push
-  // (2 lignes d'abonnement peuvent pointer vers le même device).
+  // Dédup device : même fcm_token + cas iOS où plusieurs anciens tokens restent
+  // valides pour le même device après rotation Safari/PWA.
   const seenTokens = new Set<string>();
-  const uniqueSubs = (data as SubRow[]).filter((s) => {
+  const seenIosDevices = new Set<string>();
+  const sortedSubs = [...(data as SubRow[])].sort((a, b) => {
+    const at = Date.parse(a.last_seen_at || a.created_at || "") || 0;
+    const bt = Date.parse(b.last_seen_at || b.created_at || "") || 0;
+    return bt - at;
+  });
+  const uniqueSubs = sortedSubs.filter((s) => {
     if (!s.fcm_token || seenTokens.has(s.fcm_token)) return false;
     seenTokens.add(s.fcm_token);
+    if (isLikelyIosWebPush(s.user_agent)) {
+      const deviceKey = s.user_agent || "ios-device";
+      if (seenIosDevices.has(deviceKey)) return false;
+      seenIosDevices.add(deviceKey);
+    }
     return true;
   });
 
