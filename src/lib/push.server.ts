@@ -178,7 +178,9 @@ async function claimPushSendOnce(audience: PushAudience, tag?: string, reservati
   if (!tag || !reservationId) return true;
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 10 * 60 * 1000).toISOString();
-  await supabaseAdmin.from("push_dedup").delete().lt("expires_at", now.toISOString()).catch(() => null);
+  try {
+    await supabaseAdmin.from("push_dedup").delete().lt("expires_at", now.toISOString());
+  } catch {}
   const { error } = await supabaseAdmin.from("push_dedup").insert({
     tag,
     audience,
