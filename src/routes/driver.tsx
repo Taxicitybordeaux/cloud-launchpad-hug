@@ -1008,6 +1008,7 @@ function CourseCard({
       }
     }
     await (supabase as any).from("reservations").update({ prix_estime: val }).eq("id", resa.id);
+    broadcastSuiviUpdate(resa.id, "price");
     onRefresh();
   };
 
