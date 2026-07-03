@@ -61,7 +61,7 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
         const { data: reservation, error: lookupError } = await supabase
           .from("reservations")
           .select(
-            "id, nom, client_name, telephone, client_phone, email, pickup_datetime, depart, arrivee, destination, passagers, bagages, service_type",
+            "id, nom, client_name, telephone, client_phone, email, pickup_datetime, depart, arrivee, destination, passagers, bagages, service_type, suivi_id, client_account_id",
           )
           .eq("id", reservationId)
           .maybeSingle();
@@ -129,6 +129,29 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
         } catch (pushErr) {
           console.error("[notify-reservation] push failed", pushErr);
           // On ne fait pas échouer la requête si le push échoue — l'email est déjà parti.
+        }
+
+        // Push CLIENT — accusé de réception "en attente de validation par le taxi"
+        try {
+          const suiviUrl = `/suivi/${(reservation as any).suivi_id || reservationId}`;
+          const clientResult = await sendPushToAudience(
+            "client",
+            {
+              title: "⏳ Réservation reçue",
+              body: `En attente de validation par le taxi : ${trajet}.`,
+              url: suiviUrl,
+              tag: `client-pending-${reservationId}`,
+              requireInteraction: false,
+              data: { reservation_id: reservationId, status: "pending" },
+            },
+            {
+              reservationId,
+              accountId: (reservation as any).client_account_id ?? undefined,
+            },
+          );
+          console.log("[notify-reservation] push client:", JSON.stringify(clientResult));
+        } catch (pushErr) {
+          console.error("[notify-reservation] push client failed", pushErr);
         }
 
         return Response.json({ success: true, emailQueued });
