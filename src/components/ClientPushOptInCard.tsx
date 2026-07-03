@@ -47,8 +47,6 @@ export function ClientPushOptInCard({ clientAccountId }: ClientPushOptInCardProp
       const { getFcmToken } = await import("@/lib/firebase");
       const { subscribePush } = await import("@/lib/push.functions");
       const fcm = await getFcmToken({ forceRefresh: true });
-      const { subscribePush } = await import("@/lib/push.functions");
-      const fcm = await getFcmToken({ forceRefresh: true });
       if (!fcm) {
         toast.error("Token FCM introuvable — vérifiez que l'app est installée sur l'écran d'accueil (iOS)");
         return;
