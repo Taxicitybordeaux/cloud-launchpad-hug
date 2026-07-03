@@ -12,7 +12,7 @@ export type PushPayload = {
   data?: Record<string, unknown>;
 };
 
-export type PushAudience = "admin" | "chauffeur" | "client";
+export type PushAudience = "chauffeur" | "client";
 
 type ServiceAccount = {
   client_email: string;
