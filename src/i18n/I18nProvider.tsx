@@ -33,14 +33,17 @@ function readStoredLang(): Lang {
 }
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  // Lazy initializer : lit localStorage au premier rendu CLIENT.
-  // Côté SSR typeof window === 'undefined' → le lazy fn retourne 'fr'.
-  const [lang, setLangState] = useState<Lang>(() => (typeof window === "undefined" ? "fr" : readStoredLang()));
+  // IMPORTANT : le premier rendu client doit être STRICTEMENT identique au SSR ("fr"),
+  // sinon mismatch d'hydratation (React error #418) → hydratation abandonnée → page figée
+  // (plus aucun listener attaché, scroll bloqué). On ne lit donc PAS localStorage ici.
+  const [lang, setLangState] = useState<Lang>("fr");
 
-  // Synchronise document.documentElement dès le premier rendu client.
+  // Après le montage seulement : on lit la langue stockée et on bascule dessus.
+  // Ce re-render se produit APRÈS l'hydratation, donc pas de mismatch possible.
   useEffect(() => {
-    applyDocDir(lang);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const stored = readStoredLang();
+    if (stored !== "fr") setLangState(stored);
+    applyDocDir(stored);
   }, []);
 
   const setLang = (l: Lang) => {
