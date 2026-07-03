@@ -3,6 +3,7 @@ import { Star, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useT } from "@/i18n/I18nProvider";
 import { toast } from "sonner";
+import { notifyNewReview } from "@/lib/push.functions";
 
 export function ReviewForm({ onSubmitted }: { onSubmitted?: () => void }) {
   const t = useT();
@@ -19,10 +20,12 @@ export function ReviewForm({ onSubmitted }: { onSubmitted?: () => void }) {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.from("reviews").insert({
-      name: name.trim().slice(0, 80),
-      text: text.trim().slice(0, 1000),
-      rating,
+    // Table "avis" — colonnes réelles : id, note, commentaire, author_name, reservation_id, chauffeur_id, created_at, status
+    const { error } = await (supabase as any).from("avis").insert({
+      author_name: name.trim().slice(0, 80),
+      note: rating,
+      commentaire: text.trim().slice(0, 900),
+      status: "pending",
     });
     setLoading(false);
     if (error) {
@@ -30,6 +33,14 @@ export function ReviewForm({ onSubmitted }: { onSubmitted?: () => void }) {
       return;
     }
     toast.success(t("review.success"));
+    // Fire-and-forget : notif push chauffeur, jamais bloquant pour le client.
+    void notifyNewReview({
+      data: {
+        author_name: name.trim().slice(0, 80),
+        note: rating,
+        commentaire: text.trim().slice(0, 500),
+      },
+    }).catch(() => {});
     setName("");
     setText("");
     setRating(0);
@@ -60,9 +71,7 @@ export function ReviewForm({ onSubmitted }: { onSubmitted?: () => void }) {
               className="p-1 transition hover:scale-110"
             >
               <Star
-                className={`h-7 w-7 transition ${
-                  active ? "fill-primary text-primary" : "text-muted-foreground/40"
-                }`}
+                className={`h-7 w-7 transition ${active ? "fill-primary text-primary" : "text-muted-foreground/40"}`}
               />
             </button>
           );

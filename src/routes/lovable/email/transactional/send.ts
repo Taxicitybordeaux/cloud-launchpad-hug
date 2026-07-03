@@ -1,11 +1,10 @@
 import * as React from "react";
 import { render } from "@react-email/components";
-import { createClient } from "@supabase/supabase-js";
 import { createFileRoute } from "@tanstack/react-router";
 import { TEMPLATES } from "@/lib/email-templates/registry";
 
 const SITE_NAME = "Taxi City Bordeaux";
-const SENDER_DOMAIN = "notify.taxicitybordeaux.fr";
+const SENDER_DOMAIN = "mail.taxicitybordeaux.fr";
 const FROM_DOMAIN = "taxicitybordeaux.fr";
 
 function redactEmail(email: string | null | undefined): string {
@@ -27,11 +26,11 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const { getTaxiSupabaseAdmin, getTaxiSupabaseConfig } = await import("@/lib/taxi-supabase.server");
+        const { serviceKey: supabaseServiceKey } = getTaxiSupabaseConfig();
         const lovableApiKey = process.env.LOVABLE_API_KEY ?? "";
 
-        if (!supabaseUrl || !supabaseServiceKey) {
+        if (!supabaseServiceKey) {
           console.error("Missing required environment variables");
           return Response.json({ error: "Server configuration error" }, { status: 500 });
         }
@@ -57,7 +56,7 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
             authorized = true;
           } else {
             // Path 4 — Supabase user JWT
-            const supabase = createClient(supabaseUrl, supabaseServiceKey);
+            const supabase = getTaxiSupabaseAdmin();
             const {
               data: { user },
               error,
@@ -71,7 +70,7 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
         }
         // ─────────────────────────────────────────────────────────────────────
 
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        const supabase = getTaxiSupabaseAdmin();
 
         let templateName: string;
         let recipientEmail: string;
@@ -222,7 +221,8 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
           payload: {
             message_id: messageId,
             to: effectiveRecipient,
-            from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
+            from: `${SITE_NAME} <noreply@${SENDER_DOMAIN}>`,
+            reply_to: "taxi.city033@gmail.com",
             sender_domain: SENDER_DOMAIN,
             subject: resolvedSubject,
             html,
@@ -236,7 +236,7 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
         });
 
         if (enqueueError) {
-          console.error("Failed to enqueue email", { error: enqueueError, templateName });
+          console.error("Failed to enqueue email", JSON.stringify({ error: enqueueError, templateName }));
           await supabase.from("email_send_log").insert({
             message_id: messageId,
             template_name: templateName,

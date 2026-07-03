@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
 import {
   CheckCircle2,
   Calendar,
@@ -13,8 +13,10 @@ import {
   Navigation,
 } from "lucide-react";
 import { buildReservationMessage, whatsappLink } from "@/lib/whatsapp";
-import { usePushNotifications } from "@/hooks/usePushNotifications";
+// Push client retiré — le client est notifié visuellement sur /reservation/$id (bandeau étapes).
 import { useT, useI18n } from "@/i18n/I18nProvider";
+import { getReservationPublic, cancelReservationPublic } from "@/lib/reservation.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/reservation/$id")({
   head: () => ({
@@ -49,44 +51,65 @@ function ConfirmationPage() {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [notFound, setNotFound] = useState(false);
-  const { status: pushStatus, subscribe } = usePushNotifications();
-  // Redirection automatique après 5 secondes si réservation valide et non annulée
-  useEffect(() => {
-    if (reservation && !["annulee", "cancelled", "canceled"].includes(reservation.status)) {
-      const timeout = setTimeout(() => {
-        navigate({ to: "/suivi/$id", params: { id: reservation.id } });
-      }, 5000);
-      return () => clearTimeout(timeout);
-    }
-  }, [reservation, navigate]);
+  // (push client supprimé)
+  const fetchReservation = useServerFn(getReservationPublic);
+  const cancelReservation = useServerFn(cancelReservationPublic);
 
+  // Écoute Realtime : si José change le statut de la course, mettre à jour la page
+  // et rediriger vers /fin/$id lorsque la course est terminée.
   useEffect(() => {
-    if (reservation && reservation.status !== "annulee" && pushStatus === "idle") {
-      subscribe("client", reservation.id).catch(() => {});
-    }
-  }, [reservation, pushStatus, subscribe]);
+    const channel = (supabase as any)
+      .channel(`reservation-status-${id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "reservations", filter: `id=eq.${id}` },
+        async (payload: any) => {
+          const newStatus = payload.new?.status;
+          if (newStatus === "completed" || newStatus === "terminee") {
+            navigate({ to: "/fin/$id", params: { id } });
+            return;
+          }
+          const updated = await fetchReservation({ data: { id } });
+          if (updated) setReservation(updated as Reservation);
+        },
+      )
+      .subscribe();
+    return () => {
+      (supabase as any).removeChannel(channel);
+    };
+  }, [id, navigate, fetchReservation]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase.rpc("get_reservation_public", { p_id: id });
-      if (cancelled) return;
-      if (error || !data || data.length === 0) setNotFound(true);
-      else setReservation(data[0] as Reservation);
-      setLoading(false);
+      try {
+        const row = await fetchReservation({ data: { id } });
+        if (cancelled) return;
+        if (!row) setNotFound(true);
+        else setReservation(row as Reservation);
+      } catch {
+        if (!cancelled) setNotFound(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, fetchReservation]);
 
   const handleCancel = async () => {
     setCancelling(true);
-    const { data, error } = await supabase.rpc("cancel_reservation_public", { p_id: id });
-    setCancelling(false);
-    if (!error && data) {
-      setReservation((r) => (r ? { ...r, status: "cancelled" } : r));
-      setConfirmCancel(false);
+    try {
+      const res = await cancelReservation({ data: { id } });
+      if (res?.ok) {
+        setReservation((r) => (r ? { ...r, status: "cancelled" } : r));
+        setConfirmCancel(false);
+      }
+    } catch {
+      // silencieux : l'UI reste sur l'écran de confirmation
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -157,11 +180,7 @@ function ConfirmationPage() {
         <p className="mt-1 text-xs text-muted-foreground">{t("conf.ref.note")}</p>
       </div>
 
-      {!isCancelled && (
-        <div className="mt-6 rounded-2xl border border-border bg-card p-4 text-center text-sm text-muted-foreground">
-          📲 Les notifications de suivi sont activées automatiquement pour cette réservation.
-        </div>
-      )}
+      {/* suivi Realtime actif — le client sera redirigé vers /fin/$id dès que José termine la course */}
 
       <div className="mt-6 rounded-2xl border border-border bg-card p-6 space-y-4">
         <h2 className="font-display text-lg font-semibold">{t("conf.summary")}</h2>
@@ -214,15 +233,7 @@ function ConfirmationPage() {
         </div>
       )}
 
-      {!isCancelled && (
-        <Link
-          to="/suivi/$id"
-          params={{ id: reservation.id }}
-          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 font-semibold text-primary-foreground shadow transition hover:opacity-90"
-        >
-          <Navigation className="h-5 w-5" /> {t("conf.track")}
-        </Link>
-      )}
+      {/* Lien /suivi/$id supprimé. */}
 
       {!isCancelled && (
         <div className="mt-6 rounded-xl border border-border bg-card/50 p-5">

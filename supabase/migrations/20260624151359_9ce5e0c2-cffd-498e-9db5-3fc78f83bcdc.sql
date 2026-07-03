@@ -1,0 +1,2 @@
+ALTER TABLE public.reservations ADD COLUMN IF NOT EXISTS reminder_j1_sent_at timestamptz;
+CREATE INDEX IF NOT EXISTS idx_reservations_reminder_j1 ON public.reservations (pickup_datetime, status) WHERE reminder_j1_sent_at IS NULL;

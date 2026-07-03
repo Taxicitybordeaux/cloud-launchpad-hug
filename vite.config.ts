@@ -6,4 +6,11 @@
 // You can pass additional config via defineConfig({ vite: { ... } }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
-export default defineConfig();
+export default defineConfig({
+  plugins: [],
+  vite: {
+    define: {
+      __APP_BUILD_VERSION__: JSON.stringify(process.env.VITE_BUILD_ID ?? new Date().toISOString()),
+    },
+  },
+});

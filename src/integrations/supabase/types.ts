@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      active_visitors: {
+        Row: {
+          created_at: string
+          last_seen: string
+          page: string | null
+          session_id: string
+        }
+        Insert: {
+          created_at?: string
+          last_seen?: string
+          page?: string | null
+          session_id: string
+        }
+        Update: {
+          created_at?: string
+          last_seen?: string
+          page?: string | null
+          session_id?: string
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           id: number
@@ -31,6 +52,215 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      client_account_secrets: {
+        Row: {
+          client_account_id: string
+          created_at: string
+          password_hash: string
+          updated_at: string
+        }
+        Insert: {
+          client_account_id: string
+          created_at?: string
+          password_hash: string
+          updated_at?: string
+        }
+        Update: {
+          client_account_id?: string
+          created_at?: string
+          password_hash?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_account_secrets_client_account_id_fkey"
+            columns: ["client_account_id"]
+            isOneToOne: true
+            referencedRelation: "client_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_accounts: {
+        Row: {
+          billing_address: string | null
+          client_name: string | null
+          company_name: string | null
+          created_at: string
+          email: string
+          id: string
+          phone: string | null
+          siret: string | null
+          tva_intracom: string | null
+        }
+        Insert: {
+          billing_address?: string | null
+          client_name?: string | null
+          company_name?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          phone?: string | null
+          siret?: string | null
+          tva_intracom?: string | null
+        }
+        Update: {
+          billing_address?: string | null
+          client_name?: string | null
+          company_name?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          phone?: string | null
+          siret?: string | null
+          tva_intracom?: string | null
+        }
+        Relationships: []
+      }
+      client_favorites: {
+        Row: {
+          address: string
+          client_id: string
+          created_at: string
+          icon: string | null
+          id: string
+          label: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          client_id: string
+          created_at?: string
+          icon?: string | null
+          id?: string
+          label: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          client_id?: string
+          created_at?: string
+          icon?: string | null
+          id?: string
+          label?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_favorites_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_password_resets: {
+        Row: {
+          client_account_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          token_hash: string
+          used_at: string | null
+        }
+        Insert: {
+          client_account_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          token_hash: string
+          used_at?: string | null
+        }
+        Update: {
+          client_account_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          token_hash?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_password_resets_client_account_id_fkey"
+            columns: ["client_account_id"]
+            isOneToOne: false
+            referencedRelation: "client_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_recurring_rides: {
+        Row: {
+          active: boolean
+          bagages: number
+          client_account_id: string
+          created_at: string
+          day_of_week: number
+          depart: string
+          destination: string
+          hour: number
+          id: string
+          label: string
+          last_run_at: string | null
+          message: string | null
+          minute: number
+          next_run_at: string
+          paiement: string
+          passagers: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          bagages?: number
+          client_account_id: string
+          created_at?: string
+          day_of_week: number
+          depart: string
+          destination: string
+          hour: number
+          id?: string
+          label: string
+          last_run_at?: string | null
+          message?: string | null
+          minute?: number
+          next_run_at: string
+          paiement?: string
+          passagers?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          bagages?: number
+          client_account_id?: string
+          created_at?: string
+          day_of_week?: number
+          depart?: string
+          destination?: string
+          hour?: number
+          id?: string
+          label?: string
+          last_run_at?: string | null
+          message?: string | null
+          minute?: number
+          next_run_at?: string
+          paiement?: string
+          passagers?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_recurring_rides_client_account_id_fkey"
+            columns: ["client_account_id"]
+            isOneToOne: false
+            referencedRelation: "client_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       clients: {
         Row: {
@@ -149,11 +379,50 @@ export type Database = {
         }
         Relationships: []
       }
+      direct_messages: {
+        Row: {
+          client_account_id: string
+          content: string
+          created_at: string
+          id: string
+          read_by_chauffeur: boolean
+          read_by_client: boolean
+          sender: string
+        }
+        Insert: {
+          client_account_id: string
+          content: string
+          created_at?: string
+          id?: string
+          read_by_chauffeur?: boolean
+          read_by_client?: boolean
+          sender: string
+        }
+        Update: {
+          client_account_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          read_by_chauffeur?: boolean
+          read_by_client?: boolean
+          sender?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "direct_messages_client_account_id_fkey"
+            columns: ["client_account_id"]
+            isOneToOne: false
+            referencedRelation: "client_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       driver_gps: {
         Row: {
           accuracy: number | null
           destination: string | null
           heading: number | null
+          heartbeat_at: string | null
           id: string
           is_active: boolean
           latitude: number | null
@@ -166,6 +435,7 @@ export type Database = {
           accuracy?: number | null
           destination?: string | null
           heading?: number | null
+          heartbeat_at?: string | null
           id: string
           is_active?: boolean
           latitude?: number | null
@@ -178,6 +448,7 @@ export type Database = {
           accuracy?: number | null
           destination?: string | null
           heading?: number | null
+          heartbeat_at?: string | null
           id?: string
           is_active?: boolean
           latitude?: number | null
@@ -311,16 +582,80 @@ export type Database = {
         }
         Relationships: []
       }
+      push_dedup: {
+        Row: {
+          audience: string
+          expires_at: string
+          first_sent_at: string
+          tag: string
+        }
+        Insert: {
+          audience: string
+          expires_at: string
+          first_sent_at?: string
+          tag: string
+        }
+        Update: {
+          audience?: string
+          expires_at?: string
+          first_sent_at?: string
+          tag?: string
+        }
+        Relationships: []
+      }
+      push_send_failures: {
+        Row: {
+          audience: string
+          body: string | null
+          created_at: string
+          error_code: string | null
+          fcm_token_suffix: string | null
+          http_status: number | null
+          id: string
+          reservation_id: string | null
+          tag: string | null
+          title: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          audience: string
+          body?: string | null
+          created_at?: string
+          error_code?: string | null
+          fcm_token_suffix?: string | null
+          http_status?: number | null
+          id?: string
+          reservation_id?: string | null
+          tag?: string | null
+          title?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          audience?: string
+          body?: string | null
+          created_at?: string
+          error_code?: string | null
+          fcm_token_suffix?: string | null
+          http_status?: number | null
+          id?: string
+          reservation_id?: string | null
+          tag?: string | null
+          title?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           audience: string
-          auth: string
+          auth: string | null
+          client_account_id: string | null
           created_at: string
           endpoint: string
           fcm_token: string | null
           id: string
           last_seen_at: string
-          p256dh: string
+          p256dh: string | null
           reservation_id: string | null
           updated_at: string | null
           user_agent: string | null
@@ -328,13 +663,14 @@ export type Database = {
         }
         Insert: {
           audience: string
-          auth: string
+          auth?: string | null
+          client_account_id?: string | null
           created_at?: string
           endpoint: string
           fcm_token?: string | null
           id?: string
           last_seen_at?: string
-          p256dh: string
+          p256dh?: string | null
           reservation_id?: string | null
           updated_at?: string | null
           user_agent?: string | null
@@ -342,13 +678,14 @@ export type Database = {
         }
         Update: {
           audience?: string
-          auth?: string
+          auth?: string | null
+          client_account_id?: string | null
           created_at?: string
           endpoint?: string
           fcm_token?: string | null
           id?: string
           last_seen_at?: string
-          p256dh?: string
+          p256dh?: string | null
           reservation_id?: string | null
           updated_at?: string | null
           user_agent?: string | null
@@ -356,7 +693,52 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "push_subscriptions_client_account_id_fkey"
+            columns: ["client_account_id"]
+            isOneToOne: false
+            referencedRelation: "client_accounts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "push_subscriptions_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "reservations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reservation_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          read_by_chauffeur: boolean
+          read_by_client: boolean
+          reservation_id: string
+          sender: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          read_by_chauffeur?: boolean
+          read_by_client?: boolean
+          reservation_id: string
+          sender: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          read_by_chauffeur?: boolean
+          read_by_client?: boolean
+          reservation_id?: string
+          sender?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_messages_reservation_id_fkey"
             columns: ["reservation_id"]
             isOneToOne: false
             referencedRelation: "reservations"
@@ -368,6 +750,7 @@ export type Database = {
         Row: {
           arrivee: string
           bagages: number | null
+          client_account_id: string | null
           client_email: string | null
           client_name: string | null
           client_phone: string | null
@@ -376,20 +759,28 @@ export type Database = {
           depart: string
           destination: string | null
           distance_km: number | null
+          duree_s: number | null
           email: string | null
+          gps_validated_at: string | null
           heure_course: string | null
           id: string
+          lang: string
           message: string | null
           nb_passagers: number | null
           nom: string
           paiement: string | null
           passagers: number
+          phone_cancel_requested_at: string | null
           pickup_datetime: string
           prix_estime: number | null
           refus_motif: string | null
+          reminder_j1_sent_at: string | null
+          route_coords: Json | null
+          route_label: string | null
           service_type: string
           source: string | null
           status: string
+          suivi_id: string | null
           tarif_jour: boolean | null
           telephone: string
           tracking_id: string | null
@@ -398,6 +789,7 @@ export type Database = {
         Insert: {
           arrivee: string
           bagages?: number | null
+          client_account_id?: string | null
           client_email?: string | null
           client_name?: string | null
           client_phone?: string | null
@@ -406,20 +798,28 @@ export type Database = {
           depart: string
           destination?: string | null
           distance_km?: number | null
+          duree_s?: number | null
           email?: string | null
+          gps_validated_at?: string | null
           heure_course?: string | null
           id?: string
+          lang?: string
           message?: string | null
           nb_passagers?: number | null
           nom: string
           paiement?: string | null
           passagers?: number
+          phone_cancel_requested_at?: string | null
           pickup_datetime: string
           prix_estime?: number | null
           refus_motif?: string | null
+          reminder_j1_sent_at?: string | null
+          route_coords?: Json | null
+          route_label?: string | null
           service_type?: string
           source?: string | null
           status?: string
+          suivi_id?: string | null
           tarif_jour?: boolean | null
           telephone: string
           tracking_id?: string | null
@@ -428,6 +828,7 @@ export type Database = {
         Update: {
           arrivee?: string
           bagages?: number | null
+          client_account_id?: string | null
           client_email?: string | null
           client_name?: string | null
           client_phone?: string | null
@@ -436,26 +837,42 @@ export type Database = {
           depart?: string
           destination?: string | null
           distance_km?: number | null
+          duree_s?: number | null
           email?: string | null
+          gps_validated_at?: string | null
           heure_course?: string | null
           id?: string
+          lang?: string
           message?: string | null
           nb_passagers?: number | null
           nom?: string
           paiement?: string | null
           passagers?: number
+          phone_cancel_requested_at?: string | null
           pickup_datetime?: string
           prix_estime?: number | null
           refus_motif?: string | null
+          reminder_j1_sent_at?: string | null
+          route_coords?: Json | null
+          route_label?: string | null
           service_type?: string
           source?: string | null
           status?: string
+          suivi_id?: string | null
           tarif_jour?: boolean | null
           telephone?: string
           tracking_id?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "reservations_client_account_id_fkey"
+            columns: ["client_account_id"]
+            isOneToOne: false
+            referencedRelation: "client_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reviews: {
         Row: {
@@ -561,11 +978,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      cancel_reservation_public: { Args: { p_id: string }; Returns: boolean }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      email_queue_dispatch: { Args: never; Returns: undefined }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
@@ -598,29 +1015,63 @@ export type Database = {
           tracking_id: string
         }[]
       }
-      get_reservation_public: {
-        Args: { p_id: string }
+      get_reservation_for_suivi: {
+        Args: { p_key: string }
         Returns: {
           arrivee: string
-          bagages: number
+          bagages: number | null
+          client_account_id: string | null
+          client_email: string | null
+          client_name: string | null
+          client_phone: string | null
           created_at: string
+          date_course: string | null
           depart: string
-          email: string
+          destination: string | null
+          distance_km: number | null
+          duree_s: number | null
+          email: string | null
+          gps_validated_at: string | null
+          heure_course: string | null
           id: string
-          message: string
+          lang: string
+          message: string | null
+          nb_passagers: number | null
           nom: string
+          paiement: string | null
           passagers: number
+          phone_cancel_requested_at: string | null
           pickup_datetime: string
+          prix_estime: number | null
+          refus_motif: string | null
+          reminder_j1_sent_at: string | null
+          route_coords: Json | null
+          route_label: string | null
           service_type: string
+          source: string | null
           status: string
+          suivi_id: string | null
+          tarif_jour: boolean | null
           telephone: string
+          tracking_id: string | null
+          updated_at: string | null
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "reservations"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      mark_gps_validated: {
+        Args: { p_reservation_id: string }
         Returns: boolean
       }
       move_to_dlq: {
@@ -640,6 +1091,7 @@ export type Database = {
           read_ct: number
         }[]
       }
+      unsubscribe_push: { Args: { p_endpoint: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user"

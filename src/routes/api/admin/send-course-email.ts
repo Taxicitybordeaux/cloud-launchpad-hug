@@ -21,11 +21,11 @@ export const Route = createFileRoute("/api/admin/send-course-email")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-        const supabaseUrl = process.env.VITE_SUPABASE_URL ?? import.meta.env.VITE_SUPABASE_URL ?? "";
+        const { getTaxiSupabaseConfig } = await import("@/lib/taxi-supabase.server");
+        const { serviceKey } = getTaxiSupabaseConfig();
 
-        if (!serviceKey || !supabaseUrl) {
-          console.error("Missing SUPABASE_SERVICE_ROLE_KEY or VITE_SUPABASE_URL");
+        if (!serviceKey) {
+          console.error("Missing Taxi City backend service key");
           return Response.json({ error: "Server configuration error" }, { status: 500 });
         }
 

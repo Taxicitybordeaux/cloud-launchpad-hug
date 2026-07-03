@@ -1,5 +1,5 @@
-import { Link } from "@tanstack/react-router";
-import { Phone, Menu, X } from "lucide-react";
+import { Link, useLocation } from "@tanstack/react-router";
+import { Phone, Menu, X, UserCircle2 } from "lucide-react";
 import { useState } from "react";
 import logo from "@/assets/logo.jpeg";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -11,7 +11,9 @@ const PHONE_DISPLAY = "06 73 07 23 22";
 
 export function SiteHeader() {
   const t = useT();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
+  if (location.pathname === "/driver") return null;
 
   const links = [
     { to: "/", label: t("nav.home") },
@@ -21,24 +23,25 @@ export function SiteHeader() {
   ] as const;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-md">
-      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-3 sm:h-16 sm:px-4">
-        <Link to="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
+    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/90 backdrop-blur-md pt-[env(safe-area-inset-top)]">
+      <div className="mx-auto grid h-14 max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 sm:h-16 sm:px-4 md:flex md:justify-between">
+        <Link
+          to="/"
+          className="site-header-logo flex min-w-0 shrink-0 items-center overflow-hidden"
+          onClick={() => setOpen(false)}
+          aria-label="Taxi City Bordeaux"
+        >
           <img
             src={logo}
             alt="Taxi City Bordeaux"
-            width={40}
-            height={40}
+            width={512}
+            height={343}
             decoding="async"
-            className="h-10 w-auto rounded-md object-contain sm:h-12"
+            loading="eager"
+            fetchPriority="high"
+            className="site-header-logo-img rounded-md"
           />
-          {/* Show brand name on mobile so users know where they are */}
-          <span className="text-sm font-semibold leading-tight sm:hidden">
-            Taxi City
-            <br />
-            Bordeaux
-          </span>
-          <span className="sr-only sm:not-sr-only sm:text-sm sm:font-semibold">Taxi City Bordeaux</span>
+          <span className="sr-only">Taxi City Bordeaux</span>
         </Link>
 
         <nav className="hidden items-center gap-7 md:flex">
@@ -65,6 +68,13 @@ export function SiteHeader() {
             <Phone className="h-4 w-4 text-primary" /> {PHONE_DISPLAY}
           </a>
           <Link
+            to="/client/login"
+            aria-label="Espace client"
+            className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-semibold transition hover:border-primary"
+          >
+            <UserCircle2 className="h-4 w-4 text-primary" /> {t("nav.account")}
+          </Link>
+          <Link
             to="/reservation"
             className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-[var(--shadow-gold)] transition hover:opacity-90"
           >
@@ -72,23 +82,21 @@ export function SiteHeader() {
           </Link>
         </div>
 
-        {/* Mobile right side: phone shortcut + theme + burger */}
-        <div className="flex items-center gap-1.5 md:hidden">
-          {/* Quick-call button always visible on mobile — most important action */}
+        <div className="site-header-mobile-actions flex min-w-0 shrink-0 items-center gap-1.5 md:hidden">
           <a
             href={`tel:${PHONE}`}
             aria-label="Appeler"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground"
           >
             <Phone className="h-4 w-4" />
           </a>
-          <ThemeToggle />
-          <LanguageSwitcher />
+          <ThemeToggle className="h-10 w-10 shrink-0" />
+          <LanguageSwitcher className="site-header-language shrink-0" />
           <button
             type="button"
             aria-label="Menu"
             onClick={() => setOpen((v) => !v)}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border"
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -117,6 +125,13 @@ export function SiteHeader() {
               >
                 <Phone className="h-5 w-5 text-primary" /> {PHONE_DISPLAY}
               </a>
+              <Link
+                to="/client/login"
+                onClick={() => setOpen(false)}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-3 text-base font-semibold"
+              >
+                <UserCircle2 className="h-5 w-5 text-primary" /> {t("nav.account")}
+              </Link>
               <Link
                 to="/reservation"
                 onClick={() => setOpen(false)}

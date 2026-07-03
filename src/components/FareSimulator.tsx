@@ -2,8 +2,8 @@ import { useEffect, useRef, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Calculator, Phone, ArrowRight, Info, MapPin, Loader2, Clock } from "lucide-react";
 import { useT } from "@/i18n/I18nProvider";
-import { getDistanceAndDurationKm } from "@/lib/osrm";
-import { getCurrentPosition } from "@/lib/geocode";
+import { getDistanceAndDurationKm } from "@/lib/googleRoute";
+import { searchAddress } from "@/lib/googleGeocode";
 
 // ─── Config tarifs ────────────────────────────────────────────
 const PHONE = "0673072322";
@@ -21,6 +21,15 @@ function formatEUR(value: number) {
   }).format(value);
 }
 
+function parisHour(date: Date): number {
+  const parts = new Intl.DateTimeFormat("fr-FR", {
+    timeZone: "Europe/Paris",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  return parseInt(parts.find((p) => p.type === "hour")?.value ?? "0", 10) % 24;
+}
+
 // ─── Tarif mixte ─────────────────────────────────────────────
 /**
  * Étant donné une heure de départ et une durée de trajet (secondes),
@@ -29,7 +38,7 @@ function formatEUR(value: number) {
  */
 function computeMixedRate(departure: Date, durationSec: number): number {
   if (durationSec <= 0) {
-    const h = departure.getHours();
+    const h = parisHour(departure);
     return h >= 7 && h < 19 ? RATE_DAY : RATE_NIGHT;
   }
 
@@ -42,7 +51,7 @@ function computeMixedRate(departure: Date, durationSec: number): number {
 
   while (cursor < end) {
     const slice = Math.min(STEP, end - cursor);
-    const h = new Date(cursor).getHours();
+    const h = parisHour(new Date(cursor));
     if (h >= 7 && h < 19) dayMs += slice;
     else nightMs += slice;
     cursor += slice;
@@ -53,23 +62,14 @@ function computeMixedRate(departure: Date, durationSec: number): number {
   return (dayMs / total) * RATE_DAY + (nightMs / total) * RATE_NIGHT;
 }
 
-// ─── Types ───────────────────────────────────────────────────
-interface NominatimResult {
-  place_id: number;
-  display_name: string;
-  lat: string;
-  lon: string;
-}
-
 // ─── Géocodage silencieux (1er résultat Nominatim) ───────────
-import { geocodeAddress } from "@/lib/geocode";
 
 async function geocodeSilent(query: string): Promise<[number, number] | null> {
   if (query.trim().length < 3) return null;
   try {
-    const c = await geocodeAddress(query);
-    if (!c) return null;
-    return [c.lng, c.lat];
+    const results = await searchAddress(query, 1);
+    if (!results.length) return null;
+    return [results[0].coord[1], results[0].coord[0]]; // [lng, lat]
   } catch {
     return null;
   }
@@ -174,9 +174,9 @@ function useRoute(from: [number, number] | null, to: [number, number] | null) {
       try {
         const dd = await getDistanceAndDurationKm(from, to);
         if (dd && dd.distanceKm != null) {
-          setRoute({ km: Math.round(dd.distanceKm * 10) / 10, durationSec: Math.round(dd.durationSec) });
+          setRoute({ km: Math.round(dd.distanceKm * 10) / 10, durationSec: Math.round(dd.dureeS) });
         } else {
-          throw new Error('no route');
+          throw new Error("no route");
         }
       } catch {
         const km = Math.round(haversineKm(from, to) * 1.3 * 10) / 10;
@@ -218,7 +218,8 @@ export function FareSimulator() {
     return () => clearInterval(id);
   }, []);
 
-  const isDay = now.getHours() >= 7 && now.getHours() < 19;
+  const currentParisHour = parisHour(now);
+  const isDay = currentParisHour >= 7 && currentParisHour < 19;
   const periodLabel = isDay
     ? `${t("sim.period_day")} ${formatEUR(RATE_DAY)} / km`
     : `${t("sim.period_night")} ${formatEUR(RATE_NIGHT)} / km`;
@@ -236,12 +237,21 @@ export function FareSimulator() {
 
   const handleUseMyPosition = async () => {
     setGeoMsg(null);
-    const pos = await getCurrentPosition({ enableHighAccuracy: true }, 10000);
+    const pos = await new Promise<GeolocationPosition | null>((resolve) => {
+      if (!navigator.geolocation) {
+        resolve(null);
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(resolve, () => resolve(null), {
+        enableHighAccuracy: true,
+        timeout: 10000,
+      });
+    });
     if (!pos) {
       setGeoMsg("Impossible d'obtenir votre position");
       return;
     }
-    setFromCoord([pos.lng, pos.lat]);
+    setFromCoord([pos.coords.longitude, pos.coords.latitude]);
     setGeoMsg("Position utilisée comme origine");
     setTimeout(() => setGeoMsg(null), 3000);
   };
@@ -264,7 +274,7 @@ export function FareSimulator() {
             errorMsg={t("sim.addr_error")}
             onCoord={setFromCoord}
           />
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <button
               type="button"
               onClick={handleUseMyPosition}
@@ -272,7 +282,7 @@ export function FareSimulator() {
             >
               📍 Utiliser ma position
             </button>
-            {geoMsg && <div style={{ color: '#94a3b8', fontSize: 13 }}>{geoMsg}</div>}
+            {geoMsg && <div style={{ color: "#94a3b8", fontSize: 13 }}>{geoMsg}</div>}
           </div>
           <AddressField
             id="sim-to"

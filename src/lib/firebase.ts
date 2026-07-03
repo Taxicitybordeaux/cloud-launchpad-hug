@@ -1,9 +1,7 @@
-// Firebase Cloud Messaging client integration
-// Credentials Web Firebase sont publics par design — OK en clair côté client.
-
+// Firebase Cloud Messaging — client integration
+// Les credentials Web Firebase sont publics par design.
 import { initializeApp, type FirebaseApp } from "firebase/app";
-import { getMessaging, getToken, onMessage, isSupported, type Messaging } from "firebase/messaging";
-import { supabase } from "@/integrations/supabase/client";
+import { deleteToken, getMessaging, getToken, onMessage, isSupported, type Messaging } from "firebase/messaging";
 
 export const firebaseConfig = {
   apiKey: "AIzaSyB8wYcBq5-KVdPDAnXGcWzcCkTYmftTKdY",
@@ -14,8 +12,12 @@ export const firebaseConfig = {
   appId: "1:702667833979:web:653978ae325adfa06898de",
 };
 
-export const FCM_VAPID_KEY =
-  "BPCVh_FRLBkhOWLLxdaKnD29L6HRNS44w4wHX_AE2DV0a0-Uc6OoofT8SldZ-V4_yMWInXt4xqbvkhGiFW-_N20";
+// Clé VAPID *Web Push* de Firebase (Console → Cloud Messaging → Web configuration)
+export const FCM_VAPID_KEY = "BPCVh_FRLBkhOWLLxdaKnD29L6HRNS44w4wHX_AE2DV0a0-Uc6OoofT8SldZ-V4_yMWInXt4xqbvkhGiFW-_N20";
+
+// FCM révoque les tokens après ~60 jours d'inactivité.
+// On force un refresh silencieux tous les 50 jours pour garder le token vivant indéfiniment.
+const TOKEN_MAX_AGE_MS = 50 * 24 * 60 * 60 * 1000; // 50 jours
 
 let app: FirebaseApp | null = null;
 let messaging: Messaging | null = null;
@@ -37,35 +39,93 @@ export async function initFirebase(): Promise<Messaging | null> {
   }
 }
 
-/**
- * Demande la permission, récupère le token FCM, et enregistre dans push_subscriptions.
- * Idempotent : on upsert sur (endpoint = token) pour éviter les doublons.
- */
-export async function requestAndSaveFCMToken(audience: "admin" | "chauffeur" | "client" = "client"): Promise<string | null> {
+export async function getFcmToken(options: { forceRefresh?: boolean } = {}): Promise<string | null> {
   if (typeof window === "undefined") return null;
-  if (!("Notification" in window)) return null;
+  if (!("Notification" in window) || !("serviceWorker" in navigator)) return null;
 
   const msg = await initFirebase();
   if (!msg) return null;
 
   try {
-    const permission = await Notification.requestPermission();
-    if (permission !== "granted") {
-      console.warn("[FCM] Permission denied");
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") {
+      console.warn("[FCM] Permission refusée :", perm);
       return null;
     }
 
-    // Le SW Firebase doit être enregistré
-    let swReg: ServiceWorkerRegistration | undefined;
-    if ("serviceWorker" in navigator) {
-      try {
-        swReg =
-          (await navigator.serviceWorker.getRegistration("/firebase-messaging-sw.js")) ||
-          (await navigator.serviceWorker.register("/firebase-messaging-sw.js", { scope: "/" }));
-        await navigator.serviceWorker.ready;
-      } catch (err) {
-        console.warn("[FCM] SW registration failed", err);
+    // On cherche le SW Firebase par son scriptURL exact parmi tous les SW enregistrés.
+    // getRegistration("/") retourne n'importe quel SW sur le scope "/" (ex: Vite HMR)
+    // ce qui fait que FCM reçoit le mauvais SW → token OK sur desktop mais notifs silencieuses sur mobile.
+    const SW_URL = "/firebase-messaging-sw.js";
+    const allRegs = await navigator.serviceWorker.getRegistrations();
+    let swReg = allRegs.find(
+      (r) =>
+        r.active?.scriptURL.includes(SW_URL) ||
+        r.installing?.scriptURL.includes(SW_URL) ||
+        r.waiting?.scriptURL.includes(SW_URL),
+    );
+    if (!swReg) {
+      swReg = await navigator.serviceWorker.register(SW_URL, { scope: "/", updateViaCache: "none" });
+    } else {
+      await swReg.update().catch((err) => console.warn("[FCM] SW update check failed", err));
+      // Si une nouvelle version est en attente, force la prise de contrôle.
+      if (swReg.waiting) {
+        swReg.waiting.postMessage({ type: "FCM_SW_SKIP_WAITING" });
       }
+    }
+
+    // Log de la version active du SW pour debug clic notif
+    try {
+      const active = swReg.active;
+      if (active) {
+        const channel = new MessageChannel();
+        channel.port1.onmessage = (ev) => console.log("[FCM] SW version active:", ev.data?.version);
+        active.postMessage({ type: "FCM_SW_VERSION" }, [channel.port2]);
+      }
+    } catch (_) {}
+
+    // Attendre que le SW Firebase soit actif avant de demander le token
+    // Timeout de 8s pour éviter de bloquer indéfiniment si gstatic.com est lent
+    if (swReg.installing || swReg.waiting) {
+      await new Promise<void>((resolve) => {
+        const sw = swReg!.installing ?? swReg!.waiting!;
+        const timeout = setTimeout(resolve, 8000); // résolution forcée si trop long
+        sw.addEventListener("statechange", function handler() {
+          if (sw.state === "activated" || sw.state === "redundant") {
+            clearTimeout(timeout);
+            sw.removeEventListener("statechange", handler);
+            resolve();
+          }
+        });
+      });
+    }
+
+    // Vérification finale : si le SW est toujours pas actif, on attend navigator.serviceWorker.ready
+    if (!swReg.active) {
+      const readyReg = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<null>((r) => setTimeout(() => r(null), 5000)),
+      ]);
+      if (!readyReg) {
+        console.warn("[FCM] SW not ready after timeout, proceeding anyway");
+      }
+    }
+
+    // Retourner le token caché si valide et pas trop vieux (< 50 jours)
+    const cachedToken = window.localStorage.getItem("fcm_token");
+    const lastRefresh = parseInt(window.localStorage.getItem("fcm_token_last_refresh") ?? "0", 10);
+    const tokenAge = Date.now() - lastRefresh;
+    const tokenExpired = tokenAge > TOKEN_MAX_AGE_MS;
+
+    if (!options.forceRefresh && cachedToken && !tokenExpired) {
+      console.log("[FCM] Token en cache utilisé :", cachedToken.slice(-8), `(${Math.floor(tokenAge / 86400000)}j)`);
+      return cachedToken;
+    }
+
+    // Token absent, expiré (>50j) ou forceRefresh explicite → rotation silencieuse
+    if (cachedToken) {
+      await deleteToken(msg).catch((err) => console.warn("[FCM] old token delete skipped", err));
+      window.localStorage.removeItem("fcm_token");
     }
 
     const token = await getToken(msg, {
@@ -73,45 +133,27 @@ export async function requestAndSaveFCMToken(audience: "admin" | "chauffeur" | "
       serviceWorkerRegistration: swReg,
     });
 
-    if (!token) {
-      console.warn("[FCM] No token returned");
-      return null;
+    if (token) {
+      console.log("[FCM] Token obtenu :", token);
+      window.localStorage.setItem("fcm_token", token);
+      window.localStorage.setItem("fcm_token_last_refresh", String(Date.now()));
+    } else {
+      console.warn("[FCM] Token vide — vérifier VAPID key et SW");
     }
 
-    // Sauvegarder le token dans push_subscriptions
-    // On utilise l'endpoint = token FCM pour rester unique
-    const fakeP256dh = "fcm";
-    const fakeAuth = "fcm";
-    try {
-      await supabase.from("push_subscriptions").insert({
-        audience,
-        endpoint: `fcm://${token}`,
-        p256dh: fakeP256dh,
-        auth: fakeAuth,
-        fcm_token: token,
-        user_agent: navigator.userAgent.slice(0, 500),
-      });
-    } catch (err) {
-      // Ignore les conflits d'unicité — l'utilisateur a juste déjà ce token enregistré
-      console.warn("[FCM] save token (probable duplicate):", err);
-    }
-
-    return token;
+    return token || null;
   } catch (err) {
-    console.error("[FCM] requestAndSaveFCMToken failed", err);
+    console.error("[FCM] getFcmToken failed", err);
     return null;
   }
 }
 
-/**
- * Écoute les messages reçus en premier plan (app ouverte).
- * Les messages en arrière-plan sont gérés par firebase-messaging-sw.js
- */
 export function onForegroundMessage(callback: (payload: any) => void): () => void {
   let unsub: (() => void) | null = null;
   initFirebase().then((msg) => {
     if (!msg) return;
     unsub = onMessage(msg, (payload) => {
+      console.log("[FCM] Message foreground reçu :", payload);
       try {
         callback(payload);
       } catch (err) {
@@ -122,4 +164,32 @@ export function onForegroundMessage(callback: (payload: any) => void): () => voi
   return () => {
     if (unsub) unsub();
   };
+}
+
+/**
+ * Affiche une notification native quand l'app est en foreground.
+ * À appeler dans ton composant racine (App.tsx ou _app.tsx) :
+ *
+ *   useEffect(() => {
+ *     return setupForegroundNotifications();
+ *   }, []);
+ */
+export function setupForegroundNotifications(): () => void {
+  return onForegroundMessage((payload) => {
+    const title = payload.notification?.title ?? "Taxi City Bordeaux";
+    const options = {
+      body: payload.notification?.body ?? "",
+      icon: payload.notification?.icon ?? "/favicon.ico",
+      badge: "/favicon.ico",
+      tag: payload.data?.tag ?? "taxi-fcm",
+      data: payload.data ?? {},
+      vibrate: [200, 100, 200],
+      requireInteraction: true,
+    } as NotificationOptions;
+
+    // Afficher via le Service Worker pour garantir l'affichage même en foreground
+    navigator.serviceWorker.ready.then((reg) => {
+      reg.showNotification(title, options);
+    });
+  });
 }

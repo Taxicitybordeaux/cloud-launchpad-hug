@@ -13,19 +13,15 @@ export function WhatsAppFloat() {
   const { t, lang } = useI18n();
   const location = useLocation();
 
-  // ── Monter uniquement côté client pour éviter l'erreur d'hydratation ──
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   const isHiddenPage =
     location.pathname.startsWith("/tracking/") ||
-    location.pathname.startsWith("/suivi/") ||
     location.pathname.startsWith("/reservation/") ||
     location.pathname.startsWith("/scan/") ||
     location.pathname.startsWith("/admin") ||
-    location.pathname.startsWith("/reserver");
+    location.pathname.startsWith("/reserver") ||
+    location.pathname.startsWith("/client") ||
+    location.pathname.startsWith("/suivi") ||
+    location.pathname === "/driver";
 
   const draft = useReservationDraft();
   const message = draft ? buildReservationMessage(draft, lang) : t("wa.default");
@@ -42,6 +38,11 @@ export function WhatsAppFloat() {
 
   const barRef = useRef<HTMLDivElement | null>(null);
   const [barHeight, setBarHeight] = useState<number>(0);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const el = barRef.current;
@@ -64,7 +65,7 @@ export function WhatsAppFloat() {
   }, [barHeight]);
 
   // Ne rien rendre côté serveur ni avant hydratation
-  if (!mounted || isHiddenPage) return null;
+  if (!mounted || typeof document === "undefined" || isHiddenPage) return null;
 
   const btnBase: React.CSSProperties = {
     flex: 1,
@@ -103,7 +104,7 @@ export function WhatsAppFloat() {
           gap: 8,
         }}
         role="navigation"
-        aria-label="Actions de contact rapides"
+        aria-label={t("wa.aria.nav")}
       >
         <a
           href={waHref}
@@ -111,10 +112,10 @@ export function WhatsAppFloat() {
           rel="noopener noreferrer"
           onClick={handleClick("whatsapp", "mobile_sticky")}
           style={{ ...btnBase, background: "#25D366" }}
-          aria-label="Contacter sur WhatsApp"
+          aria-label={t("wa.aria.whatsapp")}
         >
           <MessageCircle size={20} aria-hidden="true" />
-          <span>WhatsApp</span>
+          <span>{t("wa.btn.whatsapp")}</span>
         </a>
         <a
           href={`tel:${PHONE}`}
@@ -153,7 +154,7 @@ export function WhatsAppFloat() {
           target="_blank"
           rel="noopener noreferrer"
           onClick={handleClick("whatsapp", "desktop_float")}
-          aria-label="Contacter sur WhatsApp"
+          aria-label={t("wa.aria.whatsapp")}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -169,7 +170,7 @@ export function WhatsAppFloat() {
           }}
         >
           <MessageCircle size={20} aria-hidden="true" />
-          WhatsApp
+          {t("wa.btn.whatsapp")}
         </a>
         <a
           href={`tel:${PHONE}`}

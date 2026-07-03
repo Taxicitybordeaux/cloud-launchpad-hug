@@ -21,26 +21,26 @@ function applyDocDir(l: Lang) {
   document.documentElement.dir = d;
 }
 
-export function I18nProvider({ children }: { children: ReactNode }) {
-  // SSR-safe: always start with 'fr', then hydrate from localStorage / navigator on client.
-  const [lang, setLangState] = useState<Lang>("fr");
+function readStoredLang(): Lang {
+  // Appelé uniquement côté client (dans useState initializer lazy).
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored && isLang(stored)) return stored;
+  } catch {
+    /* noop */
+  }
+  return "fr";
+}
 
+export function I18nProvider({ children }: { children: ReactNode }) {
+  // Lazy initializer : lit localStorage au premier rendu CLIENT.
+  // Côté SSR typeof window === 'undefined' → le lazy fn retourne 'fr'.
+  const [lang, setLangState] = useState<Lang>(() => (typeof window === "undefined" ? "fr" : readStoredLang()));
+
+  // Synchronise document.documentElement dès le premier rendu client.
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored && isLang(stored)) {
-        setLangState(stored);
-        applyDocDir(stored);
-        return;
-      }
-      const nav = (navigator.language || "fr").slice(0, 2).toLowerCase();
-      if (isLang(nav)) {
-        setLangState(nav);
-        applyDocDir(nav);
-      }
-    } catch {
-      /* noop */
-    }
+    applyDocDir(lang);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const setLang = (l: Lang) => {

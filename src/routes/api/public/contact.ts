@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { createClient } from '@supabase/supabase-js'
 import * as React from 'react'
 import { render } from '@react-email/components'
 import { z } from 'zod'
@@ -22,11 +21,7 @@ export const Route = createFileRoute('/api/public/contact')({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-        if (!supabaseUrl || !serviceKey) {
-          return Response.json({ error: 'Server config error' }, { status: 500 })
-        }
+        const { getTaxiSupabaseAdmin } = await import('@/lib/taxi-supabase.server')
 
         let raw: unknown
         try { raw = await request.json() } catch {
@@ -38,7 +33,7 @@ export const Route = createFileRoute('/api/public/contact')({
         }
         const data = parsed.data
 
-        const supabase = createClient(supabaseUrl, serviceKey)
+        const supabase = getTaxiSupabaseAdmin()
         const template = TEMPLATES[TEMPLATE_NAME]
         if (!template || !template.to) {
           return Response.json({ error: 'Template not configured' }, { status: 500 })
@@ -89,7 +84,7 @@ export const Route = createFileRoute('/api/public/contact')({
           payload: {
             message_id: messageId,
             to: recipient,
-            from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
+            from: `${SITE_NAME} <noreply@${SENDER_DOMAIN}>`,
             reply_to: data.email,
             sender_domain: SENDER_DOMAIN,
             subject,

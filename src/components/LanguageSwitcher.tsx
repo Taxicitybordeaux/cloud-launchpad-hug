@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Globe, Check } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { LANGUAGES, type Lang } from "@/i18n/dict";
+import { FlagIcon } from "@/components/FlagIcon";
 
 export function LanguageSwitcher({ className = "" }: { className?: string }) {
   const { lang, setLang } = useI18n();
@@ -23,33 +24,37 @@ export function LanguageSwitcher({ className = "" }: { className?: string }) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label="Language"
-        className="inline-flex h-10 items-center gap-1.5 rounded-md border border-border px-2.5 text-sm font-medium transition hover:border-primary"
+        className="inline-flex h-9 items-center justify-center gap-1 rounded-md border border-border px-2 text-sm font-medium transition hover:border-primary sm:h-10 sm:gap-1.5 sm:px-2.5"
       >
         <Globe className="h-4 w-4 text-primary" />
-        <span>{current.flag}</span>
-        <span className="hidden sm:inline uppercase">{current.code}</span>
+        <FlagIcon code={current.code} />
+        <span className="hidden sm:inline uppercase text-xs">{current.code}</span>
       </button>
       {open && (
-        <div className="absolute end-0 z-50 mt-2 w-44 overflow-hidden rounded-md border border-border bg-background shadow-lg">
-          {LANGUAGES.map((l) => (
-            <button
-              key={l.code}
-              type="button"
-              onClick={() => {
-                setLang(l.code as Lang);
-                setOpen(false);
-              }}
-              className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-sm transition hover:bg-secondary ${
-                l.code === lang ? "text-primary font-semibold" : ""
-              }`}
-            >
+        <>
+          {/* Overlay transparent pour fermer au touch sur mobile */}
+          <div className="fixed inset-0 z-[99]" onClick={() => setOpen(false)} />
+          <div className="absolute end-0 z-[100] mt-2 w-48 overflow-hidden rounded-xl border border-border bg-background shadow-xl">
+            {LANGUAGES.map((l) => (
+              <button
+                key={l.code}
+                type="button"
+                onClick={() => {
+                  setLang(l.code as Lang);
+                  setOpen(false);
+                }}
+                className={`flex w-full items-center justify-between gap-2 px-3 py-2.5 text-sm transition hover:bg-secondary ${
+                  l.code === lang ? "text-primary font-semibold" : ""
+                }`}
+              >
               <span className="flex items-center gap-2">
-                <span>{l.flag}</span> {l.label}
-              </span>
-              {l.code === lang && <Check className="h-4 w-4" />}
-            </button>
-          ))}
-        </div>
+                  <FlagIcon code={l.code} /> {l.label}
+                </span>
+                {l.code === lang && <Check className="h-4 w-4" />}
+              </button>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
