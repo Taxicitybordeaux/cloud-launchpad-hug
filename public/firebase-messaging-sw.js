@@ -177,8 +177,13 @@ self.addEventListener("push", (event) => {
 
   if (!title && !body) return;
 
-  // Même verrou synchrone que onBackgroundMessage — si l'autre handler a
-  // déjà réclamé cette clé (même push physique), on sort sans afficher.
+  // Si `notification` racine est présent, iOS/APNs affiche déjà nativement
+  // → on ne réaffiche pas (sinon doublon sur iPhone/iPad).
+  if (payload.notification) {
+    console.log("[FCM SW] push natif: notification racine → skip (APNs affiche)");
+    return;
+  }
+
   if (!claimOnce(dedupeKey(data, notif))) {
     console.log("[FCM SW] push natif: doublon détecté, skip");
     return;
