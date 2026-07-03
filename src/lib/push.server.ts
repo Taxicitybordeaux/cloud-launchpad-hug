@@ -263,7 +263,8 @@ export async function sendPushToAudience(
   // Clé = tag du payload par défaut (unique par événement). Si aucun tag n'est
   // fourni, on ne déduplique pas (message générique).
   const dedupKey = opts.dedupKey ?? payload.tag ?? null;
-  if (dedupKey) {
+  const dedupHealth = await checkPushDedupHealth();
+  if (dedupKey && dedupHealth.ok) {
     const expiresAt = new Date(Date.now() + DEDUP_WINDOW_MS).toISOString();
     const { data: inserted, error: dedupError } = await supabaseAdmin
       .from("push_dedup" as any)
