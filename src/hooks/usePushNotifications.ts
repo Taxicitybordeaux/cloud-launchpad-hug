@@ -5,7 +5,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { subscribePush, type PushAudience } from "@/lib/push.functions";
-import { getFcmToken } from "@/lib/firebase";
+import { getFcmToken, getPushSupportIssue } from "@/lib/firebase";
 
 export type PushStatus = "idle" | "loading" | "granted" | "denied" | "unsupported";
 
@@ -27,12 +27,7 @@ export function usePushNotifications(opts: UsePushOptions = {}) {
 
   // ── Détection support initial ──
   useEffect(() => {
-    if (
-      typeof window === "undefined" ||
-      !("Notification" in window) ||
-      !("serviceWorker" in navigator) ||
-      !("PushManager" in window)
-    ) {
+    if (getPushSupportIssue()) {
       setStatus("unsupported");
       return;
     }
@@ -44,12 +39,7 @@ export function usePushNotifications(opts: UsePushOptions = {}) {
   // ── Auto-subscribe au montage ──
   useEffect(() => {
     if (!autoAudience) return;
-    if (
-      typeof window === "undefined" ||
-      !("Notification" in window) ||
-      !("serviceWorker" in navigator) ||
-      !("PushManager" in window)
-    )
+    if (getPushSupportIssue())
       return;
 
     let cancelled = false;
@@ -98,12 +88,7 @@ export function usePushNotifications(opts: UsePushOptions = {}) {
   // ── Subscribe manuel (pour les appels explicites) ──
   const subscribe = useCallback(
     async (audience: PushAudience = "client", resId?: string | null, accountId?: string | null): Promise<boolean> => {
-      if (
-        typeof window === "undefined" ||
-        !("Notification" in window) ||
-        !("serviceWorker" in navigator) ||
-        !("PushManager" in window)
-      ) {
+      if (getPushSupportIssue()) {
         setStatus("unsupported");
         return false;
       }
@@ -124,7 +109,7 @@ export function usePushNotifications(opts: UsePushOptions = {}) {
 
         const fcm = await getFcmToken({ requestPermission: false });
         if (!fcm) {
-          setStatus(Notification.permission === "denied" ? "denied" : "unsupported");
+          setStatus(Notification.permission === "denied" ? "denied" : "idle");
           return false;
         }
         await subscribeFn({

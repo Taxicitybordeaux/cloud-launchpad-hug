@@ -22,13 +22,35 @@ const TOKEN_MAX_AGE_MS = 50 * 24 * 60 * 60 * 1000; // 50 jours
 let app: FirebaseApp | null = null;
 let messaging: Messaging | null = null;
 
+export function getPushSupportIssue(): string | null {
+  if (typeof window === "undefined") return "server";
+  if (!("Notification" in window)) return "no-notification-api";
+  if (!("serviceWorker" in navigator)) return "no-service-worker";
+  if (!("fetch" in window)) return "no-fetch";
+  if (typeof ServiceWorkerRegistration !== "undefined" && !("showNotification" in ServiceWorkerRegistration.prototype)) {
+    return "no-show-notification";
+  }
+  return null;
+}
+
+function isIOSPwa(): boolean {
+  if (typeof window === "undefined") return false;
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (ua.includes("Mac") && navigator.maxTouchPoints > 1);
+  const standalone = window.matchMedia?.("(display-mode: standalone)").matches || (window.navigator as any).standalone === true;
+  return isIOS && standalone;
+}
+
 export async function initFirebase(): Promise<Messaging | null> {
   if (typeof window === "undefined") return null;
   try {
     const supported = await isSupported();
     if (!supported) {
-      console.warn("[FCM] Not supported in this browser");
-      return null;
+      if (!isIOSPwa()) {
+        console.warn("[FCM] Not supported in this browser", getPushSupportIssue());
+        return null;
+      }
+      console.warn("[FCM] SDK support check failed on iOS PWA — trying token flow anyway", getPushSupportIssue());
     }
     if (!app) app = initializeApp(firebaseConfig);
     if (!messaging) messaging = getMessaging(app);
