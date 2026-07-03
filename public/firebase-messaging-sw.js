@@ -7,7 +7,7 @@
 // Le navigateur considère le fichier modifié → install/activate immédiats
 // grâce à skipWaiting()/clients.claim(). Pas besoin de purge manuelle.
 // ─────────────────────────────────────────────────────────────────────────────
-const SW_VERSION = "2026-07-03.ios-root-notification-only";
+const SW_VERSION = "2026-07-03.client-click-relative-url";
 console.log("[FCM SW] boot version =", SW_VERSION);
 
 // Deep links autorisés. Toute URL qui pointe vers /admin/* est REFUSÉE
