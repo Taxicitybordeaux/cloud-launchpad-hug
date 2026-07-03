@@ -1521,8 +1521,6 @@ function ReservationPage() {
   return (
     <div
       style={{
-        position: "fixed",
-        inset: 0,
         background: "#f5f0e8",
         fontFamily: "'DM Sans',sans-serif",
         display: "flex",
@@ -1532,8 +1530,7 @@ function ReservationPage() {
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
         paddingLeft: "env(safe-area-inset-left, 0px)",
         paddingRight: "env(safe-area-inset-right, 0px)",
-        height: "100dvh",
-        minHeight: "100svh",
+        minHeight: "100dvh",
       }}
     >
       <style>{`
@@ -1555,9 +1552,7 @@ function ReservationPage() {
       <div
         dir={dir}
         style={{
-          flex: 1,
           background: "#f5f0e8",
-          minHeight: 0,
           display: "flex",
           flexDirection: "column",
           overflowX: "hidden",
@@ -1633,7 +1628,6 @@ function ReservationPage() {
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
             gap: 8,
-            flexShrink: 0,
           }}
         >
           {[
@@ -1698,13 +1692,10 @@ function ReservationPage() {
           ))}
         </div>
 
-        {/* Zone scrollable */}
+        {/* Contenu du formulaire */}
         <div
           style={{
-            flex: 1,
-            overflowY: "auto",
             padding: "20px 16px max(24px, env(safe-area-inset-bottom, 0px))",
-            WebkitOverflowScrolling: "touch",
             display: "flex",
             flexDirection: "column",
             gap: 16,
@@ -2423,14 +2414,15 @@ function ReservationPage() {
           <div style={{ height: 20 }} />
         </div>
 
-        {/* ── Bouton notifs client FIXE (hors scrollable) ── */}
+        {/* ── Bouton notifs client — simple carte dans la page ── */}
         {"Notification" in window ? (
           <div
             style={{
               background: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(250,249,247,0.95) 100%)",
-              borderTop: "1px solid rgba(201,168,76,0.2)",
-              padding: "12px 16px max(16px, env(safe-area-inset-bottom, 0px))",
-              flexShrink: 0,
+              border: "1px solid rgba(201,168,76,0.2)",
+              borderRadius: 14,
+              margin: "0 16px 20px",
+              padding: "12px 16px",
               display: "flex",
               flexDirection: "column",
               gap: 8,
