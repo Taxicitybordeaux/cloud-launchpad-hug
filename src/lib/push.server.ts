@@ -126,12 +126,14 @@ async function sendFcmToToken(
 ): Promise<{ ok: boolean; status: number; errorCode?: string }> {
   const url = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
   const clickUrl = resolvePushUrl(payload.url);
+  const tag = payload.tag || "taxi-fcm";
   const body = {
     message: {
       token,
-      // NOTE: on n'envoie PAS de champ `notification` racine — sinon iOS/Android
-      // affichent une notif système EN PLUS de celle affichée par notre SW
-      // (doublon). On garde uniquement le bloc `webpush` qui passe par le SW.
+      // Root `notification` REQUIS pour la livraison iOS Safari PWA (APNs).
+      // Sans ce champ, iOS ne réveille pas le device → 0 notif reçue.
+      // Le SW détecte payload.notification et NE réaffiche PAS → pas de doublon.
+      notification: { title: payload.title, body: payload.body },
       webpush: {
         headers: payload.requireInteraction ? { Urgency: "high", TTL: "86400" } : { TTL: "3600" },
         notification: {
@@ -139,14 +141,14 @@ async function sendFcmToToken(
           body: payload.body,
           icon: payload.icon || "/favicon.ico",
           badge: "/favicon.ico",
-          tag: payload.tag || "taxi-fcm",
+          tag,
           requireInteraction: !!payload.requireInteraction,
           vibrate: [200, 100, 200],
         },
         fcm_options: { link: clickUrl },
-        data: { url: clickUrl, tag: payload.tag || "taxi-fcm" },
+        data: { url: clickUrl, tag },
       },
-      data: { url: clickUrl, tag: payload.tag || "taxi-fcm" },
+      data: { url: clickUrl, tag },
     },
   };
   const res = await fetch(url, {
