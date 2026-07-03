@@ -9,6 +9,7 @@ export type PushPayload = {
   tag?: string;
   icon?: string;
   requireInteraction?: boolean;
+  data?: Record<string, unknown>;
 };
 
 export type PushAudience = "admin" | "chauffeur" | "client";
