@@ -987,6 +987,7 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      get_active_visitor_count: { Args: { p_scope?: string }; Returns: number }
       get_reservation_by_tracking: {
         Args: { p_tracking_id: string }
         Returns: {
