@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
+import { normalizePushLang } from "@/lib/push-i18n.server";
 
 const TEMPLATE_NAME = "reservation-client-confirmation";
 
 const schema = z.object({
-  lang: z.enum(["fr", "en", "es", "it", "ar"]).optional(),
+  lang: z.enum(["fr", "en", "es", "pt", "it", "ar"]).optional(),
   nom: z.string().min(1).max(100),
   email: z.string().email().max(255),
   pickup_datetime: z.string().min(1).max(50),
@@ -44,7 +45,7 @@ export const Route = createFileRoute("/api/public/notify-reservation-client")({
           log("error", { stage: "validation", issues: parsed.error.flatten() });
           return Response.json({ error: "invalid" }, { status: 400 });
         }
-        const data = parsed.data;
+        const data = { ...parsed.data, lang: normalizePushLang(parsed.data.lang) };
 
         // Anti-relay : la résa existe et l'email correspond
         const supabase = getTaxiSupabaseAdmin();
