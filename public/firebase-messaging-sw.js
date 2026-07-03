@@ -11,6 +11,7 @@ const FORBIDDEN_PATH_PREFIXES = ["/admin"];
 // Le SDK Firebase ajoute son propre notificationclick et peut stopper les
 // listeners suivants quand aucun fcm_options.link n'est présent.
 self.addEventListener("notificationclick", (event) => {
+  event.stopImmediatePropagation?.();
   event.notification.close();
 
   const notifData = event.notification.data || {};
