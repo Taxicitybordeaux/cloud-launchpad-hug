@@ -416,7 +416,7 @@ function DriverApp() {
     };
   }, []);
 
-  // Badge avis en attente
+  // Badge avis en attente + toast in-app à chaque nouvel avis
   useEffect(() => {
     const load = async () => {
       const { count } = await (supabase as any)
@@ -426,6 +426,42 @@ function DriverApp() {
       setPendingAvis(count ?? 0);
     };
     load();
+    const ch = (supabase as any)
+      .channel("drv-avis-badge")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "avis" },
+        (payload: any) => {
+          const row = payload?.new ?? {};
+          const stars = "★".repeat(Math.max(0, Math.min(5, Number(row.note) || 0)));
+          const who = row.prenom || row.nom || "Client";
+          const extract = (row.commentaire || "").toString().slice(0, 60);
+          toast.success(`⭐ Nouvel avis de ${who} ${stars}`, {
+            description: extract ? `"${extract}${extract.length >= 60 ? "…" : ""}"` : undefined,
+            duration: 8000,
+          });
+          try {
+            if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+              (navigator as any).vibrate?.([80, 40, 80]);
+            }
+          } catch {}
+          load();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "avis" },
+        load
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "avis" },
+        load
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
   }, []);
 
   // Badge messages non lus (messages clients sans réponse driver)
