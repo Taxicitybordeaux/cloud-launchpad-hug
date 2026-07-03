@@ -3,6 +3,7 @@ import { Star, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useT } from "@/i18n/I18nProvider";
 import { toast } from "sonner";
+import { notifyNewReview } from "@/lib/push.functions";
 
 export function ReviewForm({ onSubmitted }: { onSubmitted?: () => void }) {
   const t = useT();
