@@ -1025,6 +1025,7 @@ function CourseCard({
         .update({ date_heure: newDatetime })
         .eq("id", resa.id);
       if (error) throw error;
+      broadcastSuiviUpdate(resa.id, "reschedule");
       const email = resa.client_email || resa.email;
       const name = resa.client_name || "Client";
       if (email) {
