@@ -20,13 +20,40 @@ export function ClientPushOptInCard({ clientAccountId }: ClientPushOptInCardProp
   async function enable() {
     setBusy(true);
     try {
-      const ok = await subscribe("client", null, clientAccountId ?? null);
-      if (ok) toast.success(t("client.push.toast_ok"));
-      else toast.error(t("client.push.toast_fail"));
+      // Surfacer l'erreur réelle du serverFn (RLS, réseau, FCM token null, etc.)
+      // au lieu du toast générique — permet de diagnostiquer pourquoi la ligne
+      // DB n'apparaît pas malgré Notification.permission === "granted".
+      const { getFcmToken } = await import("@/lib/firebase");
+      const { subscribePush } = await import("@/lib/push.functions");
+      const fcm = await getFcmToken({ forceRefresh: true });
+      if (!fcm) {
+        toast.error("Token FCM introuvable — vérifiez que l'app est installée sur l'écran d'accueil (iOS)");
+        return;
+      }
+      try {
+        await subscribePush({
+          data: {
+            audience: "client",
+            fcm_token: fcm,
+            client_account_id: clientAccountId ?? null,
+            user_agent: navigator.userAgent.slice(0, 500),
+          },
+        });
+        toast.success(t("client.push.toast_ok"));
+        // Fallback: refléter l'état dans le hook aussi
+        await subscribe("client", null, clientAccountId ?? null);
+      } catch (e: any) {
+        console.error("[push client] subscribe failed", e);
+        toast.error(`Erreur d'activation : ${e?.message || "inconnue"}`);
+      }
+    } catch (e: any) {
+      console.error("[push client] fatal", e);
+      toast.error(`Erreur : ${e?.message || "inconnue"}`);
     } finally {
       setBusy(false);
     }
   }
+
 
   const isGranted = status === "granted";
   const isDenied = status === "denied";
