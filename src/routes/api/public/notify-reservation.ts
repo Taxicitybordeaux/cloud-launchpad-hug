@@ -20,7 +20,7 @@ export const Route = createFileRoute('/api/public/notify-reservation')({
     handlers: {
       POST: async ({ request }) => {
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+        const serviceKey = process.env.SERVICE_ROLE_KEY
         if (!supabaseUrl || !serviceKey) {
           return Response.json({ error: 'Server config error' }, { status: 500 })
         }
@@ -57,7 +57,7 @@ export const Route = createFileRoute('/api/public/notify-reservation')({
           return Response.json({ error: 'Template not configured' }, { status: 500 })
         }
         const recipient = template.to
-        const messageId = crypto.randomUUID()
+        const messageId = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)
         const idempotencyKey = `reservation-${reservationId}`
 
         // Idempotency gate: insert log row first; the unique index on
@@ -133,24 +133,15 @@ export const Route = createFileRoute('/api/public/notify-reservation')({
           return Response.json({ error: 'Enqueue failed' }, { status: 500 })
         }
 
-        // Fire-and-forget push to admins AND chauffeurs (don't block the email flow)
+        // Fire-and-forget push to chauffeurs only (one taxi notification that opens the driver page)
         try {
-          await Promise.all([
-            sendPushToAudience('admin', {
-              title: '🆕 Nouvelle réservation',
-              body: `${reservation.nom} · ${reservation.depart} → ${reservation.arrivee}`,
-              url: '/admin/dashboard',
-              tag: `new-res-${reservationId}`,
-              requireInteraction: true,
-            }),
-            sendPushToAudience('chauffeur', {
-              title: '🚕 Nouvelle course en attente',
-              body: `${reservation.nom} · ${reservation.depart} → ${reservation.arrivee}`,
-              url: '/admin/dashboard',
-              tag: `new-res-chauffeur-${reservationId}`,
-              requireInteraction: true,
-            }),
-          ])
+          await sendPushToAudience('chauffeur', {
+            title: '🚕 Nouvelle course en attente',
+            body: `${reservation.nom} · ${reservation.depart} → ${reservation.arrivee}`,
+            url: '/driver',
+            tag: `new-res-chauffeur-${reservationId}`,
+            requireInteraction: true,
+          })
         } catch (e) {
           console.error('[push] notify failed', e)
         }
@@ -160,3 +151,4 @@ export const Route = createFileRoute('/api/public/notify-reservation')({
     },
   },
 })
+
