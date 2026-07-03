@@ -59,7 +59,7 @@ function isSuiviExpired(reservation: any): boolean {
   return Date.now() > expiryMs;
 }
 const VEHICLE_MODEL = "Mercedes-Benz Classe E";
-const VEHICLE_COLOR = "Gris anthracite";
+const VEHICLE_COLOR = "Noir";
 const VEHICLE_PLATE = "HF-450-JG";
 
 const PREMIUM_CSS = `

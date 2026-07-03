@@ -1631,7 +1631,7 @@ function ReservationPage() {
             { icon: "☀️", label: "Tarif jour", detail: "7h – 19h", price: "2,16 €/km" },
             { icon: "🌙", label: "Tarif nuit", detail: "19h – 7h", price: "3,24 €/km" },
             { icon: "🚩", label: "Prise en charge", detail: "", price: "2,83 €" },
-            { icon: "ℹ️", label: "Frais de résa", detail: "selon conditions", price: "" },
+            { icon: "ℹ️", label: "Frais de réservation", detail: "peuvent être appliqués", price: "" },
           ].map((item, i, arr) => (
             <div
               key={item.label}
