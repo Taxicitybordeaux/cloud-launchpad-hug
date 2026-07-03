@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 const v = `?v=${encodeURIComponent(APP_VERSION)}`;
 
-// ── Heartbeat visiteur actif ──────────────────────────────────────────────
+// ── Heartbeat visiteur actif + pageview tracker ─────────────────────────
 function useVisitorHeartbeat(pathname: string) {
   React.useEffect(() => {
     // Exclure les pages internes (José ne compte pas comme visiteur client)
@@ -25,6 +25,20 @@ function useVisitorHeartbeat(pathname: string) {
         return id;
       })();
 
+    // 1) Pageview tracker → site_analytics (compteur global "Site")
+    void (supabase as any)
+      .from("site_analytics")
+      .insert({
+        event: "pageview",
+        session_id: sid,
+        page: pathname,
+        referrer: document.referrer || null,
+      })
+      .then(({ error }: any) => {
+        if (error && import.meta.env.DEV) console.warn("[analytics] pageview failed:", error.message);
+      });
+
+    // 2) Heartbeat active_visitors → compteur temps réel
     const upsert = () =>
       (supabase as any)
         .from("active_visitors")
@@ -43,6 +57,7 @@ function useVisitorHeartbeat(pathname: string) {
     };
   }, [pathname]);
 }
+
 
 export const Route = createRootRoute({
   head: () => ({
