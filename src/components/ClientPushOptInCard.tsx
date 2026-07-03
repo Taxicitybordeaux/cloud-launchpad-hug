@@ -97,7 +97,18 @@ export function ClientPushOptInCard({ clientAccountId }: ClientPushOptInCardProp
           <div className="text-sm font-semibold text-white">{t("client.push.enable_title")}</div>
           <div className="mt-0.5 text-xs text-white/60">{t("client.push.enable_desc")}</div>
 
-          {isUnsupported ? (
+          {iosNeedsInstall ? (
+            <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-400/30 bg-amber-500/10 p-2.5 text-[11px] text-amber-100">
+              <Smartphone className="h-4 w-4 shrink-0" />
+              <div>
+                <div className="font-semibold">Installation requise sur iPhone</div>
+                <div className="mt-0.5 opacity-80">
+                  Ouvrez ce site dans <b>Safari</b> → touchez <b>Partager</b> → <b>Sur l'écran d'accueil</b>.
+                  Ensuite ouvrez l'app depuis l'icône pour activer les notifications.
+                </div>
+              </div>
+            </div>
+          ) : isUnsupported ? (
             <div className="mt-2 text-xs text-white/40">{t("client.push.unsupported")}</div>
           ) : isDenied ? (
             <div className="mt-2 text-xs text-red-300/80">{t("client.push.denied")}</div>
