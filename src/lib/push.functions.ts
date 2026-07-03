@@ -170,15 +170,13 @@ export const notifyNewReservation = createServerFn({ method: "POST" })
     const clientName = r.client_name || r.nom || "Client";
     const trajet = `${r.depart} → ${r.arrivee || r.destination || "—"}`;
 
-    // ── Push FCM chauffeur uniquement (admin supprimé) ────────────────────
-    const chauffeurResult = await sendPushToAudience("chauffeur", {
-      title: "🚕 Nouvelle course en attente",
-      body: `${clientName} — ${trajet}`,
-      url: "/driver?token=DSF234",
-      tag: `chauffeur-res-${r.id}`,
-      requireInteraction: true,
-    });
-    console.log("[notifyNewReservation] push chauffeur:", JSON.stringify(chauffeurResult));
+    // ── Push chauffeur : PLUS ENVOYÉE ICI ─────────────────────────────────
+    // Le trigger DB `trg_notify_reservation_http` appelle déjà
+    // /api/public/notify-reservation qui envoie la push chauffeur.
+    // L'envoyer ici en plus produisait un doublon ("Nouvelle course" +
+    // "Nouvelle résa") sur le téléphone du chauffeur.
+    const chauffeurResult = { sent: 0, removed: 0, skipped: "sent-by-db-trigger" as const };
+
 
     // ── Email à José via le bridge Lovable (même que notify-reservation.ts) ─
     let emailSent = false;
