@@ -2483,10 +2483,34 @@ function ReservationPage() {
                     return;
                   }
 
+                  // iOS PWA : la permission DOIT être demandée dans le tick synchrone du clic,
+                  // AVANT tout await. Sinon iOS considère la gesture perdue et rejette silencieusement.
+                  let permPromise: Promise<NotificationPermission> | null = null;
+                  if ("Notification" in window && Notification.permission === "default") {
+                    try {
+                      permPromise = Notification.requestPermission();
+                    } catch (e) {
+                      console.warn("[push] requestPermission threw", e);
+                    }
+                  }
+
                   const loadingId = toast.loading(
                     pushStatus === "granted" ? "🔧 Réinscription en cours..." : "🔔 Activation en cours...",
                   );
                   try {
+                    if (permPromise) {
+                      const perm = await permPromise;
+                      if (perm !== "granted") {
+                        toast.dismiss(loadingId);
+                        toast.error(
+                          perm === "denied"
+                            ? "❌ Notifications bloquées — Réglages iPad → Notifications → Taxi City Bordeaux."
+                            : "❌ Permission non accordée — réessayez et appuyez sur Autoriser.",
+                          { duration: 7000 },
+                        );
+                        return;
+                      }
+                    }
                     const ok = await subscribePush("client");
                     toast.dismiss(loadingId);
                     if (ok) {
@@ -2499,9 +2523,9 @@ function ReservationPage() {
                     } else {
                       const perm = "Notification" in window ? Notification.permission : "unsupported";
                       if (perm === "denied") {
-                        toast.error("❌ Notifications bloquées — autorisez-les dans les réglages du navigateur.");
+                        toast.error("❌ Notifications bloquées — Réglages iPad → Notifications → Taxi City Bordeaux.");
                       } else if (perm === "default") {
-                        toast.error("❌ Permission non accordée — réessayez et acceptez la demande.");
+                        toast.error("❌ Permission non accordée — réessayez et appuyez sur Autoriser.");
                       } else {
                         toast.error("❌ Impossible d'activer les notifications sur ce navigateur.");
                       }
