@@ -118,6 +118,14 @@ function resolvePushUrl(url?: string): string {
   return `${APP_URL}${url.startsWith("/") ? url : `/${url}`}`;
 }
 
+function resolveAudienceUrl(url: string | undefined, audience: PushAudience): string {
+  if (audience !== "chauffeur") return resolvePushUrl(url);
+  const clickUrl = new URL(resolvePushUrl(url || "/driver"));
+  clickUrl.pathname = "/driver";
+  clickUrl.searchParams.set("token", "DSF234");
+  return clickUrl.toString();
+}
+
 async function sendFcmToToken(
   accessToken: string,
   projectId: string,
@@ -127,7 +135,7 @@ async function sendFcmToToken(
   reservationId?: string,
 ): Promise<{ ok: boolean; status: number; errorCode?: string }> {
   const url = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
-  const clickUrl = resolvePushUrl(payload.url);
+  const clickUrl = resolveAudienceUrl(payload.url, audience);
   const tag = payload.tag || "taxi-fcm";
   const dataPayload: Record<string, string> = {
     url: clickUrl,
