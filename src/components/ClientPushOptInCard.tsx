@@ -1,21 +1,41 @@
-import { Bell, BellOff, BellRing, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { Bell, BellOff, BellRing, Loader2, Smartphone } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useT } from "@/i18n/I18nProvider";
 
-/**
- * Card shown on the client dashboard so VIP clients can opt into push
- * notifications (J-1 reminder + "driver on the way" ETA alerts).
- */
 type ClientPushOptInCardProps = {
   clientAccountId?: string | null;
 };
+
+function detectIOS(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  const isIPad = /iPad/.test(ua) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(ua));
+  return /iPhone|iPod/.test(ua) || isIPad;
+}
+
+function isStandalone(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia?.("(display-mode: standalone)").matches ||
+    (window.navigator as any).standalone === true
+  );
+}
 
 export function ClientPushOptInCard({ clientAccountId }: ClientPushOptInCardProps) {
   const t = useT();
   const { status, subscribe } = usePushNotifications({ clientAccountId });
   const [busy, setBusy] = useState(false);
+  const [ios, setIos] = useState(false);
+  const [standalone, setStandalone] = useState(true);
+
+  useEffect(() => {
+    setIos(detectIOS());
+    setStandalone(isStandalone());
+  }, []);
+
+  const iosNeedsInstall = ios && !standalone;
 
   async function enable() {
     setBusy(true);
