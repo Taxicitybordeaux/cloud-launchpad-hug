@@ -219,12 +219,64 @@ type SubRow = {
   last_seen_at: string | null;
 };
 
+// Fenêtre pendant laquelle un même `tag` (ex. "chauffeur-res-<id>",
+// "client-status-<id>-accepted") ne sera envoyé qu'UNE fois par audience.
+// 5 min couvre les rafales dues aux triggers, re-tentatives, doubles clics UI
+// et rechargements service worker sans bloquer les vrais changements d'état.
+const DEDUP_WINDOW_MS = 5 * 60 * 1000;
+
 export async function sendPushToAudience(
   audience: PushAudience,
   payload: PushPayload,
-  opts: { reservationId?: string; accountId?: string } = {},
-): Promise<{ sent: number; removed: number }> {
+  opts: { reservationId?: string; accountId?: string; dedupKey?: string } = {},
+): Promise<{ sent: number; removed: number; deduped?: boolean }> {
   const supabaseAdmin = getTaxiSupabaseAdmin();
+
+  // ── Déduplication idempotente ────────────────────────────────────────────
+  // Verrou côté base : première insertion gagne, les autres sont skippées.
+  // Clé = tag du payload par défaut (unique par événement). Si aucun tag n'est
+  // fourni, on ne déduplique pas (message générique).
+  const dedupKey = opts.dedupKey ?? payload.tag ?? null;
+  if (dedupKey) {
+    const expiresAt = new Date(Date.now() + DEDUP_WINDOW_MS).toISOString();
+    const { data: inserted, error: dedupError } = await supabaseAdmin
+      .from("push_dedup" as any)
+      .insert({ tag: dedupKey, audience, expires_at: expiresAt })
+      .select("tag")
+      .maybeSingle();
+    if (dedupError) {
+      // Code 23505 = unique_violation → doublon détecté, on abandonne.
+      const code = (dedupError as any).code;
+      if (code === "23505") {
+        console.log(`[push] dedup skip audience=${audience} tag=${dedupKey}`);
+        return { sent: 0, removed: 0, deduped: true };
+      }
+      // Autre erreur (RLS, réseau) → on laisse passer plutôt que de bloquer.
+      console.warn("[push] dedup insert failed, proceeding without guard", dedupError);
+    } else if (!inserted) {
+      // Ligne pré-existante non expirée : PostgREST peut renvoyer null.
+      // Vérification explicite pour être sûr.
+      const { data: existing } = await supabaseAdmin
+        .from("push_dedup" as any)
+        .select("expires_at")
+        .eq("tag", dedupKey)
+        .eq("audience", audience)
+        .gt("expires_at", new Date().toISOString())
+        .maybeSingle();
+      if (existing) {
+        console.log(`[push] dedup skip (race) audience=${audience} tag=${dedupKey}`);
+        return { sent: 0, removed: 0, deduped: true };
+      }
+    }
+    // Nettoyage best-effort des lignes expirées (asynchrone, non bloquant).
+    supabaseAdmin
+      .from("push_dedup" as any)
+      .delete()
+      .lt("expires_at", new Date().toISOString())
+      .then(() => {}, () => {});
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   let q = supabaseAdmin
     .from("push_subscriptions" as any)
     .select("id, endpoint, fcm_token, user_agent, last_seen_at")
