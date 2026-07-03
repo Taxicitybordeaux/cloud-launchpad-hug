@@ -8,6 +8,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useServerFn } from "@tanstack/react-start";
 import { listPushFailures, notifyReservationStatus } from "@/lib/push.functions";
 import { calculerPrixMixte, estTarifJourParis } from "@/lib/tarif";
+import { broadcastSuiviUpdate } from "@/lib/suivi-broadcast";
 
 // ── Token guard ────────────────────────────────────────────────────────────
 const DRIVER_TOKEN = "DSF234";
