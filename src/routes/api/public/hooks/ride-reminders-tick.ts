@@ -30,7 +30,7 @@ export const Route = createFileRoute("/api/public/hooks/ride-reminders-tick")({
 
         const { data: rides, error } = await supabaseAdmin
           .from("reservations")
-          .select("id, nom, client_name, depart, arrivee, destination, pickup_datetime")
+          .select("id, nom, client_name, depart, arrivee, destination, pickup_datetime, suivi_id, tracking_id")
           .in("status", ["accepted", "pending", "nouvelle"])
           .gte("pickup_datetime", windowStart.toISOString())
           .lte("pickup_datetime", windowEnd.toISOString())
@@ -60,7 +60,7 @@ export const Route = createFileRoute("/api/public/hooks/ride-reminders-tick")({
               {
                 title: "📅 Rappel : votre course est demain",
                 body: `${clientName}, votre taxi vers ${dest}${heure ? ` à ${heure}` : ""}.`,
-                url: `/reservation/${r.id}`,
+                url: `/suivi/${r.suivi_id || r.tracking_id || r.id}`,
                 tag: `client-j1-${r.id}`,
                 requireInteraction: false,
                 
