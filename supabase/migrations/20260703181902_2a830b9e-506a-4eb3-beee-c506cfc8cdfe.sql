@@ -1,0 +1,1 @@
+CREATE POLICY "Deny direct select on active_visitors" ON public.active_visitors FOR SELECT USING (false);
