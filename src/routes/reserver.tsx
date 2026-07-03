@@ -2467,6 +2467,22 @@ function ReservationPage() {
                   }
                 } else {
                   // ── SUBSCRIBE / REPAIR ──
+                  // iOS/iPadOS : Web Push exige que le site soit installé sur l'écran d'accueil
+                  // (mode standalone PWA). En Safari classique, Notification.requestPermission()
+                  // échoue systématiquement — d'où l'échec sur iPad alors qu'Android fonctionne.
+                  const ua = navigator.userAgent;
+                  const isIOS = /iPad|iPhone|iPod/.test(ua) || (ua.includes("Mac") && "ontouchend" in document);
+                  const isStandalone =
+                    window.matchMedia?.("(display-mode: standalone)").matches ||
+                    (window.navigator as any).standalone === true;
+                  if (isIOS && !isStandalone) {
+                    toast.error(
+                      "📱 Sur iPhone/iPad, appuyez sur Partager puis « Sur l'écran d'accueil » avant d'activer les notifications.",
+                      { duration: 8000 },
+                    );
+                    return;
+                  }
+
                   const loadingId = toast.loading(
                     pushStatus === "granted" ? "🔧 Réinscription en cours..." : "🔔 Activation en cours...",
                   );
@@ -2481,7 +2497,14 @@ function ReservationPage() {
                           : "✅ Notifications activées pour 30 jours!",
                       );
                     } else {
-                      toast.error("❌ Impossible d'activer (RLS ou permissions)");
+                      const perm = "Notification" in window ? Notification.permission : "unsupported";
+                      if (perm === "denied") {
+                        toast.error("❌ Notifications bloquées — autorisez-les dans les réglages du navigateur.");
+                      } else if (perm === "default") {
+                        toast.error("❌ Permission non accordée — réessayez et acceptez la demande.");
+                      } else {
+                        toast.error("❌ Impossible d'activer les notifications sur ce navigateur.");
+                      }
                     }
                   } catch (err) {
                     toast.dismiss(loadingId);
