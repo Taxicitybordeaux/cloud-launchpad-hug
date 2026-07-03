@@ -33,6 +33,14 @@ export function ReviewForm({ onSubmitted }: { onSubmitted?: () => void }) {
       return;
     }
     toast.success(t("review.success"));
+    // Fire-and-forget : notif push chauffeur, jamais bloquant pour le client.
+    void notifyNewReview({
+      data: {
+        author_name: name.trim().slice(0, 80),
+        note: rating,
+        commentaire: text.trim().slice(0, 500),
+      },
+    }).catch(() => {});
     setName("");
     setText("");
     setRating(0);
