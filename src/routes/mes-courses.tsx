@@ -67,17 +67,9 @@ async function geocode(adresse: string): Promise<[number, number] | null> {
 
 async function getPolyline(from: [number, number], to: [number, number]): Promise<[number, number][]> {
   try {
-    // from/to sont en [lat, lng], OSRM attend [lng, lat]
-    const result = await fetchRouteCoordinates(
-      [
-        [from[1], from[0]],
-        [to[1], to[0]],
-      ],
-      { overview: "full", geometries: "geojson" },
-    );
-    const coords: [number, number][] = result?.routes?.[0]?.geometry?.coordinates ?? [];
-    // OSRM renvoie [lng, lat], Leaflet attend [lat, lng]
-    return coords.map(([lng, lat]) => [lat, lng]);
+    // from/to sont en [lat, lng], getRouteGeoCoords attend [lng, lat]
+    const result = await getRouteGeoCoords([from[1], from[0]], [to[1], to[0]]);
+    return result?.coords ?? [];
   } catch {
     return [];
   }
