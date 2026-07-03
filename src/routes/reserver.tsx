@@ -1637,10 +1637,25 @@ function ReservationPage() {
           }}
         >
           {[
-            { icon: "☀️", label: "Tarif jour", detail: "7h – 19h", price: "2,16 €/km" },
-            { icon: "🌙", label: "Tarif nuit", detail: "19h – 7h", price: "3,24 €/km" },
-            { icon: "🚩", label: "Prise en charge", detail: "", price: "2,83 €" },
-            { icon: "ℹ️", label: "Frais de réservation", detail: "peuvent être appliqués", price: "" },
+            {
+              icon: "☀️",
+              label: t("res.tarif.day"),
+              detail: t("res.tarif.day_detail"),
+              price: t("res.tarif.day_price"),
+            },
+            {
+              icon: "🌙",
+              label: t("res.tarif.night"),
+              detail: t("res.tarif.night_detail"),
+              price: t("res.tarif.night_price"),
+            },
+            { icon: "🚩", label: t("res.tarif.pickup"), detail: "", price: t("res.tarif.pickup_price") },
+            {
+              icon: "ℹ️",
+              label: t("res.tarif.booking_fee"),
+              detail: t("res.tarif.booking_fee_detail"),
+              price: "",
+            },
           ].map((item) => (
             <div
               key={item.label}
@@ -1946,7 +1961,7 @@ function ReservationPage() {
                           animation: "spin 0.8s linear infinite",
                         }}
                       />
-                      Recherche en cours…
+                      {t("res.loc.searching")}
                     </div>
                   )}
                   {searchingDepart && departChoices.length === 0 && (
@@ -2071,7 +2086,7 @@ function ReservationPage() {
                           animation: "spin 0.8s linear infinite",
                         }}
                       />
-                      Recherche en cours…
+                      {t("res.loc.searching")}
                     </div>
                   )}
                   {toCoord && !errors.destination && (
@@ -2097,7 +2112,7 @@ function ReservationPage() {
                       letterSpacing: "0.05em",
                     }}
                   >
-                    <span>📅</span> Date & heure de départ
+                    <span>📅</span> {t("res.datetime.title")}
                   </label>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                     <div>
@@ -2246,7 +2261,7 @@ function ReservationPage() {
                   marginBottom: 14,
                 }}
               >
-                ⚙️ Détails du trajet
+                ⚙️ {t("res.loc.trip_details_section")}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -2358,12 +2373,12 @@ function ReservationPage() {
                 }}
               >
                 <span>✨</span>
-                Demandes spéciales (optionnel)
+                {t("res.special.title")}
               </label>
               <textarea
                 value={f.message}
                 onChange={(e) => set("message", e.target.value.slice(0, 500))}
-                placeholder="Ex : siège bébé, animal de compagnie, valise XXL, arrêt intermédiaire, préférence chauffeur…"
+                placeholder={t("res.special.placeholder")}
                 rows={3}
                 style={{
                   width: "100%",
