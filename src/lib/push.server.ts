@@ -118,43 +118,37 @@ function resolvePushUrl(url?: string): string {
   return `${APP_URL}${url.startsWith("/") ? url : `/${url}`}`;
 }
 
-function resolveAudienceUrl(url: string | undefined, audience: PushAudience): string {
-  if (audience !== "chauffeur") return resolvePushUrl(url);
-  const clickUrl = new URL(resolvePushUrl(url || "/driver"));
-  clickUrl.pathname = "/driver";
-  clickUrl.searchParams.set("token", "DSF234");
-  return clickUrl.toString();
-}
-
 async function sendFcmToToken(
   accessToken: string,
   projectId: string,
   token: string,
   payload: PushPayload,
-  audience: PushAudience,
-  reservationId?: string,
 ): Promise<{ ok: boolean; status: number; errorCode?: string }> {
   const url = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
-  const clickUrl = resolveAudienceUrl(payload.url, audience);
-  const tag = payload.tag || "taxi-fcm";
-  const dataPayload: Record<string, string> = {
-    url: clickUrl,
-    tag,
-    audience,
-  };
-  if (reservationId) dataPayload.reservation_id = reservationId;
+  const clickUrl = resolvePushUrl(payload.url);
   const body = {
     message: {
       token,
-      // Root `notification` requis pour iOS/iPad PWA. On ne met PAS de
-      // webpush.notification en plus : un seul affichage système, pas deux.
-      notification: { title: payload.title, body: payload.body },
+      // notification au niveau racine = affiché par Android même écran verrouillé
+      notification: {
+        title: payload.title,
+        body: payload.body,
+      },
       webpush: {
         headers: payload.requireInteraction ? { Urgency: "high", TTL: "86400" } : { TTL: "3600" },
+        notification: {
+          title: payload.title,
+          body: payload.body,
+          icon: payload.icon || "/favicon.ico",
+          badge: "/favicon.ico",
+          tag: payload.tag || "taxi-fcm",
+          requireInteraction: !!payload.requireInteraction,
+          vibrate: [200, 100, 200],
+        },
         fcm_options: { link: clickUrl },
-        data: dataPayload,
+        data: { url: clickUrl, tag: payload.tag || "taxi-fcm" },
       },
-      data: dataPayload,
+      data: { url: clickUrl, tag: payload.tag || "taxi-fcm" },
     },
   };
   const res = await fetch(url, {
@@ -180,7 +174,7 @@ export async function sendPushToAudience(
   audience: PushAudience,
   payload: PushPayload,
   opts: { reservationId?: string } = {},
-): Promise<{ sent: number; removed: number; deduped?: boolean }> {
+): Promise<{ sent: number; removed: number }> {
   let q = supabaseAdmin
     .from("push_subscriptions")
     .select("id, fcm_token")
@@ -191,24 +185,6 @@ export async function sendPushToAudience(
   }
   const { data, error } = await q;
   if (error || !data || data.length === 0) return { sent: 0, removed: 0 };
-
-  if (payload.tag) {
-    try {
-      await supabaseAdmin.from("push_dedup" as any).delete().lt("expires_at", new Date().toISOString());
-      const { error: dedupError } = await supabaseAdmin.from("push_dedup" as any).insert({
-        tag: payload.tag,
-        audience,
-        expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-      });
-      if (dedupError && (dedupError as any).code === "23505") {
-        console.log("[push] dedup skip", audience, payload.tag);
-        return { sent: 0, removed: 0, deduped: true };
-      }
-      if (dedupError) console.warn("[push] dedup unavailable", dedupError.message);
-    } catch (e) {
-      console.warn("[push] dedup check failed", e);
-    }
-  }
 
   let accessToken: string;
   let projectId: string;
@@ -222,14 +198,11 @@ export async function sendPushToAudience(
 
   let sent = 0;
   const toRemove: string[] = [];
-  const seenTokens = new Set<string>();
 
   await Promise.all(
     (data as SubRow[]).map(async (sub) => {
       if (!sub.fcm_token) return;
-      if (seenTokens.has(sub.fcm_token)) return;
-      seenTokens.add(sub.fcm_token);
-      const r = await sendFcmToToken(accessToken, projectId, sub.fcm_token, payload, audience, opts.reservationId);
+      const r = await sendFcmToToken(accessToken, projectId, sub.fcm_token, payload);
       if (r.ok) {
         sent++;
       } else if (
