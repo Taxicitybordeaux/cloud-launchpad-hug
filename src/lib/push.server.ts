@@ -134,8 +134,10 @@ async function sendFcmToToken(
     ...(reservationId ? { reservation_id: reservationId } : {}),
   };
   // `notification` racine = requis pour iOS Safari PWA (sans lui, la notif
-  // ne s'affiche pas en background). Le doublon est géré dans le SW via
-  // claimOnce, pas ici.
+  // ne s'affiche pas en background). En revanche on évite
+  // `webpush.notification` : sur iOS Safari PWA, root notification +
+  // webpush.notification peuvent produire deux affichages pour un seul envoi.
+  // Les infos web restent dans webpush.data + fcm_options.link pour le clic.
   const body = {
     message: {
       token,
@@ -145,15 +147,6 @@ async function sendFcmToToken(
       },
       webpush: {
         headers: payload.requireInteraction ? { Urgency: "high", TTL: "86400" } : { TTL: "3600" },
-        notification: {
-          title: payload.title,
-          body: payload.body,
-          icon: payload.icon || "/favicon.ico",
-          badge: "/favicon.ico",
-          tag: payload.tag || "taxi-fcm",
-          requireInteraction: !!payload.requireInteraction,
-          vibrate: [200, 100, 200],
-        },
         fcm_options: { link: clickUrl },
         data: extraData,
       },
@@ -181,6 +174,25 @@ async function sendFcmToToken(
 
 type SubRow = { id: string; fcm_token: string | null; user_agent: string | null; last_seen_at: string | null; created_at: string | null };
 
+async function claimPushSendOnce(audience: PushAudience, tag?: string, reservationId?: string): Promise<boolean> {
+  if (!tag || !reservationId) return true;
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 10 * 60 * 1000).toISOString();
+  try {
+    await supabaseAdmin.from("push_dedup").delete().lt("expires_at", now.toISOString());
+  } catch {}
+  const { error } = await supabaseAdmin.from("push_dedup").insert({
+    tag,
+    audience,
+    first_sent_at: now.toISOString(),
+    expires_at: expiresAt,
+  });
+  if (!error) return true;
+  if ((error as any).code === "23505") return false;
+  console.warn("[push] dedup claim non-fatal error", error);
+  return true;
+}
+
 function isLikelyIosWebPush(userAgent: string | null): boolean {
   if (!userAgent) return false;
   return /iPhone|iPad|iPod/i.test(userAgent) || (/Macintosh/i.test(userAgent) && /Mobile|Safari/i.test(userAgent));
@@ -204,6 +216,9 @@ export async function sendPushToAudience(
   }
   const { data, error } = await q;
   if (error || !data || data.length === 0) return { sent: 0, removed: 0 };
+
+  const claimed = await claimPushSendOnce(audience, payload.tag, opts.reservationId);
+  if (!claimed) return { sent: 0, removed: 0 };
 
   // Dédup device : même fcm_token + cas iOS où plusieurs anciens tokens restent
   // valides pour le même device après rotation Safari/PWA.
