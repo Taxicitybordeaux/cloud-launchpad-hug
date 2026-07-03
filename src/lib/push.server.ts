@@ -133,13 +133,17 @@ async function sendFcmToToken(
     audience,
     ...(reservationId ? { reservation_id: reservationId } : {}),
   };
+  // ⚠️ NE PAS mettre `notification` au niveau racine : quand FCM v1 reçoit
+  // à la fois `notification` (racine) ET `webpush.notification`, le SDK
+  // Firebase affiche AUTOMATIQUEMENT la notif racine côté client, PENDANT
+  // que notre service worker en affiche une seconde via onBackgroundMessage
+  // → doublon systématique. En plus, celle affichée par le SDK ignore notre
+  // sanitizeDeepLink, donc le clic ne redirige pas correctement vers
+  // /suivi/<id>. On garde uniquement `webpush.notification` pour que le
+  // SW soit la seule source qui appelle showNotification().
   const body = {
     message: {
       token,
-      notification: {
-        title: payload.title,
-        body: payload.body,
-      },
       webpush: {
         headers: payload.requireInteraction ? { Urgency: "high", TTL: "86400" } : { TTL: "3600" },
         notification: {
@@ -157,6 +161,7 @@ async function sendFcmToToken(
       data: extraData,
     },
   };
+
   const res = await fetch(url, {
     method: "POST",
     headers: {
