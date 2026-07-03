@@ -365,17 +365,9 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
     const smsPhone = phone.replace(/[^\d]/g, "").replace(/^0/, "+33");
     const url = `/suivi/${(r as any).suivi_id || r.id}`;
 
-    // ── Push CHAUFFEUR (acceptation → rappel GPS) ────────────────────────
-    let chauffeurResult = { sent: 0, removed: 0 };
-    if (data.status === "accepted") {
-      chauffeurResult = await sendPushToAudience("chauffeur", {
-        title: "📍 Active ton GPS",
-        body: `${clientName} — ${trajet}`,
-        url: "/driver?token=DSF234",
-        tag: `chauffeur-res-${r.id}`,
-        requireInteraction: true,
-      });
-    }
+    // ── Push CHAUFFEUR désactivée (notification "Active ton GPS" retirée) ─
+    const chauffeurResult = { sent: 0, removed: 0 };
+
 
     // ── Push CLIENT : confirmation, approche, arrivée, fin de course ─────
     let clientResult = { sent: 0, removed: 0 };
