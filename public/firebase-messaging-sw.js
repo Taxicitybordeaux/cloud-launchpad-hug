@@ -7,6 +7,53 @@ console.log("[FCM SW] boot version =", SW_VERSION);
 const DRIVER_URL = "/driver?token=DSF234";
 const FORBIDDEN_PATH_PREFIXES = ["/admin"];
 
+// Important : ce listener doit être enregistré AVANT importScripts(Firebase).
+// Le SDK Firebase ajoute son propre notificationclick et peut stopper les
+// listeners suivants quand aucun fcm_options.link n'est présent.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const notifData = event.notification.data || {};
+  const firebasePayload = firebasePayloadFromNotificationData(notifData);
+  const mergedData = mergedDataFromPayload(firebasePayload, notifData);
+  const url = sanitizeDeepLink(
+    clickUrlFromPayload(firebasePayload, notifData, mergedData),
+    mergedData.audience,
+    mergedData.reservation_id,
+  );
+
+  console.log(
+    "[FCM SW v" + SW_VERSION + "] notificationclick → url:",
+    url,
+    "| audience:",
+    mergedData.audience,
+    "| raw data.url:",
+    notifData.url || mergedData.url,
+  );
+
+  event.waitUntil(
+    (async () => {
+      const target = new URL(url, self.location.origin);
+      const clientList = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+
+      for (const client of clientList) {
+        try {
+          const clientUrl = new URL(client.url);
+          if (clientUrl.origin === self.location.origin) {
+            if ("navigate" in client) {
+              const navigated = await client.navigate(target.href).catch(() => null);
+              if (navigated && "focus" in navigated) return navigated.focus();
+            }
+            if ("focus" in client) return client.focus();
+          }
+        } catch (_) {}
+      }
+
+      if (self.clients.openWindow) return self.clients.openWindow(target.href);
+    })(),
+  );
+});
+
 importScripts("https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js");
 
@@ -180,49 +227,5 @@ self.addEventListener("push", (event) => {
       vibrate: [200, 100, 200],
       requireInteraction: true,
     }),
-  );
-});
-
-self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
-
-  const notifData = event.notification.data || {};
-  const firebasePayload = firebasePayloadFromNotificationData(notifData);
-  const mergedData = mergedDataFromPayload(firebasePayload, notifData);
-  const url = sanitizeDeepLink(
-    clickUrlFromPayload(firebasePayload, notifData, mergedData),
-    mergedData.audience,
-    mergedData.reservation_id,
-  );
-
-  console.log(
-    "[FCM SW v" + SW_VERSION + "] notificationclick → url:",
-    url,
-    "| audience:",
-    mergedData.audience,
-    "| raw data.url:",
-    notifData.url || mergedData.url,
-  );
-
-  event.waitUntil(
-    (async () => {
-      const target = new URL(url, self.location.origin);
-      const clientList = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-
-      for (const client of clientList) {
-        try {
-          const clientUrl = new URL(client.url);
-          if (clientUrl.origin === self.location.origin) {
-            if ("navigate" in client) {
-              const navigated = await client.navigate(target.href).catch(() => null);
-              if (navigated && "focus" in navigated) return navigated.focus();
-            }
-            if ("focus" in client) return client.focus();
-          }
-        } catch (_) {}
-      }
-
-      if (self.clients.openWindow) return self.clients.openWindow(target.href);
-    })(),
   );
 });
