@@ -40,8 +40,6 @@ export function PushDebug() {
       return;
     }
 
-    const permissionPromise = Notification.permission === "default" ? Notification.requestPermission() : null;
-
     // 2. Service Workers enregistrés
     try {
       const regs = await navigator.serviceWorker.getRegistrations();
@@ -62,15 +60,7 @@ export function PushDebug() {
     // 3. Token FCM
     try {
       log("info", "Demande du token FCM...");
-      if (permissionPromise) {
-        const permission = await permissionPromise;
-        log(permission === "granted" ? "ok" : "error", `Permission après demande: ${permission}`);
-        if (permission !== "granted") {
-          setRunning(false);
-          return;
-        }
-      }
-      const token = await getFcmToken({ forceRefresh: true, requestPermission: false });
+      const token = await getFcmToken({ forceRefresh: true });
       if (token) {
         log("ok", `✅ Token obtenu: ${token.slice(0, 20)}…${token.slice(-10)}`);
         const ua = navigator.userAgent.slice(0, 500);

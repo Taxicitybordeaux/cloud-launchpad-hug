@@ -42,34 +42,30 @@ export function ClientPushOptInCard({ clientAccountId }: ClientPushOptInCardProp
       toast.error("Sur iPhone, installez d'abord l'app : Safari → Partager → Sur l'écran d'accueil, puis rouvrez depuis l'icône.");
       return;
     }
-
-    const permissionPromise =
-      typeof window !== "undefined" && "Notification" in window && Notification.permission === "default"
-        ? Notification.requestPermission()
-        : null;
-
     setBusy(true);
     try {
-      if (permissionPromise) {
-        const permission = await permissionPromise;
-        if (permission !== "granted") {
-          toast.error(
-            permission === "denied"
-              ? "Notifications bloquées — activez-les dans les réglages de l'iPad."
-              : "Permission non accordée — réessayez et appuyez sur Autoriser.",
-          );
-          return;
-        }
-      } else if ("Notification" in window && Notification.permission === "denied") {
-        toast.error("Notifications bloquées — activez-les dans les réglages de l'iPad.");
+      const { getFcmToken } = await import("@/lib/firebase");
+      const { subscribePush } = await import("@/lib/push.functions");
+      const fcm = await getFcmToken({ forceRefresh: true });
+      if (!fcm) {
+        toast.error("Token FCM introuvable — vérifiez que l'app est installée sur l'écran d'accueil (iOS)");
         return;
       }
-
-      const ok = await subscribe("client", null, clientAccountId ?? null);
-      if (ok) {
+      try {
+        await subscribePush({
+          data: {
+            audience: "client",
+            fcm_token: fcm,
+            client_account_id: clientAccountId ?? null,
+            user_agent: navigator.userAgent.slice(0, 500),
+          },
+        });
         toast.success(t("client.push.toast_ok"));
-      } else {
-        toast.error("Token FCM introuvable — vérifiez que l'app est bien ouverte depuis l'icône PWA.");
+        // Fallback: refléter l'état dans le hook aussi
+        await subscribe("client", null, clientAccountId ?? null);
+      } catch (e: any) {
+        console.error("[push client] subscribe failed", e);
+        toast.error(`Erreur d'activation : ${e?.message || "inconnue"}`);
       }
     } catch (e: any) {
       console.error("[push client] fatal", e);

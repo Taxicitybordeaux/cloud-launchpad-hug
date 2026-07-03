@@ -629,13 +629,11 @@ function ReservationPage() {
   const [today, setToday] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
   const [isSubscribedToNotifs, setIsSubscribedToNotifs] = useState(false);
   const { status: hookStatus, subscribe: subscribePush } = usePushNotifications();
   const repairClientPushRegistration = useServerFn(subscribePushServer);
   // Force à "idle" pour client — on ne veut pas d'auto-subscription
   const pushStatus: string = hookStatus;
-  const supportsNotifications = isMounted && typeof window !== "undefined" && "Notification" in window;
 
   const [fromCoord, setFromCoord] = useState<[number, number] | null>(null);
   const [toCoord, setToCoord] = useState<[number, number] | null>(null);
@@ -664,10 +662,6 @@ function ReservationPage() {
   const skipNextDepartResolveRef = useRef(false);
   // true quand le champ destination est en focus — empêche d'écraser le texte en cours de saisie
   const destinationFocusedRef = useRef(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   const startVoiceRecognition = useCallback(async () => {
     if (voiceRecogRef.current) {
@@ -1454,7 +1448,7 @@ function ReservationPage() {
       // afficher granted mais la DB n'a qu'une ligne générique ou absente.
       if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
         try {
-          const fcm = await getFcmToken({ requestPermission: false });
+          const fcm = await getFcmToken();
           if (fcm) {
             await repairClientPushRegistration({
               data: {
@@ -2432,6 +2426,7 @@ function ReservationPage() {
         </div>
 
         {/* ── Bouton notifs client FIXE (hors scrollable) ── */}
+        {"Notification" in window ? (
           <div
             style={{
               background: "linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(250,249,247,0.95) 100%)",
@@ -2448,11 +2443,6 @@ function ReservationPage() {
               onClick={async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-
-                if (!supportsNotifications) {
-                  toast.error("❌ Notifications non supportées sur ce navigateur.");
-                  return;
-                }
 
                 if (isSubscribedToNotifs) {
                   // ── UNSUBSCRIBE ──
@@ -2477,50 +2467,10 @@ function ReservationPage() {
                   }
                 } else {
                   // ── SUBSCRIBE / REPAIR ──
-                  // iOS/iPadOS : Web Push exige que le site soit installé sur l'écran d'accueil
-                  // (mode standalone PWA). En Safari classique, Notification.requestPermission()
-                  // échoue systématiquement — d'où l'échec sur iPad alors qu'Android fonctionne.
-                  const ua = navigator.userAgent;
-                  const isIOS = /iPad|iPhone|iPod/.test(ua) || (ua.includes("Mac") && "ontouchend" in document);
-                  const isStandalone =
-                    window.matchMedia?.("(display-mode: standalone)").matches ||
-                    (window.navigator as any).standalone === true;
-                  if (isIOS && !isStandalone) {
-                    toast.error(
-                      "📱 Sur iPhone/iPad, appuyez sur Partager puis « Sur l'écran d'accueil » avant d'activer les notifications.",
-                      { duration: 8000 },
-                    );
-                    return;
-                  }
-
-                  // iOS PWA : la permission DOIT être demandée dans le tick synchrone du clic,
-                  // AVANT tout await. Sinon iOS considère la gesture perdue et rejette silencieusement.
-                  let permPromise: Promise<NotificationPermission> | null = null;
-                  if ("Notification" in window && Notification.permission === "default") {
-                    try {
-                      permPromise = Notification.requestPermission();
-                    } catch (e) {
-                      console.warn("[push] requestPermission threw", e);
-                    }
-                  }
-
                   const loadingId = toast.loading(
                     pushStatus === "granted" ? "🔧 Réinscription en cours..." : "🔔 Activation en cours...",
                   );
                   try {
-                    if (permPromise) {
-                      const perm = await permPromise;
-                      if (perm !== "granted") {
-                        toast.dismiss(loadingId);
-                        toast.error(
-                          perm === "denied"
-                            ? "❌ Notifications bloquées — Réglages iPad → Notifications → Taxi City Bordeaux."
-                            : "❌ Permission non accordée — réessayez et appuyez sur Autoriser.",
-                          { duration: 7000 },
-                        );
-                        return;
-                      }
-                    }
                     const ok = await subscribePush("client");
                     toast.dismiss(loadingId);
                     if (ok) {
@@ -2531,16 +2481,7 @@ function ReservationPage() {
                           : "✅ Notifications activées pour 30 jours!",
                       );
                     } else {
-                      const perm = "Notification" in window ? Notification.permission : "unsupported";
-                      if (perm === "denied") {
-                        toast.error("❌ Notifications bloquées — Réglages iPad → Notifications → Taxi City Bordeaux.");
-                      } else if (perm === "default") {
-                        toast.error("❌ Permission non accordée — réessayez et appuyez sur Autoriser.");
-                      } else {
-                        toast.error("❌ Permission accordée, mais l’iPad n’a pas généré le token push. Fermez l’app, rouvrez depuis l’icône, puis réessayez.", {
-                          duration: 9000,
-                        });
-                      }
+                      toast.error("❌ Impossible d'activer (RLS ou permissions)");
                     }
                   } catch (err) {
                     toast.dismiss(loadingId);
@@ -2592,6 +2533,11 @@ function ReservationPage() {
                   : "Recevez les infos de suivi en temps réel"}
             </p>
           </div>
+        ) : (
+          <div style={{ fontSize: 11, color: "#999", padding: "8px 16px", textAlign: "center" }}>
+            ⚠️ Bouton caché: pushStatus={pushStatus} | Notification={String("Notification" in window)}
+          </div>
+        )}
       </div>
       <ListeningOverlay
         open={anyListening}

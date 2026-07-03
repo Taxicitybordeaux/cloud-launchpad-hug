@@ -5,7 +5,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { subscribePush, type PushAudience } from "@/lib/push.functions";
-import { getFcmToken, getPushSupportIssue } from "@/lib/firebase";
+import { getFcmToken } from "@/lib/firebase";
 
 export type PushStatus = "idle" | "loading" | "granted" | "denied" | "unsupported";
 
@@ -27,7 +27,12 @@ export function usePushNotifications(opts: UsePushOptions = {}) {
 
   // ── Détection support initial ──
   useEffect(() => {
-    if (getPushSupportIssue()) {
+    if (
+      typeof window === "undefined" ||
+      !("Notification" in window) ||
+      !("serviceWorker" in navigator) ||
+      !("PushManager" in window)
+    ) {
       setStatus("unsupported");
       return;
     }
@@ -39,13 +44,18 @@ export function usePushNotifications(opts: UsePushOptions = {}) {
   // ── Auto-subscribe au montage ──
   useEffect(() => {
     if (!autoAudience) return;
-    if (getPushSupportIssue())
+    if (
+      typeof window === "undefined" ||
+      !("Notification" in window) ||
+      !("serviceWorker" in navigator) ||
+      !("PushManager" in window)
+    )
       return;
 
     let cancelled = false;
     const run = async () => {
       try {
-        const fcm = await getFcmToken({ requestPermission: false }); // rotation auto si token > 50 jours
+        const fcm = await getFcmToken(); // rotation auto si token > 50 jours
         if (!fcm || cancelled) return;
         await subscribeFn({
           data: {
@@ -88,28 +98,11 @@ export function usePushNotifications(opts: UsePushOptions = {}) {
   // ── Subscribe manuel (pour les appels explicites) ──
   const subscribe = useCallback(
     async (audience: PushAudience = "client", resId?: string | null, accountId?: string | null): Promise<boolean> => {
-      if (getPushSupportIssue()) {
-        setStatus("unsupported");
-        return false;
-      }
-
-      const permissionPromise = Notification.permission === "default" ? Notification.requestPermission() : null;
       setStatus("loading");
       try {
-        if (permissionPromise) {
-          const permission = await permissionPromise;
-          if (permission !== "granted") {
-            setStatus(permission === "denied" ? "denied" : "idle");
-            return false;
-          }
-        } else if (Notification.permission === "denied") {
-          setStatus("denied");
-          return false;
-        }
-
-        const fcm = await getFcmToken({ requestPermission: false });
+        const fcm = await getFcmToken();
         if (!fcm) {
-          setStatus(Notification.permission === "denied" ? "denied" : "idle");
+          setStatus(Notification.permission === "denied" ? "denied" : "unsupported");
           return false;
         }
         await subscribeFn({
@@ -148,7 +141,7 @@ export function usePushNotifications(opts: UsePushOptions = {}) {
   const refreshToken = useCallback(
     async (audience: PushAudience = "chauffeur") => {
       try {
-        const fcm = await getFcmToken({ forceRefresh: true, requestPermission: false });
+        const fcm = await getFcmToken({ forceRefresh: true });
         if (!fcm) return;
         await subscribeFn({
           data: {
