@@ -35,6 +35,7 @@ export const subscribePush = createServerFn({ method: "POST" })
     const supabaseAdmin = getTaxiSupabaseAdmin();
     const ua = data.user_agent ?? null;
     const clientAccountId = data.audience === "client" ? (data.client_account_id ?? null) : null;
+    const reservationId = data.audience === "client" ? (data.reservation_id ?? null) : null;
 
     // Endpoint stable par DEVICE (via hash du user_agent) + audience + cible.
     // Important : un même client peut avoir plusieurs réservations actives ;
@@ -47,21 +48,20 @@ export const subscribePush = createServerFn({ method: "POST" })
     // jamais l'ancienne ligne, et on accumule des lignes actives pour le même
     // device → notifications ×N côté iPhone. En gardant l'endpoint stable par
     // device (hash UA), la rotation de token remplace bien l'ancienne ligne.
-    const targetKey = clientAccountId
-      ? `account-${clientAccountId}`
-      : data.reservation_id
-        ? `reservation-${data.reservation_id}`
-        : "generic";
+    const targetKey = clientAccountId ? `account-${clientAccountId}` : reservationId ? `reservation-${reservationId}` : "generic";
     const deviceKey = hashUserAgent(ua);
     const endpoint = `${data.audience}-${targetKey}-${deviceKey}`;
     const nowIso = new Date().toISOString();
 
-    // Cleanup ancienne ligne pour ce device/cible.
+    // Cleanup ancienne ligne pour ce device/cible + vieux doublons du même token.
     // La base taxi historique n'a pas toujours toutes les colonnes récentes
     // (ex: client_account_id). On reste compatible en ne s'appuyant que sur
     // endpoint, qui encode déjà audience + cible + device.
     try {
-      await supabaseAdmin.from("push_subscriptions").delete().eq("endpoint", endpoint);
+      await Promise.all([
+        supabaseAdmin.from("push_subscriptions").delete().eq("endpoint", endpoint),
+        supabaseAdmin.from("push_subscriptions").delete().eq("audience", data.audience).eq("fcm_token", data.fcm_token),
+      ]);
     } catch (e) {
       console.warn("[push] pre-insert cleanup non-fatal error", e);
     }
@@ -73,8 +73,9 @@ export const subscribePush = createServerFn({ method: "POST" })
       fcm_token: data.fcm_token,
       user_agent: ua,
       last_seen_at: nowIso,
-      reservation_id: data.reservation_id ?? null,
+      reservation_id: reservationId,
     };
+    if (clientAccountId) insertPayload.client_account_id = clientAccountId;
 
     let { error: insErr } = await supabaseAdmin.from("push_subscriptions").insert(insertPayload);
     if ((insErr as any)?.code === "23505") {
