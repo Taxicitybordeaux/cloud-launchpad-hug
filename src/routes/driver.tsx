@@ -3112,32 +3112,22 @@ function VisitorCounter({
     const CUTOFF_MS = 90_000;
 
     const fetchCount = async () => {
-      const cutoff = new Date(Date.now() - CUTOFF_MS).toISOString();
       if (scope === "site") {
+        const cutoff = new Date(Date.now() - CUTOFF_MS).toISOString();
         await (supabase as any).from("active_visitors").delete().lt("last_seen", cutoff);
       }
-      let q = (supabase as any)
-        .from("active_visitors")
-        .select("session_id", { count: "exact", head: true })
-        .gte("last_seen", cutoff);
-      if (scope === "suivi") q = q.like("page", "/suivi%");
-      const { count: c } = await q;
-      setCount(c ?? 0);
+      const { data } = await (supabase as any).rpc("get_active_visitor_count", { p_scope: scope });
+      setCount(typeof data === "number" ? data : 0);
     };
 
     fetchCount();
-    const poll = setInterval(fetchCount, 30_000);
-
-    const channel = (supabase as any)
-      .channel(`active_visitors_${scope}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "active_visitors" }, fetchCount)
-      .subscribe();
+    const poll = setInterval(fetchCount, 15_000);
 
     return () => {
       clearInterval(poll);
-      (supabase as any).removeChannel(channel);
     };
   }, [scope]);
+
 
   const isActive = count !== null && count > 0;
 
