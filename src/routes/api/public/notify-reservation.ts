@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { TEMPLATES } from "@/lib/email-templates/registry";
+import { getPushClientStrings, normalizePushLang } from "@/lib/push-i18n.server";
 
 const TEMPLATE_NAME = "new-reservation-admin";
 const INTERNAL_NOTIFY_SECRET = "taxi-city-reservation-trigger-v1";
@@ -58,13 +59,38 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
 
         const supabase = getTaxiSupabaseAdmin();
 
-        const { data: reservation, error: lookupError } = await supabase
-          .from("reservations")
-          .select(
-            "id, nom, client_name, telephone, client_phone, email, pickup_datetime, depart, arrivee, destination, passagers, bagages, service_type, suivi_id, client_account_id",
-          )
-          .eq("id", reservationId)
-          .maybeSingle();
+        const BASE_COLUMNS =
+          "id, nom, client_name, telephone, client_phone, email, pickup_datetime, depart, arrivee, destination, passagers, bagages, service_type, suivi_id, client_account_id";
+
+        let reservation: any = null;
+        let lookupError: any = null;
+        {
+          // On tente d'abord avec la colonne "lang" (préférence de langue du
+          // client au moment de la résa). Si la migration n'a pas encore été
+          // appliquée, Postgres renvoie 42703 (colonne inconnue) → on retombe
+          // sur la requête sans "lang" et on traduit en français par défaut.
+          const withLang = await supabase
+            .from("reservations")
+            .select(`${BASE_COLUMNS}, lang`)
+            .eq("id", reservationId)
+            .maybeSingle();
+          if (withLang.error && (withLang.error as any).code === "42703") {
+            console.warn(
+              "[notify-reservation] colonne 'lang' absente sur reservations — fallback fr. " +
+                "Ajouter une migration: ALTER TABLE reservations ADD COLUMN lang text DEFAULT 'fr';",
+            );
+            const withoutLang = await supabase
+              .from("reservations")
+              .select(BASE_COLUMNS)
+              .eq("id", reservationId)
+              .maybeSingle();
+            reservation = withoutLang.data;
+            lookupError = withoutLang.error;
+          } else {
+            reservation = withLang.data;
+            lookupError = withLang.error;
+          }
+        }
         if (lookupError) {
           console.error("[notify-reservation] lookupError:", JSON.stringify(lookupError));
           return Response.json({ error: "lookup" }, { status: 500 });
@@ -73,6 +99,7 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
 
         const data = {
           ...reservation,
+          lang: normalizePushLang((reservation as any).lang),
           phone: reservation.telephone,
           admin_url: "https://taxicitybordeaux.fr/admin/dashboard",
         };
@@ -133,12 +160,14 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
 
         // Push CLIENT — accusé de réception "en attente de validation par le taxi"
         try {
+          const clientLang = normalizePushLang((reservation as any).lang);
+          const push = getPushClientStrings(clientLang);
           const suiviUrl = `/suivi/${(reservation as any).suivi_id || reservationId}`;
           const clientResult = await sendPushToAudience(
             "client",
             {
-              title: "⏳ Réservation reçue",
-              body: `En attente de validation par le taxi : ${trajet}.`,
+              title: push.pending_title,
+              body: push.pending_body(trajet),
               url: suiviUrl,
               tag: `client-pending-${reservationId}`,
               requireInteraction: false,
@@ -149,7 +178,7 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
               accountId: (reservation as any).client_account_id ?? undefined,
             },
           );
-          console.log("[notify-reservation] push client:", JSON.stringify(clientResult));
+          console.log("[notify-reservation] push client:", JSON.stringify(clientResult), "lang:", clientLang);
         } catch (pushErr) {
           console.error("[notify-reservation] push client failed", pushErr);
         }
