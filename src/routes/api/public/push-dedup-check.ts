@@ -87,7 +87,7 @@ async function runCheck(request: Request): Promise<Response> {
   // 4) Cleanup de la ligne de test
   await supabase.from("push_dedup" as any).delete().eq("tag", testTag).eq("audience", audience);
 
-  const allGood = health.ok && !first.error && secondCode === "23505";
+  const allGood = healthOk && !first.error && secondCode === "23505";
   return new Response(JSON.stringify({ ok: allGood, ...report }, null, 2), {
     status: allGood ? 200 : 500,
     headers: { "Content-Type": "application/json" },
