@@ -460,7 +460,19 @@ function DriverApp() {
         load
       )
       .subscribe();
+    // Filets de sécurité : rafraîchir le compteur au retour d'onglet et
+    // au focus fenêtre (Realtime peut être coupé en arrière-plan sur iOS).
+    const onVisible = () => {
+      if (!document.hidden) load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    // Refresh périodique de secours (60s) au cas où le canal serait muet.
+    const poll = setInterval(load, 60000);
     return () => {
+      clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
       supabase.removeChannel(ch);
     };
   }, []);
