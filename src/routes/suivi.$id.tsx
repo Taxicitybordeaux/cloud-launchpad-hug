@@ -1385,12 +1385,12 @@ function SuiviPage() {
     const ch = (supabase as any)
       .channel(`suivi:${resolvedId}`, { config: { broadcast: { self: false } } })
       .on("broadcast", { event: "update" }, () => {
-        loadReservation(true);
+        loadReservation(true, true);
       })
       .subscribe();
     // Refresh au retour d'onglet (iOS suspend souvent la connexion realtime)
     const onVisible = () => {
-      if (!document.hidden) loadReservation(true);
+      if (!document.hidden) loadReservation(true, true);
     };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
