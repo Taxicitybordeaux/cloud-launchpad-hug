@@ -56,24 +56,22 @@ export const subscribePush = createServerFn({ method: "POST" })
     const endpoint = `${data.audience}-${targetKey}-${deviceKey}`;
     const nowIso = new Date().toISOString();
 
-    // ── Stratégie compatible schéma legacy ────────────────────────────────
-    // Le backend taxi utilisé en production peut avoir un cache PostgREST sans
-    // colonnes user_id/client_account_id. Pour ne jamais casser l'activation
-    // chauffeur/client, la cible est encodée dans endpoint et l'insert n'écrit
-    // que les colonnes historiques garanties.
+    // Cleanup ancienne ligne pour ce device/cible
     try {
       await supabaseAdmin.from("push_subscriptions").delete().eq("endpoint", endpoint);
     } catch (e) {
       console.warn("[push] pre-insert cleanup non-fatal error", e);
     }
 
-    // 2) Insert de la souscription propre.
+    // Insert — inclut client_account_id / reservation_id pour ciblage précis
     const insertPayload: any = {
       audience: data.audience,
       endpoint,
       fcm_token: data.fcm_token,
       user_agent: ua,
       last_seen_at: nowIso,
+      client_account_id: clientAccountId,
+      reservation_id: data.reservation_id ?? null,
     };
 
     const { error: insErr } = await supabaseAdmin.from("push_subscriptions").insert(insertPayload);
