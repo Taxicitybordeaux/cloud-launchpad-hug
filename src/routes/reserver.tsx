@@ -2537,7 +2537,9 @@ function ReservationPage() {
                       } else if (perm === "default") {
                         toast.error("❌ Permission non accordée — réessayez et appuyez sur Autoriser.");
                       } else {
-                        toast.error("❌ Impossible d'activer les notifications sur ce navigateur.");
+                        toast.error("❌ Permission accordée, mais l’iPad n’a pas généré le token push. Fermez l’app, rouvrez depuis l’icône, puis réessayez.", {
+                          duration: 9000,
+                        });
                       }
                     }
                   } catch (err) {
