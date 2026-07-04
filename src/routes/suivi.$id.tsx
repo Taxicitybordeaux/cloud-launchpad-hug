@@ -1954,7 +1954,14 @@ function SuiviPage() {
                 }}
               >
                 {/* Photo du véhicule */}
-                <div style={{ position: "relative", width: "100%", height: "140px", overflow: "hidden" }}>
+                <div
+                  style={{
+                    position: "relative",
+                    width: "100%",
+                    height: "clamp(140px, 42vw, 190px)",
+                    overflow: "hidden",
+                  }}
+                >
                   <img
                     src="/vehicle-jose.jpg"
                     alt={t("suivi.car_alt")}
@@ -1968,8 +1975,11 @@ function SuiviPage() {
                     style={{
                       width: "100%",
                       height: "100%",
-                      objectFit: "cover",
-                      objectPosition: "center 30%",
+                      // "contain" au lieu de "cover" : la hauteur du cadre était fixe (140px)
+                      // alors que la largeur rétrécit sur mobile → "cover" recadrait les
+                      // côtés de la voiture. "contain" garde le véhicule entier visible.
+                      objectFit: "contain",
+                      objectPosition: "center center",
                       display: "block",
                     }}
                   />
