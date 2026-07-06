@@ -32,11 +32,39 @@ const BORDEAUX_BOUNDS = {
   east: 0.1,
 };
 
+// Lieux clés de Bordeaux dont la Geocoding API se trompe régulièrement
+// (elle est conçue pour des adresses, pas des POI/lieux-dits — un aéroport,
+// une gare ou une place peuvent être résolus sur une rue homonyme proche du
+// centre-ville plutôt que le vrai lieu, faussant les distances calculées).
+// Même correctif que celui déjà appliqué côté ATB : on court-circuite
+// Google pour ces requêtes avec des coordonnées vérifiées.
+const CANONICAL_PLACES: Array<{ match: RegExp; label: string; coord: GeoCoord }> = [
+  {
+    match: /a[eé]roport|merignac|m[ée]rignac/i,
+    label: "Aéroport de Bordeaux-Mérignac",
+    coord: { lat: 44.8283, lng: -0.7156 },
+  },
+  {
+    match: /gare\s*saint[\s-]?jean|st[\s-]?jean.*gare|gare.*st[\s-]?jean/i,
+    label: "Gare de Bordeaux-Saint-Jean",
+    coord: { lat: 44.8256, lng: -0.5563 },
+  },
+  { match: /place\s*de\s*la\s*bourse/i, label: "Place de la Bourse", coord: { lat: 44.8412, lng: -0.5697 } },
+  { match: /place\s*(des\s*)?quinconces/i, label: "Esplanade des Quinconces", coord: { lat: 44.8459, lng: -0.5733 } },
+];
+
+function matchCanonicalPlace(query: string): GeoCoord | null {
+  const found = CANONICAL_PLACES.find((p) => p.match.test(query));
+  return found ? found.coord : null;
+}
+
 /**
  * Géocode une adresse texte → coordonnées. Retourne null si rien trouvé.
  * Même signature que l'ancien geocodeAddress (Nominatim).
  */
 export async function geocodeAddress(query: string): Promise<GeoCoord | null> {
+  const canonical = matchCanonicalPlace(query);
+  if (canonical) return canonical;
   try {
     const api = await loadGoogleMaps();
     const g = await getGeocoder();
@@ -72,6 +100,8 @@ export async function geocodeAddress(query: string): Promise<GeoCoord | null> {
  * Même signature que l'ancien searchAddress(query, limit).
  */
 export async function searchAddress(query: string, limit = 5): Promise<SearchResult[]> {
+  const canonical = CANONICAL_PLACES.find((p) => p.match.test(query));
+  if (canonical) return [{ coord: [canonical.coord.lat, canonical.coord.lng], label: canonical.label }];
   try {
     const api = await loadGoogleMaps();
     const g = await getGeocoder();
