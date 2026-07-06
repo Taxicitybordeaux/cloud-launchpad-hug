@@ -3299,9 +3299,23 @@ function SimulateurTab() {
   // Alias connus pour l'aéroport : "aéroport de bordeaux" seul est souvent mal
   // (ou pas) géocodé par Google, contrairement au nom officiel complet.
   // On normalise ici avant l'appel à geocodeAddress, quelle que soit la variante tapée.
+  //
+  // IMPORTANT : on ne matche jamais les accents sur le texte brut. Selon le
+  // clavier/l'OS (iOS en particulier), un accent peut être saisi en forme
+  // Unicode décomposée (e + accent combinant) plutôt que précomposée (é) —
+  // une regex du type [ée] ne matche alors ni l'un ni l'autre de façon fiable.
+  // On désaccentue donc d'abord tout le texte (comme dans reserver.tsx), puis
+  // on matche sur des motifs ASCII purs.
+  const stripAccents = (value: string): string =>
+    value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+
   const normalizeAddress = (raw: string): string => {
     const trimmed = raw.trim();
-    if (/a[ée]roport.*(bordeaux|m[ée]rignac)/i.test(trimmed) || /(bordeaux|m[ée]rignac).*a[ée]roport/i.test(trimmed)) {
+    const n = stripAccents(trimmed);
+    if (/aeroport.*(bordeaux|merignac)|(bordeaux|merignac).*aeroport/.test(n)) {
       return "Aéroport de Bordeaux-Mérignac, France";
     }
     return trimmed;
