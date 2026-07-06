@@ -3296,6 +3296,17 @@ function ActiveVisitors() {
 
 // ── Onglet Stats ────────────────────────────────────────────────────────────
 function SimulateurTab() {
+  // Alias connus pour l'aéroport : "aéroport de bordeaux" seul est souvent mal
+  // (ou pas) géocodé par Google, contrairement au nom officiel complet.
+  // On normalise ici avant l'appel à geocodeAddress, quelle que soit la variante tapée.
+  const normalizeAddress = (raw: string): string => {
+    const trimmed = raw.trim();
+    if (/a[ée]roport.*(bordeaux|m[ée]rignac)/i.test(trimmed) || /(bordeaux|m[ée]rignac).*a[ée]roport/i.test(trimmed)) {
+      return "Aéroport de Bordeaux-Mérignac, France";
+    }
+    return trimmed;
+  };
+
   const [mode, setMode] = useState<"manuel" | "adresses">("manuel");
   const [pickupLocal, setPickupLocal] = useState(() => {
     const d = new Date();
@@ -3375,7 +3386,10 @@ function SimulateurTab() {
     setRouteError(null);
     try {
       const mapsApi = await loadGoogleMapsWhenVisible(mapRef.current!);
-      const [geoA, geoB] = await Promise.all([geocodeAddress(depart), geocodeAddress(arrivee)]);
+      const [geoA, geoB] = await Promise.all([
+        geocodeAddress(normalizeAddress(depart)),
+        geocodeAddress(normalizeAddress(arrivee)),
+      ]);
       if (!geoA || !geoB) {
         setRouteError("Adresse introuvable");
         setLoadingRoute(false);
