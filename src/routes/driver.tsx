@@ -2503,10 +2503,34 @@ function DriverChatConversation({
   const [messages, setMessages] = useState<any[]>([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
-  const [replyMode, setReplyMode] = useState<"direct" | "reservation">(
-    thread.active_reservation_id ? "reservation" : "direct",
-  );
   const endRef = useRef<HTMLDivElement>(null);
+
+  // Fusionne à l'affichage les messages chauffeur identiques envoyés quasi en même
+  // temps sur les 2 canaux (course + direct), pour éviter le doublon visuel.
+  const dedupeChauffeurMessages = (msgs: any[]) => {
+    const sorted = [...(msgs ?? [])].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    );
+    const result: any[] = [];
+    for (const m of sorted) {
+      const prev = result[result.length - 1];
+      const sameBurst =
+        prev &&
+        prev.sender === "chauffeur" &&
+        m.sender === "chauffeur" &&
+        prev.content === m.content &&
+        prev.source !== m.source &&
+        Math.abs(new Date(m.created_at).getTime() - new Date(prev.created_at).getTime()) <= 5000;
+      if (sameBurst) {
+        prev.sources = prev.sources ?? [prev.source];
+        if (!prev.sources.includes(m.source)) prev.sources.push(m.source);
+        prev.reservation_label = prev.reservation_label ?? m.reservation_label;
+        continue;
+      }
+      result.push({ ...m, sources: [m.source] });
+    }
+    return result;
+  };
 
   const load = useCallback(async () => {
     const { loadMergedConversation, markMergedConversationRead } = await import("@/lib/chat.functions");
@@ -2517,7 +2541,7 @@ function DriverChatConversation({
         limit: 300,
       },
     });
-    setMessages(data ?? []);
+    setMessages(dedupeChauffeurMessages(data ?? []));
     // marque lu
     markMergedConversationRead({
       data: {
@@ -2568,23 +2592,43 @@ function DriverChatConversation({
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const canDirect = !!thread.client_account_id;
+  const canResa = !!thread.active_reservation_id;
+
   const send = async () => {
     const trimmed = text.trim();
     if (!trimmed) return;
+    if (!canResa && !canDirect) {
+      toast.error("Aucun canal disponible pour ce client");
+      return;
+    }
     setSending(true);
     try {
-      if (replyMode === "reservation") {
-        if (!thread.active_reservation_id) throw new Error("Aucune course active");
-        const { sendChauffeurMessage } = await import("@/lib/chat.functions");
-        await sendChauffeurMessage({
-          data: { reservation_id: thread.active_reservation_id, content: trimmed },
-        });
-      } else {
-        if (!thread.client_account_id) throw new Error("Client sans compte — impossible de répondre en direct");
-        const { sendDirectChauffeurMessage } = await import("@/lib/chat.functions");
-        await sendDirectChauffeurMessage({
-          data: { client_account_id: thread.client_account_id, content: trimmed },
-        });
+      const { sendChauffeurMessage, sendDirectChauffeurMessage } = await import("@/lib/chat.functions");
+      const tasks: Promise<any>[] = [];
+      // Fusion : on envoie sur tous les canaux disponibles (course active + chat direct)
+      // pour que le client voie bien le message, quel que soit l'écran qu'il regarde.
+      if (canResa) {
+        tasks.push(
+          sendChauffeurMessage({
+            data: { reservation_id: thread.active_reservation_id, content: trimmed },
+          }),
+        );
+      }
+      if (canDirect) {
+        tasks.push(
+          sendDirectChauffeurMessage({
+            data: { client_account_id: thread.client_account_id, content: trimmed },
+          }),
+        );
+      }
+      const results = await Promise.allSettled(tasks);
+      const failed = results.filter((r) => r.status === "rejected");
+      if (failed.length === results.length) {
+        throw new Error((failed[0] as PromiseRejectedResult)?.reason?.message || "Envoi impossible");
+      }
+      if (failed.length > 0) {
+        toast.error("Message envoyé partiellement (un des 2 canaux a échoué)");
       }
       setText("");
     } catch (e: any) {
@@ -2593,9 +2637,6 @@ function DriverChatConversation({
       setSending(false);
     }
   };
-
-  const canDirect = !!thread.client_account_id;
-  const canResa = !!thread.active_reservation_id;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
@@ -2634,45 +2675,50 @@ function DriverChatConversation({
         </div>
       </div>
 
-      {/* Sélecteur de mode de réponse */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-        <button
-          onClick={() => canResa && setReplyMode("reservation")}
-          disabled={!canResa}
+      {/* Canaux de diffusion (fusionnés — plus de sélection manuelle) */}
+      {(canResa || canDirect) && (
+        <div
           style={{
-            flex: 1,
-            padding: "8px 10px",
-            borderRadius: 8,
-            border: "1px solid",
-            borderColor: replyMode === "reservation" ? "#1d4ed8" : "#e2e8f0",
-            background: replyMode === "reservation" ? "#eff6ff" : "#fff",
-            color: replyMode === "reservation" ? "#1d4ed8" : canResa ? "#475569" : "#cbd5e1",
-            fontSize: 11,
-            fontWeight: 700,
-            cursor: canResa ? "pointer" : "not-allowed",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            marginBottom: 10,
+            fontSize: 10.5,
+            color: "#94a3b8",
+            flexWrap: "wrap",
           }}
         >
-          🚖 Course {thread.active_reservation_label ? `(${thread.active_reservation_label.split(" · ")[0]})` : ""}
-        </button>
-        <button
-          onClick={() => canDirect && setReplyMode("direct")}
-          disabled={!canDirect}
-          style={{
-            flex: 1,
-            padding: "8px 10px",
-            borderRadius: 8,
-            border: "1px solid",
-            borderColor: replyMode === "direct" ? "#6d28d9" : "#e2e8f0",
-            background: replyMode === "direct" ? "#f5f3ff" : "#fff",
-            color: replyMode === "direct" ? "#6d28d9" : canDirect ? "#475569" : "#cbd5e1",
-            fontSize: 11,
-            fontWeight: 700,
-            cursor: canDirect ? "pointer" : "not-allowed",
-          }}
-        >
-          💬 Chat direct
-        </button>
-      </div>
+          <span>Envoi vers :</span>
+          {canResa && (
+            <span
+              style={{
+                background: "#eff6ff",
+                color: "#1d4ed8",
+                fontSize: 10.5,
+                fontWeight: 700,
+                padding: "2px 8px",
+                borderRadius: 99,
+              }}
+            >
+              🚖 Course{thread.active_reservation_label ? ` (${thread.active_reservation_label.split(" · ")[0]})` : ""}
+            </span>
+          )}
+          {canDirect && (
+            <span
+              style={{
+                background: "#f5f3ff",
+                color: "#6d28d9",
+                fontSize: 10.5,
+                fontWeight: 700,
+                padding: "2px 8px",
+                borderRadius: 99,
+              }}
+            >
+              💬 Direct
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Messages */}
       <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, paddingBottom: 8 }}>
@@ -2683,29 +2729,37 @@ function DriverChatConversation({
         )}
         {messages.map((m) => {
           const isMe = m.sender === "chauffeur";
-          const chip = m.source === "reservation" ? (m.reservation_label ?? "🚖 Course") : "💬 Direct";
-          const chipBg = m.source === "reservation" ? "#dbeafe" : "#ede9fe";
-          const chipFg = m.source === "reservation" ? "#1d4ed8" : "#6d28d9";
+          const sources: string[] = m.sources ?? [m.source];
+          const chipFor = (src: string) =>
+            src === "reservation"
+              ? { label: m.reservation_label ?? "🚖 Course", bg: "#dbeafe", fg: "#1d4ed8" }
+              : { label: "💬 Direct", bg: "#ede9fe", fg: "#6d28d9" };
           return (
             <div
-              key={`${m.source}-${m.id}`}
+              key={`${sources.join("+")}-${m.id}`}
               style={{ display: "flex", flexDirection: isMe ? "row-reverse" : "row", gap: 6, alignItems: "flex-end" }}
             >
               <div className={`drv-chat-bubble ${isMe ? "me" : "them"}`} style={{ position: "relative" }}>
-                <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
-                  <span
-                    style={{
-                      background: chipBg,
-                      color: chipFg,
-                      fontSize: 8.5,
-                      fontWeight: 700,
-                      padding: "1px 6px",
-                      borderRadius: 99,
-                      letterSpacing: 0.3,
-                    }}
-                  >
-                    {chip}
-                  </span>
+                <div style={{ display: "flex", gap: 4, marginBottom: 4, flexWrap: "wrap" }}>
+                  {sources.map((src) => {
+                    const chip = chipFor(src);
+                    return (
+                      <span
+                        key={src}
+                        style={{
+                          background: chip.bg,
+                          color: chip.fg,
+                          fontSize: 8.5,
+                          fontWeight: 700,
+                          padding: "1px 6px",
+                          borderRadius: 99,
+                          letterSpacing: 0.3,
+                        }}
+                      >
+                        {chip.label}
+                      </span>
+                    );
+                  })}
                 </div>
                 {m.content}
                 <div
@@ -2731,11 +2785,13 @@ function DriverChatConversation({
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={
-            replyMode === "reservation"
-              ? "Répondre dans la course…"
-              : canDirect
-                ? "Répondre en chat direct…"
-                : "Pas de compte client pour le direct"
+            canResa && canDirect
+              ? "Écrire un message (envoyé sur les 2 canaux)…"
+              : canResa
+                ? "Répondre dans la course…"
+                : canDirect
+                  ? "Répondre en chat direct…"
+                  : "Aucun canal disponible pour ce client"
           }
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
@@ -2743,7 +2799,7 @@ function DriverChatConversation({
               send();
             }
           }}
-          disabled={(replyMode === "direct" && !canDirect) || (replyMode === "reservation" && !canResa)}
+          disabled={!canResa && !canDirect}
           style={{
             flex: 1,
             padding: "10px 12px",
