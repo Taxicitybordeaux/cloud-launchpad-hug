@@ -7,14 +7,14 @@ import { geocodeAddress } from "@/lib/googleGeocode";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useServerFn } from "@tanstack/react-start";
 import { listPushFailures, notifyReservationStatus } from "@/lib/push.functions";
-import { calculerPrixMixte, estTarifJourParis } from "@/lib/tarif";
+import { calculerPrixMixte, estTarifJourParis, parseAsParisTime, TARIFS } from "@/lib/tarif";
 import { broadcastSuiviUpdate } from "@/lib/suivi-broadcast";
 
 // ── Token guard ────────────────────────────────────────────────────────────
 const DRIVER_TOKEN = "DSF234";
 
 // ── Types ─────────────────────────────────────────────────────────────────
-type Tab = "courses" | "planning" | "avis" | "clients" | "chat" | "stats";
+type Tab = "courses" | "planning" | "avis" | "clients" | "chat" | "stats" | "simulateur";
 
 interface Resa {
   id: string;
@@ -272,6 +272,29 @@ const IconChat = () => (
     strokeLinejoin="round"
   >
     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+  </svg>
+);
+
+const IconCalc = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="4" y="2" width="16" height="20" rx="2" />
+    <line x1="8" y1="6" x2="16" y2="6" />
+    <line x1="8" y1="11" x2="8" y2="11.01" />
+    <line x1="12" y1="11" x2="12" y2="11.01" />
+    <line x1="16" y1="11" x2="16" y2="11.01" />
+    <line x1="8" y1="15" x2="8" y2="15.01" />
+    <line x1="12" y1="15" x2="12" y2="15.01" />
+    <line x1="16" y1="15" x2="16" y2="15.01" />
+    <line x1="8" y1="19" x2="8" y2="19.01" />
+    <line x1="12" y1="19" x2="12" y2="19.01" />
+    <line x1="16" y1="19" x2="16" y2="19.01" />
   </svg>
 );
 
@@ -586,7 +609,7 @@ function DriverApp() {
 
         {/* Tabs */}
         <div className="drv-tabs">
-          {(["courses", "planning", "avis", "clients", "chat", "stats"] as Tab[]).map((t) => (
+          {(["courses", "planning", "avis", "clients", "chat", "stats", "simulateur"] as Tab[]).map((t) => (
             <button
               key={t}
               className={`drv-tab${tab === t ? " active" : ""}`}
@@ -620,6 +643,7 @@ function DriverApp() {
                   </>
                 )}
                 {t === "stats" && <IconChart />}
+                {t === "simulateur" && <IconCalc />}
               </div>
               <span>
                 {
@@ -630,6 +654,7 @@ function DriverApp() {
                     clients: "Clients",
                     chat: "Chat",
                     stats: "Stats",
+                    simulateur: "Simu",
                   }[t]
                 }
               </span>
@@ -644,6 +669,7 @@ function DriverApp() {
           {tab === "clients" && <ClientsTab />}
           {tab === "chat" && <ChatTab />}
           {tab === "stats" && <StatsTab />}
+          {tab === "simulateur" && <SimulateurTab />}
         </div>
       </div>
     </>
@@ -3234,6 +3260,335 @@ function ActiveVisitors() {
 }
 
 // ── Onglet Stats ────────────────────────────────────────────────────────────
+function SimulateurTab() {
+  const [mode, setMode] = useState<"manuel" | "adresses">("manuel");
+  const [pickupLocal, setPickupLocal] = useState(() => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+  });
+  const [distanceKm, setDistanceKm] = useState("");
+  const [dureeMin, setDureeMin] = useState("");
+  const [depart, setDepart] = useState("");
+  const [arrivee, setArrivee] = useState("");
+  const [loadingRoute, setLoadingRoute] = useState(false);
+  const [routeError, setRouteError] = useState<string | null>(null);
+  const mapRef = useRef<HTMLDivElement>(null);
+
+  const [result, setResult] = useState<{
+    distanceKm: number;
+    dureeMin: number;
+    jourKm: number;
+    nuitKm: number;
+    prixJour: number;
+    prixNuit: number;
+    priseEnCharge: number;
+    total: number;
+    label: string;
+  } | null>(null);
+
+  const computeBreakdown = (distKm: number, dureeMinVal: number, pickupIso: string) => {
+    const dureeS = Math.max(dureeMinVal, 1) * 60;
+    const pickupMs = parseAsParisTime(pickupIso).getTime();
+    const stepsCount = Math.max(Math.round(dureeS / 60), 1);
+    const stepMs = (dureeS * 1000) / stepsCount;
+    const frac = distKm / stepsCount;
+    let jourKm = 0;
+    let nuitKm = 0;
+    for (let s = 0; s < stepsCount; s++) {
+      const t = new Date(pickupMs + s * stepMs).toISOString();
+      if (estTarifJourParis(t)) jourKm += frac;
+      else nuitKm += frac;
+    }
+    const prixJour = jourKm * TARIFS.TARIF_JOUR;
+    const prixNuit = nuitKm * TARIFS.TARIF_NUIT;
+    const total = Math.round((TARIFS.PRISE_EN_CHARGE + prixJour + prixNuit) * 100) / 100;
+    const label = jourKm > 0.01 && nuitKm > 0.01 ? "Tarif mixte 🌗" : nuitKm > 0.01 ? "Tarif nuit 🌙" : "Tarif jour ☀️";
+    return {
+      distanceKm: distKm,
+      dureeMin: dureeMinVal,
+      jourKm,
+      nuitKm,
+      prixJour,
+      prixNuit,
+      priseEnCharge: TARIFS.PRISE_EN_CHARGE,
+      total,
+      label,
+    };
+  };
+
+  const handleManualCompute = () => {
+    const d = parseFloat(distanceKm.replace(",", "."));
+    const t = parseFloat(dureeMin.replace(",", "."));
+    if (!d || d <= 0) {
+      toast.error("Distance invalide");
+      return;
+    }
+    if (!t || t <= 0) {
+      toast.error("Durée invalide");
+      return;
+    }
+    setResult(computeBreakdown(d, t, pickupLocal));
+  };
+
+  const handleAdressesCompute = async () => {
+    if (!depart.trim() || !arrivee.trim()) {
+      toast.error("Renseigne le départ et la destination");
+      return;
+    }
+    setLoadingRoute(true);
+    setRouteError(null);
+    try {
+      const mapsApi = await loadGoogleMapsWhenVisible(mapRef.current!);
+      const [geoA, geoB] = await Promise.all([geocodeAddress(depart), geocodeAddress(arrivee)]);
+      if (!geoA || !geoB) {
+        setRouteError("Adresse introuvable");
+        setLoadingRoute(false);
+        return;
+      }
+      const svc = new mapsApi.maps.DirectionsService();
+      const res: any = await new Promise((resolve, reject) =>
+        svc.route(
+          {
+            origin: { lat: geoA.lat, lng: geoA.lng },
+            destination: { lat: geoB.lat, lng: geoB.lng },
+            travelMode: mapsApi.maps.TravelMode.DRIVING,
+          },
+          (r: any, s: any) => (s === "OK" && r ? resolve(r) : reject(s)),
+        ),
+      );
+      const leg = res.routes[0].legs[0];
+      const distKm = (leg.distance?.value ?? 0) / 1000;
+      const dureeMinVal = Math.round((leg.duration?.value ?? 0) / 60);
+      setResult(computeBreakdown(distKm, dureeMinVal, pickupLocal));
+    } catch (e) {
+      console.error("[SimulateurTab] route:", e);
+      setRouteError("Impossible de calculer l'itinéraire — vérifie les adresses.");
+    } finally {
+      setLoadingRoute(false);
+    }
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: 10,
+    border: "1px solid #e2e8f0",
+    fontSize: 16,
+    fontFamily: "'DM Sans', sans-serif",
+  };
+  const labelStyle: React.CSSProperties = {
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#475569",
+    display: "block",
+    marginBottom: 6,
+  };
+
+  return (
+    <>
+      <p className="drv-section">Simulateur de tarif</p>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+        <button
+          onClick={() => setMode("manuel")}
+          style={{
+            flex: 1,
+            padding: "10px",
+            minHeight: 44,
+            borderRadius: 10,
+            fontWeight: 700,
+            fontSize: 13,
+            cursor: "pointer",
+            border: mode === "manuel" ? "2px solid #2563eb" : "1px solid #e2e8f0",
+            background: mode === "manuel" ? "#eff6ff" : "#fff",
+            color: mode === "manuel" ? "#1d4ed8" : "#475569",
+          }}
+        >
+          🧮 Km / durée
+        </button>
+        <button
+          onClick={() => setMode("adresses")}
+          style={{
+            flex: 1,
+            padding: "10px",
+            minHeight: 44,
+            borderRadius: 10,
+            fontWeight: 700,
+            fontSize: 13,
+            cursor: "pointer",
+            border: mode === "adresses" ? "2px solid #2563eb" : "1px solid #e2e8f0",
+            background: mode === "adresses" ? "#eff6ff" : "#fff",
+            color: mode === "adresses" ? "#1d4ed8" : "#475569",
+          }}
+        >
+          📍 Adresses
+        </button>
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
+        <label style={labelStyle}>📅 Heure de prise en charge</label>
+        <input
+          type="datetime-local"
+          value={pickupLocal}
+          onChange={(e) => setPickupLocal(e.target.value)}
+          style={inputStyle}
+        />
+      </div>
+
+      {mode === "manuel" ? (
+        <>
+          <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+            <div style={{ flex: 1 }}>
+              <label style={labelStyle}>🛣 Distance (km)</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                placeholder="Ex: 15.6"
+                value={distanceKm}
+                onChange={(e) => setDistanceKm(e.target.value)}
+                style={inputStyle}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={labelStyle}>⏱ Durée (min)</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                placeholder="Ex: 32"
+                value={dureeMin}
+                onChange={(e) => setDureeMin(e.target.value)}
+                style={inputStyle}
+              />
+            </div>
+          </div>
+          <button
+            onClick={handleManualCompute}
+            style={{
+              width: "100%",
+              background: "#0b1224",
+              color: "#fff",
+              border: "none",
+              borderRadius: 12,
+              padding: "13px",
+              minHeight: 46,
+              fontSize: 14,
+              fontWeight: 800,
+              cursor: "pointer",
+              marginBottom: 14,
+            }}
+          >
+            💶 Calculer le prix
+          </button>
+        </>
+      ) : (
+        <>
+          <div style={{ marginBottom: 10 }}>
+            <label style={labelStyle}>📍 Départ</label>
+            <input
+              type="text"
+              placeholder="Ex: 37 Rue Charles Domercq, Bordeaux"
+              value={depart}
+              onChange={(e) => setDepart(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={labelStyle}>🏁 Destination</label>
+            <input
+              type="text"
+              placeholder="Ex: Aéroport Bordeaux-Mérignac"
+              value={arrivee}
+              onChange={(e) => setArrivee(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
+          {/* Élément requis (même caché) pour déclencher le chargement de Google Maps */}
+          <div ref={mapRef} style={{ height: 1, overflow: "hidden" }} />
+          <button
+            onClick={handleAdressesCompute}
+            disabled={loadingRoute}
+            style={{
+              width: "100%",
+              background: "#0b1224",
+              color: "#fff",
+              border: "none",
+              borderRadius: 12,
+              padding: "13px",
+              minHeight: 46,
+              fontSize: 14,
+              fontWeight: 800,
+              cursor: loadingRoute ? "default" : "pointer",
+              marginBottom: 14,
+              opacity: loadingRoute ? 0.7 : 1,
+            }}
+          >
+            {loadingRoute ? "…" : "🗺 Calculer l'itinéraire et le prix"}
+          </button>
+          {routeError && <div style={{ color: "#b91c1c", fontSize: 13, marginBottom: 12 }}>{routeError}</div>}
+        </>
+      )}
+
+      {result && (
+        <div style={{ border: "2px solid #0b1224", borderRadius: 14, padding: 16, background: "#f8fafc" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <span style={{ fontSize: 13, color: "#64748b" }}>
+              🛣 {result.distanceKm.toFixed(1)} km · ⏱ {result.dureeMin} min
+            </span>
+            <span
+              className="drv-badge-pill"
+              style={{
+                background: result.label.includes("mixte")
+                  ? "#fdf4ff"
+                  : result.label.includes("nuit")
+                    ? "#eff6ff"
+                    : "#f0fdf4",
+                color: result.label.includes("mixte")
+                  ? "#a21caf"
+                  : result.label.includes("nuit")
+                    ? "#1d4ed8"
+                    : "#15803d",
+              }}
+            >
+              {result.label}
+            </span>
+          </div>
+
+          <div style={{ fontSize: 13, color: "#475569", lineHeight: 1.9 }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>Prise en charge</span>
+              <span>{result.priseEnCharge.toFixed(2)} €</span>
+            </div>
+            {result.jourKm > 0.01 && (
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>
+                  Tarif jour ☀️ · {result.jourKm.toFixed(1)} km × {TARIFS.TARIF_JOUR.toFixed(2)} €
+                </span>
+                <span>{result.prixJour.toFixed(2)} €</span>
+              </div>
+            )}
+            {result.nuitKm > 0.01 && (
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>
+                  Tarif nuit 🌙 · {result.nuitKm.toFixed(1)} km × {TARIFS.TARIF_NUIT.toFixed(2)} €
+                </span>
+                <span>{result.prixNuit.toFixed(2)} €</span>
+              </div>
+            )}
+          </div>
+
+          <hr className="drv-divider" style={{ margin: "10px 0" }} />
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 15, fontWeight: 800, color: "#0b1224" }}>Total estimé</span>
+            <span style={{ fontSize: 22, fontWeight: 800, color: "#0b1224" }}>{result.total.toFixed(2)} €</span>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 function StatsTab() {
   const [stats, setStats] = useState({ revenus: 0, courses: 0, km: 0, note: 0, semCourses: 0, semRevenus: 0 });
   const [loading, setLoading] = useState(true);
