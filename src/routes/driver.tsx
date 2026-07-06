@@ -3358,7 +3358,11 @@ function SimulateurTab() {
         ),
       );
       const leg = res.routes[0].legs[0];
-      const distKm = (leg.distance?.value ?? 0) / 1000;
+      // Arrondi à 1 décimale AVANT le calcul du prix, pour que l'affichage
+      // ("5.2 km × 2.16 €") corresponde exactement au prix calculé et évite
+      // toute impression d'erreur de calcul (ex: 5.153 km affiché "5.2" mais
+      // facturé sur la valeur brute → 11.13 € au lieu de 11.23 € attendu).
+      const distKm = Math.round(((leg.distance?.value ?? 0) / 1000) * 10) / 10;
       const dureeMinVal = Math.round((leg.duration?.value ?? 0) / 60);
       setResult(computeBreakdown(distKm, dureeMinVal, pickupLocal));
     } catch (e) {
