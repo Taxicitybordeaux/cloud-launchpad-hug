@@ -63,7 +63,7 @@ function isSuiviExpired(reservation: any): boolean {
   const expiryMs = refMs + SUIVI_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
   return Date.now() > expiryMs;
 }
-const VEHICLE_MODEL = "Mercedes-Benz Classe E";
+const VEHICLE_MODEL = "Mercedes Classe E";
 const VEHICLE_COLOR = "Noir";
 const VEHICLE_PLATE = "HF-450-JG";
 
@@ -213,14 +213,15 @@ const STATUS_CONFIG: Record<
 // ─── Timeline Stepper ──────────────────────────────────────────────────────────────
 function PremiumTimeline({ status }: { status: string }) {
   const t = useT();
-  const steps = ["pending", "accepted", "arrived", "completed"];
+  const steps = ["accepted", "en_route", "arrived", "completed"];
   if (status === "cancelled") return null;
 
+  // "pending" (avant validation chauffeur) → aucune étape encore active
   const currentIdx = steps.indexOf(status as any);
 
   const stepLabels: Record<string, string> = {
-    pending: t("suivi.timeline.pending"),
     accepted: t("suivi.timeline.accepted"),
+    en_route: t("suivi.status.en_route"),
     arrived: t("suivi.timeline.arrived"),
     completed: t("suivi.timeline.completed"),
   };
