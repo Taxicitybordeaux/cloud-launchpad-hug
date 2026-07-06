@@ -48,7 +48,11 @@ export const subscribePush = createServerFn({ method: "POST" })
     // jamais l'ancienne ligne, et on accumule des lignes actives pour le même
     // device → notifications ×N côté iPhone. En gardant l'endpoint stable par
     // device (hash UA), la rotation de token remplace bien l'ancienne ligne.
-    const targetKey = clientAccountId ? `account-${clientAccountId}` : reservationId ? `reservation-${reservationId}` : "generic";
+    const targetKey = clientAccountId
+      ? `account-${clientAccountId}`
+      : reservationId
+        ? `reservation-${reservationId}`
+        : "generic";
     const deviceKey = hashUserAgent(ua);
     const endpoint = `${data.audience}-${targetKey}-${deviceKey}`;
     const nowIso = new Date().toISOString();
@@ -148,9 +152,7 @@ const APP_URL = "https://taxicitybordeaux.fr";
 export const notifyNewReservation = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ reservation_id: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
-    const [{ getTaxiSupabaseAdmin, getTaxiSupabaseConfig }] = await Promise.all([
-      import("@/lib/taxi-supabase.server"),
-    ]);
+    const [{ getTaxiSupabaseAdmin, getTaxiSupabaseConfig }] = await Promise.all([import("@/lib/taxi-supabase.server")]);
 
     const supabaseAdmin = getTaxiSupabaseAdmin();
     console.log("[notifyNewReservation] start", data.reservation_id);
@@ -177,7 +179,6 @@ export const notifyNewReservation = createServerFn({ method: "POST" })
     // L'envoyer ici en plus produisait un doublon ("Nouvelle course" +
     // "Nouvelle résa") sur le téléphone du chauffeur.
     const chauffeurResult = { sent: 0, removed: 0, skipped: "sent-by-db-trigger" as const };
-
 
     // ── Email à José via le bridge Lovable (même que notify-reservation.ts) ─
     let emailSent = false;
@@ -368,7 +369,6 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
     // ── Push CHAUFFEUR désactivée (notification "Active ton GPS" retirée) ─
     const chauffeurResult = { sent: 0, removed: 0 };
 
-
     // ── Push CLIENT : confirmation, approche, arrivée, fin de course ─────
     let clientResult = { sent: 0, removed: 0 };
     const target = { reservationId: r.id, accountId: (r as any).client_account_id ?? undefined };
@@ -391,8 +391,8 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
       clientResult = await sendPushToAudience(
         "client",
         {
-          title: "🚖 Votre chauffeur est en route",
-          body: `José arrive vers ${r.depart}${etaTxt}.`,
+          title: "🚖 Votre taxi arrive",
+          body: `Votre taxi arrive vers ${r.depart}${etaTxt}.`,
           url,
           tag: `client-en-route-${r.id}`,
           requireInteraction: false,
@@ -432,7 +432,7 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
     let smsBody: string | null = null;
     if (smsPhone && data.status === "en_route") {
       smsBody = encodeURIComponent(
-        `Bonjour ${clientName},\nVotre chauffeur est en route vers vous !\n${r.depart}\n📲 Suivez en direct : ${APP_URL}${url}\nTel: 06 73 07 23 22`,
+        `Bonjour ${clientName},\nVotre taxi arrive vers vous !\n${r.depart}\n📲 Suivez en direct : ${APP_URL}${url}\nTel: 06 73 07 23 22`,
       );
     }
     if (smsPhone && data.status === "arrived") {
