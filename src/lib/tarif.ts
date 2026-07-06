@@ -39,7 +39,7 @@ export function parseAsParisTime(iso: string): Date {
   const wantedH = parseInt(h, 10);
   const wantedM = parseInt(m, 10);
   const diffMs = (wantedH * 60 + wantedM - (parisH * 60 + parisM)) * 60_000;
-  return new Date(provisional.getTime() - diffMs);
+  return new Date(provisional.getTime() + diffMs);
 }
 
 export function partsParis(iso: string): {
