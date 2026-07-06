@@ -53,6 +53,39 @@ export type Database = {
         }
         Relationships: []
       }
+      avis: {
+        Row: {
+          author_name: string
+          chauffeur_id: string | null
+          commentaire: string | null
+          created_at: string
+          id: string
+          note: number
+          reservation_id: string | null
+          status: string
+        }
+        Insert: {
+          author_name: string
+          chauffeur_id?: string | null
+          commentaire?: string | null
+          created_at?: string
+          id?: string
+          note: number
+          reservation_id?: string | null
+          status?: string
+        }
+        Update: {
+          author_name?: string
+          chauffeur_id?: string | null
+          commentaire?: string | null
+          created_at?: string
+          id?: string
+          note?: number
+          reservation_id?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       client_account_secrets: {
         Row: {
           client_account_id: string
