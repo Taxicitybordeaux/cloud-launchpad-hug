@@ -63,7 +63,7 @@ function isSuiviExpired(reservation: any): boolean {
   const expiryMs = refMs + SUIVI_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
   return Date.now() > expiryMs;
 }
-const VEHICLE_MODEL = "Mercedes Classe E";
+const VEHICLE_MODEL = "Mercedes-Benz";
 const VEHICLE_COLOR = "Noir";
 const VEHICLE_PLATE = "HF-450-JG";
 
@@ -234,7 +234,10 @@ function PremiumTimeline({ status }: { status: string }) {
         const config = STATUS_CONFIG[s];
 
         return (
-          <div key={s} style={{ display: "flex", alignItems: "flex-start", flex: 1 }}>
+          <div
+            key={s}
+            style={{ display: "flex", alignItems: "flex-start", flex: i < steps.length - 1 ? 1 : "0 0 auto" }}
+          >
             {/* Étape + label */}
             <div
               style={{
@@ -243,21 +246,21 @@ function PremiumTimeline({ status }: { status: string }) {
                 alignItems: "center",
                 gap: "5px",
                 flex: "0 0 auto",
-                width: "52px",
+                width: "62px",
               }}
             >
               <div
                 className={`suivi-premium ${isActive && status === "arrived" ? "suivi-pulse-active" : ""}`}
                 style={{
-                  width: "32px",
-                  height: "32px",
+                  width: "30px",
+                  height: "30px",
                   borderRadius: "50%",
                   background: isDone ? config.bgGradient : "#e2e8f0",
                   border: `2px solid ${isDone ? config.borderColor : "transparent"}`,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: "14px",
+                  fontSize: "13px",
                   fontWeight: 600,
                   color: config.color,
                   flexShrink: 0,
@@ -268,13 +271,17 @@ function PremiumTimeline({ status }: { status: string }) {
               </div>
               <div
                 style={{
-                  fontSize: "11px",
+                  fontSize: "10.5px",
                   fontWeight: isActive ? 700 : 500,
                   color: isDone ? config.color : "#94a3b8",
                   textAlign: "center",
-                  lineHeight: 1.2,
-                  maxWidth: "52px",
-                  wordBreak: "break-word",
+                  lineHeight: 1.25,
+                  width: "100%",
+                  whiteSpace: "normal",
+                  wordBreak: "normal",
+                  overflowWrap: "normal",
+                  hyphens: "none",
+                  letterSpacing: "-0.1px",
                 }}
               >
                 {stepLabels[s]}
@@ -282,7 +289,7 @@ function PremiumTimeline({ status }: { status: string }) {
             </div>
             {/* Ligne entre étapes */}
             {i < steps.length - 1 && (
-              <div style={{ flex: 1, paddingTop: "15px" }}>
+              <div style={{ flex: 1, minWidth: "6px", paddingTop: "14px" }}>
                 <div
                   style={{
                     height: "2px",
