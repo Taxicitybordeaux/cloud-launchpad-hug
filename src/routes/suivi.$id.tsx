@@ -1460,15 +1460,19 @@ function SuiviPage() {
         loadReservation(true, true);
       })
       .subscribe();
-    // Refresh au retour d'onglet (iOS suspend souvent la connexion realtime)
+    // Refresh au retour d'onglet (iOS suspend souvent la connexion realtime).
+    // On n'écoute PAS window.focus : sur mobile, ouvrir le clavier (input chat,
+    // sélecteur) déclenche des blur/focus qui rappelaient loadReservation et
+    // faisaient "clignoter" les statuts pendant la saisie d'un message.
+    // On ajoute aussi un throttle : pas plus d'un refresh toutes les 3s.
     const onVisible = () => {
-      if (!document.hidden) loadReservation(true, true);
+      if (document.hidden) return;
+      if (Date.now() - lastUpdateRef.current < 3000) return;
+      loadReservation(true, true);
     };
     document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", onVisible);
     return () => {
       document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", onVisible);
       try {
         supabase.removeChannel(ch);
       } catch {}
