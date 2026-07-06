@@ -489,28 +489,9 @@ function DriverApp() {
     };
   }, []);
 
-  // Badge messages non lus (messages clients sans réponse driver)
-  useEffect(() => {
-    const SEEN_KEY = "drv_chat_seen_at";
-    const loadUnread = async () => {
-      const seenAt = localStorage.getItem(SEEN_KEY) ?? new Date(0).toISOString();
-      const { count, error } = await (supabase as any)
-        .from("direct_messages")
-        .select("id", { count: "exact", head: true })
-        .eq("sender", "client")
-        .gt("created_at", seenAt);
-      if (error) console.error("[drv-chat-badge] erreur requête direct_messages:", error);
-      setUnreadChat(count ?? 0);
-    };
-    loadUnread();
-    const ch = (supabase as any)
-      .channel("drv-chat-badge")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "direct_messages" }, loadUnread)
-      .subscribe();
-    return () => {
-      supabase.removeChannel(ch);
-    };
-  }, []);
+  // Badge messages non lus : remonté par ChatTab lui-même (même source que
+  // la liste des conversations), voir onBadgeChange plus bas — cohérent avec
+  // le pattern déjà utilisé pour CoursesTab/AvisTab.
 
   return (
     <>
@@ -615,10 +596,6 @@ function DriverApp() {
               className={`drv-tab${tab === t ? " active" : ""}`}
               onClick={() => {
                 setTab(t);
-                if (t === "chat") {
-                  localStorage.setItem("drv_chat_seen_at", new Date().toISOString());
-                  setUnreadChat(0);
-                }
               }}
             >
               <div style={{ position: "relative", display: "inline-block" }}>
@@ -667,7 +644,7 @@ function DriverApp() {
           {tab === "planning" && <PlanningTab />}
           {tab === "avis" && <AvisTab onBadgeChange={setPendingAvis} />}
           {tab === "clients" && <ClientsTab />}
-          {tab === "chat" && <ChatTab />}
+          {tab === "chat" && <ChatTab onBadgeChange={setUnreadChat} />}
           {tab === "stats" && <StatsTab />}
           {tab === "simulateur" && <SimulateurTab />}
         </div>
@@ -2226,7 +2203,7 @@ function ClientsTab() {
 }
 
 // ── Onglet Chat (fusion direct ↔ course par client) ──────────────────────
-function ChatTab() {
+function ChatTab({ onBadgeChange }: { onBadgeChange?: (n: number) => void }) {
   const [threads, setThreads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<any | null>(null);
@@ -2243,12 +2220,14 @@ function ChatTab() {
       const { listMergedChauffeurThreads } = await import("@/lib/chat.functions");
       const data = await listMergedChauffeurThreads();
       setThreads(data ?? []);
+      const total = (data ?? []).reduce((sum: number, t: any) => sum + (t.unread_chauffeur ?? 0), 0);
+      onBadgeChange?.(total);
     } catch (e) {
       console.warn("[driver chat] load threads failed", e);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onBadgeChange]);
 
   useEffect(() => {
     loadThreads();
