@@ -430,36 +430,24 @@ function DriverApp() {
     load();
     const ch = (supabase as any)
       .channel("drv-avis-badge")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "avis" },
-        (payload: any) => {
-          const row = payload?.new ?? {};
-          const stars = "★".repeat(Math.max(0, Math.min(5, Number(row.note) || 0)));
-          const who = row.prenom || row.nom || "Client";
-          const extract = (row.commentaire || "").toString().slice(0, 60);
-          toast.success(`⭐ Nouvel avis de ${who} ${stars}`, {
-            description: extract ? `"${extract}${extract.length >= 60 ? "…" : ""}"` : undefined,
-            duration: 8000,
-          });
-          try {
-            if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-              (navigator as any).vibrate?.([80, 40, 80]);
-            }
-          } catch {}
-          load();
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "avis" },
-        load
-      )
-      .on(
-        "postgres_changes",
-        { event: "DELETE", schema: "public", table: "avis" },
-        load
-      )
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "avis" }, (payload: any) => {
+        const row = payload?.new ?? {};
+        const stars = "★".repeat(Math.max(0, Math.min(5, Number(row.note) || 0)));
+        const who = row.prenom || row.nom || "Client";
+        const extract = (row.commentaire || "").toString().slice(0, 60);
+        toast.success(`⭐ Nouvel avis de ${who} ${stars}`, {
+          description: extract ? `"${extract}${extract.length >= 60 ? "…" : ""}"` : undefined,
+          duration: 8000,
+        });
+        try {
+          if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+            (navigator as any).vibrate?.([80, 40, 80]);
+          }
+        } catch {}
+        load();
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "avis" }, load)
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "avis" }, load)
       .subscribe();
     // Filets de sécurité : rafraîchir le compteur au retour d'onglet et
     // au focus fenêtre (Realtime peut être coupé en arrière-plan sur iOS).
@@ -483,11 +471,12 @@ function DriverApp() {
     const SEEN_KEY = "drv_chat_seen_at";
     const loadUnread = async () => {
       const seenAt = localStorage.getItem(SEEN_KEY) ?? new Date(0).toISOString();
-      const { count } = await (supabase as any)
+      const { count, error } = await (supabase as any)
         .from("direct_messages")
         .select("id", { count: "exact", head: true })
-        .eq("sender_role", "client")
+        .eq("sender", "client")
         .gt("created_at", seenAt);
+      if (error) console.error("[drv-chat-badge] erreur requête direct_messages:", error);
       setUnreadChat(count ?? 0);
     };
     loadUnread();
@@ -3187,7 +3176,6 @@ function VisitorCounter({
       clearInterval(poll);
     };
   }, [scope]);
-
 
   const isActive = count !== null && count > 0;
 
