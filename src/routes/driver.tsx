@@ -3495,7 +3495,8 @@ function SimulateurTab() {
             color: mode === "manuel" ? "#1d4ed8" : "#475569",
           }}
         >
-          🧮 Km / durée
+          🧮 Km
+
         </button>
         <button
           onClick={() => setMode("adresses")}
