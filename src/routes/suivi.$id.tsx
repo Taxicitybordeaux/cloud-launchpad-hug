@@ -29,8 +29,6 @@ import { useI18n, useT } from "@/i18n/I18nProvider";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { getReservationForFinPublic } from "@/lib/reservation.functions";
 import { listSuiviMessages, sendSuiviClientMessage, type ChatMessage } from "@/lib/chat.functions";
-import { getRideReviewState, submitRideReview } from "@/lib/reviews.functions";
-import { notifyNewReview } from "@/lib/push.functions";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getTaxiSupabase } from "@/lib/taxi-supabase";
@@ -1035,15 +1033,14 @@ function ReviewBlock({ reservationId, authorName, t }: { reservationId: string; 
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [alreadyReviewed, setAlreadyReviewed] = useState(false);
-  const getReviewState = useServerFn(getRideReviewState);
-  const submitReview = useServerFn(submitRideReview);
-  const notifyReview = useServerFn(notifyNewReview);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const state = await getReviewState({ data: { reservation_id: reservationId } });
+        const response = await fetch(`/api/public/reviews?reservation_id=${encodeURIComponent(reservationId)}`);
+        if (!response.ok) return;
+        const state = await response.json();
         if (!cancelled && state.hasReview) setAlreadyReviewed(true);
       } catch {
         // Non bloquant : si la vérification échoue, l'envoi empêchera quand même les doublons côté serveur.
@@ -1052,7 +1049,7 @@ function ReviewBlock({ reservationId, authorName, t }: { reservationId: string; 
     return () => {
       cancelled = true;
     };
-  }, [getReviewState, reservationId]);
+  }, [reservationId]);
 
   const handleSubmit = async () => {
     if (rating === 0) {
@@ -1062,24 +1059,21 @@ function ReviewBlock({ reservationId, authorName, t }: { reservationId: string; 
     setSubmitting(true);
     try {
       const cleanedComment = comment.trim();
-      const result = await submitReview({
-        data: {
+      const response = await fetch("/api/public/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           reservation_id: reservationId,
           author_name: authorName?.trim() || null,
           note: rating,
           commentaire: cleanedComment || null,
-        },
+        }),
       });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || t("suivi.review_impossible"));
       if (result.alreadySubmitted) setAlreadyReviewed(true);
       setSubmitted(true);
       toast.success(t("suivi.review_thanks"));
-      void notifyReview({
-        data: {
-          author_name: authorName?.trim() || "Client",
-          note: rating,
-          commentaire: cleanedComment.slice(0, 500),
-        },
-      }).catch(() => {});
     } catch (e: any) {
       toast.error(t("suivi.review_error") + " " + (e.message ?? t("suivi.review_impossible")));
     } finally {

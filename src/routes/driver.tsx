@@ -7,7 +7,6 @@ import { geocodeAddress } from "@/lib/googleGeocode";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useServerFn } from "@tanstack/react-start";
 import { listPushFailures, notifyReservationStatus } from "@/lib/push.functions";
-import { deleteDriverAvis, listDriverAvis, moderateDriverAvis } from "@/lib/reviews.functions";
 import { calculerPrixMixte, estTarifJourParis, parseAsParisTime, TARIFS } from "@/lib/tarif";
 import { broadcastSuiviUpdate } from "@/lib/suivi-broadcast";
 
@@ -386,7 +385,6 @@ function DriverApp() {
   const [unreadChat, setUnreadChat] = useState(0);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const { status: pushStatus, subscribe: subscribePush } = usePushNotifications({ autoAudience: "chauffeur" });
-  const listAvisForBadge = useServerFn(listDriverAvis);
 
   // Capture le prompt d'installation PWA
   useEffect(() => {
@@ -447,7 +445,9 @@ function DriverApp() {
   useEffect(() => {
     const load = async () => {
       try {
-        const result = await listAvisForBadge({ data: { token: DRIVER_TOKEN } });
+        const response = await fetch(`/api/public/reviews?token=${encodeURIComponent(DRIVER_TOKEN)}`);
+        if (!response.ok) return;
+        const result = await response.json();
         setPendingAvis(result.pending.length);
       } catch {
         // Le badge se resynchronise au prochain passage/poll.
@@ -490,7 +490,7 @@ function DriverApp() {
       window.removeEventListener("focus", onVisible);
       supabase.removeChannel(ch);
     };
-  }, [listAvisForBadge]);
+  }, []);
 
   // Badge messages non lus : remonté par ChatTab lui-même (même source que
   // la liste des conversations), voir onBadgeChange plus bas — cohérent avec
@@ -1777,20 +1777,19 @@ function AvisTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
   const [pending, setPending] = useState<Avis[]>([]);
   const [published, setPublished] = useState<Avis[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
-  const listAvis = useServerFn(listDriverAvis);
-  const moderateAvis = useServerFn(moderateDriverAvis);
-  const deleteAvis = useServerFn(deleteDriverAvis);
 
   const load = useCallback(async () => {
     try {
-      const result = await listAvis({ data: { token: DRIVER_TOKEN } });
+      const response = await fetch(`/api/public/reviews?token=${encodeURIComponent(DRIVER_TOKEN)}`);
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "chargement impossible");
       setPending(result.pending ?? []);
       setPublished(result.published ?? []);
       onBadgeChange((result.pending ?? []).length);
     } catch (e: any) {
       toast.error("Impossible de charger les avis : " + (e.message ?? e));
     }
-  }, [listAvis, onBadgeChange]);
+  }, [onBadgeChange]);
 
   useEffect(() => {
     load();
@@ -1815,7 +1814,13 @@ function AvisTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
   const moderate = async (id: string, action: "approved" | "refused") => {
     setBusy(id);
     try {
-      await moderateAvis({ data: { token: DRIVER_TOKEN, id, status: action } });
+      const response = await fetch("/api/public/reviews", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-driver-token": DRIVER_TOKEN },
+        body: JSON.stringify({ id, status: action }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "modération impossible");
       toast.success(action === "approved" ? "Avis publié ✓" : "Avis refusé");
       load();
     } catch (e: any) {
@@ -1829,7 +1834,13 @@ function AvisTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
     if (!confirm("Supprimer définitivement cet avis ?")) return;
     setBusy(id);
     try {
-      await deleteAvis({ data: { token: DRIVER_TOKEN, id } });
+      const response = await fetch("/api/public/reviews", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", "x-driver-token": DRIVER_TOKEN },
+        body: JSON.stringify({ id }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "suppression impossible");
       toast.success("Avis supprimé");
       load();
     } catch (e: any) {
