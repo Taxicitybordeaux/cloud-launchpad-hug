@@ -3348,8 +3348,8 @@ function SimulateurTab() {
     return d.toISOString().slice(0, 16);
   });
   const [distanceKm, setDistanceKm] = useState("");
-  const [dureeMin, setDureeMin] = useState("");
   const [depart, setDepart] = useState("");
+
   const [arrivee, setArrivee] = useState("");
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
