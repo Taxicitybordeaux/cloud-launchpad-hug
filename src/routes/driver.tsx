@@ -3610,8 +3610,9 @@ function SimulateurTab() {
         <div style={{ border: "2px solid #0b1224", borderRadius: 14, padding: 16, background: "#f8fafc" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
             <span style={{ fontSize: 13, color: "#64748b" }}>
-              🛣 {result.distanceKm.toFixed(1)} km · ⏱ {result.dureeMin} min
+              🛣 {result.distanceKm.toFixed(1)} km
             </span>
+
             <span
               className="drv-badge-pill"
               style={{
