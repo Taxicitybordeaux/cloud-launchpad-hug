@@ -4,7 +4,7 @@ import { z } from "zod";
 const DRIVER_TOKEN = "DSF234";
 
 const submitSchema = z.object({
-  reservation_id: z.string().uuid(),
+  reservation_id: z.string().uuid().optional().nullable(),
   author_name: z.string().trim().min(1).max(80).optional().nullable(),
   note: z.number().int().min(1).max(5),
   commentaire: z.string().trim().max(900).optional().nullable(),
@@ -83,17 +83,19 @@ export const Route = createFileRoute("/api/public/reviews")({
         if (!parsed.success) return Response.json({ error: "Invalid payload" }, { status: 400 });
         const data = parsed.data;
 
-        const { data: existing, error: existingError } = await supabase
-          .from("avis")
-          .select("id,status")
-          .eq("reservation_id", data.reservation_id)
-          .limit(1)
-          .maybeSingle();
-        if (existingError) return Response.json({ error: existingError.message }, { status: 500 });
-        if (existing) return Response.json({ ok: true, alreadySubmitted: true, id: existing.id, status: existing.status });
+        if (data.reservation_id) {
+          const { data: existing, error: existingError } = await supabase
+            .from("avis")
+            .select("id,status")
+            .eq("reservation_id", data.reservation_id)
+            .limit(1)
+            .maybeSingle();
+          if (existingError) return Response.json({ error: existingError.message }, { status: 500 });
+          if (existing) return Response.json({ ok: true, alreadySubmitted: true, id: existing.id, status: existing.status });
+        }
 
         let authorName = data.author_name?.trim() || "";
-        if (!authorName) {
+        if (!authorName && data.reservation_id) {
           const { data: reservation } = await supabase
             .from("reservations")
             .select("client_name,nom")
