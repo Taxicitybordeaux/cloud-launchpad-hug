@@ -3399,17 +3399,15 @@ function SimulateurTab() {
 
   const handleManualCompute = () => {
     const d = parseFloat(distanceKm.replace(",", "."));
-    const t = parseFloat(dureeMin.replace(",", "."));
     if (!d || d <= 0) {
       toast.error("Distance invalide");
       return;
     }
-    if (!t || t <= 0) {
-      toast.error("Durée invalide");
-      return;
-    }
+    // Durée masquée : on estime 2 min par km pour le calcul mixte jour/nuit.
+    const t = Math.max(Math.round(d * 2), 1);
     setResult(computeBreakdown(d, t, pickupLocal));
   };
+
 
   const handleAdressesCompute = async () => {
     if (!depart.trim() || !arrivee.trim()) {
