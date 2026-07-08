@@ -3527,29 +3527,16 @@ function SimulateurTab() {
 
       {mode === "manuel" ? (
         <>
-          <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
-            <div style={{ flex: 1 }}>
-              <label style={labelStyle}>🛣 Distance (km)</label>
-              <input
-                type="text"
-                inputMode="decimal"
-                placeholder="Ex: 15.6"
-                value={distanceKm}
-                onChange={(e) => setDistanceKm(e.target.value)}
-                style={inputStyle}
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <label style={labelStyle}>⏱ Durée (min)</label>
-              <input
-                type="text"
-                inputMode="decimal"
-                placeholder="Ex: 32"
-                value={dureeMin}
-                onChange={(e) => setDureeMin(e.target.value)}
-                style={inputStyle}
-              />
-            </div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={labelStyle}>🛣 Distance (km)</label>
+            <input
+              type="text"
+              inputMode="decimal"
+              placeholder="Ex: 15.6"
+              value={distanceKm}
+              onChange={(e) => setDistanceKm(e.target.value)}
+              style={inputStyle}
+            />
           </div>
           <button
             onClick={handleManualCompute}
@@ -3571,6 +3558,7 @@ function SimulateurTab() {
           </button>
         </>
       ) : (
+
         <>
           <div style={{ marginBottom: 10 }}>
             <label style={labelStyle}>📍 Départ</label>
