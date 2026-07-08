@@ -3348,8 +3348,8 @@ function SimulateurTab() {
     return d.toISOString().slice(0, 16);
   });
   const [distanceKm, setDistanceKm] = useState("");
-  const [dureeMin, setDureeMin] = useState("");
   const [depart, setDepart] = useState("");
+
   const [arrivee, setArrivee] = useState("");
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
@@ -3399,17 +3399,15 @@ function SimulateurTab() {
 
   const handleManualCompute = () => {
     const d = parseFloat(distanceKm.replace(",", "."));
-    const t = parseFloat(dureeMin.replace(",", "."));
     if (!d || d <= 0) {
       toast.error("Distance invalide");
       return;
     }
-    if (!t || t <= 0) {
-      toast.error("Durée invalide");
-      return;
-    }
+    // Durée masquée : on estime 2 min par km pour le calcul mixte jour/nuit.
+    const t = Math.max(Math.round(d * 2), 1);
     setResult(computeBreakdown(d, t, pickupLocal));
   };
+
 
   const handleAdressesCompute = async () => {
     if (!depart.trim() || !arrivee.trim()) {
@@ -3495,7 +3493,8 @@ function SimulateurTab() {
             color: mode === "manuel" ? "#1d4ed8" : "#475569",
           }}
         >
-          🧮 Km / durée
+          🧮 Km
+
         </button>
         <button
           onClick={() => setMode("adresses")}
@@ -3528,29 +3527,16 @@ function SimulateurTab() {
 
       {mode === "manuel" ? (
         <>
-          <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
-            <div style={{ flex: 1 }}>
-              <label style={labelStyle}>🛣 Distance (km)</label>
-              <input
-                type="text"
-                inputMode="decimal"
-                placeholder="Ex: 15.6"
-                value={distanceKm}
-                onChange={(e) => setDistanceKm(e.target.value)}
-                style={inputStyle}
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <label style={labelStyle}>⏱ Durée (min)</label>
-              <input
-                type="text"
-                inputMode="decimal"
-                placeholder="Ex: 32"
-                value={dureeMin}
-                onChange={(e) => setDureeMin(e.target.value)}
-                style={inputStyle}
-              />
-            </div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={labelStyle}>🛣 Distance (km)</label>
+            <input
+              type="text"
+              inputMode="decimal"
+              placeholder="Ex: 15.6"
+              value={distanceKm}
+              onChange={(e) => setDistanceKm(e.target.value)}
+              style={inputStyle}
+            />
           </div>
           <button
             onClick={handleManualCompute}
@@ -3572,6 +3558,7 @@ function SimulateurTab() {
           </button>
         </>
       ) : (
+
         <>
           <div style={{ marginBottom: 10 }}>
             <label style={labelStyle}>📍 Départ</label>
@@ -3623,8 +3610,9 @@ function SimulateurTab() {
         <div style={{ border: "2px solid #0b1224", borderRadius: 14, padding: 16, background: "#f8fafc" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
             <span style={{ fontSize: 13, color: "#64748b" }}>
-              🛣 {result.distanceKm.toFixed(1)} km · ⏱ {result.dureeMin} min
+              🛣 {result.distanceKm.toFixed(1)} km
             </span>
+
             <span
               className="drv-badge-pill"
               style={{
