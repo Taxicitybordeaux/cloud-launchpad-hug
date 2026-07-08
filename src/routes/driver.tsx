@@ -3357,7 +3357,6 @@ function SimulateurTab() {
 
   const [result, setResult] = useState<{
     distanceKm: number;
-    dureeMin: number;
     jourKm: number;
     nuitKm: number;
     prixJour: number;
@@ -3367,8 +3366,11 @@ function SimulateurTab() {
     label: string;
   } | null>(null);
 
-  const computeBreakdown = (distKm: number, dureeMinVal: number, pickupIso: string) => {
-    const dureeS = Math.max(dureeMinVal, 1) * 60;
+  // Découpage jour/nuit basé sur une durée interne uniquement — la durée
+  // n'entre PAS dans le prix (tarif au km) et n'est jamais exposée dans l'UI
+  // ni envoyée dans une requête.
+  const computeBreakdown = (distKm: number, stepMinutes: number, pickupIso: string) => {
+    const dureeS = Math.max(stepMinutes, 1) * 60;
     const pickupMs = parseAsParisTime(pickupIso).getTime();
     const stepsCount = Math.max(Math.round(dureeS / 60), 1);
     const stepMs = (dureeS * 1000) / stepsCount;
@@ -3386,7 +3388,6 @@ function SimulateurTab() {
     const label = jourKm > 0.01 && nuitKm > 0.01 ? "Tarif mixte 🌗" : nuitKm > 0.01 ? "Tarif nuit 🌙" : "Tarif jour ☀️";
     return {
       distanceKm: distKm,
-      dureeMin: dureeMinVal,
       jourKm,
       nuitKm,
       prixJour,
@@ -3396,6 +3397,7 @@ function SimulateurTab() {
       label,
     };
   };
+
 
   const handleManualCompute = () => {
     const d = parseFloat(distanceKm.replace(",", "."));
