@@ -34,6 +34,7 @@ import { Route as ClientDashboardRouteImport } from './routes/client.dashboard'
 import { Route as ClientChatRouteImport } from './routes/client.chat'
 import { Route as ApiManifestRouteImport } from './routes/api/manifest'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
+import { Route as ApiPublicReviewsRouteImport } from './routes/api/public/reviews'
 import { Route as ApiPublicPushDedupCheckRouteImport } from './routes/api/public/push-dedup-check'
 import { Route as ApiPublicNotifyReservationClientRouteImport } from './routes/api/public/notify-reservation-client'
 import { Route as ApiPublicNotifyReservationRouteImport } from './routes/api/public/notify-reservation'
@@ -173,6 +174,11 @@ const LovableEmailSuppressionRoute = LovableEmailSuppressionRouteImport.update({
   path: '/lovable/email/suppression',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicReviewsRoute = ApiPublicReviewsRouteImport.update({
+  id: '/api/public/reviews',
+  path: '/api/public/reviews',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPushDedupCheckRoute = ApiPublicPushDedupCheckRouteImport.update({
   id: '/api/public/push-dedup-check',
   path: '/api/public/push-dedup-check',
@@ -277,6 +283,7 @@ export interface FileRoutesByFullPath {
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
   '/api/public/push-dedup-check': typeof ApiPublicPushDedupCheckRoute
+  '/api/public/reviews': typeof ApiPublicReviewsRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/recurring-rides-tick': typeof ApiPublicHooksRecurringRidesTickRoute
   '/api/public/hooks/ride-reminders-tick': typeof ApiPublicHooksRideRemindersTickRoute
@@ -317,6 +324,7 @@ export interface FileRoutesByTo {
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
   '/api/public/push-dedup-check': typeof ApiPublicPushDedupCheckRoute
+  '/api/public/reviews': typeof ApiPublicReviewsRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/recurring-rides-tick': typeof ApiPublicHooksRecurringRidesTickRoute
   '/api/public/hooks/ride-reminders-tick': typeof ApiPublicHooksRideRemindersTickRoute
@@ -358,6 +366,7 @@ export interface FileRoutesById {
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
   '/api/public/push-dedup-check': typeof ApiPublicPushDedupCheckRoute
+  '/api/public/reviews': typeof ApiPublicReviewsRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/recurring-rides-tick': typeof ApiPublicHooksRecurringRidesTickRoute
   '/api/public/hooks/ride-reminders-tick': typeof ApiPublicHooksRideRemindersTickRoute
@@ -400,6 +409,7 @@ export interface FileRouteTypes {
     | '/api/public/notify-reservation'
     | '/api/public/notify-reservation-client'
     | '/api/public/push-dedup-check'
+    | '/api/public/reviews'
     | '/lovable/email/suppression'
     | '/api/public/hooks/recurring-rides-tick'
     | '/api/public/hooks/ride-reminders-tick'
@@ -440,6 +450,7 @@ export interface FileRouteTypes {
     | '/api/public/notify-reservation'
     | '/api/public/notify-reservation-client'
     | '/api/public/push-dedup-check'
+    | '/api/public/reviews'
     | '/lovable/email/suppression'
     | '/api/public/hooks/recurring-rides-tick'
     | '/api/public/hooks/ride-reminders-tick'
@@ -480,6 +491,7 @@ export interface FileRouteTypes {
     | '/api/public/notify-reservation'
     | '/api/public/notify-reservation-client'
     | '/api/public/push-dedup-check'
+    | '/api/public/reviews'
     | '/lovable/email/suppression'
     | '/api/public/hooks/recurring-rides-tick'
     | '/api/public/hooks/ride-reminders-tick'
@@ -520,6 +532,7 @@ export interface RootRouteChildren {
   ApiPublicNotifyReservationRoute: typeof ApiPublicNotifyReservationRoute
   ApiPublicNotifyReservationClientRoute: typeof ApiPublicNotifyReservationClientRoute
   ApiPublicPushDedupCheckRoute: typeof ApiPublicPushDedupCheckRoute
+  ApiPublicReviewsRoute: typeof ApiPublicReviewsRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   ApiPublicHooksRecurringRidesTickRoute: typeof ApiPublicHooksRecurringRidesTickRoute
   ApiPublicHooksRideRemindersTickRoute: typeof ApiPublicHooksRideRemindersTickRoute
@@ -707,6 +720,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailSuppressionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/reviews': {
+      id: '/api/public/reviews'
+      path: '/api/public/reviews'
+      fullPath: '/api/public/reviews'
+      preLoaderRoute: typeof ApiPublicReviewsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/push-dedup-check': {
       id: '/api/public/push-dedup-check'
       path: '/api/public/push-dedup-check'
@@ -843,6 +863,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicNotifyReservationRoute: ApiPublicNotifyReservationRoute,
   ApiPublicNotifyReservationClientRoute: ApiPublicNotifyReservationClientRoute,
   ApiPublicPushDedupCheckRoute: ApiPublicPushDedupCheckRoute,
+  ApiPublicReviewsRoute: ApiPublicReviewsRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   ApiPublicHooksRecurringRidesTickRoute: ApiPublicHooksRecurringRidesTickRoute,
   ApiPublicHooksRideRemindersTickRoute: ApiPublicHooksRideRemindersTickRoute,
@@ -855,3 +876,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

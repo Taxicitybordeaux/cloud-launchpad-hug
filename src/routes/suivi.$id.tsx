@@ -147,6 +147,7 @@ type Reservation = {
   distance_km?: number | null;
   duree_s?: number | null;
   client_name?: string | null;
+  nom?: string | null;
   nb_passagers?: number | null;
   nb_bagages?: number | null;
   mode_paiement?: string | null;
@@ -1025,7 +1026,7 @@ function RecurringModal({ reservation, onClose }: { reservation: any; onClose: (
 }
 
 // ─── Avis ──────────────────────────────────────────────────────────────────────────
-function ReviewBlock({ reservationId, t }: { reservationId: string; t: (k: string) => string }) {
+function ReviewBlock({ reservationId, authorName, t }: { reservationId: string; authorName?: string | null; t: (k: string) => string }) {
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   const [comment, setComment] = useState("");
@@ -1034,15 +1035,20 @@ function ReviewBlock({ reservationId, t }: { reservationId: string; t: (k: strin
   const [alreadyReviewed, setAlreadyReviewed] = useState(false);
 
   useEffect(() => {
-    // Vérifier si un avis a déjà été soumis pour cette réservation
+    let cancelled = false;
     (async () => {
-      const { data } = await (supabase as any)
-        .from("reviews")
-        .select("id")
-        .eq("reservation_id", reservationId)
-        .maybeSingle();
-      if (data) setAlreadyReviewed(true);
+      try {
+        const response = await fetch(`/api/public/reviews?reservation_id=${encodeURIComponent(reservationId)}`);
+        if (!response.ok) return;
+        const state = await response.json();
+        if (!cancelled && state.hasReview) setAlreadyReviewed(true);
+      } catch {
+        // Non bloquant : si la vérification échoue, l'envoi empêchera quand même les doublons côté serveur.
+      }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [reservationId]);
 
   const handleSubmit = async () => {
@@ -1052,15 +1058,20 @@ function ReviewBlock({ reservationId, t }: { reservationId: string; t: (k: strin
     }
     setSubmitting(true);
     try {
-      const { error } = await (supabase as any).from("reviews").insert([
-        {
+      const cleanedComment = comment.trim();
+      const response = await fetch("/api/public/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           reservation_id: reservationId,
-          rating,
-          comment: comment.trim() || null,
-          created_at: new Date().toISOString(),
-        },
-      ]);
-      if (error) throw error;
+          author_name: authorName?.trim() || null,
+          note: rating,
+          commentaire: cleanedComment || null,
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || t("suivi.review_impossible"));
+      if (result.alreadySubmitted) setAlreadyReviewed(true);
       setSubmitted(true);
       toast.success(t("suivi.review_thanks"));
     } catch (e: any) {
@@ -2305,7 +2316,7 @@ function SuiviPage() {
         {isCompleted && (
           <>
             <InvoiceBlock reservation={reservation} locale={locale} t={t} />
-            <ReviewBlock reservationId={reservation.id} t={t} />
+            <ReviewBlock reservationId={reservation.id} authorName={reservation.client_name ?? reservation.nom ?? "Client"} t={t} />
             {/* Actions post-course */}
             <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
               {/* 🔁 Rebooker le même trajet */}

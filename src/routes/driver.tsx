@@ -36,7 +36,7 @@ interface Avis {
   id: string;
   author_name: string;
   note: number;
-  commentaire: string;
+  commentaire: string | null;
   created_at: string;
   status: string;
 }
@@ -444,11 +444,14 @@ function DriverApp() {
   // Badge avis en attente + toast in-app à chaque nouvel avis
   useEffect(() => {
     const load = async () => {
-      const { count } = await (supabase as any)
-        .from("avis")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "pending");
-      setPendingAvis(count ?? 0);
+      try {
+        const response = await fetch(`/api/public/reviews?token=${encodeURIComponent(DRIVER_TOKEN)}`);
+        if (!response.ok) return;
+        const result = await response.json();
+        setPendingAvis(result.pending.length);
+      } catch {
+        // Le badge se resynchronise au prochain passage/poll.
+      }
     };
     load();
     const ch = (supabase as any)
@@ -479,8 +482,8 @@ function DriverApp() {
     };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
-    // Refresh périodique de secours (60s) au cas où le canal serait muet.
-    const poll = setInterval(load, 60000);
+    // Refresh périodique de secours : les avis en attente ne sont pas lisibles publiquement en Realtime.
+    const poll = setInterval(load, 15000);
     return () => {
       clearInterval(poll);
       document.removeEventListener("visibilitychange", onVisible);
@@ -1776,18 +1779,16 @@ function AvisTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const [{ data: p }, { data: pub }] = await Promise.all([
-      (supabase as any).from("avis").select("*").eq("status", "pending").order("created_at", { ascending: false }),
-      (supabase as any)
-        .from("avis")
-        .select("*")
-        .eq("status", "approved")
-        .order("created_at", { ascending: false })
-        .limit(5),
-    ]);
-    setPending(p ?? []);
-    setPublished(pub ?? []);
-    onBadgeChange((p ?? []).length);
+    try {
+      const response = await fetch(`/api/public/reviews?token=${encodeURIComponent(DRIVER_TOKEN)}`);
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "chargement impossible");
+      setPending(result.pending ?? []);
+      setPublished(result.published ?? []);
+      onBadgeChange((result.pending ?? []).length);
+    } catch (e: any) {
+      toast.error("Impossible de charger les avis : " + (e.message ?? e));
+    }
   }, [onBadgeChange]);
 
   useEffect(() => {
@@ -1796,7 +1797,16 @@ function AvisTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
       .channel("drv-avis")
       .on("postgres_changes", { event: "*", schema: "public", table: "avis" }, load)
       .subscribe();
+    const poll = setInterval(load, 15000);
+    const onVisible = () => {
+      if (!document.hidden) load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
     return () => {
+      clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
       supabase.removeChannel(ch);
     };
   }, [load]);
@@ -1804,8 +1814,13 @@ function AvisTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
   const moderate = async (id: string, action: "approved" | "refused") => {
     setBusy(id);
     try {
-      const { error } = await (supabase as any).from("avis").update({ status: action }).eq("id", id);
-      if (error) throw error;
+      const response = await fetch("/api/public/reviews", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-driver-token": DRIVER_TOKEN },
+        body: JSON.stringify({ id, status: action }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "modération impossible");
       toast.success(action === "approved" ? "Avis publié ✓" : "Avis refusé");
       load();
     } catch (e: any) {
@@ -1819,8 +1834,13 @@ function AvisTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
     if (!confirm("Supprimer définitivement cet avis ?")) return;
     setBusy(id);
     try {
-      const { error } = await (supabase as any).from("avis").delete().eq("id", id);
-      if (error) throw error;
+      const response = await fetch("/api/public/reviews", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", "x-driver-token": DRIVER_TOKEN },
+        body: JSON.stringify({ id }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "suppression impossible");
       toast.success("Avis supprimé");
       load();
     } catch (e: any) {
