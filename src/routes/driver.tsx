@@ -7,6 +7,7 @@ import { geocodeAddress } from "@/lib/googleGeocode";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useServerFn } from "@tanstack/react-start";
 import { listPushFailures, notifyReservationStatus } from "@/lib/push.functions";
+import { deleteDriverAvis, listDriverAvis, moderateDriverAvis } from "@/lib/reviews.functions";
 import { calculerPrixMixte, estTarifJourParis, parseAsParisTime, TARIFS } from "@/lib/tarif";
 import { broadcastSuiviUpdate } from "@/lib/suivi-broadcast";
 
@@ -36,7 +37,7 @@ interface Avis {
   id: string;
   author_name: string;
   note: number;
-  commentaire: string;
+  commentaire: string | null;
   created_at: string;
   status: string;
 }
@@ -385,6 +386,7 @@ function DriverApp() {
   const [unreadChat, setUnreadChat] = useState(0);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const { status: pushStatus, subscribe: subscribePush } = usePushNotifications({ autoAudience: "chauffeur" });
+  const listAvisForBadge = useServerFn(listDriverAvis);
 
   // Capture le prompt d'installation PWA
   useEffect(() => {
@@ -444,11 +446,12 @@ function DriverApp() {
   // Badge avis en attente + toast in-app à chaque nouvel avis
   useEffect(() => {
     const load = async () => {
-      const { count } = await (supabase as any)
-        .from("avis")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "pending");
-      setPendingAvis(count ?? 0);
+      try {
+        const result = await listAvisForBadge({ data: { token: DRIVER_TOKEN } });
+        setPendingAvis(result.pending.length);
+      } catch {
+        // Le badge se resynchronise au prochain passage/poll.
+      }
     };
     load();
     const ch = (supabase as any)
@@ -479,15 +482,15 @@ function DriverApp() {
     };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
-    // Refresh périodique de secours (60s) au cas où le canal serait muet.
-    const poll = setInterval(load, 60000);
+    // Refresh périodique de secours : les avis en attente ne sont pas lisibles publiquement en Realtime.
+    const poll = setInterval(load, 15000);
     return () => {
       clearInterval(poll);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onVisible);
       supabase.removeChannel(ch);
     };
-  }, []);
+  }, [listAvisForBadge]);
 
   // Badge messages non lus : remonté par ChatTab lui-même (même source que
   // la liste des conversations), voir onBadgeChange plus bas — cohérent avec
@@ -1774,21 +1777,20 @@ function AvisTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
   const [pending, setPending] = useState<Avis[]>([]);
   const [published, setPublished] = useState<Avis[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  const listAvis = useServerFn(listDriverAvis);
+  const moderateAvis = useServerFn(moderateDriverAvis);
+  const deleteAvis = useServerFn(deleteDriverAvis);
 
   const load = useCallback(async () => {
-    const [{ data: p }, { data: pub }] = await Promise.all([
-      (supabase as any).from("avis").select("*").eq("status", "pending").order("created_at", { ascending: false }),
-      (supabase as any)
-        .from("avis")
-        .select("*")
-        .eq("status", "approved")
-        .order("created_at", { ascending: false })
-        .limit(5),
-    ]);
-    setPending(p ?? []);
-    setPublished(pub ?? []);
-    onBadgeChange((p ?? []).length);
-  }, [onBadgeChange]);
+    try {
+      const result = await listAvis({ data: { token: DRIVER_TOKEN } });
+      setPending(result.pending ?? []);
+      setPublished(result.published ?? []);
+      onBadgeChange((result.pending ?? []).length);
+    } catch (e: any) {
+      toast.error("Impossible de charger les avis : " + (e.message ?? e));
+    }
+  }, [listAvis, onBadgeChange]);
 
   useEffect(() => {
     load();
@@ -1796,7 +1798,16 @@ function AvisTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
       .channel("drv-avis")
       .on("postgres_changes", { event: "*", schema: "public", table: "avis" }, load)
       .subscribe();
+    const poll = setInterval(load, 15000);
+    const onVisible = () => {
+      if (!document.hidden) load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
     return () => {
+      clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
       supabase.removeChannel(ch);
     };
   }, [load]);
@@ -1804,8 +1815,7 @@ function AvisTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
   const moderate = async (id: string, action: "approved" | "refused") => {
     setBusy(id);
     try {
-      const { error } = await (supabase as any).from("avis").update({ status: action }).eq("id", id);
-      if (error) throw error;
+      await moderateAvis({ data: { token: DRIVER_TOKEN, id, status: action } });
       toast.success(action === "approved" ? "Avis publié ✓" : "Avis refusé");
       load();
     } catch (e: any) {
@@ -1819,8 +1829,7 @@ function AvisTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
     if (!confirm("Supprimer définitivement cet avis ?")) return;
     setBusy(id);
     try {
-      const { error } = await (supabase as any).from("avis").delete().eq("id", id);
-      if (error) throw error;
+      await deleteAvis({ data: { token: DRIVER_TOKEN, id } });
       toast.success("Avis supprimé");
       load();
     } catch (e: any) {

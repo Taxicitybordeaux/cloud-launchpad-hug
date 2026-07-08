@@ -29,6 +29,8 @@ import { useI18n, useT } from "@/i18n/I18nProvider";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { getReservationForFinPublic } from "@/lib/reservation.functions";
 import { listSuiviMessages, sendSuiviClientMessage, type ChatMessage } from "@/lib/chat.functions";
+import { getRideReviewState, submitRideReview } from "@/lib/reviews.functions";
+import { notifyNewReview } from "@/lib/push.functions";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getTaxiSupabase } from "@/lib/taxi-supabase";
@@ -147,6 +149,7 @@ type Reservation = {
   distance_km?: number | null;
   duree_s?: number | null;
   client_name?: string | null;
+  nom?: string | null;
   nb_passagers?: number | null;
   nb_bagages?: number | null;
   mode_paiement?: string | null;
@@ -1025,25 +1028,31 @@ function RecurringModal({ reservation, onClose }: { reservation: any; onClose: (
 }
 
 // ─── Avis ──────────────────────────────────────────────────────────────────────────
-function ReviewBlock({ reservationId, t }: { reservationId: string; t: (k: string) => string }) {
+function ReviewBlock({ reservationId, authorName, t }: { reservationId: string; authorName?: string | null; t: (k: string) => string }) {
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [alreadyReviewed, setAlreadyReviewed] = useState(false);
+  const getReviewState = useServerFn(getRideReviewState);
+  const submitReview = useServerFn(submitRideReview);
+  const notifyReview = useServerFn(notifyNewReview);
 
   useEffect(() => {
-    // Vérifier si un avis a déjà été soumis pour cette réservation
+    let cancelled = false;
     (async () => {
-      const { data } = await (supabase as any)
-        .from("reviews")
-        .select("id")
-        .eq("reservation_id", reservationId)
-        .maybeSingle();
-      if (data) setAlreadyReviewed(true);
+      try {
+        const state = await getReviewState({ data: { reservation_id: reservationId } });
+        if (!cancelled && state.hasReview) setAlreadyReviewed(true);
+      } catch {
+        // Non bloquant : si la vérification échoue, l'envoi empêchera quand même les doublons côté serveur.
+      }
     })();
-  }, [reservationId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [getReviewState, reservationId]);
 
   const handleSubmit = async () => {
     if (rating === 0) {
@@ -1052,17 +1061,25 @@ function ReviewBlock({ reservationId, t }: { reservationId: string; t: (k: strin
     }
     setSubmitting(true);
     try {
-      const { error } = await (supabase as any).from("reviews").insert([
-        {
+      const cleanedComment = comment.trim();
+      const result = await submitReview({
+        data: {
           reservation_id: reservationId,
-          rating,
-          comment: comment.trim() || null,
-          created_at: new Date().toISOString(),
+          author_name: authorName?.trim() || null,
+          note: rating,
+          commentaire: cleanedComment || null,
         },
-      ]);
-      if (error) throw error;
+      });
+      if (result.alreadySubmitted) setAlreadyReviewed(true);
       setSubmitted(true);
       toast.success(t("suivi.review_thanks"));
+      void notifyReview({
+        data: {
+          author_name: authorName?.trim() || "Client",
+          note: rating,
+          commentaire: cleanedComment.slice(0, 500),
+        },
+      }).catch(() => {});
     } catch (e: any) {
       toast.error(t("suivi.review_error") + " " + (e.message ?? t("suivi.review_impossible")));
     } finally {
@@ -2305,7 +2322,7 @@ function SuiviPage() {
         {isCompleted && (
           <>
             <InvoiceBlock reservation={reservation} locale={locale} t={t} />
-            <ReviewBlock reservationId={reservation.id} t={t} />
+            <ReviewBlock reservationId={reservation.id} authorName={reservation.client_name ?? reservation.nom ?? "Client"} t={t} />
             {/* Actions post-course */}
             <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
               {/* 🔁 Rebooker le même trajet */}
