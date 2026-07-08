@@ -3446,8 +3446,9 @@ function SimulateurTab() {
       // toute impression d'erreur de calcul (ex: 5.153 km affiché "5.2" mais
       // facturé sur la valeur brute → 11.13 € au lieu de 11.23 € attendu).
       const distKm = Math.round(((leg.distance?.value ?? 0) / 1000) * 10) / 10;
-      const dureeMinVal = Math.round((leg.duration?.value ?? 0) / 60);
-      setResult(computeBreakdown(distKm, dureeMinVal, pickupLocal));
+      const stepMinutes = Math.max(Math.round((leg.duration?.value ?? distKm * 120) / 60), 1);
+      setResult(computeBreakdown(distKm, stepMinutes, pickupLocal));
+
     } catch (e) {
       console.error("[SimulateurTab] route:", e);
       setRouteError("Impossible de calculer l'itinéraire — vérifie les adresses.");
