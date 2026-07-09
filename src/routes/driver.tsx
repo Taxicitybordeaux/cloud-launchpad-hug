@@ -1026,12 +1026,14 @@ function CourseCard({
   onRefresh,
   expanded,
   onToggle,
+  unreadByChauffeur = 0,
   unreadByClient = 0,
 }: {
   resa: Resa;
   onRefresh: () => void;
   expanded: boolean;
   onToggle: () => void;
+  unreadByChauffeur?: number;
   unreadByClient?: number;
 }) {
   const [routes, setRoutes] = useState<RouteOption[]>([]);
@@ -1044,42 +1046,19 @@ function CourseCard({
   const rendererRef = useRef<any>(null);
   const actionLocks = useRef<Set<string>>(new Set());
   const [chatOpen, setChatOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const countUnreadFn = useServerFn(
-    // lazy import via require pattern would break bundling; use named import below
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define
-    countUnreadChauffeurForReservation,
-  );
 
-  useEffect(() => {
-    let cancelled = false;
-    const refresh = async () => {
-      try {
-        const n = await countUnreadFn({ data: { reservation_id: resa.id } });
-        if (!cancelled) setUnreadCount(Number(n) || 0);
-      } catch {}
-    };
-    refresh();
-    const ch = (supabase as any)
-      .channel(`card-unread-${resa.id}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "reservation_messages", filter: `reservation_id=eq.${resa.id}` },
-        () => refresh(),
-      )
-      .subscribe();
-    const onVis = () => { if (!document.hidden) refresh(); };
-    document.addEventListener("visibilitychange", onVis);
-    return () => {
-      cancelled = true;
-      document.removeEventListener("visibilitychange", onVis);
-      supabase.removeChannel(ch);
-    };
-  }, [resa.id, countUnreadFn]);
+  // Compteur non lus : source unique = unreadMap remonté par CoursesTab
+  // (COUNT SQL agrégé + debouncé). On garde un override local à 0 quand le
+  // panneau chat est ouvert pour donner un feedback visuel immédiat.
+  const rawUnread = unreadByChauffeur;
+  const unreadCount = chatOpen ? 0 : rawUnread;
+  const hasSpecialRequest = !!(resa.message && resa.message.trim());
+  const unreadContext = hasSpecialRequest ? "demande spéciale" : "conversation en cours";
+  const unreadTooltip =
+    unreadCount > 0
+      ? `${unreadCount} message${unreadCount > 1 ? "s" : ""} client non lu${unreadCount > 1 ? "s" : ""} · ${unreadContext}`
+      : "Aucun message non lu";
 
-  useEffect(() => {
-    if (chatOpen) setUnreadCount(0);
-  }, [chatOpen]);
 
   const claimAction = (key: string) => {
     if (actionLocks.current.has(key)) return false;
