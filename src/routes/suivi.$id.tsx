@@ -311,7 +311,15 @@ function PremiumTimeline({ status }: { status: string }) {
 }
 
 // ─── Chat Component (anonyme, scopé par clé URL /suivi/$id) ──────────────────
-function AnonChat({ suiviKey, reservationId }: { suiviKey: string; reservationId: string }) {
+function AnonChat({
+  suiviKey,
+  reservationId,
+  onUnreadChange,
+}: {
+  suiviKey: string;
+  reservationId: string;
+  onUnreadChange?: (n: number) => void;
+}) {
   const t = useT();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
@@ -320,6 +328,7 @@ function AnonChat({ suiviKey, reservationId }: { suiviKey: string; reservationId
   const driverBadgeChannelRef = useRef<any>(null);
   const listFn = useServerFn(listSuiviMessages);
   const sendFn = useServerFn(sendSuiviClientMessage);
+  const markReadFn = useServerFn(markReservationMessagesRead);
 
   const load = useCallback(async () => {
     try {
