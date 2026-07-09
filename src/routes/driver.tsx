@@ -16,6 +16,7 @@ import {
   type BadgeRealtimeStatus,
 } from "@/lib/chat-badge-sync";
 import { ChatPanel } from "@/components/ChatPanel";
+import { countUnreadChauffeurForReservation } from "@/lib/chat.functions";
 
 
 // ── Token guard ────────────────────────────────────────────────────────────
