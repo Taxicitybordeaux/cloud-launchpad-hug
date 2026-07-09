@@ -13,6 +13,7 @@ import {
 } from "@/lib/tarif";
 import { reverseGeocode, searchAddress } from "@/lib/googleGeocode";
 import { getDistanceAndDurationKm } from "@/lib/googleRoute";
+import { roundSecondsToMinute } from "@/lib/duration";
 
 import { newSuiviId } from "@/lib/suivi-id";
 import { notifyNewReservation, subscribePush as subscribePushServer } from "@/lib/push.functions";
@@ -974,7 +975,7 @@ function ReservationPage() {
         if (r && r.distanceKm > 0 && r.dureeS > 0) {
           setOrsResult({
             distanceKm: parseFloat(r.distanceKm.toFixed(2)),
-            dureeS: Math.round(r.dureeS),
+            dureeS: roundSecondsToMinute(r.dureeS),
           });
           setCalcLoading(false);
           return;
@@ -1401,7 +1402,7 @@ function ReservationPage() {
           Math.cos((resolvedTo[0] * Math.PI) / 180) *
           Math.sin(dLng / 2) ** 2;
       distanceKm = parseFloat((R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.3).toFixed(2));
-      dureeS = Math.round((distanceKm / 30) * 3600); // ~30 km/h en ville
+      dureeS = roundSecondsToMinute((distanceKm / 30) * 3600); // ~30 km/h en ville
       toast.warning("Distance estimée (GPS indisponible) — le prix peut être ajusté par le chauffeur.");
     }
 

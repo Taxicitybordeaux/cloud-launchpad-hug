@@ -28,6 +28,8 @@ import {
 import { useI18n, useT } from "@/i18n/I18nProvider";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { getReservationForFinPublic } from "@/lib/reservation.functions";
+import { recomputeReservationDuration } from "@/lib/reservation-recompute.functions";
+import { durationSecondsToMinutes, durationSecondsToMs } from "@/lib/duration";
 import { listSuiviMessages, sendSuiviClientMessage, type ChatMessage } from "@/lib/chat.functions";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -485,7 +487,7 @@ function generateICS(reservation: any, t: (k: string) => string): string {
   if (!reservation.pickup_datetime) return "#";
   const start = new Date(reservation.pickup_datetime);
   // Utilise duree_s si disponible, sinon 1h par défaut
-  const durationMs = reservation.duree_s ? reservation.duree_s * 1000 : 60 * 60 * 1000;
+  const durationMs = reservation.duree_s ? durationSecondsToMs(reservation.duree_s) : 60 * 60 * 1000;
   const end = new Date(start.getTime() + durationMs);
   const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
   const labelDepart = t("suivi.depart_label");
@@ -1221,7 +1223,7 @@ function ShareTrajetButton({ reservation }: { reservation: any }) {
   // Arrivée estimée : pickup_datetime + duree_s si dispo, sinon "en cours"
   const getETA = (): string => {
     if (reservation.pickup_datetime && reservation.duree_s) {
-      const eta = new Date(new Date(reservation.pickup_datetime).getTime() + reservation.duree_s * 1000);
+      const eta = new Date(new Date(reservation.pickup_datetime).getTime() + durationSecondsToMs(reservation.duree_s));
       const ETA_LOCALE: Record<string, string> = {
         fr: "fr-FR",
         en: "en-GB",
@@ -1474,6 +1476,41 @@ function SuiviPage() {
   useEffect(() => {
     loadReservation(false);
   }, [loadReservation]);
+
+  // ── Recalcul serveur de la durée (à la minute près) pour les anciennes
+  // réservations dont `duree_s` avait été calculé sur le trajet le plus long
+  // via rocade (inflation). On ne déclenche qu'une fois par id/session.
+  const recomputeDuration = useServerFn(recomputeReservationDuration);
+  useEffect(() => {
+    if (!reservation?.id || !reservation.duree_s) return;
+    if (reservation.status === "completed" || reservation.status === "cancelled") return;
+    const cacheKey = `dur_rechecked_${reservation.id}`;
+    try {
+      if (sessionStorage.getItem(cacheKey) === "1") return;
+    } catch {
+      /* ignore */
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await recomputeDuration({ data: { id: reservation.id } });
+        try {
+          sessionStorage.setItem(cacheKey, "1");
+        } catch {
+          /* ignore */
+        }
+        if (cancelled) return;
+        if (res && "changed" in res && res.changed && typeof res.duree_s === "number") {
+          setReservation((prev) => (prev ? { ...prev, duree_s: res.duree_s as number } : prev));
+        }
+      } catch {
+        /* silencieux : si Google indisponible on garde la valeur en base */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [reservation?.id, reservation?.duree_s, reservation?.status, recomputeDuration]);
 
   // ── Fallback temps réel via Supabase Broadcast ──
   // La table `reservations` n'expose aucune policy SELECT à `anon` (PII),
@@ -2187,7 +2224,7 @@ function SuiviPage() {
               <Clock size={18} style={{ color: "#0ea5e9", margin: "0 auto 6px", display: "block" }} />
               <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>{t("suivi.duration_label")}</div>
               <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a" }}>
-                {Math.round(reservation.duree_s / 60)} {t("suivi.minutes_short")}
+                {durationSecondsToMinutes(reservation.duree_s)} {t("suivi.minutes_short")}
               </div>
             </div>
           )}
