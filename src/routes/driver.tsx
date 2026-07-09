@@ -15,6 +15,7 @@ import {
   subscribeBadgeRealtimeStatus,
   type BadgeRealtimeStatus,
 } from "@/lib/chat-badge-sync";
+import { ChatPanel } from "@/components/ChatPanel";
 
 
 // ── Token guard ────────────────────────────────────────────────────────────
