@@ -9,12 +9,68 @@ import { useServerFn } from "@tanstack/react-start";
 import { listPushFailures, notifyReservationStatus } from "@/lib/push.functions";
 import { calculerPrixMixte, estTarifJourParis, parseAsParisTime, TARIFS } from "@/lib/tarif";
 import { broadcastSuiviUpdate } from "@/lib/suivi-broadcast";
+import {
+  flushChauffeurReaders,
+  setBadgeRealtimeStatus,
+  subscribeBadgeRealtimeStatus,
+  type BadgeRealtimeStatus,
+} from "@/lib/chat-badge-sync";
 
 // ── Token guard ────────────────────────────────────────────────────────────
 const DRIVER_TOKEN = "DSF234";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 type Tab = "courses" | "planning" | "avis" | "clients" | "chat" | "stats" | "simulateur";
+
+// Petit pill affiché en header pour diagnostiquer l'état du canal Realtime
+// utilisé par le badge chat (SUBSCRIBED / CHANNEL_ERROR / polling fallback).
+function ChatRealtimeStatusPill({
+  status,
+  detail,
+}: {
+  status: BadgeRealtimeStatus;
+  detail: string | null;
+}) {
+  const map: Record<BadgeRealtimeStatus, { color: string; label: string }> = {
+    idle: { color: "#9ca3af", label: "chat: idle" },
+    subscribing: { color: "#f59e0b", label: "chat: connexion…" },
+    subscribed: { color: "#10b981", label: "chat: live" },
+    polling: { color: "#f59e0b", label: "chat: polling 20s" },
+    error: { color: "#ef4444", label: "chat: erreur" },
+    closed: { color: "#ef4444", label: "chat: fermé" },
+  };
+  const s = map[status] ?? map.idle;
+  return (
+    <span
+      title={detail ? `${s.label} — ${detail}` : s.label}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        fontSize: 11,
+        fontWeight: 600,
+        color: "#334155",
+        background: "#f1f5f9",
+        border: "1px solid #e2e8f0",
+        borderRadius: 999,
+        padding: "3px 8px",
+        marginLeft: 8,
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          background: s.color,
+          boxShadow: `0 0 0 2px ${s.color}22`,
+        }}
+      />
+      {s.label}
+    </span>
+  );
+}
 
 interface Resa {
   id: string;
@@ -383,8 +439,18 @@ function DriverApp() {
   const [newCount, setNewCount] = useState(0);
   const [pendingAvis, setPendingAvis] = useState(0);
   const [unreadChat, setUnreadChat] = useState(0);
+  const [chatRtStatus, setChatRtStatus] = useState<BadgeRealtimeStatus>("idle");
+  const [chatRtDetail, setChatRtDetail] = useState<string | null>(null);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const { status: pushStatus, subscribe: subscribePush } = usePushNotifications({ autoAudience: "chauffeur" });
+
+  // S'abonne au statut Realtime partagé du badge chat pour l'afficher en UI.
+  useEffect(() => {
+    return subscribeBadgeRealtimeStatus((s, d) => {
+      setChatRtStatus(s);
+      setChatRtDetail(d);
+    });
+  }, []);
 
   // Capture le prompt d'installation PWA
   useEffect(() => {
@@ -510,67 +576,94 @@ function DriverApp() {
       return await countUnreadChauffeurMessages();
     };
 
-    const runLoad = async () => {
+    const runLoad = async (reason: string = "manual") => {
       if (cancelled) return;
       if (inflight) {
         queued = true;
         return;
       }
       inflight = true;
+      const t0 = Date.now();
       try {
+        // 1) Flush : on attend que tous les threads chauffeur ouverts aient
+        //    persisté `read_by_chauffeur=true` AVANT de compter, sinon le
+        //    badge affiche un compte périmé au retour de focus / changement
+        //    d'onglet.
+        await flushChauffeurReaders();
+        // 2) Recompte via serverFn (source de vérité).
         const total = await countUnread();
-        if (!cancelled) setUnreadChat(total);
+        if (!cancelled) {
+          setUnreadChat(total);
+          console.info(
+            `[drv-badge] recount (${reason}) → ${total} (${Date.now() - t0}ms)`,
+          );
+        }
       } catch (e) {
-        console.warn("[driver chat badge] load failed", e);
+        console.warn(`[drv-badge] recount (${reason}) failed`, e);
       } finally {
         inflight = false;
         if (queued && !cancelled) {
           queued = false;
-          runLoad();
+          runLoad("queued");
         }
       }
     };
 
-    const scheduleLoad = () => {
+    const scheduleLoad = (reason: string) => {
       if (debounceT) clearTimeout(debounceT);
-      debounceT = setTimeout(runLoad, 250);
+      debounceT = setTimeout(() => runLoad(reason), 250);
     };
 
     const startPolling = (intervalMs = 20000) => {
       if (pollT) return;
-      pollT = setInterval(runLoad, intervalMs);
+      console.warn(`[drv-badge] fallback polling START (${intervalMs}ms)`);
+      setBadgeRealtimeStatus("polling", `every ${intervalMs}ms`);
+      pollT = setInterval(() => runLoad("poll"), intervalMs);
     };
     const stopPolling = () => {
       if (pollT) {
+        console.info("[drv-badge] fallback polling STOP");
         clearInterval(pollT);
         pollT = null;
       }
     };
 
     const subscribe = () => {
+      setBadgeRealtimeStatus("subscribing");
+      console.info("[drv-badge] channel subscribing…");
       ch = (supabase as any)
         .channel("drv-chat-badge")
         .on(
           "broadcast",
           { event: "new_client_message" },
-          scheduleLoad,
+          () => scheduleLoad("broadcast:new_client_message"),
         )
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "direct_messages" },
-          scheduleLoad,
+          () => scheduleLoad("pg:direct_messages"),
         )
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "reservation_messages" },
-          scheduleLoad,
+          () => scheduleLoad("pg:reservation_messages"),
         )
         .subscribe((status: string) => {
+          console.info(`[drv-badge] channel status → ${status}`);
           if (status === "SUBSCRIBED") {
             backoff = 2000;
             stopPolling(); // Realtime OK → pas besoin de polling
-            runLoad(); // rattrapage des events manqués
-          } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+            setBadgeRealtimeStatus("subscribed");
+            runLoad("SUBSCRIBED-catchup"); // rattrapage des events manqués
+          } else if (
+            status === "CHANNEL_ERROR" ||
+            status === "TIMED_OUT" ||
+            status === "CLOSED"
+          ) {
+            setBadgeRealtimeStatus(
+              status === "CLOSED" ? "closed" : "error",
+              status,
+            );
             startPolling(20000); // fallback tant que le canal est cassé
             try {
               if (ch) supabase.removeChannel(ch);
@@ -579,21 +672,24 @@ function DriverApp() {
             setTimeout(() => {
               if (!cancelled) subscribe();
             }, backoff);
+            console.warn(
+              `[drv-badge] reconnect scheduled in ${backoff}ms (next backoff up to 30000ms)`,
+            );
             backoff = Math.min(backoff * 2, 30000);
           }
         });
     };
 
     const onVisible = () => {
-      if (!document.hidden) runLoad();
+      if (!document.hidden) runLoad("visibility");
     };
     const onOnline = () => {
       backoff = 2000;
-      runLoad();
+      runLoad("online");
       if (!ch) subscribe();
     };
 
-    runLoad();
+    runLoad("mount");
     subscribe(); // polling démarre uniquement si le canal échoue
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
@@ -622,6 +718,7 @@ function DriverApp() {
         <div className="drv-header">
           <span style={{ fontSize: 26 }}>🚕</span>
           <h1>Espace José</h1>
+          <ChatRealtimeStatusPill status={chatRtStatus} detail={chatRtDetail} />
           {installPrompt && (
             <button
               onClick={async () => {

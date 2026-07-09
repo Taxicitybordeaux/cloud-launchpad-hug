@@ -9,6 +9,7 @@ import {
   markReservationMessagesRead,
   type ChatMessage,
 } from "@/lib/chat.functions";
+import { registerChauffeurReader } from "@/lib/chat-badge-sync";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 type Props = {
@@ -58,6 +59,8 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
   const prependAnchor = useRef<{ height: number } | null>(null);
 
   // Mark peer's unread messages as read (via server fn — RLS locks anon).
+  // On expose la promesse pour que le compteur global de badge attende que
+  // la mise à jour `read_by_chauffeur=true` soit persistée AVANT de recompter.
   const markRead = useCallback(async () => {
     try {
       await markReservationMessagesRead({ data: { reservation_id: reservationId, role } });
@@ -65,6 +68,22 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
       console.warn("[chat] markRead failed", e);
     }
   }, [reservationId, role]);
+
+  // Enregistre le thread ouvert pour synchro badge côté chauffeur.
+  useEffect(() => {
+    if (role !== "chauffeur") return;
+    const unregister = registerChauffeurReader(`resa:${reservationId}`, markRead);
+    const onVis = () => {
+      if (!document.hidden) void markRead();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", onVis);
+    return () => {
+      unregister();
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", onVis);
+    };
+  }, [role, reservationId, markRead]);
 
   // ── Initial load (latest PAGE_SIZE messages, ASC for render) ──
   useEffect(() => {

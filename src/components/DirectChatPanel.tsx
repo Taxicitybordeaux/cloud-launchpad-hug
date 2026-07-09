@@ -8,6 +8,7 @@ import {
   markDirectMessagesRead,
   type DirectMessage as ChatMessage,
 } from "@/lib/chat.functions";
+import { registerChauffeurReader } from "@/lib/chat-badge-sync";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useI18n, useT } from "@/i18n/I18nProvider";
 
@@ -79,6 +80,22 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
       console.warn("[chat] markRead failed", e);
     }
   }, [accountId, role]);
+
+  // Enregistre le thread direct ouvert pour synchro badge côté chauffeur.
+  useEffect(() => {
+    if (role !== "chauffeur") return;
+    const unregister = registerChauffeurReader(`direct:${accountId}`, markRead);
+    const onVis = () => {
+      if (!document.hidden) void markRead();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", onVis);
+    return () => {
+      unregister();
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", onVis);
+    };
+  }, [role, accountId, markRead]);
 
   // ── Initial load (latest PAGE_SIZE messages, ASC for render) ──
   useEffect(() => {
