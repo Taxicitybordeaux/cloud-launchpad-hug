@@ -350,7 +350,7 @@ export const sendSuiviClientMessage = createServerFn({ method: "POST" })
         title: `💬 Message de ${clientName}`,
         body: data.content.slice(0, 100),
         url: "/driver?token=DSF234",
-        tag: `chat-driver-resa-${r.id}`,
+        tag: `chat-driver-resa-${r.id}-${Date.now()}`,
         requireInteraction: false,
       });
     } catch (e) {
