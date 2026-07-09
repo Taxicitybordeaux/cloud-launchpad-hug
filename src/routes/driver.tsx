@@ -89,6 +89,7 @@ interface Resa {
   client_email?: string | null;
   email?: string | null;
   suivi_id?: string | null;
+  message?: string | null;
 }
 
 interface Avis {
@@ -887,7 +888,7 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
     const { data } = await (supabase as any)
       .from("reservations")
       .select(
-        "id,depart,destination,pickup_datetime,status,prix_estime,distance_km,client_name,client_phone,client_email,suivi_id",
+        "id,depart,destination,pickup_datetime,status,prix_estime,distance_km,client_name,client_phone,client_email,suivi_id,message",
       )
       .in("status", ["pending", "accepted", "en_route", "arrived"])
       .order("pickup_datetime", { ascending: true });
