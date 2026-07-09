@@ -927,20 +927,48 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
     }
   }, [onBadgeChange, listUnreadResasFn, getUnreadFn]);
 
+  // Refresh debouncé : coalesce les bursts Realtime (INSERT + UPDATE
+  // read_by_*) en un seul appel batch après 300 ms d'inactivité. Immédiat
+  // au premier appel, immédiat aussi au retour d'onglet.
+  const loadRef = useRef(load);
+  loadRef.current = load;
+  const scheduleRef = useRef<{ timer: any; last: number }>({ timer: null, last: 0 });
+  const scheduleLoad = useCallback((immediate = false) => {
+    const s = scheduleRef.current;
+    if (s.timer) {
+      clearTimeout(s.timer);
+      s.timer = null;
+    }
+    const run = () => {
+      s.last = Date.now();
+      s.timer = null;
+      loadRef.current();
+    };
+    // Immédiat si demandé OU si dernière exécution > 1s (throttle plancher)
+    if (immediate || Date.now() - s.last > 1000) {
+      run();
+    } else {
+      s.timer = setTimeout(run, 300);
+    }
+  }, []);
+
   useEffect(() => {
-    load();
+    scheduleLoad(true);
     const ch = (supabase as any)
       .channel("drv-courses")
-      .on("postgres_changes", { event: "*", schema: "public", table: "reservations" }, load)
-      .on("postgres_changes", { event: "*", schema: "public", table: "reservation_messages" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "reservations" }, () => scheduleLoad())
+      .on("postgres_changes", { event: "*", schema: "public", table: "reservation_messages" }, () => scheduleLoad())
       .subscribe();
-    const onVis = () => { if (!document.hidden) load(); };
+    const onVis = () => { if (!document.hidden) scheduleLoad(true); };
     document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", onVis);
     return () => {
       document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", onVis);
       supabase.removeChannel(ch);
+      if (scheduleRef.current.timer) clearTimeout(scheduleRef.current.timer);
     };
-  }, [load]);
+  }, [scheduleLoad]);
 
   if (loading)
     return (
