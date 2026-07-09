@@ -985,6 +985,7 @@ function CourseCard({
   const mapInst = useRef<any>(null);
   const rendererRef = useRef<any>(null);
   const actionLocks = useRef<Set<string>>(new Set());
+  const [chatOpen, setChatOpen] = useState(false);
 
   const claimAction = (key: string) => {
     if (actionLocks.current.has(key)) return false;
