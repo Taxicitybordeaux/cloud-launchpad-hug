@@ -668,6 +668,7 @@ function DriverApp() {
         <div className="drv-header">
           <span style={{ fontSize: 26 }}>🚕</span>
           <h1>Espace José</h1>
+          <ChatRealtimeStatusPill status={chatRtStatus} detail={chatRtDetail} />
           {installPrompt && (
             <button
               onClick={async () => {
