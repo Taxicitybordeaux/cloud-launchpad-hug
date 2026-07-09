@@ -16,7 +16,7 @@ import {
   type BadgeRealtimeStatus,
 } from "@/lib/chat-badge-sync";
 import { ChatPanel } from "@/components/ChatPanel";
-import { countUnreadChauffeurForReservation, listReservationsWithUnreadChauffeur } from "@/lib/chat.functions";
+import { countUnreadChauffeurForReservation, listReservationsWithUnreadChauffeur, getUnreadCountsForReservations, type UnreadMap } from "@/lib/chat.functions";
 
 
 // ── Token guard ────────────────────────────────────────────────────────────
@@ -881,15 +881,13 @@ function DriverApp() {
 // ── Onglet Courses ─────────────────────────────────────────────────────────
 function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
   const [courses, setCourses] = useState<Resa[]>([]);
+  const [unreadMap, setUnreadMap] = useState<UnreadMap>({});
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
   const listUnreadResasFn = useServerFn(listReservationsWithUnreadChauffeur);
+  const getUnreadFn = useServerFn(getUnreadCountsForReservations);
 
   const load = useCallback(async () => {
-    // 1) Réservations actives (statuts en cours)
-    // 2) Réservations avec au moins un message client non lu par le chauffeur
-    //    (demandes spéciales / follow-ups) — pour ne jamais rater un thread,
-    //    même si la course est déjà terminée ou annulée.
     const activeStatuses = ["pending", "accepted", "en_route", "arrived"];
     const [activeRes, unreadIds] = await Promise.all([
       (supabase as any)
@@ -918,7 +916,16 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
     setCourses(list);
     setLoading(false);
     onBadgeChange(list.filter((r) => r.status === "pending").length);
-  }, [onBadgeChange, listUnreadResasFn]);
+
+    // COUNT SQL agrégé pour prioriser les cartes + indicateurs
+    try {
+      const ids = list.map((r) => r.id);
+      const map = await getUnreadFn({ data: { reservation_ids: ids } });
+      setUnreadMap(map);
+    } catch {
+      // pas bloquant : les cartes gardent leur ordre par défaut
+    }
+  }, [onBadgeChange, listUnreadResasFn, getUnreadFn]);
 
   useEffect(() => {
     load();
@@ -927,7 +934,10 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
       .on("postgres_changes", { event: "*", schema: "public", table: "reservations" }, load)
       .on("postgres_changes", { event: "*", schema: "public", table: "reservation_messages" }, load)
       .subscribe();
+    const onVis = () => { if (!document.hidden) load(); };
+    document.addEventListener("visibilitychange", onVis);
     return () => {
+      document.removeEventListener("visibilitychange", onVis);
       supabase.removeChannel(ch);
     };
   }, [load]);
@@ -939,11 +949,27 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
       </div>
     );
 
-  const nouvelles = courses.filter((r) => r.status === "pending");
-  const encours = courses.filter((r) => r.status === "accepted" || r.status === "en_route" || r.status === "arrived");
-  const followups = courses.filter(
-    (r) => !["pending", "accepted", "en_route", "arrived"].includes(r.status),
-  );
+  // Priorité d'affichage dans chaque section :
+  //   1. Cartes avec messages client non lus (unread_chauffeur > 0)
+  //   2. Cartes avec demande spéciale (message non vide)
+  //   3. Ordre naturel (pickup_datetime croissant)
+  const sortByPriority = (a: Resa, b: Resa) => {
+    const aUnread = unreadMap[a.id]?.unread_chauffeur ?? 0;
+    const bUnread = unreadMap[b.id]?.unread_chauffeur ?? 0;
+    if ((aUnread > 0) !== (bUnread > 0)) return aUnread > 0 ? -1 : 1;
+    const aSpecial = !!(a.message && a.message.trim());
+    const bSpecial = !!(b.message && b.message.trim());
+    if (aSpecial !== bSpecial) return aSpecial ? -1 : 1;
+    return String(a.pickup_datetime ?? "").localeCompare(String(b.pickup_datetime ?? ""));
+  };
+
+  const nouvelles = courses.filter((r) => r.status === "pending").sort(sortByPriority);
+  const encours = courses
+    .filter((r) => r.status === "accepted" || r.status === "en_route" || r.status === "arrived")
+    .sort(sortByPriority);
+  const followups = courses
+    .filter((r) => !["pending", "accepted", "en_route", "arrived"].includes(r.status))
+    .sort(sortByPriority);
 
   if (courses.length === 0)
     return (
@@ -957,50 +983,37 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
       </div>
     );
 
+  const renderCard = (r: Resa) => (
+    <CourseCard
+      key={r.id}
+      resa={r}
+      onRefresh={load}
+      expanded={selected === r.id}
+      onToggle={() => setSelected((s) => (s === r.id ? null : r.id))}
+      unreadByClient={unreadMap[r.id]?.unread_client ?? 0}
+    />
+  );
+
   return (
     <>
       {nouvelles.length > 0 && (
         <>
           <p className="drv-section">Nouvelles demandes</p>
-          {nouvelles.map((r) => (
-            <CourseCard
-              key={r.id}
-              resa={r}
-              onRefresh={load}
-              expanded={selected === r.id}
-              onToggle={() => setSelected((s) => (s === r.id ? null : r.id))}
-            />
-          ))}
+          {nouvelles.map(renderCard)}
           <hr className="drv-divider" />
         </>
       )}
       {encours.length > 0 && (
         <>
           <p className="drv-section">En cours</p>
-          {encours.map((r) => (
-            <CourseCard
-              key={r.id}
-              resa={r}
-              onRefresh={load}
-              expanded={selected === r.id}
-              onToggle={() => setSelected((s) => (s === r.id ? null : r.id))}
-            />
-          ))}
+          {encours.map(renderCard)}
         </>
       )}
       {followups.length > 0 && (
         <>
           {(nouvelles.length > 0 || encours.length > 0) && <hr className="drv-divider" />}
           <p className="drv-section">💬 Messages clients (courses passées)</p>
-          {followups.map((r) => (
-            <CourseCard
-              key={r.id}
-              resa={r}
-              onRefresh={load}
-              expanded={selected === r.id}
-              onToggle={() => setSelected((s) => (s === r.id ? null : r.id))}
-            />
-          ))}
+          {followups.map(renderCard)}
         </>
       )}
     </>
@@ -1013,11 +1026,13 @@ function CourseCard({
   onRefresh,
   expanded,
   onToggle,
+  unreadByClient = 0,
 }: {
   resa: Resa;
   onRefresh: () => void;
   expanded: boolean;
   onToggle: () => void;
+  unreadByClient?: number;
 }) {
   const [routes, setRoutes] = useState<RouteOption[]>([]);
   const [selectedRoute, setSelectedRoute] = useState(0);
@@ -1550,6 +1565,25 @@ function CourseCard({
             </button>
           </div>
           <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{resa.message}</div>
+          {unreadByClient > 0 && (
+            <div
+              style={{
+                marginTop: 8,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "3px 8px",
+                borderRadius: 999,
+                background: "#fee2e2",
+                color: "#991b1b",
+                fontSize: 11,
+                fontWeight: 700,
+              }}
+              title={`${unreadByClient} message(s) chauffeur non lu(s) par le client`}
+            >
+              ⏳ Réponse envoyée — non lue par le client ({unreadByClient})
+            </div>
+          )}
         </div>
       )}
 
