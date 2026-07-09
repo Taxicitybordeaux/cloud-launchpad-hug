@@ -15,6 +15,7 @@ import {
   subscribeBadgeRealtimeStatus,
   type BadgeRealtimeStatus,
 } from "@/lib/chat-badge-sync";
+import { ChatPanel } from "@/components/ChatPanel";
 
 
 // ── Token guard ────────────────────────────────────────────────────────────
@@ -984,6 +985,7 @@ function CourseCard({
   const mapInst = useRef<any>(null);
   const rendererRef = useRef<any>(null);
   const actionLocks = useRef<Set<string>>(new Set());
+  const [chatOpen, setChatOpen] = useState(false);
 
   const claimAction = (key: string) => {
     if (actionLocks.current.has(key)) return false;
@@ -1885,6 +1887,40 @@ function CourseCard({
             {deleting ? "Suppression…" : "🗑 Supprimer cette course"}
           </button>
         </>
+      )}
+
+      {/* Chat client ↔ chauffeur (lié à /suivi/$id côté client) */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setChatOpen(true);
+        }}
+        style={{
+          width: "100%",
+          marginTop: 8,
+          background: "linear-gradient(180deg,#0f172a 0%,#1e293b 100%)",
+          border: "1px solid #334155",
+          borderRadius: 10,
+          color: "#E8C96D",
+          fontSize: 13,
+          fontWeight: 700,
+          cursor: "pointer",
+          padding: "10px 12px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+        }}
+      >
+        💬 Chat avec {resa.client_name || "le client"}
+      </button>
+      {chatOpen && (
+        <ChatPanel
+          reservationId={resa.id}
+          role="chauffeur"
+          peerName={resa.client_name || "Client"}
+          onClose={() => setChatOpen(false)}
+        />
       )}
 
       {/* Toggle */}
