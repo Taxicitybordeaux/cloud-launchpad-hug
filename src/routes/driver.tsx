@@ -9,6 +9,12 @@ import { useServerFn } from "@tanstack/react-start";
 import { listPushFailures, notifyReservationStatus } from "@/lib/push.functions";
 import { calculerPrixMixte, estTarifJourParis, parseAsParisTime, TARIFS } from "@/lib/tarif";
 import { broadcastSuiviUpdate } from "@/lib/suivi-broadcast";
+import {
+  flushChauffeurReaders,
+  setBadgeRealtimeStatus,
+  subscribeBadgeRealtimeStatus,
+  type BadgeRealtimeStatus,
+} from "@/lib/chat-badge-sync";
 
 // ── Token guard ────────────────────────────────────────────────────────────
 const DRIVER_TOKEN = "DSF234";
