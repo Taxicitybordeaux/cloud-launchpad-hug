@@ -9,6 +9,7 @@ import {
   markReservationMessagesRead,
   type ChatMessage,
 } from "@/lib/chat.functions";
+import { registerChauffeurReader } from "@/lib/chat-badge-sync";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 type Props = {
