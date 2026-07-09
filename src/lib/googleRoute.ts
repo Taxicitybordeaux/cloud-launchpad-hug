@@ -117,8 +117,35 @@ export async function getRouteGeoCoords(origin: LngLat, dest: LngLat): Promise<R
 }
 
 /**
+ * Sélectionne, parmi les routes retournées, celle dont la durée (avec trafic
+ * si disponible) est la plus courte — c'est la durée réaliste d'un GPS grand
+ * public, pas la plus longue possible.
+ */
+function pickFastestRoute(routes: GoogleDirectionsResult[]): GoogleDirectionsResult {
+  let best = routes[0];
+  let bestS = Infinity;
+  for (const route of routes) {
+    const s = (route.legs ?? []).reduce(
+      (sum: number, leg: any) => sum + (leg?.duration_in_traffic?.value ?? leg?.duration?.value ?? 0),
+      0,
+    );
+    if (s > 0 && s < bestS) {
+      bestS = s;
+      best = route;
+    }
+  }
+  return best;
+}
+
+/**
  * Calcule durée (secondes) + distance (km) — tient compte du trafic temps réel
  * si disponible, contrairement à l'ancien calcul OSRM statique.
+ *
+ * Deux appels Directions en parallèle :
+ *  1) avec waypoint rocade + route la plus longue → distance de facturation
+ *     (comportement historique conservé pour le prix).
+ *  2) sans waypoint + route la plus rapide → durée réaliste type Google Maps
+ *     (évite les 61 min pour 21 km liés au forçage rocade).
  */
 export async function getDistanceAndDurationKm(origin: LngLat, dest: LngLat): Promise<DurationResult | null> {
   try {
@@ -126,37 +153,63 @@ export async function getDistanceAndDurationKm(origin: LngLat, dest: LngLat): Pr
     const service = await getDirectionsService();
     const [oLng, oLat] = origin;
     const [dLng, dLat] = dest;
-    const result = await new Promise<GoogleDirectionsResult>((resolve, reject) => {
-      service.route(
-        {
-          origin: { lat: oLat, lng: oLng },
-          destination: { lat: dLat, lng: dLng },
-          waypoints: [{ location: ROCADE_WAYPOINT, stopover: false }],
-          provideRouteAlternatives: true,
-          travelMode: api.maps.TravelMode.DRIVING,
-          region: "fr",
-          drivingOptions: {
-            departureTime: new Date(),
-            trafficModel: api.maps.TrafficModel.BEST_GUESS,
+
+    const runRoute = (waypoints: Array<{ location: { lat: number; lng: number }; stopover: boolean }>) =>
+      new Promise<GoogleDirectionsResult>((resolve, reject) => {
+        service.route(
+          {
+            origin: { lat: oLat, lng: oLng },
+            destination: { lat: dLat, lng: dLng },
+            waypoints,
+            provideRouteAlternatives: true,
+            travelMode: api.maps.TravelMode.DRIVING,
+            region: "fr",
+            drivingOptions: {
+              departureTime: new Date(),
+              trafficModel: api.maps.TrafficModel.BEST_GUESS,
+            },
           },
-        },
-        (res: GoogleDirectionsResult | null, status: string) => {
-          if (status !== api.maps.DirectionsStatus.OK || !res?.routes?.length) {
-            reject(new Error(`Directions API: ${status}`));
-            return;
-          }
-          resolve(res);
-        },
+          (res: GoogleDirectionsResult | null, status: string) => {
+            if (status !== api.maps.DirectionsStatus.OK || !res?.routes?.length) {
+              reject(new Error(`Directions API: ${status}`));
+              return;
+            }
+            resolve(res);
+          },
+        );
+      });
+
+    const [longRes, fastRes] = await Promise.allSettled([
+      runRoute([{ location: ROCADE_WAYPOINT, stopover: false }]),
+      runRoute([]),
+    ]);
+
+    // Distance : route la plus longue avec waypoint rocade (fallback : plus rapide sans waypoint)
+    let distanceKm: number | null = null;
+    if (longRes.status === "fulfilled") {
+      const route = pickLongestRoute(longRes.value.routes);
+      const km = (route.legs ?? []).reduce((sum: number, l: any) => sum + (l?.distance?.value ?? 0), 0) / 1000;
+      if (km > 0) distanceKm = km;
+    }
+
+    // Durée : route la plus rapide sans waypoint (fallback : plus rapide de la liste avec waypoint)
+    let dureeS: number | null = null;
+    const fastSource = fastRes.status === "fulfilled" ? fastRes.value : longRes.status === "fulfilled" ? longRes.value : null;
+    if (fastSource) {
+      const route = pickFastestRoute(fastSource.routes);
+      const s = (route.legs ?? []).reduce(
+        (sum: number, l: any) => sum + (l?.duration_in_traffic?.value ?? l?.duration?.value ?? 0),
+        0,
       );
-    });
-    const route = pickLongestRoute(result.routes);
-    const legs = route.legs ?? [];
-    if (!legs.length) return null;
-    const dureeS = legs.reduce(
-      (sum: number, l: any) => sum + (l.duration_in_traffic?.value ?? l.duration?.value ?? 0),
-      0,
-    );
-    const distanceKm = legs.reduce((sum: number, l: any) => sum + (l?.distance?.value ?? 0), 0) / 1000;
+      if (s > 0) dureeS = s;
+      // Si on n'a pas de distance (échec du call rocade), on prend celle du fastest
+      if (distanceKm == null) {
+        const km = (route.legs ?? []).reduce((sum: number, l: any) => sum + (l?.distance?.value ?? 0), 0) / 1000;
+        if (km > 0) distanceKm = km;
+      }
+    }
+
+    if (distanceKm == null || dureeS == null) return null;
     return { dureeS, distanceKm };
   } catch {
     return null;
