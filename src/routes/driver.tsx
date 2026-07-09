@@ -16,7 +16,7 @@ import {
   type BadgeRealtimeStatus,
 } from "@/lib/chat-badge-sync";
 import { ChatPanel } from "@/components/ChatPanel";
-import { countUnreadChauffeurForReservation, listReservationsWithUnreadChauffeur, getUnreadCountsForReservations, type UnreadMap } from "@/lib/chat.functions";
+import { listReservationsWithUnreadChauffeur, getUnreadCountsForReservations, type UnreadMap } from "@/lib/chat.functions";
 
 
 // ── Token guard ────────────────────────────────────────────────────────────
@@ -927,20 +927,48 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
     }
   }, [onBadgeChange, listUnreadResasFn, getUnreadFn]);
 
+  // Refresh debouncé : coalesce les bursts Realtime (INSERT + UPDATE
+  // read_by_*) en un seul appel batch après 300 ms d'inactivité. Immédiat
+  // au premier appel, immédiat aussi au retour d'onglet.
+  const loadRef = useRef(load);
+  loadRef.current = load;
+  const scheduleRef = useRef<{ timer: any; last: number }>({ timer: null, last: 0 });
+  const scheduleLoad = useCallback((immediate = false) => {
+    const s = scheduleRef.current;
+    if (s.timer) {
+      clearTimeout(s.timer);
+      s.timer = null;
+    }
+    const run = () => {
+      s.last = Date.now();
+      s.timer = null;
+      loadRef.current();
+    };
+    // Immédiat si demandé OU si dernière exécution > 1s (throttle plancher)
+    if (immediate || Date.now() - s.last > 1000) {
+      run();
+    } else {
+      s.timer = setTimeout(run, 300);
+    }
+  }, []);
+
   useEffect(() => {
-    load();
+    scheduleLoad(true);
     const ch = (supabase as any)
       .channel("drv-courses")
-      .on("postgres_changes", { event: "*", schema: "public", table: "reservations" }, load)
-      .on("postgres_changes", { event: "*", schema: "public", table: "reservation_messages" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "reservations" }, () => scheduleLoad())
+      .on("postgres_changes", { event: "*", schema: "public", table: "reservation_messages" }, () => scheduleLoad())
       .subscribe();
-    const onVis = () => { if (!document.hidden) load(); };
+    const onVis = () => { if (!document.hidden) scheduleLoad(true); };
     document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", onVis);
     return () => {
       document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", onVis);
       supabase.removeChannel(ch);
+      if (scheduleRef.current.timer) clearTimeout(scheduleRef.current.timer);
     };
-  }, [load]);
+  }, [scheduleLoad]);
 
   if (loading)
     return (
@@ -990,6 +1018,7 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
       onRefresh={load}
       expanded={selected === r.id}
       onToggle={() => setSelected((s) => (s === r.id ? null : r.id))}
+      unreadByChauffeur={unreadMap[r.id]?.unread_chauffeur ?? 0}
       unreadByClient={unreadMap[r.id]?.unread_client ?? 0}
     />
   );
@@ -1026,12 +1055,14 @@ function CourseCard({
   onRefresh,
   expanded,
   onToggle,
+  unreadByChauffeur = 0,
   unreadByClient = 0,
 }: {
   resa: Resa;
   onRefresh: () => void;
   expanded: boolean;
   onToggle: () => void;
+  unreadByChauffeur?: number;
   unreadByClient?: number;
 }) {
   const [routes, setRoutes] = useState<RouteOption[]>([]);
@@ -1044,42 +1075,19 @@ function CourseCard({
   const rendererRef = useRef<any>(null);
   const actionLocks = useRef<Set<string>>(new Set());
   const [chatOpen, setChatOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const countUnreadFn = useServerFn(
-    // lazy import via require pattern would break bundling; use named import below
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define
-    countUnreadChauffeurForReservation,
-  );
 
-  useEffect(() => {
-    let cancelled = false;
-    const refresh = async () => {
-      try {
-        const n = await countUnreadFn({ data: { reservation_id: resa.id } });
-        if (!cancelled) setUnreadCount(Number(n) || 0);
-      } catch {}
-    };
-    refresh();
-    const ch = (supabase as any)
-      .channel(`card-unread-${resa.id}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "reservation_messages", filter: `reservation_id=eq.${resa.id}` },
-        () => refresh(),
-      )
-      .subscribe();
-    const onVis = () => { if (!document.hidden) refresh(); };
-    document.addEventListener("visibilitychange", onVis);
-    return () => {
-      cancelled = true;
-      document.removeEventListener("visibilitychange", onVis);
-      supabase.removeChannel(ch);
-    };
-  }, [resa.id, countUnreadFn]);
+  // Compteur non lus : source unique = unreadMap remonté par CoursesTab
+  // (COUNT SQL agrégé + debouncé). On garde un override local à 0 quand le
+  // panneau chat est ouvert pour donner un feedback visuel immédiat.
+  const rawUnread = unreadByChauffeur;
+  const unreadCount = chatOpen ? 0 : rawUnread;
+  const hasSpecialRequest = !!(resa.message && resa.message.trim());
+  const unreadContext = hasSpecialRequest ? "demande spéciale" : "conversation en cours";
+  const unreadTooltip =
+    unreadCount > 0
+      ? `${unreadCount} message${unreadCount > 1 ? "s" : ""} client non lu${unreadCount > 1 ? "s" : ""} · ${unreadContext}`
+      : "Aucun message non lu";
 
-  useEffect(() => {
-    if (chatOpen) setUnreadCount(0);
-  }, [chatOpen]);
 
   const claimAction = (key: string) => {
     if (actionLocks.current.has(key)) return false;
@@ -2079,8 +2087,10 @@ function CourseCard({
         }}
       >
         💬 Chat avec {resa.client_name || "le client"}
-        {unreadCount > 0 && (
+        {unreadCount > 0 ? (
           <span
+            title={unreadTooltip}
+            aria-label={unreadTooltip}
             style={{
               minWidth: 20,
               height: 20,
@@ -2096,6 +2106,19 @@ function CourseCard({
             }}
           >
             {unreadCount}
+          </span>
+        ) : (
+          <span
+            title="Aucun message non lu"
+            aria-label="Aucun message non lu"
+            style={{
+              fontSize: 10,
+              color: "#E8C96D99",
+              fontWeight: 600,
+              letterSpacing: "0.02em",
+            }}
+          >
+            ✓ à jour
           </span>
         )}
       </button>

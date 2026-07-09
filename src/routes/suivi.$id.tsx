@@ -331,8 +331,10 @@ function ChatSection({ suiviKey, reservationId, t }: { suiviKey: string; reserva
       >
         <MessageCircle size={16} />
         {t("suivi.chat_title")}
-        {unread > 0 && (
+        {unread > 0 ? (
           <span
+            title={`${unread} message${unread > 1 ? "s" : ""} du chauffeur non lu${unread > 1 ? "s" : ""} · conversation en cours`}
+            aria-label={`${unread} message${unread > 1 ? "s" : ""} non lu${unread > 1 ? "s" : ""}`}
             style={{
               minWidth: 20,
               height: 20,
@@ -349,6 +351,19 @@ function ChatSection({ suiviKey, reservationId, t }: { suiviKey: string; reserva
             }}
           >
             {unread}
+          </span>
+        ) : (
+          <span
+            title="Aucun message non lu"
+            style={{
+              marginLeft: "auto",
+              fontSize: 10,
+              color: "#64748b",
+              fontWeight: 600,
+              letterSpacing: "0.02em",
+            }}
+          >
+            ✓ à jour
           </span>
         )}
       </div>
