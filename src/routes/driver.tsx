@@ -2058,8 +2058,10 @@ function CourseCard({
         }}
       >
         💬 Chat avec {resa.client_name || "le client"}
-        {unreadCount > 0 && (
+        {unreadCount > 0 ? (
           <span
+            title={unreadTooltip}
+            aria-label={unreadTooltip}
             style={{
               minWidth: 20,
               height: 20,
@@ -2075,6 +2077,19 @@ function CourseCard({
             }}
           >
             {unreadCount}
+          </span>
+        ) : (
+          <span
+            title="Aucun message non lu"
+            aria-label="Aucun message non lu"
+            style={{
+              fontSize: 10,
+              color: "#E8C96D99",
+              fontWeight: 600,
+              letterSpacing: "0.02em",
+            }}
+          >
+            ✓ à jour
           </span>
         )}
       </button>
