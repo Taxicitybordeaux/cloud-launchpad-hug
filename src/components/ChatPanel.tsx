@@ -393,7 +393,7 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
   }, [peerOnline, peerTyping]);
 
   const statusColor = peerOnline || peerTyping ? "text-emerald-400" : "text-white/40";
-  const dotColor = peerOnline || peerTyping ? "bg-emerald-400" : "bg-white/30";
+  void (peerOnline || peerTyping);
 
   // Filtrage local (sur l'historique chargé : pages courantes) — mot-clé +
   // plage de dates. Si l'utilisateur veut filtrer plus ancien que ce qui est
