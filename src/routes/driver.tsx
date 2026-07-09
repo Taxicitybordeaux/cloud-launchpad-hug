@@ -389,8 +389,18 @@ function DriverApp() {
   const [newCount, setNewCount] = useState(0);
   const [pendingAvis, setPendingAvis] = useState(0);
   const [unreadChat, setUnreadChat] = useState(0);
+  const [chatRtStatus, setChatRtStatus] = useState<BadgeRealtimeStatus>("idle");
+  const [chatRtDetail, setChatRtDetail] = useState<string | null>(null);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const { status: pushStatus, subscribe: subscribePush } = usePushNotifications({ autoAudience: "chauffeur" });
+
+  // S'abonne au statut Realtime partagé du badge chat pour l'afficher en UI.
+  useEffect(() => {
+    return subscribeBadgeRealtimeStatus((s, d) => {
+      setChatRtStatus(s);
+      setChatRtDetail(d);
+    });
+  }, []);
 
   // Capture le prompt d'installation PWA
   useEffect(() => {
