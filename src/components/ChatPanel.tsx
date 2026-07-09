@@ -741,10 +741,10 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
   );
 }
 
-function Dot({ delay }: { delay: string }) {
+function Dot({ delay, dark = false }: { delay: string; dark?: boolean }) {
   return (
     <span
-      className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-white/60"
+      className={`inline-block h-1.5 w-1.5 animate-bounce rounded-full ${dark ? "bg-black/50" : "bg-white/60"}`}
       style={{ animationDelay: delay }}
     />
   );
