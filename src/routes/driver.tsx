@@ -594,8 +594,7 @@ function DriverApp() {
     };
 
     runLoad();
-    startPolling(20000);
-    subscribe();
+    subscribe(); // polling démarre uniquement si le canal échoue
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
     window.addEventListener("online", onOnline);
