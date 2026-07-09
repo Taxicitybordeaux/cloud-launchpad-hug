@@ -2359,28 +2359,7 @@ function SuiviPage() {
         )}
 
         {/* Chat */}
-        {!isCompleted && (
-          <div
-            className="suivi-premium suivi-card"
-            style={{ marginBottom: "16px", padding: "16px", display: "flex", flexDirection: "column" }}
-          >
-            <div
-              style={{
-                fontSize: "13px",
-                fontWeight: 700,
-                color: "#0f172a",
-                marginBottom: "12px",
-                display: "flex",
-                gap: "8px",
-                alignItems: "center",
-              }}
-            >
-              <MessageCircle size={16} />
-              {t("suivi.chat_title")}
-            </div>
-            <AnonChat suiviKey={id} reservationId={reservation.id} />
-          </div>
-        )}
+        {!isCompleted && <ChatSection suiviKey={id} reservationId={reservation.id} t={t} />}
 
         {/* Bloc Course terminée — Facture + Avis */}
         {isCompleted && (
