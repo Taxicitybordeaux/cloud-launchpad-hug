@@ -1026,11 +1026,13 @@ function CourseCard({
   onRefresh,
   expanded,
   onToggle,
+  unreadByClient = 0,
 }: {
   resa: Resa;
   onRefresh: () => void;
   expanded: boolean;
   onToggle: () => void;
+  unreadByClient?: number;
 }) {
   const [routes, setRoutes] = useState<RouteOption[]>([]);
   const [selectedRoute, setSelectedRoute] = useState(0);
