@@ -81,6 +81,22 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
     }
   }, [accountId, role]);
 
+  // Enregistre le thread direct ouvert pour synchro badge côté chauffeur.
+  useEffect(() => {
+    if (role !== "chauffeur") return;
+    const unregister = registerChauffeurReader(`direct:${accountId}`, markRead);
+    const onVis = () => {
+      if (!document.hidden) void markRead();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", onVis);
+    return () => {
+      unregister();
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", onVis);
+    };
+  }, [role, accountId, markRead]);
+
   // ── Initial load (latest PAGE_SIZE messages, ASC for render) ──
   useEffect(() => {
     let cancelled = false;
