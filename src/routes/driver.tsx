@@ -16,6 +16,7 @@ import {
   type BadgeRealtimeStatus,
 } from "@/lib/chat-badge-sync";
 import { ChatPanel } from "@/components/ChatPanel";
+import { countUnreadChauffeurForReservation } from "@/lib/chat.functions";
 
 
 // ── Token guard ────────────────────────────────────────────────────────────
@@ -986,6 +987,42 @@ function CourseCard({
   const rendererRef = useRef<any>(null);
   const actionLocks = useRef<Set<string>>(new Set());
   const [chatOpen, setChatOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const countUnreadFn = useServerFn(
+    // lazy import via require pattern would break bundling; use named import below
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+    countUnreadChauffeurForReservation,
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const n = await countUnreadFn({ data: { reservation_id: resa.id } });
+        if (!cancelled) setUnreadCount(Number(n) || 0);
+      } catch {}
+    };
+    refresh();
+    const ch = (supabase as any)
+      .channel(`card-unread-${resa.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "reservation_messages", filter: `reservation_id=eq.${resa.id}` },
+        () => refresh(),
+      )
+      .subscribe();
+    const onVis = () => { if (!document.hidden) refresh(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVis);
+      supabase.removeChannel(ch);
+    };
+  }, [resa.id, countUnreadFn]);
+
+  useEffect(() => {
+    if (chatOpen) setUnreadCount(0);
+  }, [chatOpen]);
 
   const claimAction = (key: string) => {
     if (actionLocks.current.has(key)) return false;
@@ -1913,6 +1950,25 @@ function CourseCard({
         }}
       >
         💬 Chat avec {resa.client_name || "le client"}
+        {unreadCount > 0 && (
+          <span
+            style={{
+              minWidth: 20,
+              height: 20,
+              padding: "0 6px",
+              borderRadius: 10,
+              background: "#ef4444",
+              color: "#fff",
+              fontSize: 11,
+              fontWeight: 800,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {unreadCount}
+          </span>
+        )}
       </button>
       {chatOpen && (
         <ChatPanel

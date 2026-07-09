@@ -30,7 +30,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { getReservationForFinPublic } from "@/lib/reservation.functions";
 import { recomputeReservationDuration } from "@/lib/reservation-recompute.functions";
 import { durationSecondsToMinutes, durationSecondsToMs } from "@/lib/duration";
-import { listSuiviMessages, sendSuiviClientMessage, type ChatMessage } from "@/lib/chat.functions";
+import { listSuiviMessages, sendSuiviClientMessage, markReservationMessagesRead, type ChatMessage } from "@/lib/chat.functions";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getTaxiSupabase } from "@/lib/taxi-supabase";
@@ -311,7 +311,61 @@ function PremiumTimeline({ status }: { status: string }) {
 }
 
 // ─── Chat Component (anonyme, scopé par clé URL /suivi/$id) ──────────────────
-function AnonChat({ suiviKey, reservationId }: { suiviKey: string; reservationId: string }) {
+function ChatSection({ suiviKey, reservationId, t }: { suiviKey: string; reservationId: string; t: (k: string) => string }) {
+  const [unread, setUnread] = useState(0);
+  return (
+    <div
+      className="suivi-premium suivi-card"
+      style={{ marginBottom: "16px", padding: "16px", display: "flex", flexDirection: "column" }}
+    >
+      <div
+        style={{
+          fontSize: "13px",
+          fontWeight: 700,
+          color: "#0f172a",
+          marginBottom: "12px",
+          display: "flex",
+          gap: "8px",
+          alignItems: "center",
+        }}
+      >
+        <MessageCircle size={16} />
+        {t("suivi.chat_title")}
+        {unread > 0 && (
+          <span
+            style={{
+              minWidth: 20,
+              height: 20,
+              padding: "0 6px",
+              borderRadius: 10,
+              background: "#ef4444",
+              color: "#fff",
+              fontSize: 11,
+              fontWeight: 800,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginLeft: "auto",
+            }}
+          >
+            {unread}
+          </span>
+        )}
+      </div>
+      <AnonChat suiviKey={suiviKey} reservationId={reservationId} onUnreadChange={setUnread} />
+    </div>
+  );
+}
+
+function AnonChat({
+  suiviKey,
+  reservationId,
+  onUnreadChange,
+}: {
+  suiviKey: string;
+  reservationId: string;
+  onUnreadChange?: (n: number) => void;
+}) {
   const t = useT();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
@@ -320,6 +374,7 @@ function AnonChat({ suiviKey, reservationId }: { suiviKey: string; reservationId
   const driverBadgeChannelRef = useRef<any>(null);
   const listFn = useServerFn(listSuiviMessages);
   const sendFn = useServerFn(sendSuiviClientMessage);
+  const markReadFn = useServerFn(markReservationMessagesRead);
 
   const load = useCallback(async () => {
     try {
@@ -365,6 +420,30 @@ function AnonChat({ suiviKey, reservationId }: { suiviKey: string; reservationId
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Compteur non lus (messages du chauffeur non lus par le client) + auto-mark.
+  const unread = messages.filter((m) => m.sender === "chauffeur" && !m.read_by_client).length;
+  useEffect(() => {
+    onUnreadChange?.(unread);
+  }, [unread, onUnreadChange]);
+  useEffect(() => {
+    if (unread === 0) return;
+    if (typeof document !== "undefined" && document.hidden) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await markReadFn({ data: { reservation_id: reservationId, role: "client" } });
+        if (!cancelled) {
+          setMessages((prev) =>
+            prev.map((m) => (m.sender === "chauffeur" && !m.read_by_client ? { ...m, read_by_client: true } : m)),
+          );
+        }
+      } catch {}
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [unread, reservationId, markReadFn]);
 
   const send = async () => {
     const trimmed = text.trim();
@@ -2326,28 +2405,7 @@ function SuiviPage() {
         )}
 
         {/* Chat */}
-        {!isCompleted && (
-          <div
-            className="suivi-premium suivi-card"
-            style={{ marginBottom: "16px", padding: "16px", display: "flex", flexDirection: "column" }}
-          >
-            <div
-              style={{
-                fontSize: "13px",
-                fontWeight: 700,
-                color: "#0f172a",
-                marginBottom: "12px",
-                display: "flex",
-                gap: "8px",
-                alignItems: "center",
-              }}
-            >
-              <MessageCircle size={16} />
-              {t("suivi.chat_title")}
-            </div>
-            <AnonChat suiviKey={id} reservationId={reservation.id} />
-          </div>
-        )}
+        {!isCompleted && <ChatSection suiviKey={id} reservationId={reservation.id} t={t} />}
 
         {/* Bloc Course terminée — Facture + Avis */}
         {isCompleted && (

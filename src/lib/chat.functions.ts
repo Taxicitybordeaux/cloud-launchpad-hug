@@ -601,6 +601,22 @@ export const countUnreadChauffeurMessages = createServerFn({ method: "GET" }).ha
   return (dm.count ?? 0) + (rm.count ?? 0);
 });
 
+export const countUnreadChauffeurForReservation = createServerFn({ method: "POST" })
+  .inputValidator((input) => z.object({ reservation_id: z.string().uuid() }).parse(input))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { count, error } = await supabaseAdmin
+      .from("reservation_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("reservation_id", data.reservation_id)
+      .eq("sender", "client")
+      .eq("read_by_chauffeur", false);
+    if (error) throw error;
+    return count ?? 0;
+  });
+
+
+
 function normPhone(p?: string | null): string | null {
   if (!p) return null;
   const d = p.replace(/\D+/g, "");
