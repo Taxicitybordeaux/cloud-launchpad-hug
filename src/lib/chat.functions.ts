@@ -109,7 +109,7 @@ export const sendClientMessage = createServerFn({ method: "POST" })
           title: `💬 Message de ${clientName}`,
           body: data.content.slice(0, 100),
           url: "/driver?token=DSF234",
-          tag: `chat-driver-resa-${data.reservation_id}`,
+          tag: `chat-driver-resa-${data.reservation_id}-${Date.now()}`,
           requireInteraction: false,
         });
       } catch (e) {
