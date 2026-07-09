@@ -1565,6 +1565,25 @@ function CourseCard({
             </button>
           </div>
           <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{resa.message}</div>
+          {unreadByClient > 0 && (
+            <div
+              style={{
+                marginTop: 8,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "3px 8px",
+                borderRadius: 999,
+                background: "#fee2e2",
+                color: "#991b1b",
+                fontSize: 11,
+                fontWeight: 700,
+              }}
+              title={`${unreadByClient} message(s) chauffeur non lu(s) par le client`}
+            >
+              ⏳ Réponse envoyée — non lue par le client ({unreadByClient})
+            </div>
+          )}
         </div>
       )}
 
