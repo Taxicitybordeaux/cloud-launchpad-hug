@@ -941,6 +941,9 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
 
   const nouvelles = courses.filter((r) => r.status === "pending");
   const encours = courses.filter((r) => r.status === "accepted" || r.status === "en_route" || r.status === "arrived");
+  const followups = courses.filter(
+    (r) => !["pending", "accepted", "en_route", "arrived"].includes(r.status),
+  );
 
   if (courses.length === 0)
     return (
@@ -975,6 +978,21 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
         <>
           <p className="drv-section">En cours</p>
           {encours.map((r) => (
+            <CourseCard
+              key={r.id}
+              resa={r}
+              onRefresh={load}
+              expanded={selected === r.id}
+              onToggle={() => setSelected((s) => (s === r.id ? null : r.id))}
+            />
+          ))}
+        </>
+      )}
+      {followups.length > 0 && (
+        <>
+          {(nouvelles.length > 0 || encours.length > 0) && <hr className="drv-divider" />}
+          <p className="drv-section">💬 Messages clients (courses passées)</p>
+          {followups.map((r) => (
             <CourseCard
               key={r.id}
               resa={r}
