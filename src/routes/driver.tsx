@@ -723,6 +723,7 @@ function DriverApp() {
               key={t}
               className={`drv-tab${tab === t ? " active" : ""}`}
               onClick={() => {
+                if (t === "chat") setUnreadChat(0);
                 setTab(t);
               }}
             >
