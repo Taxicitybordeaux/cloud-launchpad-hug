@@ -16,6 +16,7 @@ import {
   type BadgeRealtimeStatus,
 } from "@/lib/chat-badge-sync";
 import { ChatPanel } from "@/components/ChatPanel";
+import { InlineDriverChat } from "@/components/InlineDriverChat";
 import { listReservationsWithUnreadChauffeur, getUnreadCountsForReservations, type UnreadMap } from "@/lib/chat.functions";
 
 
