@@ -30,7 +30,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { getReservationForFinPublic } from "@/lib/reservation.functions";
 import { recomputeReservationDuration } from "@/lib/reservation-recompute.functions";
 import { durationSecondsToMinutes, durationSecondsToMs } from "@/lib/duration";
-import { listSuiviMessages, sendSuiviClientMessage, markReservationMessagesRead, type ChatMessage } from "@/lib/chat.functions";
+import { listSuiviMessages, sendSuiviClientMessage, markReservationMessagesRead, countUnreadClientForReservation, type ChatMessage } from "@/lib/chat.functions";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getTaxiSupabase } from "@/lib/taxi-supabase";
@@ -375,6 +375,8 @@ function AnonChat({
   const listFn = useServerFn(listSuiviMessages);
   const sendFn = useServerFn(sendSuiviClientMessage);
   const markReadFn = useServerFn(markReservationMessagesRead);
+  const countUnreadFn = useServerFn(countUnreadClientForReservation);
+  const [unreadSql, setUnreadSql] = useState(0);
 
   const load = useCallback(async () => {
     try {
@@ -421,13 +423,29 @@ function AnonChat({
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Compteur non lus (messages du chauffeur non lus par le client) + auto-mark.
-  const unread = messages.filter((m) => m.sender === "chauffeur" && !m.read_by_client).length;
+  // Compteur non lus : COUNT SQL exact (source de vérité identique à celle du
+  // chauffeur), rafraîchi à chaque changement de liste + focus onglet.
+  const refreshUnread = useCallback(async () => {
+    try {
+      const n = await countUnreadFn({ data: { suivi_key: suiviKey } });
+      setUnreadSql(Number(n) || 0);
+    } catch {}
+  }, [countUnreadFn, suiviKey]);
   useEffect(() => {
-    onUnreadChange?.(unread);
-  }, [unread, onUnreadChange]);
+    refreshUnread();
+  }, [messages, refreshUnread]);
   useEffect(() => {
-    if (unread === 0) return;
+    const onVis = () => {
+      if (!document.hidden) refreshUnread();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [refreshUnread]);
+  useEffect(() => {
+    onUnreadChange?.(unreadSql);
+  }, [unreadSql, onUnreadChange]);
+  useEffect(() => {
+    if (unreadSql === 0) return;
     if (typeof document !== "undefined" && document.hidden) return;
     let cancelled = false;
     (async () => {
@@ -437,13 +455,14 @@ function AnonChat({
           setMessages((prev) =>
             prev.map((m) => (m.sender === "chauffeur" && !m.read_by_client ? { ...m, read_by_client: true } : m)),
           );
+          setUnreadSql(0);
         }
       } catch {}
     })();
     return () => {
       cancelled = true;
     };
-  }, [unread, reservationId, markReadFn]);
+  }, [unreadSql, reservationId, markReadFn]);
 
   const send = async () => {
     const trimmed = text.trim();
