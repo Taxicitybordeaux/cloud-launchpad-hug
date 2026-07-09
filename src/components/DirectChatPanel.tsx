@@ -302,6 +302,9 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
           const msg = await sendOne(next.content);
           setMessages((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]));
           channelRef.current?.send({ type: "broadcast", event: "new_message", payload: msg });
+          if (role === "client") {
+            channelRef.current?.send({ type: "broadcast", event: "new_client_message", payload: { at: Date.now() } });
+          }
 
           remaining.shift();
           writeQueue(remaining);
@@ -342,6 +345,9 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
       const msg = await sendOne(content);
       setMessages((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]));
       channelRef.current?.send({ type: "broadcast", event: "new_message", payload: msg });
+      if (role === "client") {
+        channelRef.current?.send({ type: "broadcast", event: "new_client_message", payload: { at: Date.now() } });
+      }
       setInput("");
     } catch (e) {
       console.error("[chat] send failed, queuing for retry", e);

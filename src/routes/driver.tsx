@@ -506,19 +506,8 @@ function DriverApp() {
     let ch: any = null;
 
     const countUnread = async () => {
-      const [dm, rm] = await Promise.all([
-        (supabase as any)
-          .from("direct_messages")
-          .select("id", { count: "exact", head: true })
-          .eq("sender", "client")
-          .eq("read_by_chauffeur", false),
-        (supabase as any)
-          .from("reservation_messages")
-          .select("id", { count: "exact", head: true })
-          .eq("sender", "client")
-          .eq("read_by_chauffeur", false),
-      ]);
-      return (dm.count ?? 0) + (rm.count ?? 0);
+      const { countUnreadChauffeurMessages } = await import("@/lib/chat.functions");
+      return await countUnreadChauffeurMessages();
     };
 
     const runLoad = async () => {
@@ -547,9 +536,9 @@ function DriverApp() {
       debounceT = setTimeout(runLoad, 250);
     };
 
-    const startPolling = () => {
+    const startPolling = (intervalMs = 20000) => {
       if (pollT) return;
-      pollT = setInterval(runLoad, 20000);
+      pollT = setInterval(runLoad, intervalMs);
     };
     const stopPolling = () => {
       if (pollT) {
@@ -561,6 +550,11 @@ function DriverApp() {
     const subscribe = () => {
       ch = (supabase as any)
         .channel("drv-chat-badge")
+        .on(
+          "broadcast",
+          { event: "new_client_message" },
+          scheduleLoad,
+        )
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "direct_messages" },
@@ -574,10 +568,10 @@ function DriverApp() {
         .subscribe((status: string) => {
           if (status === "SUBSCRIBED") {
             backoff = 2000;
-            stopPolling();
+            startPolling(20000);
             runLoad(); // rattrapage
           } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-            startPolling();
+            startPolling(20000);
             try {
               if (ch) supabase.removeChannel(ch);
             } catch {}
@@ -600,6 +594,7 @@ function DriverApp() {
     };
 
     runLoad();
+    startPolling(20000);
     subscribe();
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
