@@ -1018,6 +1018,7 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
       onRefresh={load}
       expanded={selected === r.id}
       onToggle={() => setSelected((s) => (s === r.id ? null : r.id))}
+      unreadByChauffeur={unreadMap[r.id]?.unread_chauffeur ?? 0}
       unreadByClient={unreadMap[r.id]?.unread_client ?? 0}
     />
   );
