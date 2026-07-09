@@ -2068,8 +2068,9 @@ function CourseCard({
       <button
         onClick={(e) => {
           e.stopPropagation();
-          setChatOpen(true);
+          setChatOpen((v) => !v);
         }}
+
         style={{
           width: "100%",
           marginTop: 8,
