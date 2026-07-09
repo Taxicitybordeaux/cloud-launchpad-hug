@@ -16,6 +16,7 @@ import {
   type BadgeRealtimeStatus,
 } from "@/lib/chat-badge-sync";
 import { ChatPanel } from "@/components/ChatPanel";
+import { InlineDriverChat } from "@/components/InlineDriverChat";
 import { listReservationsWithUnreadChauffeur, getUnreadCountsForReservations, type UnreadMap } from "@/lib/chat.functions";
 
 
@@ -2067,8 +2068,9 @@ function CourseCard({
       <button
         onClick={(e) => {
           e.stopPropagation();
-          setChatOpen(true);
+          setChatOpen((v) => !v);
         }}
+
         style={{
           width: "100%",
           marginTop: 8,
@@ -2123,13 +2125,9 @@ function CourseCard({
         )}
       </button>
       {chatOpen && (
-        <ChatPanel
-          reservationId={resa.id}
-          role="chauffeur"
-          peerName={resa.client_name || "Client"}
-          onClose={() => setChatOpen(false)}
-        />
+        <InlineDriverChat reservationId={resa.id} />
       )}
+
 
       {/* Toggle */}
       <button
