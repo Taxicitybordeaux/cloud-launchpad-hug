@@ -526,67 +526,94 @@ function DriverApp() {
       return await countUnreadChauffeurMessages();
     };
 
-    const runLoad = async () => {
+    const runLoad = async (reason: string = "manual") => {
       if (cancelled) return;
       if (inflight) {
         queued = true;
         return;
       }
       inflight = true;
+      const t0 = Date.now();
       try {
+        // 1) Flush : on attend que tous les threads chauffeur ouverts aient
+        //    persisté `read_by_chauffeur=true` AVANT de compter, sinon le
+        //    badge affiche un compte périmé au retour de focus / changement
+        //    d'onglet.
+        await flushChauffeurReaders();
+        // 2) Recompte via serverFn (source de vérité).
         const total = await countUnread();
-        if (!cancelled) setUnreadChat(total);
+        if (!cancelled) {
+          setUnreadChat(total);
+          console.info(
+            `[drv-badge] recount (${reason}) → ${total} (${Date.now() - t0}ms)`,
+          );
+        }
       } catch (e) {
-        console.warn("[driver chat badge] load failed", e);
+        console.warn(`[drv-badge] recount (${reason}) failed`, e);
       } finally {
         inflight = false;
         if (queued && !cancelled) {
           queued = false;
-          runLoad();
+          runLoad("queued");
         }
       }
     };
 
-    const scheduleLoad = () => {
+    const scheduleLoad = (reason: string) => {
       if (debounceT) clearTimeout(debounceT);
-      debounceT = setTimeout(runLoad, 250);
+      debounceT = setTimeout(() => runLoad(reason), 250);
     };
 
     const startPolling = (intervalMs = 20000) => {
       if (pollT) return;
-      pollT = setInterval(runLoad, intervalMs);
+      console.warn(`[drv-badge] fallback polling START (${intervalMs}ms)`);
+      setBadgeRealtimeStatus("polling", `every ${intervalMs}ms`);
+      pollT = setInterval(() => runLoad("poll"), intervalMs);
     };
     const stopPolling = () => {
       if (pollT) {
+        console.info("[drv-badge] fallback polling STOP");
         clearInterval(pollT);
         pollT = null;
       }
     };
 
     const subscribe = () => {
+      setBadgeRealtimeStatus("subscribing");
+      console.info("[drv-badge] channel subscribing…");
       ch = (supabase as any)
         .channel("drv-chat-badge")
         .on(
           "broadcast",
           { event: "new_client_message" },
-          scheduleLoad,
+          () => scheduleLoad("broadcast:new_client_message"),
         )
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "direct_messages" },
-          scheduleLoad,
+          () => scheduleLoad("pg:direct_messages"),
         )
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "reservation_messages" },
-          scheduleLoad,
+          () => scheduleLoad("pg:reservation_messages"),
         )
         .subscribe((status: string) => {
+          console.info(`[drv-badge] channel status → ${status}`);
           if (status === "SUBSCRIBED") {
             backoff = 2000;
             stopPolling(); // Realtime OK → pas besoin de polling
-            runLoad(); // rattrapage des events manqués
-          } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+            setBadgeRealtimeStatus("subscribed");
+            runLoad("SUBSCRIBED-catchup"); // rattrapage des events manqués
+          } else if (
+            status === "CHANNEL_ERROR" ||
+            status === "TIMED_OUT" ||
+            status === "CLOSED"
+          ) {
+            setBadgeRealtimeStatus(
+              status === "CLOSED" ? "closed" : "error",
+              status,
+            );
             startPolling(20000); // fallback tant que le canal est cassé
             try {
               if (ch) supabase.removeChannel(ch);
@@ -595,21 +622,24 @@ function DriverApp() {
             setTimeout(() => {
               if (!cancelled) subscribe();
             }, backoff);
+            console.warn(
+              `[drv-badge] reconnect scheduled in ${backoff}ms (next backoff up to 30000ms)`,
+            );
             backoff = Math.min(backoff * 2, 30000);
           }
         });
     };
 
     const onVisible = () => {
-      if (!document.hidden) runLoad();
+      if (!document.hidden) runLoad("visibility");
     };
     const onOnline = () => {
       backoff = 2000;
-      runLoad();
+      runLoad("online");
       if (!ch) subscribe();
     };
 
-    runLoad();
+    runLoad("mount");
     subscribe(); // polling démarre uniquement si le canal échoue
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
