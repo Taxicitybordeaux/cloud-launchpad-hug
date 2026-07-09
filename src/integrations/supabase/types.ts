@@ -792,6 +792,7 @@ export type Database = {
           depart: string
           destination: string | null
           distance_km: number | null
+          duree_recomputed_at: string | null
           duree_s: number | null
           email: string | null
           gps_validated_at: string | null
@@ -831,6 +832,7 @@ export type Database = {
           depart: string
           destination?: string | null
           distance_km?: number | null
+          duree_recomputed_at?: string | null
           duree_s?: number | null
           email?: string | null
           gps_validated_at?: string | null
@@ -870,6 +872,7 @@ export type Database = {
           depart?: string
           destination?: string | null
           distance_km?: number | null
+          duree_recomputed_at?: string | null
           duree_s?: number | null
           email?: string | null
           gps_validated_at?: string | null
@@ -1063,6 +1066,7 @@ export type Database = {
           depart: string
           destination: string | null
           distance_km: number | null
+          duree_recomputed_at: string | null
           duree_s: number | null
           email: string | null
           gps_validated_at: string | null

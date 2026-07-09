@@ -48,6 +48,7 @@ import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/em
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
 import { Route as ApiPublicHooksRideRemindersTickRouteImport } from './routes/api/public/hooks/ride-reminders-tick'
 import { Route as ApiPublicHooksRecurringRidesTickRouteImport } from './routes/api/public/hooks/recurring-rides-tick'
+import { Route as ApiPublicHooksRecomputeDurationsTickRouteImport } from './routes/api/public/hooks/recompute-durations-tick'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -251,6 +252,12 @@ const ApiPublicHooksRecurringRidesTickRoute =
     path: '/api/public/hooks/recurring-rides-tick',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksRecomputeDurationsTickRoute =
+  ApiPublicHooksRecomputeDurationsTickRouteImport.update({
+    id: '/api/public/hooks/recompute-durations-tick',
+    path: '/api/public/hooks/recompute-durations-tick',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -285,6 +292,7 @@ export interface FileRoutesByFullPath {
   '/api/public/push-dedup-check': typeof ApiPublicPushDedupCheckRoute
   '/api/public/reviews': typeof ApiPublicReviewsRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
+  '/api/public/hooks/recompute-durations-tick': typeof ApiPublicHooksRecomputeDurationsTickRoute
   '/api/public/hooks/recurring-rides-tick': typeof ApiPublicHooksRecurringRidesTickRoute
   '/api/public/hooks/ride-reminders-tick': typeof ApiPublicHooksRideRemindersTickRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -326,6 +334,7 @@ export interface FileRoutesByTo {
   '/api/public/push-dedup-check': typeof ApiPublicPushDedupCheckRoute
   '/api/public/reviews': typeof ApiPublicReviewsRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
+  '/api/public/hooks/recompute-durations-tick': typeof ApiPublicHooksRecomputeDurationsTickRoute
   '/api/public/hooks/recurring-rides-tick': typeof ApiPublicHooksRecurringRidesTickRoute
   '/api/public/hooks/ride-reminders-tick': typeof ApiPublicHooksRideRemindersTickRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -368,6 +377,7 @@ export interface FileRoutesById {
   '/api/public/push-dedup-check': typeof ApiPublicPushDedupCheckRoute
   '/api/public/reviews': typeof ApiPublicReviewsRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
+  '/api/public/hooks/recompute-durations-tick': typeof ApiPublicHooksRecomputeDurationsTickRoute
   '/api/public/hooks/recurring-rides-tick': typeof ApiPublicHooksRecurringRidesTickRoute
   '/api/public/hooks/ride-reminders-tick': typeof ApiPublicHooksRideRemindersTickRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -411,6 +421,7 @@ export interface FileRouteTypes {
     | '/api/public/push-dedup-check'
     | '/api/public/reviews'
     | '/lovable/email/suppression'
+    | '/api/public/hooks/recompute-durations-tick'
     | '/api/public/hooks/recurring-rides-tick'
     | '/api/public/hooks/ride-reminders-tick'
     | '/lovable/email/auth/preview'
@@ -452,6 +463,7 @@ export interface FileRouteTypes {
     | '/api/public/push-dedup-check'
     | '/api/public/reviews'
     | '/lovable/email/suppression'
+    | '/api/public/hooks/recompute-durations-tick'
     | '/api/public/hooks/recurring-rides-tick'
     | '/api/public/hooks/ride-reminders-tick'
     | '/lovable/email/auth/preview'
@@ -493,6 +505,7 @@ export interface FileRouteTypes {
     | '/api/public/push-dedup-check'
     | '/api/public/reviews'
     | '/lovable/email/suppression'
+    | '/api/public/hooks/recompute-durations-tick'
     | '/api/public/hooks/recurring-rides-tick'
     | '/api/public/hooks/ride-reminders-tick'
     | '/lovable/email/auth/preview'
@@ -534,6 +547,7 @@ export interface RootRouteChildren {
   ApiPublicPushDedupCheckRoute: typeof ApiPublicPushDedupCheckRoute
   ApiPublicReviewsRoute: typeof ApiPublicReviewsRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
+  ApiPublicHooksRecomputeDurationsTickRoute: typeof ApiPublicHooksRecomputeDurationsTickRoute
   ApiPublicHooksRecurringRidesTickRoute: typeof ApiPublicHooksRecurringRidesTickRoute
   ApiPublicHooksRideRemindersTickRoute: typeof ApiPublicHooksRideRemindersTickRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
@@ -818,6 +832,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksRecurringRidesTickRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/recompute-durations-tick': {
+      id: '/api/public/hooks/recompute-durations-tick'
+      path: '/api/public/hooks/recompute-durations-tick'
+      fullPath: '/api/public/hooks/recompute-durations-tick'
+      preLoaderRoute: typeof ApiPublicHooksRecomputeDurationsTickRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -865,6 +886,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicPushDedupCheckRoute: ApiPublicPushDedupCheckRoute,
   ApiPublicReviewsRoute: ApiPublicReviewsRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
+  ApiPublicHooksRecomputeDurationsTickRoute:
+    ApiPublicHooksRecomputeDurationsTickRoute,
   ApiPublicHooksRecurringRidesTickRoute: ApiPublicHooksRecurringRidesTickRoute,
   ApiPublicHooksRideRemindersTickRoute: ApiPublicHooksRideRemindersTickRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
