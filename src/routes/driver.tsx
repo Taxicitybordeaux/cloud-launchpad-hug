@@ -492,9 +492,134 @@ function DriverApp() {
     };
   }, []);
 
-  // Badge messages non lus : remonté par ChatTab lui-même (même source que
-  // la liste des conversations), voir onBadgeChange plus bas — cohérent avec
-  // le pattern déjà utilisé pour CoursesTab/AvisTab.
+  // Badge messages non lus — compté au niveau DriverApp pour rester à jour
+  // même quand l'onglet Chat n'est pas monté. Realtime sur direct_messages
+  // et reservation_messages + fallback focus/visibilité + polling léger si
+  // le canal Realtime est coupé (backoff exponentiel à la reconnexion).
+  useEffect(() => {
+    let cancelled = false;
+    let inflight = false;
+    let queued = false;
+    let debounceT: any = null;
+    let pollT: any = null;
+    let backoff = 2000;
+    let ch: any = null;
+
+    const countUnread = async () => {
+      const [dm, rm] = await Promise.all([
+        (supabase as any)
+          .from("direct_messages")
+          .select("id", { count: "exact", head: true })
+          .eq("sender", "client")
+          .eq("read_by_chauffeur", false),
+        (supabase as any)
+          .from("reservation_messages")
+          .select("id", { count: "exact", head: true })
+          .eq("sender", "client")
+          .eq("read_by_chauffeur", false),
+      ]);
+      return (dm.count ?? 0) + (rm.count ?? 0);
+    };
+
+    const runLoad = async () => {
+      if (cancelled) return;
+      if (inflight) {
+        queued = true;
+        return;
+      }
+      inflight = true;
+      try {
+        const total = await countUnread();
+        if (!cancelled) setUnreadChat(total);
+      } catch (e) {
+        console.warn("[driver chat badge] load failed", e);
+      } finally {
+        inflight = false;
+        if (queued && !cancelled) {
+          queued = false;
+          runLoad();
+        }
+      }
+    };
+
+    const scheduleLoad = () => {
+      if (debounceT) clearTimeout(debounceT);
+      debounceT = setTimeout(runLoad, 250);
+    };
+
+    const startPolling = () => {
+      if (pollT) return;
+      pollT = setInterval(runLoad, 20000);
+    };
+    const stopPolling = () => {
+      if (pollT) {
+        clearInterval(pollT);
+        pollT = null;
+      }
+    };
+
+    const subscribe = () => {
+      ch = (supabase as any)
+        .channel("drv-chat-badge")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "direct_messages" },
+          scheduleLoad,
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "reservation_messages" },
+          scheduleLoad,
+        )
+        .subscribe((status: string) => {
+          if (status === "SUBSCRIBED") {
+            backoff = 2000;
+            stopPolling();
+            runLoad(); // rattrapage
+          } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+            startPolling();
+            try {
+              if (ch) supabase.removeChannel(ch);
+            } catch {}
+            ch = null;
+            setTimeout(() => {
+              if (!cancelled) subscribe();
+            }, backoff);
+            backoff = Math.min(backoff * 2, 30000);
+          }
+        });
+    };
+
+    const onVisible = () => {
+      if (!document.hidden) runLoad();
+    };
+    const onOnline = () => {
+      backoff = 2000;
+      runLoad();
+      if (!ch) subscribe();
+    };
+
+    runLoad();
+    subscribe();
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    window.addEventListener("online", onOnline);
+
+    return () => {
+      cancelled = true;
+      if (debounceT) clearTimeout(debounceT);
+      stopPolling();
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+      window.removeEventListener("online", onOnline);
+      if (ch) {
+        try {
+          supabase.removeChannel(ch);
+        } catch {}
+      }
+    };
+  }, []);
+
 
   return (
     <>
@@ -598,6 +723,7 @@ function DriverApp() {
               key={t}
               className={`drv-tab${tab === t ? " active" : ""}`}
               onClick={() => {
+                if (t === "chat") setUnreadChat(0);
                 setTab(t);
               }}
             >
