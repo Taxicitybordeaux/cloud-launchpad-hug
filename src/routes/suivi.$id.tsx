@@ -30,7 +30,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { getReservationForFinPublic } from "@/lib/reservation.functions";
 import { recomputeReservationDuration } from "@/lib/reservation-recompute.functions";
 import { durationSecondsToMinutes, durationSecondsToMs } from "@/lib/duration";
-import { listSuiviMessages, sendSuiviClientMessage, type ChatMessage } from "@/lib/chat.functions";
+import { listSuiviMessages, sendSuiviClientMessage, markReservationMessagesRead, type ChatMessage } from "@/lib/chat.functions";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getTaxiSupabase } from "@/lib/taxi-supabase";
