@@ -568,10 +568,10 @@ function DriverApp() {
         .subscribe((status: string) => {
           if (status === "SUBSCRIBED") {
             backoff = 2000;
-            startPolling(20000);
-            runLoad(); // rattrapage
+            stopPolling(); // Realtime OK → pas besoin de polling
+            runLoad(); // rattrapage des events manqués
           } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-            startPolling(20000);
+            startPolling(20000); // fallback tant que le canal est cassé
             try {
               if (ch) supabase.removeChannel(ch);
             } catch {}
