@@ -1950,6 +1950,25 @@ function CourseCard({
         }}
       >
         💬 Chat avec {resa.client_name || "le client"}
+        {unreadCount > 0 && (
+          <span
+            style={{
+              minWidth: 20,
+              height: 20,
+              padding: "0 6px",
+              borderRadius: 10,
+              background: "#ef4444",
+              color: "#fff",
+              fontSize: 11,
+              fontWeight: 800,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {unreadCount}
+          </span>
+        )}
       </button>
       {chatOpen && (
         <ChatPanel
