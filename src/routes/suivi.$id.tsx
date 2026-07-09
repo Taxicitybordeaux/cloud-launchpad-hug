@@ -375,6 +375,30 @@ function AnonChat({
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Compteur non lus (messages du chauffeur non lus par le client) + auto-mark.
+  const unread = messages.filter((m) => m.sender === "chauffeur" && !m.read_by_client).length;
+  useEffect(() => {
+    onUnreadChange?.(unread);
+  }, [unread, onUnreadChange]);
+  useEffect(() => {
+    if (unread === 0) return;
+    if (typeof document !== "undefined" && document.hidden) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await markReadFn({ data: { reservation_id: reservationId, role: "client" } });
+        if (!cancelled) {
+          setMessages((prev) =>
+            prev.map((m) => (m.sender === "chauffeur" && !m.read_by_client ? { ...m, read_by_client: true } : m)),
+          );
+        }
+      } catch {}
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [unread, reservationId, markReadFn]);
+
   const send = async () => {
     const trimmed = text.trim();
     if (!trimmed) return;
