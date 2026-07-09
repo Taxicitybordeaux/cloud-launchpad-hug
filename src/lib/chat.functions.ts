@@ -615,6 +615,45 @@ export const countUnreadChauffeurForReservation = createServerFn({ method: "POST
     return count ?? 0;
   });
 
+// Compteur client : messages du chauffeur non lus pour une réservation donnée.
+// Comptage SQL exact (COUNT côté serveur), identique dans sa forme à
+// countUnreadChauffeurForReservation, pour garantir que les deux badges
+// (chauffeur / client) reflètent strictement la même vérité que la BDD.
+export const countUnreadClientForReservation = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z.object({ suivi_key: z.string().trim().min(6).max(200) }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const r = await resolveSuiviReservation(data.suivi_key);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { count, error } = await supabaseAdmin
+      .from("reservation_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("reservation_id", r.id)
+      .eq("sender", "chauffeur")
+      .eq("read_by_client", false);
+    if (error) throw error;
+    return count ?? 0;
+  });
+
+// Liste des réservations ayant au moins un message client non lu par le
+// chauffeur — utilisé pour ne jamais rater une "demande spéciale" côté driver,
+// même si la réservation n'est plus dans les statuts actifs.
+export const listReservationsWithUnreadChauffeur = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
+      .from("reservation_messages")
+      .select("reservation_id")
+      .eq("sender", "client")
+      .eq("read_by_chauffeur", false);
+    if (error) throw error;
+    const ids = Array.from(new Set((data ?? []).map((r: any) => r.reservation_id).filter(Boolean)));
+    return ids as string[];
+  },
+);
+
+
 
 
 function normPhone(p?: string | null): string | null {

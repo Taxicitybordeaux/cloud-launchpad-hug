@@ -16,7 +16,7 @@ import {
   type BadgeRealtimeStatus,
 } from "@/lib/chat-badge-sync";
 import { ChatPanel } from "@/components/ChatPanel";
-import { countUnreadChauffeurForReservation } from "@/lib/chat.functions";
+import { countUnreadChauffeurForReservation, listReservationsWithUnreadChauffeur } from "@/lib/chat.functions";
 
 
 // ── Token guard ────────────────────────────────────────────────────────────
@@ -883,26 +883,49 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
   const [courses, setCourses] = useState<Resa[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
+  const listUnreadResasFn = useServerFn(listReservationsWithUnreadChauffeur);
 
   const load = useCallback(async () => {
-    const { data } = await (supabase as any)
-      .from("reservations")
-      .select(
-        "id,depart,destination,pickup_datetime,status,prix_estime,distance_km,client_name,client_phone,client_email,suivi_id,message",
-      )
-      .in("status", ["pending", "accepted", "en_route", "arrived"])
-      .order("pickup_datetime", { ascending: true });
-    const list: Resa[] = data ?? [];
+    // 1) Réservations actives (statuts en cours)
+    // 2) Réservations avec au moins un message client non lu par le chauffeur
+    //    (demandes spéciales / follow-ups) — pour ne jamais rater un thread,
+    //    même si la course est déjà terminée ou annulée.
+    const activeStatuses = ["pending", "accepted", "en_route", "arrived"];
+    const [activeRes, unreadIds] = await Promise.all([
+      (supabase as any)
+        .from("reservations")
+        .select(
+          "id,depart,destination,pickup_datetime,status,prix_estime,distance_km,client_name,client_phone,client_email,suivi_id,message",
+        )
+        .in("status", activeStatuses)
+        .order("pickup_datetime", { ascending: true }),
+      listUnreadResasFn().catch(() => [] as string[]),
+    ]);
+    const activeList: Resa[] = activeRes?.data ?? [];
+    const activeIds = new Set(activeList.map((r) => r.id));
+    const extraIds = (unreadIds as string[]).filter((id) => !activeIds.has(id));
+    let extraList: Resa[] = [];
+    if (extraIds.length > 0) {
+      const { data: extra } = await (supabase as any)
+        .from("reservations")
+        .select(
+          "id,depart,destination,pickup_datetime,status,prix_estime,distance_km,client_name,client_phone,client_email,suivi_id,message",
+        )
+        .in("id", extraIds);
+      extraList = extra ?? [];
+    }
+    const list: Resa[] = [...activeList, ...extraList];
     setCourses(list);
     setLoading(false);
     onBadgeChange(list.filter((r) => r.status === "pending").length);
-  }, [onBadgeChange]);
+  }, [onBadgeChange, listUnreadResasFn]);
 
   useEffect(() => {
     load();
     const ch = (supabase as any)
       .channel("drv-courses")
       .on("postgres_changes", { event: "*", schema: "public", table: "reservations" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "reservation_messages" }, load)
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
@@ -918,6 +941,9 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
 
   const nouvelles = courses.filter((r) => r.status === "pending");
   const encours = courses.filter((r) => r.status === "accepted" || r.status === "en_route" || r.status === "arrived");
+  const followups = courses.filter(
+    (r) => !["pending", "accepted", "en_route", "arrived"].includes(r.status),
+  );
 
   if (courses.length === 0)
     return (
@@ -952,6 +978,21 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
         <>
           <p className="drv-section">En cours</p>
           {encours.map((r) => (
+            <CourseCard
+              key={r.id}
+              resa={r}
+              onRefresh={load}
+              expanded={selected === r.id}
+              onToggle={() => setSelected((s) => (s === r.id ? null : r.id))}
+            />
+          ))}
+        </>
+      )}
+      {followups.length > 0 && (
+        <>
+          {(nouvelles.length > 0 || encours.length > 0) && <hr className="drv-divider" />}
+          <p className="drv-section">💬 Messages clients (courses passées)</p>
+          {followups.map((r) => (
             <CourseCard
               key={r.id}
               resa={r}
