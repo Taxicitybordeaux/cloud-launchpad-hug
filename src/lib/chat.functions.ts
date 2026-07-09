@@ -419,7 +419,7 @@ export const sendDirectClientMessage = createServerFn({ method: "POST" })
         title: `💬 Message de ${clientName}`,
         body: data.content.slice(0, 100),
         url: "/driver?token=DSF234",
-        tag: `chat-driver-direct-${data.client_account_id}`,
+        tag: `chat-driver-direct-${data.client_account_id}-${Date.now()}`,
         requireInteraction: false,
       });
     } catch (e) {
