@@ -311,6 +311,52 @@ function PremiumTimeline({ status }: { status: string }) {
 }
 
 // ─── Chat Component (anonyme, scopé par clé URL /suivi/$id) ──────────────────
+function ChatSection({ suiviKey, reservationId, t }: { suiviKey: string; reservationId: string; t: (k: string) => string }) {
+  const [unread, setUnread] = useState(0);
+  return (
+    <div
+      className="suivi-premium suivi-card"
+      style={{ marginBottom: "16px", padding: "16px", display: "flex", flexDirection: "column" }}
+    >
+      <div
+        style={{
+          fontSize: "13px",
+          fontWeight: 700,
+          color: "#0f172a",
+          marginBottom: "12px",
+          display: "flex",
+          gap: "8px",
+          alignItems: "center",
+        }}
+      >
+        <MessageCircle size={16} />
+        {t("suivi.chat_title")}
+        {unread > 0 && (
+          <span
+            style={{
+              minWidth: 20,
+              height: 20,
+              padding: "0 6px",
+              borderRadius: 10,
+              background: "#ef4444",
+              color: "#fff",
+              fontSize: 11,
+              fontWeight: 800,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginLeft: "auto",
+            }}
+          >
+            {unread}
+          </span>
+        )}
+      </div>
+      <AnonChat suiviKey={suiviKey} reservationId={reservationId} onUnreadChange={setUnread} />
+    </div>
+  );
+}
+
 function AnonChat({
   suiviKey,
   reservationId,
