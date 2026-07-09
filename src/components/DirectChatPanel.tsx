@@ -8,6 +8,7 @@ import {
   markDirectMessagesRead,
   type DirectMessage as ChatMessage,
 } from "@/lib/chat.functions";
+import { registerChauffeurReader } from "@/lib/chat-badge-sync";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useI18n, useT } from "@/i18n/I18nProvider";
 
