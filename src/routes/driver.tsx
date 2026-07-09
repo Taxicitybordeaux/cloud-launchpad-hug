@@ -15,6 +15,7 @@ import {
   subscribeBadgeRealtimeStatus,
   type BadgeRealtimeStatus,
 } from "@/lib/chat-badge-sync";
+import { recomputeReservationsBatch } from "@/lib/reservation-recompute-batch.functions";
 
 // ── Token guard ────────────────────────────────────────────────────────────
 const DRIVER_TOKEN = "DSF234";
