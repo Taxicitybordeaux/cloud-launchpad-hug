@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Send, X, Loader2, Check, CheckCheck, ChevronUp, Search, Download } from "lucide-react";
+import { Send, X, Loader2, Check, CheckCheck, ChevronUp, Search, Download, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useT } from "@/i18n/I18nProvider";
 import {
@@ -393,7 +393,8 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
   }, [peerOnline, peerTyping]);
 
   const statusColor = peerOnline || peerTyping ? "text-emerald-400" : "text-white/40";
-  const dotColor = peerOnline || peerTyping ? "bg-emerald-400" : "bg-white/30";
+
+
 
   // Filtrage local (sur l'historique chargé : pages courantes) — mot-clé +
   // plage de dates. Si l'utilisateur veut filtrer plus ancien que ce qui est
@@ -447,6 +448,14 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
     URL.revokeObjectURL(url);
   }
 
+  const isDriver = role === "chauffeur";
+  // Palette « blanc crème » pour le chauffeur (meilleure lisibilité iPhone,
+  // texte noir sur fond crème comme demandé).
+  const panelBg = isDriver ? "#FBF7EE" : "#0f172a";
+  const headerBorder = isDriver ? "1px solid #E8DFCB" : "1px solid rgba(255,255,255,0.1)";
+  const titleColor = isDriver ? "#1a1a1a" : "#ffffff";
+  const iconColor = isDriver ? "text-black/60 hover:text-black hover:bg-black/5" : "text-white/60 hover:text-white hover:bg-white/10";
+
   return (
     <div
       className="fixed inset-0 z-[200] flex items-end justify-center sm:items-center sm:p-6"
@@ -455,28 +464,47 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="flex h-[88vh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border-t border-white/10 shadow-2xl sm:h-[680px] sm:rounded-2xl sm:border"
-        style={{ background: "#0f172a" }}
+        className="flex w-full max-w-md flex-col overflow-hidden rounded-t-2xl shadow-2xl sm:h-[680px] sm:rounded-2xl sm:border"
+        style={{
+          background: panelBg,
+          // 100dvh évite le bug iOS Safari où la barre d'adresse rogne le
+          // clavier et masque le champ de saisie.
+          height: "100dvh",
+          maxHeight: "100dvh",
+          borderTop: isDriver ? "1px solid #E8DFCB" : "1px solid rgba(255,255,255,0.1)",
+        }}
       >
         {/* Header */}
         <div
-          className="flex items-center justify-between border-b border-white/10 px-4 py-3"
+          className="flex items-center justify-between px-4 py-3"
           style={{
-            background: "linear-gradient(180deg, rgba(201,168,76,0.12) 0%, transparent 100%)",
+            borderBottom: headerBorder,
+            background: isDriver
+              ? "linear-gradient(180deg, #F5EEDC 0%, #FBF7EE 100%)"
+              : "linear-gradient(180deg, rgba(201,168,76,0.12) 0%, transparent 100%)",
           }}
         >
-          <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-white">{title}</div>
-            <div className={`flex items-center gap-1.5 text-[11px] ${statusColor}`}>
-              <span className={`inline-block h-1.5 w-1.5 rounded-full ${dotColor}`} /> {statusLabel}
+          {isDriver && (
+            <button
+              onClick={onClose}
+              className="mr-2 inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white px-3 py-1.5 text-[12px] font-semibold text-black transition active:scale-95"
+              aria-label="Retour driver"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" /> Retour driver
+            </button>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-semibold" style={{ color: titleColor }}>{title}</div>
+            <div className={`flex items-center gap-1.5 text-[11px] ${isDriver ? (peerOnline || peerTyping ? "text-emerald-600" : "text-black/40") : statusColor}`}>
+              <span className={`inline-block h-1.5 w-1.5 rounded-full ${peerOnline || peerTyping ? "bg-emerald-500" : (isDriver ? "bg-black/30" : "bg-white/30")}`} /> {statusLabel}
             </div>
           </div>
           <div className="flex items-center gap-1">
             <button
               type="button"
               onClick={() => setShowSearch((v) => !v)}
-              className={`rounded-full p-1.5 transition hover:bg-white/10 ${
-                showSearch || filterActive ? "text-[#E8C96D]" : "text-white/60 hover:text-white"
+              className={`rounded-full p-1.5 transition ${
+                showSearch || filterActive ? "text-[#C9A84C]" : iconColor
               }`}
               aria-label={t("chat.search")}
               aria-pressed={showSearch}
@@ -487,21 +515,24 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
               type="button"
               onClick={exportCsv}
               disabled={visibleMessages.length === 0}
-              className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white disabled:opacity-40"
+              className={`rounded-full p-1.5 transition disabled:opacity-40 ${iconColor}`}
               aria-label={t("chat.export_csv")}
               title={t("chat.export_csv_short")}
             >
               <Download className="h-4 w-4" />
             </button>
-            <button
-              onClick={onClose}
-              className="rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white"
-              aria-label={t("chat.close")}
-            >
-              <X className="h-4 w-4" />
-            </button>
+            {!isDriver && (
+              <button
+                onClick={onClose}
+                className={`rounded-full p-1.5 transition ${iconColor}`}
+                aria-label={t("chat.close")}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
+
 
         {queued.length > 0 && (
           <div className="border-b border-amber-500/20 bg-amber-500/10 px-4 py-2 text-[11px] text-amber-300">
@@ -607,18 +638,20 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
                 <li key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                   <div
                     className={`max-w-[78%] rounded-2xl px-3.5 py-2 text-sm leading-snug ${
-                      mine ? "text-black" : "text-white"
+                      mine ? "text-black" : isDriver ? "text-black" : "text-white"
                     }`}
                     style={
                       mine
                         ? { background: "linear-gradient(135deg, #C9A84C 0%, #E8C96D 100%)" }
-                        : { background: "rgba(255,255,255,0.08)" }
+                        : isDriver
+                          ? { background: "#ffffff", border: "1px solid #E8DFCB" }
+                          : { background: "rgba(255,255,255,0.08)" }
                     }
                   >
                     <div className="whitespace-pre-wrap break-words">{m.content}</div>
                     <div
                       className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${
-                        mine ? "text-black/55" : "text-white/40"
+                        mine ? "text-black/55" : isDriver ? "text-black/40" : "text-white/40"
                       }`}
                     >
                       <span>
@@ -648,12 +681,12 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
             <div className="mt-3 flex justify-start">
               <div
                 className="flex items-center gap-1 rounded-2xl px-3 py-2"
-                style={{ background: "rgba(255,255,255,0.08)" }}
+                style={isDriver ? { background: "#ffffff", border: "1px solid #E8DFCB" } : { background: "rgba(255,255,255,0.08)" }}
                 aria-label={t("chat.typing")}
               >
-                <Dot delay="0ms" />
-                <Dot delay="150ms" />
-                <Dot delay="300ms" />
+                <Dot delay="0ms" dark={isDriver} />
+                <Dot delay="150ms" dark={isDriver} />
+                <Dot delay="300ms" dark={isDriver} />
               </div>
             </div>
           )}
@@ -665,7 +698,12 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
             e.preventDefault();
             send();
           }}
-          className="flex items-end gap-2 border-t border-white/10 bg-black/30 px-3 py-3"
+          className="flex items-end gap-2 px-3 py-3"
+          style={{
+            borderTop: isDriver ? "1px solid #E8DFCB" : "1px solid rgba(255,255,255,0.1)",
+            background: isDriver ? "#F5EEDC" : "rgba(0,0,0,0.3)",
+            paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))",
+          }}
         >
           <textarea
             value={input}
@@ -679,9 +717,13 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
                 send();
               }
             }}
-            placeholder={t("chat.input_ph")}
+            placeholder={isDriver ? "Répondre au client…" : t("chat.input_ph")}
             rows={1}
-            className="max-h-32 flex-1 resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/40 outline-none focus:border-[#E8C96D]"
+            className={
+              isDriver
+                ? "max-h-32 flex-1 resize-none rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm text-black placeholder-black/40 outline-none focus:border-[#C9A84C]"
+                : "max-h-32 flex-1 resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/40 outline-none focus:border-[#E8C96D]"
+            }
           />
           <button
             type="submit"
@@ -693,15 +735,16 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </button>
         </form>
+
       </div>
     </div>
   );
 }
 
-function Dot({ delay }: { delay: string }) {
+function Dot({ delay, dark = false }: { delay: string; dark?: boolean }) {
   return (
     <span
-      className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-white/60"
+      className={`inline-block h-1.5 w-1.5 animate-bounce rounded-full ${dark ? "bg-black/50" : "bg-white/60"}`}
       style={{ animationDelay: delay }}
     />
   );
