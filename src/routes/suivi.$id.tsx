@@ -2069,17 +2069,6 @@ function SuiviPage() {
                   >
                     <div
                       style={{
-                        fontSize: "7px",
-                        fontWeight: 800,
-                        color: "#003189",
-                        letterSpacing: "0.3px",
-                        lineHeight: 1,
-                      }}
-                    >
-                      F
-                    </div>
-                    <div
-                      style={{
                         fontSize: "13px",
                         fontWeight: 900,
                         color: "#1a1a1a",
