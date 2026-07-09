@@ -20,7 +20,7 @@ import {
 const DRIVER_TOKEN = "DSF234";
 
 // ── Types ─────────────────────────────────────────────────────────────────
-type Tab = "courses" | "planning" | "avis" | "clients" | "chat" | "stats" | "simulateur";
+type Tab = "courses" | "planning" | "avis" | "clients" | "chat" | "stats" | "simulateur" | "outils";
 
 // Petit pill affiché en header pour diagnostiquer l'état du canal Realtime
 // utilisé par le badge chat (SUBSCRIBED / CHANNEL_ERROR / polling fallback).
@@ -809,7 +809,7 @@ function DriverApp() {
 
         {/* Tabs */}
         <div className="drv-tabs">
-          {(["courses", "planning", "avis", "clients", "chat", "stats", "simulateur"] as Tab[]).map((t) => (
+          {(["courses", "planning", "avis", "clients", "chat", "stats", "simulateur", "outils"] as Tab[]).map((t) => (
             <button
               key={t}
               className={`drv-tab${tab === t ? " active" : ""}`}
@@ -841,6 +841,7 @@ function DriverApp() {
                 )}
                 {t === "stats" && <IconChart />}
                 {t === "simulateur" && <IconCalc />}
+                {t === "outils" && <IconCalc />}
               </div>
               <span>
                 {
@@ -852,6 +853,7 @@ function DriverApp() {
                     chat: "Chat",
                     stats: "Stats",
                     simulateur: "Simu",
+                    outils: "Outils",
                   }[t]
                 }
               </span>
@@ -867,6 +869,7 @@ function DriverApp() {
           {tab === "chat" && <ChatTab onBadgeChange={setUnreadChat} />}
           {tab === "stats" && <StatsTab />}
           {tab === "simulateur" && <SimulateurTab />}
+          {tab === "outils" && <OutilsTab />}
         </div>
       </div>
     </>
