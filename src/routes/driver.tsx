@@ -15,13 +15,13 @@ import {
   subscribeBadgeRealtimeStatus,
   type BadgeRealtimeStatus,
 } from "@/lib/chat-badge-sync";
-import { recomputeReservationsBatch } from "@/lib/reservation-recompute-batch.functions";
+
 
 // ── Token guard ────────────────────────────────────────────────────────────
 const DRIVER_TOKEN = "DSF234";
 
 // ── Types ─────────────────────────────────────────────────────────────────
-type Tab = "courses" | "planning" | "avis" | "clients" | "chat" | "stats" | "simulateur" | "outils";
+type Tab = "courses" | "planning" | "avis" | "clients" | "chat" | "stats" | "simulateur";
 
 // Petit pill affiché en header pour diagnostiquer l'état du canal Realtime
 // utilisé par le badge chat (SUBSCRIBED / CHANNEL_ERROR / polling fallback).
@@ -810,7 +810,7 @@ function DriverApp() {
 
         {/* Tabs */}
         <div className="drv-tabs">
-          {(["courses", "planning", "avis", "clients", "chat", "stats", "simulateur", "outils"] as Tab[]).map((t) => (
+          {(["courses", "planning", "avis", "clients", "chat", "stats", "simulateur"] as Tab[]).map((t) => (
             <button
               key={t}
               className={`drv-tab${tab === t ? " active" : ""}`}
@@ -842,7 +842,6 @@ function DriverApp() {
                 )}
                 {t === "stats" && <IconChart />}
                 {t === "simulateur" && <IconCalc />}
-                {t === "outils" && <IconCalc />}
               </div>
               <span>
                 {
@@ -854,7 +853,7 @@ function DriverApp() {
                     chat: "Chat",
                     stats: "Stats",
                     simulateur: "Simu",
-                    outils: "Outils",
+                    
                   }[t]
                 }
               </span>
@@ -870,7 +869,6 @@ function DriverApp() {
           {tab === "chat" && <ChatTab onBadgeChange={setUnreadChat} />}
           {tab === "stats" && <StatsTab />}
           {tab === "simulateur" && <SimulateurTab />}
-          {tab === "outils" && <OutilsTab />}
         </div>
       </div>
     </>
@@ -4106,170 +4104,3 @@ function PushDiagnostic() {
   );
 }
 
-
-// ─── Outils admin (Recalcul durée en lot) ─────────────────────────────────
-type BatchRow = {
-  id: string;
-  status: "updated" | "unchanged" | "skipped" | "error";
-  previous_duree_s: number | null;
-  new_duree_s: number | null;
-  reason?: string;
-};
-type BatchResult = {
-  ok: boolean;
-  dryRun?: boolean;
-  total?: number;
-  updated?: number;
-  unchanged?: number;
-  skipped?: number;
-  errored?: number;
-  results?: BatchRow[];
-  reason?: string;
-};
-
-const STATUS_CHOICES: { value: string; label: string }[] = [
-  { value: "pending", label: "En attente" },
-  { value: "accepted", label: "Acceptée" },
-  { value: "en_route", label: "En route" },
-  { value: "arrived", label: "Sur place" },
-  { value: "completed", label: "Terminée" },
-  { value: "cancelled", label: "Annulée" },
-];
-
-function OutilsTab() {
-  const runBatch = useServerFn(recomputeReservationsBatch);
-  const [from, setFrom] = useState<string>("");
-  const [to, setTo] = useState<string>("");
-  const [statuses, setStatuses] = useState<string[]>(["pending", "accepted", "en_route", "arrived"]);
-  const [limit, setLimit] = useState<number>(50);
-  const [dryRun, setDryRun] = useState<boolean>(true);
-  const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<BatchResult | null>(null);
-
-  const toggleStatus = (s: string) =>
-    setStatuses((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
-
-  const runNow = async () => {
-    setBusy(true);
-    setResult(null);
-    try {
-      const res = (await runBatch({
-        data: {
-          from: from || undefined,
-          to: to || undefined,
-          statuses: statuses.length ? statuses : undefined,
-          limit,
-          dryRun,
-        },
-      })) as BatchResult;
-      setResult(res);
-      if (res.ok) {
-        toast.success(
-          `${dryRun ? "Simulation" : "Recalcul"} terminé — ${res.updated ?? 0} MAJ, ${res.unchanged ?? 0} inchangée(s), ${res.skipped ?? 0} ignorée(s), ${res.errored ?? 0} erreur(s)`,
-        );
-      } else {
-        toast.error(`Échec : ${res.reason ?? "inconnu"}`);
-      }
-    } catch (e) {
-      toast.error(`Erreur : ${e instanceof Error ? e.message : String(e)}`);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: "8px 4px" }}>
-      <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
-        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#0f172a" }}>Recalcul durée estimée</h2>
-        <p style={{ margin: "6px 0 14px", fontSize: 13, color: "#64748b" }}>
-          Réévalue <code>duree_s</code> à la minute près via Google Directions (trajet le plus rapide, trafic
-          temps réel). Filtre par plage de dates et statuts. Fais d'abord une <b>simulation</b>.
-        </p>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#334155" }}>
-            Date min (pickup)
-            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: 8, fontSize: 14 }} />
-          </label>
-          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#334155" }}>
-            Date max (pickup)
-            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: 8, fontSize: 14 }} />
-          </label>
-        </div>
-
-        <div style={{ marginTop: 12 }}>
-          <div style={{ fontSize: 12, color: "#334155", marginBottom: 6 }}>Statuts</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {STATUS_CHOICES.map((s) => {
-              const active = statuses.includes(s.value);
-              return (
-                <button key={s.value} type="button" onClick={() => toggleStatus(s.value)}
-                  style={{ padding: "6px 12px", borderRadius: 999, border: `1px solid ${active ? "#1d4ed8" : "#cbd5e1"}`, background: active ? "#1d4ed8" : "#fff", color: active ? "#fff" : "#334155", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                  {s.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
-          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#334155" }}>
-            Limite (max 500)
-            <input type="number" min={1} max={500} value={limit} onChange={(e) => setLimit(Math.max(1, Math.min(500, Number(e.target.value) || 1)))}
-              style={{ padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: 8, fontSize: 14 }} />
-          </label>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#334155", alignSelf: "end", padding: "8px 4px" }}>
-            <input type="checkbox" checked={dryRun} onChange={(e) => setDryRun(e.target.checked)} />
-            Simulation (n'écrit pas en base)
-          </label>
-        </div>
-
-        <button type="button" onClick={runNow} disabled={busy}
-          style={{ marginTop: 16, width: "100%", padding: "12px 16px", borderRadius: 10, border: "none", background: busy ? "#94a3b8" : dryRun ? "#0ea5e9" : "#16a34a", color: "#fff", fontSize: 15, fontWeight: 700, cursor: busy ? "wait" : "pointer" }}>
-          {busy ? "Calcul en cours…" : dryRun ? "Lancer la simulation" : "Lancer le recalcul"}
-        </button>
-      </div>
-
-      {result && (
-        <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8, color: "#0f172a" }}>
-            {result.dryRun ? "Résultat simulation" : "Résultat recalcul"}
-          </div>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 13, color: "#334155" }}>
-            <span>Total : <b>{result.total ?? 0}</b></span>
-            <span style={{ color: "#16a34a" }}>MAJ : <b>{result.updated ?? 0}</b></span>
-            <span>Inchangées : <b>{result.unchanged ?? 0}</b></span>
-            <span style={{ color: "#b45309" }}>Ignorées : <b>{result.skipped ?? 0}</b></span>
-            <span style={{ color: "#dc2626" }}>Erreurs : <b>{result.errored ?? 0}</b></span>
-          </div>
-          {result.results && result.results.length > 0 && (
-            <div style={{ marginTop: 10, maxHeight: 320, overflow: "auto", border: "1px solid #f1f5f9", borderRadius: 8 }}>
-              <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
-                <thead style={{ background: "#f8fafc", position: "sticky", top: 0 }}>
-                  <tr>
-                    <th style={{ textAlign: "left", padding: "6px 8px" }}>ID</th>
-                    <th style={{ textAlign: "left", padding: "6px 8px" }}>Statut</th>
-                    <th style={{ textAlign: "right", padding: "6px 8px" }}>Avant</th>
-                    <th style={{ textAlign: "right", padding: "6px 8px" }}>Après</th>
-                    <th style={{ textAlign: "left", padding: "6px 8px" }}>Note</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.results.map((r) => (
-                    <tr key={r.id} style={{ borderTop: "1px solid #f1f5f9" }}>
-                      <td style={{ padding: "6px 8px", fontFamily: "monospace" }}>{r.id.slice(0, 8)}</td>
-                      <td style={{ padding: "6px 8px", color: r.status === "updated" ? "#16a34a" : r.status === "error" ? "#dc2626" : r.status === "skipped" ? "#b45309" : "#64748b", fontWeight: 600 }}>{r.status}</td>
-                      <td style={{ padding: "6px 8px", textAlign: "right" }}>{r.previous_duree_s != null ? `${Math.round(r.previous_duree_s / 60)} min` : "—"}</td>
-                      <td style={{ padding: "6px 8px", textAlign: "right" }}>{r.new_duree_s != null ? `${Math.round(r.new_duree_s / 60)} min` : "—"}</td>
-                      <td style={{ padding: "6px 8px", color: "#64748b" }}>{r.reason ?? ""}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
