@@ -638,18 +638,20 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
                 <li key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                   <div
                     className={`max-w-[78%] rounded-2xl px-3.5 py-2 text-sm leading-snug ${
-                      mine ? "text-black" : "text-white"
+                      mine ? "text-black" : isDriver ? "text-black" : "text-white"
                     }`}
                     style={
                       mine
                         ? { background: "linear-gradient(135deg, #C9A84C 0%, #E8C96D 100%)" }
-                        : { background: "rgba(255,255,255,0.08)" }
+                        : isDriver
+                          ? { background: "#ffffff", border: "1px solid #E8DFCB" }
+                          : { background: "rgba(255,255,255,0.08)" }
                     }
                   >
                     <div className="whitespace-pre-wrap break-words">{m.content}</div>
                     <div
                       className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${
-                        mine ? "text-black/55" : "text-white/40"
+                        mine ? "text-black/55" : isDriver ? "text-black/40" : "text-white/40"
                       }`}
                     >
                       <span>
@@ -679,12 +681,12 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
             <div className="mt-3 flex justify-start">
               <div
                 className="flex items-center gap-1 rounded-2xl px-3 py-2"
-                style={{ background: "rgba(255,255,255,0.08)" }}
+                style={isDriver ? { background: "#ffffff", border: "1px solid #E8DFCB" } : { background: "rgba(255,255,255,0.08)" }}
                 aria-label={t("chat.typing")}
               >
-                <Dot delay="0ms" />
-                <Dot delay="150ms" />
-                <Dot delay="300ms" />
+                <Dot delay="0ms" dark={isDriver} />
+                <Dot delay="150ms" dark={isDriver} />
+                <Dot delay="300ms" dark={isDriver} />
               </div>
             </div>
           )}
@@ -696,7 +698,12 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
             e.preventDefault();
             send();
           }}
-          className="flex items-end gap-2 border-t border-white/10 bg-black/30 px-3 py-3"
+          className="flex items-end gap-2 px-3 py-3"
+          style={{
+            borderTop: isDriver ? "1px solid #E8DFCB" : "1px solid rgba(255,255,255,0.1)",
+            background: isDriver ? "#F5EEDC" : "rgba(0,0,0,0.3)",
+            paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))",
+          }}
         >
           <textarea
             value={input}
@@ -710,9 +717,13 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
                 send();
               }
             }}
-            placeholder={t("chat.input_ph")}
+            placeholder={isDriver ? "Répondre au client…" : t("chat.input_ph")}
             rows={1}
-            className="max-h-32 flex-1 resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/40 outline-none focus:border-[#E8C96D]"
+            className={
+              isDriver
+                ? "max-h-32 flex-1 resize-none rounded-xl border border-black/10 bg-white px-3 py-2.5 text-sm text-black placeholder-black/40 outline-none focus:border-[#C9A84C]"
+                : "max-h-32 flex-1 resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/40 outline-none focus:border-[#E8C96D]"
+            }
           />
           <button
             type="submit"
@@ -724,6 +735,7 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </button>
         </form>
+
       </div>
     </div>
   );
