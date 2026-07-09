@@ -669,6 +669,50 @@ export const countUnreadClientForReservationById = createServerFn({ method: "POS
     return count ?? 0;
   });
 
+// Batch : renvoie, pour chaque réservation demandée, le nombre de messages
+// non lus par le chauffeur et par le client (COUNT SQL agrégé côté serveur).
+// Utilisé par CoursesTab pour prioriser les cartes sans faire N appels.
+export type UnreadMap = Record<string, { unread_chauffeur: number; unread_client: number }>;
+export const getUnreadCountsForReservations = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z.object({ reservation_ids: z.array(z.string().uuid()).max(500) }).parse(input),
+  )
+  .handler(async ({ data }): Promise<UnreadMap> => {
+    if (data.reservation_ids.length === 0) return {};
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("reservation_messages")
+      .select("reservation_id,sender,read_by_chauffeur,read_by_client")
+      .in("reservation_id", data.reservation_ids);
+    if (error) throw error;
+    const out: UnreadMap = {};
+    for (const id of data.reservation_ids) out[id] = { unread_chauffeur: 0, unread_client: 0 };
+    for (const r of rows ?? []) {
+      const entry = out[(r as any).reservation_id];
+      if (!entry) continue;
+      if ((r as any).sender === "client" && !(r as any).read_by_chauffeur) entry.unread_chauffeur += 1;
+      if ((r as any).sender === "chauffeur" && !(r as any).read_by_client) entry.unread_client += 1;
+    }
+    return out;
+  });
+
+
+// Version "par ID de réservation" du compteur client — utilisée côté chauffeur
+// pour afficher un indicateur "message envoyé, pas encore lu par le client".
+export const countUnreadClientForReservationById = createServerFn({ method: "POST" })
+  .inputValidator((input) => z.object({ reservation_id: z.string().uuid() }).parse(input))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { count, error } = await supabaseAdmin
+      .from("reservation_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("reservation_id", data.reservation_id)
+      .eq("sender", "chauffeur")
+      .eq("read_by_client", false);
+    if (error) throw error;
+    return count ?? 0;
+  });
+
 
 
 
