@@ -89,6 +89,7 @@ interface Resa {
   client_email?: string | null;
   email?: string | null;
   suivi_id?: string | null;
+  message?: string | null;
 }
 
 interface Avis {
@@ -887,7 +888,7 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
     const { data } = await (supabase as any)
       .from("reservations")
       .select(
-        "id,depart,destination,pickup_datetime,status,prix_estime,distance_km,client_name,client_phone,client_email,suivi_id",
+        "id,depart,destination,pickup_datetime,status,prix_estime,distance_km,client_name,client_phone,client_email,suivi_id,message",
       )
       .in("status", ["pending", "accepted", "en_route", "arrived"])
       .order("pickup_datetime", { ascending: true });
@@ -1457,6 +1458,59 @@ function CourseCard({
         <span>📍 {resa.depart}</span>
         <span>🏁 {resa.destination}</span>
       </div>
+
+      {/* Demande spéciale client — toujours visible pour que José la voie tout de suite */}
+      {resa.message && resa.message.trim().length > 0 && (
+        <div
+          style={{
+            marginTop: 10,
+            padding: "10px 12px",
+            background: "linear-gradient(180deg, #fff8e1 0%, #fff3c4 100%)",
+            border: "1px solid #f59e0b",
+            borderRadius: 12,
+            fontSize: 13,
+            color: "#78350f",
+            lineHeight: 1.45,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 8,
+              marginBottom: 4,
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: "0.05em",
+              textTransform: "uppercase",
+              color: "#b45309",
+            }}
+          >
+            <span>✨ Demande spéciale</span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setChatOpen(true);
+              }}
+              style={{
+                border: "1px solid #b45309",
+                background: "#fff",
+                color: "#b45309",
+                borderRadius: 999,
+                padding: "3px 10px",
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              💬 Répondre
+            </button>
+          </div>
+          <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{resa.message}</div>
+        </div>
+      )}
 
       {/* Résumé km/prix — priorité à la route sélectionnée si chargée, sinon valeurs BDD */}
       {(resa.distance_km || resa.prix_estime || routes.length > 0) && (
