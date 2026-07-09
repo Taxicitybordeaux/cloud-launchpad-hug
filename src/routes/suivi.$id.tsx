@@ -1477,6 +1477,41 @@ function SuiviPage() {
     loadReservation(false);
   }, [loadReservation]);
 
+  // ── Recalcul serveur de la durée (à la minute près) pour les anciennes
+  // réservations dont `duree_s` avait été calculé sur le trajet le plus long
+  // via rocade (inflation). On ne déclenche qu'une fois par id/session.
+  const recomputeDuration = useServerFn(recomputeReservationDuration);
+  useEffect(() => {
+    if (!reservation?.id || !reservation.duree_s) return;
+    if (reservation.status === "completed" || reservation.status === "cancelled") return;
+    const cacheKey = `dur_rechecked_${reservation.id}`;
+    try {
+      if (sessionStorage.getItem(cacheKey) === "1") return;
+    } catch {
+      /* ignore */
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await recomputeDuration({ data: { id: reservation.id } });
+        try {
+          sessionStorage.setItem(cacheKey, "1");
+        } catch {
+          /* ignore */
+        }
+        if (cancelled) return;
+        if (res && "changed" in res && res.changed && typeof res.duree_s === "number") {
+          setReservation((prev) => (prev ? { ...prev, duree_s: res.duree_s as number } : prev));
+        }
+      } catch {
+        /* silencieux : si Google indisponible on garde la valeur en base */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [reservation?.id, reservation?.duree_s, reservation?.status, recomputeDuration]);
+
   // ── Fallback temps réel via Supabase Broadcast ──
   // La table `reservations` n'expose aucune policy SELECT à `anon` (PII),
   // donc les événements postgres_changes UPDATE ne sont jamais livrés au
