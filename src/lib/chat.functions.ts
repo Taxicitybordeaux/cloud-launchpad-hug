@@ -580,6 +580,27 @@ export type MergedMessage = {
   created_at: string;
 };
 
+export const countUnreadChauffeurMessages = createServerFn({ method: "GET" }).handler(async () => {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const [dm, rm] = await Promise.all([
+    supabaseAdmin
+      .from("direct_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("sender", "client")
+      .eq("read_by_chauffeur", false),
+    supabaseAdmin
+      .from("reservation_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("sender", "client")
+      .eq("read_by_chauffeur", false),
+  ]);
+
+  if (dm.error) throw dm.error;
+  if (rm.error) throw rm.error;
+
+  return (dm.count ?? 0) + (rm.count ?? 0);
+});
+
 function normPhone(p?: string | null): string | null {
   if (!p) return null;
   const d = p.replace(/\D+/g, "");

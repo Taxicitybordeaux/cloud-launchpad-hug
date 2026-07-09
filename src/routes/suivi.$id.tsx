@@ -315,6 +315,7 @@ function AnonChat({ suiviKey, reservationId }: { suiviKey: string; reservationId
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+  const driverBadgeChannelRef = useRef<any>(null);
   const listFn = useServerFn(listSuiviMessages);
   const sendFn = useServerFn(sendSuiviClientMessage);
 
@@ -343,6 +344,9 @@ function AnonChat({ suiviKey, reservationId }: { suiviKey: string; reservationId
         () => load(),
       )
       .subscribe();
+    const driverBadgeChannel = (supabase as any).channel("drv-chat-badge");
+    driverBadgeChannelRef.current = driverBadgeChannel;
+    driverBadgeChannel.subscribe();
     // Re-sync au retour de l'onglet (filet de sécurité si la connexion realtime a été coupée)
     const onVisible = () => {
       if (!document.hidden) load();
@@ -351,6 +355,8 @@ function AnonChat({ suiviKey, reservationId }: { suiviKey: string; reservationId
     return () => {
       document.removeEventListener("visibilitychange", onVisible);
       supabase.removeChannel(ch);
+      supabase.removeChannel(driverBadgeChannel);
+      driverBadgeChannelRef.current = null;
     };
   }, [reservationId, load]);
 
@@ -367,6 +373,11 @@ function AnonChat({ suiviKey, reservationId }: { suiviKey: string; reservationId
       setMessages((prev) =>
         prev.some((m) => m.id === (row as ChatMessage).id) ? prev : [...prev, row as ChatMessage],
       );
+      driverBadgeChannelRef.current?.send({
+        type: "broadcast",
+        event: "new_client_message",
+        payload: { at: Date.now() },
+      });
       setText("");
     } catch (e: any) {
       console.error("[suivi-chat] send failed", e);

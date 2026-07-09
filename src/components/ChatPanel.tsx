@@ -51,6 +51,7 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const driverBadgeChannelRef = useRef<RealtimeChannel | null>(null);
   const lastTypingSentAt = useRef(0);
   const typingHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stickToBottom = useRef(true);
@@ -128,7 +129,9 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
     const channel = supabase.channel(`chat:${reservationId}`, {
       config: { presence: { key: role } },
     });
+    const driverBadgeChannel = supabase.channel("drv-chat-badge");
     channelRef.current = channel;
+    driverBadgeChannelRef.current = driverBadgeChannel;
 
     channel
       .on("broadcast", { event: "typing" }, ({ payload }) => {
@@ -154,11 +157,14 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
           await channel.track({ role, at: Date.now() });
         }
       });
+    driverBadgeChannel.subscribe();
 
     return () => {
       if (typingHideTimer.current) clearTimeout(typingHideTimer.current);
       supabase.removeChannel(channel);
+      supabase.removeChannel(driverBadgeChannel);
       channelRef.current = null;
+      driverBadgeChannelRef.current = null;
     };
   }, [reservationId, role, peerRole, markRead]);
 
@@ -238,6 +244,15 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
     });
   }
 
+  function notifyDriverChatBadge() {
+    if (role !== "client") return;
+    driverBadgeChannelRef.current?.send({
+      type: "broadcast",
+      event: "new_client_message",
+      payload: { at: Date.now() },
+    });
+  }
+
   // ── Offline queue ──
   // Les messages tapés sans connexion sont stockés dans localStorage et
   // ré-envoyés automatiquement lors du retour en ligne (event `online`).
@@ -299,6 +314,7 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
           const msg = await sendOne(next.content);
           setMessages((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]));
           channelRef.current?.send({ type: "broadcast", event: "new_message", payload: msg });
+          notifyDriverChatBadge();
 
           remaining.shift();
           writeQueue(remaining);
@@ -339,6 +355,7 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
       const msg = await sendOne(content);
       setMessages((prev) => (prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]));
       channelRef.current?.send({ type: "broadcast", event: "new_message", payload: msg });
+      notifyDriverChatBadge();
       setInput("");
     } catch (e) {
       console.error("[chat] send failed, queuing for retry", e);
