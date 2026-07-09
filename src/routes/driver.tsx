@@ -2124,13 +2124,9 @@ function CourseCard({
         )}
       </button>
       {chatOpen && (
-        <ChatPanel
-          reservationId={resa.id}
-          role="chauffeur"
-          peerName={resa.client_name || "Client"}
-          onClose={() => setChatOpen(false)}
-        />
+        <InlineDriverChat reservationId={resa.id} />
       )}
+
 
       {/* Toggle */}
       <button
