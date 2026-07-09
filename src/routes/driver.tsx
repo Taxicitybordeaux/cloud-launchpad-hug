@@ -22,6 +22,56 @@ const DRIVER_TOKEN = "DSF234";
 // ── Types ─────────────────────────────────────────────────────────────────
 type Tab = "courses" | "planning" | "avis" | "clients" | "chat" | "stats" | "simulateur";
 
+// Petit pill affiché en header pour diagnostiquer l'état du canal Realtime
+// utilisé par le badge chat (SUBSCRIBED / CHANNEL_ERROR / polling fallback).
+function ChatRealtimeStatusPill({
+  status,
+  detail,
+}: {
+  status: BadgeRealtimeStatus;
+  detail: string | null;
+}) {
+  const map: Record<BadgeRealtimeStatus, { color: string; label: string }> = {
+    idle: { color: "#9ca3af", label: "chat: idle" },
+    subscribing: { color: "#f59e0b", label: "chat: connexion…" },
+    subscribed: { color: "#10b981", label: "chat: live" },
+    polling: { color: "#f59e0b", label: "chat: polling 20s" },
+    error: { color: "#ef4444", label: "chat: erreur" },
+    closed: { color: "#ef4444", label: "chat: fermé" },
+  };
+  const s = map[status] ?? map.idle;
+  return (
+    <span
+      title={detail ? `${s.label} — ${detail}` : s.label}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        fontSize: 11,
+        fontWeight: 600,
+        color: "#334155",
+        background: "#f1f5f9",
+        border: "1px solid #e2e8f0",
+        borderRadius: 999,
+        padding: "3px 8px",
+        marginLeft: 8,
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          background: s.color,
+          boxShadow: `0 0 0 2px ${s.color}22`,
+        }}
+      />
+      {s.label}
+    </span>
+  );
+}
+
 interface Resa {
   id: string;
   depart: string;
