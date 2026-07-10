@@ -2130,10 +2130,8 @@ function CourseCard({
         </>
       )}
 
-
-      {/* Toggle */}
-
       <button
+
         onClick={onToggle}
         style={{
           width: "100%",
