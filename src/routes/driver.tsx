@@ -1076,7 +1076,32 @@ function CourseCard({
   const mapInst = useRef<any>(null);
   const rendererRef = useRef<any>(null);
   const actionLocks = useRef<Set<string>>(new Set());
-  const [chatOpen, setChatOpen] = useState(false);
+  // État plié/déplié persisté par réservation dans localStorage — évite le
+  // "saut" quand la liste est refetchée et que la carte est re-montée.
+  const chatOpenKey = `drv-chat-open:${resa.id}`;
+  const [chatOpen, setChatOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.localStorage.getItem(chatOpenKey) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const chatBlockRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      if (chatOpen) window.localStorage.setItem(chatOpenKey, "1");
+      else window.localStorage.removeItem(chatOpenKey);
+    } catch {}
+    // Recentre le bloc chat sans casser le scroll global (block: "nearest")
+    if (chatOpen && chatBlockRef.current) {
+      const el = chatBlockRef.current;
+      requestAnimationFrame(() => {
+        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
+    }
+  }, [chatOpen, chatOpenKey]);
 
   // Compteur non lus : source unique = unreadMap remonté par CoursesTab
   // (COUNT SQL agrégé + debouncé). On garde un override local à 0 quand le
@@ -1597,69 +1622,102 @@ function CourseCard({
         </div>
       )}
 
-      {/* Chat client ↔ chauffeur (lié à /suivi/$id côté client) */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setChatOpen((v) => !v);
-        }}
-
-        style={{
-          width: "100%",
-          marginTop: 8,
-          background: "linear-gradient(180deg,#0f172a 0%,#1e293b 100%)",
-          border: "1px solid #334155",
-          borderRadius: 10,
-          color: "#E8C96D",
-          fontSize: 13,
-          fontWeight: 700,
-          cursor: "pointer",
-          padding: "10px 12px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 8,
-        }}
-      >
-        💬 Chat avec {resa.client_name || "le client"}
-        {unreadCount > 0 ? (
-          <span
-            title={unreadTooltip}
-            aria-label={unreadTooltip}
+      {/* Chat client ↔ chauffeur (lié à /suivi/$id côté client) — pliable */}
+      <div ref={chatBlockRef} style={{ scrollMarginTop: 80 }}>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setChatOpen((v) => !v);
+          }}
+          aria-expanded={chatOpen}
+          aria-controls={`drv-chat-${resa.id}`}
+          style={{
+            width: "100%",
+            marginTop: 8,
+            background: "linear-gradient(180deg,#0f172a 0%,#1e293b 100%)",
+            border: "1px solid #334155",
+            borderRadius: chatOpen ? "10px 10px 0 0" : 10,
+            color: "#E8C96D",
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: "pointer",
+            padding: "10px 12px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8,
+          }}
+        >
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <span
+              aria-hidden
+              style={{
+                display: "inline-block",
+                transform: chatOpen ? "rotate(90deg)" : "rotate(0deg)",
+                transition: "transform 180ms ease",
+                fontSize: 11,
+                width: 12,
+                textAlign: "center",
+                color: "#E8C96D",
+              }}
+            >
+              ▶
+            </span>
+            💬 Chat avec {resa.client_name || "le client"}
+          </span>
+          {unreadCount > 0 ? (
+            <span
+              title={unreadTooltip}
+              aria-label={unreadTooltip}
+              style={{
+                minWidth: 20,
+                height: 20,
+                padding: "0 6px",
+                borderRadius: 10,
+                background: "#ef4444",
+                color: "#fff",
+                fontSize: 11,
+                fontWeight: 800,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {unreadCount}
+            </span>
+          ) : (
+            <span
+              title="Aucun message non lu"
+              aria-label="Aucun message non lu"
+              style={{
+                fontSize: 10,
+                color: "#E8C96D99",
+                fontWeight: 600,
+                letterSpacing: "0.02em",
+              }}
+            >
+              ✓ à jour
+            </span>
+          )}
+        </button>
+        {chatOpen && (
+          <div
+            id={`drv-chat-${resa.id}`}
             style={{
-              minWidth: 20,
-              height: 20,
-              padding: "0 6px",
-              borderRadius: 10,
-              background: "#ef4444",
-              color: "#fff",
-              fontSize: 11,
-              fontWeight: 800,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
+              borderLeft: "1px solid #334155",
+              borderRight: "1px solid #334155",
+              borderBottom: "1px solid #334155",
+              borderRadius: "0 0 10px 10px",
+              padding: 8,
+              background: "#0b1220",
             }}
           >
-            {unreadCount}
-          </span>
-        ) : (
-          <span
-            title="Aucun message non lu"
-            aria-label="Aucun message non lu"
-            style={{
-              fontSize: 10,
-              color: "#E8C96D99",
-              fontWeight: 600,
-              letterSpacing: "0.02em",
-            }}
-          >
-            ✓ à jour
-          </span>
+            <InlineDriverChat reservationId={resa.id} />
+          </div>
         )}
-      </button>
-      {chatOpen && (
-        <InlineDriverChat reservationId={resa.id} />
-      )}
+      </div>
+
 
       {/* Résumé km/prix — priorité à la route sélectionnée si chargée, sinon valeurs BDD */}
 
