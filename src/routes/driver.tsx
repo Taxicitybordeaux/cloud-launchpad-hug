@@ -9,7 +9,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { listPushFailures, notifyReservationStatus } from "@/lib/push.functions";
 import { calculerPrixMixte, estTarifJourParis, parseAsParisTime, TARIFS } from "@/lib/tarif";
 import { broadcastSuiviUpdate } from "@/lib/suivi-broadcast";
-// (chat-badge-sync retiré : plus de badge global d'unread top-chat.)
+import { subscribeChatBadgeEvents, type ChatBadgeEvent } from "@/lib/chat-badge-sync";
 import { ChatPanel } from "@/components/ChatPanel";
 import { InlineDriverChat } from "@/components/InlineDriverChat";
 import { listReservationsWithUnreadChauffeur, getUnreadCountsForReservations, type UnreadMap } from "@/lib/chat.functions";
@@ -749,38 +749,86 @@ function CoursesTab({
     }
   }, []);
 
+  // Realtime filtré : on ne s'abonne qu'aux réservations actuellement
+  // visibles (max 50) au lieu de recevoir tous les INSERT globaux. On
+  // (dés)abonne dynamiquement quand la liste change (nouvelle course,
+  // completed, etc.).
+  const visibleIds = courses.map((r) => r.id).slice(0, 50);
+  const visibleKey = visibleIds.join(",");
+
+  // Recalcul incrémental : appliquer les deltas d'unread localement au lieu
+  // de refaire tourner getUnreadCountsForReservations à chaque event.
+  const applyDelta = useCallback((reservationId: string, delta: number, reset?: boolean) => {
+    setUnreadMap((prev) => {
+      const cur = prev[reservationId] ?? { unread_chauffeur: 0, unread_client: 0 };
+      const nextUnread = reset ? 0 : Math.max(0, (cur.unread_chauffeur ?? 0) + delta);
+      const next = { ...prev, [reservationId]: { ...cur, unread_chauffeur: nextUnread } };
+      const total = Object.values(next).reduce(
+        (sum: number, v: any) => sum + (v?.unread_chauffeur ?? 0),
+        0,
+      );
+      onChatBadge?.(total);
+      return next;
+    });
+  }, [onChatBadge]);
+
   useEffect(() => {
     scheduleLoad(true);
-    const ch = (supabase as any)
-      .channel("drv-courses")
-      .on("postgres_changes", { event: "*", schema: "public", table: "reservations" }, () => scheduleLoad())
-      .on(
-        "postgres_changes",
-        // On ne réagit qu'aux INSERT de messages client (source du badge non lu) ;
-        // les UPDATE `read_by_*` n'ont pas besoin de recalcul côté chauffeur.
-        { event: "INSERT", schema: "public", table: "reservation_messages", filter: "sender=eq.client" },
-        () => scheduleLoad(),
-      )
-      .subscribe();
+
+    // BroadcastChannel : un autre onglet a marqué une conversation comme lue
+    // → on remet unread_chauffeur=0 pour cette réservation, sans requête.
+    const unsubBc = subscribeChatBadgeEvents((e: ChatBadgeEvent) => {
+      if (e.type === "read") applyDelta(e.reservationId, 0, true);
+      else if (e.type === "delta") applyDelta(e.reservationId, e.delta);
+    });
+
     const onVis = () => { if (!document.hidden) scheduleLoad(true); };
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("focus", onVis);
-    // Cross-tab : un autre onglet a marqué comme lu → resync des compteurs.
+    // Fallback storage pour navigateurs sans BroadcastChannel.
     const onStorage = (e: StorageEvent) => {
       if (e.key === "drv-chat-read-bump") scheduleLoad(true);
     };
     window.addEventListener("storage", onStorage);
-    // Reconciliation périodique (2 min) : filet de sécurité léger.
-    const reconcile = setInterval(() => scheduleLoad(), 120000);
+    // Reconciliation périodique (5 min) : filet de sécurité, plus rare
+    // maintenant que le badge est mis à jour incrémentalement.
+    const reconcile = setInterval(() => scheduleLoad(), 300000);
     return () => {
+      unsubBc();
       clearInterval(reconcile);
       document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener("focus", onVis);
       window.removeEventListener("storage", onStorage);
-      supabase.removeChannel(ch);
       if (scheduleRef.current.timer) clearTimeout(scheduleRef.current.timer);
     };
-  }, [scheduleLoad]);
+  }, [scheduleLoad, applyDelta]);
+
+  // Canal Realtime dédié aux réservations visibles — recréé quand la liste
+  // change (visibleKey). Filtre `reservation_id=in.(...)` côté serveur.
+  useEffect(() => {
+    if (visibleIds.length === 0) return;
+    const idFilter = `reservation_id=in.(${visibleIds.join(",")})`;
+    const ch = (supabase as any)
+      .channel(`drv-courses-${visibleIds.length}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "reservations", filter: `id=in.(${visibleIds.join(",")})` }, () => scheduleLoad())
+      // INSERT reservations (nouvelle course) → refresh liste complète
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "reservations" }, () => scheduleLoad())
+      // INSERT message client sur une résa visible → increment ciblé du badge
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "reservation_messages", filter: idFilter },
+        (payload: any) => {
+          const row = payload?.new;
+          if (row?.sender === "client" && row?.reservation_id) {
+            applyDelta(row.reservation_id, 1);
+          }
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [visibleKey, scheduleLoad, applyDelta]);
 
   if (loading)
     return (

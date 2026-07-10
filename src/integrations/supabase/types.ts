@@ -1112,6 +1112,10 @@ export type Database = {
         Args: { p_reservation_id: string }
         Returns: boolean
       }
+      mark_reservation_read_by_chauffeur: {
+        Args: { p_reservation_id: string }
+        Returns: number
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string

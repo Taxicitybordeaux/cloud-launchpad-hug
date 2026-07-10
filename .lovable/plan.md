@@ -1,71 +1,67 @@
-# Plan — Fusion chat José + factures fiscales
+# Plan d'optimisation chat chauffeur + suivi
 
-## 1. Fusion du chat côté José (vue unifiée par client)
+## 1. Abonnement Realtime ciblé (max N réservations visibles)
 
-**Principe** : les deux tables (`reservation_messages` côté course + `direct_messages` côté espace client) restent en base. C'est l'UI de José qui agrège en **un seul thread par client**.
+Aujourd'hui le canal `drv-courses` reçoit **tous** les INSERT de `reservation_messages` (toutes réservations confondues). On filtre côté serveur au lieu du client.
 
-**Onglet Chat driver — refonte**
-- Liste des threads : regroupés par client (priorité `client_account_id`, fallback `client_phone` 9 derniers chiffres).
-- Chaque thread affiche : avatar/nom, dernier message (toutes sources confondues), badge "💬 Direct" ou "🚖 Course #ABCD" selon la source, compteur non-lus combiné.
-- Tri par dernier message reçu.
+- Un seul canal `drv-courses`, mais on (dés)abonne dynamiquement à un filtre `reservation_id=in.(...)` sur la liste des courses actives + celles avec unread.
+- Plafond dur : **50 réservations max** dans le filtre. Au-delà, on retombe sur le filtre `sender=eq.client` global (rare).
+- Quand la liste change (nouvelle course, statut → completed, unread qui disparaît), on recrée le canal avec le nouveau filtre. Debounce 500 ms pour éviter les reconnexions en rafale.
 
-**Conversation fusionnée**
-- Chargement parallèle des deux tables filtrées sur le client.
-- Fusion → tri chronologique unique, avec un petit chip discret au-dessus de chaque bulle indiquant le contexte (Direct / Course #ABCD).
-- Marquage lu : pour les 2 tables en une fois.
+## 2. Verrou cross-onglets pour le marquage lu
 
-**Réponse intelligente de José**
-- Sélecteur en haut de la zone de saisie : "Répondre dans → Chat direct" ou "Course en cours (#ABCD)".
-- Défaut auto : si le dernier message entrant vient d'une course active → répond dans cette course ; sinon → direct.
-- Le client voit donc la réponse au bon endroit (sur `/suivi/$id` OU `/client/chat`).
+Aujourd'hui deux onglets qui ouvrent la même course peuvent envoyer deux UPDATE en parallèle, faisant remonter puis redescendre le badge.
 
-**Réalisation**
-- Refonte `ChatTab` et `DriverChatConversation` dans `src/routes/driver.tsx`.
-- Pas de migration SQL — uniquement de la logique UI/lecture.
-- Realtime sur les 2 channels (`direct_messages` + `reservation_messages`).
+- Nouveau helper `acquireReadLock(reservationId)` dans `chat-badge-sync.ts` :
+  - Écrit `drv-chat-read-lock:{id}` dans `localStorage` avec timestamp + tab-id.
+  - Si un autre onglet a posé un lock < 3 s, on skip l'UPDATE (l'autre onglet s'en charge) et on met juste à jour l'UI locale via l'event `storage`.
+  - TTL 3 s + release explicite au succès.
+- Le compteur global partagé via `BroadcastChannel("drv-chat")` : quand un onglet baisse son unread, il diffuse `{ reservationId, unread_chauffeur: 0 }` — les autres onglets appliquent la baisse **sans** requête serveur.
 
-## 2. Documents fiscaux pour entreprises
+## 3. RPC batch `mark_reservation_read_by_chauffeur`
 
-**Nouvelle page `/client/factures`** (5ᵉ onglet "Factures" ou sous-section du profil)
-- Liste des courses **terminées** groupées par mois.
-- Boutons :
-  - **PDF du mois** — toutes les courses du mois sélectionné, total HT/TTC, TVA 10 %, numéro de facture séquentiel.
-  - **PDF de l'année** — récap annuel pour bilan/notes de frais.
-  - **Envoi par email** — bouton "Recevoir par email" qui utilise la file `transactional_emails` existante.
-- En-tête : raison sociale optionnelle (nouveau champ `company_name` + `siret` + `tva_intracom` dans `client_accounts`).
+Nouvelle fonction SQL `SECURITY DEFINER` :
 
-**Tech**
-- Réutilise `src/lib/client-receipt.ts` (jsPDF déjà installé) → on ajoute `generateMonthlyInvoicePDF()` et `generateYearlyInvoicePDF()`.
-- Migration : ajoute 3 colonnes nullables à `client_accounts` (`company_name`, `siret`, `tva_intracom`) + section "Infos entreprise" dans `/client/profil`.
+```
+mark_reservation_read_by_chauffeur(p_reservation_id uuid)
+→ UPDATE reservation_messages SET read_by_chauffeur=true
+  WHERE reservation_id=p_reservation_id
+    AND sender='client'
+    AND read_by_chauffeur=false
+  RETURNING count(*)
+```
 
-## 3. Ce qu'on peut encore ajouter (roadmap — à arbitrer après)
+- Un seul round-trip au lieu de N UPDATE par message.
+- Idempotent (le WHERE filtre les déjà lus).
+- Appelée par `InlineDriverChat` à l'ouverture + à la fermeture (au lieu de la boucle actuelle).
 
-Idées triées par valeur/effort, à valider plus tard :
+## 4. Recalcul incrémental du badge
 
-**Quick wins (1 itération chacun)**
-- **Estimateur de prix sans engagement** : mini-formulaire départ/arrivée → prix instantané, pas besoin d'être logué.
-- **QR de réservation rapide** : QR code unique par client à coller dans son agenda → ouvre `/reserver` pré-rempli.
-- **Wallet Apple/Google Pay** : ajout du billet de course (date, ETA, chauffeur) au portefeuille.
-- **Musique préférée** : champ texte "votre playlist Spotify/style" envoyé à José avec la course.
-- **Cadeau anniversaire** : course offerte (ou -20 %) le mois d'anniversaire, alerte automatique.
+Au lieu de rappeler `getUnreadCountsForReservations` à chaque event Realtime :
 
-**Plus stratégique**
-- **Mode Entreprise multi-collaborateurs** : 1 compte société → plusieurs voyageurs autorisés, facturation centralisée.
-- **PWA installable + mode hors-ligne** : icône sur l'écran d'accueil, courses récentes accessibles sans réseau.
-- **Parrainage** : code unique, X € pour parrain + filleul à la 1ʳᵉ course.
-- **Programme VIP** : paliers Silver/Gold/Platinum avec avantages (priorité, eau, surclassement).
-- **Notifications push intelligentes** : J-1, chauffeur en route avec ETA temps réel, demande d'avis post-course.
+- `unreadMap` devient la source de vérité locale.
+- Sur INSERT `reservation_messages` (sender=client) → `unreadMap[id].unread_chauffeur += 1` + total badge += 1.
+- Sur BroadcastChannel `{reservationId, unread_chauffeur: 0}` → on remplace directement l'entrée.
+- Le refetch complet (`getUnreadCountsForReservations`) devient un **filet de sécurité** : appelé seulement au mount + reconcile 5 min + `visibilitychange`, plus à chaque event.
 
-## Détails techniques (pour info)
+## 5. Case "Bagages" sur la page suivi
 
-- Pas de touche à `reservation_messages` / `direct_messages` au niveau schéma.
-- `ChatTab` réécrit en agrégateur dual-source avec `Map<clientKey, Thread>`.
-- Realtime : 2 channels Supabase combinés dans un seul effet.
-- PDF factures : jsPDF + jspdf-autotable (déjà présents), numérotation `TC-YYYY-MM-NNN` séquentielle par client.
-- Aucun secret nouveau, pas de cron supplémentaire.
+Ajouter l'affichage du nombre de bagages dans `src/routes/suivi.$id.tsx`, dans la section infos course (à côté du nombre de passagers). Champ déjà présent en base (`reservations.bagages`), il faut juste l'afficher.
 
-## Ce qui sera livré dans cette itération
+## Fichiers touchés
 
-1. ✅ Fusion chat côté José (point 1 en entier)
-2. ✅ Factures fiscales mensuelles + annuelles (point 2 en entier)
-3. ❌ Roadmap (point 3) — proposé pour discussion, pas codé
+- `src/routes/driver.tsx` — abonnement filtré, recalcul incrémental
+- `src/components/InlineDriverChat.tsx` — appel RPC + lock cross-onglets
+- `src/lib/chat-badge-sync.ts` — helper `acquireReadLock` + `BroadcastChannel`
+- `src/lib/chat.functions.ts` — nouveau wrapper `markReservationReadByChauffeur`
+- **Migration** — fonction SQL `mark_reservation_read_by_chauffeur` + GRANT `authenticated`
+- `src/routes/suivi.$id.tsx` — affichage bagages
+
+## Détails techniques
+
+- Le BroadcastChannel est ignoré si l'API n'existe pas (Safari < 15.4) — fallback sur l'event `storage` déjà en place.
+- Le RPC est exposé via un `createServerFn` (`.middleware([requireSupabaseAuth])` → RLS respectée sur `reservation_messages`).
+- Le filtre Realtime `reservation_id=in.(a,b,c)` accepte jusqu'à ~100 IDs avant que Postgres se plaigne ; on plafonne à 50 pour rester safe.
+- Ordre de travail : d'abord la migration SQL (approbation user), puis les changements code dans un second temps.
+
+Confirmes-tu que je pars sur ce plan complet (points 1→5) ?

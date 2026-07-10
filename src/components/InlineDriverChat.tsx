@@ -2,22 +2,22 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Send, Loader2, CheckCheck, Check } from "lucide-react";
 import {
   listReservationMessages,
-  markReservationMessagesRead,
+  markReservationReadByChauffeur,
   sendChauffeurMessage,
   type ChatMessage,
 } from "@/lib/chat.functions";
-import { registerChauffeurReader } from "@/lib/chat-badge-sync";
+import {
+  registerChauffeurReader,
+  acquireReadLock,
+  releaseReadLock,
+  broadcastChatBadge,
+} from "@/lib/chat-badge-sync";
 
 type Props = {
   reservationId: string;
   onUnreadChange?: (n: number) => void;
 };
 
-/**
- * Zone de réponse INLINE dans la CourseCard chauffeur — pas de popup.
- * Fond blanc crème, écriture noire (spec utilisateur).
- * Affiche les 5 derniers messages + un champ de saisie.
- */
 export function InlineDriverChat({ reservationId, onUnreadChange }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -26,19 +26,25 @@ export function InlineDriverChat({ reservationId, onUnreadChange }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const markRead = useCallback(async () => {
+    // Verrou cross-onglets : si un autre onglet a déjà lancé le markRead
+    // sur cette réservation dans les 3 dernières secondes, on skip l'UPDATE
+    // (l'autre onglet diffusera le delta via BroadcastChannel).
+    if (!acquireReadLock(reservationId)) {
+      onUnreadChange?.(0);
+      return;
+    }
     try {
-      await markReservationMessagesRead({
-        data: { reservation_id: reservationId, role: "chauffeur" },
+      const res = await markReservationReadByChauffeur({
+        data: { reservation_id: reservationId },
       });
       onUnreadChange?.(0);
-      // Broadcast cross-tab : les autres onglets recomptent leurs badges.
-      try {
-        window.localStorage.setItem("drv-chat-read-bump", String(Date.now()));
-      } catch {
-        /* ignore */
+      if ((res?.updated ?? 0) > 0) {
+        broadcastChatBadge({ type: "read", reservationId, at: Date.now() });
       }
     } catch {
       /* ignore */
+    } finally {
+      releaseReadLock(reservationId);
     }
   }, [reservationId, onUnreadChange]);
 
