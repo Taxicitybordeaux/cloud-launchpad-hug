@@ -2065,72 +2065,9 @@ function CourseCard({
         </>
       )}
 
-      {/* Chat client ↔ chauffeur (lié à /suivi/$id côté client) */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setChatOpen((v) => !v);
-        }}
-
-        style={{
-          width: "100%",
-          marginTop: 8,
-          background: "linear-gradient(180deg,#0f172a 0%,#1e293b 100%)",
-          border: "1px solid #334155",
-          borderRadius: 10,
-          color: "#E8C96D",
-          fontSize: 13,
-          fontWeight: 700,
-          cursor: "pointer",
-          padding: "10px 12px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 8,
-        }}
-      >
-        💬 Chat avec {resa.client_name || "le client"}
-        {unreadCount > 0 ? (
-          <span
-            title={unreadTooltip}
-            aria-label={unreadTooltip}
-            style={{
-              minWidth: 20,
-              height: 20,
-              padding: "0 6px",
-              borderRadius: 10,
-              background: "#ef4444",
-              color: "#fff",
-              fontSize: 11,
-              fontWeight: 800,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {unreadCount}
-          </span>
-        ) : (
-          <span
-            title="Aucun message non lu"
-            aria-label="Aucun message non lu"
-            style={{
-              fontSize: 10,
-              color: "#E8C96D99",
-              fontWeight: 600,
-              letterSpacing: "0.02em",
-            }}
-          >
-            ✓ à jour
-          </span>
-        )}
-      </button>
-      {chatOpen && (
-        <InlineDriverChat reservationId={resa.id} />
-      )}
-
 
       {/* Toggle */}
+
       <button
         onClick={onToggle}
         style={{
