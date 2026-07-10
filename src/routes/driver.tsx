@@ -9,12 +9,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { listPushFailures, notifyReservationStatus } from "@/lib/push.functions";
 import { calculerPrixMixte, estTarifJourParis, parseAsParisTime, TARIFS } from "@/lib/tarif";
 import { broadcastSuiviUpdate } from "@/lib/suivi-broadcast";
-import {
-  flushChauffeurReaders,
-  setBadgeRealtimeStatus,
-  subscribeBadgeRealtimeStatus,
-  type BadgeRealtimeStatus,
-} from "@/lib/chat-badge-sync";
+// (chat-badge-sync retiré : plus de badge global d'unread top-chat.)
 import { ChatPanel } from "@/components/ChatPanel";
 import { InlineDriverChat } from "@/components/InlineDriverChat";
 import { listReservationsWithUnreadChauffeur, getUnreadCountsForReservations, type UnreadMap } from "@/lib/chat.functions";
@@ -26,55 +21,7 @@ const DRIVER_TOKEN = "DSF234";
 // ── Types ─────────────────────────────────────────────────────────────────
 type Tab = "courses" | "planning" | "avis" | "clients" | "stats" | "simulateur";
 
-// Petit pill affiché en header pour diagnostiquer l'état du canal Realtime
-// utilisé par le badge chat (SUBSCRIBED / CHANNEL_ERROR / polling fallback).
-function ChatRealtimeStatusPill({
-  status,
-  detail,
-}: {
-  status: BadgeRealtimeStatus;
-  detail: string | null;
-}) {
-  const map: Record<BadgeRealtimeStatus, { color: string; label: string }> = {
-    idle: { color: "#9ca3af", label: "chat: idle" },
-    subscribing: { color: "#f59e0b", label: "chat: connexion…" },
-    subscribed: { color: "#10b981", label: "chat: live" },
-    polling: { color: "#f59e0b", label: "chat: polling 20s" },
-    error: { color: "#ef4444", label: "chat: erreur" },
-    closed: { color: "#ef4444", label: "chat: fermé" },
-  };
-  const s = map[status] ?? map.idle;
-  return (
-    <span
-      title={detail ? `${s.label} — ${detail}` : s.label}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        fontSize: 11,
-        fontWeight: 600,
-        color: "#334155",
-        background: "#f1f5f9",
-        border: "1px solid #e2e8f0",
-        borderRadius: 999,
-        padding: "3px 8px",
-        marginLeft: 8,
-      }}
-    >
-      <span
-        aria-hidden
-        style={{
-          width: 8,
-          height: 8,
-          borderRadius: "50%",
-          background: s.color,
-          boxShadow: `0 0 0 2px ${s.color}22`,
-        }}
-      />
-      {s.label}
-    </span>
-  );
-}
+// (ChatRealtimeStatusPill retiré : plus de canal Realtime global à surveiller.)
 
 interface Resa {
   id: string;
@@ -443,19 +390,8 @@ function DriverApp() {
   const [tab, setTab] = useState<Tab>("courses");
   const [newCount, setNewCount] = useState(0);
   const [pendingAvis, setPendingAvis] = useState(0);
-  const [unreadChat, setUnreadChat] = useState(0);
-  const [chatRtStatus, setChatRtStatus] = useState<BadgeRealtimeStatus>("idle");
-  const [chatRtDetail, setChatRtDetail] = useState<string | null>(null);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const { status: pushStatus, subscribe: subscribePush } = usePushNotifications({ autoAudience: "chauffeur" });
-
-  // S'abonne au statut Realtime partagé du badge chat pour l'afficher en UI.
-  useEffect(() => {
-    return subscribeBadgeRealtimeStatus((s, d) => {
-      setChatRtStatus(s);
-      setChatRtDetail(d);
-    });
-  }, []);
 
   // Capture le prompt d'installation PWA
   useEffect(() => {
