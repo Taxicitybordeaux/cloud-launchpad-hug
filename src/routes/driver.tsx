@@ -1075,38 +1075,11 @@ function CourseCard({
   const mapInst = useRef<any>(null);
   const rendererRef = useRef<any>(null);
   const actionLocks = useRef<Set<string>>(new Set());
-  // État plié/déplié persisté par réservation dans localStorage — évite le
-  // "saut" quand la liste est refetchée et que la carte est re-montée.
-  const chatOpenKey = `drv-chat-open:${resa.id}`;
-  const [chatOpen, setChatOpen] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return window.localStorage.getItem(chatOpenKey) === "1";
-    } catch {
-      return false;
-    }
-  });
-  const chatBlockRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      if (chatOpen) window.localStorage.setItem(chatOpenKey, "1");
-      else window.localStorage.removeItem(chatOpenKey);
-    } catch {}
-    // Recentre le bloc chat sans casser le scroll global (block: "nearest")
-    if (chatOpen && chatBlockRef.current) {
-      const el = chatBlockRef.current;
-      requestAnimationFrame(() => {
-        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      });
-    }
-  }, [chatOpen, chatOpenKey]);
-
-  // Compteur non lus : source unique = unreadMap remonté par CoursesTab
-  // (COUNT SQL agrégé + debouncé). On garde un override local à 0 quand le
-  // panneau chat est ouvert pour donner un feedback visuel immédiat.
+  // Le chat est toujours visible → considéré "lu" à l'affichage.
+  // On garde le compteur remonté par CoursesTab mais on le masque
+  // localement pendant que l'InlineDriverChat marque read_by_chauffeur=true.
   const rawUnread = unreadByChauffeur;
-  const unreadCount = chatOpen ? 0 : rawUnread;
+  const unreadCount = rawUnread;
   const hasSpecialRequest = !!(resa.message && resa.message.trim());
   const unreadContext = hasSpecialRequest ? "demande spéciale" : "conversation en cours";
   const unreadTooltip =
