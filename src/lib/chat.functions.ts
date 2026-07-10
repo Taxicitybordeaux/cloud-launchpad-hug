@@ -219,6 +219,21 @@ export const markReservationMessagesRead = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// Wrapper batch idempotent via RPC SQL — 1 seul round-trip, retourne le nombre
+// de messages effectivement basculés à `read_by_chauffeur=true`. Utilisé par
+// InlineDriverChat pour éviter la course entre clics rapides / plusieurs onglets.
+export const markReservationReadByChauffeur = createServerFn({ method: "POST" })
+  .inputValidator((input) => z.object({ reservation_id: z.string().uuid() }).parse(input))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: count, error } = await supabaseAdmin.rpc(
+      "mark_reservation_read_by_chauffeur",
+      { p_reservation_id: data.reservation_id },
+    );
+    if (error) throw new Error(error.message);
+    return { updated: (count as number) ?? 0 };
+  });
+
 export const countUnreadForClient = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ reservation_ids: z.array(z.string().uuid()).max(200) }).parse(input))
   .handler(async ({ data }) => {
