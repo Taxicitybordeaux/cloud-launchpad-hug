@@ -24,7 +24,7 @@ import { listReservationsWithUnreadChauffeur, getUnreadCountsForReservations, ty
 const DRIVER_TOKEN = "DSF234";
 
 // ── Types ─────────────────────────────────────────────────────────────────
-type Tab = "courses" | "planning" | "avis" | "clients" | "chat" | "stats" | "simulateur";
+type Tab = "courses" | "planning" | "avis" | "clients" | "stats" | "simulateur";
 
 // Petit pill affiché en header pour diagnostiquer l'état du canal Realtime
 // utilisé par le badge chat (SUBSCRIBED / CHANNEL_ERROR / polling fallback).
