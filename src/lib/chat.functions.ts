@@ -705,54 +705,158 @@ function normPhone(p?: string | null): string | null {
   const d = p.replace(/\D+/g, "");
   return d.length >= 6 ? d.slice(-9) : null;
 }
+function normEmail(e?: string | null): string | null {
+  if (!e) return null;
+  const s = String(e).trim().toLowerCase();
+  return s.length > 3 && s.includes("@") ? s : null;
+}
+
+// Identité canonique d'un client, quelle que soit la source (direct, résa avec
+// ou sans account_id). On préfère account_id, puis email, puis phone tail.
+type ClientIdentity = {
+  key: string;
+  account_id: string | null;
+  email: string | null;
+  phone_tail: string | null;
+  name: string | null;
+  phone_display: string | null;
+};
 
 export const listMergedChauffeurThreads = createServerFn({ method: "GET" }).handler(async () => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-  // 1) Direct messages (par compte)
+  // 1) Direct messages
   const { data: directs } = await supabaseAdmin
     .from("direct_messages")
     .select("client_account_id,sender,content,read_by_chauffeur,created_at")
     .order("created_at", { ascending: false })
     .limit(2000);
 
-  // 2) Reservation messages (par course)
+  // 2) Reservation messages
   const { data: resaMsgs } = await supabaseAdmin
     .from("reservation_messages")
     .select("reservation_id,sender,content,read_by_chauffeur,created_at")
     .order("created_at", { ascending: false })
     .limit(2000);
 
-  // Récupère les réservations pour résoudre account_id / phone / nom / statut
+  // 3) Réservations concernées (résolution client)
   const resaIds = Array.from(new Set((resaMsgs ?? []).map((m: any) => m.reservation_id)));
   let resaMap = new Map<string, any>();
   if (resaIds.length > 0) {
     const { data: resas } = await supabaseAdmin
       .from("reservations")
       .select(
-        "id, client_account_id, client_name, nom, client_phone, telephone, depart, destination, arrivee, status, pickup_datetime",
+        "id, client_account_id, client_name, nom, client_phone, telephone, client_email, email, depart, destination, arrivee, status, pickup_datetime",
       )
       .in("id", resaIds);
     resaMap = new Map((resas ?? []).map((r: any) => [r.id, r]));
   }
 
-  // Récupère les comptes
-  const acctIds = new Set<string>();
-  for (const m of directs ?? []) if ((m as any).client_account_id) acctIds.add((m as any).client_account_id);
-  for (const r of resaMap.values()) if (r.client_account_id) acctIds.add(r.client_account_id);
-  let acctMap = new Map<string, any>();
-  if (acctIds.size > 0) {
-    const { data: accts } = await supabaseAdmin
-      .from("client_accounts")
-      .select("id, client_name, email, phone")
-      .in("id", Array.from(acctIds));
-    acctMap = new Map((accts ?? []).map((a: any) => [a.id, a]));
+  // 4) TOUS les comptes clients — permet de rattacher une résa "invitée"
+  //    (sans account_id) à un compte existant via email/phone.
+  const { data: allAccts } = await supabaseAdmin
+    .from("client_accounts")
+    .select("id, client_name, email, phone");
+  const acctById = new Map<string, any>();
+  const acctByEmail = new Map<string, any>();
+  const acctByPhone = new Map<string, any>();
+  for (const a of (allAccts ?? []) as any[]) {
+    acctById.set(a.id, a);
+    const em = normEmail(a.email);
+    if (em) acctByEmail.set(em, a);
+    const ph = normPhone(a.phone);
+    if (ph) acctByPhone.set(ph, a);
+  }
+
+  // Résout l'identité canonique d'un message
+  function identityForDirect(accountId: string): ClientIdentity {
+    const a = acctById.get(accountId);
+    return {
+      key: `a:${accountId}`,
+      account_id: accountId,
+      email: normEmail(a?.email) ?? null,
+      phone_tail: normPhone(a?.phone) ?? null,
+      name: a?.client_name ?? a?.email ?? "Client",
+      phone_display: a?.phone ?? null,
+    };
+  }
+  function identityForResa(r: any): ClientIdentity {
+    // 1) account_id explicite
+    if (r.client_account_id && acctById.has(r.client_account_id)) {
+      const a = acctById.get(r.client_account_id);
+      return {
+        key: `a:${r.client_account_id}`,
+        account_id: r.client_account_id,
+        email: normEmail(a?.email) ?? normEmail(r.client_email || r.email),
+        phone_tail: normPhone(a?.phone) ?? normPhone(r.client_phone || r.telephone),
+        name: a?.client_name ?? r.client_name ?? r.nom ?? "Client",
+        phone_display: a?.phone ?? r.client_phone ?? r.telephone ?? null,
+      };
+    }
+    // 2) email match un compte
+    const em = normEmail(r.client_email || r.email);
+    if (em && acctByEmail.has(em)) {
+      const a = acctByEmail.get(em);
+      return {
+        key: `a:${a.id}`,
+        account_id: a.id,
+        email: em,
+        phone_tail: normPhone(a.phone) ?? normPhone(r.client_phone || r.telephone),
+        name: a.client_name ?? r.client_name ?? r.nom ?? em,
+        phone_display: a.phone ?? r.client_phone ?? r.telephone ?? null,
+      };
+    }
+    // 3) phone match un compte
+    const ph = normPhone(r.client_phone || r.telephone);
+    if (ph && acctByPhone.has(ph)) {
+      const a = acctByPhone.get(ph);
+      return {
+        key: `a:${a.id}`,
+        account_id: a.id,
+        email: normEmail(a.email) ?? em,
+        phone_tail: ph,
+        name: a.client_name ?? r.client_name ?? r.nom ?? "Client",
+        phone_display: a.phone ?? r.client_phone ?? r.telephone ?? null,
+      };
+    }
+    // 4) email seul (invité récurrent)
+    if (em) {
+      return {
+        key: `e:${em}`,
+        account_id: null,
+        email: em,
+        phone_tail: ph,
+        name: r.client_name ?? r.nom ?? em,
+        phone_display: r.client_phone ?? r.telephone ?? null,
+      };
+    }
+    // 5) phone seul
+    if (ph) {
+      return {
+        key: `p:${ph}`,
+        account_id: null,
+        email: null,
+        phone_tail: ph,
+        name: r.client_name ?? r.nom ?? "Client",
+        phone_display: r.client_phone ?? r.telephone ?? null,
+      };
+    }
+    // 6) dernier recours : la course elle-même
+    return {
+      key: `r:${r.id}`,
+      account_id: null,
+      email: null,
+      phone_tail: null,
+      name: r.client_name ?? r.nom ?? "Client",
+      phone_display: null,
+    };
   }
 
   type Bucket = {
     thread_key: string;
     client_account_id: string | null;
     client_phone: string | null;
+    client_email: string | null;
     client_name: string | null;
     reservation_ids: Set<string>;
     active_reservation_id: string | null;
@@ -764,24 +868,75 @@ export const listMergedChauffeurThreads = createServerFn({ method: "GET" }).hand
     unread: number;
   };
   const buckets = new Map<string, Bucket>();
+  // Alias : plusieurs clés secondaires (email/phone) pointent vers la clé
+  // primaire (account) — garantit qu'une résa "invitée" ré-utilisée après
+  // création de compte se retrouve dans le même fil.
+  const aliases = new Map<string, string>();
+  function resolveKey(k: string): string {
+    let cur = k;
+    for (let i = 0; i < 4 && aliases.has(cur); i++) cur = aliases.get(cur)!;
+    return cur;
+  }
+  function bindAliases(id: ClientIdentity) {
+    const primary = id.key;
+    const secondaries: string[] = [];
+    if (id.email) secondaries.push(`e:${id.email}`);
+    if (id.phone_tail) secondaries.push(`p:${id.phone_tail}`);
+    for (const s of secondaries) {
+      if (s === primary) continue;
+      // Si un bucket existait déjà sur cette clé secondaire, on le fusionne
+      const existing = buckets.get(resolveKey(s));
+      const target = buckets.get(resolveKey(primary));
+      if (existing && target && existing !== target) {
+        // Fusion des données
+        for (const rid of existing.reservation_ids) target.reservation_ids.add(rid);
+        target.unread += existing.unread;
+        if (!target.last_at || existing.last_at > target.last_at) {
+          target.last_at = existing.last_at;
+          target.last_content = existing.last_content;
+          target.last_source = existing.last_source;
+        }
+        target.client_email = target.client_email ?? existing.client_email;
+        target.client_phone = target.client_phone ?? existing.client_phone;
+        if (existing.active_pickup_at && (!target.active_pickup_at || existing.active_pickup_at > target.active_pickup_at)) {
+          target.active_reservation_id = existing.active_reservation_id;
+          target.active_pickup_at = existing.active_pickup_at;
+          target.active_reservation_label = existing.active_reservation_label;
+        }
+        buckets.delete(existing.thread_key);
+      }
+      aliases.set(s, primary);
+    }
+  }
 
-  function bucketFor(
-    key: string,
-    init: () => Omit<Bucket, "reservation_ids" | "last_at" | "last_content" | "last_source" | "unread">,
-  ): Bucket {
+  function getBucket(id: ClientIdentity): Bucket {
+    const key = resolveKey(id.key);
     let b = buckets.get(key);
     if (!b) {
-      const i = init();
       b = {
-        ...i,
+        thread_key: key,
+        client_account_id: id.account_id,
+        client_phone: id.phone_display,
+        client_email: id.email,
+        client_name: id.name,
         reservation_ids: new Set<string>(),
+        active_reservation_id: null,
+        active_pickup_at: null,
+        active_reservation_label: null,
         last_at: "",
         last_content: "",
         last_source: "direct",
         unread: 0,
       };
       buckets.set(key, b);
+    } else {
+      // enrichit avec les infos manquantes
+      b.client_account_id = b.client_account_id ?? id.account_id;
+      b.client_email = b.client_email ?? id.email;
+      b.client_phone = b.client_phone ?? id.phone_display;
+      if (!b.client_name || b.client_name === "Client") b.client_name = id.name ?? b.client_name;
     }
+    bindAliases(id);
     return b;
   }
 
@@ -795,17 +950,9 @@ export const listMergedChauffeurThreads = createServerFn({ method: "GET" }).hand
 
   // Direct
   for (const m of (directs ?? []) as any[]) {
-    const acct = acctMap.get(m.client_account_id);
-    const key = `a:${m.client_account_id}`;
-    const b = bucketFor(key, () => ({
-      thread_key: key,
-      client_account_id: m.client_account_id,
-      client_phone: acct?.phone ?? null,
-      client_name: acct?.client_name ?? acct?.email ?? "Client",
-      active_reservation_id: null,
-      active_pickup_at: null,
-      active_reservation_label: null,
-    }));
+    if (!m.client_account_id) continue;
+    const id = identityForDirect(m.client_account_id);
+    const b = getBucket(id);
     updateLast(b, m, "direct");
     if (m.sender === "client" && !m.read_by_chauffeur) b.unread += 1;
   }
@@ -814,20 +961,9 @@ export const listMergedChauffeurThreads = createServerFn({ method: "GET" }).hand
   for (const m of (resaMsgs ?? []) as any[]) {
     const r = resaMap.get(m.reservation_id);
     if (!r) continue;
-    const acct = r.client_account_id ? acctMap.get(r.client_account_id) : null;
-    const phoneTail = normPhone(r.client_phone || r.telephone);
-    const key = r.client_account_id ? `a:${r.client_account_id}` : phoneTail ? `p:${phoneTail}` : `r:${r.id}`;
-    const b = bucketFor(key, () => ({
-      thread_key: key,
-      client_account_id: r.client_account_id ?? null,
-      client_phone: r.client_phone || r.telephone || null,
-      client_name: acct?.client_name ?? r.client_name ?? r.nom ?? "Client",
-      active_reservation_id: null,
-      active_pickup_at: null,
-      active_reservation_label: null,
-    }));
+    const id = identityForResa(r);
+    const b = getBucket(id);
     b.reservation_ids.add(m.reservation_id);
-    // active = course pas terminée la plus récente
     const isActive = !["completed", "cancelled", "no_show"].includes(r.status);
     if (isActive && (!b.active_pickup_at || (r.pickup_datetime ?? "") > b.active_pickup_at)) {
       b.active_reservation_id = r.id;
