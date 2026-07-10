@@ -31,6 +31,12 @@ export function InlineDriverChat({ reservationId, onUnreadChange }: Props) {
         data: { reservation_id: reservationId, role: "chauffeur" },
       });
       onUnreadChange?.(0);
+      // Broadcast cross-tab : les autres onglets recomptent leurs badges.
+      try {
+        window.localStorage.setItem("drv-chat-read-bump", String(Date.now()));
+      } catch {
+        /* ignore */
+      }
     } catch {
       /* ignore */
     }
