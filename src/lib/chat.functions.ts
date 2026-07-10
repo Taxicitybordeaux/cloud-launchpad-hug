@@ -375,6 +375,42 @@ export const sendSuiviClientMessage = createServerFn({ method: "POST" })
     return row as ChatMessage;
   });
 
+// Insère la "demande spéciale" saisie lors de la réservation comme premier
+// message client dans le fil de conversation, pour que le chauffeur ET le
+// client (page /suivi/$id) partent d'un fil unique et cohérent.
+// Idempotent : ne fait rien si un message identique existe déjà.
+const seedSpecialSchema = z.object({
+  reservation_id: z.string().uuid(),
+  content: z.string().trim().min(1).max(2000),
+});
+
+export const seedReservationSpecialRequest = createServerFn({ method: "POST" })
+  .inputValidator((input) => seedSpecialSchema.parse(input))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Anti-doublon : si un message client identique existe déjà pour cette
+    // réservation, on ne réinsère pas (utile en cas de re-submit / retry).
+    const { data: existing } = await supabaseAdmin
+      .from("reservation_messages")
+      .select("id")
+      .eq("reservation_id", data.reservation_id)
+      .eq("sender", "client")
+      .eq("content", data.content)
+      .limit(1)
+      .maybeSingle();
+    if (existing) return { ok: true, skipped: true } as const;
+
+    const { error } = await supabaseAdmin.from("reservation_messages").insert({
+      reservation_id: data.reservation_id,
+      sender: "client",
+      content: data.content,
+      read_by_client: true,
+      read_by_chauffeur: false,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true, skipped: false } as const;
+  });
+
 // ─── Chat général client ↔ José (sans réservation) ───────────────────────────
 
 export type DirectMessage = {

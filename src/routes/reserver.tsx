@@ -17,6 +17,7 @@ import { roundSecondsToMinute } from "@/lib/duration";
 
 import { newSuiviId } from "@/lib/suivi-id";
 import { notifyNewReservation, subscribePush as subscribePushServer } from "@/lib/push.functions";
+import { seedReservationSpecialRequest } from "@/lib/chat.functions";
 import { getFcmToken } from "@/lib/firebase";
 import { ensureMicAccess, describeGeoError } from "@/lib/permissions";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
@@ -1480,6 +1481,22 @@ function ReservationPage() {
         duration: 8000,
       });
       setSending(false);
+
+      // ── Seed du fil de conversation avec la demande spéciale ──────────────
+      // Si le client a saisi une "demande spéciale" à la réservation, on
+      // l'insère comme premier message client pour que le chauffeur et le
+      // client (page /suivi/$id) démarrent sur un fil unique et cohérent.
+      const specialMsg = f.message.trim();
+      if (specialMsg) {
+        try {
+          await seedReservationSpecialRequest({
+            data: { reservation_id: inserted.id, content: specialMsg },
+          });
+        } catch (e) {
+          console.warn("[chat] seed special request failed (non-blocking)", e);
+        }
+      }
+
 
       // ── Notifier le chauffeur José (push FCM + email) ─────────────────────
       // On attend la fin avant de naviguer : sinon le navigateur peut tuer
