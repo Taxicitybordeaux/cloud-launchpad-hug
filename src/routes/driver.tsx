@@ -389,6 +389,7 @@ function DriverPage() {
 function DriverApp() {
   const [tab, setTab] = useState<Tab>("courses");
   const [newCount, setNewCount] = useState(0);
+  const [unreadChat, setUnreadChat] = useState(0);
   const [pendingAvis, setPendingAvis] = useState(0);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const { status: pushStatus, subscribe: subscribePush } = usePushNotifications({ autoAudience: "chauffeur" });
@@ -614,7 +615,7 @@ function DriverApp() {
                 {t === "courses" && (
                   <>
                     <IconBell />
-                    {newCount > 0 && <span className="drv-badge">{newCount}</span>}
+                    {newCount + unreadChat > 0 && <span className="drv-badge">{newCount + unreadChat}</span>}
                   </>
                 )}
                 {t === "planning" && <IconCalendar />}
@@ -645,7 +646,7 @@ function DriverApp() {
         </div>
 
         <div className="drv-body">
-          {tab === "courses" && <CoursesTab onBadgeChange={setNewCount} />}
+          {tab === "courses" && <CoursesTab onBadgeChange={setNewCount} onChatBadge={setUnreadChat} />}
           {tab === "planning" && <PlanningTab />}
           {tab === "avis" && <AvisTab onBadgeChange={setPendingAvis} />}
           {tab === "clients" && <ClientsTab />}
@@ -660,8 +661,10 @@ function DriverApp() {
 // ── Onglet Courses ─────────────────────────────────────────────────────────
 function CoursesTab({
   onBadgeChange,
+  onChatBadge,
 }: {
   onBadgeChange: (n: number) => void;
+  onChatBadge?: (n: number) => void;
 }) {
   const [courses, setCourses] = useState<Resa[]>([]);
   const [unreadMap, setUnreadMap] = useState<UnreadMap>({});
@@ -705,10 +708,17 @@ function CoursesTab({
       const ids = list.map((r) => r.id);
       const map = await getUnreadFn({ data: { reservation_ids: ids } });
       setUnreadMap(map);
+      const totalUnread = Object.values(map).reduce(
+        (sum: number, v: any) => sum + (v?.unread_chauffeur ?? 0),
+        0,
+      );
+      onChatBadge?.(totalUnread);
     } catch {
       // pas bloquant : les cartes gardent leur ordre par défaut
     }
-  }, [onBadgeChange, listUnreadResasFn, getUnreadFn]);
+  }, [onBadgeChange, onChatBadge, listUnreadResasFn, getUnreadFn]);
+
+
 
   // Refresh debouncé : coalesce les bursts Realtime (INSERT + UPDATE
   // read_by_*) en un seul appel batch après 300 ms d'inactivité. Immédiat
