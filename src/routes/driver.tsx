@@ -700,13 +700,26 @@ function DriverApp() {
     window.addEventListener("focus", onVisible);
     window.addEventListener("online", onOnline);
 
+    // Reconciliation périodique de sécurité (60s) — filet indépendant du
+    // Realtime : garantit que le badge se resynchronise même si un event a
+    // été perdu ou si l'onglet est resté ouvert longtemps sans focus.
+    const reconcileT = setInterval(() => runLoad("reconcile-60s"), 60000);
+
+    // Sync cross-tab : un autre onglet a marqué des messages comme lus.
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "drv-chat-read-bump") runLoad("cross-tab-read");
+    };
+    window.addEventListener("storage", onStorage);
+
     return () => {
       cancelled = true;
       if (debounceT) clearTimeout(debounceT);
+      clearInterval(reconcileT);
       stopPolling();
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onVisible);
       window.removeEventListener("online", onOnline);
+      window.removeEventListener("storage", onStorage);
       if (ch) {
         try {
           supabase.removeChannel(ch);
