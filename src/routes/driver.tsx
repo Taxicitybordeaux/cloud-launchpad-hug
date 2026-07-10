@@ -1579,25 +1579,6 @@ function CourseCard({
             }}
           >
             <span>✨ Demande spéciale</span>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setChatOpen(true);
-              }}
-              style={{
-                border: "1px solid #b45309",
-                background: "#fff",
-                color: "#b45309",
-                borderRadius: 999,
-                padding: "3px 10px",
-                fontSize: 11,
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              💬 Répondre
-            </button>
           </div>
           <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{resa.message}</div>
           {unreadByClient > 0 && (
