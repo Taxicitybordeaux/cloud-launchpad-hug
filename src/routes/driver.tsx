@@ -700,13 +700,26 @@ function DriverApp() {
     window.addEventListener("focus", onVisible);
     window.addEventListener("online", onOnline);
 
+    // Reconciliation périodique de sécurité (60s) — filet indépendant du
+    // Realtime : garantit que le badge se resynchronise même si un event a
+    // été perdu ou si l'onglet est resté ouvert longtemps sans focus.
+    const reconcileT = setInterval(() => runLoad("reconcile-60s"), 60000);
+
+    // Sync cross-tab : un autre onglet a marqué des messages comme lus.
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "drv-chat-read-bump") runLoad("cross-tab-read");
+    };
+    window.addEventListener("storage", onStorage);
+
     return () => {
       cancelled = true;
       if (debounceT) clearTimeout(debounceT);
+      clearInterval(reconcileT);
       stopPolling();
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onVisible);
       window.removeEventListener("online", onOnline);
+      window.removeEventListener("storage", onStorage);
       if (ch) {
         try {
           supabase.removeChannel(ch);
@@ -959,9 +972,18 @@ function CoursesTab({
     const onVis = () => { if (!document.hidden) scheduleLoad(true); };
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("focus", onVis);
+    // Cross-tab : un autre onglet a marqué comme lu → resync des compteurs.
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "drv-chat-read-bump") scheduleLoad(true);
+    };
+    window.addEventListener("storage", onStorage);
+    // Reconciliation périodique (60s) : filet de sécurité indépendant du Realtime.
+    const reconcile = setInterval(() => scheduleLoad(), 60000);
     return () => {
+      clearInterval(reconcile);
       document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener("focus", onVis);
+      window.removeEventListener("storage", onStorage);
       supabase.removeChannel(ch);
       if (scheduleRef.current.timer) clearTimeout(scheduleRef.current.timer);
     };
@@ -1075,38 +1097,11 @@ function CourseCard({
   const mapInst = useRef<any>(null);
   const rendererRef = useRef<any>(null);
   const actionLocks = useRef<Set<string>>(new Set());
-  // État plié/déplié persisté par réservation dans localStorage — évite le
-  // "saut" quand la liste est refetchée et que la carte est re-montée.
-  const chatOpenKey = `drv-chat-open:${resa.id}`;
-  const [chatOpen, setChatOpen] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return window.localStorage.getItem(chatOpenKey) === "1";
-    } catch {
-      return false;
-    }
-  });
-  const chatBlockRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      if (chatOpen) window.localStorage.setItem(chatOpenKey, "1");
-      else window.localStorage.removeItem(chatOpenKey);
-    } catch {}
-    // Recentre le bloc chat sans casser le scroll global (block: "nearest")
-    if (chatOpen && chatBlockRef.current) {
-      const el = chatBlockRef.current;
-      requestAnimationFrame(() => {
-        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      });
-    }
-  }, [chatOpen, chatOpenKey]);
-
-  // Compteur non lus : source unique = unreadMap remonté par CoursesTab
-  // (COUNT SQL agrégé + debouncé). On garde un override local à 0 quand le
-  // panneau chat est ouvert pour donner un feedback visuel immédiat.
+  // Le chat est toujours visible → considéré "lu" à l'affichage.
+  // On garde le compteur remonté par CoursesTab mais on le masque
+  // localement pendant que l'InlineDriverChat marque read_by_chauffeur=true.
   const rawUnread = unreadByChauffeur;
-  const unreadCount = chatOpen ? 0 : rawUnread;
+  const unreadCount = rawUnread;
   const hasSpecialRequest = !!(resa.message && resa.message.trim());
   const unreadContext = hasSpecialRequest ? "demande spéciale" : "conversation en cours";
   const unreadTooltip =
@@ -1602,50 +1597,25 @@ function CourseCard({
         </div>
       )}
 
-      {/* Chat client ↔ chauffeur (lié à /suivi/$id côté client) — pliable */}
-      <div ref={chatBlockRef} style={{ scrollMarginTop: 80 }}>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setChatOpen((v) => !v);
-          }}
-          aria-expanded={chatOpen}
-          aria-controls={`drv-chat-${resa.id}`}
+      {/* Chat client ↔ chauffeur — TOUJOURS visible, en haut de la carte,
+          reste affiché même quand "Voir détail" / "Itinéraire" est ouvert. */}
+      <div style={{ marginTop: 8 }}>
+        <div
           style={{
-            width: "100%",
-            marginTop: 8,
-            background: "linear-gradient(180deg,#0f172a 0%,#1e293b 100%)",
-            border: "1px solid #334155",
-            borderRadius: chatOpen ? "10px 10px 0 0" : 10,
-            color: "#E8C96D",
-            fontSize: 13,
-            fontWeight: 700,
-            cursor: "pointer",
-            padding: "10px 12px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             gap: 8,
+            background: "linear-gradient(180deg,#0f172a 0%,#1e293b 100%)",
+            border: "1px solid #334155",
+            borderRadius: "10px 10px 0 0",
+            color: "#E8C96D",
+            fontSize: 13,
+            fontWeight: 700,
+            padding: "8px 12px",
           }}
         >
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-            <span
-              aria-hidden
-              style={{
-                display: "inline-block",
-                transform: chatOpen ? "rotate(90deg)" : "rotate(0deg)",
-                transition: "transform 180ms ease",
-                fontSize: 11,
-                width: 12,
-                textAlign: "center",
-                color: "#E8C96D",
-              }}
-            >
-              ▶
-            </span>
-            💬 Chat avec {resa.client_name || "le client"}
-          </span>
+          <span>💬 Chat avec {resa.client_name || "le client"}</span>
           {unreadCount > 0 ? (
             <span
               title={unreadTooltip}
@@ -1668,8 +1638,6 @@ function CourseCard({
             </span>
           ) : (
             <span
-              title="Aucun message non lu"
-              aria-label="Aucun message non lu"
               style={{
                 fontSize: 10,
                 color: "#E8C96D99",
@@ -1680,23 +1648,21 @@ function CourseCard({
               ✓ à jour
             </span>
           )}
-        </button>
-        {chatOpen && (
-          <div
-            id={`drv-chat-${resa.id}`}
-            style={{
-              borderLeft: "1px solid #334155",
-              borderRight: "1px solid #334155",
-              borderBottom: "1px solid #334155",
-              borderRadius: "0 0 10px 10px",
-              padding: 8,
-              background: "#0b1220",
-            }}
-          >
-            <InlineDriverChat reservationId={resa.id} />
-          </div>
-        )}
+        </div>
+        <div
+          style={{
+            borderLeft: "1px solid #334155",
+            borderRight: "1px solid #334155",
+            borderBottom: "1px solid #334155",
+            borderRadius: "0 0 10px 10px",
+            padding: 8,
+            background: "#0b1220",
+          }}
+        >
+          <InlineDriverChat reservationId={resa.id} />
+        </div>
       </div>
+
 
 
       {/* Résumé km/prix — priorité à la route sélectionnée si chargée, sinon valeurs BDD */}
