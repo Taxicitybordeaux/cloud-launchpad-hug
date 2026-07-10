@@ -24,7 +24,7 @@ import { listReservationsWithUnreadChauffeur, getUnreadCountsForReservations, ty
 const DRIVER_TOKEN = "DSF234";
 
 // ── Types ─────────────────────────────────────────────────────────────────
-type Tab = "courses" | "planning" | "avis" | "clients" | "chat" | "stats" | "simulateur";
+type Tab = "courses" | "planning" | "avis" | "clients" | "stats" | "simulateur";
 
 // Petit pill affiché en header pour diagnostiquer l'état du canal Realtime
 // utilisé par le badge chat (SUBSCRIBED / CHANNEL_ERROR / polling fallback).
@@ -814,12 +814,12 @@ function DriverApp() {
 
         {/* Tabs */}
         <div className="drv-tabs">
-          {(["courses", "planning", "avis", "clients", "chat", "stats", "simulateur"] as Tab[]).map((t) => (
+          {(["courses", "planning", "avis", "clients", "stats", "simulateur"] as Tab[]).map((t) => (
             <button
               key={t}
               className={`drv-tab${tab === t ? " active" : ""}`}
               onClick={() => {
-                if (t === "chat") setUnreadChat(0);
+                if (t === "courses") setUnreadChat(0);
                 setTab(t);
               }}
             >
@@ -827,7 +827,7 @@ function DriverApp() {
                 {t === "courses" && (
                   <>
                     <IconBell />
-                    {newCount > 0 && <span className="drv-badge">{newCount}</span>}
+                    {newCount + unreadChat > 0 && <span className="drv-badge">{newCount + unreadChat}</span>}
                   </>
                 )}
                 {t === "planning" && <IconCalendar />}
@@ -838,26 +838,18 @@ function DriverApp() {
                   </>
                 )}
                 {t === "clients" && <IconUsers />}
-                {t === "chat" && (
-                  <>
-                    <IconChat />
-                    {unreadChat > 0 && <span className="drv-badge">{unreadChat}</span>}
-                  </>
-                )}
                 {t === "stats" && <IconChart />}
                 {t === "simulateur" && <IconCalc />}
               </div>
               <span>
                 {
                   {
-                    courses: "Courses",
+                    courses: "Course + chat client",
                     planning: "Planning",
                     avis: "Avis",
                     clients: "Clients",
-                    chat: "Chat",
                     stats: "Stats",
                     simulateur: "Simu",
-                    
                   }[t]
                 }
               </span>
@@ -866,11 +858,10 @@ function DriverApp() {
         </div>
 
         <div className="drv-body">
-          {tab === "courses" && <CoursesTab onBadgeChange={setNewCount} />}
+          {tab === "courses" && <CoursesTab onBadgeChange={setNewCount} onChatBadge={setUnreadChat} />}
           {tab === "planning" && <PlanningTab />}
           {tab === "avis" && <AvisTab onBadgeChange={setPendingAvis} />}
           {tab === "clients" && <ClientsTab />}
-          {tab === "chat" && <ChatTab onBadgeChange={setUnreadChat} />}
           {tab === "stats" && <StatsTab />}
           {tab === "simulateur" && <SimulateurTab />}
         </div>
@@ -880,7 +871,13 @@ function DriverApp() {
 }
 
 // ── Onglet Courses ─────────────────────────────────────────────────────────
-function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
+function CoursesTab({
+  onBadgeChange,
+  onChatBadge,
+}: {
+  onBadgeChange: (n: number) => void;
+  onChatBadge?: (n: number) => void;
+}) {
   const [courses, setCourses] = useState<Resa[]>([]);
   const [unreadMap, setUnreadMap] = useState<UnreadMap>({});
   const [loading, setLoading] = useState(true);
@@ -1026,6 +1023,10 @@ function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
 
   return (
     <>
+      <ChatTab onBadgeChange={onChatBadge ?? (() => {})} />
+      {(nouvelles.length > 0 || encours.length > 0 || followups.length > 0) && (
+        <hr className="drv-divider" />
+      )}
       {nouvelles.length > 0 && (
         <>
           <p className="drv-section">Nouvelles demandes</p>
