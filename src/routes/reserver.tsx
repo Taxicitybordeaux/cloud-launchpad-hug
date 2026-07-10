@@ -17,6 +17,7 @@ import { roundSecondsToMinute } from "@/lib/duration";
 
 import { newSuiviId } from "@/lib/suivi-id";
 import { notifyNewReservation, subscribePush as subscribePushServer } from "@/lib/push.functions";
+import { seedReservationSpecialRequest } from "@/lib/chat.functions";
 import { getFcmToken } from "@/lib/firebase";
 import { ensureMicAccess, describeGeoError } from "@/lib/permissions";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
