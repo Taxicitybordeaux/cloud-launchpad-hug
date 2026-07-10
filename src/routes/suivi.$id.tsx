@@ -2315,13 +2315,11 @@ function SuiviPage() {
               <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a" }}>{reservation.nb_passagers}</div>
             </div>
           )}
-          {reservation.nb_bagages != null && (
-            <div className="suivi-premium suivi-card" style={{ padding: "14px", textAlign: "center" }}>
-              <Package size={18} style={{ color: "#f59e0b", margin: "0 auto 6px", display: "block" }} />
-              <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>{t("suivi.bagages")}</div>
-              <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a" }}>{reservation.nb_bagages}</div>
-            </div>
-          )}
+          <div className="suivi-premium suivi-card" style={{ padding: "14px", textAlign: "center" }}>
+            <Package size={18} style={{ color: "#f59e0b", margin: "0 auto 6px", display: "block" }} />
+            <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>{t("suivi.bagages")}</div>
+            <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a" }}>{reservation.nb_bagages ?? 0}</div>
+          </div>
           {reservation.distance_km != null && (
             <div className="suivi-premium suivi-card" style={{ padding: "14px", textAlign: "center" }}>
               <Gauge size={18} style={{ color: "#8b5cf6", margin: "0 auto 6px", display: "block" }} />
