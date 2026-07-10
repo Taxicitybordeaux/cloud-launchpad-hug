@@ -814,12 +814,12 @@ function DriverApp() {
 
         {/* Tabs */}
         <div className="drv-tabs">
-          {(["courses", "planning", "avis", "clients", "chat", "stats", "simulateur"] as Tab[]).map((t) => (
+          {(["courses", "planning", "avis", "clients", "stats", "simulateur"] as Tab[]).map((t) => (
             <button
               key={t}
               className={`drv-tab${tab === t ? " active" : ""}`}
               onClick={() => {
-                if (t === "chat") setUnreadChat(0);
+                if (t === "courses") setUnreadChat(0);
                 setTab(t);
               }}
             >
@@ -827,7 +827,7 @@ function DriverApp() {
                 {t === "courses" && (
                   <>
                     <IconBell />
-                    {newCount > 0 && <span className="drv-badge">{newCount}</span>}
+                    {newCount + unreadChat > 0 && <span className="drv-badge">{newCount + unreadChat}</span>}
                   </>
                 )}
                 {t === "planning" && <IconCalendar />}
@@ -838,26 +838,18 @@ function DriverApp() {
                   </>
                 )}
                 {t === "clients" && <IconUsers />}
-                {t === "chat" && (
-                  <>
-                    <IconChat />
-                    {unreadChat > 0 && <span className="drv-badge">{unreadChat}</span>}
-                  </>
-                )}
                 {t === "stats" && <IconChart />}
                 {t === "simulateur" && <IconCalc />}
               </div>
               <span>
                 {
                   {
-                    courses: "Courses",
+                    courses: "Course + chat client",
                     planning: "Planning",
                     avis: "Avis",
                     clients: "Clients",
-                    chat: "Chat",
                     stats: "Stats",
                     simulateur: "Simu",
-                    
                   }[t]
                 }
               </span>
@@ -866,11 +858,10 @@ function DriverApp() {
         </div>
 
         <div className="drv-body">
-          {tab === "courses" && <CoursesTab onBadgeChange={setNewCount} />}
+          {tab === "courses" && <CoursesTab onBadgeChange={setNewCount} onChatBadge={setUnreadChat} />}
           {tab === "planning" && <PlanningTab />}
           {tab === "avis" && <AvisTab onBadgeChange={setPendingAvis} />}
           {tab === "clients" && <ClientsTab />}
-          {tab === "chat" && <ChatTab onBadgeChange={setUnreadChat} />}
           {tab === "stats" && <StatsTab />}
           {tab === "simulateur" && <SimulateurTab />}
         </div>
