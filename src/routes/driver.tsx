@@ -871,7 +871,13 @@ function DriverApp() {
 }
 
 // ── Onglet Courses ─────────────────────────────────────────────────────────
-function CoursesTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
+function CoursesTab({
+  onBadgeChange,
+  onChatBadge,
+}: {
+  onBadgeChange: (n: number) => void;
+  onChatBadge?: (n: number) => void;
+}) {
   const [courses, setCourses] = useState<Resa[]>([]);
   const [unreadMap, setUnreadMap] = useState<UnreadMap>({});
   const [loading, setLoading] = useState(true);
