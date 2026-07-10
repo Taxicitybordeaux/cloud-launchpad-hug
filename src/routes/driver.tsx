@@ -972,9 +972,18 @@ function CoursesTab({
     const onVis = () => { if (!document.hidden) scheduleLoad(true); };
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("focus", onVis);
+    // Cross-tab : un autre onglet a marqué comme lu → resync des compteurs.
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "drv-chat-read-bump") scheduleLoad(true);
+    };
+    window.addEventListener("storage", onStorage);
+    // Reconciliation périodique (60s) : filet de sécurité indépendant du Realtime.
+    const reconcile = setInterval(() => scheduleLoad(), 60000);
     return () => {
+      clearInterval(reconcile);
       document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener("focus", onVis);
+      window.removeEventListener("storage", onStorage);
       supabase.removeChannel(ch);
       if (scheduleRef.current.timer) clearTimeout(scheduleRef.current.timer);
     };
