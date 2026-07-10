@@ -614,7 +614,7 @@ function DriverApp() {
                 {t === "courses" && (
                   <>
                     <IconBell />
-                    {newCount + unreadChat > 0 && <span className="drv-badge">{newCount + unreadChat}</span>}
+                    {newCount > 0 && <span className="drv-badge">{newCount}</span>}
                   </>
                 )}
                 {t === "planning" && <IconCalendar />}
