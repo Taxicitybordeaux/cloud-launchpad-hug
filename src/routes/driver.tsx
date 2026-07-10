@@ -609,6 +609,9 @@ function DriverApp() {
               className={`drv-tab${tab === t ? " active" : ""}`}
               onClick={() => {
                 setTab(t);
+                // Reset optimiste du badge chat à l'ouverture de l'onglet ;
+                // le prochain refresh Realtime/reconcile remettra la vraie valeur.
+                if (t === "courses") setUnreadChat(0);
               }}
             >
               <div style={{ position: "relative", display: "inline-block" }}>
@@ -737,11 +740,12 @@ function CoursesTab({
       s.timer = null;
       loadRef.current();
     };
-    // Immédiat si demandé OU si dernière exécution > 1s (throttle plancher)
-    if (immediate || Date.now() - s.last > 1000) {
+    // Immédiat si demandé OU si dernière exécution > 2s (throttle plancher).
+    // Sinon, on coalesce les bursts Realtime sur 600 ms d'inactivité.
+    if (immediate || Date.now() - s.last > 2000) {
       run();
     } else {
-      s.timer = setTimeout(run, 300);
+      s.timer = setTimeout(run, 600);
     }
   }, []);
 
@@ -750,7 +754,13 @@ function CoursesTab({
     const ch = (supabase as any)
       .channel("drv-courses")
       .on("postgres_changes", { event: "*", schema: "public", table: "reservations" }, () => scheduleLoad())
-      .on("postgres_changes", { event: "*", schema: "public", table: "reservation_messages" }, () => scheduleLoad())
+      .on(
+        "postgres_changes",
+        // On ne réagit qu'aux INSERT de messages client (source du badge non lu) ;
+        // les UPDATE `read_by_*` n'ont pas besoin de recalcul côté chauffeur.
+        { event: "INSERT", schema: "public", table: "reservation_messages", filter: "sender=eq.client" },
+        () => scheduleLoad(),
+      )
       .subscribe();
     const onVis = () => { if (!document.hidden) scheduleLoad(true); };
     document.addEventListener("visibilitychange", onVis);
@@ -760,8 +770,8 @@ function CoursesTab({
       if (e.key === "drv-chat-read-bump") scheduleLoad(true);
     };
     window.addEventListener("storage", onStorage);
-    // Reconciliation périodique (60s) : filet de sécurité indépendant du Realtime.
-    const reconcile = setInterval(() => scheduleLoad(), 60000);
+    // Reconciliation périodique (2 min) : filet de sécurité léger.
+    const reconcile = setInterval(() => scheduleLoad(), 120000);
     return () => {
       clearInterval(reconcile);
       document.removeEventListener("visibilitychange", onVis);
