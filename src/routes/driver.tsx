@@ -1023,6 +1023,10 @@ function CoursesTab({
 
   return (
     <>
+      <ChatTab onBadgeChange={onChatBadge ?? (() => {})} />
+      {(nouvelles.length > 0 || encours.length > 0 || followups.length > 0) && (
+        <hr className="drv-divider" />
+      )}
       {nouvelles.length > 0 && (
         <>
           <p className="drv-section">Nouvelles demandes</p>
