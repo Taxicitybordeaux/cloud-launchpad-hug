@@ -926,7 +926,14 @@ function CourseCard({
   unreadByClient?: number;
 }) {
   const [routes, setRoutes] = useState<RouteOption[]>([]);
-  const [selectedRoute, setSelectedRoute] = useState(0);
+  const routeStorageKey = `drv-selected-route:${resa.id}`;
+  const [selectedRoute, setSelectedRoute] = useState<number>(() => {
+    if (typeof window === "undefined") return 0;
+    const raw = window.localStorage.getItem(routeStorageKey);
+    const n = raw == null ? NaN : Number(raw);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  });
+  const routeRestoredRef = useRef(false);
   const [loadingRoutes, setLoadingRoutes] = useState(false);
   const [busy, setBusy] = useState(false);
   const notifyStatus = useServerFn(notifyReservationStatus);
