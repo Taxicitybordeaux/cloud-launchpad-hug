@@ -12,8 +12,11 @@ import { broadcastSuiviUpdate } from "@/lib/suivi-broadcast";
 import { subscribeChatBadgeEvents, type ChatBadgeEvent } from "@/lib/chat-badge-sync";
 import { ChatPanel } from "@/components/ChatPanel";
 import { InlineDriverChat } from "@/components/InlineDriverChat";
-import { listReservationsWithUnreadChauffeur, getUnreadCountsForReservations, type UnreadMap } from "@/lib/chat.functions";
-
+import {
+  listReservationsWithUnreadChauffeur,
+  getUnreadCountsForReservations,
+  type UnreadMap,
+} from "@/lib/chat.functions";
 
 // ── Token guard ────────────────────────────────────────────────────────────
 const DRIVER_TOKEN = "DSF234";
@@ -503,8 +506,6 @@ function DriverApp() {
   // (Badge global d'unread chat retiré : le compteur par course est géré
   // localement par CoursesTab via getUnreadCountsForReservations.)
 
-
-
   return (
     <>
       <style>{css}</style>
@@ -512,7 +513,7 @@ function DriverApp() {
         <div className="drv-header">
           <span style={{ fontSize: 26 }}>🚕</span>
           <h1>Espace José</h1>
-          
+
           {installPrompt && (
             <button
               onClick={async () => {
@@ -711,17 +712,12 @@ function CoursesTab({
       const ids = list.map((r) => r.id);
       const map = await getUnreadFn({ data: { reservation_ids: ids } });
       setUnreadMap(map);
-      const totalUnread = Object.values(map).reduce(
-        (sum: number, v: any) => sum + (v?.unread_chauffeur ?? 0),
-        0,
-      );
+      const totalUnread = Object.values(map).reduce((sum: number, v: any) => sum + (v?.unread_chauffeur ?? 0), 0);
       onChatBadge?.(totalUnread);
     } catch {
       // pas bloquant : les cartes gardent leur ordre par défaut
     }
   }, [onBadgeChange, onChatBadge, listUnreadResasFn, getUnreadFn]);
-
-
 
   // Refresh debouncé : coalesce les bursts Realtime (INSERT + UPDATE
   // read_by_*) en un seul appel batch après 300 ms d'inactivité. Immédiat
@@ -758,19 +754,19 @@ function CoursesTab({
 
   // Recalcul incrémental : appliquer les deltas d'unread localement au lieu
   // de refaire tourner getUnreadCountsForReservations à chaque event.
-  const applyDelta = useCallback((reservationId: string, delta: number, reset?: boolean) => {
-    setUnreadMap((prev) => {
-      const cur = prev[reservationId] ?? { unread_chauffeur: 0, unread_client: 0 };
-      const nextUnread = reset ? 0 : Math.max(0, (cur.unread_chauffeur ?? 0) + delta);
-      const next = { ...prev, [reservationId]: { ...cur, unread_chauffeur: nextUnread } };
-      const total = Object.values(next).reduce(
-        (sum: number, v: any) => sum + (v?.unread_chauffeur ?? 0),
-        0,
-      );
-      onChatBadge?.(total);
-      return next;
-    });
-  }, [onChatBadge]);
+  const applyDelta = useCallback(
+    (reservationId: string, delta: number, reset?: boolean) => {
+      setUnreadMap((prev) => {
+        const cur = prev[reservationId] ?? { unread_chauffeur: 0, unread_client: 0 };
+        const nextUnread = reset ? 0 : Math.max(0, (cur.unread_chauffeur ?? 0) + delta);
+        const next = { ...prev, [reservationId]: { ...cur, unread_chauffeur: nextUnread } };
+        const total = Object.values(next).reduce((sum: number, v: any) => sum + (v?.unread_chauffeur ?? 0), 0);
+        onChatBadge?.(total);
+        return next;
+      });
+    },
+    [onChatBadge],
+  );
 
   useEffect(() => {
     scheduleLoad(true);
@@ -782,7 +778,9 @@ function CoursesTab({
       else if (e.type === "delta") applyDelta(e.reservationId, e.delta);
     });
 
-    const onVis = () => { if (!document.hidden) scheduleLoad(true); };
+    const onVis = () => {
+      if (!document.hidden) scheduleLoad(true);
+    };
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("focus", onVis);
     // Fallback storage pour navigateurs sans BroadcastChannel.
@@ -810,7 +808,11 @@ function CoursesTab({
     const idFilter = `reservation_id=in.(${visibleIds.join(",")})`;
     const ch = (supabase as any)
       .channel(`drv-courses-${visibleIds.length}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "reservations", filter: `id=in.(${visibleIds.join(",")})` }, () => scheduleLoad())
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "reservations", filter: `id=in.(${visibleIds.join(",")})` },
+        () => scheduleLoad(),
+      )
       // INSERT reservations (nouvelle course) → refresh liste complète
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "reservations" }, () => scheduleLoad())
       // INSERT message client sur une résa visible → increment ciblé du badge
@@ -844,7 +846,7 @@ function CoursesTab({
   const sortByPriority = (a: Resa, b: Resa) => {
     const aUnread = unreadMap[a.id]?.unread_chauffeur ?? 0;
     const bUnread = unreadMap[b.id]?.unread_chauffeur ?? 0;
-    if ((aUnread > 0) !== (bUnread > 0)) return aUnread > 0 ? -1 : 1;
+    if (aUnread > 0 !== bUnread > 0) return aUnread > 0 ? -1 : 1;
     const aSpecial = !!(a.message && a.message.trim());
     const bSpecial = !!(b.message && b.message.trim());
     if (aSpecial !== bSpecial) return aSpecial ? -1 : 1;
@@ -978,7 +980,6 @@ function CourseCard({
       ? `${unreadCount} message${unreadCount > 1 ? "s" : ""} client non lu${unreadCount > 1 ? "s" : ""} · ${unreadContext}`
       : "Aucun message non lu";
 
-
   const claimAction = (key: string) => {
     if (actionLocks.current.has(key)) return false;
     actionLocks.current.add(key);
@@ -1071,7 +1072,20 @@ function CourseCard({
           routeRestoredRef.current = true;
           let idx = -1;
           if (resa.distance_km != null) {
-            idx = opts.findIndex((o) => Math.abs(o.distanceKm - (resa.distance_km ?? 0)) < 0.15);
+            // Match par distance la plus proche (pas de seuil strict) : Google
+            // Maps peut réordonner ou légèrement recalculer les alternatives
+            // au rechargement, un seuil fixe (0.15 km) pouvait rater le bon
+            // itinéraire et faire "reset" visuellement la sélection.
+            let bestIdx = -1;
+            let bestDiff = Infinity;
+            opts.forEach((o, i) => {
+              const diff = Math.abs(o.distanceKm - (resa.distance_km ?? 0));
+              if (diff < bestDiff) {
+                bestDiff = diff;
+                bestIdx = i;
+              }
+            });
+            idx = bestIdx;
           }
           if (idx < 0) {
             const raw = typeof window !== "undefined" ? window.localStorage.getItem(routeStorageKey) : null;
@@ -1548,8 +1562,6 @@ function CourseCard({
         </div>
       </div>
 
-
-
       {/* Résumé km/prix — priorité à la route sélectionnée si chargée, sinon valeurs BDD */}
 
       {(resa.distance_km || resa.prix_estime || routes.length > 0) && (
@@ -2023,7 +2035,6 @@ function CourseCard({
       )}
 
       <button
-
         onClick={onToggle}
         style={{
           width: "100%",
@@ -2579,7 +2590,6 @@ function ClientsTab() {
 // (ChatTab et DriverChatConversation retirés : le chat "haut de page" n'est
 // plus affiché ; les échanges se font uniquement dans chaque carte de course.)
 
-
 // ── Analytics : ouvertures du lien de suivi ────────────────────────────────
 function TrackingAnalytics() {
   const [open, setOpen] = useState(false);
@@ -3125,7 +3135,6 @@ function SimulateurTab() {
     };
   };
 
-
   const handleManualCompute = () => {
     const d = parseFloat(distanceKm.replace(",", "."));
     if (!d || d <= 0) {
@@ -3136,7 +3145,6 @@ function SimulateurTab() {
     const t = Math.max(Math.round(d * 2), 1);
     setResult(computeBreakdown(d, t, pickupLocal));
   };
-
 
   const handleAdressesCompute = async () => {
     if (!depart.trim() || !arrivee.trim()) {
@@ -3175,7 +3183,6 @@ function SimulateurTab() {
       const distKm = Math.round(((leg.distance?.value ?? 0) / 1000) * 10) / 10;
       const stepMinutes = Math.max(Math.round((leg.duration?.value ?? distKm * 120) / 60), 1);
       setResult(computeBreakdown(distKm, stepMinutes, pickupLocal));
-
     } catch (e) {
       console.error("[SimulateurTab] route:", e);
       setRouteError("Impossible de calculer l'itinéraire — vérifie les adresses.");
@@ -3224,7 +3231,6 @@ function SimulateurTab() {
           }}
         >
           🧮 Km
-
         </button>
         <button
           onClick={() => setMode("adresses")}
@@ -3288,7 +3294,6 @@ function SimulateurTab() {
           </button>
         </>
       ) : (
-
         <>
           <div style={{ marginBottom: 10 }}>
             <label style={labelStyle}>📍 Départ</label>
@@ -3339,9 +3344,7 @@ function SimulateurTab() {
       {result && (
         <div style={{ border: "2px solid #0b1224", borderRadius: 14, padding: 16, background: "#f8fafc" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-            <span style={{ fontSize: 13, color: "#64748b" }}>
-              🛣 {result.distanceKm.toFixed(1)} km
-            </span>
+            <span style={{ fontSize: 13, color: "#64748b" }}>🛣 {result.distanceKm.toFixed(1)} km</span>
 
             <span
               className="drv-badge-pill"
@@ -3611,4 +3614,3 @@ function PushDiagnostic() {
     </div>
   );
 }
-
