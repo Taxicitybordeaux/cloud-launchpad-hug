@@ -473,7 +473,7 @@ function AnonChat({
         await markReadFn({ data: { reservation_id: reservationId, role: "client" } });
         if (!cancelled) {
           setMessages((prev) =>
-            prev.map((m) => (m.sender === "chauffeur" && !m.read_by_client ? { ...m, read_by_client: true } : m)),
+            prev.map((m) => (!m.read_by_client ? { ...m, read_by_client: true } : m)),
           );
           setUnreadSql(0);
         }
