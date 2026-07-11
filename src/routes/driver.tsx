@@ -1568,6 +1568,9 @@ function CourseCard({
                   onClick={async () => {
                     setSelectedRoute(i);
                     try {
+                      window.localStorage.setItem(routeStorageKey, String(i));
+                    } catch {}
+                    try {
                       const { error } = await (supabase as any)
                         .from("reservations")
                         .update({ distance_km: r.distanceKm, prix_estime: r.prix_estime })
