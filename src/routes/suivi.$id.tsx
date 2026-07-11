@@ -415,7 +415,12 @@ function AnonChat({
           table: "reservation_messages",
           filter: `reservation_id=eq.${reservationId}`,
         },
-        () => load(),
+        (payload: any) => {
+          // Bump immédiat du compteur : évite l'aller-retour load() → count().
+          const row = payload?.new;
+          if (row && !row.read_by_client) setUnreadSql((n) => n + 1);
+          load();
+        },
       )
       .subscribe();
     const driverBadgeChannel = (supabase as any).channel("drv-chat-badge");
@@ -468,7 +473,7 @@ function AnonChat({
         await markReadFn({ data: { reservation_id: reservationId, role: "client" } });
         if (!cancelled) {
           setMessages((prev) =>
-            prev.map((m) => (m.sender === "chauffeur" && !m.read_by_client ? { ...m, read_by_client: true } : m)),
+            prev.map((m) => (!m.read_by_client ? { ...m, read_by_client: true } : m)),
           );
           setUnreadSql(0);
         }
