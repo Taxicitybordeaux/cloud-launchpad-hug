@@ -680,11 +680,13 @@ export const countUnreadClientForReservation = createServerFn({ method: "POST" }
   .handler(async ({ data }) => {
     const r = await resolveSuiviReservation(data.suivi_key);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Compte tout message non lu côté client — inclut la "demande spéciale"
+    // insérée à la création (sender=client, read_by_client=false) pour que le
+    // badge s'incrémente immédiatement sur /suivi/$id.
     const { count, error } = await supabaseAdmin
       .from("reservation_messages")
       .select("id", { count: "exact", head: true })
       .eq("reservation_id", r.id)
-      .eq("sender", "chauffeur")
       .eq("read_by_client", false);
     if (error) throw error;
     return count ?? 0;
