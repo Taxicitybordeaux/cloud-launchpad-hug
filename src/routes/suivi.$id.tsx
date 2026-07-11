@@ -415,7 +415,12 @@ function AnonChat({
           table: "reservation_messages",
           filter: `reservation_id=eq.${reservationId}`,
         },
-        () => load(),
+        (payload: any) => {
+          // Bump immédiat du compteur : évite l'aller-retour load() → count().
+          const row = payload?.new;
+          if (row && !row.read_by_client) setUnreadSql((n) => n + 1);
+          load();
+        },
       )
       .subscribe();
     const driverBadgeChannel = (supabase as any).channel("drv-chat-badge");
