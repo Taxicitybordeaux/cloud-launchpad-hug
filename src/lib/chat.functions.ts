@@ -404,7 +404,10 @@ export const seedReservationSpecialRequest = createServerFn({ method: "POST" })
       reservation_id: data.reservation_id,
       sender: "client",
       content: data.content,
-      read_by_client: true,
+      // read_by_client:false → le badge sur /suivi/$id signale immédiatement au
+      // client que sa demande spéciale a bien été transmise au chauffeur.
+      // Se remet à true dès l'ouverture du chat (markReservationMessagesRead).
+      read_by_client: false,
       read_by_chauffeur: false,
     });
     if (error) throw new Error(error.message);
