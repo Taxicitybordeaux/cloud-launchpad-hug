@@ -926,7 +926,14 @@ function CourseCard({
   unreadByClient?: number;
 }) {
   const [routes, setRoutes] = useState<RouteOption[]>([]);
-  const [selectedRoute, setSelectedRoute] = useState(0);
+  const routeStorageKey = `drv-selected-route:${resa.id}`;
+  const [selectedRoute, setSelectedRoute] = useState<number>(() => {
+    if (typeof window === "undefined") return 0;
+    const raw = window.localStorage.getItem(routeStorageKey);
+    const n = raw == null ? NaN : Number(raw);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  });
+  const routeRestoredRef = useRef(false);
   const [loadingRoutes, setLoadingRoutes] = useState(false);
   const [busy, setBusy] = useState(false);
   const notifyStatus = useServerFn(notifyReservationStatus);
@@ -1032,6 +1039,22 @@ function CourseCard({
           };
         });
         setRoutes(opts);
+        // Restaure la sélection après chargement : match par distance/prix de
+        // la DB (source de vérité) sinon localStorage. Évite la remise à 0 au
+        // refresh signalée par le chauffeur.
+        if (!routeRestoredRef.current && opts.length > 0) {
+          routeRestoredRef.current = true;
+          let idx = -1;
+          if (resa.distance_km != null) {
+            idx = opts.findIndex((o) => Math.abs(o.distanceKm - (resa.distance_km ?? 0)) < 0.15);
+          }
+          if (idx < 0) {
+            const raw = typeof window !== "undefined" ? window.localStorage.getItem(routeStorageKey) : null;
+            const n = raw == null ? NaN : Number(raw);
+            if (Number.isFinite(n) && n >= 0 && n < opts.length) idx = n;
+          }
+          if (idx >= 0 && idx !== selectedRoute) setSelectedRoute(idx);
+        }
         setLoadingRoutes(false);
       } catch (e) {
         console.error("[CourseCard] routes:", e);
@@ -1544,6 +1567,9 @@ function CourseCard({
                   className={`drv-route-opt${selectedRoute === i ? " selected" : ""}`}
                   onClick={async () => {
                     setSelectedRoute(i);
+                    try {
+                      window.localStorage.setItem(routeStorageKey, String(i));
+                    } catch {}
                     try {
                       const { error } = await (supabase as any)
                         .from("reservations")

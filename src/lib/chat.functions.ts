@@ -206,15 +206,19 @@ export const markReservationMessagesRead = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const peer = data.role === "client" ? "chauffeur" : "client";
+    // role='client' → marque tous les messages read_by_client=true (y compris
+    // la demande spéciale envoyée par le client lui-même, insérée avec
+    // read_by_client=false pour déclencher le badge sur /suivi/$id).
+    // role='chauffeur' → uniquement les messages du client, comme avant.
     const patch = data.role === "client" ? { read_by_client: true } : { read_by_chauffeur: true };
     const readCol = data.role === "client" ? "read_by_client" : "read_by_chauffeur";
-    const { error } = await supabaseAdmin
+    let q = supabaseAdmin
       .from("reservation_messages")
       .update(patch)
       .eq("reservation_id", data.reservation_id)
-      .eq("sender", peer)
       .eq(readCol, false);
+    if (data.role === "chauffeur") q = q.eq("sender", "client");
+    const { error } = await q;
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -404,7 +408,10 @@ export const seedReservationSpecialRequest = createServerFn({ method: "POST" })
       reservation_id: data.reservation_id,
       sender: "client",
       content: data.content,
-      read_by_client: true,
+      // read_by_client:false → le badge sur /suivi/$id signale immédiatement au
+      // client que sa demande spéciale a bien été transmise au chauffeur.
+      // Se remet à true dès l'ouverture du chat (markReservationMessagesRead).
+      read_by_client: false,
       read_by_chauffeur: false,
     });
     if (error) throw new Error(error.message);
@@ -677,11 +684,13 @@ export const countUnreadClientForReservation = createServerFn({ method: "POST" }
   .handler(async ({ data }) => {
     const r = await resolveSuiviReservation(data.suivi_key);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Compte tout message non lu côté client — inclut la "demande spéciale"
+    // insérée à la création (sender=client, read_by_client=false) pour que le
+    // badge s'incrémente immédiatement sur /suivi/$id.
     const { count, error } = await supabaseAdmin
       .from("reservation_messages")
       .select("id", { count: "exact", head: true })
       .eq("reservation_id", r.id)
-      .eq("sender", "chauffeur")
       .eq("read_by_client", false);
     if (error) throw error;
     return count ?? 0;
