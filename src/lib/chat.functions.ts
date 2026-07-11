@@ -206,15 +206,19 @@ export const markReservationMessagesRead = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const peer = data.role === "client" ? "chauffeur" : "client";
+    // role='client' → marque tous les messages read_by_client=true (y compris
+    // la demande spéciale envoyée par le client lui-même, insérée avec
+    // read_by_client=false pour déclencher le badge sur /suivi/$id).
+    // role='chauffeur' → uniquement les messages du client, comme avant.
     const patch = data.role === "client" ? { read_by_client: true } : { read_by_chauffeur: true };
     const readCol = data.role === "client" ? "read_by_client" : "read_by_chauffeur";
-    const { error } = await supabaseAdmin
+    let q = supabaseAdmin
       .from("reservation_messages")
       .update(patch)
       .eq("reservation_id", data.reservation_id)
-      .eq("sender", peer)
       .eq(readCol, false);
+    if (data.role === "chauffeur") q = q.eq("sender", "client");
+    const { error } = await q;
     if (error) throw new Error(error.message);
     return { ok: true };
   });
