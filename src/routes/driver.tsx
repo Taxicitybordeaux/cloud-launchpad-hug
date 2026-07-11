@@ -934,6 +934,31 @@ function CourseCard({
     return Number.isFinite(n) && n >= 0 ? n : 0;
   });
   const routeRestoredRef = useRef(false);
+  // Sync cross-onglets : quand un onglet change la sélection d'itinéraire,
+  // les autres onglets ouverts sur /driver s'alignent instantanément via
+  // l'événement `storage` (localStorage). Idem au retour de visibilité.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const readAndApply = () => {
+      const raw = window.localStorage.getItem(routeStorageKey);
+      const n = raw == null ? NaN : Number(raw);
+      if (Number.isFinite(n) && n >= 0) {
+        setSelectedRoute((prev) => (prev === n ? prev : n));
+      }
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === routeStorageKey) readAndApply();
+    };
+    const onVis = () => {
+      if (!document.hidden) readAndApply();
+    };
+    window.addEventListener("storage", onStorage);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [routeStorageKey]);
   const [loadingRoutes, setLoadingRoutes] = useState(false);
   const [busy, setBusy] = useState(false);
   const notifyStatus = useServerFn(notifyReservationStatus);
