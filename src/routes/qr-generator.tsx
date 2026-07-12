@@ -22,6 +22,13 @@ const VIGNETTE_PX = Math.round((VIGNETTE_MM / MM_PER_INCH) * DPI); // 945
 const PRINT_SIZE_PX = 1200; // QR haute résolution (upscaled)
 const PREVIEW_SIZE_PX = 480;
 
+const LOGO_CROP = {
+  x: 135,
+  y: 110,
+  width: 242,
+  height: 190,
+};
+
 // A4 portrait @ 300 dpi = 2480 x 3508
 const A4_W = 2480;
 const A4_H = 3508;
@@ -97,16 +104,22 @@ async function renderQr(
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   const logoBox = Math.round(size * logoPct);
-  const bx = Math.round((size - logoBox) / 2);
-  const by = Math.round((size - logoBox) / 2);
-  const ratio = logo.width / logo.height;
+  const crop = {
+    x: Math.round(logo.width * (LOGO_CROP.x / 512)),
+    y: Math.round(logo.height * (LOGO_CROP.y / 343)),
+    width: Math.round(logo.width * (LOGO_CROP.width / 512)),
+    height: Math.round(logo.height * (LOGO_CROP.height / 343)),
+  };
+  const ratio = crop.width / crop.height;
   let lw = logoBox;
   let lh = logoBox;
   if (ratio > 1) lh = Math.round(logoBox / ratio);
   else lw = Math.round(logoBox * ratio);
   const lx = Math.round((size - lw) / 2);
   const ly = Math.round((size - lh) / 2);
-  ctx.drawImage(logo, lx, ly, lw, lh);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(logo, crop.x, crop.y, crop.width, crop.height, lx, ly, lw, lh);
 }
 
 function QrGeneratorPage() {
@@ -120,7 +133,7 @@ function QrGeneratorPage() {
 
   const isValid = useMemo(() => Object.keys(validate(form)).length === 0, [form]);
 
-  const generate = useCallback(async () => {
+  const generate = useCallback(async (logoPctOverride = logoPct) => {
     const errs = validate(form);
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
@@ -138,8 +151,8 @@ function QrGeneratorPage() {
         logoRef.current = img;
       }
       const data = buildVCard(form);
-      await renderQr(previewRef.current, PREVIEW_SIZE_PX, data, logoRef.current, logoPct);
-      await renderQr(printRef.current, PRINT_SIZE_PX, data, logoRef.current, logoPct);
+      await renderQr(previewRef.current, PREVIEW_SIZE_PX, data, logoRef.current, logoPctOverride);
+      await renderQr(printRef.current, PRINT_SIZE_PX, data, logoRef.current, logoPctOverride);
     } finally {
       setBusy(false);
     }
@@ -191,11 +204,12 @@ function QrGeneratorPage() {
       if (best === null) {
         setMaxInfo("Aucune taille sûre trouvée — logo réduit à 20%.");
         setLogoPct(0.2);
+        await generate(0.2);
       } else {
         setMaxInfo(`Taille max scannable : ${Math.round(best * 100)}%`);
         setLogoPct(best);
+        await generate(best);
       }
-      setTimeout(() => generate(), 0);
     } finally {
       setBusy(false);
     }
@@ -347,7 +361,7 @@ function QrGeneratorPage() {
             <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
               <button
                 type="button"
-                onClick={generate}
+                onClick={() => generate()}
                 disabled={busy || !isValid}
                 style={btnGhost(busy || !isValid)}
               >
@@ -361,7 +375,8 @@ function QrGeneratorPage() {
                   const payloadLen = buildVCard(form).length;
                   const pct = payloadLen < 180 ? 0.46 : payloadLen < 260 ? 0.42 : 0.36;
                   setLogoPct(pct);
-                  setTimeout(() => generate(), 0);
+                  setMaxInfo(null);
+                  generate(pct);
                 }}
                 disabled={busy || !isValid}
                 style={btnGhost(busy || !isValid)}
