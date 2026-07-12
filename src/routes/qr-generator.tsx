@@ -81,35 +81,12 @@ function validate(f: Form): Errors {
   return e;
 }
 
-function roundRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
-) {
-  const radius = Math.min(r, w / 2, h / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.lineTo(x + w - radius, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
-  ctx.lineTo(x + w, y + h - radius);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
-  ctx.lineTo(x + radius, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
-  ctx.lineTo(x, y + radius);
-  ctx.quadraticCurveTo(x, y, x + radius, y);
-  ctx.closePath();
-}
-
 async function renderQr(
   canvas: HTMLCanvasElement,
   size: number,
   data: string,
   logo: HTMLImageElement,
-  logoPct: number, // 0.14 à 0.28
-  logoPadPct: number, // 0.005 à 0.03
+  logoPct: number, // 0.20 à 0.70
 ) {
   await QRCode.toCanvas(canvas, data, {
     width: size,
@@ -120,23 +97,8 @@ async function renderQr(
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   const logoBox = Math.round(size * logoPct);
-  const pad = Math.round(size * logoPadPct);
   const bx = Math.round((size - logoBox) / 2);
   const by = Math.round((size - logoBox) / 2);
-  const boxX = bx - pad;
-  const boxY = by - pad;
-  const boxW = logoBox + pad * 2;
-  const boxH = logoBox + pad * 2;
-  const radius = Math.max(4, Math.round(size * 0.012));
-  // Fond blanc arrondi derrière le logo (lisibilité + écriture visible)
-  ctx.fillStyle = "#ffffff";
-  roundRect(ctx, boxX, boxY, boxW, boxH, radius);
-  ctx.fill();
-  // Fine bordure pour détacher visuellement le logo des modules du QR
-  ctx.strokeStyle = "#000000";
-  ctx.lineWidth = Math.max(1, Math.round(size * 0.0025));
-  roundRect(ctx, boxX, boxY, boxW, boxH, radius);
-  ctx.stroke();
   const ratio = logo.width / logo.height;
   let lw = logoBox;
   let lh = logoBox;
@@ -152,7 +114,6 @@ function QrGeneratorPage() {
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
   const [logoPct, setLogoPct] = useState(0.5);
-  const [logoPadPct, setLogoPadPct] = useState(0.035);
   const previewRef = useRef<HTMLCanvasElement>(null);
   const printRef = useRef<HTMLCanvasElement>(null);
   const logoRef = useRef<HTMLImageElement | null>(null);
@@ -177,12 +138,12 @@ function QrGeneratorPage() {
         logoRef.current = img;
       }
       const data = buildVCard(form);
-      await renderQr(previewRef.current, PREVIEW_SIZE_PX, data, logoRef.current, logoPct, logoPadPct);
-      await renderQr(printRef.current, PRINT_SIZE_PX, data, logoRef.current, logoPct, logoPadPct);
+      await renderQr(previewRef.current, PREVIEW_SIZE_PX, data, logoRef.current, logoPct);
+      await renderQr(printRef.current, PRINT_SIZE_PX, data, logoRef.current, logoPct);
     } finally {
       setBusy(false);
     }
-  }, [form, logoPct, logoPadPct]);
+  }, [form, logoPct]);
 
   const [maxInfo, setMaxInfo] = useState<string | null>(null);
 
@@ -204,20 +165,19 @@ function QrGeneratorPage() {
         logoRef.current = img;
       }
       const data = buildVCard(form);
-      const pad = 0.03;
       const testSize = 600;
       const test = document.createElement("canvas");
       test.width = testSize;
       test.height = testSize;
       const ctx = test.getContext("2d");
       if (!ctx) return;
-      // Test décroissant de 55% à 20% par pas de 1% — 3 lectures OK requises
+      // Test décroissant de 70% à 20% par pas de 1% — 3 lectures OK requises
       let best: number | null = null;
-      for (let pctInt = 55; pctInt >= 20; pctInt--) {
+      for (let pctInt = 70; pctInt >= 20; pctInt--) {
         const pct = pctInt / 100;
         let ok = 0;
         for (let attempt = 0; attempt < 3; attempt++) {
-          await renderQr(test, testSize, data, logoRef.current, pct, pad);
+          await renderQr(test, testSize, data, logoRef.current, pct);
           const img = ctx.getImageData(0, 0, testSize, testSize);
           const res = jsQR(img.data, img.width, img.height, { inversionAttempts: "dontInvert" });
           if (res && res.data === data) ok++;
@@ -235,7 +195,6 @@ function QrGeneratorPage() {
         setMaxInfo(`Taille max scannable : ${Math.round(best * 100)}%`);
         setLogoPct(best);
       }
-      setLogoPadPct(pad);
       setTimeout(() => generate(), 0);
     } finally {
       setBusy(false);
@@ -370,24 +329,14 @@ function QrGeneratorPage() {
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginBottom: 8 }}>
                 Logo au centre (les infos restent dans la vCard)
               </div>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
+              <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 <span style={{ fontSize: 12 }}>Taille du logo — {Math.round(logoPct * 100)}%</span>
                 <input
                   type="range"
                   min={20}
-                  max={55}
+                  max={70}
                   value={Math.round(logoPct * 100)}
                   onChange={(e) => setLogoPct(Number(e.target.value) / 100)}
-                />
-              </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span style={{ fontSize: 12 }}>Marge blanche autour du logo — {Math.round(logoPadPct * 1000) / 10}%</span>
-                <input
-                  type="range"
-                  min={0}
-                  max={30}
-                  value={Math.round(logoPadPct * 1000)}
-                  onChange={(e) => setLogoPadPct(Number(e.target.value) / 1000)}
                 />
               </label>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 6 }}>
@@ -407,16 +356,11 @@ function QrGeneratorPage() {
               <button
                 type="button"
                 onClick={() => {
-                  // Optimisation auto : cible ~28% de couverture (bien en dessous
-                  // du seuil ~30% de la correction H) avec une marge blanche
-                  // suffisante pour isoler le logo des modules du QR.
-                  // Ajustement léger selon la densité de la vCard.
+                  // Optimisation auto : cible une couverture lisible mais bien
+                  // en dessous du seuil de la correction H (~30% masquable).
                   const payloadLen = buildVCard(form).length;
-                  // Logo bien visible tout en gardant un scan fiable (H = ~30% masquable).
-                  // Marge blanche généreuse pour isoler le logo des modules.
                   const pct = payloadLen < 180 ? 0.46 : payloadLen < 260 ? 0.42 : 0.36;
                   setLogoPct(pct);
-                  setLogoPadPct(0.03);
                   setTimeout(() => generate(), 0);
                 }}
                 disabled={busy || !isValid}
