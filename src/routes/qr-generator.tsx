@@ -407,8 +407,6 @@ function QrGeneratorPage() {
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button
                 type="button"
-              <button
-                type="button"
                 onClick={download80mm}
                 disabled={busy || !isValid}
                 style={btnGold(busy || !isValid)}
