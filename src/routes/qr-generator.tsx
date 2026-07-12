@@ -22,12 +22,8 @@ const VIGNETTE_PX = Math.round((VIGNETTE_MM / MM_PER_INCH) * DPI); // 945
 const PRINT_SIZE_PX = 1200; // QR haute résolution (upscaled)
 const PREVIEW_SIZE_PX = 480;
 
-const LOGO_CROP = {
-  x: 135,
-  y: 110,
-  width: 242,
-  height: 190,
-};
+
+
 
 // A4 portrait @ 300 dpi = 2480 x 3508
 const A4_W = 2480;
