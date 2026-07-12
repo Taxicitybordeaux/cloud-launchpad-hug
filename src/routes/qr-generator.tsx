@@ -361,7 +361,7 @@ function QrGeneratorPage() {
             <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
               <button
                 type="button"
-                onClick={generate}
+                onClick={() => generate()}
                 disabled={busy || !isValid}
                 style={btnGhost(busy || !isValid)}
               >
