@@ -23,10 +23,10 @@ const PRINT_SIZE_PX = 1200; // QR haute résolution (upscaled)
 const PREVIEW_SIZE_PX = 480;
 
 const LOGO_CROP = {
-  x: 90,
-  y: 80,
-  width: 332,
-  height: 240,
+  x: 135,
+  y: 110,
+  width: 242,
+  height: 190,
 };
 
 // A4 portrait @ 300 dpi = 2480 x 3508
