@@ -91,7 +91,7 @@ async function renderQr(
 ) {
   await QRCode.toCanvas(canvas, data, {
     width: size,
-    margin: 2,
+    margin: 0,
     errorCorrectionLevel: "H",
     color: { dark: "#000000", light: "#FFFFFF" },
   });
