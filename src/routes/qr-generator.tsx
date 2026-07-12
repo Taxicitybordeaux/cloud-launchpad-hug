@@ -297,7 +297,7 @@ function QrGeneratorPage() {
                 />
               </label>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 6 }}>
-                Conseil : au-delà de 25 % le scan peut échouer. Correction d'erreur H tolère ~30 %.
+                Conseil : la correction d'erreur H tolère jusqu'à ~30 % du QR masqué. Au-delà de 40 %, teste bien le scan.
               </div>
             </div>
 
