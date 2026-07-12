@@ -329,24 +329,14 @@ function QrGeneratorPage() {
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginBottom: 8 }}>
                 Logo au centre (les infos restent dans la vCard)
               </div>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
+              <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 <span style={{ fontSize: 12 }}>Taille du logo — {Math.round(logoPct * 100)}%</span>
                 <input
                   type="range"
                   min={20}
-                  max={55}
+                  max={70}
                   value={Math.round(logoPct * 100)}
                   onChange={(e) => setLogoPct(Number(e.target.value) / 100)}
-                />
-              </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span style={{ fontSize: 12 }}>Marge blanche autour du logo — {Math.round(logoPadPct * 1000) / 10}%</span>
-                <input
-                  type="range"
-                  min={0}
-                  max={30}
-                  value={Math.round(logoPadPct * 1000)}
-                  onChange={(e) => setLogoPadPct(Number(e.target.value) / 1000)}
                 />
               </label>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 6 }}>
