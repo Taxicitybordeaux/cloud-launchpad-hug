@@ -117,8 +117,8 @@ function QrGeneratorPage() {
   const [form, setForm] = useState<Form>(DEFAULTS);
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
-  const [logoPct, setLogoPct] = useState(0.34);
-  const [logoPadPct, setLogoPadPct] = useState(0.02);
+  const [logoPct, setLogoPct] = useState(0.42);
+  const [logoPadPct, setLogoPadPct] = useState(0.025);
   const previewRef = useRef<HTMLCanvasElement>(null);
   const printRef = useRef<HTMLCanvasElement>(null);
   const logoRef = useRef<HTMLImageElement | null>(null);
