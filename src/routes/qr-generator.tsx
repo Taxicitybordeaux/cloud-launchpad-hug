@@ -280,8 +280,8 @@ function QrGeneratorPage() {
                 <span style={{ fontSize: 12 }}>Taille du logo — {Math.round(logoPct * 100)}%</span>
                 <input
                   type="range"
-                  min={14}
-                  max={28}
+                  min={20}
+                  max={45}
                   value={Math.round(logoPct * 100)}
                   onChange={(e) => setLogoPct(Number(e.target.value) / 100)}
                 />
