@@ -210,7 +210,8 @@ function QrGeneratorPage() {
   }, [form, generate]);
 
   useEffect(() => {
-    generate();
+    // Au chargement : cherche automatiquement la taille max de logo scannable
+    maximize();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
