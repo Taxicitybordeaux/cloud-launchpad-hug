@@ -151,10 +151,69 @@ function QrGeneratorPage() {
     }
   }, [form, logoPct, logoPadPct]);
 
+  const [maxInfo, setMaxInfo] = useState<string | null>(null);
+
+  const maximize = useCallback(async () => {
+    const errs = validate(form);
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+    setBusy(true);
+    setMaxInfo("Recherche en cours…");
+    try {
+      if (!logoRef.current) {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = logoSrc;
+        await new Promise<void>((res, rej) => {
+          img.onload = () => res();
+          img.onerror = () => rej(new Error("logo load"));
+        });
+        logoRef.current = img;
+      }
+      const data = buildVCard(form);
+      const pad = 0.03;
+      const testSize = 600;
+      const test = document.createElement("canvas");
+      test.width = testSize;
+      test.height = testSize;
+      const ctx = test.getContext("2d");
+      if (!ctx) return;
+      // Test décroissant de 55% à 20% par pas de 1% — 3 lectures OK requises
+      let best: number | null = null;
+      for (let pctInt = 55; pctInt >= 20; pctInt--) {
+        const pct = pctInt / 100;
+        let ok = 0;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          await renderQr(test, testSize, data, logoRef.current, pct, pad);
+          const img = ctx.getImageData(0, 0, testSize, testSize);
+          const res = jsQR(img.data, img.width, img.height, { inversionAttempts: "dontInvert" });
+          if (res && res.data === data) ok++;
+          else break;
+        }
+        if (ok === 3) {
+          best = pct;
+          break;
+        }
+      }
+      if (best === null) {
+        setMaxInfo("Aucune taille sûre trouvée — logo réduit à 20%.");
+        setLogoPct(0.2);
+      } else {
+        setMaxInfo(`Taille max scannable : ${Math.round(best * 100)}%`);
+        setLogoPct(best);
+      }
+      setLogoPadPct(pad);
+      setTimeout(() => generate(), 0);
+    } finally {
+      setBusy(false);
+    }
+  }, [form, generate]);
+
   useEffect(() => {
     generate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
 
   function download80mm() {
     // PNG carré 80x80mm à 300 dpi — pour utilisateurs qui savent choisir la taille
