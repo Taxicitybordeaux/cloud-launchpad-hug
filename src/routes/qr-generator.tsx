@@ -103,7 +103,7 @@ async function renderQr(
   });
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
-  const logoBox = Math.round(size * logoPct);
+
   const crop = {
     x: Math.round(logo.width * (LOGO_CROP.x / 512)),
     y: Math.round(logo.height * (LOGO_CROP.y / 343)),
@@ -111,15 +111,54 @@ async function renderQr(
     height: Math.round(logo.height * (LOGO_CROP.height / 343)),
   };
   const ratio = crop.width / crop.height;
+
+  const logoBox = Math.round(size * logoPct);
   let lw = logoBox;
   let lh = logoBox;
   if (ratio > 1) lh = Math.round(logoBox / ratio);
   else lw = Math.round(logoBox * ratio);
-  const lx = Math.round((size - lw) / 2);
-  const ly = Math.round((size - lh) / 2);
+
+  // Plaque blanche arrondie derrière le logo — technique pro :
+  // isole le logo des modules noirs et garantit la lisibilité des inscriptions.
+  const pad = Math.round(size * 0.018);
+  const pw = lw + pad * 2;
+  const ph = lh + pad * 2;
+  const px = Math.round((size - pw) / 2);
+  const py = Math.round((size - ph) / 2);
+  const radius = Math.round(Math.min(pw, ph) * 0.08);
+
+  ctx.save();
+  ctx.fillStyle = "#ffffff";
+  roundRect(ctx, px, py, pw, ph, radius);
+  ctx.fill();
+  ctx.strokeStyle = "#C9A84C";
+  ctx.lineWidth = Math.max(1, Math.round(size * 0.003));
+  roundRect(ctx, px + 0.5, py + 0.5, pw - 1, ph - 1, radius);
+  ctx.stroke();
+  ctx.restore();
+
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
+  const lx = Math.round((size - lw) / 2);
+  const ly = Math.round((size - lh) / 2);
   ctx.drawImage(logo, crop.x, crop.y, crop.width, crop.height, lx, ly, lw, lh);
+}
+
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
 }
 
 function QrGeneratorPage() {
