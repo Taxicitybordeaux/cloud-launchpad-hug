@@ -393,6 +393,14 @@ function QrGeneratorPage() {
               </button>
               <button
                 type="button"
+                onClick={maximize}
+                disabled={busy || !isValid}
+                style={btnGhost(busy || !isValid)}
+                title="Cherche la plus grande taille de logo qui reste scannable et l'applique"
+              >
+              </button>
+              <button
+                type="button"
                 onClick={download80mm}
                 disabled={busy || !isValid}
                 style={btnGold(busy || !isValid)}
