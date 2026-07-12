@@ -139,12 +139,12 @@ function QrGeneratorPage() {
         logoRef.current = img;
       }
       const data = buildVCard(form);
-      await renderQr(previewRef.current, PREVIEW_SIZE_PX, data, logoRef.current, logoPct, logoPadPct);
-      await renderQr(printRef.current, PRINT_SIZE_PX, data, logoRef.current, logoPct, logoPadPct);
+      await renderQr(previewRef.current, PREVIEW_SIZE_PX, data, logoRef.current, logoPct);
+      await renderQr(printRef.current, PRINT_SIZE_PX, data, logoRef.current, logoPct);
     } finally {
       setBusy(false);
     }
-  }, [form, logoPct, logoPadPct]);
+  }, [form, logoPct]);
 
   const [maxInfo, setMaxInfo] = useState<string | null>(null);
 
