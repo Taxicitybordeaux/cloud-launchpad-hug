@@ -285,33 +285,19 @@ function QrGeneratorPage() {
     ctx.fillStyle = "#fff";
     ctx.fillRect(0, 0, A4_W, A4_H);
 
-    // En-tête
-    ctx.fillStyle = "#0a0a0a";
-    ctx.textAlign = "center";
-    ctx.font = "600 64px 'Playfair Display', Georgia, serif";
-    ctx.fillText(form.org || "Taxi City Bordeaux", A4_W / 2, 260);
-    ctx.fillStyle = "#C9A84C";
-    ctx.font = "500 26px 'Inter', sans-serif";
-    ctx.fillText("SCANNEZ POUR ENREGISTRER LE CONTACT", A4_W / 2, 320);
-
-    // Cadre décoratif autour du QR
+    // QR centré à taille physique 80×80 mm — identique au PNG 80mm.
+    // Aucun cadre, aucun texte : l'impression sort à la bonne taille
+    // quelle que soit l'option "zoom/ajuster" du dialogue téléphone.
     const qrSize = VIGNETTE_PX;
     const x = Math.round((A4_W - qrSize) / 2);
-    const y = 460;
-    const frameM = 60;
-    ctx.strokeStyle = "#C9A84C";
-    ctx.lineWidth = 3;
-    roundRect(ctx, x - frameM, y - frameM, qrSize + frameM * 2, qrSize + frameM * 2, 24);
-    ctx.stroke();
-
-    // QR
+    const y = Math.round((A4_H - qrSize) / 2);
     ctx.drawImage(printRef.current, x, y, qrSize, qrSize);
 
-    // Repères de coupe (extérieurs au cadre)
-    ctx.strokeStyle = "#888";
-    ctx.lineWidth = 2;
+    // Discrets repères de coupe aux 4 coins
+    ctx.strokeStyle = "#bbb";
+    ctx.lineWidth = 1.5;
     const m = 40;
-    const off = frameM + 30;
+    const off = 24;
     const drawCorner = (cx: number, cy: number, dx: number, dy: number) => {
       ctx.beginPath();
       ctx.moveTo(cx, cy);
@@ -324,25 +310,6 @@ function QrGeneratorPage() {
     drawCorner(x + qrSize + off, y - off, 1, -1);
     drawCorner(x - off, y + qrSize + off, -1, 1);
     drawCorner(x + qrSize + off, y + qrSize + off, 1, 1);
-
-    // Bloc contact sous le QR
-    const infoY = y + qrSize + frameM + 160;
-    ctx.fillStyle = "#0a0a0a";
-    ctx.font = "600 44px 'Inter', sans-serif";
-    ctx.fillText(form.name, A4_W / 2, infoY);
-    ctx.fillStyle = "#333";
-    ctx.font = "400 32px 'Inter', sans-serif";
-    if (form.phone) ctx.fillText(form.phone, A4_W / 2, infoY + 60);
-    if (form.site) ctx.fillText(form.site.replace(/^https?:\/\//, ""), A4_W / 2, infoY + 110);
-
-    // Note de production en bas
-    ctx.fillStyle = "#888";
-    ctx.font = "400 22px 'Inter', sans-serif";
-    ctx.fillText(
-      "Imprimer en A4 pleine page — QR final : 80 × 80 mm (vignette CT) — Découper le long des repères",
-      A4_W / 2,
-      A4_H - 120,
-    );
 
     out.toBlob((b) => b && triggerDownload(b, `qr-${slug(form.name)}-A4-pleine-page.png`), "image/png");
   }
