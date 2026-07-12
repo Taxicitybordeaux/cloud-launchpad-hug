@@ -104,6 +104,10 @@ async function renderQr(
   // Fond blanc arrondi derrière le logo (lisibilité + écriture visible)
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(bx - pad, by - pad, logoBox + pad * 2, logoBox + pad * 2);
+  // Fine bordure pour détacher visuellement le logo des modules du QR
+  ctx.strokeStyle = "#000000";
+  ctx.lineWidth = Math.max(1, Math.round(size * 0.003));
+  ctx.strokeRect(bx - pad, by - pad, logoBox + pad * 2, logoBox + pad * 2);
   const ratio = logo.width / logo.height;
   let lw = logoBox;
   let lh = logoBox;
@@ -118,8 +122,8 @@ function QrGeneratorPage() {
   const [form, setForm] = useState<Form>(DEFAULTS);
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
-  const [logoPct, setLogoPct] = useState(0.42);
-  const [logoPadPct, setLogoPadPct] = useState(0.025);
+  const [logoPct, setLogoPct] = useState(0.5);
+  const [logoPadPct, setLogoPadPct] = useState(0.035);
   const previewRef = useRef<HTMLCanvasElement>(null);
   const printRef = useRef<HTMLCanvasElement>(null);
   const logoRef = useRef<HTMLImageElement | null>(null);
@@ -210,7 +214,8 @@ function QrGeneratorPage() {
   }, [form, generate]);
 
   useEffect(() => {
-    generate();
+    // Au chargement : cherche automatiquement la taille max de logo scannable
+    maximize();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
