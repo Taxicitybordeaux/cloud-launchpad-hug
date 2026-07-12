@@ -103,7 +103,7 @@ async function renderQr(
   });
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
-  const logoBox = Math.round(size * logoPct);
+
   const crop = {
     x: Math.round(logo.width * (LOGO_CROP.x / 512)),
     y: Math.round(logo.height * (LOGO_CROP.y / 343)),
@@ -111,15 +111,54 @@ async function renderQr(
     height: Math.round(logo.height * (LOGO_CROP.height / 343)),
   };
   const ratio = crop.width / crop.height;
+
+  const logoBox = Math.round(size * logoPct);
   let lw = logoBox;
   let lh = logoBox;
   if (ratio > 1) lh = Math.round(logoBox / ratio);
   else lw = Math.round(logoBox * ratio);
-  const lx = Math.round((size - lw) / 2);
-  const ly = Math.round((size - lh) / 2);
+
+  // Plaque blanche arrondie derrière le logo — technique pro :
+  // isole le logo des modules noirs et garantit la lisibilité des inscriptions.
+  const pad = Math.round(size * 0.018);
+  const pw = lw + pad * 2;
+  const ph = lh + pad * 2;
+  const px = Math.round((size - pw) / 2);
+  const py = Math.round((size - ph) / 2);
+  const radius = Math.round(Math.min(pw, ph) * 0.08);
+
+  ctx.save();
+  ctx.fillStyle = "#ffffff";
+  roundRect(ctx, px, py, pw, ph, radius);
+  ctx.fill();
+  ctx.strokeStyle = "#C9A84C";
+  ctx.lineWidth = Math.max(1, Math.round(size * 0.003));
+  roundRect(ctx, px + 0.5, py + 0.5, pw - 1, ph - 1, radius);
+  ctx.stroke();
+  ctx.restore();
+
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
+  const lx = Math.round((size - lw) / 2);
+  const ly = Math.round((size - lh) / 2);
   ctx.drawImage(logo, crop.x, crop.y, crop.width, crop.height, lx, ly, lw, lh);
+}
+
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
 }
 
 function QrGeneratorPage() {
@@ -237,9 +276,6 @@ function QrGeneratorPage() {
   }
 
   function downloadA4() {
-    // Impression téléphone : "pleine page" => on prépare un A4 avec QR
-    // physiquement à 80x80mm et repères de coupe. Résultat : imprimé plein
-    // format A4, la vignette sort à la bonne taille.
     if (!printRef.current) return;
     const out = document.createElement("canvas");
     out.width = A4_W;
@@ -248,14 +284,34 @@ function QrGeneratorPage() {
     if (!ctx) return;
     ctx.fillStyle = "#fff";
     ctx.fillRect(0, 0, A4_W, A4_H);
-    const qrSize = VIGNETTE_PX; // 80mm
+
+    // En-tête
+    ctx.fillStyle = "#0a0a0a";
+    ctx.textAlign = "center";
+    ctx.font = "600 64px 'Playfair Display', Georgia, serif";
+    ctx.fillText(form.org || "Taxi City Bordeaux", A4_W / 2, 260);
+    ctx.fillStyle = "#C9A84C";
+    ctx.font = "500 26px 'Inter', sans-serif";
+    ctx.fillText("SCANNEZ POUR ENREGISTRER LE CONTACT", A4_W / 2, 320);
+
+    // Cadre décoratif autour du QR
+    const qrSize = VIGNETTE_PX;
     const x = Math.round((A4_W - qrSize) / 2);
-    const y = Math.round(A4_H * 0.18);
+    const y = 460;
+    const frameM = 60;
+    ctx.strokeStyle = "#C9A84C";
+    ctx.lineWidth = 3;
+    roundRect(ctx, x - frameM, y - frameM, qrSize + frameM * 2, qrSize + frameM * 2, 24);
+    ctx.stroke();
+
+    // QR
     ctx.drawImage(printRef.current, x, y, qrSize, qrSize);
-    // Repères de coupe
+
+    // Repères de coupe (extérieurs au cadre)
     ctx.strokeStyle = "#888";
     ctx.lineWidth = 2;
     const m = 40;
+    const off = frameM + 30;
     const drawCorner = (cx: number, cy: number, dx: number, dy: number) => {
       ctx.beginPath();
       ctx.moveTo(cx, cy);
@@ -264,17 +320,30 @@ function QrGeneratorPage() {
       ctx.lineTo(cx, cy + dy * m);
       ctx.stroke();
     };
-    drawCorner(x, y, -1, -1);
-    drawCorner(x + qrSize, y, 1, -1);
-    drawCorner(x, y + qrSize, -1, 1);
-    drawCorner(x + qrSize, y + qrSize, 1, 1);
-    // Étiquettes
+    drawCorner(x - off, y - off, -1, -1);
+    drawCorner(x + qrSize + off, y - off, 1, -1);
+    drawCorner(x - off, y + qrSize + off, -1, 1);
+    drawCorner(x + qrSize + off, y + qrSize + off, 1, 1);
+
+    // Bloc contact sous le QR
+    const infoY = y + qrSize + frameM + 160;
+    ctx.fillStyle = "#0a0a0a";
+    ctx.font = "600 44px 'Inter', sans-serif";
+    ctx.fillText(form.name, A4_W / 2, infoY);
     ctx.fillStyle = "#333";
-    ctx.font = "28px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("Imprimer en A4 pleine page — QR final : 80 × 80 mm (vignette CT)", A4_W / 2, y + qrSize + 90);
-    ctx.font = "22px sans-serif";
-    ctx.fillText("Découper le long des repères", A4_W / 2, y + qrSize + 130);
+    ctx.font = "400 32px 'Inter', sans-serif";
+    if (form.phone) ctx.fillText(form.phone, A4_W / 2, infoY + 60);
+    if (form.site) ctx.fillText(form.site.replace(/^https?:\/\//, ""), A4_W / 2, infoY + 110);
+
+    // Note de production en bas
+    ctx.fillStyle = "#888";
+    ctx.font = "400 22px 'Inter', sans-serif";
+    ctx.fillText(
+      "Imprimer en A4 pleine page — QR final : 80 × 80 mm (vignette CT) — Découper le long des repères",
+      A4_W / 2,
+      A4_H - 120,
+    );
+
     out.toBlob((b) => b && triggerDownload(b, `qr-${slug(form.name)}-A4-pleine-page.png`), "image/png");
   }
 
