@@ -104,6 +104,10 @@ async function renderQr(
   // Fond blanc arrondi derrière le logo (lisibilité + écriture visible)
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(bx - pad, by - pad, logoBox + pad * 2, logoBox + pad * 2);
+  // Fine bordure pour détacher visuellement le logo des modules du QR
+  ctx.strokeStyle = "#000000";
+  ctx.lineWidth = Math.max(1, Math.round(size * 0.003));
+  ctx.strokeRect(bx - pad, by - pad, logoBox + pad * 2, logoBox + pad * 2);
   const ratio = logo.width / logo.height;
   let lw = logoBox;
   let lh = logoBox;
