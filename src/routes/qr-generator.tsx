@@ -166,20 +166,19 @@ function QrGeneratorPage() {
         logoRef.current = img;
       }
       const data = buildVCard(form);
-      const pad = 0.03;
       const testSize = 600;
       const test = document.createElement("canvas");
       test.width = testSize;
       test.height = testSize;
       const ctx = test.getContext("2d");
       if (!ctx) return;
-      // Test décroissant de 55% à 20% par pas de 1% — 3 lectures OK requises
+      // Test décroissant de 70% à 20% par pas de 1% — 3 lectures OK requises
       let best: number | null = null;
-      for (let pctInt = 55; pctInt >= 20; pctInt--) {
+      for (let pctInt = 70; pctInt >= 20; pctInt--) {
         const pct = pctInt / 100;
         let ok = 0;
         for (let attempt = 0; attempt < 3; attempt++) {
-          await renderQr(test, testSize, data, logoRef.current, pct, pad);
+          await renderQr(test, testSize, data, logoRef.current, pct);
           const img = ctx.getImageData(0, 0, testSize, testSize);
           const res = jsQR(img.data, img.width, img.height, { inversionAttempts: "dontInvert" });
           if (res && res.data === data) ok++;
@@ -197,7 +196,6 @@ function QrGeneratorPage() {
         setMaxInfo(`Taille max scannable : ${Math.round(best * 100)}%`);
         setLogoPct(best);
       }
-      setLogoPadPct(pad);
       setTimeout(() => generate(), 0);
     } finally {
       setBusy(false);
