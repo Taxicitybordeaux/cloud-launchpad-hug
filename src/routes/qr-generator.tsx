@@ -117,8 +117,8 @@ function QrGeneratorPage() {
   const [form, setForm] = useState<Form>(DEFAULTS);
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
-  const [logoPct, setLogoPct] = useState(0.22);
-  const [logoPadPct, setLogoPadPct] = useState(0.015);
+  const [logoPct, setLogoPct] = useState(0.34);
+  const [logoPadPct, setLogoPadPct] = useState(0.02);
   const previewRef = useRef<HTMLCanvasElement>(null);
   const printRef = useRef<HTMLCanvasElement>(null);
   const logoRef = useRef<HTMLImageElement | null>(null);
@@ -280,8 +280,8 @@ function QrGeneratorPage() {
                 <span style={{ fontSize: 12 }}>Taille du logo — {Math.round(logoPct * 100)}%</span>
                 <input
                   type="range"
-                  min={14}
-                  max={28}
+                  min={20}
+                  max={45}
                   value={Math.round(logoPct * 100)}
                   onChange={(e) => setLogoPct(Number(e.target.value) / 100)}
                 />
@@ -297,7 +297,7 @@ function QrGeneratorPage() {
                 />
               </label>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 6 }}>
-                Conseil : au-delà de 25 % le scan peut échouer. Correction d'erreur H tolère ~30 %.
+                Conseil : la correction d'erreur H tolère jusqu'à ~30 % du QR masqué. Au-delà de 40 %, teste bien le scan.
               </div>
             </div>
 
