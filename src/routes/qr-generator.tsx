@@ -398,7 +398,15 @@ function QrGeneratorPage() {
                 style={btnGhost(busy || !isValid)}
                 title="Cherche la plus grande taille de logo qui reste scannable et l'applique"
               >
+                Max lisible
               </button>
+            </div>
+            {maxInfo && (
+              <div style={{ fontSize: 12, color: "#E8C96D", marginTop: 4 }}>{maxInfo}</div>
+            )}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                type="button"
               <button
                 type="button"
                 onClick={download80mm}
