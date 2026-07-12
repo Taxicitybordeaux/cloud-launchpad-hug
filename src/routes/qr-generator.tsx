@@ -22,12 +22,8 @@ const VIGNETTE_PX = Math.round((VIGNETTE_MM / MM_PER_INCH) * DPI); // 945
 const PRINT_SIZE_PX = 1200; // QR haute résolution (upscaled)
 const PREVIEW_SIZE_PX = 480;
 
-const LOGO_CROP = {
-  x: 135,
-  y: 110,
-  width: 242,
-  height: 190,
-};
+
+
 
 // A4 portrait @ 300 dpi = 2480 x 3508
 const A4_W = 2480;
@@ -104,13 +100,7 @@ async function renderQr(
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
-  const crop = {
-    x: Math.round(logo.width * (LOGO_CROP.x / 512)),
-    y: Math.round(logo.height * (LOGO_CROP.y / 343)),
-    width: Math.round(logo.width * (LOGO_CROP.width / 512)),
-    height: Math.round(logo.height * (LOGO_CROP.height / 343)),
-  };
-  const ratio = crop.width / crop.height;
+  const ratio = logo.width / logo.height;
 
   const logoBox = Math.round(size * logoPct);
   let lw = logoBox;
@@ -141,7 +131,8 @@ async function renderQr(
   ctx.imageSmoothingQuality = "high";
   const lx = Math.round((size - lw) / 2);
   const ly = Math.round((size - lh) / 2);
-  ctx.drawImage(logo, crop.x, crop.y, crop.width, crop.height, lx, ly, lw, lh);
+  ctx.drawImage(logo, lx, ly, lw, lh);
+
 }
 
 function roundRect(
