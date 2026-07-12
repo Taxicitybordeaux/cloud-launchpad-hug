@@ -81,6 +81,28 @@ function validate(f: Form): Errors {
   return e;
 }
 
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
+  const radius = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + w - radius, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+  ctx.lineTo(x + w, y + h - radius);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+  ctx.lineTo(x + radius, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
 async function renderQr(
   canvas: HTMLCanvasElement,
   size: number,
@@ -101,13 +123,20 @@ async function renderQr(
   const pad = Math.round(size * logoPadPct);
   const bx = Math.round((size - logoBox) / 2);
   const by = Math.round((size - logoBox) / 2);
+  const boxX = bx - pad;
+  const boxY = by - pad;
+  const boxW = logoBox + pad * 2;
+  const boxH = logoBox + pad * 2;
+  const radius = Math.max(4, Math.round(size * 0.012));
   // Fond blanc arrondi derrière le logo (lisibilité + écriture visible)
   ctx.fillStyle = "#ffffff";
-  ctx.fillRect(bx - pad, by - pad, logoBox + pad * 2, logoBox + pad * 2);
+  roundRect(ctx, boxX, boxY, boxW, boxH, radius);
+  ctx.fill();
   // Fine bordure pour détacher visuellement le logo des modules du QR
   ctx.strokeStyle = "#000000";
-  ctx.lineWidth = Math.max(1, Math.round(size * 0.003));
-  ctx.strokeRect(bx - pad, by - pad, logoBox + pad * 2, logoBox + pad * 2);
+  ctx.lineWidth = Math.max(1, Math.round(size * 0.0025));
+  roundRect(ctx, boxX, boxY, boxW, boxH, radius);
+  ctx.stroke();
   const ratio = logo.width / logo.height;
   let lw = logoBox;
   let lh = logoBox;
