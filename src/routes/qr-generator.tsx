@@ -281,7 +281,7 @@ function QrGeneratorPage() {
                 <input
                   type="range"
                   min={20}
-                  max={45}
+                  max={55}
                   value={Math.round(logoPct * 100)}
                   onChange={(e) => setLogoPct(Number(e.target.value) / 100)}
                 />
