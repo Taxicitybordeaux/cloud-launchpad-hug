@@ -312,6 +312,26 @@ function QrGeneratorPage() {
               </button>
               <button
                 type="button"
+                onClick={() => {
+                  // Optimisation auto : cible ~28% de couverture (bien en dessous
+                  // du seuil ~30% de la correction H) avec une marge blanche
+                  // suffisante pour isoler le logo des modules du QR.
+                  // Ajustement léger selon la densité de la vCard.
+                  const payloadLen = buildVCard(form).length;
+                  // vCard courte → on peut se permettre un logo plus grand
+                  const pct = payloadLen < 180 ? 0.32 : payloadLen < 260 ? 0.28 : 0.24;
+                  setLogoPct(pct);
+                  setLogoPadPct(0.02);
+                  setTimeout(() => generate(), 0);
+                }}
+                disabled={busy || !isValid}
+                style={btnGhost(busy || !isValid)}
+                title="Ajuste la taille du logo pour rester lisible tout en gardant un scan fiable"
+              >
+                Optimiser le logo
+              </button>
+              <button
+                type="button"
                 onClick={download80mm}
                 disabled={busy || !isValid}
                 style={btnGold(busy || !isValid)}
