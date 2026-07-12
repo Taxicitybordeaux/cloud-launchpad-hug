@@ -318,10 +318,11 @@ function QrGeneratorPage() {
                   // suffisante pour isoler le logo des modules du QR.
                   // Ajustement léger selon la densité de la vCard.
                   const payloadLen = buildVCard(form).length;
-                  // vCard courte → on peut se permettre un logo plus grand
-                  const pct = payloadLen < 180 ? 0.32 : payloadLen < 260 ? 0.28 : 0.24;
+                  // Logo bien visible tout en gardant un scan fiable (H = ~30% masquable).
+                  // Marge blanche généreuse pour isoler le logo des modules.
+                  const pct = payloadLen < 180 ? 0.46 : payloadLen < 260 ? 0.42 : 0.36;
                   setLogoPct(pct);
-                  setLogoPadPct(0.02);
+                  setLogoPadPct(0.03);
                   setTimeout(() => generate(), 0);
                 }}
                 disabled={busy || !isValid}
