@@ -11,11 +11,11 @@ const SERVICES_URL = "https://taxicitybordeaux.fr/services";
 const SERVICES_FAQ = [
   {
     q: "Comment fonctionne le suivi en temps réel de mon vol ou de mon train ?",
-    a: "Dès que vous nous communiquez votre numéro de vol ou de train, nous le suivons automatiquement. Si l'arrivée est avancée ou retardée, l'heure de prise en charge est ajustée — vous n'avez rien à faire, le chauffeur sera là quand vous sortirez.",
+    a: "Dès que vous nous communiquez votre numéro de vol ou de train, nous le suivons automatiquement. Si l'arrivée est avancée ou retardée, l'heure de prise en charge est ajustée — vous n'avez rien à faire, le taxi sera là quand vous sortirez.",
   },
   {
-    q: "Combien de temps le chauffeur attend-il après l'atterrissage ?",
-    a: "Le chauffeur se présente après l'atterrissage réel (et non l'horaire prévu). Le temps nécessaire pour récupérer vos bagages et passer la douane est pris en compte. Au-delà, le temps d'attente supplémentaire est facturé au tarif réglementé en vigueur.",
+    q: "Combien de temps le taxi attend-il après l'atterrissage ?",
+    a: "Le taxi se présente après l'atterrissage réel (et non l'horaire prévu). Le temps nécessaire pour récupérer vos bagages et passer la douane est pris en compte. Au-delà, le temps d'attente supplémentaire est facturé au tarif réglementé en vigueur.",
   },
   {
     q: "Comment se passe la prise en charge CPAM / ALD ?",
