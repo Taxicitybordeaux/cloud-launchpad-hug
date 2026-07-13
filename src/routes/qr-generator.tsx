@@ -14,11 +14,11 @@ export const Route = createFileRoute("/qr-generator")({
   component: QrGeneratorPage,
 });
 
-// Vignette CT = 80 mm. À 300 dpi → 945 px. On rend 1200 px pour marge.
+// Vignette CT = 55 mm (format Allo Bordeaux Taxi). À 300 dpi → 650 px. On rend 1200 px pour marge.
 const MM_PER_INCH = 25.4;
 const DPI = 300;
-const VIGNETTE_MM = 80;
-const VIGNETTE_PX = Math.round((VIGNETTE_MM / MM_PER_INCH) * DPI); // 945
+const VIGNETTE_MM = 55;
+const VIGNETTE_PX = Math.round((VIGNETTE_MM / MM_PER_INCH) * DPI); // 650
 const PRINT_SIZE_PX = 1200; // QR haute résolution (upscaled)
 const PREVIEW_SIZE_PX = 480;
 
