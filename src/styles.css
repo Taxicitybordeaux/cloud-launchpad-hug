@@ -99,6 +99,14 @@
     font-family: var(--font-sans);
   }
   h1, h2, h3, h4 { font-family: var(--font-display); }
+
+  /* Numéros de téléphone : jamais coupés sur 2 lignes */
+  a[href^="tel:"] {
+    white-space: nowrap;
+    word-break: keep-all;
+    overflow-wrap: normal;
+    hyphens: none;
+  }
 }
 
 @layer components {
