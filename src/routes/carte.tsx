@@ -29,7 +29,7 @@ const CONTACT = {
   telDisplay: "06\u00A073\u00A007\u00A023\u00A022",
   email: "taxi.city033@gmail.com",
   site: "https://taxicitybordeaux.fr",
-  reserve: "https://taxicitybordeaux.fr/reserver",
+  reserve: "/reserver",
 };
 
 function buildVCard() {
