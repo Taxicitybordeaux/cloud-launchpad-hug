@@ -81,7 +81,7 @@ const Email = (p: Props) => {
           </Text>
 
           <Text style={text}>
-            Vous pouvez également appeler votre chauffeur directement au <strong>06 73 07 23 22</strong> (7j/7 ·
+            Vous pouvez également appeler votre chauffeur directement au <strong>06 73 07 23 22</strong> (7j/7 ·
             24h/24).
           </Text>
 

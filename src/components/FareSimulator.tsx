@@ -7,7 +7,7 @@ import { searchAddress } from "@/lib/googleGeocode";
 
 // ─── Config tarifs ────────────────────────────────────────────
 const PHONE = "0673072322";
-const PHONE_DISPLAY = "06 73 07 23 22";
+const PHONE_DISPLAY = "06 73 07 23 22";
 
 const PICKUP_FEE = 2.83;
 const RATE_DAY = 2.16; // 7h–19h

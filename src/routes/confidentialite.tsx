@@ -30,7 +30,7 @@ function ConfidentialitePage() {
           <p className="mt-2 text-muted-foreground">
             <strong>Taxi City Bordeaux</strong> — Bordeaux, Gironde (33), France.<br />
             Contact&nbsp;: <a href="mailto:taxi.city033@gmail.com" className="text-primary hover:underline">taxi.city033@gmail.com</a> ·{" "}
-            <a href="tel:0673072322" className="text-primary hover:underline">06 73 07 23 22</a>
+            <a href="tel:0673072322" className="text-primary hover:underline">06 73 07 23 22</a>
           </p>
         </div>
 
