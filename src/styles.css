@@ -114,7 +114,7 @@
   .site-header-logo {
     display: inline-flex;
     align-items: center;
-    inline-size: clamp(70px, 20vw, 130px);
+    inline-size: clamp(72px, 20vw, 130px);
     block-size: 52px;
     contain: layout size;
   }
@@ -127,9 +127,20 @@
     object-fit: contain;
   }
 
+  @media (min-width: 640px) {
+    .site-header-logo {
+      inline-size: clamp(90px, 20vw, 160px);
+      block-size: 64px;
+    }
+    .site-header-logo-img {
+      block-size: 64px !important;
+      max-block-size: 64px !important;
+    }
+  }
+
   @media (max-width: 390px) {
     .site-header-logo {
-      inline-size: 68px;
+      inline-size: 72px;
     }
 
     .site-header-mobile-actions {
