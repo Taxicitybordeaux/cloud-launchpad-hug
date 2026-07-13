@@ -167,7 +167,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           {showHeader && <SiteHeader />}
           {children}
           <Toaster />
-          <WhatsAppFloat />
+          {showWhatsAppFloat && <WhatsAppFloat />}
         </I18nProvider>
         <Scripts />
       </body>
