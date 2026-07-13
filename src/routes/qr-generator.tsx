@@ -29,7 +29,11 @@ const PREVIEW_SIZE_PX = 480;
 const A4_W = 2480;
 const A4_H = 3508;
 
+type Mode = "url" | "vcard";
+
 type Form = {
+  mode: Mode;
+  url: string;
   name: string;
   phone: string;
   email: string;
@@ -38,12 +42,19 @@ type Form = {
 };
 
 const DEFAULTS: Form = {
+  mode: "url",
+  url: "https://taxicitybordeaux.fr/carte",
   name: "Josè",
   phone: "0673072322",
   email: "taxi.city033@gmail.com",
   site: "https://taxicitybordeaux.fr",
   org: "Taxi City Bordeaux",
 };
+
+function buildPayload(f: Form): string {
+  if (f.mode === "url") return f.url.trim();
+  return buildVCard(f);
+}
 
 function buildVCard(f: Form): string {
   const tel = f.phone.replace(/\s+/g, "");

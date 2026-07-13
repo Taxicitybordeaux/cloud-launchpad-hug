@@ -18,6 +18,7 @@ import { Route as MentionsLegalesRouteImport } from './routes/mentions-legales'
 import { Route as DriverRouteImport } from './routes/driver'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as ConfidentialiteRouteImport } from './routes/confidentialite'
+import { Route as CarteRouteImport } from './routes/carte'
 import { Route as AProposRouteImport } from './routes/a-propos'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SuiviIdRouteImport } from './routes/suivi.$id'
@@ -94,6 +95,11 @@ const ContactRoute = ContactRouteImport.update({
 const ConfidentialiteRoute = ConfidentialiteRouteImport.update({
   id: '/confidentialite',
   path: '/confidentialite',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CarteRoute = CarteRouteImport.update({
+  id: '/carte',
+  path: '/carte',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AProposRoute = AProposRouteImport.update({
@@ -268,6 +274,7 @@ const ApiPublicHooksRecomputeDurationsTickRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/a-propos': typeof AProposRoute
+  '/carte': typeof CarteRoute
   '/confidentialite': typeof ConfidentialiteRoute
   '/contact': typeof ContactRoute
   '/driver': typeof DriverRoute
@@ -311,6 +318,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/a-propos': typeof AProposRoute
+  '/carte': typeof CarteRoute
   '/confidentialite': typeof ConfidentialiteRoute
   '/contact': typeof ContactRoute
   '/driver': typeof DriverRoute
@@ -355,6 +363,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/a-propos': typeof AProposRoute
+  '/carte': typeof CarteRoute
   '/confidentialite': typeof ConfidentialiteRoute
   '/contact': typeof ContactRoute
   '/driver': typeof DriverRoute
@@ -400,6 +409,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/a-propos'
+    | '/carte'
     | '/confidentialite'
     | '/contact'
     | '/driver'
@@ -443,6 +453,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/a-propos'
+    | '/carte'
     | '/confidentialite'
     | '/contact'
     | '/driver'
@@ -486,6 +497,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/a-propos'
+    | '/carte'
     | '/confidentialite'
     | '/contact'
     | '/driver'
@@ -530,6 +542,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AProposRoute: typeof AProposRoute
+  CarteRoute: typeof CarteRoute
   ConfidentialiteRoute: typeof ConfidentialiteRoute
   ContactRoute: typeof ContactRoute
   DriverRoute: typeof DriverRoute
@@ -633,6 +646,13 @@ declare module '@tanstack/react-router' {
       path: '/confidentialite'
       fullPath: '/confidentialite'
       preLoaderRoute: typeof ConfidentialiteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/carte': {
+      id: '/carte'
+      path: '/carte'
+      fullPath: '/carte'
+      preLoaderRoute: typeof CarteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/a-propos': {
@@ -877,6 +897,7 @@ const ReservationRouteWithChildren = ReservationRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AProposRoute: AProposRoute,
+  CarteRoute: CarteRoute,
   ConfidentialiteRoute: ConfidentialiteRoute,
   ContactRoute: ContactRoute,
   DriverRoute: DriverRoute,
@@ -920,13 +941,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
