@@ -460,7 +460,7 @@ function Home() {
               {/* CTA */}
               <div className="flex shrink-0 flex-col items-stretch gap-3 sm:flex-row md:flex-col">
                 <Link
-                  to="/client"
+                  to="/client/login"
                   className="touch-manipulation rounded-xl bg-primary px-7 py-3.5 text-center font-semibold text-primary-foreground shadow-[var(--shadow-gold)] [-webkit-tap-highlight-color:transparent] active:scale-95"
                 >
                   {t("home.client.cta_login")}
