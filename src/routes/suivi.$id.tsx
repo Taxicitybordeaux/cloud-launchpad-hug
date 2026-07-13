@@ -333,7 +333,7 @@ function ChatSection({ suiviKey, reservationId, t }: { suiviKey: string; reserva
         {t("suivi.chat_title")}
         {unread > 0 ? (
           <span
-            title={`${unread} message${unread > 1 ? "s" : ""} du chauffeur non lu${unread > 1 ? "s" : ""} · conversation en cours`}
+            title={`${unread} message${unread > 1 ? "s" : ""} du taxi non lu${unread > 1 ? "s" : ""} · conversation en cours`}
             aria-label={`${unread} message${unread > 1 ? "s" : ""} non lu${unread > 1 ? "s" : ""}`}
             style={{
               minWidth: 20,
