@@ -263,8 +263,8 @@ function QrGeneratorPage() {
   }, []);
 
 
-  function download80mm() {
-    // PNG carré 80x80mm à 300 dpi — pour utilisateurs qui savent choisir la taille
+  function download55mm() {
+    // PNG carré 55x55mm à 300 dpi — taille physique exacte de la vignette CT.
     if (!printRef.current) return;
     const out = document.createElement("canvas");
     out.width = VIGNETTE_PX;
@@ -274,7 +274,7 @@ function QrGeneratorPage() {
     ctx.fillStyle = "#fff";
     ctx.fillRect(0, 0, VIGNETTE_PX, VIGNETTE_PX);
     ctx.drawImage(printRef.current, 0, 0, VIGNETTE_PX, VIGNETTE_PX);
-    out.toBlob((b) => b && triggerDownload(b, `qr-${slug(form.name)}-80mm-300dpi.png`), "image/png");
+    out.toBlob((b) => b && triggerDownload(b, `qr-${slug(form.name)}-55mm-300dpi.png`), "image/png");
   }
 
   function downloadA4() {
