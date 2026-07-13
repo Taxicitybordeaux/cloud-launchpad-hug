@@ -85,6 +85,15 @@ export const Route = createRootRoute({
       // PWA — Android / générique
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "theme-color", content: "#1a1a2e" },
+      { property: "og:title", content: "Taxi City Bordeaux" },
+      { name: "twitter:title", content: "Taxi City Bordeaux" },
+      { name: "description", content: "- Start Fresh Here is a taxi reservation app with real-time tracking and automated communication." },
+      { property: "og:description", content: "- Start Fresh Here is a taxi reservation app with real-time tracking and automated communication." },
+      { name: "twitter:description", content: "- Start Fresh Here is a taxi reservation app with real-time tracking and automated communication." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/f2aae914-17bd-41da-a604-f958040ee832/id-preview-996547ff--4d19527a-14ef-42ec-902e-c2c44b5cd060.lovable.app-1783971843438.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/f2aae914-17bd-41da-a604-f958040ee832/id-preview-996547ff--4d19527a-14ef-42ec-902e-c2c44b5cd060.lovable.app-1783971843438.png" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { property: "og:type", content: "website" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
