@@ -147,7 +147,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     !pathname.startsWith("/reserver") &&
     !pathname.startsWith("/admin") &&
     !pathname.startsWith("/reservation") &&
-    !pathname.startsWith("/login");
+    !pathname.startsWith("/login") &&
+    !pathname.startsWith("/carte");
+
+  const showWhatsAppFloat = !pathname.startsWith("/carte");
 
   return (
     <html lang="fr">
