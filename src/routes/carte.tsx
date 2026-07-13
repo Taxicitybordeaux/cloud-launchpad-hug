@@ -339,18 +339,6 @@ function CartePage() {
     window.setTimeout(() => setToast(null), 2500);
   }
 
-  async function copyEmail() {
-    try {
-      await navigator.clipboard.writeText(CONTACT.email);
-      showToast(`${t.emailCopied} : ${CONTACT.email}`);
-    } catch {
-      showToast(CONTACT.email);
-    }
-    setEmailOpen(false);
-  }
-
-  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(CONTACT.email)}`;
-  const outlookUrl = `https://outlook.live.com/mail/deeplink/compose?to=${encodeURIComponent(CONTACT.email)}`;
 
   return (
     <main
