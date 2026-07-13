@@ -156,12 +156,14 @@ function ActionButton({
   label,
   primary,
   download,
+  onClick,
 }: {
   href: string;
   icon: string;
   label: string;
   primary?: boolean;
   download?: string;
+  onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
 }) {
   const base: React.CSSProperties = {
     display: "flex",
@@ -184,7 +186,7 @@ function ActionButton({
     border: "none",
   };
   return (
-    <a href={href} download={download} style={primary ? gold : base}>
+    <a href={href} download={download} onClick={onClick} style={primary ? gold : base}>
       <span style={{ fontSize: 20 }}>{icon}</span>
       <span>{label}</span>
       <span style={{ marginLeft: "auto", opacity: 0.5 }}>›</span>
