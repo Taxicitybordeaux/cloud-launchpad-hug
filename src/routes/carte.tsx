@@ -323,7 +323,16 @@ function CartePage() {
   function downloadVCard(e: React.MouseEvent<HTMLAnchorElement>) {
     e.preventDefault();
     if (typeof window === "undefined") return;
-    const blob = new Blob([buildVCard()], { type: "text/vcard;charset=utf-8" });
+    const vcard = buildVCard();
+    const ua = navigator.userAgent || "";
+    const isIOS = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && "ontouchend" in document);
+    if (isIOS) {
+      // iOS Safari: naviguer vers un data URI ouvre la fiche contact directement
+      const dataUri = "data:text/vcard;charset=utf-8," + encodeURIComponent(vcard);
+      window.location.href = dataUri;
+      return;
+    }
+    const blob = new Blob([vcard], { type: "text/vcard;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
