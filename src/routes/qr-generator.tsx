@@ -279,42 +279,29 @@ function QrGeneratorPage() {
   }
 
   function downloadA4() {
+    // PDF A4 portrait — QR à 55×55 mm centré avec liseré noir et légende
+    // "55 x 55 mm - decouper au trait". Format identique à la vignette de réf.
     if (!printRef.current) return;
-    const out = document.createElement("canvas");
-    out.width = A4_W;
-    out.height = A4_H;
-    const ctx = out.getContext("2d");
-    if (!ctx) return;
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(0, 0, A4_W, A4_H);
-
-    // QR centré à taille physique 55×55 mm — identique au PNG 55mm.
-    // Aucun cadre, aucun texte : l'impression sort à la bonne taille
-    // quelle que soit l'option "zoom/ajuster" du dialogue téléphone.
-    const qrSize = VIGNETTE_PX;
-    const x = Math.round((A4_W - qrSize) / 2);
-    const y = Math.round((A4_H - qrSize) / 2);
-    ctx.drawImage(printRef.current, x, y, qrSize, qrSize);
-
-    // Discrets repères de coupe aux 4 coins
-    ctx.strokeStyle = "#bbb";
-    ctx.lineWidth = 1.5;
-    const m = 40;
-    const off = 24;
-    const drawCorner = (cx: number, cy: number, dx: number, dy: number) => {
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + dx * m, cy);
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx, cy + dy * m);
-      ctx.stroke();
-    };
-    drawCorner(x - off, y - off, -1, -1);
-    drawCorner(x + qrSize + off, y - off, 1, -1);
-    drawCorner(x - off, y + qrSize + off, -1, 1);
-    drawCorner(x + qrSize + off, y + qrSize + off, 1, 1);
-
-    out.toBlob((b) => b && triggerDownload(b, `qr-${slug(form.name)}-A4-pleine-page.png`), "image/png");
+    const dataUrl = printRef.current.toDataURL("image/png");
+    const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+    const pageW = 210;
+    const pageH = 297;
+    const qrMm = 55;
+    const x = (pageW - qrMm) / 2;
+    const y = (pageH - qrMm) / 2 - 20; // légèrement au-dessus du centre
+    pdf.addImage(dataUrl, "PNG", x, y, qrMm, qrMm, undefined, "FAST");
+    // Liseré noir fin autour du QR
+    pdf.setDrawColor(0);
+    pdf.setLineWidth(0.3);
+    pdf.rect(x, y, qrMm, qrMm);
+    // Légende
+    pdf.setTextColor(120);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(11);
+    pdf.text("55 x 55 mm - decouper au trait", pageW / 2, y + qrMm + 12, {
+      align: "center",
+    });
+    pdf.save(`qr-${slug(form.name)}-vignette-55mm.pdf`);
   }
 
   return (
