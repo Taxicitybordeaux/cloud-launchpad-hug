@@ -4,8 +4,8 @@
   "description": "Réservez votre taxi à Bordeaux",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1a1a2e",
-  "theme_color": "#1a1a2e",
+  "background_color": "#151515",
+  "theme_color": "#151515",
   "orientation": "portrait",
   "icons": [
     {
