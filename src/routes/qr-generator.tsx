@@ -29,7 +29,11 @@ const PREVIEW_SIZE_PX = 480;
 const A4_W = 2480;
 const A4_H = 3508;
 
+type Mode = "url" | "vcard";
+
 type Form = {
+  mode: Mode;
+  url: string;
   name: string;
   phone: string;
   email: string;
@@ -38,12 +42,19 @@ type Form = {
 };
 
 const DEFAULTS: Form = {
+  mode: "url",
+  url: "https://taxicitybordeaux.fr/carte",
   name: "Josè",
   phone: "0673072322",
   email: "taxi.city033@gmail.com",
   site: "https://taxicitybordeaux.fr",
   org: "Taxi City Bordeaux",
 };
+
+function buildPayload(f: Form): string {
+  if (f.mode === "url") return f.url.trim();
+  return buildVCard(f);
+}
 
 function buildVCard(f: Form): string {
   const tel = f.phone.replace(/\s+/g, "");
@@ -180,7 +191,7 @@ function QrGeneratorPage() {
         });
         logoRef.current = img;
       }
-      const data = buildVCard(form);
+      const data = buildPayload(form);
       await renderQr(previewRef.current, PREVIEW_SIZE_PX, data, logoRef.current, logoPctOverride);
       await renderQr(printRef.current, PRINT_SIZE_PX, data, logoRef.current, logoPctOverride);
     } finally {
@@ -207,7 +218,7 @@ function QrGeneratorPage() {
         });
         logoRef.current = img;
       }
-      const data = buildVCard(form);
+      const data = buildPayload(form);
       const testSize = 600;
       const test = document.createElement("canvas");
       test.width = testSize;
@@ -335,6 +346,55 @@ function QrGeneratorPage() {
               gap: 12,
             }}
           >
+            {/* Mode */}
+            <div style={{ display: "flex", gap: 8, background: "rgba(255,255,255,0.05)", padding: 4, borderRadius: 10 }}>
+              {(["url", "vcard"] as Mode[]).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, mode: m }))}
+                  style={{
+                    flex: 1,
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    border: "none",
+                    background: form.mode === m ? "#E8C96D" : "transparent",
+                    color: form.mode === m ? "#000" : "#fff",
+                    fontWeight: 600,
+                    fontSize: 13,
+                    cursor: "pointer",
+                  }}
+                >
+                  {m === "url" ? "Page cliquable (recommandé)" : "vCard (ajout contact)"}
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+              {form.mode === "url"
+                ? "Le QR pointe vers /carte : boutons Appeler, WhatsApp, SMS, Email, Réserver, Ajouter contact — tout est cliquable."
+                : "Le QR contient une vCard : le téléphone propose « Ajouter aux contacts »."}
+            </div>
+
+            {form.mode === "url" && (
+              <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>URL de la page cliquable</span>
+                <input
+                  value={form.url}
+                  onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
+                  style={{
+                    background: "#0f172a",
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    borderRadius: 8,
+                    padding: "10px 12px",
+                    color: "#fff",
+                    fontSize: 14,
+                  }}
+                />
+              </label>
+            )}
+
+            {form.mode === "vcard" && (
+              <>
             {(
               [
                 ["name", "Nom affiché"],
@@ -364,6 +424,8 @@ function QrGeneratorPage() {
                 )}
               </label>
             ))}
+              </>
+            )}
 
             {/* Réglages logo */}
             <div style={{ marginTop: 8, padding: 12, background: "rgba(255,255,255,0.03)", borderRadius: 10 }}>
@@ -399,7 +461,7 @@ function QrGeneratorPage() {
                 onClick={() => {
                   // Optimisation auto : cible une couverture lisible mais bien
                   // en dessous du seuil de la correction H (~30% masquable).
-                  const payloadLen = buildVCard(form).length;
+                  const payloadLen = buildPayload(form).length;
                   const pct = payloadLen < 180 ? 0.46 : payloadLen < 260 ? 0.42 : 0.36;
                   setLogoPct(pct);
                   setMaxInfo(null);
