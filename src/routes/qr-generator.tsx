@@ -424,6 +424,8 @@ function QrGeneratorPage() {
                 )}
               </label>
             ))}
+              </>
+            )}
 
             {/* Réglages logo */}
             <div style={{ marginTop: 8, padding: 12, background: "rgba(255,255,255,0.03)", borderRadius: 10 }}>
