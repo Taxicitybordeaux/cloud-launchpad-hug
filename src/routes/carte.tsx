@@ -113,7 +113,7 @@ function CartePage() {
             label="WhatsApp"
           />
           <ActionButton href={`sms:${CONTACT.tel}`} icon="✉️" label="SMS" />
-          <ActionButton href={`mailto:${CONTACT.email}`} icon="📧" label="Email" onClick={handleEmail} />
+          <ActionButton href="#" icon="📧" label="Email" onClick={(e) => { e.preventDefault(); setEmailOpen(true); }} />
           <ActionButton href={CONTACT.reserve} icon="🚕" label="Réserver en ligne" primary />
           <ActionButton href={CONTACT.site} icon="🌐" label="Site web" />
           <ActionButton
