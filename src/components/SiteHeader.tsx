@@ -1,7 +1,7 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { Phone, Menu, X, UserCircle2 } from "lucide-react";
 import { useState } from "react";
-import logo from "@/assets/logo.jpeg";
+import logo from "@/assets/tcb-logo-badge.png";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useT } from "@/i18n/I18nProvider";

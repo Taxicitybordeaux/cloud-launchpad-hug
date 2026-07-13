@@ -16,7 +16,7 @@ import {
   HelpCircle,
   MessageCircle,
 } from "lucide-react";
-import logo from "@/assets/logo.jpeg";
+import logo from "@/assets/tcb-logo-badge.png";
 import heroCar from "@/assets/hero-bordeaux.jpg";
 import destGare from "@/assets/dest-gare.jpg";
 import destAeroport from "@/assets/dest-aeroport.jpg";
