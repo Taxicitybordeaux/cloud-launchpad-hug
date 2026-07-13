@@ -58,12 +58,6 @@ type Dict = {
   website: string;
   addContact: string;
   waMessage: string;
-  emailModalTitle: string;
-  emailGmail: string;
-  emailOutlook: string;
-  emailCopy: string;
-  emailCopied: string;
-  cancel: string;
   footer: string;
   languageLabel: string;
 };
@@ -79,12 +73,6 @@ const T: Record<Lang, Dict> = {
     website: "Site web",
     addContact: "Ajouter aux contacts",
     waMessage: "Bonjour José, je souhaite réserver un taxi.",
-    emailModalTitle: "Envoyer un email à",
-    emailGmail: "Ouvrir Gmail (web)",
-    emailOutlook: "Ouvrir Outlook (web)",
-    emailCopy: "Copier l'adresse",
-    emailCopied: "Email copié",
-    cancel: "Annuler",
     footer: "Taxi conventionné · Bordeaux et Métropole · 7j/7",
     languageLabel: "Langue",
   },
@@ -98,12 +86,6 @@ const T: Record<Lang, Dict> = {
     website: "Website",
     addContact: "Add to contacts",
     waMessage: "Hello José, I would like to book a taxi.",
-    emailModalTitle: "Send an email to",
-    emailGmail: "Open Gmail (web)",
-    emailOutlook: "Open Outlook (web)",
-    emailCopy: "Copy address",
-    emailCopied: "Email copied",
-    cancel: "Cancel",
     footer: "Licensed taxi · Bordeaux & Metro area · 7 days a week",
     languageLabel: "Language",
   },
@@ -117,12 +99,6 @@ const T: Record<Lang, Dict> = {
     website: "Sitio web",
     addContact: "Añadir a contactos",
     waMessage: "Hola José, quisiera reservar un taxi.",
-    emailModalTitle: "Enviar un correo a",
-    emailGmail: "Abrir Gmail (web)",
-    emailOutlook: "Abrir Outlook (web)",
-    emailCopy: "Copiar dirección",
-    emailCopied: "Correo copiado",
-    cancel: "Cancelar",
     footer: "Taxi autorizado · Burdeos y área metropolitana · 7 días",
     languageLabel: "Idioma",
   },
@@ -136,12 +112,6 @@ const T: Record<Lang, Dict> = {
     website: "Webseite",
     addContact: "Zu Kontakten hinzufügen",
     waMessage: "Hallo José, ich möchte ein Taxi buchen.",
-    emailModalTitle: "E-Mail senden an",
-    emailGmail: "Gmail öffnen (Web)",
-    emailOutlook: "Outlook öffnen (Web)",
-    emailCopy: "Adresse kopieren",
-    emailCopied: "E-Mail kopiert",
-    cancel: "Abbrechen",
     footer: "Konzessioniertes Taxi · Bordeaux & Metropolregion · 7 Tage",
     languageLabel: "Sprache",
   },
@@ -155,12 +125,6 @@ const T: Record<Lang, Dict> = {
     website: "Sito web",
     addContact: "Aggiungi ai contatti",
     waMessage: "Salve José, vorrei prenotare un taxi.",
-    emailModalTitle: "Invia un'email a",
-    emailGmail: "Apri Gmail (web)",
-    emailOutlook: "Apri Outlook (web)",
-    emailCopy: "Copia indirizzo",
-    emailCopied: "Email copiata",
-    cancel: "Annulla",
     footer: "Taxi autorizzato · Bordeaux e area metropolitana · 7 giorni",
     languageLabel: "Lingua",
   },
@@ -174,12 +138,6 @@ const T: Record<Lang, Dict> = {
     website: "Site",
     addContact: "Adicionar aos contactos",
     waMessage: "Olá José, gostaria de reservar um táxi.",
-    emailModalTitle: "Enviar email para",
-    emailGmail: "Abrir Gmail (web)",
-    emailOutlook: "Abrir Outlook (web)",
-    emailCopy: "Copiar endereço",
-    emailCopied: "Email copiado",
-    cancel: "Cancelar",
     footer: "Táxi licenciado · Bordéus e área metropolitana · 7 dias",
     languageLabel: "Idioma",
   },
@@ -193,12 +151,6 @@ const T: Record<Lang, Dict> = {
     website: "Website",
     addContact: "Toevoegen aan contacten",
     waMessage: "Hallo José, ik wil graag een taxi reserveren.",
-    emailModalTitle: "E-mail sturen naar",
-    emailGmail: "Gmail openen (web)",
-    emailOutlook: "Outlook openen (web)",
-    emailCopy: "Adres kopiëren",
-    emailCopied: "E-mail gekopieerd",
-    cancel: "Annuleren",
     footer: "Erkende taxi · Bordeaux en omgeving · 7 dagen",
     languageLabel: "Taal",
   },
@@ -212,12 +164,6 @@ const T: Record<Lang, Dict> = {
     website: "الموقع",
     addContact: "أضف إلى جهات الاتصال",
     waMessage: "مرحبًا خوسيه، أود حجز سيارة أجرة.",
-    emailModalTitle: "إرسال بريد إلى",
-    emailGmail: "فتح Gmail (ويب)",
-    emailOutlook: "فتح Outlook (ويب)",
-    emailCopy: "نسخ العنوان",
-    emailCopied: "تم نسخ البريد",
-    cancel: "إلغاء",
     footer: "سيارة أجرة معتمدة · بوردو والضواحي · 7 أيام",
     languageLabel: "اللغة",
   },
@@ -231,12 +177,6 @@ const T: Record<Lang, Dict> = {
     website: "网站",
     addContact: "添加到通讯录",
     waMessage: "您好 José，我想预订一辆出租车。",
-    emailModalTitle: "发送邮件至",
-    emailGmail: "打开 Gmail (网页)",
-    emailOutlook: "打开 Outlook (网页)",
-    emailCopy: "复制地址",
-    emailCopied: "邮件已复制",
-    cancel: "取消",
     footer: "特许出租车 · 波尔多及大都会区 · 全年无休",
     languageLabel: "语言",
   },
@@ -250,12 +190,6 @@ const T: Record<Lang, Dict> = {
     website: "ウェブサイト",
     addContact: "連絡先に追加",
     waMessage: "こんにちは José、タクシーを予約したいです。",
-    emailModalTitle: "メール送信先",
-    emailGmail: "Gmail を開く (ウェブ)",
-    emailOutlook: "Outlook を開く (ウェブ)",
-    emailCopy: "アドレスをコピー",
-    emailCopied: "メールをコピーしました",
-    cancel: "キャンセル",
     footer: "認可タクシー · ボルドー・メトロポール · 年中無休",
     languageLabel: "言語",
   },
@@ -269,12 +203,6 @@ const T: Record<Lang, Dict> = {
     website: "Сайт",
     addContact: "Добавить в контакты",
     waMessage: "Здравствуйте, José, я хотел бы заказать такси.",
-    emailModalTitle: "Отправить письмо на",
-    emailGmail: "Открыть Gmail (веб)",
-    emailOutlook: "Открыть Outlook (веб)",
-    emailCopy: "Копировать адрес",
-    emailCopied: "Адрес скопирован",
-    cancel: "Отмена",
     footer: "Лицензированное такси · Бордо и метрополия · 7 дней",
     languageLabel: "Язык",
   },
@@ -318,7 +246,6 @@ function CartePage() {
   const rtl = lang === "ar";
 
   const waNumber = CONTACT.tel.replace(/[^\d]/g, "");
-  const [toast, setToast] = useState<string | null>(null);
 
   function downloadVCard(e: React.MouseEvent<HTMLAnchorElement>) {
     e.preventDefault();
@@ -341,11 +268,6 @@ function CartePage() {
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
-  function showToast(msg: string) {
-    setToast(msg);
-    window.setTimeout(() => setToast(null), 2500);
   }
 
 
@@ -432,29 +354,6 @@ function CartePage() {
           />
         </div>
 
-        {toast && (
-          <div
-            role="status"
-            style={{
-              position: "fixed",
-              bottom: 24,
-              left: "50%",
-              transform: "translateX(-50%)",
-              background: "#E8C96D",
-              color: "#000",
-              padding: "10px 16px",
-              borderRadius: 10,
-              fontWeight: 600,
-              fontSize: 14,
-              boxShadow: "0 8px 30px rgba(0,0,0,0.4)",
-              zIndex: 50,
-            }}
-          >
-            {toast}
-          </div>
-        )}
-
-
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textAlign: "center", marginTop: 8 }}>
           {t.footer}
         </div>
@@ -505,20 +404,4 @@ function ActionButton({
       <span style={{ marginInlineStart: "auto", opacity: 0.5 }}>›</span>
     </a>
   );
-}
-
-function emailBtn(primary: boolean): React.CSSProperties {
-  return {
-    display: "block",
-    padding: "12px 16px",
-    borderRadius: 10,
-    border: primary ? "none" : "1px solid rgba(255,255,255,0.15)",
-    background: primary ? "linear-gradient(135deg,#C9A84C,#E8C96D)" : "rgba(255,255,255,0.05)",
-    color: primary ? "#000" : "#fff",
-    fontWeight: 600,
-    fontSize: 14,
-    textDecoration: "none",
-    textAlign: "center",
-    width: "100%",
-  };
 }
