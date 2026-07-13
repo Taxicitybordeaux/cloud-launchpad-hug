@@ -54,21 +54,26 @@ function CartePage() {
 
   const waNumber = CONTACT.tel.replace(/[^\d]/g, "");
   const [toast, setToast] = useState<string | null>(null);
+  const [emailOpen, setEmailOpen] = useState(false);
 
-  async function handleEmail(e: React.MouseEvent) {
-    // Copie systématique + tente mailto. Si mailto ne peut pas s'ouvrir
-    // (iframe d'aperçu, pas de client mail configuré), l'utilisateur a au
-    // moins l'email dans son presse-papier avec une confirmation visible.
+  function showToast(msg: string) {
+    setToast(msg);
+    window.setTimeout(() => setToast(null), 2500);
+  }
+
+  async function copyEmail() {
     try {
       await navigator.clipboard.writeText(CONTACT.email);
-      setToast(`Email copié : ${CONTACT.email}`);
-      window.setTimeout(() => setToast(null), 3000);
+      showToast(`Email copié : ${CONTACT.email}`);
     } catch {
-      // clipboard peut être bloqué en HTTP ou refusé — on continue quand même
+      showToast(CONTACT.email);
     }
-    // Laisse le navigateur tenter mailto: en parallèle
-    void e;
+    setEmailOpen(false);
   }
+
+  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(CONTACT.email)}`;
+  const outlookUrl = `https://outlook.live.com/mail/deeplink/compose?to=${encodeURIComponent(CONTACT.email)}`;
+
 
   return (
     <main
