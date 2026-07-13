@@ -35,7 +35,7 @@ function bodyFor(lang: Lang, clientName: string, priceEur: number, distanceKm: n
       return `مرحباً ${clientName}، اختار سائقك مساراً بطول ${k} كم. السعر التقديري الجديد: ${p} €.`;
     case "fr":
     default:
-      return `Bonjour ${clientName}, votre chauffeur a choisi un itinéraire de ${k} km. Nouveau tarif estimé : ${p} €.`;
+      return `Bonjour ${clientName}, votre taxi a choisi un itinéraire de ${k} km. Nouveau tarif estimé : ${p} €.`;
   }
 }
 
