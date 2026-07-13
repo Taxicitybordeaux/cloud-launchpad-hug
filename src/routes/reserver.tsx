@@ -1404,7 +1404,7 @@ function ReservationPage() {
           Math.sin(dLng / 2) ** 2;
       distanceKm = parseFloat((R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 1.3).toFixed(2));
       dureeS = roundSecondsToMinute((distanceKm / 30) * 3600); // ~30 km/h en ville
-      toast.warning("Distance estimée (GPS indisponible) — le prix peut être ajusté par le chauffeur.");
+      toast.warning("Distance estimée (GPS indisponible) — le prix peut être ajusté par le taxi.");
     }
 
     setSending(true);

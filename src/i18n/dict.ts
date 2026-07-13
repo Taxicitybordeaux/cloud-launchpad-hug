@@ -73,7 +73,7 @@ const fr: Dict = {
   "home.why.eyebrow": "Pourquoi nous",
   "home.why.title": "Un service simple, humain, fiable.",
   "home.why.desc":
-    "Taxi City Bordeaux, c'est un chauffeur de proximité, un véhicule entretenu et l'envie de bien faire. Pas de surprise sur la facture, pas d'attente interminable — on confirme, on arrive, on vous dépose.",
+    "Taxi City Bordeaux, c'est un taxi de proximité, un véhicule entretenu et l'envie de bien faire. Pas de surprise sur la facture, pas d'attente interminable — on confirme, on arrive, on vous dépose.",
   "home.why.years": "années d'expérience",
   "home.why.f1.t": "Ponctualité garantie",
   "home.why.f1.d": "Suivi de vol et de train, marge anti-retard.",
@@ -112,11 +112,11 @@ const fr: Dict = {
   "review.error.fields": "Merci de renseigner une note, votre nom et un message.",
   "review.error.submit": "Impossible d'envoyer votre avis. Réessayez.",
   "home.test.t1":
-    "Chauffeur très ponctuel, voiture impeccable. J'ai été déposée à Mérignac en toute tranquillité, je recommande.",
+    "Taxi très ponctuel, voiture impeccable. J'ai été déposée à Mérignac en toute tranquillité, je recommande.",
   "home.test.t2":
     "Réservation simple, prix annoncé respecté. Parfait pour mes déplacements professionnels à la semaine.",
   "home.test.t3":
-    "Pris en charge à la gare avec mes enfants, le chauffeur a été d'une grande gentillesse. On rappellera.",
+    "Pris en charge à la gare avec mes enfants, le taxi a été d'une grande gentillesse. On rappellera.",
 
   // Home — FAQ
   "home.faq.eyebrow": "Vos questions",
@@ -152,9 +152,9 @@ const fr: Dict = {
   "home.how.s2.t": "Confirmation instantanée",
   "home.how.s2.d": "Vous recevez immédiatement un email de prise en compte de votre réservation.",
   "home.how.s3.t": "Le taxi accepte",
-  "home.how.s3.d": "Votre chauffeur valide la course et vous confirme le prix définitif.",
+  "home.how.s3.d": "Votre taxi valide la course et vous confirme le prix définitif.",
   "home.how.s4.t": "Suivez en temps réel",
-  "home.how.s4.d": "Heure d'arrivée estimée, nom du chauffeur et numéro de plaque — tout en direct.",
+  "home.how.s4.d": "Heure d'arrivée estimée, nom du taxi et numéro de plaque — tout en direct.",
   "home.how.s5.t": "Vous montez à bord",
   "home.how.s5.d": "Vous montez à bord, on s'occupe du reste.",
   "home.how.s6.t": "Règlement",
@@ -184,7 +184,7 @@ const fr: Dict = {
   "sim.booking_fee_note": "* Des frais de réservation peuvent être appliqués",
   "home.cta.title": "Prêt à réserver votre course ?",
   "home.cta.desc":
-    "Confirmation rapide, chauffeur professionnel et prix transparent — appelez-nous ou réservez en ligne.",
+    "Confirmation rapide, taxi professionnel et prix transparent — appelez-nous ou réservez en ligne.",
   "home.cta.online": "Réserver en ligne",
 
   // Services page
@@ -194,7 +194,7 @@ const fr: Dict = {
   "services.cta": "Réserver",
   "services.b1": "7j/7 – 24h/24",
   "services.b2": "Jusqu'à 4 passagers",
-  "services.b3": "Chauffeur professionnel",
+  "services.b3": "Taxi professionnel",
   "svcp.airport.title": "Transferts Aéroport de Bordeaux",
   "svcp.airport.desc":
     "Prise en charge ponctuelle pour vos vols, suivi en temps réel des horaires, accueil sur demande.",
@@ -266,7 +266,7 @@ const fr: Dict = {
     "Que vous soyez un particulier qui rejoint l'aéroport, un professionnel en déplacement, ou un patient nécessitant un transport médical conventionné, nous adaptons notre prestation à votre besoin.",
   "about.p3":
     "Notre véhicule climatisé et soigneusement entretenu, vous garantit un trajet agréable, en toutes circonstances.",
-  "about.b1.t": "Chauffeur professionnel",
+  "about.b1.t": "Taxi professionnel",
   "about.b1.d":
     "Carte professionnelle de taxi, formation continue, parfaite connaissance de Bordeaux et de la Gironde.",
   "about.b2.t": "Disponible 7j/7",
@@ -401,7 +401,7 @@ const fr: Dict = {
   "wa.aria.whatsapp": "Contacter sur WhatsApp",
   "wa.aria.nav": "Actions de contact rapides",
   // Tracking page
-  "suivi.title": "Suivi de votre chauffeur",
+  "suivi.title": "Suivi de votre taxi",
   "suivi.hello": "Bonjour",
   "suivi.pickup_at": "prise en charge à",
   "suivi.status": "Statut",
@@ -414,17 +414,17 @@ const fr: Dict = {
   "suivi.notfound.title": "Réservation introuvable",
   "suivi.notfound.desc": "Le lien de suivi est invalide ou expiré.",
   "suivi.back_home": "Retour à l'accueil",
-  "conf.track": "Suivre mon chauffeur en direct",
+  "conf.track": "Suivre mon taxi en direct",
 
   // FAQ Services — suivi vol, attente, CPAM/ALD
   "faqx.title": "Questions fréquentes",
   "faqx.intro": "Tout ce qu'il faut savoir avant votre course.",
   "faqx.tracking.q": "Comment fonctionne le suivi en temps réel de mon vol ou de mon train ?",
   "faqx.tracking.a":
-    "Dès que vous nous communiquez votre numéro de vol ou de train, nous le suivons automatiquement. Si l'arrivée est avancée ou retardée, l'heure de prise en charge est ajustée — vous n'avez rien à faire, le chauffeur sera là quand vous sortirez.",
-  "faqx.wait.q": "Combien de temps le chauffeur attend-il après l'atterrissage ?",
+    "Dès que vous nous communiquez votre numéro de vol ou de train, nous le suivons automatiquement. Si l'arrivée est avancée ou retardée, l'heure de prise en charge est ajustée — vous n'avez rien à faire, le taxi sera là quand vous sortirez.",
+  "faqx.wait.q": "Combien de temps le taxi attend-il après l'atterrissage ?",
   "faqx.wait.a":
-    "Le chauffeur se présente après l'atterrissage réel (et non l'horaire prévu). Le temps nécessaire pour récupérer vos bagages et passer la douane est pris en compte. Au-delà, le temps d'attente supplémentaire est facturé au tarif réglementé en vigueur, en toute transparence.",
+    "Le taxi se présente après l'atterrissage réel (et non l'horaire prévu). Le temps nécessaire pour récupérer vos bagages et passer la douane est pris en compte. Au-delà, le temps d'attente supplémentaire est facturé au tarif réglementé en vigueur, en toute transparence.",
   "faqx.cpam.q": "Comment se passe la prise en charge CPAM / ALD ?",
   "faqx.cpam.a":
     "Munissez-vous de la prescription médicale de transport remise par votre médecin. Sur présentation de ce bon de transport, nous appliquons le tiers payant : la course est directement prise en charge par l'Assurance Maladie. En ALD (affection longue durée), la prise en charge est intégrale et valable pour toutes les distances — y compris les longs trajets vers un centre spécialisé.",
@@ -471,7 +471,7 @@ const fr: Dict = {
   "res.tarif.booking_fee_detail": "peuvent être appliqués",
   "res.special.title": "Demandes spéciales (optionnel)",
   "res.special.placeholder":
-    "Ex : siège bébé, animal de compagnie, valise XXL, arrêt intermédiaire, préférence chauffeur…",
+    "Ex : siège bébé, animal de compagnie, valise XXL, arrêt intermédiaire, préférence taxi…",
   "res.datetime.title": "Date & heure de départ",
   "res.loc.trip_details_section": "Détails du trajet",
   "res.loc.searching": "Recherche en cours…",
@@ -514,7 +514,7 @@ const fr: Dict = {
   "qr.subtitle":
     "Un lien unique généré pour chaque client au moment de la confirmation du taxi. Ouvrez le lien sur votre téléphone, et suivez l'arrivée du taxi sur la carte.",
   "qr.banner.title": "Ouvrez ce lien sur votre téléphone et flashez le QR code",
-  "qr.banner.desc": "Position du chauffeur, ETA, prix estimé. Aucune installation requise.",
+  "qr.banner.desc": "Position du taxi, ETA, prix estimé. Aucune installation requise.",
   "qr.timer": "Nouveau code dans {count}s",
   "qr.copy": "🔗 Copier le lien",
   "qr.copied": "✓ Lien copié !",
@@ -525,7 +525,7 @@ const fr: Dict = {
   "qr.step3.t": "Suivez en direct",
   "qr.step3.d": "Carte, ETA, destination, prix",
   "qr.step4.t": "Montez à bord !",
-  "qr.step4.d": "Coordonnées chauffeur en 1 clic",
+  "qr.step4.d": "Coordonnées taxi en 1 clic",
   "qr.feat1.t": "Position GPS",
   "qr.feat1.d": "Suivi temps réel",
   "qr.feat2.t": "Temps d'arrivée",
@@ -569,13 +569,13 @@ const fr: Dict = {
   "home.client.title.italic": "tableau de bord",
   "home.client.title.after": " personnel",
   "home.client.desc":
-    "Créez votre compte en 30 secondes pour retrouver toutes vos courses, suivre votre chauffeur en temps réel, et réserver plus vite la prochaine fois. C'est gratuit, c'est simple, et ça reste entre nous.",
+    "Créez votre compte en 30 secondes pour retrouver toutes vos courses, suivre votre taxi en temps réel, et réserver plus vite la prochaine fois. C'est gratuit, c'est simple, et ça reste entre nous.",
   "home.client.li1.bold": "Historique complet",
   "home.client.li1.rest": " de vos trajets, reçus et tarifs.",
   "home.client.li2.bold": "Notifications",
-  "home.client.li2.rest": " dès que le chauffeur est en route ou arrivé.",
+  "home.client.li2.rest": " dès que le taxi est en route ou arrivé.",
   "home.client.li3.bold": "Tchat direct",
-  "home.client.li3.rest": " avec votre chauffeur pendant la course.",
+  "home.client.li3.rest": " avec votre taxi pendant la course.",
   "home.client.cta_login": "Accéder à mon espace",
   "home.client.cta_register": "Créer un compte",
   "home.client.cta_book": "Nouvelle réservation",
@@ -613,7 +613,7 @@ const fr: Dict = {
   client_modify_time_confirm: "Confirmer",
   client_chat_placeholder: "Écrire un message…",
   client_chat_send: "Envoyer",
-  client_chat_title: "Tchat avec votre chauffeur",
+  client_chat_title: "Tchat avec votre taxi",
   client_logout: "Déconnexion",
   client_no_rides: "Aucune course pour le moment.",
   cd_back_home: "Accueil",
@@ -645,14 +645,14 @@ const fr: Dict = {
   cd_confirm_and_call: "Confirmer et appeler",
   cd_status_pending: "En attente",
   cd_status_accepted: "Acceptée",
-  cd_status_en_route: "Chauffeur en route",
-  cd_status_arrived: "Chauffeur arrivé",
+  cd_status_en_route: "Taxi en route",
+  cd_status_arrived: "Taxi arrivé",
   cd_status_completed: "Terminée",
   cd_status_cancelled: "Annulée",
   cd_status_refused: "Refusée",
   cd_book_same: "Refaire la même course",
   cd_toast_load_err: "Impossible de charger vos courses",
-  cd_toast_time_changed: "Heure modifiée — chauffeur notifié",
+  cd_toast_time_changed: "Heure modifiée — taxi notifié",
   cd_toast_locked_edit: "Cette course ne peut plus être modifiée",
   cd_toast_edit_failed: "Modification impossible",
   cd_confirm_cancel: "Confirmer l'annulation de cette course ?",
@@ -736,7 +736,7 @@ const fr: Dict = {
   "client.reset.err_expired": "Ce lien a expiré. Demandez-en un nouveau.",
   "client.reset.err_invalid_used": "Lien invalide ou déjà utilisé.",
   "client.push.enable_title": "Notifications push",
-  "client.push.enable_desc": "Recevez le rappel J-1 et l'alerte « chauffeur en route ».",
+  "client.push.enable_desc": "Recevez le rappel J-1 et l'alerte « taxi en route ».",
   "client.push.enable_btn": "Activer les notifications",
   "client.push.enabled": "Notifications activées",
   "client.push.denied": "Notifications bloquées dans le navigateur.",
@@ -818,7 +818,7 @@ const fr: Dict = {
   "fin.pdf.section_trip": "TRAJET",
   "fin.pdf.trip_from": "Départ",
   "fin.pdf.trip_to": "Arrivée",
-  "fin.pdf.section_driver": "CHAUFFEUR",
+  "fin.pdf.section_driver": "TAXI",
   "fin.pdf.plate": "Plaque",
   "fin.pdf.reviews": "avis",
   "fin.pdf.section_passenger": "PASSAGER",
@@ -870,7 +870,7 @@ const fr: Dict = {
   "suivi.pickup_label": "Prise en charge",
   "suivi.add_to_cal": "Cal",
   "suivi.your_taxi": "Votre taxi",
-  "suivi.driver_label": "est votre chauffeur",
+  "suivi.driver_label": "est votre taxi",
   "suivi.share": "Partager",
   "suivi.depart_label": "Départ",
   "suivi.arrivee_label": "Arrivée",
@@ -902,7 +902,7 @@ const fr: Dict = {
   "suivi.status.pending": "En attente",
   "suivi.status.accepted": "Confirmée",
   "suivi.status.en_route": "Votre taxi arrive",
-  "suivi.status.arrived": "Le chauffeur est là",
+  "suivi.status.arrived": "Le taxi est là",
   "suivi.status.completed": "Terminée",
   "suivi.status.cancelled": "Annulée",
   // suivi additions
@@ -1067,12 +1067,12 @@ const fr: Dict = {
   "home.install.desc":
     "Réservez votre taxi en un instant, même sans connexion. Recevez les notifications de suivi en temps réel.",
   "home.install.push_warning":
-    "⚠️ <strong>Notifications push :</strong> les alertes de suivi de course (chauffeur en route, arrivé, terminé) ne fonctionnent que si l'application est installée sur votre téléphone. Sans installation, vous ne recevrez pas les alertes en temps réel.",
+    "⚠️ <strong>Notifications push :</strong> les alertes de suivi de course (taxi en route, arrivé, terminé) ne fonctionnent que si l'application est installée sur votre téléphone. Sans installation, vous ne recevrez pas les alertes en temps réel.",
   "home.install.push_title": "Notifications de suivi",
   "home.install.push_how":
     "<strong>Comment activer ?</strong> Installez l'appli sur votre écran d'accueil (voir ci-dessous), puis acceptez les notifications quand Safari ou Chrome le propose.",
   "home.install.push_why":
-    '<strong>Pourquoi ?</strong> Sans installation, votre navigateur ne peut pas envoyer d\'alertes en arrière-plan. Vous ne recevrez pas les messages "Chauffeur en route", "Arrivé" ou "Course terminée".',
+    '<strong>Pourquoi ?</strong> Sans installation, votre navigateur ne peut pas envoyer d\'alertes en arrière-plan. Vous ne recevrez pas les messages "Taxi en route", "Arrivé" ou "Course terminée".',
   "home.install.ios.title": "iPhone / iOS",
   "home.install.ios.step1": "Ouvrez <strong>Safari</strong> et allez sur <strong>taxicitybordeaux.fr</strong>",
   "home.install.ios.step2": "Tapez le bouton <strong>Partager</strong> (carré avec flèche)",
@@ -1112,7 +1112,7 @@ const fr: Dict = {
   "client.dashboard.feat.history_title": "Historique",
   "client.dashboard.feat.history_desc": "Retrouvez et re-réservez vos anciens trajets",
   "client.dashboard.feat.chat_title": "Contacter José",
-  "client.dashboard.feat.chat_desc": "Envoyez un message directement au chauffeur",
+  "client.dashboard.feat.chat_desc": "Envoyez un message directement au taxi",
   "client.dashboard.feat.profile_desc": "Gérez vos informations personnelles",
 
   // Réserver — bouton notifications
