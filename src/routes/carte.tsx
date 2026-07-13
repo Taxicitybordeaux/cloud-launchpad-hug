@@ -54,21 +54,26 @@ function CartePage() {
 
   const waNumber = CONTACT.tel.replace(/[^\d]/g, "");
   const [toast, setToast] = useState<string | null>(null);
+  const [emailOpen, setEmailOpen] = useState(false);
 
-  async function handleEmail(e: React.MouseEvent) {
-    // Copie systématique + tente mailto. Si mailto ne peut pas s'ouvrir
-    // (iframe d'aperçu, pas de client mail configuré), l'utilisateur a au
-    // moins l'email dans son presse-papier avec une confirmation visible.
+  function showToast(msg: string) {
+    setToast(msg);
+    window.setTimeout(() => setToast(null), 2500);
+  }
+
+  async function copyEmail() {
     try {
       await navigator.clipboard.writeText(CONTACT.email);
-      setToast(`Email copié : ${CONTACT.email}`);
-      window.setTimeout(() => setToast(null), 3000);
+      showToast(`Email copié : ${CONTACT.email}`);
     } catch {
-      // clipboard peut être bloqué en HTTP ou refusé — on continue quand même
+      showToast(CONTACT.email);
     }
-    // Laisse le navigateur tenter mailto: en parallèle
-    void e;
+    setEmailOpen(false);
   }
+
+  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(CONTACT.email)}`;
+  const outlookUrl = `https://outlook.live.com/mail/deeplink/compose?to=${encodeURIComponent(CONTACT.email)}`;
+
 
   return (
     <main
@@ -108,7 +113,7 @@ function CartePage() {
             label="WhatsApp"
           />
           <ActionButton href={`sms:${CONTACT.tel}`} icon="✉️" label="SMS" />
-          <ActionButton href={`mailto:${CONTACT.email}`} icon="📧" label="Email" onClick={handleEmail} />
+          <ActionButton href="#" icon="📧" label="Email" onClick={(e) => { e.preventDefault(); setEmailOpen(true); }} />
           <ActionButton href={CONTACT.reserve} icon="🚕" label="Réserver en ligne" primary />
           <ActionButton href={CONTACT.site} icon="🌐" label="Site web" />
           <ActionButton
@@ -140,6 +145,59 @@ function CartePage() {
             {toast}
           </div>
         )}
+
+        {emailOpen && (
+          <div
+            onClick={() => setEmailOpen(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.7)",
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "center",
+              zIndex: 60,
+              padding: 16,
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: "100%",
+                maxWidth: 420,
+                background: "#111827",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: 16,
+                padding: 20,
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+              }}
+            >
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", textAlign: "center", marginBottom: 4 }}>
+                Envoyer un email à
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 600, textAlign: "center", marginBottom: 8, wordBreak: "break-all" }}>
+                {CONTACT.email}
+              </div>
+              <a href={`mailto:${CONTACT.email}`} onClick={() => setEmailOpen(false)}
+                 style={emailBtn(true)}>📧 Application Mail par défaut</a>
+              <a href={gmailUrl} target="_blank" rel="noopener noreferrer" onClick={() => setEmailOpen(false)}
+                 style={emailBtn(false)}>✉️ Ouvrir Gmail (web)</a>
+              <a href={outlookUrl} target="_blank" rel="noopener noreferrer" onClick={() => setEmailOpen(false)}
+                 style={emailBtn(false)}>📨 Ouvrir Outlook (web)</a>
+              <button type="button" onClick={copyEmail} style={{ ...emailBtn(false), cursor: "pointer" }}>
+                📋 Copier l'adresse
+              </button>
+              <button type="button" onClick={() => setEmailOpen(false)}
+                      style={{ marginTop: 4, padding: 10, borderRadius: 10, border: "none",
+                               background: "transparent", color: "rgba(255,255,255,0.6)", cursor: "pointer" }}>
+                Annuler
+              </button>
+            </div>
+          </div>
+        )}
+
 
 
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textAlign: "center", marginTop: 8 }}>
@@ -192,4 +250,20 @@ function ActionButton({
       <span style={{ marginLeft: "auto", opacity: 0.5 }}>›</span>
     </a>
   );
+}
+
+function emailBtn(primary: boolean): React.CSSProperties {
+  return {
+    display: "block",
+    padding: "12px 16px",
+    borderRadius: 10,
+    border: primary ? "none" : "1px solid rgba(255,255,255,0.15)",
+    background: primary ? "linear-gradient(135deg,#C9A84C,#E8C96D)" : "rgba(255,255,255,0.05)",
+    color: primary ? "#000" : "#fff",
+    fontWeight: 600,
+    fontSize: 14,
+    textDecoration: "none",
+    textAlign: "center",
+    width: "100%",
+  };
 }
