@@ -506,9 +506,9 @@ function QrGeneratorPage() {
             </div>
 
             <p style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", margin: "8px 0 0", lineHeight: 1.5 }}>
-              <b>Impression depuis le téléphone :</b> choisis <i>PNG A4 pleine page</i>. Le QR y est
-              placé physiquement à 80×80 mm avec repères de coupe — imprimé en pleine page A4, il sort
-              exactement à la taille d'une vignette CT. Il suffit de découper.
+              <b>Impression :</b> le QR sort physiquement à <b>55×55 mm</b> (format vignette Allo Bordeaux Taxi),
+              centré sur la feuille A4 avec repères de coupe. Imprime <b>à 100% (Taille réelle)</b> —
+              surtout pas « Ajuster à la page » — puis découpe.
             </p>
           </div>
 
