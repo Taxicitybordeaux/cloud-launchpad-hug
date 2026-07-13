@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
-import logo from "@/assets/logo.jpeg";
+import logo from "@/assets/tcb-logo-badge.png";
 
 export function ClientAuthHeader({ backLabel = "Retour à l'accueil" }: { backLabel?: string }) {
   return (

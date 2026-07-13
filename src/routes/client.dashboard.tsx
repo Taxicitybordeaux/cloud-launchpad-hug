@@ -10,7 +10,7 @@ import { getClientSession, clearClientSession } from "@/lib/client-session";
 import type { ClientSession } from "@/lib/client-auth.functions";
 import { listClientReservations, type ClientReservation } from "@/lib/client-reservations.functions";
 import { useT } from "@/i18n/I18nProvider";
-import logo from "@/assets/logo.jpeg";
+import logo from "@/assets/tcb-logo-badge.png";
 import { supabase } from "@/integrations/supabase/client";
 
 const ACTIVE_STATUSES = new Set(["nouvelle", "pending", "accepted", "en_route", "arrived"]);
