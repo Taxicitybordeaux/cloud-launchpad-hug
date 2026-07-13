@@ -146,6 +146,59 @@ function CartePage() {
           </div>
         )}
 
+        {emailOpen && (
+          <div
+            onClick={() => setEmailOpen(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.7)",
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "center",
+              zIndex: 60,
+              padding: 16,
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: "100%",
+                maxWidth: 420,
+                background: "#111827",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: 16,
+                padding: 20,
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+              }}
+            >
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", textAlign: "center", marginBottom: 4 }}>
+                Envoyer un email à
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 600, textAlign: "center", marginBottom: 8, wordBreak: "break-all" }}>
+                {CONTACT.email}
+              </div>
+              <a href={`mailto:${CONTACT.email}`} onClick={() => setEmailOpen(false)}
+                 style={emailBtn(true)}>📧 Application Mail par défaut</a>
+              <a href={gmailUrl} target="_blank" rel="noopener noreferrer" onClick={() => setEmailOpen(false)}
+                 style={emailBtn(false)}>✉️ Ouvrir Gmail (web)</a>
+              <a href={outlookUrl} target="_blank" rel="noopener noreferrer" onClick={() => setEmailOpen(false)}
+                 style={emailBtn(false)}>📨 Ouvrir Outlook (web)</a>
+              <button type="button" onClick={copyEmail} style={{ ...emailBtn(false), cursor: "pointer" }}>
+                📋 Copier l'adresse
+              </button>
+              <button type="button" onClick={() => setEmailOpen(false)}
+                      style={{ marginTop: 4, padding: 10, borderRadius: 10, border: "none",
+                               background: "transparent", color: "rgba(255,255,255,0.6)", cursor: "pointer" }}>
+                Annuler
+              </button>
+            </div>
+          </div>
+        )}
+
+
 
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textAlign: "center", marginTop: 8 }}>
           Taxi conventionné · Bordeaux et Métropole · 7j/7
