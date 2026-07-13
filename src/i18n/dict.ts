@@ -78,7 +78,7 @@ const fr: Dict = {
   "home.why.f1.t": "Ponctualité garantie",
   "home.why.f1.d": "Suivi de vol et de train, marge anti-retard.",
   "home.why.f2.t": "Tarifs clairs",
-  "home.why.f2.d": "Tarifs réglementés, sans surprise.",
+  "home.why.f2.d": "Tarifs réglementés, sans surprise. CB et espèces acceptées.",
   "home.why.f3.t": "Conventionné CPAM",
   "home.why.f3.d": "Transports de santé pris en charge.",
 
@@ -1189,7 +1189,7 @@ const en: Dict = {
   "home.why.f1.t": "Guaranteed punctuality",
   "home.why.f1.d": "Flight & train tracking, anti-delay buffer.",
   "home.why.f2.t": "Clear pricing",
-  "home.why.f2.d": "Regulated rates, no surprises.",
+  "home.why.f2.d": "Regulated rates, no surprises. Card and cash accepted.",
   "home.why.f3.t": "CPAM-certified medical rides",
   "home.why.f3.d": "Health transports covered.",
 
@@ -2271,7 +2271,7 @@ const es: Dict = {
   "home.why.f1.t": "Puntualidad garantizada",
   "home.why.f1.d": "Seguimiento de vuelos y trenes, margen anti-retraso.",
   "home.why.f2.t": "Tarifas claras",
-  "home.why.f2.d": "Tarifas reguladas, sin sorpresas.",
+  "home.why.f2.d": "Tarifas reguladas, sin sorpresas. Tarjeta y efectivo aceptados.",
   "home.why.f3.t": "Concertado CPAM",
   "home.why.f3.d": "Transportes médicos cubiertos.",
 
@@ -3357,7 +3357,7 @@ const it: Dict = {
   "home.why.f1.t": "Puntualità garantita",
   "home.why.f1.d": "Monitoraggio voli e treni, margine per i ritardi.",
   "home.why.f2.t": "Tariffe chiare",
-  "home.why.f2.d": "Tariffe regolamentate, senza sorprese.",
+  "home.why.f2.d": "Tariffe regolamentate, senza sorprese. Carta e contanti accettati.",
   "home.why.f3.t": "Convenzionato CPAM",
   "home.why.f3.d": "Trasporti medici rimborsati.",
 
@@ -4446,7 +4446,7 @@ const ar: Dict = {
   "home.why.f1.t": "دقة مضمونة في المواعيد",
   "home.why.f1.d": "تتبع الرحلات والقطارات، هامش لتفادي التأخير.",
   "home.why.f2.t": "أسعار واضحة",
-  "home.why.f2.d": "أسعار منظمة، دون مفاجآت.",
+  "home.why.f2.d": "أسعار منظمة، دون مفاجآت. الدفع بالبطاقة أو نقدًا.",
   "home.why.f3.t": "معتمد لدى التأمين الصحي",
   "home.why.f3.d": "نقل المرضى مغطى بالتأمين.",
 
@@ -5523,7 +5523,7 @@ const pt: Dict = {
   "home.why.f1.t": "Pontualidade garantida",
   "home.why.f1.d": "Acompanhamento de voos e comboios, margem antiatraso.",
   "home.why.f2.t": "Tarifas claras",
-  "home.why.f2.d": "Tarifas regulamentadas, sem surpresas.",
+  "home.why.f2.d": "Tarifas regulamentadas, sem surpresas. Cartão e dinheiro aceites.",
   "home.why.f3.t": "Convencionado CPAM",
   "home.why.f3.d": "Transporte de saúde com cobertura.",
 
