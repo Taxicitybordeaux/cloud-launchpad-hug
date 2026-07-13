@@ -14,11 +14,11 @@ export const Route = createFileRoute("/qr-generator")({
   component: QrGeneratorPage,
 });
 
-// Vignette CT = 80 mm. À 300 dpi → 945 px. On rend 1200 px pour marge.
+// Vignette CT = 55 mm (format Allo Bordeaux Taxi). À 300 dpi → 650 px. On rend 1200 px pour marge.
 const MM_PER_INCH = 25.4;
 const DPI = 300;
-const VIGNETTE_MM = 80;
-const VIGNETTE_PX = Math.round((VIGNETTE_MM / MM_PER_INCH) * DPI); // 945
+const VIGNETTE_MM = 55;
+const VIGNETTE_PX = Math.round((VIGNETTE_MM / MM_PER_INCH) * DPI); // 650
 const PRINT_SIZE_PX = 1200; // QR haute résolution (upscaled)
 const PREVIEW_SIZE_PX = 480;
 
@@ -263,8 +263,8 @@ function QrGeneratorPage() {
   }, []);
 
 
-  function download80mm() {
-    // PNG carré 80x80mm à 300 dpi — pour utilisateurs qui savent choisir la taille
+  function download55mm() {
+    // PNG carré 55x55mm à 300 dpi — taille physique exacte de la vignette CT.
     if (!printRef.current) return;
     const out = document.createElement("canvas");
     out.width = VIGNETTE_PX;
@@ -274,7 +274,7 @@ function QrGeneratorPage() {
     ctx.fillStyle = "#fff";
     ctx.fillRect(0, 0, VIGNETTE_PX, VIGNETTE_PX);
     ctx.drawImage(printRef.current, 0, 0, VIGNETTE_PX, VIGNETTE_PX);
-    out.toBlob((b) => b && triggerDownload(b, `qr-${slug(form.name)}-80mm-300dpi.png`), "image/png");
+    out.toBlob((b) => b && triggerDownload(b, `qr-${slug(form.name)}-55mm-300dpi.png`), "image/png");
   }
 
   function downloadA4() {
@@ -287,7 +287,7 @@ function QrGeneratorPage() {
     ctx.fillStyle = "#fff";
     ctx.fillRect(0, 0, A4_W, A4_H);
 
-    // QR centré à taille physique 80×80 mm — identique au PNG 80mm.
+    // QR centré à taille physique 55×55 mm — identique au PNG 55mm.
     // Aucun cadre, aucun texte : l'impression sort à la bonne taille
     // quelle que soit l'option "zoom/ajuster" du dialogue téléphone.
     const qrSize = VIGNETTE_PX;
@@ -489,11 +489,11 @@ function QrGeneratorPage() {
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button
                 type="button"
-                onClick={download80mm}
+                onClick={download55mm}
                 disabled={busy || !isValid}
                 style={btnGold(busy || !isValid)}
               >
-                PNG 80×80 mm
+                PNG 55×55 mm
               </button>
               <button
                 type="button"
@@ -501,18 +501,18 @@ function QrGeneratorPage() {
                 disabled={busy || !isValid}
                 style={btnGold(busy || !isValid)}
               >
-                PNG A4 pleine page
+                PDF A4 (QR à 55 mm)
               </button>
             </div>
 
             <p style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", margin: "8px 0 0", lineHeight: 1.5 }}>
-              <b>Impression depuis le téléphone :</b> choisis <i>PNG A4 pleine page</i>. Le QR y est
-              placé physiquement à 80×80 mm avec repères de coupe — imprimé en pleine page A4, il sort
-              exactement à la taille d'une vignette CT. Il suffit de découper.
+              <b>Impression :</b> le QR sort physiquement à <b>55×55 mm</b> (format vignette Allo Bordeaux Taxi),
+              centré sur la feuille A4 avec repères de coupe. Imprime <b>à 100% (Taille réelle)</b> —
+              surtout pas « Ajuster à la page » — puis découpe.
             </p>
           </div>
 
-          {/* Aperçu avec gabarit 80×80 mm */}
+          {/* Aperçu avec gabarit 55×55 mm */}
           <div
             style={{
               background: "#fff",
@@ -561,7 +561,7 @@ function QrGeneratorPage() {
                   letterSpacing: "0.1em",
                 }}
               >
-                80 mm
+                55 mm
               </div>
               <div
                 style={{
@@ -575,11 +575,11 @@ function QrGeneratorPage() {
                   letterSpacing: "0.1em",
                 }}
               >
-                80 mm
+                55 mm
               </div>
             </div>
             <div style={{ fontSize: 12, color: "#555", textAlign: "center" }}>
-              Aperçu à l'échelle — gabarit de coupe 80 × 80 mm (vignette CT).
+              Aperçu à l'échelle — gabarit de coupe 55 × 55 mm (vignette CT).
             </div>
             {/* Canvas d'export caché, haute résolution */}
             <canvas
