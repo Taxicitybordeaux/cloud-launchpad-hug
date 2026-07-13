@@ -251,3 +251,19 @@ function ActionButton({
     </a>
   );
 }
+
+function emailBtn(primary: boolean): React.CSSProperties {
+  return {
+    display: "block",
+    padding: "12px 16px",
+    borderRadius: 10,
+    border: primary ? "none" : "1px solid rgba(255,255,255,0.15)",
+    background: primary ? "linear-gradient(135deg,#C9A84C,#E8C96D)" : "rgba(255,255,255,0.05)",
+    color: primary ? "#000" : "#fff",
+    fontWeight: 600,
+    fontSize: 14,
+    textDecoration: "none",
+    textAlign: "center",
+    width: "100%",
+  };
+}
