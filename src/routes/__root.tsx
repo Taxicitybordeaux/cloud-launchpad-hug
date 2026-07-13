@@ -84,7 +84,7 @@ export const Route = createRootRoute({
       { name: "apple-mobile-web-app-title", content: "Taxi Bordeaux" },
       // PWA — Android / générique
       { name: "mobile-web-app-capable", content: "yes" },
-      { name: "theme-color", content: "#1a1a2e" },
+      { name: "theme-color", content: "#151515" },
       { property: "og:title", content: "Taxi City Bordeaux" },
       { name: "twitter:title", content: "Taxi City Bordeaux" },
       { name: "description", content: "- Start Fresh Here is a taxi reservation app with real-time tracking and automated communication." },
