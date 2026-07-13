@@ -394,6 +394,7 @@ function QrGeneratorPage() {
             )}
 
             {form.mode === "vcard" && (
+              <>
             {(
               [
                 ["name", "Nom affiché"],
