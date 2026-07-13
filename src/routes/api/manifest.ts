@@ -10,13 +10,15 @@ export const Route = createFileRoute("/api/manifest")({
         const isDriver = role === "driver";
 
         const manifest = {
+          id: isDriver ? "/driver" : "/",
           name: "Taxi City Bordeaux",
           short_name: isDriver ? "TCB Chauffeur" : "Taxi Bordeaux",
           description: "Réservez votre taxi à Bordeaux",
           start_url: isDriver ? "/driver?token=DSF234" : "/",
+          scope: isDriver ? "/driver" : "/",
           display: "standalone",
-          background_color: isDriver ? "#0f172a" : "#1a1a2e",
-          theme_color: isDriver ? "#0f172a" : "#1a1a2e",
+          background_color: isDriver ? "#151515" : "#151515",
+          theme_color: isDriver ? "#151515" : "#151515",
           orientation: "portrait",
           icons: [
             { src: "/favicon.ico", sizes: "48x48", type: "image/x-icon" },
