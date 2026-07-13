@@ -20,7 +20,7 @@ const Email = (p: Props) => {
     <Html lang="fr" dir="ltr">
       <Head />
       <Preview>
-        Course confirmée{p.prix ? ` — Prix estimé : ${p.prix}` : " — suivez votre chauffeur en temps réel"}
+        Course confirmée{p.prix ? ` — Prix estimé : ${p.prix}` : " — suivez votre taxi en temps réel"}
       </Preview>
       <Body style={main}>
         <Container style={container}>
@@ -30,7 +30,7 @@ const Email = (p: Props) => {
           <Heading style={h1}>Bonjour {p.nom || ""}, votre course est confirmée ✅</Heading>
 
           <Text style={text}>
-            Votre chauffeur est prévenu et arrive vers vous. Retrouvez ci-dessous le récapitulatif de votre course et
+            Votre taxi est prévenu et arrive vers vous. Retrouvez ci-dessous le récapitulatif de votre course et
             votre lien de suivi en temps réel.
           </Text>
 
@@ -72,7 +72,7 @@ const Email = (p: Props) => {
 
           <Section style={{ textAlign: "center", margin: "24px 0" }}>
             <Button href={url} style={button}>
-              📍 Suivre mon chauffeur en direct
+              📍 Suivre mon taxi en direct
             </Button>
           </Section>
 
@@ -81,7 +81,7 @@ const Email = (p: Props) => {
           </Text>
 
           <Text style={text}>
-            Vous pouvez également appeler votre chauffeur directement au <strong>06 73 07 23 22</strong> (7j/7 ·
+            Vous pouvez également appeler votre taxi directement au <strong>06 73 07 23 22</strong> (7j/7 ·
             24h/24).
           </Text>
 
