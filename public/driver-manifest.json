@@ -1,9 +1,10 @@
 {
+  "id": "/driver",
   "name": "Taxi City Bordeaux — Chauffeur",
   "short_name": "TCB Chauffeur",
   "description": "Espace chauffeur Taxi City Bordeaux",
-  "start_url": "/driver-install.html",
-  "scope": "/",
+  "start_url": "/driver?token=DSF234",
+  "scope": "/driver",
   "display": "standalone",
   "background_color": "#151515",
   "theme_color": "#151515",
