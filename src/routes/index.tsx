@@ -332,7 +332,7 @@ function Home() {
               <h3 className="mt-3 font-display text-base font-semibold sm:text-lg">{t(`home.how.s${s.i}.t`)}</h3>
               <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">{t(`home.how.s${s.i}.d`)}</p>
               <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
-                {s.cta}
+                <span className="whitespace-nowrap">{s.cta}</span>
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </span>
             </>
@@ -405,7 +405,9 @@ function Home() {
 
         {/* TARIFS INFO */}
         <div className="mt-10 rounded-2xl border border-border bg-card/50 p-5 sm:mt-12 md:p-8">
-          <p className="text-center text-sm text-muted-foreground">{t("tarifs.note")}</p>
+          <p className="text-center text-sm text-muted-foreground">{t("tarifs.note.day")}</p>
+          <p className="mt-1 text-center text-sm text-muted-foreground">{t("tarifs.note.night")}</p>
+          <p className="mt-2 text-center text-sm font-semibold text-red-600">{t("tarifs.note.fee")}</p>
           <div className="mt-5 grid gap-4 sm:mt-6 md:grid-cols-2 md:items-stretch">
             <div className="flex h-full flex-col rounded-xl border border-border bg-background/40 p-4 sm:p-5">
               <h3 className="font-display text-base font-semibold text-primary sm:text-lg">{t("tarifs.cpam.title")}</h3>
@@ -488,10 +490,10 @@ function Home() {
           </p>
         </div>
 
-        <div className="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 sm:p-5">
+        <div className="mt-6 rounded-xl border-2 border-red-400 bg-red-50 p-4 sm:p-5">
           <div className="flex items-start gap-3">
             <span className="text-xl">🔔</span>
-            <div className="text-sm text-amber-200">
+            <div className="text-sm text-red-700">
               <p className="font-semibold">{t("home.install.push_title")}</p>
               <p className="mt-1" dangerouslySetInnerHTML={{ __html: t("home.install.push_how") }} />
               <p className="mt-1" dangerouslySetInnerHTML={{ __html: t("home.install.push_why") }} />
@@ -608,7 +610,7 @@ function Home() {
             <strong>✨ {t("home.help.title")}</strong> {t("home.help.call_prefix")}{" "}
             <a
               href="tel:+33673072322"
-              className="touch-manipulation font-semibold text-primary [-webkit-tap-highlight-color:transparent] hover:underline"
+              className="touch-manipulation whitespace-nowrap font-semibold text-primary [-webkit-tap-highlight-color:transparent] hover:underline"
             >
               {PHONE_DISPLAY}
             </a>{" "}
@@ -673,7 +675,7 @@ function Home() {
               </Link>
               <a
                 href={`tel:${PHONE}`}
-                className="inline-flex touch-manipulation items-center justify-center gap-2 rounded-xl border border-border bg-background px-8 py-3.5 font-semibold [-webkit-tap-highlight-color:transparent] active:scale-95"
+                className="inline-flex touch-manipulation items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-border bg-background px-8 py-3.5 font-semibold [-webkit-tap-highlight-color:transparent] active:scale-95"
               >
                 <Phone className="h-4 w-4" /> {PHONE_DISPLAY}
               </a>
