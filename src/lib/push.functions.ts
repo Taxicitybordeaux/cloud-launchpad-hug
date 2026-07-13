@@ -432,12 +432,12 @@ export const notifyReservationStatus = createServerFn({ method: "POST" })
     let smsBody: string | null = null;
     if (smsPhone && data.status === "en_route") {
       smsBody = encodeURIComponent(
-        `Bonjour ${clientName},\nVotre taxi arrive vers vous !\n${r.depart}\n📲 Suivez en direct : ${APP_URL}${url}\nTel: 06 73 07 23 22`,
+        `Bonjour ${clientName},\nVotre taxi arrive vers vous !\n${r.depart}\n📲 Suivez en direct : ${APP_URL}${url}\nTel: 06 73 07 23 22`,
       );
     }
     if (smsPhone && data.status === "arrived") {
       smsBody = encodeURIComponent(
-        `Bonjour ${clientName},\nVotre taxi est arrive ! Il vous attend au point de prise en charge.\nTel: 06 73 07 23 22`,
+        `Bonjour ${clientName},\nVotre taxi est arrive ! Il vous attend au point de prise en charge.\nTel: 06 73 07 23 22`,
       );
     }
 

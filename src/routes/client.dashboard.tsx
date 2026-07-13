@@ -351,7 +351,7 @@ function ClientDashboard() {
                 textDecoration: "none",
               }}
             >
-              <Phone style={{ width: 16, height: 16 }} /> Appeler José — 06 73 07 23 22
+              <Phone style={{ width: 16, height: 16 }} /> Appeler José — 06 73 07 23 22
             </a>
           </div>
 

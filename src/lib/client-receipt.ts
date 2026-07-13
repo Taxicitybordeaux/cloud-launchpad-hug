@@ -110,7 +110,7 @@ export function downloadReceiptPDF(
   doc.setFontSize(8);
   doc.setTextColor("#888");
   doc.text(
-    "Taxi City Bordeaux — taxi.city033@gmail.com — 06 73 07 23 22",
+    "Taxi City Bordeaux — taxi.city033@gmail.com — 06 73 07 23 22",
     W / 2,
     800,
     { align: "center" },

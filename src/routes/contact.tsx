@@ -4,7 +4,7 @@ import { useT } from "@/i18n/I18nProvider";
 
 const CONTACT_TITLE = "Contact – Taxi City Bordeaux";
 const CONTACT_DESC =
-  "Contactez Taxi City Bordeaux : 06 73 07 23 22, taxi.city033@gmail.com. Interventions à Bordeaux et dans toute la Gironde.";
+  "Contactez Taxi City Bordeaux : 06 73 07 23 22, taxi.city033@gmail.com. Interventions à Bordeaux et dans toute la Gironde.";
 const CONTACT_URL = "https://taxicitybordeaux.fr/contact";
 
 export const Route = createFileRoute("/contact")({
@@ -42,7 +42,7 @@ function ContactPage() {
           <Phone className="h-7 w-7 shrink-0 text-primary sm:h-8 sm:w-8" />
           <div>
             <h2 className="font-display text-lg font-semibold sm:mt-3 sm:text-xl">{t("contact.phone")}</h2>
-            <p className="text-xl font-bold text-primary sm:mt-1 sm:text-2xl">06 73 07 23 22</p>
+            <p className="text-xl font-bold text-primary sm:mt-1 sm:text-2xl">06 73 07 23 22</p>
             <p className="mt-0.5 text-sm text-muted-foreground sm:mt-1">{t("contact.phone.sub")}</p>
           </div>
         </a>

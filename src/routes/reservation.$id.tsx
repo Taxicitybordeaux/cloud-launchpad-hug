@@ -228,7 +228,7 @@ function ConfirmationPage() {
             href="tel:0673072322"
             className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-background px-5 py-3 font-semibold transition hover:border-primary"
           >
-            <Phone className="h-5 w-5" /> 06 73 07 23 22
+            <Phone className="h-5 w-5" /> 06 73 07 23 22
           </a>
         </div>
       )}

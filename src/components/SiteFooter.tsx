@@ -219,7 +219,7 @@ export function SiteFooter() {
           <ul className="footer-ul">
             <li>
               <a href="tel:0673072322" className="footer-link">
-                📞 06 73 07 23 22
+                📞 06 73 07 23 22
               </a>
             </li>
             <li>

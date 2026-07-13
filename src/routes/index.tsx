@@ -93,7 +93,7 @@ export const Route = createFileRoute("/")({
 });
 
 const PHONE = "0673072322";
-const PHONE_DISPLAY = "06 73 07 23 22";
+const PHONE_DISPLAY = "06 73 07 23 22";
 const WHATSAPP = `https://wa.me/33${PHONE.replace(/^0/, "")}`;
 
 function Home() {

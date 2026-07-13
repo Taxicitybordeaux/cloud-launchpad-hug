@@ -33,7 +33,7 @@ function MentionsLegalesPage() {
           <ul className="mt-2 list-disc pl-5 text-muted-foreground">
             <li><strong>Taxi City Bordeaux</strong> — Artisan taxi indépendant</li>
             <li>Adresse&nbsp;: Bordeaux, Gironde (33), France</li>
-            <li>Téléphone&nbsp;: <a href="tel:0673072322" className="text-primary hover:underline">06 73 07 23 22</a></li>
+            <li>Téléphone&nbsp;: <a href="tel:0673072322" className="text-primary hover:underline">06 73 07 23 22</a></li>
             <li>Email&nbsp;: <a href="mailto:taxi.city033@gmail.com" className="text-primary hover:underline">taxi.city033@gmail.com</a></li>
             <li>Numéro ADS / Carte professionnelle&nbsp;: disponible sur demande</li>
           </ul>
