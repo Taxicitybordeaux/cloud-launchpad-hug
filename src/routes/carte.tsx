@@ -53,6 +53,22 @@ function CartePage() {
   }, []);
 
   const waNumber = CONTACT.tel.replace(/[^\d]/g, "");
+  const [toast, setToast] = useState<string | null>(null);
+
+  async function handleEmail(e: React.MouseEvent) {
+    // Copie systématique + tente mailto. Si mailto ne peut pas s'ouvrir
+    // (iframe d'aperçu, pas de client mail configuré), l'utilisateur a au
+    // moins l'email dans son presse-papier avec une confirmation visible.
+    try {
+      await navigator.clipboard.writeText(CONTACT.email);
+      setToast(`Email copié : ${CONTACT.email}`);
+      window.setTimeout(() => setToast(null), 3000);
+    } catch {
+      // clipboard peut être bloqué en HTTP ou refusé — on continue quand même
+    }
+    // Laisse le navigateur tenter mailto: en parallèle
+    void e;
+  }
 
   return (
     <main
@@ -92,7 +108,7 @@ function CartePage() {
             label="WhatsApp"
           />
           <ActionButton href={`sms:${CONTACT.tel}`} icon="✉️" label="SMS" />
-          <ActionButton href={`mailto:${CONTACT.email}`} icon="📧" label="Email" />
+          <ActionButton href={`mailto:${CONTACT.email}`} icon="📧" label="Email" onClick={handleEmail} />
           <ActionButton href={CONTACT.reserve} icon="🚕" label="Réserver en ligne" primary />
           <ActionButton href={CONTACT.site} icon="🌐" label="Site web" />
           <ActionButton
@@ -102,6 +118,29 @@ function CartePage() {
             label="Ajouter aux contacts"
           />
         </div>
+
+        {toast && (
+          <div
+            role="status"
+            style={{
+              position: "fixed",
+              bottom: 24,
+              left: "50%",
+              transform: "translateX(-50%)",
+              background: "#E8C96D",
+              color: "#000",
+              padding: "10px 16px",
+              borderRadius: 10,
+              fontWeight: 600,
+              fontSize: 14,
+              boxShadow: "0 8px 30px rgba(0,0,0,0.4)",
+              zIndex: 50,
+            }}
+          >
+            {toast}
+          </div>
+        )}
+
 
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textAlign: "center", marginTop: 8 }}>
           Taxi conventionné · Bordeaux et Métropole · 7j/7
