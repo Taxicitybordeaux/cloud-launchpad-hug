@@ -114,22 +114,22 @@
   .site-header-logo {
     display: inline-flex;
     align-items: center;
-    inline-size: clamp(64px, 18vw, 112px);
-    block-size: 48px;
+    inline-size: clamp(70px, 20vw, 130px);
+    block-size: 52px;
     contain: layout size;
   }
 
   .site-header-logo-img {
     inline-size: 100% !important;
-    block-size: 48px !important;
-    max-block-size: 48px !important;
+    block-size: 52px !important;
+    max-block-size: 52px !important;
     aspect-ratio: 1200 / 896;
     object-fit: contain;
   }
 
   @media (max-width: 390px) {
     .site-header-logo {
-      inline-size: 64px;
+      inline-size: 68px;
     }
 
     .site-header-mobile-actions {
