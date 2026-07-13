@@ -489,11 +489,11 @@ function QrGeneratorPage() {
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button
                 type="button"
-                onClick={download80mm}
+                onClick={download55mm}
                 disabled={busy || !isValid}
                 style={btnGold(busy || !isValid)}
               >
-                PNG 80×80 mm
+                PNG 55×55 mm
               </button>
               <button
                 type="button"
@@ -501,7 +501,7 @@ function QrGeneratorPage() {
                 disabled={busy || !isValid}
                 style={btnGold(busy || !isValid)}
               >
-                PNG A4 pleine page
+                PDF A4 (QR à 55 mm)
               </button>
             </div>
 
