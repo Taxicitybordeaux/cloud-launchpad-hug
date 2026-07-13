@@ -479,7 +479,7 @@ function QrGeneratorPage() {
                 disabled={busy || !isValid}
                 style={btnGold(busy || !isValid)}
               >
-                PDF A4 (QR à 55 mm)
+                PDF 55×55 mm
               </button>
             </div>
 
