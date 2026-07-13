@@ -287,7 +287,7 @@ function QrGeneratorPage() {
     ctx.fillStyle = "#fff";
     ctx.fillRect(0, 0, A4_W, A4_H);
 
-    // QR centré à taille physique 80×80 mm — identique au PNG 80mm.
+    // QR centré à taille physique 80×55 mm — identique au PNG 80mm.
     // Aucun cadre, aucun texte : l'impression sort à la bonne taille
     // quelle que soit l'option "zoom/ajuster" du dialogue téléphone.
     const qrSize = VIGNETTE_PX;
@@ -512,7 +512,7 @@ function QrGeneratorPage() {
             </p>
           </div>
 
-          {/* Aperçu avec gabarit 80×80 mm */}
+          {/* Aperçu avec gabarit 80×55 mm */}
           <div
             style={{
               background: "#fff",
@@ -561,7 +561,7 @@ function QrGeneratorPage() {
                   letterSpacing: "0.1em",
                 }}
               >
-                80 mm
+                55 mm
               </div>
               <div
                 style={{
@@ -575,11 +575,11 @@ function QrGeneratorPage() {
                   letterSpacing: "0.1em",
                 }}
               >
-                80 mm
+                55 mm
               </div>
             </div>
             <div style={{ fontSize: 12, color: "#555", textAlign: "center" }}>
-              Aperçu à l'échelle — gabarit de coupe 80 × 80 mm (vignette CT).
+              Aperçu à l'échelle — gabarit de coupe 80 × 55 mm (vignette CT).
             </div>
             {/* Canvas d'export caché, haute résolution */}
             <canvas
