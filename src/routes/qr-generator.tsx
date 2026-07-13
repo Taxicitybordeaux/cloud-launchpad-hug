@@ -191,7 +191,7 @@ function QrGeneratorPage() {
         });
         logoRef.current = img;
       }
-      const data = buildVCard(form);
+      const data = buildPayload(form);
       await renderQr(previewRef.current, PREVIEW_SIZE_PX, data, logoRef.current, logoPctOverride);
       await renderQr(printRef.current, PRINT_SIZE_PX, data, logoRef.current, logoPctOverride);
     } finally {
@@ -218,7 +218,7 @@ function QrGeneratorPage() {
         });
         logoRef.current = img;
       }
-      const data = buildVCard(form);
+      const data = buildPayload(form);
       const testSize = 600;
       const test = document.createElement("canvas");
       test.width = testSize;
@@ -410,7 +410,7 @@ function QrGeneratorPage() {
                 onClick={() => {
                   // Optimisation auto : cible une couverture lisible mais bien
                   // en dessous du seuil de la correction H (~30% masquable).
-                  const payloadLen = buildVCard(form).length;
+                  const payloadLen = buildPayload(form).length;
                   const pct = payloadLen < 180 ? 0.46 : payloadLen < 260 ? 0.42 : 0.36;
                   setLogoPct(pct);
                   setMaxInfo(null);
