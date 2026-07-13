@@ -279,29 +279,19 @@ function QrGeneratorPage() {
   }
 
   function downloadA4() {
-    // PDF A4 portrait — QR à 55×55 mm centré avec liseré noir et légende
-    // "55 x 55 mm - decouper au trait". Format identique à la vignette de réf.
+    // PDF au format physique exact 55×55 mm — identique à Allo Taxi Bordeaux.
+    // Pas de page A4, pas de marge : la page PDF fait 55×55 mm et le QR remplit
+    // toute la page pour une impression 1:1 sans risque de mise à l'échelle.
     if (!printRef.current) return;
     const dataUrl = printRef.current.toDataURL("image/png");
-    const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
-    const pageW = 210;
-    const pageH = 297;
-    const qrMm = 55;
-    const x = (pageW - qrMm) / 2;
-    const y = (pageH - qrMm) / 2 - 20; // légèrement au-dessus du centre
-    pdf.addImage(dataUrl, "PNG", x, y, qrMm, qrMm, undefined, "FAST");
-    // Liseré noir fin autour du QR
-    pdf.setDrawColor(0);
-    pdf.setLineWidth(0.3);
-    pdf.rect(x, y, qrMm, qrMm);
-    // Légende
-    pdf.setTextColor(120);
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(11);
-    pdf.text("55 x 55 mm - decouper au trait", pageW / 2, y + qrMm + 12, {
-      align: "center",
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: [55, 55],
+      compress: true,
     });
-    pdf.save(`qr-${slug(form.name)}-vignette-55mm.pdf`);
+    pdf.addImage(dataUrl, "PNG", 0, 0, 55, 55, undefined, "FAST");
+    pdf.save(`qr-${slug(form.name)}-55x55mm.pdf`);
   }
 
   return (
