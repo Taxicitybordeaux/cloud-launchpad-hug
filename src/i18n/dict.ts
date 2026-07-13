@@ -818,7 +818,7 @@ const fr: Dict = {
   "fin.pdf.section_trip": "TRAJET",
   "fin.pdf.trip_from": "Départ",
   "fin.pdf.trip_to": "Arrivée",
-  "fin.pdf.section_driver": "CHAUFFEUR",
+  "fin.pdf.section_driver": "TAXI",
   "fin.pdf.plate": "Plaque",
   "fin.pdf.reviews": "avis",
   "fin.pdf.section_passenger": "PASSAGER",
