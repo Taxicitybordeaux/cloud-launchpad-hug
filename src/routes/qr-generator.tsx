@@ -346,6 +346,54 @@ function QrGeneratorPage() {
               gap: 12,
             }}
           >
+            {/* Mode */}
+            <div style={{ display: "flex", gap: 8, background: "rgba(255,255,255,0.05)", padding: 4, borderRadius: 10 }}>
+              {(["url", "vcard"] as Mode[]).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, mode: m }))}
+                  style={{
+                    flex: 1,
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    border: "none",
+                    background: form.mode === m ? "#E8C96D" : "transparent",
+                    color: form.mode === m ? "#000" : "#fff",
+                    fontWeight: 600,
+                    fontSize: 13,
+                    cursor: "pointer",
+                  }}
+                >
+                  {m === "url" ? "Page cliquable (recommandé)" : "vCard (ajout contact)"}
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+              {form.mode === "url"
+                ? "Le QR pointe vers /carte : boutons Appeler, WhatsApp, SMS, Email, Réserver, Ajouter contact — tout est cliquable."
+                : "Le QR contient une vCard : le téléphone propose « Ajouter aux contacts »."}
+            </div>
+
+            {form.mode === "url" && (
+              <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>URL de la page cliquable</span>
+                <input
+                  value={form.url}
+                  onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
+                  style={{
+                    background: "#0f172a",
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    borderRadius: 8,
+                    padding: "10px 12px",
+                    color: "#fff",
+                    fontSize: 14,
+                  }}
+                />
+              </label>
+            )}
+
+            {form.mode === "vcard" && (
             {(
               [
                 ["name", "Nom affiché"],
