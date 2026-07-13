@@ -180,10 +180,8 @@ function CartePage() {
               <div style={{ fontSize: 16, fontWeight: 600, textAlign: "center", marginBottom: 8, wordBreak: "break-all" }}>
                 {CONTACT.email}
               </div>
-              <a href={`mailto:${CONTACT.email}`} onClick={() => setEmailOpen(false)}
-                 style={emailBtn(true)}>📧 Application Mail par défaut</a>
               <a href={gmailUrl} target="_blank" rel="noopener noreferrer" onClick={() => setEmailOpen(false)}
-                 style={emailBtn(false)}>✉️ Ouvrir Gmail (web)</a>
+                 style={emailBtn(true)}>✉️ Ouvrir Gmail (web)</a>
               <a href={outlookUrl} target="_blank" rel="noopener noreferrer" onClick={() => setEmailOpen(false)}
                  style={emailBtn(false)}>📨 Ouvrir Outlook (web)</a>
               <button type="button" onClick={copyEmail} style={{ ...emailBtn(false), cursor: "pointer" }}>
