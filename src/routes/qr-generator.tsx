@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import QRCode from "qrcode";
 import jsQR from "jsqr";
+import { jsPDF } from "jspdf";
 import logoSrc from "@/assets/tcb-logo.jpeg";
 
 export const Route = createFileRoute("/qr-generator")({
