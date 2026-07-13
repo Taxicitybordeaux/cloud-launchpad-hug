@@ -317,14 +317,22 @@ function CartePage() {
   const t = T[lang];
   const rtl = lang === "ar";
 
-  const vcardHref = useMemo(() => {
-    const blob = new Blob([buildVCard()], { type: "text/vcard;charset=utf-8" });
-    return typeof window !== "undefined" ? URL.createObjectURL(blob) : "#";
-  }, []);
-
   const waNumber = CONTACT.tel.replace(/[^\d]/g, "");
   const [toast, setToast] = useState<string | null>(null);
-  const [emailOpen, setEmailOpen] = useState(false);
+
+  function downloadVCard(e: React.MouseEvent<HTMLAnchorElement>) {
+    e.preventDefault();
+    if (typeof window === "undefined") return;
+    const blob = new Blob([buildVCard()], { type: "text/vcard;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "taxi-city-bordeaux.vcf";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
 
   function showToast(msg: string) {
     setToast(msg);
