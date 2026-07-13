@@ -259,8 +259,8 @@ function Home() {
                 <img
                   src={logo}
                   alt="Taxi City Bordeaux"
-                  width={512}
-                  height={512}
+                  width={1200}
+                  height={896}
                   loading="lazy"
                   decoding="async"
                   className="mx-auto h-auto w-full max-w-xs select-none sm:max-w-sm"

@@ -34,8 +34,8 @@ export function SiteHeader() {
           <img
             src={logo}
             alt="Taxi City Bordeaux"
-            width={512}
-            height={343}
+            width={1200}
+            height={896}
             decoding="async"
             loading="eager"
             fetchPriority="high"
