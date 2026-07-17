@@ -1564,21 +1564,30 @@ function CourseCard({
 
       {/* Résumé km/prix — priorité à la route sélectionnée si chargée, sinon valeurs BDD */}
 
-      {(resa.distance_km || resa.prix_estime || routes.length > 0) && (
-        <div className="drv-meta">
-          {(routes[selectedRoute]?.distanceKm ?? resa.distance_km) != null && (
-            <span>🛣 {routes[selectedRoute]?.distanceKm ?? resa.distance_km} km</span>
-          )}
-          {(routes[selectedRoute]?.prix_estime ?? resa.prix_estime) != null && (
-            <span>💶 {(routes[selectedRoute]?.prix_estime ?? resa.prix_estime ?? 0).toFixed(2)} €</span>
-          )}
-          {routes[selectedRoute]?.tarifLabel && (
-            <span style={{ color: routes[selectedRoute].tarifLabel.includes("nuit") ? "#1d4ed8" : "#15803d" }}>
-              {routes[selectedRoute].tarifLabel}
-            </span>
-          )}
-        </div>
-      )}
+      {(() => {
+        const previewPrix = (() => {
+          const v = parseFloat((customPrix || "").trim().replace(",", "."));
+          return !isNaN(v) && v > 0 ? v : null;
+        })();
+        const displayPrix = previewPrix ?? routes[selectedRoute]?.prix_estime ?? resa.prix_estime;
+        const displayKm = routes[selectedRoute]?.distanceKm ?? resa.distance_km;
+        if (!displayKm && displayPrix == null && routes.length === 0) return null;
+        return (
+          <div className="drv-meta">
+            {displayKm != null && <span>🛣 {displayKm} km</span>}
+            {displayPrix != null && (
+              <span style={previewPrix != null ? { color: "#b45309", fontWeight: 700 } : undefined}>
+                💶 {displayPrix.toFixed(2)} €{previewPrix != null ? " (perso)" : ""}
+              </span>
+            )}
+            {previewPrix == null && routes[selectedRoute]?.tarifLabel && (
+              <span style={{ color: routes[selectedRoute].tarifLabel.includes("nuit") ? "#1d4ed8" : "#15803d" }}>
+                {routes[selectedRoute].tarifLabel}
+              </span>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Détail expandable */}
       {expanded && (
@@ -1728,19 +1737,34 @@ function CourseCard({
                   <input
                     type="text"
                     inputMode="decimal"
-                    placeholder="Ex: 18.50"
+                    placeholder="Prix en € (ex : 18,50)"
                     value={customPrix}
                     onChange={(e) => setCustomPrix(e.target.value)}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = "#E8C96D";
+                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(232,201,109,0.25)";
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = "#cbd5e1";
+                      e.currentTarget.style.boxShadow = "none";
+                    }}
+                    className="drv-custom-prix-input"
                     style={{
                       width: "100%",
-                      padding: "10px 12px",
+                      padding: "12px 14px",
                       borderRadius: 10,
-                      border: "1px solid #e2e8f0",
+                      border: "1px solid #cbd5e1",
                       fontSize: 16,
                       marginBottom: 8,
                       fontFamily: "'DM Sans', sans-serif",
                       background: "#ffffff",
                       color: "#0f172a",
+                      fontWeight: 600,
+                      outline: "none",
+                      transition: "border-color 120ms ease, box-shadow 120ms ease",
+                      WebkitAppearance: "none",
+                      appearance: "none",
+                      boxSizing: "border-box",
                     }}
                   />
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
