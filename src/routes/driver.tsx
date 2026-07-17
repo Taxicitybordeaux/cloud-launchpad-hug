@@ -1739,6 +1739,8 @@ function CourseCard({
                       fontSize: 16,
                       marginBottom: 8,
                       fontFamily: "'DM Sans', sans-serif",
+                      background: "#ffffff",
+                      color: "#0f172a",
                     }}
                   />
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
