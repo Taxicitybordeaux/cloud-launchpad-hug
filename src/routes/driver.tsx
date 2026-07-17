@@ -1737,19 +1737,34 @@ function CourseCard({
                   <input
                     type="text"
                     inputMode="decimal"
-                    placeholder="Ex: 18.50"
+                    placeholder="Prix en € (ex : 18,50)"
                     value={customPrix}
                     onChange={(e) => setCustomPrix(e.target.value)}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = "#E8C96D";
+                      e.currentTarget.style.boxShadow = "0 0 0 3px rgba(232,201,109,0.25)";
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = "#cbd5e1";
+                      e.currentTarget.style.boxShadow = "none";
+                    }}
+                    className="drv-custom-prix-input"
                     style={{
                       width: "100%",
-                      padding: "10px 12px",
+                      padding: "12px 14px",
                       borderRadius: 10,
-                      border: "1px solid #e2e8f0",
+                      border: "1px solid #cbd5e1",
                       fontSize: 16,
                       marginBottom: 8,
                       fontFamily: "'DM Sans', sans-serif",
                       background: "#ffffff",
                       color: "#0f172a",
+                      fontWeight: 600,
+                      outline: "none",
+                      transition: "border-color 120ms ease, box-shadow 120ms ease",
+                      WebkitAppearance: "none",
+                      appearance: "none",
+                      boxSizing: "border-box",
                     }}
                   />
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
