@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Phone, Mail, MapPin, MessageCircle, Clock } from "lucide-react";
 import { useT } from "@/i18n/I18nProvider";
 
-const CONTACT_TITLE = "Contact – Taxi City Bordeaux";
+const CONTACT_TITLE = "Contact : Taxi City Bordeaux";
 const CONTACT_DESC =
   "Contactez Taxi City Bordeaux : 06 73 07 23 22, taxi.city033@gmail.com. Interventions à Bordeaux et dans toute la Gironde.";
 const CONTACT_URL = "https://taxicitybordeaux.fr/contact";
