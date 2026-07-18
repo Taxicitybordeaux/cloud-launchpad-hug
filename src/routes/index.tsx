@@ -208,8 +208,12 @@ function Home() {
         </div>
       </section>
 
+      {/* PARAGRAPHE CONTEXTUEL — liens internes vers les 4 pages SEO locales */}
+      <ContextualSeoParagraph />
+
       {/* PAGES SEO LOCALES — liens internes vers les 4 landings */}
       <LocalSeoLinks />
+
 
 
 
