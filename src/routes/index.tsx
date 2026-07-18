@@ -208,6 +208,11 @@ function Home() {
         </div>
       </section>
 
+      {/* PAGES SEO LOCALES — liens internes vers les 4 landings */}
+      <LocalSeoLinks />
+
+
+
       {/* BEST SELLERS BORDEAUX */}
       <section className="border-t border-border bg-card/20">
         <div className="mx-auto max-w-7xl px-4 py-12 sm:py-16 md:py-20">
