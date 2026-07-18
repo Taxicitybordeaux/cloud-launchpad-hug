@@ -15,6 +15,7 @@ import {
   Quote,
   HelpCircle,
   MessageCircle,
+  Heart,
 } from "lucide-react";
 import logo from "@/assets/tcb-logo-badge.png";
 import heroCar from "@/assets/hero-bordeaux.jpg";
@@ -25,11 +26,12 @@ import bestCiteVin from "@/assets/best-cite-vin.jpg";
 import bestDunePilat from "@/assets/best-dune-pilat.jpg";
 import bestSaintEmilion from "@/assets/best-saint-emilion.jpg";
 import bestMiroirEau from "@/assets/best-miroir-eau.jpg";
-import { useT } from "@/i18n/I18nProvider";
+import { useT, useI18n } from "@/i18n/I18nProvider";
 import installIosGuide from "@/assets/install-ios-guide.jpg";
 import installAndroidGuide from "@/assets/install-android-guide.jpg";
 import { ReviewForm } from "@/components/ReviewForm";
 import { supabase } from "@/integrations/supabase/client";
+import { hreflangLinks } from "@/lib/seo-hreflang";
 
 const HOME_TITLE = "Taxi City Bordeaux – Taxi 7j/7 à Bordeaux & en Gironde";
 const HOME_DESC =
@@ -73,7 +75,7 @@ export const Route = createFileRoute("/")({
       { property: "og:url", content: HOME_URL },
       { property: "og:type", content: "website" },
     ],
-    links: [{ rel: "canonical", href: HOME_URL }],
+    links: [{ rel: "canonical", href: HOME_URL }, ...hreflangLinks(HOME_URL)],
     scripts: [
       {
         type: "application/ld+json",
@@ -205,6 +207,11 @@ function Home() {
           ))}
         </div>
       </section>
+
+      {/* PAGES SEO LOCALES — liens internes vers les 4 landings */}
+      <LocalSeoLinks />
+
+
 
       {/* BEST SELLERS BORDEAUX */}
       <section className="border-t border-border bg-card/20">
@@ -688,6 +695,149 @@ function Home() {
     </>
   );
 }
+
+// Section homepage : liens internes vers les 4 pages SEO locales.
+// Titres/sous-titres localisés inline pour éviter d'alourdir le dict global.
+const SEO_SECTION_COPY: Record<string, { eyebrow: string; title: string; intro: string; cta: string }> = {
+  fr: {
+    eyebrow: "Trajets fréquents",
+    title: "Nos courses les plus demandées",
+    intro: "Je réponds ici aux questions concrètes qu'on me pose chaque semaine — tarifs, temps de trajet, prise en charge médicale, suivi de vol.",
+    cta: "En savoir plus",
+  },
+  en: {
+    eyebrow: "Popular trips",
+    title: "The rides I do most often",
+    intro: "Concrete answers to the questions people ask me every week — pricing, travel times, medical coverage, flight tracking.",
+    cta: "Learn more",
+  },
+  es: {
+    eyebrow: "Trayectos frecuentes",
+    title: "Nuestros trayectos más solicitados",
+    intro: "Respondo aquí las preguntas concretas que me hacen cada semana — precios, tiempos, cobertura médica, seguimiento de vuelo.",
+    cta: "Saber más",
+  },
+  pt: {
+    eyebrow: "Viagens frequentes",
+    title: "As viagens que faço mais frequentemente",
+    intro: "Respondo às perguntas concretas que me fazem toda semana — preços, tempos, cobertura médica, seguimento de voo.",
+    cta: "Saiba mais",
+  },
+  it: {
+    eyebrow: "Corse frequenti",
+    title: "Le corse che faccio più spesso",
+    intro: "Rispondo alle domande concrete che mi fanno ogni settimana — prezzi, tempi, copertura medica, monitoraggio volo.",
+    cta: "Scopri di più",
+  },
+  ar: {
+    eyebrow: "الرحلات المتكررة",
+    title: "الرحلات الأكثر طلبًا",
+    intro: "أجيب هنا على الأسئلة الشائعة — الأسعار، الأوقات، التغطية الطبية، متابعة الرحلات.",
+    cta: "اعرف المزيد",
+  },
+};
+
+const SEO_CARDS: {
+  key: string;
+  to: "/taxi-aeroport-bordeaux-merignac" | "/taxi-gare-saint-jean-bordeaux" | "/taxi-bordeaux-arcachon" | "/taxi-conventionne-bordeaux";
+  icon: React.ComponentType<{ className?: string }>;
+  copy: Record<string, { title: string; sub: string }>;
+}[] = [
+  {
+    key: "airport",
+    to: "/taxi-aeroport-bordeaux-merignac",
+    icon: Plane,
+    copy: {
+      fr: { title: "Taxi aéroport Mérignac", sub: "Suivi de vol, forfait annoncé, jour et nuit." },
+      en: { title: "Mérignac airport taxi", sub: "Flight tracking, flat fare, day & night." },
+      es: { title: "Taxi aeropuerto Mérignac", sub: "Seguimiento de vuelo, tarifa fija, 24/7." },
+      pt: { title: "Táxi aeroporto Mérignac", sub: "Seguimento de voo, tarifa fixa, 24/7." },
+      it: { title: "Taxi aeroporto Mérignac", sub: "Monitoraggio volo, tariffa fissa, 24/7." },
+      ar: { title: "سيارة أجرة مطار ميرينياك", sub: "متابعة الرحلة، سعر مقطوع، 24/7." },
+    },
+  },
+  {
+    key: "station",
+    to: "/taxi-gare-saint-jean-bordeaux",
+    icon: Train,
+    copy: {
+      fr: { title: "Taxi gare Saint-Jean", sub: "Prise en charge à l'arrivée du TGV, sans stress." },
+      en: { title: "Saint-Jean station taxi", sub: "Pickup at TGV arrival, stress-free." },
+      es: { title: "Taxi estación Saint-Jean", sub: "Recogida a la llegada del TGV." },
+      pt: { title: "Táxi estação Saint-Jean", sub: "Recolha à chegada do TGV." },
+      it: { title: "Taxi stazione Saint-Jean", sub: "Ritiro all'arrivo del TGV." },
+      ar: { title: "سيارة أجرة محطة سان-جان", sub: "استلام عند وصول TGV." },
+    },
+  },
+  {
+    key: "arcachon",
+    to: "/taxi-bordeaux-arcachon",
+    icon: MapPin,
+    copy: {
+      fr: { title: "Bordeaux → Arcachon", sub: "Direct vers Pyla, Cap-Ferret, Bassin." },
+      en: { title: "Bordeaux → Arcachon", sub: "Direct to Pyla, Cap-Ferret, the Bay." },
+      es: { title: "Burdeos → Arcachon", sub: "Directo a Pyla, Cap-Ferret, Bahía." },
+      pt: { title: "Bordéus → Arcachon", sub: "Direto para Pyla, Cap-Ferret, Baía." },
+      it: { title: "Bordeaux → Arcachon", sub: "Diretto a Pyla, Cap-Ferret, Baia." },
+      ar: { title: "بوردو ← أركاشون", sub: "مباشرة إلى بيلا، كاب-فيري." },
+    },
+  },
+  {
+    key: "cpam",
+    to: "/taxi-conventionne-bordeaux",
+    icon: Heart,
+    copy: {
+      fr: { title: "Taxi conventionné CPAM", sub: "Tiers payant, ALD 100 %, dialyse, chimio." },
+      en: { title: "Medical taxi (CPAM)", sub: "Direct billing, ALD 100%, dialysis, chemo." },
+      es: { title: "Taxi concertado CPAM", sub: "Facturación directa, ALD 100%, diálisis." },
+      pt: { title: "Táxi convencionado CPAM", sub: "Faturação direta, ALD 100%, diálise." },
+      it: { title: "Taxi convenzionato CPAM", sub: "Fatturazione diretta, ALD 100%, dialisi." },
+      ar: { title: "سيارة أجرة معتمدة CPAM", sub: "فوترة مباشرة، ALD 100%، غسيل كلى." },
+    },
+  },
+];
+
+function LocalSeoLinks() {
+  const { lang } = useI18n();
+  const copy = SEO_SECTION_COPY[lang] ?? SEO_SECTION_COPY.fr;
+
+  return (
+    <section className="border-t border-border bg-card/20">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:py-16 md:py-20">
+        <div className="text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">{copy.eyebrow}</p>
+          <h2 className="mt-3 font-display text-3xl font-bold sm:text-4xl md:text-5xl">{copy.title}</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">{copy.intro}</p>
+        </div>
+
+        <div className="mt-8 grid gap-4 sm:mt-10 sm:grid-cols-2 lg:grid-cols-4">
+          {SEO_CARDS.map((card) => {
+            const cc = card.copy[lang] ?? card.copy.fr;
+            const Icon = card.icon;
+            return (
+              <Link
+                key={card.key}
+                to={card.to}
+                className="group flex h-full flex-col rounded-2xl border border-border bg-card p-5 transition hover:-translate-y-0.5 hover:border-primary/60 sm:p-6"
+              >
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition group-hover:bg-primary group-hover:text-primary-foreground">
+                  <Icon className="h-5 w-5" />
+                </span>
+                <h3 className="mt-4 font-display text-lg font-semibold">{cc.title}</h3>
+                <p className="mt-1 flex-1 text-sm text-muted-foreground">{cc.sub}</p>
+                <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
+                  {copy.cta}
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 
 type Review = { id: string; name: string; rating: number; text: string; created_at: string };
 

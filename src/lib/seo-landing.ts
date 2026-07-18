@@ -1,5 +1,6 @@
 // Contenu multilingue pour les 4 pages SEO locales (aéroport, gare, Arcachon, conventionné)
 // Langues : fr, en, es, pt, it, ar
+// FR = voix de José (première personne, artisan, ton humain)
 
 import type { Lang } from "@/i18n/dict";
 
@@ -25,151 +26,167 @@ const CTA: Record<Lang, { book: string; call: string; faqTitle: string }> = {
   ar: { book: "احجز رحلتي", call: "اتصل بخوسيه", faqTitle: "الأسئلة الشائعة" },
 };
 
-// --------- FR (source) ----------
+// --------- FR (voix de José — humain, pas IA) ----------
 const FR: Record<LandingKey, LandingContent> = {
   airport: {
-    title: "Taxi Aéroport Bordeaux-Mérignac — Prise en charge 24h/24",
+    title: "Taxi Aéroport Bordeaux-Mérignac — José vous attend à la sortie",
     description:
-      "Taxi vers ou depuis l'aéroport Bordeaux-Mérignac : suivi de vol en temps réel, tarif transparent, véhicule confortable, disponible 7j/7.",
+      "Taxi pour l'aéroport de Bordeaux-Mérignac : José suit votre vol, arrive à l'heure, tarif annoncé d'avance. 7j/7, jour et nuit — appelez le 06 73 07 23 22.",
     intro:
-      "Réservez votre taxi pour l'aéroport de Bordeaux-Mérignac en quelques secondes. Nous suivons votre vol en temps réel et adaptons l'heure de prise en charge : votre chauffeur est là à votre sortie, même en cas de retard ou d'arrivée anticipée.",
+      "Bonjour, moi c'est José. Ça fait des années que je fais la navette entre Bordeaux et l'aéroport de Mérignac — le matin, la nuit, les jours fériés. Vous me donnez votre numéro de vol, je suis l'atterrissage sur mon téléphone et je suis là quand vous sortez. Pas d'attente, pas de mauvaise surprise sur le prix.",
     sections: [
       {
-        h: "Suivi de vol automatique",
-        p: "Communiquez-nous votre numéro de vol : l'heure de prise en charge s'ajuste automatiquement à l'atterrissage réel, sans surcoût.",
+        h: "Je suis votre vol, vous n'y pensez plus",
+        p: "Un retard, un vol un peu en avance, une escale qui décale tout ? Vous me passez le numéro de vol au moment de la réservation, je regarde en temps réel et j'ajuste l'heure de prise en charge. Vous n'avez pas à m'appeler depuis l'avion, je suis déjà en route.",
       },
       {
-        h: "Tarif fixe annoncé à l'avance",
-        p: "Pas de mauvaise surprise. Vous connaissez le prix de la course Bordeaux ↔ Aéroport Mérignac avant de monter à bord.",
+        h: "Le prix, vous le connaissez avant de monter",
+        p: "Je vous annonce le tarif dès la réservation — Bordeaux centre, Bassins à flot, Caudéran, Chartrons, peu importe le point de départ. C'est un forfait clair, pas de compteur qui tourne quand on est bloqué au feu.",
       },
       {
-        h: "Bagages, familles, groupes",
-        p: "Véhicule spacieux, siège enfant sur demande, jusqu'à 7 places pour vos bagages et vos proches.",
+        h: "Familles, bagages, matériel — ça rentre",
+        p: "La berline avale facilement 3 ou 4 valises et il y a la place pour les poussettes. Siège enfant sur demande (dites-le-moi la veille). Si vous êtes un groupe, je peux basculer sur un van 7 places sans souci.",
       },
     ],
     faq: [
       {
-        q: "Combien coûte un taxi de Bordeaux centre à l'aéroport de Mérignac ?",
-        a: "Comptez environ 30 à 45 € en journée selon le point de départ. Le tarif exact est confirmé lors de votre réservation.",
+        q: "Combien coûte un taxi de Bordeaux centre à Mérignac ?",
+        a: "En journée, comptez entre 30 et 45 € selon l'endroit exact d'où je viens vous chercher. La nuit et les dimanches, le tarif est un peu au-dessus (tarif réglementé). Je vous confirme le prix précis au moment de la réservation, avant que vous confirmiez.",
       },
       {
-        q: "Le taxi attend-il si mon vol est retardé ?",
-        a: "Oui. Nous suivons votre vol en temps réel et ajustons l'horaire — le temps d'attente raisonnable après atterrissage est inclus.",
+        q: "Et si mon vol a du retard ?",
+        a: "Je suis votre vol en direct — vous n'avez rien à faire. Si vous atterrissez avec 1h de retard, je serai là 1h plus tard. Le temps normal d'attente après l'atterrissage (récupération bagages, douane) est compris.",
       },
       {
-        q: "Puis-je réserver à l'avance pour un vol tôt le matin ?",
-        a: "Absolument. Nous acceptons les réservations 24h/24, y compris pour les prises en charge nocturnes ou aux premières heures.",
+        q: "Vous prenez les réservations pour un vol à 5h du matin ?",
+        a: "Oui, je fais beaucoup de départs matinaux et de retours de nuit. Réservez la veille ou même quelques jours avant, je bloque le créneau et je suis devant chez vous à l'heure convenue.",
+      },
+      {
+        q: "Je peux payer par carte ?",
+        a: "Oui — carte, sans contact, Apple Pay, Google Pay, ou espèces. Je fournis une facture si vous en avez besoin pour vos notes de frais.",
       },
     ],
     ctaBook: CTA.fr.book,
     ctaCall: CTA.fr.call,
   },
   station: {
-    title: "Taxi Gare Saint-Jean Bordeaux — Réservation en ligne 24h/24",
+    title: "Taxi Gare Saint-Jean Bordeaux — Prise en charge à la sortie du TGV",
     description:
-      "Taxi pour la gare Saint-Jean de Bordeaux : suivi de train, prise en charge immédiate ou réservée, tarif clair. Disponible tous les jours.",
+      "Taxi à la gare Bordeaux Saint-Jean : José suit votre train, vous récupère au quai convenu, tarif fixe. Réservation en ligne ou au 06 73 07 23 22.",
     intro:
-      "Un taxi vous attend à la gare de Bordeaux Saint-Jean, ou vient vous chercher pour votre TGV. Nous suivons votre train et adaptons l'heure de prise en charge automatiquement.",
+      "Je m'appelle José et je fais régulièrement Saint-Jean. Que vous descendiez d'un TGV Paris, d'un Ouigo ou d'un Intercités, je suis au point de rendez-vous qu'on aura fixé ensemble — pas besoin de tourner en rond avec vos valises pour me trouver.",
     sections: [
       {
-        h: "Prise en charge à Saint-Jean",
-        p: "Point de rendez-vous convenu à la réservation : dépose-minute, parvis, ou parking. Votre chauffeur vous localise et vous appelle si besoin.",
+        h: "On se retrouve où vous voulez à la gare",
+        p: "Dépose-minute côté Belcier, parvis principal côté ville, ou parking Effia — vous me dites où vous êtes le plus à l'aise et je suis là. Je vous envoie un SMS avec la plaque de la voiture quand j'arrive.",
       },
       {
-        h: "Suivi TGV en temps réel",
-        p: "Retard, avance, changement de voie : l'horaire est ajusté automatiquement. Vous n'avez rien à faire.",
+        h: "Je regarde votre train arriver",
+        p: "Retard SNCF, changement de voie de dernière minute, TGV qui arrive un peu en avance : je vois tout ça en temps réel. Vous n'avez pas à m'appeler pour me prévenir.",
       },
       {
-        h: "Vers toutes les destinations",
-        p: "Depuis Saint-Jean vers votre hôtel, la Cité du Vin, Mérignac aéroport, Arcachon, Saint-Émilion ou toute la Métropole.",
+        h: "De la gare à votre vraie destination",
+        p: "Un hôtel dans les Chartrons, la Cité du Vin, l'aéroport pour une correspondance, un rendez-vous à Mérignac, ou directement Arcachon, Saint-Émilion, Cap-Ferret — c'est direct, sans changement.",
       },
     ],
     faq: [
       {
-        q: "Où le taxi me récupère-t-il à la gare Saint-Jean ?",
-        a: "Au point de rendez-vous convenu (parvis principal, dépose-minute ou parking selon vos préférences). Nous vous prévenons dès l'arrivée du chauffeur.",
+        q: "Où précisément est-ce que je vous retrouve à Saint-Jean ?",
+        a: "On fixe le point de rendez-vous à la réservation. Le plus simple pour vous : dépose-minute côté Belcier (moins de monde), ou parvis principal si vous préférez sortir côté centre-ville. Je vous confirme par SMS dès que je suis devant.",
       },
       {
-        q: "Puis-je réserver pour un TGV de nuit ?",
-        a: "Oui, service 7j/7 24h/24 — y compris pour les trains de nuit et les premières liaisons du matin.",
+        q: "Vous prenez un TGV de nuit ou très tôt le matin ?",
+        a: "Bien sûr. Je travaille 7j/7 24h/24 — les trains de nuit et les premiers TGV du matin font partie de mon quotidien.",
       },
       {
-        q: "Comptez-vous les minutes d'attente si mon train a du retard ?",
-        a: "Non pour les retards standards : nous suivons votre train et adaptons l'horaire. Une attente prolongée peut être facturée au tarif réglementé.",
+        q: "Si mon train a 30 min de retard, je paie l'attente ?",
+        a: "Non, pour un retard SNCF standard c'est intégré — je suis le train, j'ajuste mon arrivée. Sur une attente vraiment longue (plusieurs heures), on en discute au moment de la réservation.",
+      },
+      {
+        q: "Vous pouvez me déposer à un adresse pro pour un rendez-vous ?",
+        a: "Oui, avec facture si besoin. Je peux aussi vous attendre pour un retour à la gare — dites-le-moi à la réservation, je bloque le créneau retour.",
       },
     ],
     ctaBook: CTA.fr.book,
     ctaCall: CTA.fr.call,
   },
   arcachon: {
-    title: "Taxi Bordeaux → Arcachon — Transfert direct, tarif clair",
+    title: "Taxi Bordeaux ↔ Arcachon — Trajet direct, pas de correspondance",
     description:
-      "Taxi de Bordeaux vers Arcachon (Bassin, Cap-Ferret, Pyla) : trajet direct, réservation à l'avance, tarif annoncé, véhicule confortable pour bagages et famille.",
+      "Taxi de Bordeaux vers Arcachon, Pyla, Cap-Ferret : José vous emmène en direct, tarif annoncé d'avance, aller-retour possible. 06 73 07 23 22.",
     intro:
-      "Rejoignez le Bassin d'Arcachon en taxi depuis Bordeaux centre, l'aéroport de Mérignac ou la gare Saint-Jean. Trajet direct, prix connu d'avance, sans changement.",
+      "Bordeaux ↔ Arcachon, je le fais souvent — pour des touristes qui veulent voir la Dune du Pyla, pour des familles qui vont à Cap-Ferret le week-end, pour des habitués qui prennent le TER trop lent avec les valises. C'est un trajet que je connais par cœur.",
     sections: [
       {
-        h: "Trajet direct porte-à-porte",
-        p: "De votre hôtel, gare ou aéroport de Bordeaux, jusqu'à Arcachon ville, la Dune du Pyla, le Cap-Ferret ou Andernos — sans transfert.",
+        h: "Porte-à-porte, sans correspondance",
+        p: "Je viens vous chercher où vous êtes — hôtel dans le centre de Bordeaux, gare Saint-Jean, aéroport de Mérignac — et je vous dépose là où vous voulez : Arcachon ville, Pyla-sur-Mer au pied de la Dune, Cap-Ferret, Andernos, Lège. Sans changement de véhicule.",
       },
       {
-        h: "Tarif forfaitaire",
-        p: "Prix annoncé à la réservation, sans surcharge cachée. Idéal pour les familles, les groupes ou les touristes avec bagages.",
+        h: "Le prix, c'est un forfait annoncé",
+        p: "Je vous donne le prix ferme à la réservation. Pas de compteur qui monte parce qu'on est coincés sur l'A63 un vendredi soir. Bien plus tranquille pour partir en vacances qu'un taxi qui vous stresse à chaque bouchon.",
       },
       {
-        h: "Retour organisé",
-        p: "Réservez l'aller ET le retour en une seule fois. Nous vous récupérons à l'heure et au lieu convenus.",
+        h: "Le retour, on l'organise en même temps",
+        p: "Si vous savez déjà quand vous rentrez, on bloque l'aller ET le retour au moment de la réservation. Je suis devant votre location à l'heure dite, prêt à repartir. Ça marche aussi pour les mariages, les week-ends sur le Bassin.",
       },
     ],
     faq: [
       {
-        q: "Combien de temps de trajet Bordeaux → Arcachon en taxi ?",
-        a: "Environ 55 à 75 minutes selon la circulation et le point d'arrivée sur le Bassin.",
+        q: "Il faut combien de temps entre Bordeaux et Arcachon ?",
+        a: "Autour d'une heure hors circulation. Un vendredi soir d'été ou un dimanche de retour de week-end, comptez 1h15 à 1h30. Je regarde le trafic avant de partir pour choisir le meilleur itinéraire.",
       },
       {
-        q: "Quel prix pour un taxi Bordeaux → Dune du Pyla ?",
-        a: "Le tarif forfaitaire est confirmé lors de votre réservation en fonction du point de départ et de l'horaire.",
+        q: "Combien pour aller à la Dune du Pyla depuis Bordeaux centre ?",
+        a: "Je vous donne le forfait exact à la réservation — ça dépend du point de départ précis et de l'heure (jour ou nuit). Vous connaissez le prix avant de confirmer, pas de surprise à l'arrivée.",
       },
       {
-        q: "Peut-on transporter des valises ou du matériel de plage ?",
-        a: "Oui, véhicule spacieux jusqu'à 7 places, bagages, poussettes et matériel de plage acceptés sans supplément.",
+        q: "J'ai des valises et une planche de surf, ça passe ?",
+        a: "Sans problème. La voiture est spacieuse, on peut charger des valises, des poussettes, du matériel de plage. Pour une planche longue, prévenez-moi la veille, je vérifie que tout rentre bien.",
+      },
+      {
+        q: "Vous acceptez les groupes de 5-6 personnes ?",
+        a: "Oui, avec un van 7 places sur demande. Prévenez-moi à la réservation pour que je vienne avec le bon véhicule.",
       },
     ],
     ctaBook: CTA.fr.book,
     ctaCall: CTA.fr.call,
   },
   cpam: {
-    title: "Taxi Conventionné CPAM Bordeaux — Tiers Payant, ALD, Dialyse",
+    title: "Taxi Conventionné CPAM Bordeaux — Tiers payant, ALD, dialyse",
     description:
-      "Taxi conventionné Assurance Maladie à Bordeaux : transport médical assis, tiers payant CPAM, ALD, dialyse, chimiothérapie, consultations hospitalières.",
+      "Taxi conventionné Assurance Maladie à Bordeaux : transport médical assis, tiers payant, ALD 100 %, dialyse, chimio. José se déplace, sans avance de frais.",
     intro:
-      "Taxi conventionné par l'Assurance Maladie à Bordeaux. Sur présentation de votre prescription médicale de transport, la course est prise en charge directement — sans avance de frais grâce au tiers payant.",
+      "Je suis José, taxi conventionné par l'Assurance Maladie à Bordeaux. Concrètement : si votre médecin vous a fait un bon de transport, vous n'avez rien à avancer. Je m'occupe de la facturation avec la CPAM et votre mutuelle. Je fais beaucoup de dialyse, de chimio, de consultations à Pellegrin, Haut-Lévêque et Saint-André.",
     sections: [
       {
-        h: "Prise en charge CPAM",
-        p: "Munissez-vous de votre bon de transport signé par votre médecin. Nous nous chargeons de la facturation directement auprès de l'Assurance Maladie.",
+        h: "Le bon de transport, on s'occupe du reste",
+        p: "Vous me montrez votre bon signé par votre médecin (le CERFA), votre carte Vitale, éventuellement votre attestation de mutuelle. C'est tout. Je facture directement l'Assurance Maladie — vous ne sortez pas votre carte bleue à la fin de la course.",
       },
       {
-        h: "ALD : prise en charge à 100 %",
-        p: "En Affection Longue Durée (ALD), vos trajets liés à la pathologie sont pris en charge à 100 %, quelle que soit la distance.",
+        h: "ALD : pris en charge à 100 %",
+        p: "Si vous êtes en Affection Longue Durée, tous vos trajets liés à cette pathologie sont couverts à 100 %, quelle que soit la distance. Même chose pour un accident du travail ou un transport maternité qui rentre dans les critères.",
       },
       {
-        h: "Rendez-vous récurrents",
-        p: "Dialyse, chimiothérapie, radiothérapie, kinésithérapie : nous organisons vos trajets réguliers avec un horaire fixe et un chauffeur habitué.",
+        h: "Rendez-vous récurrents — je suis votre chauffeur habituel",
+        p: "Dialyse trois fois par semaine, chimio, radiothérapie, séances de kiné : je mets en place un planning fixe. Toujours le même horaire, la même voiture, quelqu'un qui vous connaît. Beaucoup de mes patients apprécient de ne pas avoir à réexpliquer leur situation à chaque fois.",
       },
     ],
     faq: [
       {
-        q: "Que faut-il pour bénéficier du tiers payant ?",
-        a: "Votre prescription médicale de transport (bon de transport CERFA) signée par votre médecin, votre carte Vitale et votre attestation de mutuelle si nécessaire.",
+        q: "Qu'est-ce qu'il me faut pour ne rien avancer ?",
+        a: "Trois choses : le bon de transport signé par votre médecin (le CERFA), votre carte Vitale à jour, et votre attestation de mutuelle si vous en avez une. Je m'occupe du reste directement avec la CPAM.",
       },
       {
-        q: "Suis-je pris en charge à 100 % en ALD ?",
-        a: "Oui, à 100 % par l'Assurance Maladie pour les trajets liés à votre affection longue durée, sans plafond kilométrique.",
+        q: "Je suis en ALD, c'est vraiment 100 % ?",
+        a: "Oui, dès lors que le trajet est lié à votre affection longue durée. Pas de plafond kilométrique — que ce soit un rendez-vous à Bordeaux ou à Bergerac pour un spécialiste, c'est pris en charge.",
       },
       {
-        q: "Puis-je réserver des trajets récurrents (dialyse, chimio) ?",
-        a: "Oui, nous mettons en place un planning fixe pour vos séances régulières. Contactez-nous pour organiser vos rendez-vous.",
+        q: "Vous pouvez venir tous les lundis-mercredis-vendredis pour ma dialyse ?",
+        a: "C'est exactement ce que je fais pour plusieurs patients. On fixe un planning ensemble, j'arrive toujours à la même heure, je vous ramène après la séance. Appelez-moi au 06 73 07 23 22 pour qu'on mette ça en place.",
+      },
+      {
+        q: "Vous transportez les personnes en fauteuil ?",
+        a: "Je fais du transport assis conventionné. Pour un fauteuil roulant qui doit rester déplié pendant le trajet, il faut un VSL ou une ambulance — dites-le-moi et je vous oriente vers un collègue équipé.",
       },
     ],
     ctaBook: CTA.fr.book,
@@ -509,26 +526,82 @@ const AR: Record<LandingKey, LandingContent> = {
   },
   cpam: {
     title: "سيارة أجرة طبية معتمدة بوردو — فوترة مباشرة، ALD",
-    description: "سيارة أجرة معتمدة من التأمين الصحي الفرنسي في بوردو: نقل طبي جالس، فوترة مباشرة، ALD، غسيل الكلى، العلاج الكيميائي.",
-    intro: "سيارة أجرة معتمدة من التأمين الصحي الفرنسي (CPAM) في بوردو. مع وصفة النقل الطبية، تُفوتر الرحلة مباشرة.",
+    description: "سيارة أجرة معتمدة من التأمين الصحي الفرنسي في بوردو: نقل طبي جالس، فوترة مباشرة، ALD، غسيل كلى، علاج كيميائي.",
+    intro: "سيارة أجرة معتمدة من التأمين الصحي الفرنسي (CPAM) في بوردو. مع وصفة النقل الطبية، تُفوتر الرحلة مباشرة — بدون دفع مسبق.",
     sections: [
       { h: "تغطية CPAM", p: "أحضر قسيمة النقل الموقعة من طبيبك. نتولى الفوترة مباشرة." },
-      { h: "ALD: تغطية 100%", p: "في حالة المرض طويل الأمد، الرحلات المرتبطة مغطاة 100%، بدون حد للمسافة." },
-      { h: "مواعيد متكررة", p: "غسيل الكلى، العلاج الكيميائي، العلاج الطبيعي: ننظم رحلاتك المنتظمة بجدول ثابت." },
+      { h: "ALD: تغطية 100 %", p: "في المرض طويل الأمد، الرحلات المرتبطة مغطاة 100 %، بدون حد للمسافة." },
+      { h: "مواعيد متكررة", p: "غسيل الكلى، العلاج الكيميائي، الإشعاعي، العلاج الطبيعي: ننظم رحلاتك المنتظمة بجدول ثابت." },
     ],
     faq: [
-      { q: "ما المطلوب للفوترة المباشرة؟", a: "وصفة النقل (قسيمة CERFA) الموقعة، بطاقة Vitale، والتأمين التكميلي عند الاقتضاء." },
-      { q: "هل أنا مغطى 100% في ALD؟", a: "نعم، 100% من التأمين الصحي للرحلات المرتبطة بمرضك، بدون حد كيلومتري." },
-      { q: "هل يمكنني حجز رحلات متكررة؟", a: "نعم، نضع جدولًا ثابتًا لجلساتك المنتظمة." },
+      { q: "ما الذي أحتاجه للفوترة المباشرة؟", a: "وصفة النقل الطبية (قسيمة CERFA) موقعة، بطاقة Vitale، وتأمين تكميلي إن وجد." },
+      { q: "هل أنا مغطى 100 % في ALD؟", a: "نعم، 100 % من التأمين الصحي للرحلات المرتبطة بمرضك، بدون حد للكيلومترات." },
+      { q: "هل يمكنني حجز رحلات متكررة (غسيل، كيماوي)؟", a: "نعم، نضع جدولاً ثابتاً للجلسات المنتظمة." },
     ],
     ctaBook: CTA.ar.book, ctaCall: CTA.ar.call,
   },
 };
 
-export const LANDING: Record<Lang, Record<LandingKey, LandingContent>> = {
+const ALL: Record<Lang, Record<LandingKey, LandingContent>> = {
   fr: FR, en: EN, es: ES, pt: PT, it: IT, ar: AR,
 };
 
 export function getLanding(lang: Lang, key: LandingKey): LandingContent {
-  return LANDING[lang]?.[key] ?? LANDING.fr[key];
+  return ALL[lang]?.[key] ?? FR[key];
 }
+
+export function getFaqTitle(lang: Lang): string {
+  return CTA[lang]?.faqTitle ?? CTA.fr.faqTitle;
+}
+
+// Libellés pour la section "voir aussi" / cross-links (traduits)
+export const RELATED_LABEL: Record<Lang, string> = {
+  fr: "À lire aussi",
+  en: "Read also",
+  es: "Ver también",
+  pt: "Ver também",
+  it: "Vedi anche",
+  ar: "اقرأ أيضًا",
+};
+
+export const LANDING_LABEL: Record<LandingKey, Record<Lang, string>> = {
+  airport: {
+    fr: "Taxi aéroport Mérignac",
+    en: "Mérignac airport taxi",
+    es: "Taxi aeropuerto Mérignac",
+    pt: "Táxi aeroporto Mérignac",
+    it: "Taxi aeroporto Mérignac",
+    ar: "سيارة أجرة مطار ميرينياك",
+  },
+  station: {
+    fr: "Taxi gare Saint-Jean",
+    en: "Saint-Jean station taxi",
+    es: "Taxi estación Saint-Jean",
+    pt: "Táxi estação Saint-Jean",
+    it: "Taxi stazione Saint-Jean",
+    ar: "سيارة أجرة محطة سان-جان",
+  },
+  arcachon: {
+    fr: "Taxi Bordeaux → Arcachon",
+    en: "Bordeaux → Arcachon taxi",
+    es: "Taxi Burdeos → Arcachon",
+    pt: "Táxi Bordéus → Arcachon",
+    it: "Taxi Bordeaux → Arcachon",
+    ar: "سيارة أجرة بوردو ← أركاشون",
+  },
+  cpam: {
+    fr: "Taxi conventionné CPAM",
+    en: "CPAM approved medical taxi",
+    es: "Taxi concertado CPAM",
+    pt: "Táxi convencionado CPAM",
+    it: "Taxi convenzionato CPAM",
+    ar: "سيارة أجرة معتمدة CPAM",
+  },
+};
+
+export const LANDING_PATH: Record<LandingKey, string> = {
+  airport: "/taxi-aeroport-bordeaux-merignac",
+  station: "/taxi-gare-saint-jean-bordeaux",
+  arcachon: "/taxi-bordeaux-arcachon",
+  cpam: "/taxi-conventionne-bordeaux",
+};
