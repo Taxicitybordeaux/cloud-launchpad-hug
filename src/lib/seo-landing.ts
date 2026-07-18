@@ -357,8 +357,8 @@ const PT: Record<LandingKey, LandingContent> = {
     ctaBook: CTA.pt.book, ctaCall: CTA.pt.call,
   },
   station: {
-    title: "Táxi Estação Bordéus Saint-Jean — Reserva online 24/7",
-    description: "Táxi para a estação Bordéus Saint-Jean: seguimento de comboio, recolha imediata ou reservada, preços claros.",
+    title: "Táxi Bordéus estação Saint-Jean — Reservar táxi ou VTC 7 lugares",
+    description: "Reservar táxi na estação Bordéus Saint-Jean: seguimento TGV, recolha na plataforma, VTC Bordéus ou táxi 7 lugares sob pedido. 24/7.",
     intro: "Um táxi espera-o na estação de Bordéus Saint-Jean, ou vem buscá-lo para o seu TGV. Seguimos o comboio e ajustamos o horário automaticamente.",
     sections: [
       { h: "Recolha em Saint-Jean", p: "Ponto de encontro combinado na reserva: zona de largada, átrio principal ou parque." },
