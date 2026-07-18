@@ -239,10 +239,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 
   const showWhatsAppFloat = !pathname.startsWith("/carte");
 
-  // Le footer suit les mêmes règles que le header : masqué sur les écrans
-  // "applicatifs" (réservation, admin, suivi chauffeur, carte plein écran).
-  const showFooter = showHeader;
-
   return (
     <html lang="fr">
       <head>
@@ -256,10 +252,8 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body>
         <I18nProvider>
           {showHeader && <SiteHeader />}
-          <div className="flex min-h-screen flex-col">
-            <div className="flex-1">{children}</div>
-            {showFooter && <Footer />}
-          </div>
+          {children}
+          {showHeader && <Footer />}
           <Toaster />
           {showWhatsAppFloat && <WhatsAppFloat />}
         </I18nProvider>
