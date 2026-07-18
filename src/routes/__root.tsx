@@ -77,6 +77,7 @@ export const Route = createRootRoute({
         content: "width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover",
       },
       { title: "Taxi Bordeaux 24h/24 — Taxi City Bordeaux, conventionné CPAM" },
+      { name: "google-site-verification", content: "8Nns29k1UiDQUEiVe6o2ATMYw2gr4uc1dWQMgdJGYwc" },
       { name: "app-version", content: APP_VERSION },
       // PWA — iOS Safari (obligatoire pour activer les push notifications sur iPhone)
       { name: "apple-mobile-web-app-capable", content: "yes" },
