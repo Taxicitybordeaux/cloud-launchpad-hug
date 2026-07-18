@@ -208,8 +208,12 @@ function Home() {
         </div>
       </section>
 
+      {/* PARAGRAPHE CONTEXTUEL — liens internes vers les 4 pages SEO locales */}
+      <ContextualSeoParagraph />
+
       {/* PAGES SEO LOCALES — liens internes vers les 4 landings */}
       <LocalSeoLinks />
+
 
 
 
@@ -837,6 +841,153 @@ function LocalSeoLinks() {
     </section>
   );
 }
+
+
+// Paragraphe éditorial avec liens internes contextuels vers les 4 pages SEO
+// (Google valorise les liens dans le contenu bien plus que dans le footer).
+const CONTEXT_PARA: Record<string, {
+  eyebrow: string;
+  title: string;
+  parts: [string, string, string, string, string, string, string, string, string];
+  labels: { airport: string; station: string; arcachon: string; cpam: string };
+}> = {
+  fr: {
+    eyebrow: "En quelques mots",
+    title: "Le taxi bordelais qui vous simplifie la vie",
+    parts: [
+      "Que vous ayez besoin d'un ",
+      " avec suivi de vol et forfait annoncé, d'un ",
+      " pour votre TGV, ou d'un ",
+      " direct sans correspondance, José répond au 06 73 07 23 22, 7j/7. Pour vos trajets de santé, il est aussi ",
+      " avec tiers payant et ALD 100 %. Besoin d'un VTC Bordeaux ou d'un taxi 7 places pour un groupe ? Précisez-le à la réservation.",
+      "", "", "", "",
+    ],
+    labels: {
+      airport: "taxi Bordeaux aéroport Mérignac",
+      station: "taxi à la gare Saint-Jean",
+      arcachon: "taxi Bordeaux → Arcachon",
+      cpam: "taxi conventionné CPAM à Bordeaux",
+    },
+  },
+  en: {
+    eyebrow: "In a nutshell",
+    title: "The Bordeaux taxi that makes life easier",
+    parts: [
+      "Whether you need a ", " with flight tracking and a flat fare, a ",
+      " for your TGV, or a ",
+      " with no transfer, José answers at +33 6 73 07 23 22, 7 days a week. For medical trips he is also an ",
+      " with direct billing and ALD 100%. Need a Bordeaux VTC or a 7-seater taxi for a group? Tell us at booking.",
+      "", "", "", "",
+    ],
+    labels: {
+      airport: "Bordeaux Mérignac airport taxi",
+      station: "taxi at Saint-Jean station",
+      arcachon: "Bordeaux → Arcachon taxi",
+      cpam: "CPAM-approved medical taxi in Bordeaux",
+    },
+  },
+  es: {
+    eyebrow: "En pocas palabras",
+    title: "El taxi bordelés que te simplifica la vida",
+    parts: [
+      "Ya sea que necesites un ", " con seguimiento de vuelo y tarifa fija, un ",
+      " para tu TGV, o un ",
+      " directo sin transbordo, José responde al +33 6 73 07 23 22, 7 días a la semana. Para trayectos médicos también es ",
+      " con facturación directa y ALD 100%. ¿Necesitas un VTC Burdeos o un taxi 7 plazas para un grupo? Indícalo al reservar.",
+      "", "", "", "",
+    ],
+    labels: {
+      airport: "taxi Burdeos aeropuerto Mérignac",
+      station: "taxi en la estación Saint-Jean",
+      arcachon: "taxi Burdeos → Arcachon",
+      cpam: "taxi concertado CPAM en Burdeos",
+    },
+  },
+  pt: {
+    eyebrow: "Em poucas palavras",
+    title: "O táxi de Bordéus que simplifica a sua vida",
+    parts: [
+      "Precise de um ", " com seguimento de voo e tarifa fixa, de um ",
+      " para o seu TGV, ou de um ",
+      " direto sem transbordo, o José atende no +33 6 73 07 23 22, 7 dias por semana. Para trajetos médicos também é ",
+      " com faturação direta e ALD 100%. Precisa de um VTC Bordéus ou táxi 7 lugares para um grupo? Diga-nos na reserva.",
+      "", "", "", "",
+    ],
+    labels: {
+      airport: "táxi Bordéus aeroporto Mérignac",
+      station: "táxi na estação Saint-Jean",
+      arcachon: "táxi Bordéus → Arcachon",
+      cpam: "táxi convencionado CPAM em Bordéus",
+    },
+  },
+  it: {
+    eyebrow: "In breve",
+    title: "Il taxi di Bordeaux che ti semplifica la vita",
+    parts: [
+      "Che tu abbia bisogno di un ", " con monitoraggio volo e tariffa fissa, di un ",
+      " per il tuo TGV, o di un ",
+      " diretto senza cambi, José risponde al +33 6 73 07 23 22, 7 giorni su 7. Per i tragitti medici è anche ",
+      " con fatturazione diretta e ALD 100%. Serve un VTC Bordeaux o un taxi 7 posti per un gruppo? Segnalalo alla prenotazione.",
+      "", "", "", "",
+    ],
+    labels: {
+      airport: "taxi Bordeaux aeroporto Mérignac",
+      station: "taxi alla stazione Saint-Jean",
+      arcachon: "taxi Bordeaux → Arcachon",
+      cpam: "taxi convenzionato CPAM a Bordeaux",
+    },
+  },
+  ar: {
+    eyebrow: "باختصار",
+    title: "سيارة الأجرة في بوردو التي تسهل حياتك",
+    parts: [
+      "سواء احتجت إلى ", " مع متابعة الرحلة وسعر مقطوع، أو ",
+      " لقطار TGV، أو ",
+      " مباشرة بدون تحويل، خوسيه يرد على 0033673072322، 7 أيام في الأسبوع. للرحلات الطبية هو أيضًا ",
+      " مع فوترة مباشرة وتغطية ALD 100%. تحتاج VTC بوردو أو تاكسي 7 مقاعد لمجموعة؟ أخبرنا عند الحجز.",
+      "", "", "", "",
+    ],
+    labels: {
+      airport: "سيارة أجرة بوردو مطار ميرينياك",
+      station: "سيارة أجرة في محطة سان-جان",
+      arcachon: "سيارة أجرة بوردو ← أركاشون",
+      cpam: "سيارة أجرة معتمدة CPAM في بوردو",
+    },
+  },
+};
+
+function ContextualSeoParagraph() {
+  const { lang } = useI18n();
+  const c = CONTEXT_PARA[lang] ?? CONTEXT_PARA.fr;
+  return (
+    <section className="mx-auto max-w-4xl px-4 py-10 sm:py-14">
+      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">{c.eyebrow}</p>
+      <h2 className="mt-2 font-display text-2xl font-bold sm:text-3xl md:text-4xl">{c.title}</h2>
+      <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+        {c.parts[0]}
+        <Link to="/taxi-aeroport-bordeaux-merignac" className="font-semibold text-primary underline underline-offset-4 hover:opacity-80">
+          {c.labels.airport}
+        </Link>
+        {c.parts[1]}
+        <Link to="/taxi-gare-saint-jean-bordeaux" className="font-semibold text-primary underline underline-offset-4 hover:opacity-80">
+          {c.labels.station}
+        </Link>
+        {c.parts[2]}
+        <Link to="/taxi-bordeaux-arcachon" className="font-semibold text-primary underline underline-offset-4 hover:opacity-80">
+          {c.labels.arcachon}
+        </Link>
+        {c.parts[3]}
+        <Link to="/taxi-conventionne-bordeaux" className="font-semibold text-primary underline underline-offset-4 hover:opacity-80">
+          {c.labels.cpam}
+        </Link>
+        {c.parts[4]}
+      </p>
+    </section>
+  );
+}
+
+
+
 
 
 type Review = { id: string; name: string; rating: number; text: string; created_at: string };
