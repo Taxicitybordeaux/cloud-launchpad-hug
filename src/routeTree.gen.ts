@@ -51,6 +51,7 @@ import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/em
 import { Route as ApiPublicHooksRideRemindersTickRouteImport } from './routes/api/public/hooks/ride-reminders-tick'
 import { Route as ApiPublicHooksRecurringRidesTickRouteImport } from './routes/api/public/hooks/recurring-rides-tick'
 import { Route as ApiPublicHooksRecomputeDurationsTickRouteImport } from './routes/api/public/hooks/recompute-durations-tick'
+import { Route as ApiPublicContactVcfRouteImport } from './routes/api/public/contact.vcf'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -270,6 +271,11 @@ const ApiPublicHooksRecomputeDurationsTickRoute =
     path: '/api/public/hooks/recompute-durations-tick',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicContactVcfRoute = ApiPublicContactVcfRouteImport.update({
+  id: '/vcf',
+  path: '/vcf',
+  getParentRoute: () => ApiPublicContactRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -299,13 +305,14 @@ export interface FileRoutesByFullPath {
   '/reservation/$id': typeof ReservationIdRoute
   '/suivi/$id': typeof SuiviIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
-  '/api/public/contact': typeof ApiPublicContactRoute
+  '/api/public/contact': typeof ApiPublicContactRouteWithChildren
   '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
   '/api/public/push-dedup-check': typeof ApiPublicPushDedupCheckRoute
   '/api/public/reviews': typeof ApiPublicReviewsRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
+  '/api/public/contact/vcf': typeof ApiPublicContactVcfRoute
   '/api/public/hooks/recompute-durations-tick': typeof ApiPublicHooksRecomputeDurationsTickRoute
   '/api/public/hooks/recurring-rides-tick': typeof ApiPublicHooksRecurringRidesTickRoute
   '/api/public/hooks/ride-reminders-tick': typeof ApiPublicHooksRideRemindersTickRoute
@@ -343,13 +350,14 @@ export interface FileRoutesByTo {
   '/reservation/$id': typeof ReservationIdRoute
   '/suivi/$id': typeof SuiviIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
-  '/api/public/contact': typeof ApiPublicContactRoute
+  '/api/public/contact': typeof ApiPublicContactRouteWithChildren
   '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
   '/api/public/push-dedup-check': typeof ApiPublicPushDedupCheckRoute
   '/api/public/reviews': typeof ApiPublicReviewsRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
+  '/api/public/contact/vcf': typeof ApiPublicContactVcfRoute
   '/api/public/hooks/recompute-durations-tick': typeof ApiPublicHooksRecomputeDurationsTickRoute
   '/api/public/hooks/recurring-rides-tick': typeof ApiPublicHooksRecurringRidesTickRoute
   '/api/public/hooks/ride-reminders-tick': typeof ApiPublicHooksRideRemindersTickRoute
@@ -388,13 +396,14 @@ export interface FileRoutesById {
   '/reservation/$id': typeof ReservationIdRoute
   '/suivi/$id': typeof SuiviIdRoute
   '/api/admin/send-course-email': typeof ApiAdminSendCourseEmailRoute
-  '/api/public/contact': typeof ApiPublicContactRoute
+  '/api/public/contact': typeof ApiPublicContactRouteWithChildren
   '/api/public/driver-location': typeof ApiPublicDriverLocationRoute
   '/api/public/notify-reservation': typeof ApiPublicNotifyReservationRoute
   '/api/public/notify-reservation-client': typeof ApiPublicNotifyReservationClientRoute
   '/api/public/push-dedup-check': typeof ApiPublicPushDedupCheckRoute
   '/api/public/reviews': typeof ApiPublicReviewsRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
+  '/api/public/contact/vcf': typeof ApiPublicContactVcfRoute
   '/api/public/hooks/recompute-durations-tick': typeof ApiPublicHooksRecomputeDurationsTickRoute
   '/api/public/hooks/recurring-rides-tick': typeof ApiPublicHooksRecurringRidesTickRoute
   '/api/public/hooks/ride-reminders-tick': typeof ApiPublicHooksRideRemindersTickRoute
@@ -441,6 +450,7 @@ export interface FileRouteTypes {
     | '/api/public/push-dedup-check'
     | '/api/public/reviews'
     | '/lovable/email/suppression'
+    | '/api/public/contact/vcf'
     | '/api/public/hooks/recompute-durations-tick'
     | '/api/public/hooks/recurring-rides-tick'
     | '/api/public/hooks/ride-reminders-tick'
@@ -485,6 +495,7 @@ export interface FileRouteTypes {
     | '/api/public/push-dedup-check'
     | '/api/public/reviews'
     | '/lovable/email/suppression'
+    | '/api/public/contact/vcf'
     | '/api/public/hooks/recompute-durations-tick'
     | '/api/public/hooks/recurring-rides-tick'
     | '/api/public/hooks/ride-reminders-tick'
@@ -529,6 +540,7 @@ export interface FileRouteTypes {
     | '/api/public/push-dedup-check'
     | '/api/public/reviews'
     | '/lovable/email/suppression'
+    | '/api/public/contact/vcf'
     | '/api/public/hooks/recompute-durations-tick'
     | '/api/public/hooks/recurring-rides-tick'
     | '/api/public/hooks/ride-reminders-tick'
@@ -566,7 +578,7 @@ export interface RootRouteChildren {
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   SuiviIdRoute: typeof SuiviIdRoute
   ApiAdminSendCourseEmailRoute: typeof ApiAdminSendCourseEmailRoute
-  ApiPublicContactRoute: typeof ApiPublicContactRoute
+  ApiPublicContactRoute: typeof ApiPublicContactRouteWithChildren
   ApiPublicDriverLocationRoute: typeof ApiPublicDriverLocationRoute
   ApiPublicNotifyReservationRoute: typeof ApiPublicNotifyReservationRoute
   ApiPublicNotifyReservationClientRoute: typeof ApiPublicNotifyReservationClientRoute
@@ -879,6 +891,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksRecomputeDurationsTickRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/contact/vcf': {
+      id: '/api/public/contact/vcf'
+      path: '/vcf'
+      fullPath: '/api/public/contact/vcf'
+      preLoaderRoute: typeof ApiPublicContactVcfRouteImport
+      parentRoute: typeof ApiPublicContactRoute
+    }
   }
 }
 
@@ -893,6 +912,17 @@ const ReservationRouteChildren: ReservationRouteChildren = {
 const ReservationRouteWithChildren = ReservationRoute._addFileChildren(
   ReservationRouteChildren,
 )
+
+interface ApiPublicContactRouteChildren {
+  ApiPublicContactVcfRoute: typeof ApiPublicContactVcfRoute
+}
+
+const ApiPublicContactRouteChildren: ApiPublicContactRouteChildren = {
+  ApiPublicContactVcfRoute: ApiPublicContactVcfRoute,
+}
+
+const ApiPublicContactRouteWithChildren =
+  ApiPublicContactRoute._addFileChildren(ApiPublicContactRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -921,7 +951,7 @@ const rootRouteChildren: RootRouteChildren = {
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   SuiviIdRoute: SuiviIdRoute,
   ApiAdminSendCourseEmailRoute: ApiAdminSendCourseEmailRoute,
-  ApiPublicContactRoute: ApiPublicContactRoute,
+  ApiPublicContactRoute: ApiPublicContactRouteWithChildren,
   ApiPublicDriverLocationRoute: ApiPublicDriverLocationRoute,
   ApiPublicNotifyReservationRoute: ApiPublicNotifyReservationRoute,
   ApiPublicNotifyReservationClientRoute: ApiPublicNotifyReservationClientRoute,
@@ -941,13 +971,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
