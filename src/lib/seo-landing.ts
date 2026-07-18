@@ -215,9 +215,9 @@ const EN: Record<LandingKey, LandingContent> = {
     ctaBook: CTA.en.book, ctaCall: CTA.en.call,
   },
   station: {
-    title: "Taxi Bordeaux Saint-Jean Station — Online booking 24/7",
+    title: "Bordeaux Saint-Jean Station Taxi — Book taxi or 7-seater VTC 24/7",
     description:
-      "Taxi to Bordeaux Saint-Jean train station: live train tracking, immediate or pre-booked pickup, clear pricing. Available every day.",
+      "Book a taxi at Bordeaux Saint-Jean station: live TGV tracking, platform pickup, Bordeaux VTC or 7-seater taxi on request. 24/7 service.",
     intro:
       "A taxi is waiting for you at Bordeaux Saint-Jean station, or picks you up on time for your TGV. We track your train and adjust the pickup time automatically.",
     sections: [
