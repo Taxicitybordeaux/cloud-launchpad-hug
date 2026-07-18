@@ -305,8 +305,8 @@ const ES: Record<LandingKey, LandingContent> = {
     ctaBook: CTA.es.book, ctaCall: CTA.es.call,
   },
   arcachon: {
-    title: "Taxi Burdeos → Arcachon — Traslado directo, precio claro",
-    description: "Taxi de Burdeos a Arcachon (Bahía, Cap-Ferret, Pyla): trayecto directo, reserva anticipada, tarifa anunciada, vehículo cómodo para equipaje y familia.",
+    title: "Taxi Burdeos → Arcachon — Reservar taxi 7 plazas Pyla & Cap-Ferret",
+    description: "Reservar taxi Burdeos → Arcachon (Pyla, Cap-Ferret, Bahía): trayecto directo, tarifa fija, VTC Burdeos o taxi 7 plazas para familias y equipaje.",
     intro: "Llegue a la Bahía de Arcachon en taxi desde el centro de Burdeos, el aeropuerto Mérignac o la estación Saint-Jean. Trayecto directo, precio conocido de antemano, sin transbordo.",
     sections: [
       { h: "Trayecto directo puerta a puerta", p: "Desde su hotel, estación o aeropuerto de Burdeos hasta Arcachon ciudad, la Duna del Pyla, Cap-Ferret o Andernos — sin transbordo." },
