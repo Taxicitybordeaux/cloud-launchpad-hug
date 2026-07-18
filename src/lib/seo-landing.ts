@@ -342,7 +342,7 @@ const ES: Record<LandingKey, LandingContent> = {
 const PT: Record<LandingKey, LandingContent> = {
   airport: {
     title: "Táxi Bordéus aeroporto Mérignac — Reservar táxi com José 24/7",
-    description: "Reservar táxi Bordéus aeroporto Mérignac: seguimento de voo, tarifa fixa, táxi 7 lugares sob pedido. 24/7 — +33 6 73 07 23 22.",
+    description: "Reservar táxi Bordéus aeroporto Mérignac: seguimento de voo, tarifa fixa, veículo 7 lugares sob pedido. 24/7 — +33 6 73 07 23 22.",
     intro: "Reserve o seu táxi para o aeroporto de Bordéus-Mérignac em segundos. Seguimos o seu voo em tempo real e ajustamos a hora de recolha automaticamente.",
     sections: [
       { h: "Seguimento de voo automático", p: "Indique o número do voo: a hora de recolha ajusta-se à aterragem real, sem custo extra." },
@@ -358,7 +358,7 @@ const PT: Record<LandingKey, LandingContent> = {
   },
   station: {
     title: "Táxi Bordéus estação Saint-Jean — Reservar táxi com José 24/7",
-    description: "Reservar táxi na estação Bordéus Saint-Jean: seguimento TGV, recolha na plataforma, táxi 7 lugares sob pedido. 24/7.",
+    description: "Reservar táxi na estação Bordéus Saint-Jean: seguimento TGV, recolha na plataforma, veículo 7 lugares sob pedido. 24/7.",
     intro: "Um táxi espera-o na estação de Bordéus Saint-Jean, ou vem buscá-lo para o seu TGV. Seguimos o comboio e ajustamos o horário automaticamente.",
     sections: [
       { h: "Recolha em Saint-Jean", p: "Ponto de encontro combinado na reserva: zona de largada, átrio principal ou parque." },
@@ -374,7 +374,7 @@ const PT: Record<LandingKey, LandingContent> = {
   },
   arcachon: {
     title: "Táxi Bordéus → Arcachon — Reservar táxi Pyla & Cap-Ferret",
-    description: "Reservar táxi Bordéus → Arcachon (Pyla, Cap-Ferret, Baía): trajeto direto, tarifa fixa, táxi 7 lugares para famílias e bagagem.",
+    description: "Reservar táxi Bordéus → Arcachon (Pyla, Cap-Ferret, Baía): trajeto direto, tarifa fixa, veículo 7 lugares para famílias e bagagem.",
     intro: "Chegue à Baía de Arcachon de táxi a partir do centro de Bordéus, do aeroporto Mérignac ou da estação Saint-Jean. Trajeto direto, preço conhecido, sem transbordo.",
     sections: [
       { h: "Trajeto direto porta-a-porta", p: "Do seu hotel, estação ou aeroporto até Arcachon cidade, a Duna do Pyla, Cap-Ferret ou Andernos — sem transbordo." },
@@ -390,7 +390,7 @@ const PT: Record<LandingKey, LandingContent> = {
   },
   cpam: {
     title: "Táxi convencionado CPAM Bordéus — Reservar, faturação direta, ALD",
-    description: "Reservar táxi convencionado em Bordéus: faturação direta (tiers payant), ALD 100%, diálise, quimio. Também táxi 7 lugares.",
+    description: "Reservar táxi convencionado em Bordéus: faturação direta (tiers payant), ALD 100%, diálise, quimio. Também veículo 7 lugares.",
     intro: "Táxi convencionado com o seguro de saúde francês (CPAM) em Bordéus. Com a sua prescrição médica de transporte, o trajeto é faturado diretamente.",
     sections: [
       { h: "Cobertura CPAM", p: "Traga o seu voucher de transporte assinado pelo seu médico. Tratamos da faturação diretamente." },
@@ -410,7 +410,7 @@ const PT: Record<LandingKey, LandingContent> = {
 const IT: Record<LandingKey, LandingContent> = {
   airport: {
     title: "Taxi Bordeaux aeroporto Mérignac — Prenotare taxi con José 24/7",
-    description: "Prenotare un taxi Bordeaux aeroporto Mérignac: monitoraggio volo, tariffa fissa, taxi 7 posti su richiesta. 24/7 — +33 6 73 07 23 22.",
+    description: "Prenotare un taxi Bordeaux aeroporto Mérignac: monitoraggio volo, tariffa fissa, veicolo 7 posti su richiesta. 24/7 — +33 6 73 07 23 22.",
     intro: "Prenoti il taxi per l'aeroporto di Bordeaux-Mérignac in pochi secondi. Monitoriamo il volo in tempo reale e adattiamo l'orario di ritiro automaticamente.",
     sections: [
       { h: "Monitoraggio volo automatico", p: "Ci comunichi il numero di volo: l'orario di ritiro si adatta all'atterraggio reale, senza costi aggiuntivi." },
@@ -426,7 +426,7 @@ const IT: Record<LandingKey, LandingContent> = {
   },
   station: {
     title: "Taxi Bordeaux stazione Saint-Jean — Prenotare taxi con José 24/7",
-    description: "Prenotare un taxi alla stazione Bordeaux Saint-Jean: monitoraggio TGV, ritiro sul binario, taxi 7 posti su richiesta. 24/7.",
+    description: "Prenotare un taxi alla stazione Bordeaux Saint-Jean: monitoraggio TGV, ritiro sul binario, veicolo 7 posti su richiesta. 24/7.",
     intro: "Un taxi l'attende alla stazione di Bordeaux Saint-Jean, o viene a prenderla per il TGV. Monitoriamo il treno e adattiamo l'orario automaticamente.",
     sections: [
       { h: "Ritiro a Saint-Jean", p: "Punto d'incontro concordato: zona di sosta, atrio o parcheggio. L'autista la localizza e la chiama se necessario." },
@@ -442,7 +442,7 @@ const IT: Record<LandingKey, LandingContent> = {
   },
   arcachon: {
     title: "Taxi Bordeaux → Arcachon — Prenotare taxi Pyla & Cap-Ferret",
-    description: "Prenotare un taxi Bordeaux → Arcachon (Pyla, Cap-Ferret, Baia): tragitto diretto, tariffa fissa, taxi 7 posti per famiglie e bagagli.",
+    description: "Prenotare un taxi Bordeaux → Arcachon (Pyla, Cap-Ferret, Baia): tragitto diretto, tariffa fissa, veicolo 7 posti per famiglie e bagagli.",
     intro: "Raggiunga la Baia di Arcachon in taxi dal centro di Bordeaux, dall'aeroporto Mérignac o dalla stazione Saint-Jean. Tragitto diretto, prezzo noto in anticipo.",
     sections: [
       { h: "Tragitto diretto porta a porta", p: "Dal suo hotel, stazione o aeroporto fino ad Arcachon città, Dune du Pyla, Cap-Ferret o Andernos — senza cambi." },
@@ -458,7 +458,7 @@ const IT: Record<LandingKey, LandingContent> = {
   },
   cpam: {
     title: "Taxi convenzionato CPAM Bordeaux — Prenotare, fatturazione diretta, ALD",
-    description: "Prenotare un taxi convenzionato a Bordeaux: fatturazione diretta (tiers payant), ALD 100%, dialisi, chemio. Anche taxi 7 posti.",
+    description: "Prenotare un taxi convenzionato a Bordeaux: fatturazione diretta (tiers payant), ALD 100%, dialisi, chemio. Anche veicolo 7 posti.",
     intro: "Taxi convenzionato con l'assicurazione sanitaria francese (CPAM) a Bordeaux. Con la prescrizione medica di trasporto, la corsa è fatturata direttamente.",
     sections: [
       { h: "Copertura CPAM", p: "Porti il buono di trasporto firmato dal suo medico. Ci occupiamo della fatturazione direttamente." },
