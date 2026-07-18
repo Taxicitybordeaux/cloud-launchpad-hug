@@ -70,9 +70,9 @@ const FR: Record<LandingKey, LandingContent> = {
     ctaCall: CTA.fr.call,
   },
   station: {
-    title: "Taxi Gare Saint-Jean Bordeaux — Prise en charge à la sortie du TGV",
+    title: "Taxi Bordeaux gare Saint-Jean — Réserver taxi ou VTC 7 places",
     description:
-      "Taxi à la gare Bordeaux Saint-Jean : José suit votre train, vous récupère au quai convenu, tarif fixe. Réservation en ligne ou au 06 73 07 23 22.",
+      "Réserver un taxi à la gare Bordeaux Saint-Jean : José suit votre TGV, prise en charge au quai, VTC Bordeaux ou taxi 7 places sur demande. 7j/7, 24h/24.",
     intro:
       "Je m'appelle José et je fais régulièrement Saint-Jean. Que vous descendiez d'un TGV Paris, d'un Ouigo ou d'un Intercités, je suis au point de rendez-vous qu'on aura fixé ensemble — pas besoin de tourner en rond avec vos valises pour me trouver.",
     sections: [
