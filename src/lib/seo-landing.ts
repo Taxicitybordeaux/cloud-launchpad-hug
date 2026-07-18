@@ -273,8 +273,8 @@ const EN: Record<LandingKey, LandingContent> = {
 // --------- ES ----------
 const ES: Record<LandingKey, LandingContent> = {
   airport: {
-    title: "Taxi Aeropuerto Burdeos-Mérignac — Servicio 24/7",
-    description: "Taxi hacia o desde el aeropuerto Burdeos-Mérignac: seguimiento de vuelo en tiempo real, tarifa fija transparente, vehículo cómodo, 7 días a la semana.",
+    title: "Taxi Burdeos aeropuerto Mérignac — Reservar taxi o VTC 7 plazas",
+    description: "Reservar taxi Burdeos aeropuerto Mérignac: seguimiento de vuelo, tarifa fija, VTC Burdeos o taxi 7 plazas bajo petición. 24/7 — +33 6 73 07 23 22.",
     intro: "Reserve su taxi al aeropuerto de Burdeos-Mérignac en segundos. Seguimos su vuelo en tiempo real y ajustamos la hora de recogida: su conductor le espera a la salida, incluso con retraso o adelanto.",
     sections: [
       { h: "Seguimiento de vuelo automático", p: "Comuníquenos su número de vuelo: la hora de recogida se ajusta al aterrizaje real, sin coste adicional." },
