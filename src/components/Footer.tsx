@@ -12,9 +12,9 @@ export function Footer() {
   const year = new Date().getFullYear();
 
   const navLinks = [
-    { to: "/" as const, label: t("nav.home") },
-    { to: "/reservation" as const, label: t("nav.book_long") },
-    { to: "/#faq" as const, label: t("footer.link.faq") },
+    { to: "/" as const, hash: undefined, label: t("nav.home") },
+    { to: "/reservation" as const, hash: undefined, label: t("nav.book_long") },
+    { to: "/" as const, hash: "faq", label: t("footer.link.faq") },
   ];
 
   const serviceLinks = [
@@ -22,6 +22,11 @@ export function Footer() {
     { to: "/taxi-gare-saint-jean-bordeaux" as const, label: t("footer.link.station") },
     { to: "/taxi-bordeaux-arcachon" as const, label: t("footer.link.arcachon") },
     { to: "/taxi-conventionne-bordeaux" as const, label: t("footer.link.cpam") },
+  ];
+
+  const legalLinks = [
+    { to: "/mentions-legales" as const, label: t("footer.link.legal") },
+    { to: "/confidentialite" as const, label: t("footer.link.privacy") },
   ];
 
   return (
@@ -59,9 +64,10 @@ export function Footer() {
             </h3>
             <ul className="mt-4 space-y-2.5">
               {navLinks.map((l) => (
-                <li key={l.to}>
+                <li key={l.label}>
                   <Link
                     to={l.to}
+                    hash={l.hash}
                     className="touch-manipulation text-sm text-muted-foreground transition [-webkit-tap-highlight-color:transparent] hover:text-primary"
                   >
                     {l.label}
@@ -125,10 +131,21 @@ export function Footer() {
         </div>
 
         {/* BOTTOM BAR */}
-        <div className="mt-10 flex flex-col items-center gap-2 border-t border-border pt-6 text-center text-xs text-muted-foreground sm:mt-12 sm:flex-row sm:justify-between sm:text-left sm:pt-8">
+        <div className="mt-10 flex flex-col items-center gap-3 border-t border-border pt-6 text-center text-xs text-muted-foreground sm:mt-12 sm:flex-row sm:justify-between sm:text-left sm:pt-8">
           <p>
             © {year} Taxi City Bordeaux — {t("footer.rights")}
           </p>
+          <div className="flex items-center gap-4">
+            {legalLinks.map((l) => (
+              <Link
+                key={l.to}
+                to={l.to}
+                className="touch-manipulation transition [-webkit-tap-highlight-color:transparent] hover:text-primary"
+              >
+                {l.label}
+              </Link>
+            ))}
+          </div>
           <p>{t("footer.siret")}</p>
         </div>
       </div>
