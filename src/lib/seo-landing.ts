@@ -273,8 +273,8 @@ const EN: Record<LandingKey, LandingContent> = {
 // --------- ES ----------
 const ES: Record<LandingKey, LandingContent> = {
   airport: {
-    title: "Taxi Burdeos aeropuerto Mérignac — Reservar taxi o VTC 7 plazas",
-    description: "Reservar taxi Burdeos aeropuerto Mérignac: seguimiento de vuelo, tarifa fija, VTC Burdeos o taxi 7 plazas bajo petición. 24/7 — +33 6 73 07 23 22.",
+    title: "Taxi Burdeos aeropuerto Mérignac — Reservar taxi con José 24/7",
+    description: "Reservar taxi Burdeos aeropuerto Mérignac: seguimiento de vuelo, tarifa fija, taxi 7 plazas bajo petición. 24/7 — +33 6 73 07 23 22.",
     intro: "Reserve su taxi al aeropuerto de Burdeos-Mérignac en segundos. Seguimos su vuelo en tiempo real y ajustamos la hora de recogida: su conductor le espera a la salida, incluso con retraso o adelanto.",
     sections: [
       { h: "Seguimiento de vuelo automático", p: "Comuníquenos su número de vuelo: la hora de recogida se ajusta al aterrizaje real, sin coste adicional." },
@@ -289,8 +289,8 @@ const ES: Record<LandingKey, LandingContent> = {
     ctaBook: CTA.es.book, ctaCall: CTA.es.call,
   },
   station: {
-    title: "Taxi Burdeos estación Saint-Jean — Reservar taxi o VTC 7 plazas",
-    description: "Reservar taxi en la estación Burdeos Saint-Jean: seguimiento TGV, recogida en el andén, VTC Burdeos o taxi 7 plazas bajo petición. 24/7.",
+    title: "Taxi Burdeos estación Saint-Jean — Reservar taxi con José 24/7",
+    description: "Reservar taxi en la estación Burdeos Saint-Jean: seguimiento TGV, recogida en el andén, taxi 7 plazas bajo petición. 24/7.",
     intro: "Un taxi le espera en la estación de Burdeos Saint-Jean, o le recoge para su TGV. Seguimos su tren y ajustamos la hora automáticamente.",
     sections: [
       { h: "Recogida en Saint-Jean", p: "Punto de encuentro acordado al reservar: zona de bajada, vestíbulo o aparcamiento. Su conductor le localiza y le llama si es necesario." },
@@ -305,8 +305,8 @@ const ES: Record<LandingKey, LandingContent> = {
     ctaBook: CTA.es.book, ctaCall: CTA.es.call,
   },
   arcachon: {
-    title: "Taxi Burdeos → Arcachon — Reservar taxi 7 plazas Pyla & Cap-Ferret",
-    description: "Reservar taxi Burdeos → Arcachon (Pyla, Cap-Ferret, Bahía): trayecto directo, tarifa fija, VTC Burdeos o taxi 7 plazas para familias y equipaje.",
+    title: "Taxi Burdeos → Arcachon — Reservar taxi Pyla & Cap-Ferret",
+    description: "Reservar taxi Burdeos → Arcachon (Pyla, Cap-Ferret, Bahía): trayecto directo, tarifa fija, taxi 7 plazas para familias y equipaje.",
     intro: "Llegue a la Bahía de Arcachon en taxi desde el centro de Burdeos, el aeropuerto Mérignac o la estación Saint-Jean. Trayecto directo, precio conocido de antemano, sin transbordo.",
     sections: [
       { h: "Trayecto directo puerta a puerta", p: "Desde su hotel, estación o aeropuerto de Burdeos hasta Arcachon ciudad, la Duna del Pyla, Cap-Ferret o Andernos — sin transbordo." },
@@ -322,7 +322,7 @@ const ES: Record<LandingKey, LandingContent> = {
   },
   cpam: {
     title: "Taxi concertado CPAM Burdeos — Reservar, facturación directa, ALD",
-    description: "Reservar taxi concertado en Burdeos: facturación directa (tiers payant), ALD 100 %, diálisis, quimio. También VTC Burdeos y taxi 7 plazas.",
+    description: "Reservar taxi concertado en Burdeos: facturación directa (tiers payant), ALD 100 %, diálisis, quimio. También taxi 7 plazas.",
     intro: "Taxi concertado con la Seguridad Social francesa (CPAM) en Burdeos. Con su prescripción médica de transporte, el trayecto se factura directamente — sin adelantar dinero.",
     sections: [
       { h: "Cobertura CPAM", p: "Presente su bono de transporte firmado por su médico. Nos encargamos de la facturación directamente." },
