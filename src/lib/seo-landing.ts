@@ -74,7 +74,7 @@ const FR: Record<LandingKey, LandingContent> = {
     description:
       "Réserver un taxi à la gare Bordeaux Saint-Jean : José suit votre TGV, prise en charge au quai, véhicule 4 personnes maximum. 7j/7, 24h/24.",
     intro:
-      "Je m'appelle José et je fais régulièrement Saint-Jean.\nQue vous descendiez d'un TGV Paris, d'un Ouigo ou d'un Intercités, je suis au point de rendez-vous qu'on aura fixé ensemble, pas besoin de tourner en rond avec vos valises pour me trouver.",
+      "Je m'appelle José et je viens régulièrement chercher mes clients à la gare Saint-Jean.\nQue vous descendiez d'un TGV Paris, d'un Ouigo ou d'un Intercités, je suis au point de rendez-vous qu'on aura fixé ensemble, pas besoin de tourner en rond avec vos valises pour me trouver.",
     sections: [
       {
         h: "On se retrouve où vous voulez à la gare",
