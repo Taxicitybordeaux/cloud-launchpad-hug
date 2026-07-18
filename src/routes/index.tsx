@@ -33,7 +33,7 @@ import { ReviewForm } from "@/components/ReviewForm";
 import { supabase } from "@/integrations/supabase/client";
 import { hreflangLinks } from "@/lib/seo-hreflang";
 
-const HOME_TITLE = "Taxi City Bordeaux – Taxi 7j/7 à Bordeaux & en Gironde";
+const HOME_TITLE = "Taxi City Bordeaux : Taxi 7j/7 à Bordeaux & en Gironde";
 const HOME_DESC =
   "Réservez votre taxi à Bordeaux : aéroport, gare Saint-Jean, vignobles, longues distances. Conventionné CPAM. Service ponctuel et confortable, jour & nuit.";
 const HOME_URL = "https://taxicitybordeaux.fr/";
@@ -41,7 +41,7 @@ const HOME_URL = "https://taxicitybordeaux.fr/";
 const HOME_FAQ = [
   {
     q: "Êtes-vous conventionné CPAM ?",
-    a: "Oui, nous sommes conventionnés avec la CPAM pour les transports de santé (consultations, dialyses, hospitalisations…). Sur présentation d'un bon de transport, prise en charge directe par l'Assurance Maladie. Tiers payant ou ALD — bon de transport toutes distances.",
+    a: "Oui, nous sommes conventionnés avec la CPAM pour les transports de santé (consultations, dialyses, hospitalisations…). Sur présentation d'un bon de transport, prise en charge directe par l'Assurance Maladie. Tiers payant ou ALD, avec bon de transport valable toutes distances.",
   },
   {
     q: "Que se passe-t-il si mon vol a du retard à l'aéroport de Bordeaux ?",
@@ -49,7 +49,7 @@ const HOME_FAQ = [
   },
   {
     q: "Comment annuler ou modifier ma réservation ?",
-    a: "Un simple appel ou message WhatsApp suffit. L'annulation est gratuite jusqu'à 2 heures avant la course. Pour une modification, prévenez-nous dès que possible — on s'arrange.",
+    a: "Un simple appel ou message WhatsApp suffit. L'annulation est gratuite jusqu'à 2 heures avant la course. Pour une modification, prévenez-nous dès que possible. On s'arrange.",
   },
   {
     q: "Quels moyens de paiement acceptez-vous ?",
@@ -57,7 +57,7 @@ const HOME_FAQ = [
   },
   {
     q: "Faut-il réserver à l'avance ?",
-    a: "Pas obligatoire — on prend aussi les courses immédiates si on est disponible. Pour un train tôt le matin, un vol ou un rendez-vous important, mieux vaut réserver la veille.",
+    a: "Ce n'est pas obligatoire. On prend aussi les courses immédiates si on est disponible. Pour un train tôt le matin, un vol ou un rendez-vous important, mieux vaut réserver la veille.",
   },
   {
     q: "Combien de bagages puis-je emporter ?",
@@ -208,10 +208,10 @@ function Home() {
         </div>
       </section>
 
-      {/* PARAGRAPHE CONTEXTUEL — liens internes vers les 4 pages SEO locales */}
+      {/* PARAGRAPHE CONTEXTUEL : liens internes vers les 4 pages SEO locales */}
       <ContextualSeoParagraph />
 
-      {/* PAGES SEO LOCALES — liens internes vers les 4 landings */}
+      {/* PAGES SEO LOCALES : liens internes vers les 4 landings */}
       <LocalSeoLinks />
 
       {/* BEST SELLERS BORDEAUX */}
@@ -692,7 +692,7 @@ function Home() {
         </div>
       </section>
 
-      {/* BARRE FLOTTANTE BAS — rendu par WhatsAppFloat dans __root.tsx */}
+      {/* BARRE FLOTTANTE BAS : rendu par WhatsAppFloat dans __root.tsx */}
     </>
   );
 }
@@ -704,41 +704,42 @@ const SEO_SECTION_COPY: Record<string, { eyebrow: string; title: string; intro: 
     eyebrow: "Trajets fréquents",
     title: "Nos courses les plus demandées",
     intro:
-      "Je réponds ici aux questions concrètes qu'on me pose chaque semaine — tarifs, temps de trajet, prise en charge médicale, suivi de vol.",
+      "Je réponds ici aux questions concrètes qu'on me pose chaque semaine : tarifs, temps de trajet, prise en charge médicale, suivi de vol.",
     cta: "En savoir plus",
   },
   en: {
     eyebrow: "Popular trips",
     title: "The rides I do most often",
     intro:
-      "Concrete answers to the questions people ask me every week — pricing, travel times, medical coverage, flight tracking.",
+      "Concrete answers to the questions people ask me every week: pricing, travel times, medical coverage, flight tracking.",
     cta: "Learn more",
   },
   es: {
     eyebrow: "Trayectos frecuentes",
     title: "Nuestros trayectos más solicitados",
     intro:
-      "Respondo aquí las preguntas concretas que me hacen cada semana — precios, tiempos, cobertura médica, seguimiento de vuelo.",
+      "Respondo aquí las preguntas concretas que me hacen cada semana: precios, tiempos, cobertura médica, seguimiento de vuelo.",
     cta: "Saber más",
   },
   pt: {
     eyebrow: "Viagens frequentes",
     title: "As viagens que faço mais frequentemente",
     intro:
-      "Respondo às perguntas concretas que me fazem toda semana — preços, tempos, cobertura médica, seguimento de voo.",
+      "Respondo aqui às perguntas concretas que me fazem toda semana: preços, tempos, cobertura médica, seguimento de voo.",
     cta: "Saiba mais",
   },
   it: {
     eyebrow: "Corse frequenti",
     title: "Le corse che faccio più spesso",
     intro:
-      "Rispondo alle domande concrete che mi fanno ogni settimana — prezzi, tempi, copertura medica, monitoraggio volo.",
+      "Rispondo qui alle domande concrete che mi fanno ogni settimana: prezzi, tempi, copertura medica, monitoraggio volo.",
     cta: "Scopri di più",
   },
   ar: {
     eyebrow: "الرحلات المتكررة",
     title: "الرحلات الأكثر طلبًا",
-    intro: "أجيب هنا على الأسئلة الشائعة — الأسعار، الأوقات، التغطية الطبية، متابعة الرحلات.",
+    intro:
+      "أجيب هنا عن الأسئلة الملموسة التي يطرحها الزبائن كل أسبوع: الأسعار، الأوقات، التغطية الطبية، متابعة الرحلات.",
     cta: "اعرف المزيد",
   },
 };
