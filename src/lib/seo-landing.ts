@@ -373,8 +373,8 @@ const PT: Record<LandingKey, LandingContent> = {
     ctaBook: CTA.pt.book, ctaCall: CTA.pt.call,
   },
   arcachon: {
-    title: "Táxi Bordéus → Arcachon — Transferência direta, preço claro",
-    description: "Táxi de Bordéus para Arcachon (Baía, Cap-Ferret, Pyla): trajeto direto, reserva antecipada, tarifa anunciada.",
+    title: "Táxi Bordéus → Arcachon — Reservar táxi 7 lugares Pyla & Cap-Ferret",
+    description: "Reservar táxi Bordéus → Arcachon (Pyla, Cap-Ferret, Baía): trajeto direto, tarifa fixa, VTC Bordéus ou táxi 7 lugares para famílias e bagagem.",
     intro: "Chegue à Baía de Arcachon de táxi a partir do centro de Bordéus, do aeroporto Mérignac ou da estação Saint-Jean. Trajeto direto, preço conhecido, sem transbordo.",
     sections: [
       { h: "Trajeto direto porta-a-porta", p: "Do seu hotel, estação ou aeroporto até Arcachon cidade, a Duna do Pyla, Cap-Ferret ou Andernos — sem transbordo." },
