@@ -341,8 +341,8 @@ const ES: Record<LandingKey, LandingContent> = {
 // --------- PT ----------
 const PT: Record<LandingKey, LandingContent> = {
   airport: {
-    title: "Táxi Aeroporto Bordéus-Mérignac — Serviço 24/7",
-    description: "Táxi de e para o aeroporto Bordéus-Mérignac: seguimento de voo em tempo real, tarifa fixa transparente, veículo confortável, 7 dias por semana.",
+    title: "Táxi Bordéus aeroporto Mérignac — Reservar táxi ou VTC 7 lugares",
+    description: "Reservar táxi Bordéus aeroporto Mérignac: seguimento de voo, tarifa fixa, VTC Bordéus ou táxi 7 lugares sob pedido. 24/7 — +33 6 73 07 23 22.",
     intro: "Reserve o seu táxi para o aeroporto de Bordéus-Mérignac em segundos. Seguimos o seu voo em tempo real e ajustamos a hora de recolha automaticamente.",
     sections: [
       { h: "Seguimento de voo automático", p: "Indique o número do voo: a hora de recolha ajusta-se à aterragem real, sem custo extra." },
