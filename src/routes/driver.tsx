@@ -88,6 +88,10 @@ export const Route = createFileRoute("/driver")({
       { name: "robots", content: "noindex" },
       { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" },
       { name: "theme-color", content: "#0f172a" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "Espace José" },
     ],
     links: [{ rel: "manifest", href: "/api/manifest?role=driver" }],
   }),
@@ -111,10 +115,10 @@ const css = `
   }
   .drv-header {
     background: #0f172a; color: #fff; display: flex; align-items: center; gap: 10px;
-    padding: calc(env(safe-area-inset-top, 0px) + 14px) calc(env(safe-area-inset-right, 0px) + 16px) 10px calc(env(safe-area-inset-left, 0px) + 16px);
+    padding: max(calc(env(safe-area-inset-top, 0px) + 14px), 54px) calc(env(safe-area-inset-right, 0px) + 16px) 10px calc(env(safe-area-inset-left, 0px) + 16px);
     flex-shrink: 0;
   }
-  .drv-header h1 { margin: 0; font-size: 17px; font-weight: 700; flex: 1; }
+  .drv-header h1 { margin: 0; font-size: 17px; font-weight: 700; flex: 1; font-family: 'DM Sans', sans-serif; }
   .drv-tabs {
     display: flex; border-bottom: 1px solid #e2e8f0; background: #fff;
     padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);
