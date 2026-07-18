@@ -3,6 +3,7 @@ import * as React from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { SiteHeader } from "@/components/SiteHeader";
+import { Footer } from "@/components/Footer";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import appCss from "@/styles.css?url";
 import logoUrl from "@/assets/tcb-logo-badge.png?url";
@@ -89,9 +90,20 @@ export const Route = createRootRoute({
       { property: "og:site_name", content: "Taxi City Bordeaux" },
       { property: "og:title", content: "Taxi Bordeaux 24h/24 — Taxi City Bordeaux" },
       { name: "twitter:title", content: "Taxi Bordeaux 24h/24 — Taxi City Bordeaux" },
-      { name: "description", content: "Taxi à Bordeaux 7j/7 24h/24 : aéroport Mérignac, gare Saint-Jean, Arcachon, transport conventionné CPAM. Réservation en ligne, tarif clair." },
-      { property: "og:description", content: "Taxi à Bordeaux 7j/7 24h/24 : aéroport Mérignac, gare Saint-Jean, Arcachon, transport conventionné CPAM. Réservation en ligne." },
-      { name: "twitter:description", content: "Taxi à Bordeaux 7j/7 24h/24 : aéroport, gare, Arcachon, CPAM. Réservation en ligne." },
+      {
+        name: "description",
+        content:
+          "Taxi à Bordeaux 7j/7 24h/24 : aéroport Mérignac, gare Saint-Jean, Arcachon, transport conventionné CPAM. Réservation en ligne, tarif clair.",
+      },
+      {
+        property: "og:description",
+        content:
+          "Taxi à Bordeaux 7j/7 24h/24 : aéroport Mérignac, gare Saint-Jean, Arcachon, transport conventionné CPAM. Réservation en ligne.",
+      },
+      {
+        name: "twitter:description",
+        content: "Taxi à Bordeaux 7j/7 24h/24 : aéroport, gare, Arcachon, CPAM. Réservation en ligne.",
+      },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:type", content: "website" },
     ],
@@ -106,19 +118,71 @@ export const Route = createRootRoute({
       { rel: "apple-touch-icon", href: `/apple-touch-icon.png${v}` },
       { rel: "apple-touch-icon", sizes: "180x180", href: `/apple-touch-icon.png${v}` },
       // Splash screens iOS PWA — écran de démarrage avec le nouveau logo
-      { rel: "apple-touch-startup-image", href: `/splash-640x1136.png${v}`, media: "(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)" },
-      { rel: "apple-touch-startup-image", href: `/splash-750x1334.png${v}`, media: "(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" },
-      { rel: "apple-touch-startup-image", href: `/splash-828x1792.png${v}`, media: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" },
-      { rel: "apple-touch-startup-image", href: `/splash-1125x2436.png${v}`, media: "(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" },
-      { rel: "apple-touch-startup-image", href: `/splash-1242x2208.png${v}`, media: "(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)" },
-      { rel: "apple-touch-startup-image", href: `/splash-1242x2688.png${v}`, media: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)" },
-      { rel: "apple-touch-startup-image", href: `/splash-1170x2532.png${v}`, media: "(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" },
-      { rel: "apple-touch-startup-image", href: `/splash-1179x2556.png${v}`, media: "(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" },
-      { rel: "apple-touch-startup-image", href: `/splash-1290x2796.png${v}`, media: "(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" },
-      { rel: "apple-touch-startup-image", href: `/splash-1536x2048.png${v}`, media: "(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)" },
-      { rel: "apple-touch-startup-image", href: `/splash-1668x2224.png${v}`, media: "(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2)" },
-      { rel: "apple-touch-startup-image", href: `/splash-1668x2388.png${v}`, media: "(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)" },
-      { rel: "apple-touch-startup-image", href: `/splash-2048x2732.png${v}`, media: "(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" },
+      {
+        rel: "apple-touch-startup-image",
+        href: `/splash-640x1136.png${v}`,
+        media: "(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)",
+      },
+      {
+        rel: "apple-touch-startup-image",
+        href: `/splash-750x1334.png${v}`,
+        media: "(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)",
+      },
+      {
+        rel: "apple-touch-startup-image",
+        href: `/splash-828x1792.png${v}`,
+        media: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)",
+      },
+      {
+        rel: "apple-touch-startup-image",
+        href: `/splash-1125x2436.png${v}`,
+        media: "(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)",
+      },
+      {
+        rel: "apple-touch-startup-image",
+        href: `/splash-1242x2208.png${v}`,
+        media: "(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)",
+      },
+      {
+        rel: "apple-touch-startup-image",
+        href: `/splash-1242x2688.png${v}`,
+        media: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)",
+      },
+      {
+        rel: "apple-touch-startup-image",
+        href: `/splash-1170x2532.png${v}`,
+        media: "(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)",
+      },
+      {
+        rel: "apple-touch-startup-image",
+        href: `/splash-1179x2556.png${v}`,
+        media: "(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)",
+      },
+      {
+        rel: "apple-touch-startup-image",
+        href: `/splash-1290x2796.png${v}`,
+        media: "(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)",
+      },
+      {
+        rel: "apple-touch-startup-image",
+        href: `/splash-1536x2048.png${v}`,
+        media: "(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)",
+      },
+      {
+        rel: "apple-touch-startup-image",
+        href: `/splash-1668x2224.png${v}`,
+        media: "(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2)",
+      },
+      {
+        rel: "apple-touch-startup-image",
+        href: `/splash-1668x2388.png${v}`,
+        media: "(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)",
+      },
+      {
+        rel: "apple-touch-startup-image",
+        href: `/splash-2048x2732.png${v}`,
+        media: "(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)",
+      },
       { rel: "icon", type: "image/png", sizes: "192x192", href: `/icon-192.png${v}` },
       { rel: "icon", type: "image/png", sizes: "512x512", href: `/icon-512.png${v}` },
       // Perf mobile : preconnect aux origines critiques (Supabase, tuiles carte, géocoder)
@@ -175,6 +239,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 
   const showWhatsAppFloat = !pathname.startsWith("/carte");
 
+  // Le footer suit les mêmes règles que le header : masqué sur les écrans
+  // "applicatifs" (réservation, admin, suivi chauffeur, carte plein écran).
+  const showFooter = showHeader;
+
   return (
     <html lang="fr">
       <head>
@@ -188,7 +256,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body>
         <I18nProvider>
           {showHeader && <SiteHeader />}
-          {children}
+          <div className="flex min-h-screen flex-col">
+            <div className="flex-1">{children}</div>
+            {showFooter && <Footer />}
+          </div>
           <Toaster />
           {showWhatsAppFloat && <WhatsAppFloat />}
         </I18nProvider>
