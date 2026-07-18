@@ -1,12 +1,22 @@
 // Layout partagé pour les 4 pages SEO locales
 import { Link } from "@tanstack/react-router";
-import { Phone, HelpCircle } from "lucide-react";
+import { Phone, HelpCircle, ArrowRight } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
-import { getLanding, type LandingKey } from "@/lib/seo-landing";
+import {
+  getLanding,
+  getFaqTitle,
+  RELATED_LABEL,
+  LANDING_LABEL,
+  LANDING_PATH,
+  type LandingKey,
+} from "@/lib/seo-landing";
+
+const ALL_KEYS: LandingKey[] = ["airport", "station", "arcachon", "cpam"];
 
 export function LocalSeoPage({ landingKey }: { landingKey: LandingKey }) {
   const { lang } = useI18n();
   const c = getLanding(lang, landingKey);
+  const others = ALL_KEYS.filter((k) => k !== landingKey);
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-12 sm:py-16">
@@ -52,7 +62,7 @@ export function LocalSeoPage({ landingKey }: { landingKey: LandingKey }) {
 
       <section className="mt-14 sm:mt-20">
         <h2 className="text-center font-display text-2xl font-bold sm:text-3xl">
-          FAQ
+          {getFaqTitle(lang)}
         </h2>
         <div className="mx-auto mt-6 max-w-3xl space-y-3">
           {c.faq.map((f) => (
@@ -81,6 +91,25 @@ export function LocalSeoPage({ landingKey }: { landingKey: LandingKey }) {
           {c.ctaBook}
         </Link>
       </div>
+
+      {/* Cross-links vers les autres pages SEO — améliore l'exploration Google et l'UX */}
+      <section className="mt-14 border-t border-border pt-10 sm:mt-20">
+        <p className="text-center text-xs font-semibold uppercase tracking-[0.3em] text-primary">
+          {RELATED_LABEL[lang] ?? RELATED_LABEL.fr}
+        </p>
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          {others.map((k) => (
+            <Link
+              key={k}
+              to={LANDING_PATH[k]}
+              className="group flex items-center justify-between gap-2 rounded-xl border border-border bg-card/50 px-4 py-3 text-sm font-semibold transition hover:border-primary/60 hover:bg-card"
+            >
+              <span>{LANDING_LABEL[k][lang] ?? LANDING_LABEL[k].fr}</span>
+              <ArrowRight className="h-4 w-4 text-primary transition-transform group-hover:translate-x-1" />
+            </Link>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
