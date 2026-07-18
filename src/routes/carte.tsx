@@ -246,29 +246,8 @@ function CartePage() {
   const rtl = lang === "ar";
 
   const waNumber = CONTACT.tel.replace(/[^\d]/g, "");
+  const vcfUrl = "/api/public/contact/vcf";
 
-  function downloadVCard(e: React.MouseEvent<HTMLAnchorElement>) {
-    e.preventDefault();
-    if (typeof window === "undefined") return;
-    const vcard = buildVCard();
-    const ua = navigator.userAgent || "";
-    const isIOS = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && "ontouchend" in document);
-    if (isIOS) {
-      // iOS Safari: naviguer vers un data URI ouvre la fiche contact directement
-      const dataUri = "data:text/vcard;charset=utf-8," + encodeURIComponent(vcard);
-      window.location.href = dataUri;
-      return;
-    }
-    const blob = new Blob([vcard], { type: "text/vcard;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "taxi-city-bordeaux.vcf";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
 
 
   return (
@@ -347,8 +326,7 @@ function CartePage() {
           <ActionButton href={CONTACT.reserve} icon="🚕" label={t.reserve} primary />
           <ActionButton href={CONTACT.site} icon="🌐" label={t.website} />
           <ActionButton
-            href="#"
-            onClick={downloadVCard}
+            href={vcfUrl}
             icon="👤"
             label={t.addContact}
           />
