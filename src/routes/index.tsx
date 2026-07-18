@@ -35,7 +35,7 @@ import { hreflangLinks } from "@/lib/seo-hreflang";
 
 const HOME_TITLE = "Taxi City Bordeaux – Taxi 7j/7 à Bordeaux & en Gironde";
 const HOME_DESC =
-  "Réservez votre taxi à Bordeaux : aéroport Mérignac, gare Saint-Jean, vignobles, longues distances. Conventionné CPAM. Service ponctuel et confortable, jour & nuit.";
+  "Réservez votre taxi à Bordeaux : aéroport, gare Saint-Jean, vignobles, longues distances. Conventionné CPAM. Service ponctuel et confortable, jour & nuit.";
 const HOME_URL = "https://taxicitybordeaux.fr/";
 
 const HOME_FAQ = [
@@ -44,7 +44,7 @@ const HOME_FAQ = [
     a: "Oui, nous sommes conventionnés avec la CPAM pour les transports de santé (consultations, dialyses, hospitalisations…). Sur présentation d'un bon de transport, prise en charge directe par l'Assurance Maladie. Tiers payant ou ALD — bon de transport toutes distances.",
   },
   {
-    q: "Que se passe-t-il si mon vol a du retard à Mérignac ?",
+    q: "Que se passe-t-il si mon vol a du retard à l'aéroport de Bordeaux ?",
     a: "On suit votre vol en temps réel. Si l'avion arrive en avance ou en retard, on ajuste l'heure de prise en charge.",
   },
   {
@@ -213,9 +213,6 @@ function Home() {
 
       {/* PAGES SEO LOCALES — liens internes vers les 4 landings */}
       <LocalSeoLinks />
-
-
-
 
       {/* BEST SELLERS BORDEAUX */}
       <section className="border-t border-border bg-card/20">
@@ -706,31 +703,36 @@ const SEO_SECTION_COPY: Record<string, { eyebrow: string; title: string; intro: 
   fr: {
     eyebrow: "Trajets fréquents",
     title: "Nos courses les plus demandées",
-    intro: "Je réponds ici aux questions concrètes qu'on me pose chaque semaine — tarifs, temps de trajet, prise en charge médicale, suivi de vol.",
+    intro:
+      "Je réponds ici aux questions concrètes qu'on me pose chaque semaine — tarifs, temps de trajet, prise en charge médicale, suivi de vol.",
     cta: "En savoir plus",
   },
   en: {
     eyebrow: "Popular trips",
     title: "The rides I do most often",
-    intro: "Concrete answers to the questions people ask me every week — pricing, travel times, medical coverage, flight tracking.",
+    intro:
+      "Concrete answers to the questions people ask me every week — pricing, travel times, medical coverage, flight tracking.",
     cta: "Learn more",
   },
   es: {
     eyebrow: "Trayectos frecuentes",
     title: "Nuestros trayectos más solicitados",
-    intro: "Respondo aquí las preguntas concretas que me hacen cada semana — precios, tiempos, cobertura médica, seguimiento de vuelo.",
+    intro:
+      "Respondo aquí las preguntas concretas que me hacen cada semana — precios, tiempos, cobertura médica, seguimiento de vuelo.",
     cta: "Saber más",
   },
   pt: {
     eyebrow: "Viagens frequentes",
     title: "As viagens que faço mais frequentemente",
-    intro: "Respondo às perguntas concretas que me fazem toda semana — preços, tempos, cobertura médica, seguimento de voo.",
+    intro:
+      "Respondo às perguntas concretas que me fazem toda semana — preços, tempos, cobertura médica, seguimento de voo.",
     cta: "Saiba mais",
   },
   it: {
     eyebrow: "Corse frequenti",
     title: "Le corse che faccio più spesso",
-    intro: "Rispondo alle domande concrete che mi fanno ogni settimana — prezzi, tempi, copertura medica, monitoraggio volo.",
+    intro:
+      "Rispondo alle domande concrete che mi fanno ogni settimana — prezzi, tempi, copertura medica, monitoraggio volo.",
     cta: "Scopri di più",
   },
   ar: {
@@ -743,7 +745,11 @@ const SEO_SECTION_COPY: Record<string, { eyebrow: string; title: string; intro: 
 
 const SEO_CARDS: {
   key: string;
-  to: "/taxi-aeroport-bordeaux-merignac" | "/taxi-gare-saint-jean-bordeaux" | "/taxi-bordeaux-arcachon" | "/taxi-conventionne-bordeaux";
+  to:
+    | "/taxi-aeroport-bordeaux-merignac"
+    | "/taxi-gare-saint-jean-bordeaux"
+    | "/taxi-bordeaux-arcachon"
+    | "/taxi-conventionne-bordeaux";
   icon: React.ComponentType<{ className?: string }>;
   copy: Record<string, { title: string; sub: string }>;
 }[] = [
@@ -752,12 +758,12 @@ const SEO_CARDS: {
     to: "/taxi-aeroport-bordeaux-merignac",
     icon: Plane,
     copy: {
-      fr: { title: "Taxi aéroport Mérignac", sub: "Suivi de vol, forfait annoncé, jour et nuit." },
-      en: { title: "Mérignac airport taxi", sub: "Flight tracking, flat fare, day & night." },
-      es: { title: "Taxi aeropuerto Mérignac", sub: "Seguimiento de vuelo, tarifa fija, 24/7." },
-      pt: { title: "Táxi aeroporto Mérignac", sub: "Seguimento de voo, tarifa fixa, 24/7." },
-      it: { title: "Taxi aeroporto Mérignac", sub: "Monitoraggio volo, tariffa fissa, 24/7." },
-      ar: { title: "سيارة أجرة مطار ميرينياك", sub: "متابعة الرحلة، سعر مقطوع، 24/7." },
+      fr: { title: "Taxi aéroport Bordeaux", sub: "Suivi de vol, tarif transparent, jour et nuit." },
+      en: { title: "Bordeaux airport taxi", sub: "Flight tracking, transparent pricing, day & night." },
+      es: { title: "Taxi aeropuerto Burdeos", sub: "Seguimiento de vuelo, tarifa transparente, 24/7." },
+      pt: { title: "Táxi aeroporto Bordéus", sub: "Seguimento de voo, tarifa transparente, 24/7." },
+      it: { title: "Taxi aeroporto Bordeaux", sub: "Monitoraggio volo, tariffa trasparente, 24/7." },
+      ar: { title: "سيارة أجرة مطار بوردو", sub: "متابعة الرحلة، تسعيرة شفافة، 24/7." },
     },
   },
   {
@@ -842,28 +848,33 @@ function LocalSeoLinks() {
   );
 }
 
-
 // Paragraphe éditorial avec liens internes contextuels vers les 4 pages SEO
 // (Google valorise les liens dans le contenu bien plus que dans le footer).
-const CONTEXT_PARA: Record<string, {
-  eyebrow: string;
-  title: string;
-  parts: [string, string, string, string, string, string, string, string, string];
-  labels: { airport: string; station: string; arcachon: string; cpam: string };
-}> = {
+const CONTEXT_PARA: Record<
+  string,
+  {
+    eyebrow: string;
+    title: string;
+    parts: [string, string, string, string, string, string, string, string, string];
+    labels: { airport: string; station: string; arcachon: string; cpam: string };
+  }
+> = {
   fr: {
     eyebrow: "En quelques mots",
     title: "Le taxi bordelais qui vous simplifie la vie",
     parts: [
       "Que vous ayez besoin d'un ",
-      " avec suivi de vol et forfait annoncé, d'un ",
+      " avec suivi de vol et tarif transparent, d'un ",
       " pour votre TGV, ou d'un ",
-      " direct sans correspondance, José répond au 06 73 07 23 22, 7j/7. Pour vos trajets de santé, il est aussi ",
+      " direct sans correspondance, José répond au 06\u00A073\u00A007\u00A023\u00A022, 7j/7. Pour vos trajets de santé, il est aussi ",
       " avec tiers payant et ALD 100 %. Besoin d'un taxi pour un groupe ? Précisez-le à la réservation.",
-      "", "", "", "",
+      "",
+      "",
+      "",
+      "",
     ],
     labels: {
-      airport: "taxi Bordeaux aéroport Mérignac",
+      airport: "taxi Bordeaux aéroport",
       station: "taxi à la gare Saint-Jean",
       arcachon: "taxi Bordeaux → Arcachon",
       cpam: "taxi conventionné CPAM à Bordeaux",
@@ -873,14 +884,18 @@ const CONTEXT_PARA: Record<string, {
     eyebrow: "In a nutshell",
     title: "The Bordeaux taxi that makes life easier",
     parts: [
-      "Whether you need a ", " with flight tracking and a flat fare, a ",
+      "Whether you need a ",
+      " with flight tracking and transparent pricing, a ",
       " for your TGV, or a ",
-      " with no transfer, José answers at +33 6 73 07 23 22, 7 days a week. For medical trips he is also an ",
+      " with no transfer, José answers at +33\u00A06\u00A073\u00A007\u00A023\u00A022, 7 days a week. For medical trips he is also an ",
       " with direct billing and ALD 100%. Need a larger vehicle for a group? Tell us at booking.",
-      "", "", "", "",
+      "",
+      "",
+      "",
+      "",
     ],
     labels: {
-      airport: "Bordeaux Mérignac airport taxi",
+      airport: "Bordeaux airport taxi",
       station: "taxi at Saint-Jean station",
       arcachon: "Bordeaux → Arcachon taxi",
       cpam: "CPAM-approved medical taxi in Bordeaux",
@@ -890,14 +905,18 @@ const CONTEXT_PARA: Record<string, {
     eyebrow: "En pocas palabras",
     title: "El taxi bordelés que te simplifica la vida",
     parts: [
-      "Ya sea que necesites un ", " con seguimiento de vuelo y tarifa fija, un ",
+      "Ya sea que necesites un ",
+      " con seguimiento de vuelo y tarifa transparente, un ",
       " para tu TGV, o un ",
-      " directo sin transbordo, José responde al +33 6 73 07 23 22, 7 días a la semana. Para trayectos médicos también es ",
+      " directo sin transbordo, José responde al +33\u00A06\u00A073\u00A007\u00A023\u00A022, 7 días a la semana. Para trayectos médicos también es ",
       " con facturación directa y ALD 100%. ¿Necesitas un taxi para un grupo? Indícalo al reservar.",
-      "", "", "", "",
+      "",
+      "",
+      "",
+      "",
     ],
     labels: {
-      airport: "taxi Burdeos aeropuerto Mérignac",
+      airport: "taxi Burdeos aeropuerto",
       station: "taxi en la estación Saint-Jean",
       arcachon: "taxi Burdeos → Arcachon",
       cpam: "taxi concertado CPAM en Burdeos",
@@ -907,14 +926,18 @@ const CONTEXT_PARA: Record<string, {
     eyebrow: "Em poucas palavras",
     title: "O táxi de Bordéus que simplifica a sua vida",
     parts: [
-      "Precise de um ", " com seguimento de voo e tarifa fixa, de um ",
+      "Precise de um ",
+      " com seguimento de voo e tarifa transparente, de um ",
       " para o seu TGV, ou de um ",
-      " direto sem transbordo, o José atende no +33 6 73 07 23 22, 7 dias por semana. Para trajetos médicos também é ",
+      " direto sem transbordo, o José atende no +33\u00A06\u00A073\u00A007\u00A023\u00A022, 7 dias por semana. Para trajetos médicos também é ",
       " com faturação direta e ALD 100%. Precisa de um táxi para um grupo? Diga-nos na reserva.",
-      "", "", "", "",
+      "",
+      "",
+      "",
+      "",
     ],
     labels: {
-      airport: "táxi Bordéus aeroporto Mérignac",
+      airport: "táxi Bordéus aeroporto",
       station: "táxi na estação Saint-Jean",
       arcachon: "táxi Bordéus → Arcachon",
       cpam: "táxi convencionado CPAM em Bordéus",
@@ -924,14 +947,18 @@ const CONTEXT_PARA: Record<string, {
     eyebrow: "In breve",
     title: "Il taxi di Bordeaux che ti semplifica la vita",
     parts: [
-      "Che tu abbia bisogno di un ", " con monitoraggio volo e tariffa fissa, di un ",
+      "Che tu abbia bisogno di un ",
+      " con monitoraggio volo e tariffa trasparente, di un ",
       " per il tuo TGV, o di un ",
-      " diretto senza cambi, José risponde al +33 6 73 07 23 22, 7 giorni su 7. Per i tragitti medici è anche ",
+      " diretto senza cambi, José risponde al +33\u00A06\u00A073\u00A007\u00A023\u00A022, 7 giorni su 7. Per i tragitti medici è anche ",
       " con fatturazione diretta e ALD 100%. Serve un taxi per un gruppo? Segnalalo alla prenotazione.",
-      "", "", "", "",
+      "",
+      "",
+      "",
+      "",
     ],
     labels: {
-      airport: "taxi Bordeaux aeroporto Mérignac",
+      airport: "taxi Bordeaux aeroporto",
       station: "taxi alla stazione Saint-Jean",
       arcachon: "taxi Bordeaux → Arcachon",
       cpam: "taxi convenzionato CPAM a Bordeaux",
@@ -941,14 +968,18 @@ const CONTEXT_PARA: Record<string, {
     eyebrow: "باختصار",
     title: "سيارة الأجرة في بوردو التي تسهل حياتك",
     parts: [
-      "سواء احتجت إلى ", " مع متابعة الرحلة وسعر مقطوع، أو ",
+      "سواء احتجت إلى ",
+      " مع متابعة الرحلة وتسعيرة شفافة، أو ",
       " لقطار TGV، أو ",
       " مباشرة بدون تحويل، خوسيه يرد على 0033673072322، 7 أيام في الأسبوع. للرحلات الطبية هو أيضًا ",
       " مع فوترة مباشرة وتغطية ALD 100%. تحتاج تاكسي لمجموعة؟ أخبرنا عند الحجز.",
-      "", "", "", "",
+      "",
+      "",
+      "",
+      "",
     ],
     labels: {
-      airport: "سيارة أجرة بوردو مطار ميرينياك",
+      airport: "سيارة أجرة بوردو مطار",
       station: "سيارة أجرة في محطة سان-جان",
       arcachon: "سيارة أجرة بوردو ← أركاشون",
       cpam: "سيارة أجرة معتمدة CPAM في بوردو",
@@ -965,19 +996,31 @@ function ContextualSeoParagraph() {
       <h2 className="mt-2 font-display text-2xl font-bold sm:text-3xl md:text-4xl">{c.title}</h2>
       <p className="mt-4 text-base leading-relaxed text-muted-foreground">
         {c.parts[0]}
-        <Link to="/taxi-aeroport-bordeaux-merignac" className="font-semibold text-primary underline underline-offset-4 hover:opacity-80">
+        <Link
+          to="/taxi-aeroport-bordeaux-merignac"
+          className="font-semibold text-primary underline underline-offset-4 hover:opacity-80"
+        >
           {c.labels.airport}
         </Link>
         {c.parts[1]}
-        <Link to="/taxi-gare-saint-jean-bordeaux" className="font-semibold text-primary underline underline-offset-4 hover:opacity-80">
+        <Link
+          to="/taxi-gare-saint-jean-bordeaux"
+          className="font-semibold text-primary underline underline-offset-4 hover:opacity-80"
+        >
           {c.labels.station}
         </Link>
         {c.parts[2]}
-        <Link to="/taxi-bordeaux-arcachon" className="font-semibold text-primary underline underline-offset-4 hover:opacity-80">
+        <Link
+          to="/taxi-bordeaux-arcachon"
+          className="font-semibold text-primary underline underline-offset-4 hover:opacity-80"
+        >
           {c.labels.arcachon}
         </Link>
         {c.parts[3]}
-        <Link to="/taxi-conventionne-bordeaux" className="font-semibold text-primary underline underline-offset-4 hover:opacity-80">
+        <Link
+          to="/taxi-conventionne-bordeaux"
+          className="font-semibold text-primary underline underline-offset-4 hover:opacity-80"
+        >
           {c.labels.cpam}
         </Link>
         {c.parts[4]}
@@ -985,10 +1028,6 @@ function ContextualSeoParagraph() {
     </section>
   );
 }
-
-
-
-
 
 type Review = { id: string; name: string; rating: number; text: string; created_at: string };
 
