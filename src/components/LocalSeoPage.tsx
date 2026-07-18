@@ -73,7 +73,7 @@ export function LocalSeoPage({ landingKey }: { landingKey: LandingKey }) {
         <div className="mx-auto mt-6 max-w-3xl space-y-3">
           {c.faq.map((f) => (
             <details key={f.q} className="group rounded-xl border border-border bg-card/50 p-4 sm:p-5">
-              <summary className="flex cursor-pointer list-none items-start gap-3 font-semibold">
+              <summary className="flex cursor-pointer list-none items-start gap-3 font-semibold [&::-webkit-details-marker]:hidden [&::marker]:hidden">
                 <HelpCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                 <span className="flex-1 text-sm sm:text-base">{f.q}</span>
                 <span className="ml-2 text-primary transition group-open:rotate-45">+</span>
