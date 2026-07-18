@@ -326,8 +326,7 @@ function CartePage() {
           <ActionButton href={CONTACT.reserve} icon="🚕" label={t.reserve} primary />
           <ActionButton href={CONTACT.site} icon="🌐" label={t.website} />
           <ActionButton
-            href="#"
-            onClick={downloadVCard}
+            href={vcfUrl}
             icon="👤"
             label={t.addContact}
           />
