@@ -29,9 +29,9 @@ const CTA: Record<Lang, { book: string; call: string; faqTitle: string }> = {
 // --------- FR (voix de José — humain, pas IA) ----------
 const FR: Record<LandingKey, LandingContent> = {
   airport: {
-    title: "Taxi Aéroport Bordeaux-Mérignac — José vous attend à la sortie",
+    title: "Taxi Bordeaux aéroport Mérignac 24/7 — Réserver | VTC 7 places",
     description:
-      "Taxi pour l'aéroport de Bordeaux-Mérignac : José suit votre vol, arrive à l'heure, tarif annoncé d'avance. 7j/7, jour et nuit — appelez le 06 73 07 23 22.",
+      "Réserver un taxi Bordeaux aéroport Mérignac : suivi de vol, forfait annoncé, VTC Bordeaux ou taxi 7 places sur demande. José vous attend, jour & nuit — 06 73 07 23 22.",
     intro:
       "Bonjour, moi c'est José. Ça fait des années que je fais la navette entre Bordeaux et l'aéroport de Mérignac — le matin, la nuit, les jours fériés. Vous me donnez votre numéro de vol, je suis l'atterrissage sur mon téléphone et je suis là quand vous sortez. Pas d'attente, pas de mauvaise surprise sur le prix.",
     sections: [
