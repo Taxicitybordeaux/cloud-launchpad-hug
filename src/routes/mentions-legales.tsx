@@ -1,16 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 
+const URL = "https://taxicitybordeaux.fr/mentions-legales";
+const TITLE = "Mentions légales — Taxi City Bordeaux";
+const DESC =
+  "Mentions légales de Taxi City Bordeaux : éditeur du site, hébergement, propriété intellectuelle et contact.";
+
 export const Route = createFileRoute("/mentions-legales")({
   head: () => ({
     meta: [
-      { title: "Mentions légales — Taxi City Bordeaux" },
-      {
-        name: "description",
-        content:
-          "Mentions légales de Taxi City Bordeaux : éditeur du site, hébergement, propriété intellectuelle et contact.",
-      },
+      { title: TITLE },
+      { name: "description", content: DESC },
+      { property: "og:title", content: TITLE },
+      { property: "og:description", content: DESC },
+      { property: "og:url", content: URL },
+      { property: "og:type", content: "website" },
       { name: "robots", content: "index,follow" },
     ],
+    links: [{ rel: "canonical", href: URL }],
   }),
   component: MentionsLegalesPage,
 });
