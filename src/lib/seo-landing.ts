@@ -425,8 +425,8 @@ const IT: Record<LandingKey, LandingContent> = {
     ctaBook: CTA.it.book, ctaCall: CTA.it.call,
   },
   station: {
-    title: "Taxi Stazione Bordeaux Saint-Jean — Prenotazione 24/7",
-    description: "Taxi per la stazione Bordeaux Saint-Jean: monitoraggio treno, ritiro immediato o prenotato, prezzi chiari.",
+    title: "Taxi Bordeaux stazione Saint-Jean — Prenotare taxi o VTC 7 posti",
+    description: "Prenotare un taxi alla stazione Bordeaux Saint-Jean: monitoraggio TGV, ritiro sul binario, VTC Bordeaux o taxi 7 posti su richiesta. 24/7.",
     intro: "Un taxi l'attende alla stazione di Bordeaux Saint-Jean, o viene a prenderla per il TGV. Monitoriamo il treno e adattiamo l'orario automaticamente.",
     sections: [
       { h: "Ritiro a Saint-Jean", p: "Punto d'incontro concordato: zona di sosta, atrio o parcheggio. L'autista la localizza e la chiama se necessario." },
