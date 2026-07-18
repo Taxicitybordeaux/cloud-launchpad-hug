@@ -33,7 +33,7 @@ const FR: Record<LandingKey, LandingContent> = {
     description:
       "Réserver un taxi Bordeaux aéroport Mérignac : suivi de vol, prix annoncé à la réservation, véhicule 4 personnes maximum. José vous attend, jour & nuit. 06 73 07 23 22.",
     intro:
-      "Bonjour, moi c'est José.\nÇa fait des années que je fais la navette entre Bordeaux et l'aéroport de Mérignac : le matin, la nuit, les jours fériés.\nVous me donnez votre numéro de vol, je suis l'atterrissage sur mon téléphone et je suis là quand vous sortez.\nPas d'attente, pas de mauvaise surprise sur le prix.",
+      "Bonjour, moi c'est José.\nJe fais la navette entre Bordeaux et l'aéroport de Bordeaux : le matin, la nuit, les jours fériés.\nVous me donnez votre numéro de vol, je suis l'atterrissage sur mon téléphone et je suis là quand vous sortez.\nPas d'attente, pas de mauvaise surprise sur le prix.",
     sections: [
       {
         h: "Un retard ? Prévenez-moi tout de suite",
