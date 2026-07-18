@@ -457,8 +457,8 @@ const IT: Record<LandingKey, LandingContent> = {
     ctaBook: CTA.it.book, ctaCall: CTA.it.call,
   },
   cpam: {
-    title: "Taxi Medico Convenzionato Bordeaux — Fatturazione diretta, ALD",
-    description: "Taxi convenzionato con l'assicurazione sanitaria francese a Bordeaux: trasporto medico seduto, fatturazione diretta, ALD, dialisi, chemioterapia.",
+    title: "Taxi convenzionato CPAM Bordeaux — Prenotare, fatturazione diretta, ALD",
+    description: "Prenotare un taxi convenzionato a Bordeaux: fatturazione diretta (tiers payant), ALD 100%, dialisi, chemio. Anche VTC Bordeaux e taxi 7 posti.",
     intro: "Taxi convenzionato con l'assicurazione sanitaria francese (CPAM) a Bordeaux. Con la prescrizione medica di trasporto, la corsa è fatturata direttamente.",
     sections: [
       { h: "Copertura CPAM", p: "Porti il buono di trasporto firmato dal suo medico. Ci occupiamo della fatturazione direttamente." },
