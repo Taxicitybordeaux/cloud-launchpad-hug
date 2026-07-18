@@ -197,9 +197,9 @@ const FR: Record<LandingKey, LandingContent> = {
 // --------- EN ----------
 const EN: Record<LandingKey, LandingContent> = {
   airport: {
-    title: "Bordeaux-Mérignac Airport Taxi — 24/7 pickup",
+    title: "Bordeaux Mérignac Airport Taxi — Book taxi or 7-seater VTC",
     description:
-      "Taxi to or from Bordeaux-Mérignac Airport: real-time flight tracking, transparent flat rate, comfortable vehicle, available 7 days a week.",
+      "Book a Bordeaux Mérignac airport taxi: live flight tracking, flat fare, Bordeaux VTC or 7-seater taxi on request. Available 24/7 — call +33 6 73 07 23 22.",
     intro:
       "Book your taxi for Bordeaux-Mérignac airport in seconds. We track your flight in real time and adjust the pickup time — your driver is waiting on arrival, even if the flight is delayed or early.",
     sections: [
