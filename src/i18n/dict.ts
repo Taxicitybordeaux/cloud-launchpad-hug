@@ -27,11 +27,11 @@ const fr: Dict = {
   "nav.book_long": "Réserver une course",
   "nav.account": "Mon espace",
   "nav.account_long": "Mon espace client",
-  "common.available_247": "Disponible 7j/7 — 24h/24",
+  "common.available_247": "Disponible 7j/7, 24h/24",
   "common.lang_label": "Langue",
 
   // Home — hero
-  "home.hero.badge": "Disponible 7j/7 — 24h/24",
+  "home.hero.badge": "Disponible 7j/7, 24h/24",
   "home.hero.title.before": "Votre taxi à",
   "home.hero.title.city": "Bordeaux",
   "home.hero.title.after": ", ponctuel et confortable.",
@@ -47,19 +47,19 @@ const fr: Dict = {
   "home.dest.eyebrow": "Destinations",
   "home.dest.title": "Là où l'on vous emmène",
   "home.dest.intro":
-    "Quelques itinéraires que nos clients réservent au quotidien — l'arrivée en douceur, c'est notre métier.",
+    "Quelques itinéraires que nos clients réservent au quotidien : l'arrivée en douceur, c'est notre métier.",
   "home.dest.gare.title": "Gare Bordeaux Saint-Jean",
   "home.dest.gare.sub": "Accueil sur demande à l'arrivée du train.",
   "home.dest.airport.title": "Aéroport de Bordeaux",
   "home.dest.airport.sub": "Suivi des vols en temps réel.",
   "home.dest.vine.title": "Châteaux & vignobles",
-  "home.dest.vine.sub": "Médoc, Saint-Émilion, Sauternes — à la journée.",
+  "home.dest.vine.sub": "Médoc, Saint-Émilion, Sauternes, à la journée.",
   "home.dest.cta": "Réserver",
 
   // Home — best sellers Bordeaux
   "home.best.eyebrow": "Incontournables",
   "home.best.title": "Les best-sellers de Bordeaux",
-  "home.best.intro": "Les lieux que nos clients adorent visiter — on vous y emmène en toute sérénité.",
+  "home.best.intro": "Les lieux que nos clients adorent visiter : on vous y emmène en toute sérénité.",
   "home.best.miroir.title": "Miroir d'eau",
   "home.best.miroir.sub": "Place de la Bourse, l'icône bordelaise.",
   "home.best.cite.title": "Cité du Vin",
@@ -73,7 +73,7 @@ const fr: Dict = {
   "home.why.eyebrow": "Pourquoi nous",
   "home.why.title": "Un service simple, humain, fiable.",
   "home.why.desc":
-    "Taxi City Bordeaux, c'est un taxi de proximité, un véhicule entretenu et l'envie de bien faire. Pas de surprise sur la facture, pas d'attente interminable — on confirme, on arrive, on vous dépose.",
+    "Taxi City Bordeaux, c'est un taxi de proximité, un véhicule entretenu et l'envie de bien faire. Pas de surprise sur la facture, pas d'attente interminable : on confirme, on arrive, on vous dépose.",
   "home.why.years": "années d'expérience",
   "home.why.f1.t": "Ponctualité garantie",
   "home.why.f1.d": "Suivi de vol et de train, marge anti-retard.",
@@ -124,19 +124,19 @@ const fr: Dict = {
     "Quelques réponses aux questions qu'on nous pose le plus souvent. Si vous ne trouvez pas, un coup de fil suffit.",
   "faq.q1": "Êtes-vous conventionné CPAM ?",
   "faq.a1":
-    "Oui, nous sommes conventionnés avec la CPAM pour les transports de santé (consultations, dialyses, hospitalisations…). Pensez à demander à votre médecin la prescription médicale de transport, et nous nous occupons du reste. Sur présentation d'un bon de transport, prise en charge directe par l'Assurance Maladie. Tiers payant ou ALD — bon de transport toutes distances.",
+    "Oui, nous sommes conventionnés avec la CPAM pour les transports de santé (consultations, dialyses, hospitalisations…). Pensez à demander à votre médecin la prescription médicale de transport, et nous nous occupons du reste. Sur présentation d'un bon de transport, prise en charge directe par l'Assurance Maladie. Tiers payant ou ALD, bon de transport toutes distances.",
   "faq.q2": "Que se passe-t-il si mon vol a du retard à l'aéroport de Bordeaux ?",
   "faq.a2":
     "En cas de retard, appelez José directement au 06\u00A073\u00A007\u00A023\u00A022 : il ajuste l'heure de prise en charge en temps réel.",
   "faq.q3": "Comment annuler ou modifier ma réservation ?",
   "faq.a3":
-    "Un simple appel ou message WhatsApp suffit. L'annulation est gratuite jusqu'à 2 heures avant la course. Pour une modification (horaire, adresse, nombre de passagers), prévenez-nous dès que possible — on s'arrange.",
+    "Un simple appel ou message WhatsApp suffit. L'annulation est gratuite jusqu'à 2 heures avant la course. Pour une modification (horaire, adresse, nombre de passagers), prévenez-nous dès que possible, on s'arrange.",
   "faq.q4": "Quels moyens de paiement acceptez-vous ?",
   "faq.a4":
     "Carte bancaire (sans contact, Apple Pay, Google Pay), espèces, et virement pour les comptes professionnels. Une facture est remise systématiquement à la fin de la course, sur demande pour vos notes de frais.",
   "faq.q5": "Faut-il réserver à l'avance ?",
   "faq.a5":
-    "Pas obligatoire — on prend aussi les courses immédiates si on est disponible. Pour un train tôt le matin, un vol ou un rendez-vous important, mieux vaut réserver la veille pour être tranquille.",
+    "Pas obligatoire : on prend aussi les courses immédiates si on est disponible. Pour un train tôt le matin, un vol ou un rendez-vous important, mieux vaut réserver la veille pour être tranquille.",
   "faq.q6": "Combien de bagages puis-je emporter ?",
   "faq.a6":
     "Une berline confortable accepte facilement 3 à 4 valises et 4 passagers. Pour un groupe ou du matériel encombrant, prévenez-nous à la réservation, on adapte le véhicule.",
@@ -147,17 +147,17 @@ const fr: Dict = {
   "home.how.title": "Réserver en ligne, c'est 2 minutes",
   "home.how.intro": "Un parcours simple et transparent, de la réservation à la dépose.",
   "home.how.s1.t": "Remplissez le formulaire",
-  "home.how.s1.d": "Départ, destination, date, heure, passagers — 2 minutes chrono.",
+  "home.how.s1.d": "Départ, destination, date, heure, passagers : 2 minutes chrono.",
   "home.how.s2.t": "Confirmation instantanée",
   "home.how.s2.d": "Vous recevez immédiatement un email de prise en compte de votre réservation.",
   "home.how.s3.t": "Le taxi accepte",
   "home.how.s3.d": "Votre taxi valide la course et vous confirme le prix définitif.",
   "home.how.s4.t": "Suivez en temps réel",
-  "home.how.s4.d": "Heure d'arrivée estimée, nom du taxi et numéro de plaque — tout en direct.",
+  "home.how.s4.d": "Heure d'arrivée estimée, nom du taxi et numéro de plaque, tout en direct.",
   "home.how.s5.t": "Vous montez à bord",
   "home.how.s5.d": "Vous montez à bord, on s'occupe du reste.",
   "home.how.s6.t": "Règlement",
-  "home.how.s6.d": "Carte ou espèces — comme vous préférez. Facture remise à la fin.",
+  "home.how.s6.d": "Carte ou espèces, comme vous préférez. Facture remise à la fin.",
   "sim.eyebrow": "Simulateur de tarif",
   "sim.title": "Estimez le prix de votre course",
   "sim.intro":
@@ -182,7 +182,7 @@ const fr: Dict = {
   "sim.period_night": "🌙 Tarif nuit (19h–7h) —",
   "sim.booking_fee_note": "* Des frais de réservation peuvent être appliqués",
   "home.cta.title": "Prêt à réserver votre course ?",
-  "home.cta.desc": "Confirmation rapide, taxi professionnel et prix transparent — appelez-nous ou réservez en ligne.",
+  "home.cta.desc": "Confirmation rapide, taxi professionnel et prix transparent : appelez-nous ou réservez en ligne.",
   "home.cta.online": "Réserver en ligne",
 
   // Services page
@@ -240,7 +240,7 @@ const fr: Dict = {
   "tarifs.note.fee": "*Des frais de réservation peuvent être appliqués.",
   "tarifs.cpam.title": "🏥 Conventionné CPAM",
   "tarifs.cpam.desc":
-    "Sur présentation d'un bon de transport, prise en charge directe par l'Assurance Maladie. Tiers payant ou ALD — bon de transport toutes distances.",
+    "Sur présentation d'un bon de transport, prise en charge directe par l'Assurance Maladie. Tiers payant ou ALD, bon de transport toutes distances.",
   "tarifs.event.title": "🚗 Assistance dépannage voiture",
   "tarifs.event.desc":
     "En cas de panne, on vient vous récupérer rapidement et on vous emmène à destination. Disponible 7j/7.",
@@ -1074,7 +1074,7 @@ const fr: Dict = {
   "home.install.ios.step1": "Ouvrez <strong>Safari</strong> et allez sur <strong>taxicitybordeaux.fr</strong>",
   "home.install.ios.step2": "Tapez le bouton <strong>Partager</strong> (carré avec flèche)",
   "home.install.ios.step3": "Sélectionnez <strong>Sur l'écran d'accueil</strong>",
-  "home.install.ios.step4": "Tapez <strong>Ajouter</strong> — l'appli apparaît sur votre écran d'accueil",
+  "home.install.ios.step4": "Tapez <strong>Ajouter</strong> : l'appli apparaît sur votre écran d'accueil",
   "home.install.ios.img_alt": "Guide d'installation iPhone : Safari, Partager, Ajouter à l'écran d'accueil",
   "home.install.ios.tip":
     "💡 <strong>Astuce :</strong> Activez les notifications dans les paramètres iOS (Paramètres → Taxi City Bordeaux → Notifications).",
@@ -1083,13 +1083,13 @@ const fr: Dict = {
   "home.install.android.step1": "Ouvrez <strong>Chrome</strong> et allez sur <strong>taxicitybordeaux.fr</strong>",
   "home.install.android.step2": "Tapez le menu <strong>⋮</strong> (trois points) en haut à droite",
   "home.install.android.step3": "Sélectionnez <strong>Ajouter à l'écran d'accueil</strong>",
-  "home.install.android.step4": "Tapez <strong>Ajouter</strong> — l'icône apparaît sur votre écran d'accueil",
+  "home.install.android.step4": "Tapez <strong>Ajouter</strong> : l'icône apparaît sur votre écran d'accueil",
   "home.install.android.tip":
     "💡 <strong>Astuce :</strong> Acceptez les notifications quand Chrome le demande pour recevoir les alertes de suivi.",
-  "home.meta.title": "Taxi City Bordeaux – Taxi 7j/7 à Bordeaux & en Gironde",
+  "home.meta.title": "Taxi City Bordeaux : Taxi 7j/7 à Bordeaux & en Gironde",
   "home.meta.description":
     "Réservez votre taxi à Bordeaux : aéroport, gare Saint-Jean, vignobles, longues distances. Conventionné CPAM. Service ponctuel et confortable, jour & nuit.",
-  "home.hero.alt": "Bordeaux la nuit – Pont Chaban-Delmas illuminé sur la Garonne",
+  "home.hero.alt": "Bordeaux la nuit, Pont Chaban-Delmas illuminé sur la Garonne",
   "home.help.title": "Besoin d'aide ?",
   "home.help.call_prefix": "Appelez-nous au",
   "home.help.or_write": "ou écrivez-nous sur",
@@ -1173,18 +1173,18 @@ const en: Dict = {
 
   "home.dest.eyebrow": "Destinations",
   "home.dest.title": "Where we drive you",
-  "home.dest.intro": "A few routes our customers book every day — a smooth arrival is what we do best.",
+  "home.dest.intro": "A few routes our customers book every day: a smooth arrival is what we do best.",
   "home.dest.gare.title": "Bordeaux Saint-Jean station",
   "home.dest.gare.sub": "Meet & greet on request at arrival.",
   "home.dest.airport.title": "Bordeaux airport",
   "home.dest.airport.sub": "Real-time flight tracking.",
   "home.dest.vine.title": "Châteaux & vineyards",
-  "home.dest.vine.sub": "Médoc, Saint-Émilion, Sauternes — full day trips.",
+  "home.dest.vine.sub": "Médoc, Saint-Émilion, Sauternes, full day trips.",
   "home.dest.cta": "Book",
 
   "home.best.eyebrow": "Must-sees",
   "home.best.title": "Bordeaux best-sellers",
-  "home.best.intro": "The places our customers love to visit — we'll take you there with peace of mind.",
+  "home.best.intro": "The places our customers love to visit: we'll take you there with peace of mind.",
   "home.best.miroir.title": "Miroir d'eau (Water Mirror)",
   "home.best.miroir.sub": "Place de la Bourse, the Bordeaux icon.",
   "home.best.cite.title": "Cité du Vin (Wine Museum)",
@@ -1197,7 +1197,7 @@ const en: Dict = {
   "home.why.eyebrow": "Why choose us",
   "home.why.title": "A simple, human and reliable service.",
   "home.why.desc":
-    "Taxi City Bordeaux means a local driver, a well-kept car and a real care for the job. No surprise on the bill, no endless wait — we confirm, we arrive, we drive you.",
+    "Taxi City Bordeaux means a local driver, a well-kept car and a real care for the job. No surprise on the bill, no endless wait: we confirm, we arrive, we drive you.",
   "home.why.years": "years of experience",
   "home.why.f1.t": "Guaranteed punctuality",
   "home.why.f1.d": "Flight & train tracking, anti-delay buffer.",
@@ -1216,7 +1216,7 @@ const en: Dict = {
   "svc.business.title": "Business travel",
   "svc.business.desc": "Discretion and punctuality for your meetings.",
   "svc.wedding.title": "Car breakdown assistance",
-  "svc.wedding.desc": "Call us if your car breaks down — we pick you up quickly.",
+  "svc.wedding.desc": "Call us if your car breaks down: we pick you up quickly.",
   "svc.cpam.title": "CPAM medical transport",
   "svc.cpam.desc": "Medical transport voucher accepted, any distance.",
   "svc.long.title": "Long distance",
@@ -1233,19 +1233,19 @@ const en: Dict = {
   "home.faq.intro": "A few answers to the questions we get most often. If you can't find yours, just give us a call.",
   "faq.q1": "Are you CPAM-certified for medical transport?",
   "faq.a1":
-    "Yes, we are certified by the CPAM for health transport (consultations, dialysis, hospital stays…). Just ask your doctor for the medical transport prescription, and we take care of the rest. With a transport voucher, direct billing to the French health insurance. Third-party payment or ALD — transport voucher for all distances.",
+    "Yes, we are certified by the CPAM for health transport (consultations, dialysis, hospital stays…). Just ask your doctor for the medical transport prescription, and we take care of the rest. With a transport voucher, direct billing to the French health insurance. Third-party payment or ALD, transport voucher for all distances.",
   "faq.q2": "What if my flight at Bordeaux airport is delayed?",
   "faq.a2":
-    "If your flight is delayed, just call José directly at +33\u00A06\u00A073\u00A007\u00A023\u00A022 — he'll adjust the pick-up time right away.",
+    "If your flight is delayed, just call José directly at +33\u00A06\u00A073\u00A007\u00A023\u00A022: he'll adjust the pick-up time right away.",
   "faq.q3": "How can I cancel or change my booking?",
   "faq.a3":
-    "A simple call or WhatsApp message is enough. Cancellation is free up to 2 hours before the ride. For a change (time, address, passengers), let us know as soon as possible — we'll arrange it.",
+    "A simple call or WhatsApp message is enough. Cancellation is free up to 2 hours before the ride. For a change (time, address, passengers), let us know as soon as possible, we'll arrange it.",
   "faq.q4": "Which payment methods do you accept?",
   "faq.a4":
     "Card (contactless, Apple Pay, Google Pay), cash, and bank transfer for company accounts. A receipt is always provided at the end of the ride, on request for expense reports.",
   "faq.q5": "Do I need to book in advance?",
   "faq.a5":
-    "Not mandatory — we also take immediate rides if we're available. For an early train, a flight or an important meeting, it's safer to book the day before.",
+    "Not mandatory: we also take immediate rides if we're available. For an early train, a flight or an important meeting, it's safer to book the day before.",
   "faq.q6": "How much luggage can I bring?",
   "faq.a6":
     "A comfortable sedan easily fits 3 to 4 suitcases and 4 passengers. For a group or bulky items, let us know when booking and we'll adapt the vehicle.",
@@ -1253,19 +1253,19 @@ const en: Dict = {
   // Home — how it works
   "home.how.eyebrow": "How it works",
   "home.how.title": "Booking is as simple as a phone call",
-  "home.how.intro": "No queue, no robot. Just a direct chat with your driver — we confirm, we show up, we drive you.",
+  "home.how.intro": "No queue, no robot. Just a direct chat with your driver: we confirm, we show up, we drive you.",
   "home.how.s1.t": "Fill in the form",
-  "home.how.s1.d": "Pick-up, destination, date, time, passengers — 2 minutes flat.",
+  "home.how.s1.d": "Pick-up, destination, date, time, passengers: 2 minutes flat.",
   "home.how.s2.t": "Instant confirmation",
   "home.how.s2.d": "You immediately receive an email confirming your booking.",
   "home.how.s3.t": "Your driver accepts",
   "home.how.s3.d": "Your driver validates the ride and confirms the final price.",
   "home.how.s4.t": "Track in real time",
-  "home.how.s4.d": "Estimated arrival, driver name and plate number — all live.",
+  "home.how.s4.d": "Estimated arrival, driver name and plate number, all live.",
   "home.how.s5.t": "You get in",
   "home.how.s5.d": "You get in, we take care of the rest.",
   "home.how.s6.t": "Payment",
-  "home.how.s6.d": "Card or cash — as you prefer. Receipt provided at the end.",
+  "home.how.s6.d": "Card or cash, as you prefer. Receipt provided at the end.",
   "sim.eyebrow": "Fare estimator",
   "sim.title": "Estimate your ride price",
   "sim.intro":
@@ -1290,7 +1290,7 @@ const en: Dict = {
   "sim.period_night": "🌙 Night rate (7pm–7am) —",
   "sim.booking_fee_note": "* A booking fee may apply",
   "home.cta.title": "Ready to book your ride?",
-  "home.cta.desc": "Quick confirmation, professional driver and transparent price — call us or book online.",
+  "home.cta.desc": "Quick confirmation, professional driver and transparent price: call us or book online.",
   "home.cta.online": "Book online",
 
   "services.eyebrow": "Our services",
@@ -1344,7 +1344,7 @@ const en: Dict = {
   "tarifs.note.fee": "*Booking fees may apply.",
   "tarifs.cpam.title": "🏥 CPAM medical transport",
   "tarifs.cpam.desc":
-    "With a medical transport voucher, direct billing to the French health insurance. Direct billing or ALD — voucher accepted any distance.",
+    "With a medical transport voucher, direct billing to the French health insurance. Direct billing or ALD, voucher accepted any distance.",
   "tarifs.event.title": "🚗 Car breakdown assistance",
   "tarifs.event.desc":
     "If your car breaks down, we pick you up quickly and drive you to your destination. Available 7/7.",
@@ -2171,7 +2171,7 @@ const en: Dict = {
   "home.install.ios.step1": "Open <strong>Safari</strong> and go to <strong>taxicitybordeaux.fr</strong>",
   "home.install.ios.step2": "Tap the <strong>Share</strong> button (square with arrow)",
   "home.install.ios.step3": "Select <strong>Add to Home Screen</strong>",
-  "home.install.ios.step4": "Tap <strong>Add</strong> — the app appears on your home screen",
+  "home.install.ios.step4": "Tap <strong>Add</strong>: the app appears on your home screen",
   "home.install.ios.img_alt": "iPhone installation guide: Safari, Share, Add to Home Screen",
   "home.install.ios.tip":
     "💡 <strong>Tip:</strong> Enable notifications in iOS settings (Settings → Taxi City Bordeaux → Notifications).",
@@ -2180,13 +2180,13 @@ const en: Dict = {
   "home.install.android.step1": "Open <strong>Chrome</strong> and go to <strong>taxicitybordeaux.fr</strong>",
   "home.install.android.step2": "Tap the <strong>⋮</strong> menu (three dots) at the top right",
   "home.install.android.step3": "Select <strong>Add to Home Screen</strong>",
-  "home.install.android.step4": "Tap <strong>Add</strong> — the icon appears on your home screen",
+  "home.install.android.step4": "Tap <strong>Add</strong>: the icon appears on your home screen",
   "home.install.android.tip":
     "💡 <strong>Tip:</strong> Accept notifications when Chrome asks to receive tracking alerts.",
-  "home.meta.title": "Taxi City Bordeaux – 7-day Taxi Service in Bordeaux & Gironde",
+  "home.meta.title": "Taxi City Bordeaux: 7-day Taxi Service in Bordeaux & Gironde",
   "home.meta.description":
     "Book your taxi in Bordeaux: the airport, Saint-Jean station, vineyards, long distances. CPAM-certified. Punctual and comfortable service, day & night.",
-  "home.hero.alt": "Bordeaux at night – Chaban-Delmas Bridge lit up over the Garonne",
+  "home.hero.alt": "Bordeaux at night, Chaban-Delmas Bridge lit up over the Garonne",
   "home.help.title": "Need help?",
   "home.help.call_prefix": "Call us at",
   "home.help.or_write": "or message us on",
@@ -2271,19 +2271,19 @@ const es: Dict = {
   "home.dest.eyebrow": "Destinos",
   "home.dest.title": "A donde le llevamos",
   "home.dest.intro":
-    "Algunos trayectos que nuestros clientes reservan a diario — la llegada con calma es nuestro oficio.",
+    "Algunos trayectos que nuestros clientes reservan a diario: la llegada con calma es nuestro oficio.",
   "home.dest.gare.title": "Estación Bordeaux Saint-Jean",
   "home.dest.gare.sub": "Recibimiento a petición a la llegada del tren.",
   "home.dest.airport.title": "Aeropuerto de Burdeos",
   "home.dest.airport.sub": "Seguimiento de vuelos en tiempo real.",
   "home.dest.vine.title": "Castillos y viñedos",
-  "home.dest.vine.sub": "Médoc, Saint-Émilion, Sauternes — por jornada.",
+  "home.dest.vine.sub": "Médoc, Saint-Émilion, Sauternes, por jornada.",
   "home.dest.cta": "Reservar",
 
   // Home — best sellers Bordeaux
   "home.best.eyebrow": "Imprescindibles",
   "home.best.title": "Los imprescindibles de Burdeos",
-  "home.best.intro": "Los lugares que nuestros clientes adoran visitar — le llevamos con total tranquilidad.",
+  "home.best.intro": "Los lugares que nuestros clientes adoran visitar: le llevamos con total tranquilidad.",
   "home.best.miroir.title": "Espejo de Agua",
   "home.best.miroir.sub": "Plaza de la Bolsa, el icono bordelés.",
   "home.best.cite.title": "Ciudad del Vino",
@@ -2296,7 +2296,7 @@ const es: Dict = {
   "home.why.eyebrow": "Por qué nosotros",
   "home.why.title": "Un servicio sencillo, humano y fiable.",
   "home.why.desc":
-    "Taxi City Bordeaux es un chófer cercano, un vehículo cuidado y ganas de hacerlo bien. Sin sorpresas en la factura, sin esperas eternas — confirmamos, llegamos y le acercamos a su destino.",
+    "Taxi City Bordeaux es un chófer cercano, un vehículo cuidado y ganas de hacerlo bien. Sin sorpresas en la factura, sin esperas eternas: confirmamos, llegamos y le acercamos a su destino.",
   "home.why.years": "años de experiencia",
   "home.why.f1.t": "Puntualidad garantizada",
   "home.why.f1.d": "Seguimiento de vuelos y trenes, margen anti-retraso.",
@@ -2333,7 +2333,7 @@ const es: Dict = {
     "Algunas respuestas a las preguntas más frecuentes. Si no encuentra la suya, basta con una llamada.",
   "faq.q1": "¿Está concertado con la CPAM?",
   "faq.a1":
-    "Sí, estamos concertados con la CPAM para transportes médicos (consultas, diálisis, hospitalizaciones…). Pida a su médico la prescripción de transporte y nos encargamos del resto. Con un bono de transporte, facturación directa a la Seguridad Social. Tercer pagador o ALD — bono de transporte para todas las distancias.",
+    "Sí, estamos concertados con la CPAM para transportes médicos (consultas, diálisis, hospitalizaciones…). Pida a su médico la prescripción de transporte y nos encargamos del resto. Con un bono de transporte, facturación directa a la Seguridad Social. Tercer pagador o ALD, bono de transporte para todas las distancias.",
   "faq.q2": "¿Y si mi vuelo se retrasa en el aeropuerto de Burdeos?",
   "faq.a2":
     "Si su vuelo se retrasa, llame directamente a José al +33\u00A06\u00A073\u00A007\u00A023\u00A022: ajustará la hora de recogida al momento.",
@@ -2345,7 +2345,7 @@ const es: Dict = {
     "Tarjeta (contactless, Apple Pay, Google Pay), efectivo, y transferencia para cuentas profesionales. Factura al final de la carrera bajo petición.",
   "faq.q5": "¿Hay que reservar con antelación?",
   "faq.a5":
-    "No es obligatorio — también atendemos carreras inmediatas si estamos disponibles. Para un tren temprano o un vuelo, mejor reservar la víspera.",
+    "No es obligatorio: también atendemos carreras inmediatas si estamos disponibles. Para un tren temprano o un vuelo, mejor reservar la víspera.",
   "faq.q6": "¿Cuánto equipaje puedo llevar?",
   "faq.a6":
     "Una berlina cómoda admite 3 o 4 maletas y 4 pasajeros. Para grupos o material voluminoso, avísenos al reservar.",
@@ -2354,19 +2354,19 @@ const es: Dict = {
   "home.how.eyebrow": "Cómo funciona",
   "home.how.title": "Reservar es tan simple como una llamada",
   "home.how.intro":
-    "Sin colas, sin robots. Una conversación directa con su conductor — confirmamos, llegamos, le llevamos.",
+    "Sin colas, sin robots. Una conversación directa con su conductor: confirmamos, llegamos, le llevamos.",
   "home.how.s1.t": "Rellene el formulario",
-  "home.how.s1.d": "Salida, destino, fecha, hora, pasajeros — 2 minutos.",
+  "home.how.s1.d": "Salida, destino, fecha, hora, pasajeros: 2 minutos.",
   "home.how.s2.t": "Confirmación instantánea",
   "home.how.s2.d": "Recibirá inmediatamente un email confirmando su reserva.",
   "home.how.s3.t": "El taxi acepta",
   "home.how.s3.d": "Su conductor valida la carrera y le confirma el precio definitivo.",
   "home.how.s4.t": "Siga en tiempo real",
-  "home.how.s4.d": "Hora estimada, nombre del conductor y matrícula — todo en directo.",
+  "home.how.s4.d": "Hora estimada, nombre del conductor y matrícula, todo en directo.",
   "home.how.s5.t": "Sube al coche",
   "home.how.s5.d": "Sube al coche, nos ocupamos del resto.",
   "home.how.s6.t": "Pago",
-  "home.how.s6.d": "Tarjeta o efectivo — como prefiera. Factura al final.",
+  "home.how.s6.d": "Tarjeta o efectivo, como prefiera. Factura al final.",
   "sim.eyebrow": "Simulador de tarifa",
   "sim.title": "Estima el precio de tu trayecto",
   "sim.intro":
@@ -2391,7 +2391,7 @@ const es: Dict = {
   "sim.period_night": "🌙 Tarifa nocturna (19h–7h) —",
   "sim.booking_fee_note": "* Pueden aplicarse gastos de reserva",
   "home.cta.title": "¿Listo para reservar su carrera?",
-  "home.cta.desc": "Confirmación rápida, chófer profesional y precio transparente — llámenos o reserve en línea.",
+  "home.cta.desc": "Confirmación rápida, chófer profesional y precio transparente: llámenos o reserve en línea.",
   "home.cta.online": "Reservar en línea",
 
   "services.eyebrow": "Nuestros servicios",
@@ -2445,7 +2445,7 @@ const es: Dict = {
   "tarifs.note.fee": "*Pueden aplicarse gastos de reserva.",
   "tarifs.cpam.title": "🏥 Concertado CPAM",
   "tarifs.cpam.desc":
-    "Con bono de transporte, pago directo a la Seguridad Social francesa. Pago directo o ALD — bono todas distancias.",
+    "Con bono de transporte, pago directo a la Seguridad Social francesa. Pago directo o ALD, bono todas distancias.",
   "tarifs.event.title": "🚗 Asistencia avería coche",
   "tarifs.event.desc": "En caso de avería, le recogemos rápidamente y le llevamos a su destino. Disponible 7/7.",
   "tarifs.cta": "Reservar",
@@ -3274,7 +3274,7 @@ const es: Dict = {
   "home.install.ios.step1": "Abre <strong>Safari</strong> y ve a <strong>taxicitybordeaux.fr</strong>",
   "home.install.ios.step2": "Toca el botón <strong>Compartir</strong> (cuadrado con flecha)",
   "home.install.ios.step3": "Selecciona <strong>En la pantalla de inicio</strong>",
-  "home.install.ios.step4": "Toca <strong>Añadir</strong> — la app aparece en tu pantalla de inicio",
+  "home.install.ios.step4": "Toca <strong>Añadir</strong>: la app aparece en tu pantalla de inicio",
   "home.install.ios.img_alt": "Guía de instalación iPhone: Safari, Compartir, Añadir a la pantalla de inicio",
   "home.install.ios.tip":
     "💡 <strong>Consejo:</strong> Activa las notificaciones en los ajustes de iOS (Ajustes → Taxi City Bordeaux → Notificaciones).",
@@ -3283,13 +3283,13 @@ const es: Dict = {
   "home.install.android.step1": "Abre <strong>Chrome</strong> y ve a <strong>taxicitybordeaux.fr</strong>",
   "home.install.android.step2": "Toca el menú <strong>⋮</strong> (tres puntos) arriba a la derecha",
   "home.install.android.step3": "Selecciona <strong>Añadir a la pantalla de inicio</strong>",
-  "home.install.android.step4": "Toca <strong>Añadir</strong> — el icono aparece en tu pantalla de inicio",
+  "home.install.android.step4": "Toca <strong>Añadir</strong>: el icono aparece en tu pantalla de inicio",
   "home.install.android.tip":
     "💡 <strong>Consejo:</strong> Acepta las notificaciones cuando Chrome lo pida para recibir alertas de seguimiento.",
-  "home.meta.title": "Taxi City Bordeaux – Taxi 7/7 en Burdeos y Gironda",
+  "home.meta.title": "Taxi City Bordeaux: Taxi 7/7 en Burdeos y Gironda",
   "home.meta.description":
     "Reserva tu taxi en Burdeos: aeropuerto, estación Saint-Jean, viñedos, largas distancias. Convencionado CPAM. Servicio puntual y cómodo, día y noche.",
-  "home.hero.alt": "Burdeos de noche – Puente Chaban-Delmas iluminado sobre el Garona",
+  "home.hero.alt": "Burdeos de noche, Puente Chaban-Delmas iluminado sobre el Garona",
   "home.help.title": "¿Necesitas ayuda?",
   "home.help.call_prefix": "Llámanos al",
   "home.help.or_write": "o escríbenos por",
@@ -3380,13 +3380,13 @@ const it: Dict = {
   "home.dest.airport.title": "Aeroporto di Bordeaux",
   "home.dest.airport.sub": "Monitoraggio voli in tempo reale.",
   "home.dest.vine.title": "Castelli e vigneti",
-  "home.dest.vine.sub": "Médoc, Saint-Émilion, Sauternes — giornate intere.",
+  "home.dest.vine.sub": "Médoc, Saint-Émilion, Sauternes, giornate intere.",
   "home.dest.cta": "Prenota",
 
   // Home — best sellers Bordeaux
   "home.best.eyebrow": "Da non perdere",
   "home.best.title": "I must-see di Bordeaux",
-  "home.best.intro": "I luoghi che i nostri clienti amano visitare — ti ci portiamo in tutta tranquillità.",
+  "home.best.intro": "I luoghi che i nostri clienti amano visitare: ti ci portiamo in tutta tranquillità.",
   "home.best.miroir.title": "Specchio d'acqua",
   "home.best.miroir.sub": "Place de la Bourse, l'icona di Bordeaux.",
   "home.best.cite.title": "Cité du Vin",
@@ -3435,7 +3435,7 @@ const it: Dict = {
   "home.faq.intro": "Alcune risposte alle domande più frequenti. Se non trovi la tua, una telefonata basta.",
   "faq.q1": "Siete convenzionati CPAM per il trasporto medico?",
   "faq.a1":
-    "Sì, siamo convenzionati per il trasporto medico assicurato (esami, dialisi, ospedale…). Fatevi rilasciare la prescrizione di trasporto dal medico, ci occupiamo del resto. Con un buono di trasporto, fatturazione diretta all'assicurazione sanitaria. Terzo pagante o ALD — buono di trasporto per tutte le distanze.",
+    "Sì, siamo convenzionati per il trasporto medico assicurato (esami, dialisi, ospedale…). Fatevi rilasciare la prescrizione di trasporto dal medico, ci occupiamo del resto. Con un buono di trasporto, fatturazione diretta all'assicurazione sanitaria. Terzo pagante o ALD, buono di trasporto per tutte le distanze.",
   "faq.q2": "Cosa succede se il mio volo all'aeroporto di Bordeaux è in ritardo?",
   "faq.a2":
     "In caso di ritardo, chiamate direttamente José al +33\u00A06\u00A073\u00A007\u00A023\u00A022: adatterà subito l'orario di prelievo.",
@@ -3456,19 +3456,19 @@ const it: Dict = {
   "home.how.eyebrow": "Come funziona",
   "home.how.title": "Prenotare è semplice come una telefonata",
   "home.how.intro":
-    "Niente code, niente robot. Una chiacchierata diretta con il tuo autista — confermiamo, arriviamo, ti portiamo.",
+    "Niente code, niente robot. Una chiacchierata diretta con il tuo autista: confermiamo, arriviamo, ti portiamo.",
   "home.how.s1.t": "Compila il modulo",
-  "home.how.s1.d": "Partenza, destinazione, data, ora, passeggeri — 2 minuti.",
+  "home.how.s1.d": "Partenza, destinazione, data, ora, passeggeri: 2 minuti.",
   "home.how.s2.t": "Conferma istantanea",
   "home.how.s2.d": "Ricevi subito un'email di conferma della prenotazione.",
   "home.how.s3.t": "Il taxi accetta",
   "home.how.s3.d": "Il tuo autista valida la corsa e ti conferma il prezzo definitivo.",
   "home.how.s4.t": "Segui in tempo reale",
-  "home.how.s4.d": "Orario stimato, nome dell'autista e targa — tutto in diretta.",
+  "home.how.s4.d": "Orario stimato, nome dell'autista e targa, tutto in diretta.",
   "home.how.s5.t": "Sali a bordo",
   "home.how.s5.d": "Sali a bordo, pensiamo a tutto noi.",
   "home.how.s6.t": "Pagamento",
-  "home.how.s6.d": "Carta o contanti — come preferisci. Ricevuta alla fine.",
+  "home.how.s6.d": "Carta o contanti, come preferisci. Ricevuta alla fine.",
   "sim.eyebrow": "Simulatore tariffa",
   "sim.title": "Stima il prezzo della corsa",
   "sim.intro":
@@ -3547,7 +3547,7 @@ const it: Dict = {
   "tarifs.note.fee": "*Possono essere applicate spese di prenotazione.",
   "tarifs.cpam.title": "🏥 Trasporto medico CPAM",
   "tarifs.cpam.desc":
-    "Con prescrizione, pagamento diretto con la cassa malattia francese. Pagamento diretto o ALD — buono qualsiasi distanza.",
+    "Con prescrizione, pagamento diretto con la cassa malattia francese. Pagamento diretto o ALD, buono qualsiasi distanza.",
   "tarifs.event.title": "🚗 Soccorso auto in panne",
   "tarifs.event.desc":
     "In caso di guasto, veniamo a recuperarvi rapidamente e vi portiamo a destinazione. Disponibile 7/7.",
@@ -4379,7 +4379,7 @@ const it: Dict = {
   "home.install.ios.step1": "Apri <strong>Safari</strong> e vai su <strong>taxicitybordeaux.fr</strong>",
   "home.install.ios.step2": "Tocca il pulsante <strong>Condividi</strong> (quadrato con freccia)",
   "home.install.ios.step3": "Seleziona <strong>Sulla schermata Home</strong>",
-  "home.install.ios.step4": "Tocca <strong>Aggiungi</strong> — l'app appare sulla schermata Home",
+  "home.install.ios.step4": "Tocca <strong>Aggiungi</strong>: l'app appare sulla schermata Home",
   "home.install.ios.img_alt": "Guida installazione iPhone: Safari, Condividi, Aggiungi alla schermata Home",
   "home.install.ios.tip":
     "💡 <strong>Suggerimento:</strong> Attiva le notifiche nelle impostazioni iOS (Impostazioni → Taxi City Bordeaux → Notifiche).",
@@ -4388,13 +4388,13 @@ const it: Dict = {
   "home.install.android.step1": "Apri <strong>Chrome</strong> e vai su <strong>taxicitybordeaux.fr</strong>",
   "home.install.android.step2": "Tocca il menu <strong>⋮</strong> (tre punti) in alto a destra",
   "home.install.android.step3": "Seleziona <strong>Aggiungi alla schermata Home</strong>",
-  "home.install.android.step4": "Tocca <strong>Aggiungi</strong> — l'icona appare sulla schermata Home",
+  "home.install.android.step4": "Tocca <strong>Aggiungi</strong>: l'icona appare sulla schermata Home",
   "home.install.android.tip":
     "💡 <strong>Suggerimento:</strong> Accetta le notifiche quando Chrome le richiede per ricevere gli avvisi di tracciamento.",
-  "home.meta.title": "Taxi City Bordeaux – Taxi 7/7 a Bordeaux e in Gironda",
+  "home.meta.title": "Taxi City Bordeaux: Taxi 7/7 a Bordeaux e in Gironda",
   "home.meta.description":
     "Prenota il tuo taxi a Bordeaux: aeroporto, stazione Saint-Jean, vigneti, lunghe distanze. Convenzionato CPAM. Servizio puntuale e confortevole, giorno e notte.",
-  "home.hero.alt": "Bordeaux di notte – Ponte Chaban-Delmas illuminato sulla Garonna",
+  "home.hero.alt": "Bordeaux di notte, Ponte Chaban-Delmas illuminato sulla Garonna",
   "home.help.title": "Hai bisogno di aiuto?",
   "home.help.call_prefix": "Chiamaci al",
   "home.help.or_write": "o scrivici su",
@@ -4479,19 +4479,19 @@ const ar: Dict = {
 
   "home.dest.eyebrow": "الوجهات",
   "home.dest.title": "حيث نأخذك",
-  "home.dest.intro": "بعض المسارات التي يحجزها عملاؤنا يومياً — وصول مريح هو تخصصنا.",
+  "home.dest.intro": "بعض المسارات التي يحجزها عملاؤنا يومياً: وصول مريح هو تخصصنا.",
   "home.dest.gare.title": "محطة بوردو سان جان",
   "home.dest.gare.sub": "استقبال عند الطلب لدى وصول القطار.",
   "home.dest.airport.title": "مطار بوردو",
   "home.dest.airport.sub": "تتبع الرحلات في الوقت الفعلي.",
   "home.dest.vine.title": "القلاع وكروم العنب",
-  "home.dest.vine.sub": "ميدوك، سان إيميليون، سوتيرن — رحلات يوم كامل.",
+  "home.dest.vine.sub": "ميدوك، سان إيميليون، سوتيرن، رحلات يوم كامل.",
   "home.dest.cta": "احجز",
 
   // Home — best sellers Bordeaux
   "home.best.eyebrow": "لا يُفوَّت",
   "home.best.title": "أبرز معالم بوردو",
-  "home.best.intro": "الأماكن التي يعشق عملاؤنا زيارتها — نأخذك إليها بكل راحة وأمان.",
+  "home.best.intro": "الأماكن التي يعشق عملاؤنا زيارتها: نأخذك إليها بكل راحة وأمان.",
   "home.best.miroir.title": "مرآة الماء",
   "home.best.miroir.sub": "ساحة البورصة، رمز بوردو الأيقوني.",
   "home.best.cite.title": "مدينة النبيذ",
@@ -4504,7 +4504,7 @@ const ar: Dict = {
   "home.why.eyebrow": "لماذا نحن",
   "home.why.title": "خدمة بسيطة، إنسانية، موثوقة.",
   "home.why.desc":
-    "تاكسي سيتي بوردو يعني سائقاً محلياً، وسيارة مُعتنى بها، ورغبة حقيقية في إتقان العمل. لا مفاجآت في الفاتورة، لا انتظار طويل — نؤكد، نصل، ونوصلك.",
+    "تاكسي سيتي بوردو يعني سائقاً محلياً، وسيارة مُعتنى بها، ورغبة حقيقية في إتقان العمل. لا مفاجآت في الفاتورة، لا انتظار طويل: نؤكد، نصل، ونوصلك.",
   "home.why.years": "سنوات من الخبرة",
   "home.why.f1.t": "دقة مضمونة في المواعيد",
   "home.why.f1.d": "تتبع الرحلات والقطارات، هامش لتفادي التأخير.",
@@ -4540,37 +4540,37 @@ const ar: Dict = {
   "home.faq.intro": "بعض الإجابات على الأسئلة الأكثر تكراراً. إذا لم تجد سؤالك، اتصل بنا.",
   "faq.q1": "هل أنتم معتمدون من CPAM للنقل الطبي؟",
   "faq.a1":
-    "نعم، نحن معتمدون من CPAM للنقل الصحي (الاستشارات، غسيل الكلى، الإقامة في المستشفى…). فقط اطلب وصفة النقل الطبي من طبيبك، ونحن نتولى الباقي. عند تقديم بون النقل، التغطية المباشرة من التأمين الصحي. الدفع من طرف ثالث أو ALD — بون نقل لجميع المسافات.",
+    "نعم، نحن معتمدون من CPAM للنقل الصحي (الاستشارات، غسيل الكلى، الإقامة في المستشفى…). فقط اطلب وصفة النقل الطبي من طبيبك، ونحن نتولى الباقي. عند تقديم بون النقل، التغطية المباشرة من التأمين الصحي. الدفع من طرف ثالث أو ALD، بون نقل لجميع المسافات.",
   "faq.q2": "ماذا لو تأخرت رحلتي في مطار بوردو؟",
   "faq.a2": "في حال تأخر رحلتك، اتصل بخوسيه مباشرة على 0033673072322 وسيقوم بضبط وقت الاستقبال فوراً.",
   "faq.q3": "كيف ألغي أو أعدل حجزي؟",
   "faq.a3":
-    "مكالمة بسيطة أو رسالة واتساب تكفي. الإلغاء مجاني حتى ساعتين قبل الرحلة. للتعديل (الوقت، العنوان، الركاب)، أعلمنا في أقرب وقت — سنرتب الأمر.",
+    "مكالمة بسيطة أو رسالة واتساب تكفي. الإلغاء مجاني حتى ساعتين قبل الرحلة. للتعديل (الوقت، العنوان، الركاب)، أعلمنا في أقرب وقت، سنرتب الأمر.",
   "faq.q4": "ما هي طرق الدفع المقبولة؟",
   "faq.a4":
     "البطاقة (تلامسي، Apple Pay، Google Pay)، النقد، والتحويل البنكي للحسابات التجارية. نقدم إيصالاً في نهاية الرحلة، عند الطلب لتقارير المصاريف.",
   "faq.q5": "هل يجب الحجز مسبقاً؟",
   "faq.a5":
-    "ليس إلزامياً — نقبل أيضاً الرحلات الفورية إذا كنا متاحين. لقطار مبكر أو رحلة طيران أو اجتماع مهم، يفضل الحجز قبل يوم.",
+    "ليس إلزامياً: نقبل أيضاً الرحلات الفورية إذا كنا متاحين. لقطار مبكر أو رحلة طيران أو اجتماع مهم، يفضل الحجز قبل يوم.",
   "faq.q6": "كم من الأمتعة يمكنني حملها؟",
   "faq.a6": "السيارة تتسع بسهولة لـ 3-4 حقائب و4 ركاب. للمجموعات أو الأمتعة الكبيرة، أعلمنا عند الحجز ونكيف السيارة.",
 
   // Home — كيف نحجز
   "home.how.eyebrow": "كيف يعمل",
   "home.how.title": "الحجز بسيط كاتصال هاتفي",
-  "home.how.intro": "لا انتظار ولا روبوت. فقط تواصل مباشر مع سائقك — نؤكد، نصل، ننقلك.",
+  "home.how.intro": "لا انتظار ولا روبوت. فقط تواصل مباشر مع سائقك: نؤكد، نصل، ننقلك.",
   "home.how.s1.t": "املأ النموذج",
-  "home.how.s1.d": "نقطة الانطلاق، الوجهة، التاريخ، الوقت، المسافرون — دقيقتان.",
+  "home.how.s1.d": "نقطة الانطلاق، الوجهة، التاريخ، الوقت، المسافرون: دقيقتان.",
   "home.how.s2.t": "تأكيد فوري",
   "home.how.s2.d": "ستتلقى فوراً بريداً إلكترونياً يؤكد حجزك.",
   "home.how.s3.t": "السائق يقبل",
   "home.how.s3.d": "يتحقق سائقك من الرحلة ويؤكد لك السعر النهائي.",
   "home.how.s4.t": "تتبع في الوقت الفعلي",
-  "home.how.s4.d": "وقت الوصول المقدر، اسم السائق ورقم اللوحة — كل شيء مباشر.",
+  "home.how.s4.d": "وقت الوصول المقدر، اسم السائق ورقم اللوحة، كل شيء مباشر.",
   "home.how.s5.t": "اصعد إلى السيارة",
   "home.how.s5.d": "اصعد إلى السيارة، نحن نتكفل بالباقي.",
   "home.how.s6.t": "الدفع",
-  "home.how.s6.d": "بطاقة أو نقداً — كما تفضل. وصل في النهاية.",
+  "home.how.s6.d": "بطاقة أو نقداً، كما تفضل. وصل في النهاية.",
   "sim.eyebrow": "محاكي الأسعار",
   "sim.title": "احسب سعر رحلتك",
   "sim.intro": "أدخل عناوين الانطلاق والوصول — يُحسب السعر تلقائياً بناءً على الوقت الحالي.",
@@ -4594,7 +4594,7 @@ const ar: Dict = {
   "sim.period_night": "🌙 التعريفة الليلية (7م–7ص) —",
   "sim.booking_fee_note": "* قد تُطبَّق رسوم حجز",
   "home.cta.title": "جاهز لحجز رحلتك؟",
-  "home.cta.desc": "تأكيد سريع، سائق محترف وسعر شفاف — اتصل بنا أو احجز عبر الإنترنت.",
+  "home.cta.desc": "تأكيد سريع، سائق محترف وسعر شفاف: اتصل بنا أو احجز عبر الإنترنت.",
   "home.cta.online": "احجز عبر الإنترنت",
 
   "services.eyebrow": "خدماتنا",
@@ -4646,7 +4646,7 @@ const ar: Dict = {
   "tarifs.note.night": "تعرفة الليل: من 7 مساءً إلى 7 صباحًا",
   "tarifs.note.fee": "*قد تُطبّق رسوم حجز إضافية.",
   "tarifs.cpam.title": "🏥 النقل الطبي CPAM",
-  "tarifs.cpam.desc": "بوصفة نقل طبي، فوترة مباشرة للتأمين الصحي. فوترة مباشرة أو ALD — وصفة لجميع المسافات.",
+  "tarifs.cpam.desc": "بوصفة نقل طبي، فوترة مباشرة للتأمين الصحي. فوترة مباشرة أو ALD، وصفة لجميع المسافات.",
   "tarifs.event.title": "🚗 إغاثة عطل السيارة",
   "tarifs.event.desc": "في حال تعطل سيارتك، نأتي لاستقبالك بسرعة ونوصلك إلى وجهتك. متاح 7/7.",
   "tarifs.cta": "احجز",
@@ -5470,7 +5470,7 @@ const ar: Dict = {
   "home.install.ios.step1": "افتح <strong>Safari</strong> وانتقل إلى <strong>taxicitybordeaux.fr</strong>",
   "home.install.ios.step2": "اضغط على زر <strong>مشاركة</strong> (مربع مع سهم)",
   "home.install.ios.step3": "اختر <strong>على الشاشة الرئيسية</strong>",
-  "home.install.ios.step4": "اضغط <strong>إضافة</strong> — يظهر التطبيق على الشاشة الرئيسية",
+  "home.install.ios.step4": "اضغط <strong>إضافة</strong>: يظهر التطبيق على الشاشة الرئيسية",
   "home.install.ios.img_alt": "دليل تثبيت iPhone: Safari، مشاركة، إضافة إلى الشاشة الرئيسية",
   "home.install.ios.tip":
     "💡 <strong>نصيحة:</strong> فعّل الإشعارات في إعدادات iOS (الإعدادات → Taxi City Bordeaux → الإشعارات).",
@@ -5479,12 +5479,12 @@ const ar: Dict = {
   "home.install.android.step1": "افتح <strong>Chrome</strong> وانتقل إلى <strong>taxicitybordeaux.fr</strong>",
   "home.install.android.step2": "اضغط على قائمة <strong>⋮</strong> (ثلاث نقاط) أعلى اليمين",
   "home.install.android.step3": "اختر <strong>إضافة إلى الشاشة الرئيسية</strong>",
-  "home.install.android.step4": "اضغط <strong>إضافة</strong> — يظهر الأيقونة على الشاشة الرئيسية",
+  "home.install.android.step4": "اضغط <strong>إضافة</strong>: يظهر الأيقونة على الشاشة الرئيسية",
   "home.install.android.tip": "💡 <strong>نصيحة:</strong> اقبل الإشعارات عندما يطلب Chrome ذلك لتلقي تنبيهات التتبع.",
-  "home.meta.title": "تاكسي سيتي بوردو – تاكسي 7/7 في بوردو وجيروند",
+  "home.meta.title": "تاكسي سيتي بوردو: تاكسي 7/7 في بوردو وجيروند",
   "home.meta.description":
     "احجز سيارة الأجرة في بوردو: المطار، محطة سان-جان، الكروم، المسافات الطويلة. معتمد لدى CPAM. خدمة دقيقة ومريحة، ليلاً ونهاراً.",
-  "home.hero.alt": "بوردو ليلاً – جسر شابان-دلماس المضاء فوق نهر الجارون",
+  "home.hero.alt": "بوردو ليلاً، جسر شابان-دلماس المضاء فوق نهر الجارون",
   "home.help.title": "هل تحتاج إلى مساعدة؟",
   "home.help.call_prefix": "اتصل بنا على",
   "home.help.or_write": "أو راسلنا على",
@@ -5551,11 +5551,11 @@ const pt: Dict = {
   "nav.book_long": "Reservar uma corrida",
   "nav.account": "Minha conta",
   "nav.account_long": "Minha área de cliente",
-  "common.available_247": "Disponível 7d/7 — 24h/24",
+  "common.available_247": "Disponível 7d/7, 24h/24",
   "common.lang_label": "Idioma",
 
   // Home — hero
-  "home.hero.badge": "Disponível 7d/7 — 24h/24",
+  "home.hero.badge": "Disponível 7d/7, 24h/24",
   "home.hero.title.before": "O seu táxi em",
   "home.hero.title.city": "Bordéus",
   "home.hero.title.after": ", pontual e confortável.",
@@ -5571,19 +5571,19 @@ const pt: Dict = {
   "home.dest.eyebrow": "Destinos",
   "home.dest.title": "Para onde o levamos",
   "home.dest.intro":
-    "Alguns trajetos que os nossos clientes reservam todos os dias — uma chegada tranquila é a nossa especialidade.",
+    "Alguns trajetos que os nossos clientes reservam todos os dias: uma chegada tranquila é a nossa especialidade.",
   "home.dest.gare.title": "Estação Bordeaux Saint-Jean",
   "home.dest.gare.sub": "Receção a pedido à chegada do comboio.",
   "home.dest.airport.title": "Aeroporto de Bordéus",
   "home.dest.airport.sub": "Acompanhamento de voos em tempo real.",
   "home.dest.vine.title": "Castelos e vinhas",
-  "home.dest.vine.sub": "Médoc, Saint-Émilion, Sauternes — dia inteiro.",
+  "home.dest.vine.sub": "Médoc, Saint-Émilion, Sauternes, dia inteiro.",
   "home.dest.cta": "Reservar",
 
   // Home — best sellers Bordeaux
   "home.best.eyebrow": "Imperdíveis",
   "home.best.title": "Os must-see de Bordéus",
-  "home.best.intro": "Os lugares que os nossos clientes adoram visitar — levamo-los com toda a tranquilidade.",
+  "home.best.intro": "Os lugares que os nossos clientes adoram visitar: levamo-los com toda a tranquilidade.",
   "home.best.miroir.title": "Espelho de Água",
   "home.best.miroir.sub": "Place de la Bourse, o ícone de Bordéus.",
   "home.best.cite.title": "Cidade do Vinho",
@@ -5597,7 +5597,7 @@ const pt: Dict = {
   "home.why.eyebrow": "Porquê nós",
   "home.why.title": "Um serviço simples, humano e fiável.",
   "home.why.desc":
-    "Taxi City Bordeaux é um motorista de proximidade, um veículo bem mantido e a vontade de fazer bem. Sem surpresas na fatura, sem esperas intermináveis — confirmamos, chegamos, deixamo-lo no destino.",
+    "Taxi City Bordeaux é um motorista de proximidade, um veículo bem mantido e a vontade de fazer bem. Sem surpresas na fatura, sem esperas intermináveis: confirmamos, chegamos, deixamo-lo no destino.",
   "home.why.years": "anos de experiência",
   "home.why.f1.t": "Pontualidade garantida",
   "home.why.f1.d": "Acompanhamento de voos e comboios, margem antiatraso.",
@@ -5639,19 +5639,19 @@ const pt: Dict = {
   "home.faq.intro": "Algumas respostas às perguntas mais frequentes. Se não encontrar, basta um telefonema.",
   "faq.q1": "Estão convencionados com a CPAM?",
   "faq.a1":
-    "Sim, somos convencionados com a CPAM para transportes de saúde (consultas, diálises, hospitalizações…). Peça ao seu médico a prescrição médica de transporte e nós tratamos do resto. Mediante apresentação do voucher de transporte, cobertura direta pelo Seguro de Saúde. Terceiro pagador ou ALD — voucher de transporte para todas as distâncias.",
+    "Sim, somos convencionados com a CPAM para transportes de saúde (consultas, diálises, hospitalizações…). Peça ao seu médico a prescrição médica de transporte e nós tratamos do resto. Mediante apresentação do voucher de transporte, cobertura direta pelo Seguro de Saúde. Terceiro pagador ou ALD, voucher de transporte para todas as distâncias.",
   "faq.q2": "E se o meu voo se atrasar no aeroporto de Bordéus?",
   "faq.a2":
     "Em caso de atraso, ligue diretamente para o José no +33\u00A06\u00A073\u00A007\u00A023\u00A022: ele ajusta a hora de recolha na hora.",
   "faq.q3": "Como cancelar ou alterar a minha reserva?",
   "faq.a3":
-    "Basta uma chamada ou mensagem WhatsApp. O cancelamento é gratuito até 2 horas antes da corrida. Para alterações (hora, morada, passageiros), avise-nos o mais cedo possível — combinamos.",
+    "Basta uma chamada ou mensagem WhatsApp. O cancelamento é gratuito até 2 horas antes da corrida. Para alterações (hora, morada, passageiros), avise-nos o mais cedo possível, combinamos.",
   "faq.q4": "Que meios de pagamento aceitam?",
   "faq.a4":
     "Cartão (sem contacto, Apple Pay, Google Pay), dinheiro e transferência bancária para contas profissionais. Recibo entregue no fim da corrida, fatura a pedido para notas de despesa.",
   "faq.q5": "É preciso reservar com antecedência?",
   "faq.a5":
-    "Não é obrigatório — também aceitamos corridas imediatas se estivermos disponíveis. Para um comboio de manhã cedo, um voo ou uma reunião importante, é mais seguro reservar na véspera.",
+    "Não é obrigatório: também aceitamos corridas imediatas se estivermos disponíveis. Para um comboio de manhã cedo, um voo ou uma reunião importante, é mais seguro reservar na véspera.",
   "faq.q6": "Quanta bagagem posso levar?",
   "faq.a6":
     "Uma berlina confortável transporta facilmente 3 a 4 malas e 4 passageiros. Para um grupo ou material volumoso, avise-nos na reserva e adaptamos o veículo.",
@@ -5661,19 +5661,19 @@ const pt: Dict = {
   "home.how.eyebrow": "Como funciona",
   "home.how.title": "Reservar é tão simples como um telefonema",
   "home.how.intro":
-    "Sem filas, sem robôs. Apenas uma conversa direta com o seu motorista — confirmamos, chegamos, levamo-lo.",
+    "Sem filas, sem robôs. Apenas uma conversa direta com o seu motorista: confirmamos, chegamos, levamo-lo.",
   "home.how.s1.t": "Preencha o formulário",
-  "home.how.s1.d": "Partida, destino, data, hora, passageiros — 2 minutos.",
+  "home.how.s1.d": "Partida, destino, data, hora, passageiros: 2 minutos.",
   "home.how.s2.t": "Confirmação instantânea",
   "home.how.s2.d": "Receberá imediatamente um email a confirmar a sua reserva.",
   "home.how.s3.t": "O táxi aceita",
   "home.how.s3.d": "O seu motorista valida a corrida e confirma o preço definitivo.",
   "home.how.s4.t": "Acompanhe em tempo real",
-  "home.how.s4.d": "Hora estimada, nome do motorista e matrícula — tudo em direto.",
+  "home.how.s4.d": "Hora estimada, nome do motorista e matrícula, tudo em direto.",
   "home.how.s5.t": "Entre no carro",
   "home.how.s5.d": "Entre no carro, tratamos do resto.",
   "home.how.s6.t": "Pagamento",
-  "home.how.s6.d": "Cartão ou dinheiro — como preferir. Recibo no final.",
+  "home.how.s6.d": "Cartão ou dinheiro, como preferir. Recibo no final.",
   "sim.eyebrow": "Simulador de tarifa",
   "sim.title": "Estime o preço da sua viagem",
   "sim.intro":
@@ -5698,7 +5698,7 @@ const pt: Dict = {
   "sim.period_night": "🌙 Tarifa noturna (19h–7h) —",
   "sim.booking_fee_note": "* Podem ser aplicadas taxas de reserva",
   "home.cta.title": "Pronto para reservar a sua corrida?",
-  "home.cta.desc": "Confirmação rápida, motorista profissional e preço transparente — telefone-nos ou reserve online.",
+  "home.cta.desc": "Confirmação rápida, motorista profissional e preço transparente: telefone-nos ou reserve online.",
   "home.cta.online": "Reservar online",
 
   // Services page
@@ -5754,7 +5754,7 @@ const pt: Dict = {
   "tarifs.note.fee": "*Podem ser aplicadas taxas de reserva.",
   "tarifs.cpam.title": "🏥 Convencionado CPAM",
   "tarifs.cpam.desc":
-    "Mediante apresentação do voucher de transporte, cobertura direta pelo Seguro de Saúde. Terceiro pagador ou ALD — voucher de transporte para todas as distâncias.",
+    "Mediante apresentação do voucher de transporte, cobertura direta pelo Seguro de Saúde. Terceiro pagador ou ALD, voucher de transporte para todas as distâncias.",
   "tarifs.event.title": "🚗 Assistência em avaria automóvel",
   "tarifs.event.desc": "Em caso de avaria, vamos buscá-lo rapidamente e levamo-lo ao destino. Disponível 7d/7.",
   "tarifs.cta": "Reservar",
@@ -6591,7 +6591,7 @@ const pt: Dict = {
   "home.install.ios.step1": "Abra o <strong>Safari</strong> e vá a <strong>taxicitybordeaux.fr</strong>",
   "home.install.ios.step2": "Toque no botão <strong>Partilhar</strong> (quadrado com seta)",
   "home.install.ios.step3": "Selecione <strong>No ecrã inicial</strong>",
-  "home.install.ios.step4": "Toque em <strong>Adicionar</strong> — a app aparece no ecrã inicial",
+  "home.install.ios.step4": "Toque em <strong>Adicionar</strong>: a app aparece no ecrã inicial",
   "home.install.ios.img_alt": "Guia de instalação iPhone: Safari, Partilhar, Adicionar ao ecrã inicial",
   "home.install.ios.tip":
     "💡 <strong>Dica:</strong> Ative as notificações nas definições do iOS (Definições → Taxi City Bordeaux → Notificações).",
@@ -6600,13 +6600,13 @@ const pt: Dict = {
   "home.install.android.step1": "Abra o <strong>Chrome</strong> e vá a <strong>taxicitybordeaux.fr</strong>",
   "home.install.android.step2": "Toque no menu <strong>⋮</strong> (três pontos) no canto superior direito",
   "home.install.android.step3": "Selecione <strong>Adicionar ao ecrã inicial</strong>",
-  "home.install.android.step4": "Toque em <strong>Adicionar</strong> — o ícone aparece no ecrã inicial",
+  "home.install.android.step4": "Toque em <strong>Adicionar</strong>: o ícone aparece no ecrã inicial",
   "home.install.android.tip":
     "💡 <strong>Dica:</strong> Aceite as notificações quando o Chrome pedir para receber os alertas de acompanhamento.",
-  "home.meta.title": "Taxi City Bordeaux – Táxi 7j/7 em Bordéus e na Gironda",
+  "home.meta.title": "Taxi City Bordeaux: Táxi 7j/7 em Bordéus e na Gironda",
   "home.meta.description":
     "Reserve o seu táxi em Bordéus: aeroporto, estação Saint-Jean, vinhedos, longas distâncias. Convencionado CPAM. Serviço pontual e confortável, dia e noite.",
-  "home.hero.alt": "Bordéus à noite – Ponte Chaban-Delmas iluminada sobre o Garonne",
+  "home.hero.alt": "Bordéus à noite, Ponte Chaban-Delmas iluminada sobre o Garonne",
   "home.help.title": "Precisa de ajuda?",
   "home.help.call_prefix": "Ligue-nos para",
   "home.help.or_write": "ou envie-nos uma mensagem em",
