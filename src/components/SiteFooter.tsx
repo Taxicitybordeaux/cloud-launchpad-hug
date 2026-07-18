@@ -199,17 +199,27 @@ export function SiteFooter() {
         <div>
           <h3 className="footer-col-title">Nos courses</h3>
           <ul className="footer-ul">
-            {[
-              "✈️ Aéroport Mérignac",
-              "🚉 Gare Saint-Jean",
-              "🍷 Vignobles & châteaux",
-              "🏥 Transport conventionné CPAM",
-              "🛣️ Longues distances",
-            ].map((item) => (
-              <li key={item} className="footer-li-text">
-                {item}
-              </li>
-            ))}
+            <li>
+              <Link to="/taxi-aeroport-bordeaux-merignac" className="footer-link">
+                ✈️ Taxi aéroport Mérignac
+              </Link>
+            </li>
+            <li>
+              <Link to="/taxi-gare-saint-jean-bordeaux" className="footer-link">
+                🚉 Taxi gare Saint-Jean
+              </Link>
+            </li>
+            <li>
+              <Link to="/taxi-bordeaux-arcachon" className="footer-link">
+                🏖️ Taxi Bordeaux ↔ Arcachon
+              </Link>
+            </li>
+            <li>
+              <Link to="/taxi-conventionne-bordeaux" className="footer-link">
+                🏥 Taxi conventionné CPAM
+              </Link>
+            </li>
+            <li className="footer-li-text">🍷 Vignobles & châteaux</li>
           </ul>
         </div>
 
