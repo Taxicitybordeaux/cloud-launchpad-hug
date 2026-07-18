@@ -115,8 +115,7 @@ const fr: Dict = {
     "Taxi très ponctuel, voiture impeccable. J'ai été déposée à Mérignac en toute tranquillité, je recommande.",
   "home.test.t2":
     "Réservation simple, prix annoncé respecté. Parfait pour mes déplacements professionnels à la semaine.",
-  "home.test.t3":
-    "Pris en charge à la gare avec mes enfants, le taxi a été d'une grande gentillesse. On rappellera.",
+  "home.test.t3": "Pris en charge à la gare avec mes enfants, le taxi a été d'une grande gentillesse. On rappellera.",
 
   // Home — FAQ
   "home.faq.eyebrow": "Vos questions",
@@ -183,8 +182,7 @@ const fr: Dict = {
   "sim.period_night": "🌙 Tarif nuit (19h–7h) —",
   "sim.booking_fee_note": "* Des frais de réservation peuvent être appliqués",
   "home.cta.title": "Prêt à réserver votre course ?",
-  "home.cta.desc":
-    "Confirmation rapide, taxi professionnel et prix transparent — appelez-nous ou réservez en ligne.",
+  "home.cta.desc": "Confirmation rapide, taxi professionnel et prix transparent — appelez-nous ou réservez en ligne.",
   "home.cta.online": "Réserver en ligne",
 
   // Services page
@@ -470,8 +468,7 @@ const fr: Dict = {
   "res.tarif.booking_fee": "Frais de réservation",
   "res.tarif.booking_fee_detail": "peuvent être appliqués",
   "res.special.title": "Demandes spéciales (optionnel)",
-  "res.special.placeholder":
-    "Ex : siège bébé, animal de compagnie, valise XXL, arrêt intermédiaire, préférence taxi…",
+  "res.special.placeholder": "Ex : siège bébé, animal de compagnie, valise XXL, arrêt intermédiaire, préférence taxi…",
   "res.datetime.title": "Date & heure de départ",
   "res.loc.trip_details_section": "Détails du trajet",
   "res.loc.searching": "Recherche en cours…",
@@ -1131,6 +1128,23 @@ const fr: Dict = {
   "reserver.notif.activated_success": "✅ Notifications activées pour 30 jours!",
   "reserver.notif.activate_error": "❌ Impossible d'activer (RLS ou permissions)",
   "reserver.notif.network_error": "❌ Erreur réseau",
+
+  // Footer
+  "footer.tagline": "Votre taxi de confiance à Bordeaux, ponctuel et disponible jour et nuit.",
+  "footer.nav_title": "Navigation",
+  "footer.services_title": "Nos trajets",
+  "footer.contact_title": "Contact",
+  "footer.info_title": "Informations",
+  "footer.availability": "Disponible 7j/7 — 24h/24",
+  "footer.coverage": "Bordeaux, Gironde & Bassin d'Arcachon",
+  "footer.cpam": "Conventionné CPAM",
+  "footer.link.faq": "FAQ",
+  "footer.link.airport": "Taxi aéroport Mérignac",
+  "footer.link.station": "Taxi gare Saint-Jean",
+  "footer.link.arcachon": "Bordeaux → Arcachon",
+  "footer.link.cpam": "Taxi conventionné CPAM",
+  "footer.rights": "Tous droits réservés.",
+  "footer.siret": "SIRET 418 957 114 00030",
 };
 
 const en: Dict = {
@@ -2211,6 +2225,23 @@ const en: Dict = {
   "reserver.notif.activated_success": "✅ Notifications enabled for 30 days!",
   "reserver.notif.activate_error": "❌ Unable to enable (RLS or permissions)",
   "reserver.notif.network_error": "❌ Network error",
+
+  // Footer
+  "footer.tagline": "Your trusted Bordeaux taxi — punctual and available day and night.",
+  "footer.nav_title": "Navigation",
+  "footer.services_title": "Popular routes",
+  "footer.contact_title": "Contact",
+  "footer.info_title": "Information",
+  "footer.availability": "Available 7 days a week, 24/7",
+  "footer.coverage": "Bordeaux, Gironde & Arcachon Bay",
+  "footer.cpam": "CPAM-approved",
+  "footer.link.faq": "FAQ",
+  "footer.link.airport": "Mérignac airport taxi",
+  "footer.link.station": "Saint-Jean station taxi",
+  "footer.link.arcachon": "Bordeaux → Arcachon",
+  "footer.link.cpam": "Medical taxi (CPAM)",
+  "footer.rights": "All rights reserved.",
+  "footer.siret": "SIRET 418 957 114 00030",
 };
 
 const es: Dict = {
@@ -3297,6 +3328,23 @@ const es: Dict = {
   "reserver.notif.activated_success": "✅ ¡Notificaciones activadas durante 30 días!",
   "reserver.notif.activate_error": "❌ No se pudo activar (RLS o permisos)",
   "reserver.notif.network_error": "❌ Error de red",
+
+  // Footer
+  "footer.tagline": "Su taxi de confianza en Burdeos, puntual y disponible día y noche.",
+  "footer.nav_title": "Navegación",
+  "footer.services_title": "Trayectos populares",
+  "footer.contact_title": "Contacto",
+  "footer.info_title": "Información",
+  "footer.availability": "Disponible 7 días a la semana, 24/7",
+  "footer.coverage": "Burdeos, Gironda y Bahía de Arcachon",
+  "footer.cpam": "Concertado con la CPAM",
+  "footer.link.faq": "Preguntas frecuentes",
+  "footer.link.airport": "Taxi aeropuerto Mérignac",
+  "footer.link.station": "Taxi estación Saint-Jean",
+  "footer.link.arcachon": "Burdeos → Arcachon",
+  "footer.link.cpam": "Taxi concertado CPAM",
+  "footer.rights": "Todos los derechos reservados.",
+  "footer.siret": "SIRET 418 957 114 00030",
 };
 
 const it: Dict = {
@@ -4386,6 +4434,23 @@ const it: Dict = {
   "reserver.notif.activated_success": "✅ Notifiche attivate per 30 giorni!",
   "reserver.notif.activate_error": "❌ Impossibile attivare (RLS o permessi)",
   "reserver.notif.network_error": "❌ Errore di rete",
+
+  // Footer
+  "footer.tagline": "Il vostro taxi di fiducia a Bordeaux, puntuale e disponibile giorno e notte.",
+  "footer.nav_title": "Navigazione",
+  "footer.services_title": "Corse popolari",
+  "footer.contact_title": "Contatto",
+  "footer.info_title": "Informazioni",
+  "footer.availability": "Disponibile 7 giorni su 7, 24/7",
+  "footer.coverage": "Bordeaux, Gironda e Baia di Arcachon",
+  "footer.cpam": "Convenzionato CPAM",
+  "footer.link.faq": "FAQ",
+  "footer.link.airport": "Taxi aeroporto Mérignac",
+  "footer.link.station": "Taxi stazione Saint-Jean",
+  "footer.link.arcachon": "Bordeaux → Arcachon",
+  "footer.link.cpam": "Taxi convenzionato CPAM",
+  "footer.rights": "Tutti i diritti riservati.",
+  "footer.siret": "SIRET 418 957 114 00030",
 };
 
 // Dictionnaire arabe — traductions clés ; fallback automatique sur le français pour les clés manquantes.
@@ -5459,6 +5524,23 @@ const ar: Dict = {
   "reserver.notif.activated_success": "✅ تم تفعيل الإشعارات لمدة 30 يومًا!",
   "reserver.notif.activate_error": "❌ تعذّر التفعيل (RLS أو الأذونات)",
   "reserver.notif.network_error": "❌ خطأ في الشبكة",
+
+  // Footer
+  "footer.tagline": "سيارة الأجرة الموثوقة في بوردو، في الموعد ومتاحة ليلاً ونهارًا.",
+  "footer.nav_title": "التنقل",
+  "footer.services_title": "الرحلات الأكثر طلبًا",
+  "footer.contact_title": "اتصل بنا",
+  "footer.info_title": "معلومات",
+  "footer.availability": "متاح 7 أيام في الأسبوع، 24/7",
+  "footer.coverage": "بوردو وجيروند وخليج أركاشون",
+  "footer.cpam": "معتمد لدى CPAM",
+  "footer.link.faq": "الأسئلة الشائعة",
+  "footer.link.airport": "سيارة أجرة مطار ميرينياك",
+  "footer.link.station": "سيارة أجرة محطة سان-جان",
+  "footer.link.arcachon": "بوردو ← أركاشون",
+  "footer.link.cpam": "سيارة أجرة معتمدة CPAM",
+  "footer.rights": "جميع الحقوق محفوظة.",
+  "footer.siret": "السجل التجاري (SIRET) 418 957 114 00030",
 };
 
 const pt: Dict = {
@@ -6566,6 +6648,23 @@ const pt: Dict = {
   "reserver.notif.activated_success": "✅ Notificações ativadas por 30 dias!",
   "reserver.notif.activate_error": "❌ Não foi possível ativar (RLS ou permissões)",
   "reserver.notif.network_error": "❌ Erro de rede",
+
+  // Footer
+  "footer.tagline": "O seu táxi de confiança em Bordéus, pontual e disponível dia e noite.",
+  "footer.nav_title": "Navegação",
+  "footer.services_title": "Viagens populares",
+  "footer.contact_title": "Contacto",
+  "footer.info_title": "Informações",
+  "footer.availability": "Disponível 7 dias por semana, 24/7",
+  "footer.coverage": "Bordéus, Gironde e Baía de Arcachon",
+  "footer.cpam": "Convencionado CPAM",
+  "footer.link.faq": "Perguntas frequentes",
+  "footer.link.airport": "Táxi aeroporto Mérignac",
+  "footer.link.station": "Táxi estação Saint-Jean",
+  "footer.link.arcachon": "Bordéus → Arcachon",
+  "footer.link.cpam": "Táxi convencionado CPAM",
+  "footer.rights": "Todos os direitos reservados.",
+  "footer.siret": "SIRET 418 957 114 00030",
 };
 
 export const DICTS: Record<Lang, Dict> = { fr, en, es, pt, it, ar };
