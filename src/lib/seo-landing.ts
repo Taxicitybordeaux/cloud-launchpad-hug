@@ -152,9 +152,9 @@ const FR: Record<LandingKey, LandingContent> = {
     ctaCall: CTA.fr.call,
   },
   cpam: {
-    title: "Taxi Conventionné CPAM Bordeaux — Tiers payant, ALD, dialyse",
+    title: "Taxi conventionné CPAM Bordeaux — Réserver, tiers payant, ALD",
     description:
-      "Taxi conventionné Assurance Maladie à Bordeaux : transport médical assis, tiers payant, ALD 100 %, dialyse, chimio. José se déplace, sans avance de frais.",
+      "Réserver un taxi conventionné Bordeaux : tiers payant, ALD 100 %, dialyse, chimio. Aussi VTC Bordeaux et taxi 7 places sur demande — 06 73 07 23 22.",
     intro:
       "Je suis José, taxi conventionné par l'Assurance Maladie à Bordeaux. Concrètement : si votre médecin vous a fait un bon de transport, vous n'avez rien à avancer. Je m'occupe de la facturation avec la CPAM et votre mutuelle. Je fais beaucoup de dialyse, de chimio, de consultations à Pellegrin, Haut-Lévêque et Saint-André.",
     sections: [
