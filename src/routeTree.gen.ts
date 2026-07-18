@@ -9,6 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TaxiGareSaintJeanBordeauxRouteImport } from './routes/taxi-gare-saint-jean-bordeaux'
+import { Route as TaxiConventionneBordeauxRouteImport } from './routes/taxi-conventionne-bordeaux'
+import { Route as TaxiBordeauxArcachonRouteImport } from './routes/taxi-bordeaux-arcachon'
+import { Route as TaxiAeroportBordeauxMerignacRouteImport } from './routes/taxi-aeroport-bordeaux-merignac'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as ReserverRouteImport } from './routes/reserver'
@@ -53,6 +57,29 @@ import { Route as ApiPublicHooksRecurringRidesTickRouteImport } from './routes/a
 import { Route as ApiPublicHooksRecomputeDurationsTickRouteImport } from './routes/api/public/hooks/recompute-durations-tick'
 import { Route as ApiPublicContactVcfRouteImport } from './routes/api/public/contact.vcf'
 
+const TaxiGareSaintJeanBordeauxRoute =
+  TaxiGareSaintJeanBordeauxRouteImport.update({
+    id: '/taxi-gare-saint-jean-bordeaux',
+    path: '/taxi-gare-saint-jean-bordeaux',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const TaxiConventionneBordeauxRoute =
+  TaxiConventionneBordeauxRouteImport.update({
+    id: '/taxi-conventionne-bordeaux',
+    path: '/taxi-conventionne-bordeaux',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const TaxiBordeauxArcachonRoute = TaxiBordeauxArcachonRouteImport.update({
+  id: '/taxi-bordeaux-arcachon',
+  path: '/taxi-bordeaux-arcachon',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TaxiAeroportBordeauxMerignacRoute =
+  TaxiAeroportBordeauxMerignacRouteImport.update({
+    id: '/taxi-aeroport-bordeaux-merignac',
+    path: '/taxi-aeroport-bordeaux-merignac',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -290,6 +317,10 @@ export interface FileRoutesByFullPath {
   '/reserver': typeof ReserverRoute
   '/services': typeof ServicesRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/taxi-aeroport-bordeaux-merignac': typeof TaxiAeroportBordeauxMerignacRoute
+  '/taxi-bordeaux-arcachon': typeof TaxiBordeauxArcachonRoute
+  '/taxi-conventionne-bordeaux': typeof TaxiConventionneBordeauxRoute
+  '/taxi-gare-saint-jean-bordeaux': typeof TaxiGareSaintJeanBordeauxRoute
   '/api/manifest': typeof ApiManifestRoute
   '/client/chat': typeof ClientChatRoute
   '/client/dashboard': typeof ClientDashboardRoute
@@ -335,6 +366,10 @@ export interface FileRoutesByTo {
   '/reserver': typeof ReserverRoute
   '/services': typeof ServicesRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/taxi-aeroport-bordeaux-merignac': typeof TaxiAeroportBordeauxMerignacRoute
+  '/taxi-bordeaux-arcachon': typeof TaxiBordeauxArcachonRoute
+  '/taxi-conventionne-bordeaux': typeof TaxiConventionneBordeauxRoute
+  '/taxi-gare-saint-jean-bordeaux': typeof TaxiGareSaintJeanBordeauxRoute
   '/api/manifest': typeof ApiManifestRoute
   '/client/chat': typeof ClientChatRoute
   '/client/dashboard': typeof ClientDashboardRoute
@@ -381,6 +416,10 @@ export interface FileRoutesById {
   '/reserver': typeof ReserverRoute
   '/services': typeof ServicesRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/taxi-aeroport-bordeaux-merignac': typeof TaxiAeroportBordeauxMerignacRoute
+  '/taxi-bordeaux-arcachon': typeof TaxiBordeauxArcachonRoute
+  '/taxi-conventionne-bordeaux': typeof TaxiConventionneBordeauxRoute
+  '/taxi-gare-saint-jean-bordeaux': typeof TaxiGareSaintJeanBordeauxRoute
   '/api/manifest': typeof ApiManifestRoute
   '/client/chat': typeof ClientChatRoute
   '/client/dashboard': typeof ClientDashboardRoute
@@ -428,6 +467,10 @@ export interface FileRouteTypes {
     | '/reserver'
     | '/services'
     | '/sitemap.xml'
+    | '/taxi-aeroport-bordeaux-merignac'
+    | '/taxi-bordeaux-arcachon'
+    | '/taxi-conventionne-bordeaux'
+    | '/taxi-gare-saint-jean-bordeaux'
     | '/api/manifest'
     | '/client/chat'
     | '/client/dashboard'
@@ -473,6 +516,10 @@ export interface FileRouteTypes {
     | '/reserver'
     | '/services'
     | '/sitemap.xml'
+    | '/taxi-aeroport-bordeaux-merignac'
+    | '/taxi-bordeaux-arcachon'
+    | '/taxi-conventionne-bordeaux'
+    | '/taxi-gare-saint-jean-bordeaux'
     | '/api/manifest'
     | '/client/chat'
     | '/client/dashboard'
@@ -518,6 +565,10 @@ export interface FileRouteTypes {
     | '/reserver'
     | '/services'
     | '/sitemap.xml'
+    | '/taxi-aeroport-bordeaux-merignac'
+    | '/taxi-bordeaux-arcachon'
+    | '/taxi-conventionne-bordeaux'
+    | '/taxi-gare-saint-jean-bordeaux'
     | '/api/manifest'
     | '/client/chat'
     | '/client/dashboard'
@@ -564,6 +615,10 @@ export interface RootRouteChildren {
   ReserverRoute: typeof ReserverRoute
   ServicesRoute: typeof ServicesRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TaxiAeroportBordeauxMerignacRoute: typeof TaxiAeroportBordeauxMerignacRoute
+  TaxiBordeauxArcachonRoute: typeof TaxiBordeauxArcachonRoute
+  TaxiConventionneBordeauxRoute: typeof TaxiConventionneBordeauxRoute
+  TaxiGareSaintJeanBordeauxRoute: typeof TaxiGareSaintJeanBordeauxRoute
   ApiManifestRoute: typeof ApiManifestRoute
   ClientChatRoute: typeof ClientChatRoute
   ClientDashboardRoute: typeof ClientDashboardRoute
@@ -597,6 +652,34 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/taxi-gare-saint-jean-bordeaux': {
+      id: '/taxi-gare-saint-jean-bordeaux'
+      path: '/taxi-gare-saint-jean-bordeaux'
+      fullPath: '/taxi-gare-saint-jean-bordeaux'
+      preLoaderRoute: typeof TaxiGareSaintJeanBordeauxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/taxi-conventionne-bordeaux': {
+      id: '/taxi-conventionne-bordeaux'
+      path: '/taxi-conventionne-bordeaux'
+      fullPath: '/taxi-conventionne-bordeaux'
+      preLoaderRoute: typeof TaxiConventionneBordeauxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/taxi-bordeaux-arcachon': {
+      id: '/taxi-bordeaux-arcachon'
+      path: '/taxi-bordeaux-arcachon'
+      fullPath: '/taxi-bordeaux-arcachon'
+      preLoaderRoute: typeof TaxiBordeauxArcachonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/taxi-aeroport-bordeaux-merignac': {
+      id: '/taxi-aeroport-bordeaux-merignac'
+      path: '/taxi-aeroport-bordeaux-merignac'
+      fullPath: '/taxi-aeroport-bordeaux-merignac'
+      preLoaderRoute: typeof TaxiAeroportBordeauxMerignacRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -937,6 +1020,10 @@ const rootRouteChildren: RootRouteChildren = {
   ReserverRoute: ReserverRoute,
   ServicesRoute: ServicesRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TaxiAeroportBordeauxMerignacRoute: TaxiAeroportBordeauxMerignacRoute,
+  TaxiBordeauxArcachonRoute: TaxiBordeauxArcachonRoute,
+  TaxiConventionneBordeauxRoute: TaxiConventionneBordeauxRoute,
+  TaxiGareSaintJeanBordeauxRoute: TaxiGareSaintJeanBordeauxRoute,
   ApiManifestRoute: ApiManifestRoute,
   ClientChatRoute: ClientChatRoute,
   ClientDashboardRoute: ClientDashboardRoute,
@@ -971,13 +1058,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

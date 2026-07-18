@@ -16,9 +16,15 @@ export const Route = createFileRoute("/sitemap.xml")({
         const entries: SitemapEntry[] = [
           { path: "/", changefreq: "weekly", priority: "1.0" },
           { path: "/services", changefreq: "monthly", priority: "0.9" },
+          { path: "/reserver", changefreq: "monthly", priority: "0.9" },
+          // Pages SEO locales (mots-clés à fort volume)
+          { path: "/taxi-aeroport-bordeaux-merignac", changefreq: "monthly", priority: "0.9" },
+          { path: "/taxi-gare-saint-jean-bordeaux", changefreq: "monthly", priority: "0.9" },
+          { path: "/taxi-bordeaux-arcachon", changefreq: "monthly", priority: "0.8" },
+          { path: "/taxi-conventionne-bordeaux", changefreq: "monthly", priority: "0.8" },
           { path: "/a-propos", changefreq: "monthly", priority: "0.7" },
           { path: "/contact", changefreq: "monthly", priority: "0.7" },
-          { path: "/reserver", changefreq: "monthly", priority: "0.9" },
+          { path: "/carte", changefreq: "monthly", priority: "0.5" },
           { path: "/mentions-legales", changefreq: "yearly", priority: "0.3" },
           { path: "/confidentialite", changefreq: "yearly", priority: "0.3" },
         ];
