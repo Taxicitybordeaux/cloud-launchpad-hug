@@ -49,7 +49,9 @@ export function LocalSeoPage({ landingKey }: { landingKey: LandingKey }) {
       <header className="mt-6 text-center">
         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">Taxi City Bordeaux</p>
         <h1 className="mt-3 font-display text-3xl font-bold sm:text-4xl md:text-5xl">{c.title}</h1>
-        <p className="mx-auto mt-4 max-w-2xl text-sm text-muted-foreground sm:text-base">{c.intro}</p>
+        <p className="mx-auto mt-4 max-w-2xl whitespace-pre-line text-sm text-muted-foreground sm:text-base">
+          {c.intro}
+        </p>
 
         <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
@@ -73,7 +75,7 @@ export function LocalSeoPage({ landingKey }: { landingKey: LandingKey }) {
         {c.sections.map((s) => (
           <article key={s.h} className="rounded-2xl border border-border bg-card p-5 sm:p-6">
             <h2 className="font-display text-lg font-semibold sm:text-xl">{s.h}</h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{s.p}</p>
+            <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{s.p}</p>
           </article>
         ))}
       </section>
@@ -88,7 +90,7 @@ export function LocalSeoPage({ landingKey }: { landingKey: LandingKey }) {
                 <span className="flex-1 text-sm sm:text-base">{f.q}</span>
                 <span className="ml-2 text-primary transition group-open:rotate-45">+</span>
               </summary>
-              <p className="mt-3 pl-8 text-sm leading-relaxed text-muted-foreground">{f.a}</p>
+              <p className="mt-3 pl-8 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{f.a}</p>
             </details>
           ))}
         </div>
