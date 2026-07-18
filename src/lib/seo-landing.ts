@@ -197,9 +197,9 @@ const FR: Record<LandingKey, LandingContent> = {
 // --------- EN ----------
 const EN: Record<LandingKey, LandingContent> = {
   airport: {
-    title: "Bordeaux Mérignac Airport Taxi — Book taxi or 7-seater VTC",
+    title: "Bordeaux Mérignac Airport Taxi — Book with José 24/7",
     description:
-      "Book a Bordeaux Mérignac airport taxi: live flight tracking, flat fare, Bordeaux VTC or 7-seater taxi on request. Available 24/7 — call +33 6 73 07 23 22.",
+      "Book a Bordeaux Mérignac airport taxi: live flight tracking, flat fare, 7-seater vehicle on request. Available 24/7 — call +33 6 73 07 23 22.",
     intro:
       "Book your taxi for Bordeaux-Mérignac airport in seconds. We track your flight in real time and adjust the pickup time — your driver is waiting on arrival, even if the flight is delayed or early.",
     sections: [
@@ -215,9 +215,9 @@ const EN: Record<LandingKey, LandingContent> = {
     ctaBook: CTA.en.book, ctaCall: CTA.en.call,
   },
   station: {
-    title: "Bordeaux Saint-Jean Station Taxi — Book taxi or 7-seater VTC 24/7",
+    title: "Bordeaux Saint-Jean Station Taxi — Book with José 24/7",
     description:
-      "Book a taxi at Bordeaux Saint-Jean station: live TGV tracking, platform pickup, Bordeaux VTC or 7-seater taxi on request. 24/7 service.",
+      "Book a taxi at Bordeaux Saint-Jean station: live TGV tracking, platform pickup, 7-seater vehicle on request. 24/7 service.",
     intro:
       "A taxi is waiting for you at Bordeaux Saint-Jean station, or picks you up on time for your TGV. We track your train and adjust the pickup time automatically.",
     sections: [
@@ -233,9 +233,9 @@ const EN: Record<LandingKey, LandingContent> = {
     ctaBook: CTA.en.book, ctaCall: CTA.en.call,
   },
   arcachon: {
-    title: "Bordeaux → Arcachon Taxi — Book 7-seater taxi to Pyla & Cap-Ferret",
+    title: "Bordeaux → Arcachon Taxi — Direct to Pyla & Cap-Ferret",
     description:
-      "Book a Bordeaux → Arcachon taxi (Pyla, Cap-Ferret, the Bay): direct trip, flat fare, Bordeaux VTC or 7-seater taxi for families and luggage.",
+      "Book a Bordeaux → Arcachon taxi (Pyla, Cap-Ferret, the Bay): direct trip, flat fare, 7-seater vehicle for families and luggage.",
     intro:
       "Reach the Arcachon Bay by taxi from central Bordeaux, Mérignac airport or Saint-Jean station. Direct trip, price known in advance, no transfer.",
     sections: [
@@ -253,7 +253,7 @@ const EN: Record<LandingKey, LandingContent> = {
   cpam: {
     title: "Approved Medical Taxi Bordeaux — Book direct billing, ALD 100%",
     description:
-      "Book an approved medical taxi in Bordeaux: direct billing (tiers payant), ALD 100%, dialysis, chemo. Bordeaux VTC and 7-seater taxi also on request.",
+      "Book an approved medical taxi in Bordeaux: direct billing (tiers payant), ALD 100%, dialysis, chemo. 7-seater vehicle also on request.",
     intro:
       "Taxi approved by the French health insurance (CPAM) in Bordeaux. With your medical transport prescription, the trip is billed directly — no upfront payment thanks to third-party billing.",
     sections: [
