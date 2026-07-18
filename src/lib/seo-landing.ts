@@ -29,9 +29,9 @@ const CTA: Record<Lang, { book: string; call: string; faqTitle: string }> = {
 // --------- FR (voix de José, humain, pas IA) ----------
 const FR: Record<LandingKey, LandingContent> = {
   airport: {
-    title: "Taxi Bordeaux aéroport Mérignac 24/7 : Réserver avec José",
+    title: "Taxi aéroport de Bordeaux 24/7 : Réserver avec José",
     description:
-      "Réserver un taxi Bordeaux aéroport Mérignac : suivi de vol, prix annoncé à la réservation, véhicule 4 personnes maximum. José vous attend, jour & nuit. 06 73 07 23 22.",
+      "Réserver un taxi aéroport de Bordeaux : suivi de vol, prix annoncé à la réservation, véhicule 4 personnes maximum. José vous attend, jour & nuit. 06 73 07 23 22.",
     intro:
       "Bonjour, moi c'est José.\nJe fais la navette entre Bordeaux et l'aéroport de Bordeaux : le matin, la nuit, les jours fériés.\nVous me donnez votre numéro de vol, je suis l'atterrissage sur mon téléphone et je suis là quand vous sortez.\nPas d'attente, pas de mauvaise surprise sur le prix.",
     sections: [
@@ -45,12 +45,12 @@ const FR: Record<LandingKey, LandingContent> = {
       },
       {
         h: "Familles, bagages, matériel : ça rentre",
-        p: "La berline avale facilement 3 ou 4 valises et il y a la place pour les poussettes.\nSiège enfant sur demande (dites-le-moi la veille).\nLe véhicule accueille 4 personnes maximum, je n'ai pas de van.",
+        p: "Dans la berline on peut mettre facilement 3 ou 4 valises et il y a la place pour les poussettes.\nSiège enfant sur demande (dites-le-moi la veille).\nLe véhicule accueille 4 personnes maximum, je n'ai pas de van.",
       },
     ],
     faq: [
       {
-        q: "Combien coûte un taxi de Bordeaux centre à Mérignac ?",
+        q: "Combien coûte un taxi de Bordeaux centre à l'aéroport de Bordeaux ?",
         a: "En journée, comptez entre 30 et 45 € selon l'endroit exact d'où je viens vous chercher.\nLa nuit et les dimanches, le tarif est un peu au-dessus (tarif réglementé).\nJe vous confirme le prix précis au moment de la réservation, avant que vous confirmiez.",
       },
       {
@@ -86,7 +86,7 @@ const FR: Record<LandingKey, LandingContent> = {
       },
       {
         h: "De la gare à votre vraie destination",
-        p: "Un hôtel dans les Chartrons, la Cité du Vin, l'aéroport pour une correspondance, un rendez-vous à Mérignac, ou directement Arcachon, Saint-Émilion, Cap-Ferret.\nC'est direct, sans changement.",
+        p: "Un hôtel dans les Chartrons, la Cité du Vin, l'aéroport pour une correspondance, un rendez-vous à l'aéroport de Bordeaux, ou directement Arcachon, Saint-Émilion, Cap-Ferret.\nC'est direct, sans changement.",
       },
     ],
     faq: [
@@ -119,7 +119,7 @@ const FR: Record<LandingKey, LandingContent> = {
     sections: [
       {
         h: "Porte-à-porte, sans correspondance",
-        p: "Je viens vous chercher où vous êtes, hôtel dans le centre de Bordeaux, gare Saint-Jean, aéroport de Mérignac, et je vous dépose là où vous voulez : Arcachon ville, Pyla-sur-Mer au pied de la Dune, Cap-Ferret, Andernos, Lège.\nSans changement de véhicule.",
+        p: "Je viens vous chercher où vous êtes, hôtel dans le centre de Bordeaux, gare Saint-Jean, aéroport de Bordeaux, et je vous dépose là où vous voulez : Arcachon ville, Pyla-sur-Mer au pied de la Dune, Cap-Ferret, Andernos, Lège.\nSans changement de véhicule.",
       },
       {
         h: "Le prix, vous le connaissez avant de partir",
@@ -197,11 +197,11 @@ const FR: Record<LandingKey, LandingContent> = {
 // --------- EN ----------
 const EN: Record<LandingKey, LandingContent> = {
   airport: {
-    title: "Bordeaux Mérignac Airport Taxi : Book with José 24/7",
+    title: "Bordeaux Airport Taxi : Book with José 24/7",
     description:
-      "Book a Bordeaux Mérignac airport taxi: live flight tracking, price quoted at booking, vehicle for up to 4 people. Available 24/7. Call +33 6 73 07 23 22.",
+      "Book a Bordeaux airport taxi: live flight tracking, price quoted at booking, vehicle for up to 4 people. Available 24/7. Call +33 6 73 07 23 22.",
     intro:
-      "Book your taxi for Bordeaux-Mérignac airport in seconds.\nWe track your flight in real time and adjust the pickup time: your driver is waiting on arrival, even if the flight is delayed or early.",
+      "Book your taxi for Bordeaux airport in seconds.\nWe track your flight in real time and adjust the pickup time: your driver is waiting on arrival, even if the flight is delayed or early.",
     sections: [
       {
         h: "Delayed flight? Let José know right away",
@@ -209,7 +209,7 @@ const EN: Record<LandingKey, LandingContent> = {
       },
       {
         h: "Price quoted upfront",
-        p: "No surprises.\nYou get a price estimate for the Bordeaux ↔ Mérignac airport fare before you get in.",
+        p: "No surprises.\nYou get a price estimate for the Bordeaux airport fare before you get in.",
       },
       {
         h: "Luggage and families",
@@ -218,7 +218,7 @@ const EN: Record<LandingKey, LandingContent> = {
     ],
     faq: [
       {
-        q: "How much is a taxi from central Bordeaux to Mérignac airport?",
+        q: "How much is a taxi from central Bordeaux to the airport?",
         a: "Around €30-€45 in daytime depending on the pickup point.\nThe exact fare is confirmed at booking.",
       },
       {
@@ -250,7 +250,7 @@ const EN: Record<LandingKey, LandingContent> = {
       },
       {
         h: "To every destination",
-        p: "From Saint-Jean to your hotel, Cité du Vin, Mérignac airport, Arcachon, Saint-Émilion or the whole metropolitan area.",
+        p: "From Saint-Jean to your hotel, Cité du Vin, Bordeaux airport, Arcachon, Saint-Émilion or the whole metropolitan area.",
       },
     ],
     faq: [
@@ -275,7 +275,7 @@ const EN: Record<LandingKey, LandingContent> = {
     description:
       "Book a Bordeaux → Arcachon taxi (Pyla, Cap-Ferret, the Bay): direct trip, price quoted at booking, vehicle for up to 4 people with luggage.",
     intro:
-      "Reach the Arcachon Bay by taxi from central Bordeaux, Mérignac airport or Saint-Jean station.\nDirect trip, price known in advance, no transfer.",
+      "Reach the Arcachon Bay by taxi from central Bordeaux, Bordeaux airport or Saint-Jean station.\nDirect trip, price known in advance, no transfer.",
     sections: [
       {
         h: "Door-to-door direct trip",
@@ -349,11 +349,11 @@ const EN: Record<LandingKey, LandingContent> = {
 // --------- ES ----------
 const ES: Record<LandingKey, LandingContent> = {
   airport: {
-    title: "Taxi Burdeos aeropuerto Mérignac : Reservar taxi con José 24/7",
+    title: "Taxi Burdeos aeropuerto : Reservar taxi con José 24/7",
     description:
-      "Reservar taxi Burdeos aeropuerto Mérignac: seguimiento de vuelo, precio indicado al reservar, vehículo hasta 4 personas. 24/7. +33 6 73 07 23 22.",
+      "Reservar taxi Burdeos aeropuerto: seguimiento de vuelo, precio indicado al reservar, vehículo hasta 4 personas. 24/7. +33 6 73 07 23 22.",
     intro:
-      "Reserve su taxi al aeropuerto de Burdeos-Mérignac en segundos.\nSeguimos su vuelo en tiempo real y ajustamos la hora de recogida: su conductor le espera a la salida, incluso con retraso o adelanto.",
+      "Reserve su taxi al aeropuerto de Burdeos en segundos.\nSeguimos su vuelo en tiempo real y ajustamos la hora de recogida: su conductor le espera a la salida, incluso con retraso o adelanto.",
     sections: [
       {
         h: "¿Vuelo con retraso? Avise a José enseguida",
@@ -361,7 +361,7 @@ const ES: Record<LandingKey, LandingContent> = {
       },
       {
         h: "Precio indicado por adelantado",
-        p: "Sin sorpresas.\nConoce una estimación del precio Burdeos ↔ Aeropuerto Mérignac antes de subir.",
+        p: "Sin sorpresas.\nConoce una estimación del precio Burdeos ↔ Aeropuerto antes de subir.",
       },
       {
         h: "Equipaje y familias",
@@ -402,7 +402,7 @@ const ES: Record<LandingKey, LandingContent> = {
       },
       {
         h: "A cualquier destino",
-        p: "Desde Saint-Jean a su hotel, Cité du Vin, aeropuerto Mérignac, Arcachon, Saint-Émilion o toda la metrópoli.",
+        p: "Desde Saint-Jean a su hotel, Cité du Vin, aeropuerto de Burdeos, Arcachon, Saint-Émilion o toda la metrópoli.",
       },
     ],
     faq: [
@@ -427,7 +427,7 @@ const ES: Record<LandingKey, LandingContent> = {
     description:
       "Reservar taxi Burdeos → Arcachon (Pyla, Cap-Ferret, Bahía): trayecto directo, precio indicado al reservar, vehículo hasta 4 personas con equipaje.",
     intro:
-      "Llegue a la Bahía de Arcachon en taxi desde el centro de Burdeos, el aeropuerto Mérignac o la estación Saint-Jean.\nTrayecto directo, precio conocido de antemano, sin transbordo.",
+      "Llegue a la Bahía de Arcachon en taxi desde el centro de Burdeos, el aeropuerto de Burdeos o la estación Saint-Jean.\nTrayecto directo, precio conocido de antemano, sin transbordo.",
     sections: [
       {
         h: "Trayecto directo puerta a puerta",
@@ -498,11 +498,11 @@ const ES: Record<LandingKey, LandingContent> = {
 // --------- PT ----------
 const PT: Record<LandingKey, LandingContent> = {
   airport: {
-    title: "Táxi Bordéus aeroporto Mérignac : Reservar táxi com José 24/7",
+    title: "Táxi Bordéus aeroporto : Reservar táxi com José 24/7",
     description:
-      "Reservar táxi Bordéus aeroporto Mérignac: seguimento de voo, preço indicado na reserva, veículo até 4 pessoas. 24/7. +33 6 73 07 23 22.",
+      "Reservar táxi Bordéus aeroporto: seguimento de voo, preço indicado na reserva, veículo até 4 pessoas. 24/7. +33 6 73 07 23 22.",
     intro:
-      "Reserve o seu táxi para o aeroporto de Bordéus-Mérignac em segundos.\nSeguimos o seu voo em tempo real e ajustamos a hora de recolha automaticamente.",
+      "Reserve o seu táxi para o aeroporto de Bordéus em segundos.\nSeguimos o seu voo em tempo real e ajustamos a hora de recolha automaticamente.",
     sections: [
       {
         h: "Voo atrasado? Avise o José de imediato",
@@ -510,7 +510,7 @@ const PT: Record<LandingKey, LandingContent> = {
       },
       {
         h: "Preço indicado antecipadamente",
-        p: "Sem surpresas.\nConhece uma estimativa do preço Bordéus ↔ Aeroporto Mérignac antes de entrar.",
+        p: "Sem surpresas.\nConhece uma estimativa do preço Bordéus ↔ Aeroporto antes de entrar.",
       },
       { h: "Bagagem e famílias", p: "Veículo espaçoso, cadeira infantil sob pedido, até 4 pessoas com bagagem." },
     ],
@@ -548,7 +548,7 @@ const PT: Record<LandingKey, LandingContent> = {
       },
       {
         h: "Para todos os destinos",
-        p: "De Saint-Jean para o seu hotel, Cité du Vin, aeroporto Mérignac, Arcachon, Saint-Émilion ou toda a metrópole.",
+        p: "De Saint-Jean para o seu hotel, Cité du Vin, aeroporto de Bordéus, Arcachon, Saint-Émilion ou toda a metrópole.",
       },
     ],
     faq: [
@@ -573,7 +573,7 @@ const PT: Record<LandingKey, LandingContent> = {
     description:
       "Reservar táxi Bordéus → Arcachon (Pyla, Cap-Ferret, Baía): trajeto direto, preço indicado na reserva, veículo até 4 pessoas com bagagem.",
     intro:
-      "Chegue à Baía de Arcachon de táxi a partir do centro de Bordéus, do aeroporto Mérignac ou da estação Saint-Jean.\nTrajeto direto, preço conhecido, sem transbordo.",
+      "Chegue à Baía de Arcachon de táxi a partir do centro de Bordéus, do aeroporto de Bordéus ou da estação Saint-Jean.\nTrajeto direto, preço conhecido, sem transbordo.",
     sections: [
       {
         h: "Trajeto direto porta-a-porta",
@@ -644,11 +644,11 @@ const PT: Record<LandingKey, LandingContent> = {
 // --------- IT ----------
 const IT: Record<LandingKey, LandingContent> = {
   airport: {
-    title: "Taxi Bordeaux aeroporto Mérignac : Prenotare taxi con José 24/7",
+    title: "Taxi Bordeaux aeroporto : Prenotare taxi con José 24/7",
     description:
-      "Prenotare un taxi Bordeaux aeroporto Mérignac: monitoraggio volo, prezzo indicato alla prenotazione, veicolo fino a 4 persone. 24/7. +33 6 73 07 23 22.",
+      "Prenotare un taxi Bordeaux aeroporto: monitoraggio volo, prezzo indicato alla prenotazione, veicolo fino a 4 persone. 24/7. +33 6 73 07 23 22.",
     intro:
-      "Prenoti il taxi per l'aeroporto di Bordeaux-Mérignac in pochi secondi.\nMonitoriamo il volo in tempo reale e adattiamo l'orario di ritiro automaticamente.",
+      "Prenoti il taxi per l'aeroporto di Bordeaux in pochi secondi.\nMonitoriamo il volo in tempo reale e adattiamo l'orario di ritiro automaticamente.",
     sections: [
       {
         h: "Volo in ritardo? Avvisi subito José",
@@ -656,7 +656,7 @@ const IT: Record<LandingKey, LandingContent> = {
       },
       {
         h: "Prezzo indicato in anticipo",
-        p: "Nessuna sorpresa.\nConosce una stima del prezzo Bordeaux ↔ Aeroporto Mérignac prima di salire.",
+        p: "Nessuna sorpresa.\nConosce una stima del prezzo Bordeaux ↔ Aeroporto prima di salire.",
       },
       { h: "Bagagli e famiglie", p: "Veicolo spazioso, seggiolino su richiesta, fino a 4 persone con bagagli." },
     ],
@@ -694,7 +694,7 @@ const IT: Record<LandingKey, LandingContent> = {
       },
       {
         h: "Verso ogni destinazione",
-        p: "Da Saint-Jean al suo hotel, Cité du Vin, aeroporto Mérignac, Arcachon, Saint-Émilion o tutta la metropoli.",
+        p: "Da Saint-Jean al suo hotel, Cité du Vin, aeroporto di Bordeaux, Arcachon, Saint-Émilion o tutta la metropoli.",
       },
     ],
     faq: [
@@ -719,7 +719,7 @@ const IT: Record<LandingKey, LandingContent> = {
     description:
       "Prenotare un taxi Bordeaux → Arcachon (Pyla, Cap-Ferret, Baia): tragitto diretto, prezzo indicato alla prenotazione, veicolo fino a 4 persone con bagagli.",
     intro:
-      "Raggiunga la Baia di Arcachon in taxi dal centro di Bordeaux, dall'aeroporto Mérignac o dalla stazione Saint-Jean.\nTragitto diretto, prezzo noto in anticipo.",
+      "Raggiunga la Baia di Arcachon in taxi dal centro di Bordeaux, dall'aeroporto di Bordeaux o dalla stazione Saint-Jean.\nTragitto diretto, prezzo noto in anticipo.",
     sections: [
       {
         h: "Tragitto diretto porta a porta",
@@ -790,11 +790,10 @@ const IT: Record<LandingKey, LandingContent> = {
 // --------- AR ----------
 const AR: Record<LandingKey, LandingContent> = {
   airport: {
-    title: "سيارة أجرة بوردو مطار ميرينياك : احجز تاكسي مع خوسيه 24/7",
+    title: "سيارة أجرة مطار بوردو : احجز تاكسي مع خوسيه 24/7",
     description:
-      "احجز سيارة أجرة بوردو مطار ميرينياك: متابعة الرحلة، سعر يُذكر عند الحجز، مركبة حتى 4 أشخاص. 24/7. +33 6 73 07 23 22.",
-    intro:
-      "احجز سيارة أجرة إلى مطار بوردو-ميرينياك في ثوان.\nنتابع رحلتك في الوقت الفعلي ونضبط موعد الاستلام تلقائيًا.",
+      "احجز سيارة أجرة مطار بوردو: متابعة الرحلة، سعر يُذكر عند الحجز، مركبة حتى 4 أشخاص. 24/7. +33 6 73 07 23 22.",
+    intro: "احجز سيارة أجرة إلى مطار بوردو في ثوان.\nنتابع رحلتك في الوقت الفعلي ونضبط موعد الاستلام تلقائيًا.",
     sections: [
       {
         h: "تأخرت رحلتك؟ أخبر خوسيه فورًا",
@@ -827,7 +826,7 @@ const AR: Record<LandingKey, LandingContent> = {
         h: "القطار متأخر؟ أخبر خوسيه فورًا",
         p: "تأخير أو تقديم أو تغيير الرصيف: أخبر خوسيه عبر رسالة نصية أو مكالمة هاتفية على 0033673072322 ليضبط موعد الاستلام.",
       },
-      { h: "إلى جميع الوجهات", p: "من سان-جان إلى فندقك، Cité du Vin، مطار ميرينياك، أركاشون، سانت-إميليون." },
+      { h: "إلى جميع الوجهات", p: "من سان-جان إلى فندقك، Cité du Vin، مطار بوردو، أركاشون، سانت-إميليون." },
     ],
     faq: [
       { q: "أين تلتقطني السيارة في محطة سان-جان؟", a: "في نقطة اللقاء المتفق عليها.\nنبلغك فور وصول السائق." },
@@ -845,7 +844,7 @@ const AR: Record<LandingKey, LandingContent> = {
     description:
       "احجز سيارة أجرة بوردو ← أركاشون (بيلا، كاب-فيري، الخليج): رحلة مباشرة، سعر يُذكر عند الحجز، مركبة حتى 4 أشخاص للعائلات والحقائب.",
     intro:
-      "اذهب إلى خليج أركاشون بسيارة أجرة من وسط بوردو أو مطار ميرينياك أو محطة سان-جان.\nرحلة مباشرة، سعر معروف مسبقًا.",
+      "اذهب إلى خليج أركاشون بسيارة أجرة من وسط بوردو أو مطار بوردو أو محطة سان-جان.\nرحلة مباشرة، سعر معروف مسبقًا.",
     sections: [
       {
         h: "رحلة مباشرة من الباب إلى الباب",
@@ -918,12 +917,12 @@ export const RELATED_LABEL: Record<Lang, string> = {
 
 export const LANDING_LABEL: Record<LandingKey, Record<Lang, string>> = {
   airport: {
-    fr: "Taxi aéroport Mérignac",
-    en: "Mérignac airport taxi",
-    es: "Taxi aeropuerto Mérignac",
-    pt: "Táxi aeroporto Mérignac",
-    it: "Taxi aeroporto Mérignac",
-    ar: "سيارة أجرة مطار ميرينياك",
+    fr: "Taxi aéroport de Bordeaux",
+    en: "Bordeaux airport taxi",
+    es: "Taxi aeropuerto de Burdeos",
+    pt: "Táxi aeroporto de Bordéus",
+    it: "Taxi aeroporto di Bordeaux",
+    ar: "سيارة أجرة مطار بوردو",
   },
   station: {
     fr: "Taxi gare Saint-Jean",
