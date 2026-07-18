@@ -115,7 +115,7 @@ const FR: Record<LandingKey, LandingContent> = {
     description:
       "Réserver un taxi Bordeaux → Arcachon, Pyla, Cap-Ferret : trajet direct, prix annoncé à la réservation, véhicule 4 personnes maximum pour familles et bagages. 06 73 07 23 22.",
     intro:
-      "Bordeaux ↔ Arcachon, je le fais souvent : pour des touristes qui veulent voir la Dune du Pyla, pour des familles qui vont à Cap-Ferret le week-end, pour des habitués qui prennent le TER trop lent avec les valises.\nC'est un trajet que je connais par cœur.",
+      "Bordeaux ↔ Arcachon, je le fais souvent : pour des touristes et nos locaux bordelais.\nC'est un trajet que je connais par cœur.",
     sections: [
       {
         h: "Porte-à-porte, sans correspondance",
