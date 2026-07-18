@@ -409,8 +409,8 @@ const PT: Record<LandingKey, LandingContent> = {
 // --------- IT ----------
 const IT: Record<LandingKey, LandingContent> = {
   airport: {
-    title: "Taxi Aeroporto Bordeaux-Mérignac — Servizio 24/7",
-    description: "Taxi da e per l'aeroporto Bordeaux-Mérignac: monitoraggio volo in tempo reale, tariffa fissa trasparente, veicolo confortevole, 7 giorni su 7.",
+    title: "Taxi Bordeaux aeroporto Mérignac — Prenotare taxi o VTC 7 posti",
+    description: "Prenotare un taxi Bordeaux aeroporto Mérignac: monitoraggio volo, tariffa fissa, VTC Bordeaux o taxi 7 posti su richiesta. 24/7 — +33 6 73 07 23 22.",
     intro: "Prenoti il taxi per l'aeroporto di Bordeaux-Mérignac in pochi secondi. Monitoriamo il volo in tempo reale e adattiamo l'orario di ritiro automaticamente.",
     sections: [
       { h: "Monitoraggio volo automatico", p: "Ci comunichi il numero di volo: l'orario di ritiro si adatta all'atterraggio reale, senza costi aggiuntivi." },
