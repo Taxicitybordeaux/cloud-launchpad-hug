@@ -3,7 +3,7 @@ import { Plane, Train, Briefcase, Wrench, ShieldCheck, MapPin, Users, Clock, Hel
 import { useT } from "@/i18n/I18nProvider";
 import { BulletedList } from "@/components/BulletedList";
 
-const SERVICES_TITLE = "Services Taxi Bordeaux — Aéroport, Gare, CPAM & Mariages";
+const SERVICES_TITLE = "Services Taxi Bordeaux : Aéroport, Gare, CPAM & Mariages";
 const SERVICES_DESC =
   "Découvrez nos services taxi à Bordeaux : transferts aéroport Mérignac, gare Saint-Jean, transport conventionné CPAM, mariages, business, longues distances.";
 const SERVICES_URL = "https://taxicitybordeaux.fr/services";
@@ -11,7 +11,7 @@ const SERVICES_URL = "https://taxicitybordeaux.fr/services";
 const SERVICES_FAQ = [
   {
     q: "Comment fonctionne le suivi en temps réel de mon vol ou de mon train ?",
-    a: "Dès que vous nous communiquez votre numéro de vol ou de train, nous le suivons automatiquement. Si l'arrivée est avancée ou retardée, l'heure de prise en charge est ajustée — vous n'avez rien à faire, le taxi sera là quand vous sortirez.",
+    a: "Dès que vous nous communiquez votre numéro de vol ou de train, nous le suivons automatiquement. Si l'arrivée est avancée ou retardée, l'heure de prise en charge est ajustée : vous n'avez rien à faire, le taxi sera là quand vous sortirez.",
   },
   {
     q: "Combien de temps le taxi attend-il après l'atterrissage ?",
