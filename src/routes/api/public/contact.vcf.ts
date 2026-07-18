@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { createHash } from "crypto";
 
 const VCARD = [
   "BEGIN:VCARD",
@@ -12,6 +13,9 @@ const VCARD = [
   "END:VCARD",
   "",
 ].join("\r\n");
+
+const VCARD_ETAG = `"${createHash("sha256").update(VCARD).digest("hex").slice(0, 16)}"`;
+const VCARD_LAST_MODIFIED = "Wed, 01 Jan 2025 00:00:00 GMT";
 
 export const Route = createFileRoute("/api/public/contact/vcf")({
   server: {
