@@ -419,7 +419,7 @@ const fr: Dict = {
   "faqx.intro": "Tout ce qu'il faut savoir avant votre course.",
   "faqx.tracking.q": "Comment fonctionne le suivi en temps réel de mon vol ou de mon train ?",
   "faqx.tracking.a":
-    "Dès que vous nous communiquez votre numéro de vol ou de train, nous le suivons automatiquement. Si l'arrivée est avancée ou retardée, l'heure de prise en charge est ajustée — vous n'avez rien à faire, le taxi sera là quand vous sortirez.",
+    "Dès que vous nous communiquez votre numéro de vol ou de train, nous suivons l'horaire. En cas de retard, prévenez immédiatement José par SMS ou par téléphone au 06\u00A073\u00A007\u00A023\u00A022 pour qu'il ajuste l'heure de prise en charge.",
   "faqx.wait.q": "Combien de temps le taxi attend-il après l'atterrissage ?",
   "faqx.wait.a":
     "Le taxi se présente après l'atterrissage réel (et non l'horaire prévu). Le temps nécessaire pour récupérer vos bagages et passer la douane est pris en compte. Au-delà, le temps d'attente supplémentaire est facturé au tarif réglementé en vigueur, en toute transparence.",
@@ -1511,7 +1511,7 @@ const en: Dict = {
   "faqx.intro": "Everything you need to know before your ride.",
   "faqx.tracking.q": "How does real-time flight or train tracking work?",
   "faqx.tracking.a":
-    "As soon as you share your flight or train number, we track it automatically. If your arrival is early or delayed, the pick-up time is adjusted — you don't need to do anything, your driver will be waiting when you come out.",
+    "As soon as you share your flight or train number, we keep an eye on the schedule. If there's a delay, please let José know right away by text message or phone call at +33\u00A06\u00A073\u00A007\u00A023\u00A022 so he can adjust the pick-up time.",
   "faqx.wait.q": "How long does the driver wait after landing?",
   "faqx.wait.a":
     "The driver shows up based on actual landing time (not the scheduled one), and we account for the time needed to collect your luggage and clear customs. Beyond that, additional waiting time is billed at the official regulated rate, in full transparency.",
@@ -2613,7 +2613,7 @@ const es: Dict = {
   "faqx.intro": "Todo lo que debe saber antes de su trayecto.",
   "faqx.tracking.q": "¿Cómo funciona el seguimiento en tiempo real de mi vuelo o tren?",
   "faqx.tracking.a":
-    "En cuanto nos facilita su número de vuelo o tren, lo seguimos automáticamente. Si la llegada se adelanta o se retrasa, ajustamos la hora de recogida — no tiene que hacer nada, el conductor le esperará a la salida.",
+    "En cuanto nos facilita su número de vuelo o tren, seguimos el horario. En caso de retraso, avise inmediatamente a José por SMS o llamada al +33\u00A06\u00A073\u00A007\u00A023\u00A022 para que ajuste la hora de recogida.",
   "faqx.wait.q": "¿Cuánto tiempo espera el conductor tras el aterrizaje?",
   "faqx.wait.a":
     "El conductor llega según la hora real de aterrizaje (no la prevista), e incluimos el tiempo necesario para recoger el equipaje y pasar la aduana. A partir de ahí, el tiempo de espera adicional se factura según la tarifa oficial regulada, con total transparencia.",
@@ -3716,7 +3716,7 @@ const it: Dict = {
   "faqx.intro": "Tutto quello che c'è da sapere prima della corsa.",
   "faqx.tracking.q": "Come funziona il tracciamento in tempo reale del volo o del treno?",
   "faqx.tracking.a":
-    "Appena ci comunica il numero del volo o del treno, lo seguiamo automaticamente. Se l'arrivo è in anticipo o in ritardo, l'orario di prelievo viene aggiornato — non deve fare nulla, l'autista la aspetterà all'uscita.",
+    "Appena ci comunica il numero del volo o del treno, seguiamo l'orario. In caso di ritardo, avvisi immediatamente José via SMS o telefono al +33\u00A06\u00A073\u00A007\u00A023\u00A022 in modo che possa adattare l'orario di ritiro.",
   "faqx.wait.q": "Quanto tempo attende l'autista dopo l'atterraggio?",
   "faqx.wait.a":
     "L'autista si presenta in base all'orario reale di atterraggio (non a quello previsto) e teniamo conto del tempo per ritirare i bagagli e passare la dogana. Oltre, l'attesa supplementare è fatturata secondo la tariffa ufficiale regolamentata, in totale trasparenza.",
@@ -4811,7 +4811,7 @@ const ar: Dict = {
   "faqx.intro": "كل ما تحتاج معرفته قبل رحلتك.",
   "faqx.tracking.q": "كيف يعمل التتبع المباشر لرحلتي الجوية أو القطار؟",
   "faqx.tracking.a":
-    "بمجرد إعطائنا رقم الرحلة أو القطار، نتابعه تلقائيًا. إذا وصلت مبكرًا أو متأخرًا، نعدّل وقت الاستقبال — لا داعي لفعل أي شيء، السائق سينتظرك عند الخروج.",
+    "بمجرد إعطائنا رقم الرحلة أو القطار، نتابع موعدها. في حال حدوث تأخير، يرجى إخطار خوسيه فورًا عبر رسالة نصية أو مكالمة هاتفية على 0033673072322 ليتمكن من ضبط موعد الاستقبال.",
   "faqx.wait.q": "كم من الوقت ينتظر السائق بعد الهبوط؟",
   "faqx.wait.a":
     "يحضر السائق وفقًا لوقت الهبوط الفعلي (وليس المجدول)، ونحسب الوقت اللازم لاستلام الأمتعة وإجراءات الجمارك. بعد ذلك، يُحتسب وقت الانتظار الإضافي وفق التعرفة الرسمية المعتمدة، بكل شفافية.",
@@ -5928,7 +5928,7 @@ const pt: Dict = {
   "faqx.intro": "Tudo o que precisa de saber antes da sua corrida.",
   "faqx.tracking.q": "Como funciona o acompanhamento em tempo real do meu voo ou comboio?",
   "faqx.tracking.a":
-    "Assim que nos comunica o número do voo ou comboio, acompanhamo-lo automaticamente. Se a chegada for adiantada ou atrasada, ajustamos a hora de recolha — não tem de fazer nada, o motorista estará à sua espera à saída.",
+    "Assim que nos comunica o número do voo ou comboio, acompanhamos o horário. Em caso de atraso, avise imediatamente o José por SMS ou telefone para o +33\u00A06\u00A073\u00A007\u00A023\u00A022 para que ajuste a hora de recolha.",
   "faqx.wait.q": "Quanto tempo espera o motorista após a aterragem?",
   "faqx.wait.a":
     "O motorista apresenta-se com base na hora real de aterragem (não a prevista) e contamos o tempo necessário para recolher a bagagem e passar a alfândega. Para além disso, o tempo de espera adicional é cobrado segundo a tarifa oficial regulamentada, com total transparência.",
