@@ -156,7 +156,7 @@ const FR: Record<LandingKey, LandingContent> = {
     description:
       "Réserver un taxi conventionné Bordeaux : tiers payant, ALD 100 %, dialyse, chimio. Véhicule 4 personnes maximum. 06 73 07 23 22.",
     intro:
-      "Je suis José, taxi conventionné par l'Assurance Maladie à Bordeaux.\nConcrètement : si votre médecin vous a fait un bon de transport, vous n'avez rien à avancer.\nJe m'occupe de la facturation avec la CPAM et votre mutuelle.\nJe fais beaucoup de dialyse, de chimio, de consultations à Pellegrin, Haut-Lévêque et Saint-André.",
+      "Je suis José, taxi conventionné par l'Assurance Maladie à Bordeaux.\nConcrètement : si votre médecin vous a fait un bon de transport, vous n'avez rien à avancer.\nJe m'occupe de la facturation avec la CPAM et votre mutuelle.\nJe fais beaucoup de dialyse, de chimio, de consultations à l'hôpital.",
     sections: [
       {
         h: "Le bon de transport, on s'occupe du reste",
