@@ -341,8 +341,8 @@ const ES: Record<LandingKey, LandingContent> = {
 // --------- PT ----------
 const PT: Record<LandingKey, LandingContent> = {
   airport: {
-    title: "Táxi Bordéus aeroporto Mérignac — Reservar táxi ou VTC 7 lugares",
-    description: "Reservar táxi Bordéus aeroporto Mérignac: seguimento de voo, tarifa fixa, VTC Bordéus ou táxi 7 lugares sob pedido. 24/7 — +33 6 73 07 23 22.",
+    title: "Táxi Bordéus aeroporto Mérignac — Reservar táxi com José 24/7",
+    description: "Reservar táxi Bordéus aeroporto Mérignac: seguimento de voo, tarifa fixa, táxi 7 lugares sob pedido. 24/7 — +33 6 73 07 23 22.",
     intro: "Reserve o seu táxi para o aeroporto de Bordéus-Mérignac em segundos. Seguimos o seu voo em tempo real e ajustamos a hora de recolha automaticamente.",
     sections: [
       { h: "Seguimento de voo automático", p: "Indique o número do voo: a hora de recolha ajusta-se à aterragem real, sem custo extra." },
@@ -357,8 +357,8 @@ const PT: Record<LandingKey, LandingContent> = {
     ctaBook: CTA.pt.book, ctaCall: CTA.pt.call,
   },
   station: {
-    title: "Táxi Bordéus estação Saint-Jean — Reservar táxi ou VTC 7 lugares",
-    description: "Reservar táxi na estação Bordéus Saint-Jean: seguimento TGV, recolha na plataforma, VTC Bordéus ou táxi 7 lugares sob pedido. 24/7.",
+    title: "Táxi Bordéus estação Saint-Jean — Reservar táxi com José 24/7",
+    description: "Reservar táxi na estação Bordéus Saint-Jean: seguimento TGV, recolha na plataforma, táxi 7 lugares sob pedido. 24/7.",
     intro: "Um táxi espera-o na estação de Bordéus Saint-Jean, ou vem buscá-lo para o seu TGV. Seguimos o comboio e ajustamos o horário automaticamente.",
     sections: [
       { h: "Recolha em Saint-Jean", p: "Ponto de encontro combinado na reserva: zona de largada, átrio principal ou parque." },
@@ -373,8 +373,8 @@ const PT: Record<LandingKey, LandingContent> = {
     ctaBook: CTA.pt.book, ctaCall: CTA.pt.call,
   },
   arcachon: {
-    title: "Táxi Bordéus → Arcachon — Reservar táxi 7 lugares Pyla & Cap-Ferret",
-    description: "Reservar táxi Bordéus → Arcachon (Pyla, Cap-Ferret, Baía): trajeto direto, tarifa fixa, VTC Bordéus ou táxi 7 lugares para famílias e bagagem.",
+    title: "Táxi Bordéus → Arcachon — Reservar táxi Pyla & Cap-Ferret",
+    description: "Reservar táxi Bordéus → Arcachon (Pyla, Cap-Ferret, Baía): trajeto direto, tarifa fixa, táxi 7 lugares para famílias e bagagem.",
     intro: "Chegue à Baía de Arcachon de táxi a partir do centro de Bordéus, do aeroporto Mérignac ou da estação Saint-Jean. Trajeto direto, preço conhecido, sem transbordo.",
     sections: [
       { h: "Trajeto direto porta-a-porta", p: "Do seu hotel, estação ou aeroporto até Arcachon cidade, a Duna do Pyla, Cap-Ferret ou Andernos — sem transbordo." },
@@ -390,7 +390,7 @@ const PT: Record<LandingKey, LandingContent> = {
   },
   cpam: {
     title: "Táxi convencionado CPAM Bordéus — Reservar, faturação direta, ALD",
-    description: "Reservar táxi convencionado em Bordéus: faturação direta (tiers payant), ALD 100%, diálise, quimio. Também VTC Bordéus e táxi 7 lugares.",
+    description: "Reservar táxi convencionado em Bordéus: faturação direta (tiers payant), ALD 100%, diálise, quimio. Também táxi 7 lugares.",
     intro: "Táxi convencionado com o seguro de saúde francês (CPAM) em Bordéus. Com a sua prescrição médica de transporte, o trajeto é faturado diretamente.",
     sections: [
       { h: "Cobertura CPAM", p: "Traga o seu voucher de transporte assinado pelo seu médico. Tratamos da faturação diretamente." },
