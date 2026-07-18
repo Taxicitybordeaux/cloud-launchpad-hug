@@ -289,8 +289,8 @@ const ES: Record<LandingKey, LandingContent> = {
     ctaBook: CTA.es.book, ctaCall: CTA.es.call,
   },
   station: {
-    title: "Taxi Estación Burdeos Saint-Jean — Reserva online 24/7",
-    description: "Taxi a la estación Burdeos Saint-Jean: seguimiento de tren, recogida inmediata o reservada, precios claros. Disponible todos los días.",
+    title: "Taxi Burdeos estación Saint-Jean — Reservar taxi o VTC 7 plazas",
+    description: "Reservar taxi en la estación Burdeos Saint-Jean: seguimiento TGV, recogida en el andén, VTC Burdeos o taxi 7 plazas bajo petición. 24/7.",
     intro: "Un taxi le espera en la estación de Burdeos Saint-Jean, o le recoge para su TGV. Seguimos su tren y ajustamos la hora automáticamente.",
     sections: [
       { h: "Recogida en Saint-Jean", p: "Punto de encuentro acordado al reservar: zona de bajada, vestíbulo o aparcamiento. Su conductor le localiza y le llama si es necesario." },
