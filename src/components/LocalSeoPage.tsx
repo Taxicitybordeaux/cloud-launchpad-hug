@@ -22,6 +22,15 @@ const BACK_LABEL: Record<string, string> = {
   ar: "العودة إلى الصفحة الرئيسية",
 };
 
+const FEE_NOTE: Record<string, string> = {
+  fr: "* Des frais de réservation peuvent être appliqués.",
+  en: "* Booking fees may apply.",
+  es: "* Se pueden aplicar tarifas de reserva.",
+  it: "* Potrebbero essere applicati costi di prenotazione.",
+  pt: "* Podem ser aplicadas taxas de reserva.",
+  ar: "* قد يتم تطبيق رسوم حجز.",
+};
+
 export function LocalSeoPage({ landingKey }: { landingKey: LandingKey }) {
   const { lang } = useI18n();
   const c = getLanding(lang, landingKey);
@@ -57,6 +66,7 @@ export function LocalSeoPage({ landingKey }: { landingKey: LandingKey }) {
             {c.ctaCall}
           </a>
         </div>
+        <p className="mt-3 text-xs font-semibold text-red-600">{FEE_NOTE[lang] ?? FEE_NOTE.fr}</p>
       </header>
 
       <section className="mt-12 grid gap-4 sm:mt-16 md:grid-cols-3">
@@ -91,9 +101,10 @@ export function LocalSeoPage({ landingKey }: { landingKey: LandingKey }) {
         >
           {c.ctaBook}
         </Link>
+        <p className="mt-3 text-xs font-semibold text-red-600">{FEE_NOTE[lang] ?? FEE_NOTE.fr}</p>
       </div>
 
-      {/* Cross-links vers les autres pages SEO — améliore l'exploration Google et l'UX */}
+      {/* Cross-links vers les autres pages SEO : améliore l'exploration Google et l'UX */}
       <section className="mt-14 border-t border-border pt-10 sm:mt-20">
         <p className="text-center text-xs font-semibold uppercase tracking-[0.3em] text-primary">
           {RELATED_LABEL[lang] ?? RELATED_LABEL.fr}
