@@ -2,21 +2,22 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import logoSrc from "@/assets/tcb-logo-badge.png";
 
+const CARTE_URL = "https://taxicitybordeaux.fr/carte";
+const CARTE_TITLE = "Taxi City Bordeaux — Contact rapide";
+const CARTE_DESC =
+  "Appeler, WhatsApp, SMS, email, réservation en ligne — tous les contacts Taxi City Bordeaux en un clic.";
+
 export const Route = createFileRoute("/carte")({
   head: () => ({
     meta: [
-      { title: "Taxi City Bordeaux — Contact rapide" },
-      {
-        name: "description",
-        content:
-          "Appeler, WhatsApp, SMS, email, réservation en ligne — tous les contacts Taxi City Bordeaux en un clic.",
-      },
-      { property: "og:title", content: "Taxi City Bordeaux — Contact rapide" },
-      {
-        property: "og:description",
-        content: "Tous les contacts Taxi City Bordeaux en un clic.",
-      },
+      { title: CARTE_TITLE },
+      { name: "description", content: CARTE_DESC },
+      { property: "og:title", content: CARTE_TITLE },
+      { property: "og:description", content: CARTE_DESC },
+      { property: "og:url", content: CARTE_URL },
+      { property: "og:type", content: "website" },
     ],
+    links: [{ rel: "canonical", href: CARTE_URL }],
   }),
   component: CartePage,
 });

@@ -1,16 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 
+const URL = "https://taxicitybordeaux.fr/confidentialite";
+const TITLE = "Politique de confidentialité — Taxi City Bordeaux";
+const DESC =
+  "Politique de confidentialité Taxi City Bordeaux : données collectées, finalités, durée de conservation et droits RGPD.";
+
 export const Route = createFileRoute("/confidentialite")({
   head: () => ({
     meta: [
-      { title: "Politique de confidentialité — Taxi City Bordeaux" },
-      {
-        name: "description",
-        content:
-          "Politique de confidentialité Taxi City Bordeaux : données collectées, finalités, durée de conservation et droits RGPD.",
-      },
+      { title: TITLE },
+      { name: "description", content: DESC },
+      { property: "og:title", content: TITLE },
+      { property: "og:description", content: DESC },
+      { property: "og:url", content: URL },
+      { property: "og:type", content: "website" },
       { name: "robots", content: "index,follow" },
     ],
+    links: [{ rel: "canonical", href: URL }],
   }),
   component: ConfidentialitePage,
 });
