@@ -111,9 +111,9 @@ const FR: Record<LandingKey, LandingContent> = {
     ctaCall: CTA.fr.call,
   },
   arcachon: {
-    title: "Taxi Bordeaux ↔ Arcachon — Trajet direct, pas de correspondance",
+    title: "Taxi Bordeaux Arcachon — Réserver taxi 7 places, Pyla & Cap-Ferret",
     description:
-      "Taxi de Bordeaux vers Arcachon, Pyla, Cap-Ferret : José vous emmène en direct, tarif annoncé d'avance, aller-retour possible. 06 73 07 23 22.",
+      "Réserver un taxi Bordeaux → Arcachon, Pyla, Cap-Ferret : trajet direct, forfait annoncé, VTC Bordeaux ou taxi 7 places pour familles et bagages. 06 73 07 23 22.",
     intro:
       "Bordeaux ↔ Arcachon, je le fais souvent — pour des touristes qui veulent voir la Dune du Pyla, pour des familles qui vont à Cap-Ferret le week-end, pour des habitués qui prennent le TER trop lent avec les valises. C'est un trajet que je connais par cœur.",
     sections: [
