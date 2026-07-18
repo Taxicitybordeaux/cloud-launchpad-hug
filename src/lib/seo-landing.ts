@@ -321,8 +321,8 @@ const ES: Record<LandingKey, LandingContent> = {
     ctaBook: CTA.es.book, ctaCall: CTA.es.call,
   },
   cpam: {
-    title: "Taxi Médico Concertado Burdeos — Facturación directa, ALD",
-    description: "Taxi concertado con la Seguridad Social francesa en Burdeos: transporte médico sentado, facturación directa, ALD, diálisis, quimioterapia.",
+    title: "Taxi concertado CPAM Burdeos — Reservar, facturación directa, ALD",
+    description: "Reservar taxi concertado en Burdeos: facturación directa (tiers payant), ALD 100 %, diálisis, quimio. También VTC Burdeos y taxi 7 plazas.",
     intro: "Taxi concertado con la Seguridad Social francesa (CPAM) en Burdeos. Con su prescripción médica de transporte, el trayecto se factura directamente — sin adelantar dinero.",
     sections: [
       { h: "Cobertura CPAM", p: "Presente su bono de transporte firmado por su médico. Nos encargamos de la facturación directamente." },
