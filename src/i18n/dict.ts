@@ -188,9 +188,9 @@ const fr: Dict = {
   // Services page
   "services.eyebrow": "Nos prestations",
   "services.title": "Un service taxi pour chaque besoin",
-  "services.intro": "À Bordeaux, en Gironde et partout en France : un seul interlocuteur, un service haut de gamme.",
+  "services.intro": "À Bordeaux, en Gironde et partout en France — un seul interlocuteur, un service haut de gamme.",
   "services.cta": "Réserver",
-  "services.b1": "7j/7, 24h/24",
+  "services.b1": "7j/7 – 24h/24",
   "services.b2": "Jusqu'à 4 passagers",
   "services.b3": "Taxi professionnel",
   "svcp.airport.title": "Transferts Aéroport de Bordeaux",
@@ -279,7 +279,7 @@ const fr: Dict = {
   // Contact page
   "contact.eyebrow": "Contact",
   "contact.title": "Nous contacter",
-  "contact.intro": "Disponible 7j/7 : un appel suffit, ou envoyez-nous un message.",
+  "contact.intro": "Disponible 7j/7 — un appel suffit, ou envoyez-nous un message.",
   "contact.phone": "Téléphone",
   "contact.phone.sub": "Réponse immédiate",
   "contact.wa.title": "WhatsApp",
@@ -294,7 +294,7 @@ const fr: Dict = {
   "contact.form.eyebrow": "Formulaire",
   "contact.form.title": "Envoyez-nous un message",
   "contact.form.intro":
-    "Pour une question ou une demande particulière : nous vous répondons dans les plus brefs délais.",
+    "Pour une question ou une demande particulière — nous vous répondons dans les plus brefs délais.",
   "contact.form.name": "Nom complet *",
   "contact.form.email": "Email *",
   "contact.form.phone": "Téléphone (facultatif)",
@@ -425,7 +425,7 @@ const fr: Dict = {
     "Le taxi se présente après l'atterrissage réel (et non l'horaire prévu). Le temps nécessaire pour récupérer vos bagages et passer la douane est pris en compte. Au-delà, le temps d'attente supplémentaire est facturé au tarif réglementé en vigueur, en toute transparence.",
   "faqx.cpam.q": "Comment se passe la prise en charge CPAM / ALD ?",
   "faqx.cpam.a":
-    "Munissez-vous de la prescription médicale de transport remise par votre médecin. Sur présentation de ce bon de transport, nous appliquons le tiers payant : la course est directement prise en charge par l'Assurance Maladie. En ALD (affection longue durée), la prise en charge est intégrale et valable pour toutes les distances, y compris les longs trajets vers un centre spécialisé.",
+    "Munissez-vous de la prescription médicale de transport remise par votre médecin. Sur présentation de ce bon de transport, nous appliquons le tiers payant : la course est directement prise en charge par l'Assurance Maladie. En ALD (affection longue durée), la prise en charge est intégrale et valable pour toutes les distances — y compris les longs trajets vers un centre spécialisé.",
 
   // Page /reserver — chaînes locales (non couvertes par res.*)
   "res.err.required": "Requis",
@@ -1295,7 +1295,7 @@ const en: Dict = {
 
   "services.eyebrow": "Our services",
   "services.title": "A taxi service for every need",
-  "services.intro": "In Bordeaux, across Gironde and all over France: one contact, premium service.",
+  "services.intro": "In Bordeaux, across Gironde and all over France — one contact, premium service.",
   "services.cta": "Book",
   "services.b1": "24/7",
   "services.b2": "Up to 4 passengers",
@@ -1378,7 +1378,7 @@ const en: Dict = {
 
   "contact.eyebrow": "Contact",
   "contact.title": "Get in touch",
-  "contact.intro": "Available 24/7: one call is enough, or send us a message.",
+  "contact.intro": "Available 24/7 — one call is enough, or send us a message.",
   "contact.phone": "Phone",
   "contact.phone.sub": "Immediate answer",
   "contact.wa.title": "WhatsApp",
@@ -1392,7 +1392,7 @@ const en: Dict = {
   "contact.zone.sub": "Long-distance trips across France on request.",
   "contact.form.eyebrow": "Form",
   "contact.form.title": "Send us a message",
-  "contact.form.intro": "For a question or a special request: we reply as soon as possible.",
+  "contact.form.intro": "For a question or a special request — we reply as soon as possible.",
   "contact.form.name": "Full name *",
   "contact.form.email": "Email *",
   "contact.form.phone": "Phone (optional)",
@@ -1517,7 +1517,7 @@ const en: Dict = {
     "The driver shows up based on actual landing time (not the scheduled one), and we account for the time needed to collect your luggage and clear customs. Beyond that, additional waiting time is billed at the official regulated rate, in full transparency.",
   "faqx.cpam.q": "How does CPAM / ALD coverage work?",
   "faqx.cpam.a":
-    "Bring the medical transport prescription given by your doctor. With this transport voucher we apply third-party payment: the ride is billed directly to the French health insurance. Under ALD (long-term illness), coverage is full and valid for all distances, including long trips to a specialised centre.",
+    "Bring the medical transport prescription given by your doctor. With this transport voucher we apply third-party payment: the ride is billed directly to the French health insurance. Under ALD (long-term illness), coverage is full and valid for all distances — including long trips to a specialised centre.",
 
   "res.err.required": "Required",
   "res.geo.btn": "My location",
@@ -2396,7 +2396,7 @@ const es: Dict = {
 
   "services.eyebrow": "Nuestros servicios",
   "services.title": "Un servicio de taxi para cada necesidad",
-  "services.intro": "En Burdeos, en la Gironda y en toda Francia: un único interlocutor, servicio premium.",
+  "services.intro": "En Burdeos, en la Gironda y en toda Francia — un único interlocutor, servicio premium.",
   "services.cta": "Reservar",
   "services.b1": "24/7",
   "services.b2": "Hasta 4 pasajeros",
@@ -2480,7 +2480,7 @@ const es: Dict = {
 
   "contact.eyebrow": "Contacto",
   "contact.title": "Contáctenos",
-  "contact.intro": "Disponible 24/7: basta una llamada, o envíenos un mensaje.",
+  "contact.intro": "Disponible 24/7 — basta una llamada, o envíenos un mensaje.",
   "contact.phone": "Teléfono",
   "contact.phone.sub": "Respuesta inmediata",
   "contact.wa.title": "WhatsApp",
@@ -2494,7 +2494,7 @@ const es: Dict = {
   "contact.zone.sub": "Viajes de larga distancia por toda Francia con reserva.",
   "contact.form.eyebrow": "Formulario",
   "contact.form.title": "Envíenos un mensaje",
-  "contact.form.intro": "Para una pregunta o una petición especial: respondemos lo antes posible.",
+  "contact.form.intro": "Para una pregunta o una petición especial — respondemos lo antes posible.",
   "contact.form.name": "Nombre completo *",
   "contact.form.email": "Email *",
   "contact.form.phone": "Teléfono (opcional)",
@@ -3596,7 +3596,7 @@ const it: Dict = {
   "contact.zone.sub": "Lunghe distanze in tutta la Francia su prenotazione.",
   "contact.form.eyebrow": "Modulo",
   "contact.form.title": "Inviateci un messaggio",
-  "contact.form.intro": "Per una domanda o una richiesta particolare: vi rispondiamo al più presto.",
+  "contact.form.intro": "Per una domanda o una richiesta particolare — vi rispondiamo al più presto.",
   "contact.form.name": "Nome completo *",
   "contact.form.email": "Email *",
   "contact.form.phone": "Telefono (opzionale)",
@@ -4599,7 +4599,7 @@ const ar: Dict = {
 
   "services.eyebrow": "خدماتنا",
   "services.title": "خدمة تاكسي لكل احتياج",
-  "services.intro": "في بوردو، عبر جيروند وكل أنحاء فرنسا: جهة اتصال واحدة، خدمة مميزة.",
+  "services.intro": "في بوردو، عبر جيروند وكل أنحاء فرنسا — جهة اتصال واحدة، خدمة مميزة.",
   "services.cta": "احجز",
   "services.b1": "24/7",
   "services.b2": "حتى 4 ركاب",
@@ -4678,7 +4678,7 @@ const ar: Dict = {
 
   "contact.eyebrow": "اتصل بنا",
   "contact.title": "تواصل معنا",
-  "contact.intro": "متاح 24/7: مكالمة واحدة تكفي، أو أرسل لنا رسالة.",
+  "contact.intro": "متاح 24/7 — مكالمة واحدة تكفي، أو أرسل لنا رسالة.",
   "contact.phone": "الهاتف",
   "contact.phone.sub": "رد فوري",
   "contact.wa.title": "واتساب",
@@ -4692,7 +4692,7 @@ const ar: Dict = {
   "contact.zone.sub": "رحلات طويلة عبر كامل فرنسا بالحجز المسبق.",
   "contact.form.eyebrow": "نموذج",
   "contact.form.title": "أرسل لنا رسالة",
-  "contact.form.intro": "لسؤال أو طلب خاص: نرد بأسرع وقت ممكن.",
+  "contact.form.intro": "لسؤال أو طلب خاص — نرد بأسرع وقت ممكن.",
   "contact.form.name": "الاسم الكامل *",
   "contact.form.email": "البريد الإلكتروني *",
   "contact.form.phone": "الهاتف (اختياري)",
@@ -4817,7 +4817,7 @@ const ar: Dict = {
     "يحضر السائق وفقًا لوقت الهبوط الفعلي (وليس المجدول)، ونحسب الوقت اللازم لاستلام الأمتعة وإجراءات الجمارك. بعد ذلك، يُحتسب وقت الانتظار الإضافي وفق التعرفة الرسمية المعتمدة، بكل شفافية.",
   "faqx.cpam.q": "كيف تتم التغطية CPAM / ALD؟",
   "faqx.cpam.a":
-    "أحضر وصفة النقل الطبي من طبيبك. بتقديم بون النقل، نطبّق نظام الدفع المباشر: تتولى التأمين الصحي الفرنسي تكاليف الرحلة مباشرة. في حالة ALD (مرض طويل الأمد)، التغطية كاملة وصالحة لجميع المسافات، بما في ذلك الرحلات الطويلة إلى المراكز المتخصصة.",
+    "أحضر وصفة النقل الطبي من طبيبك. بتقديم بون النقل، نطبّق نظام الدفع المباشر: تتولى التأمين الصحي الفرنسي تكاليف الرحلة مباشرة. في حالة ALD (مرض طويل الأمد)، التغطية كاملة وصالحة لجميع المسافات — بما في ذلك الرحلات الطويلة إلى المراكز المتخصصة.",
 
   "res.err.required": "مطلوب",
   "res.geo.btn": "موقعي",
@@ -5704,9 +5704,9 @@ const pt: Dict = {
   // Services page
   "services.eyebrow": "Os nossos serviços",
   "services.title": "Um serviço de táxi para cada necessidade",
-  "services.intro": "Em Bordéus, na Gironde e em toda a França: um único interlocutor, um serviço de alta qualidade.",
+  "services.intro": "Em Bordéus, na Gironde e em toda a França — um único interlocutor, um serviço de alta qualidade.",
   "services.cta": "Reservar",
-  "services.b1": "7d/7, 24h/24",
+  "services.b1": "7d/7 – 24h/24",
   "services.b2": "Até 4 passageiros",
   "services.b3": "Motorista profissional",
   "svcp.airport.title": "Transferes Aeroporto de Bordeaux",
@@ -5790,7 +5790,7 @@ const pt: Dict = {
   // Contact page
   "contact.eyebrow": "Contacto",
   "contact.title": "Fale connosco",
-  "contact.intro": "Disponível 7d/7: basta uma chamada, ou envie-nos uma mensagem.",
+  "contact.intro": "Disponível 7d/7 — basta uma chamada, ou envie-nos uma mensagem.",
   "contact.phone": "Telefone",
   "contact.phone.sub": "Resposta imediata",
   "contact.wa.title": "WhatsApp",
@@ -5804,7 +5804,7 @@ const pt: Dict = {
   "contact.zone.sub": "Longas distâncias por toda a França mediante reserva.",
   "contact.form.eyebrow": "Formulário",
   "contact.form.title": "Envie-nos uma mensagem",
-  "contact.form.intro": "Para uma questão ou pedido especial: respondemos o mais rapidamente possível.",
+  "contact.form.intro": "Para uma questão ou pedido especial — respondemos o mais rapidamente possível.",
   "contact.form.name": "Nome completo *",
   "contact.form.email": "Email *",
   "contact.form.phone": "Telefone (opcional)",
@@ -5934,7 +5934,7 @@ const pt: Dict = {
     "O motorista apresenta-se com base na hora real de aterragem (não a prevista) e contamos o tempo necessário para recolher a bagagem e passar a alfândega. Para além disso, o tempo de espera adicional é cobrado segundo a tarifa oficial regulamentada, com total transparência.",
   "faqx.cpam.q": "Como funciona a cobertura CPAM / ALD?",
   "faqx.cpam.a":
-    "Traga a prescrição médica de transporte entregue pelo seu médico. Com este voucher de transporte aplicamos o terceiro pagador: a corrida é faturada diretamente ao Seguro de Saúde francês. Em ALD (doença de longa duração), a cobertura é total e válida para todas as distâncias, incluindo trajetos longos para um centro especializado.",
+    "Traga a prescrição médica de transporte entregue pelo seu médico. Com este voucher de transporte aplicamos o terceiro pagador: a corrida é faturada diretamente ao Seguro de Saúde francês. Em ALD (doença de longa duração), a cobertura é total e válida para todas as distâncias — incluindo trajetos longos para um centro especializado.",
 
   "res.err.required": "Obrigatório",
   "res.geo.btn": "A minha posição",
