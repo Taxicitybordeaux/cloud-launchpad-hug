@@ -389,8 +389,8 @@ const PT: Record<LandingKey, LandingContent> = {
     ctaBook: CTA.pt.book, ctaCall: CTA.pt.call,
   },
   cpam: {
-    title: "Táxi Médico Convencionado Bordéus — Faturação direta, ALD",
-    description: "Táxi convencionado com o seguro de saúde francês em Bordéus: transporte médico sentado, faturação direta, ALD, diálise, quimioterapia.",
+    title: "Táxi convencionado CPAM Bordéus — Reservar, faturação direta, ALD",
+    description: "Reservar táxi convencionado em Bordéus: faturação direta (tiers payant), ALD 100%, diálise, quimio. Também VTC Bordéus e táxi 7 lugares.",
     intro: "Táxi convencionado com o seguro de saúde francês (CPAM) em Bordéus. Com a sua prescrição médica de transporte, o trajeto é faturado diretamente.",
     sections: [
       { h: "Cobertura CPAM", p: "Traga o seu voucher de transporte assinado pelo seu médico. Tratamos da faturação diretamente." },
