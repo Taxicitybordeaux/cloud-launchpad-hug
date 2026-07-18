@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LocalSeoPage } from "@/components/LocalSeoPage";
 import { getLanding } from "@/lib/seo-landing";
+import { hreflangLinks } from "@/lib/seo-hreflang";
 
 const URL = "https://taxicitybordeaux.fr/taxi-aeroport-bordeaux-merignac";
 const c = getLanding("fr", "airport");
@@ -16,7 +17,7 @@ export const Route = createFileRoute("/taxi-aeroport-bordeaux-merignac")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
-    links: [{ rel: "canonical", href: URL }],
+    links: [{ rel: "canonical", href: URL }, ...hreflangLinks(URL)],
     scripts: [
       {
         type: "application/ld+json",

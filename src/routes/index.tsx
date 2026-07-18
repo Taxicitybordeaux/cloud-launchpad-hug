@@ -15,6 +15,7 @@ import {
   Quote,
   HelpCircle,
   MessageCircle,
+  Heart,
 } from "lucide-react";
 import logo from "@/assets/tcb-logo-badge.png";
 import heroCar from "@/assets/hero-bordeaux.jpg";
@@ -25,11 +26,12 @@ import bestCiteVin from "@/assets/best-cite-vin.jpg";
 import bestDunePilat from "@/assets/best-dune-pilat.jpg";
 import bestSaintEmilion from "@/assets/best-saint-emilion.jpg";
 import bestMiroirEau from "@/assets/best-miroir-eau.jpg";
-import { useT } from "@/i18n/I18nProvider";
+import { useT, useI18n } from "@/i18n/I18nProvider";
 import installIosGuide from "@/assets/install-ios-guide.jpg";
 import installAndroidGuide from "@/assets/install-android-guide.jpg";
 import { ReviewForm } from "@/components/ReviewForm";
 import { supabase } from "@/integrations/supabase/client";
+import { hreflangLinks } from "@/lib/seo-hreflang";
 
 const HOME_TITLE = "Taxi City Bordeaux – Taxi 7j/7 à Bordeaux & en Gironde";
 const HOME_DESC =
@@ -73,7 +75,7 @@ export const Route = createFileRoute("/")({
       { property: "og:url", content: HOME_URL },
       { property: "og:type", content: "website" },
     ],
-    links: [{ rel: "canonical", href: HOME_URL }],
+    links: [{ rel: "canonical", href: HOME_URL }, ...hreflangLinks(HOME_URL)],
     scripts: [
       {
         type: "application/ld+json",
