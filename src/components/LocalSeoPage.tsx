@@ -1,6 +1,6 @@
 // Layout partagé pour les 4 pages SEO locales
 import { Link } from "@tanstack/react-router";
-import { Phone, HelpCircle, ArrowRight } from "lucide-react";
+import { Phone, HelpCircle, ArrowRight, ArrowLeft } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import {
   getLanding,
@@ -13,6 +13,15 @@ import {
 
 const ALL_KEYS: LandingKey[] = ["airport", "station", "arcachon", "cpam"];
 
+const BACK_LABEL: Record<string, string> = {
+  fr: "Retour à l'accueil",
+  en: "Back to home",
+  es: "Volver al inicio",
+  it: "Torna alla home",
+  pt: "Voltar à página inicial",
+  ar: "العودة إلى الصفحة الرئيسية",
+};
+
 export function LocalSeoPage({ landingKey }: { landingKey: LandingKey }) {
   const { lang } = useI18n();
   const c = getLanding(lang, landingKey);
@@ -20,16 +29,18 @@ export function LocalSeoPage({ landingKey }: { landingKey: LandingKey }) {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-12 sm:py-16">
-      <header className="text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">
-          Taxi City Bordeaux
-        </p>
-        <h1 className="mt-3 font-display text-3xl font-bold sm:text-4xl md:text-5xl">
-          {c.title}
-        </h1>
-        <p className="mx-auto mt-4 max-w-2xl text-sm text-muted-foreground sm:text-base">
-          {c.intro}
-        </p>
+      <Link
+        to="/"
+        className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition hover:text-primary"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        {BACK_LABEL[lang] ?? BACK_LABEL.fr}
+      </Link>
+
+      <header className="mt-6 text-center">
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">Taxi City Bordeaux</p>
+        <h1 className="mt-3 font-display text-3xl font-bold sm:text-4xl md:text-5xl">{c.title}</h1>
+        <p className="mx-auto mt-4 max-w-2xl text-sm text-muted-foreground sm:text-base">{c.intro}</p>
 
         <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
@@ -50,10 +61,7 @@ export function LocalSeoPage({ landingKey }: { landingKey: LandingKey }) {
 
       <section className="mt-12 grid gap-4 sm:mt-16 md:grid-cols-3">
         {c.sections.map((s) => (
-          <article
-            key={s.h}
-            className="rounded-2xl border border-border bg-card p-5 sm:p-6"
-          >
+          <article key={s.h} className="rounded-2xl border border-border bg-card p-5 sm:p-6">
             <h2 className="font-display text-lg font-semibold sm:text-xl">{s.h}</h2>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{s.p}</p>
           </article>
@@ -61,23 +69,16 @@ export function LocalSeoPage({ landingKey }: { landingKey: LandingKey }) {
       </section>
 
       <section className="mt-14 sm:mt-20">
-        <h2 className="text-center font-display text-2xl font-bold sm:text-3xl">
-          {getFaqTitle(lang)}
-        </h2>
+        <h2 className="text-center font-display text-2xl font-bold sm:text-3xl">{getFaqTitle(lang)}</h2>
         <div className="mx-auto mt-6 max-w-3xl space-y-3">
           {c.faq.map((f) => (
-            <details
-              key={f.q}
-              className="group rounded-xl border border-border bg-card/50 p-4 sm:p-5"
-            >
+            <details key={f.q} className="group rounded-xl border border-border bg-card/50 p-4 sm:p-5">
               <summary className="flex cursor-pointer list-none items-start gap-3 font-semibold">
                 <HelpCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                 <span className="flex-1 text-sm sm:text-base">{f.q}</span>
                 <span className="ml-2 text-primary transition group-open:rotate-45">+</span>
               </summary>
-              <p className="mt-3 pl-8 text-sm leading-relaxed text-muted-foreground">
-                {f.a}
-              </p>
+              <p className="mt-3 pl-8 text-sm leading-relaxed text-muted-foreground">{f.a}</p>
             </details>
           ))}
         </div>
