@@ -40,9 +40,9 @@ export function LocalSeoPage({ landingKey }: { landingKey: LandingKey }) {
     <div className="mx-auto max-w-4xl px-4 py-12 sm:py-16">
       <Link
         to="/"
-        className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition hover:text-primary"
+        className="group inline-flex items-center gap-2 rounded-xl border border-border bg-card/50 px-4 py-2.5 text-sm font-semibold transition hover:border-primary/60 hover:bg-card"
       >
-        <ArrowLeft className="h-4 w-4" />
+        <ArrowLeft className="h-4 w-4 text-primary transition-transform group-hover:-translate-x-1" />
         {BACK_LABEL[lang] ?? BACK_LABEL.fr}
       </Link>
 
