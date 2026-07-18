@@ -29,9 +29,9 @@ const CTA: Record<Lang, { book: string; call: string; faqTitle: string }> = {
 // --------- FR (voix de José — humain, pas IA) ----------
 const FR: Record<LandingKey, LandingContent> = {
   airport: {
-    title: "Taxi Bordeaux aéroport Mérignac 24/7 — Réserver | VTC 7 places",
+    title: "Taxi Bordeaux aéroport Mérignac 24/7 — Réserver avec José",
     description:
-      "Réserver un taxi Bordeaux aéroport Mérignac : suivi de vol, forfait annoncé, VTC Bordeaux ou taxi 7 places sur demande. José vous attend, jour & nuit — 06 73 07 23 22.",
+      "Réserver un taxi Bordeaux aéroport Mérignac : suivi de vol, forfait annoncé, taxi 7 places sur demande. José vous attend, jour & nuit — 06 73 07 23 22.",
     intro:
       "Bonjour, moi c'est José. Ça fait des années que je fais la navette entre Bordeaux et l'aéroport de Mérignac — le matin, la nuit, les jours fériés. Vous me donnez votre numéro de vol, je suis l'atterrissage sur mon téléphone et je suis là quand vous sortez. Pas d'attente, pas de mauvaise surprise sur le prix.",
     sections: [
@@ -70,9 +70,9 @@ const FR: Record<LandingKey, LandingContent> = {
     ctaCall: CTA.fr.call,
   },
   station: {
-    title: "Taxi Bordeaux gare Saint-Jean — Réserver taxi ou VTC 7 places",
+    title: "Taxi Bordeaux gare Saint-Jean — Réserver avec José 24/7",
     description:
-      "Réserver un taxi à la gare Bordeaux Saint-Jean : José suit votre TGV, prise en charge au quai, VTC Bordeaux ou taxi 7 places sur demande. 7j/7, 24h/24.",
+      "Réserver un taxi à la gare Bordeaux Saint-Jean : José suit votre TGV, prise en charge au quai, taxi 7 places sur demande. 7j/7, 24h/24.",
     intro:
       "Je m'appelle José et je fais régulièrement Saint-Jean. Que vous descendiez d'un TGV Paris, d'un Ouigo ou d'un Intercités, je suis au point de rendez-vous qu'on aura fixé ensemble — pas besoin de tourner en rond avec vos valises pour me trouver.",
     sections: [
@@ -111,9 +111,9 @@ const FR: Record<LandingKey, LandingContent> = {
     ctaCall: CTA.fr.call,
   },
   arcachon: {
-    title: "Taxi Bordeaux Arcachon — Réserver taxi 7 places, Pyla & Cap-Ferret",
+    title: "Taxi Bordeaux Arcachon — Réserver pour Pyla & Cap-Ferret",
     description:
-      "Réserver un taxi Bordeaux → Arcachon, Pyla, Cap-Ferret : trajet direct, forfait annoncé, VTC Bordeaux ou taxi 7 places pour familles et bagages. 06 73 07 23 22.",
+      "Réserver un taxi Bordeaux → Arcachon, Pyla, Cap-Ferret : trajet direct, forfait annoncé, taxi 7 places pour familles et bagages. 06 73 07 23 22.",
     intro:
       "Bordeaux ↔ Arcachon, je le fais souvent — pour des touristes qui veulent voir la Dune du Pyla, pour des familles qui vont à Cap-Ferret le week-end, pour des habitués qui prennent le TER trop lent avec les valises. C'est un trajet que je connais par cœur.",
     sections: [
@@ -154,7 +154,7 @@ const FR: Record<LandingKey, LandingContent> = {
   cpam: {
     title: "Taxi conventionné CPAM Bordeaux — Réserver, tiers payant, ALD",
     description:
-      "Réserver un taxi conventionné Bordeaux : tiers payant, ALD 100 %, dialyse, chimio. Aussi VTC Bordeaux et taxi 7 places sur demande — 06 73 07 23 22.",
+      "Réserver un taxi conventionné Bordeaux : tiers payant, ALD 100 %, dialyse, chimio. Véhicule 7 places sur demande — 06 73 07 23 22.",
     intro:
       "Je suis José, taxi conventionné par l'Assurance Maladie à Bordeaux. Concrètement : si votre médecin vous a fait un bon de transport, vous n'avez rien à avancer. Je m'occupe de la facturation avec la CPAM et votre mutuelle. Je fais beaucoup de dialyse, de chimio, de consultations à Pellegrin, Haut-Lévêque et Saint-André.",
     sections: [
