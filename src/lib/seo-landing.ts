@@ -233,9 +233,9 @@ const EN: Record<LandingKey, LandingContent> = {
     ctaBook: CTA.en.book, ctaCall: CTA.en.call,
   },
   arcachon: {
-    title: "Taxi Bordeaux → Arcachon — Direct transfer, clear pricing",
+    title: "Bordeaux → Arcachon Taxi — Book 7-seater taxi to Pyla & Cap-Ferret",
     description:
-      "Taxi from Bordeaux to Arcachon (Bay, Cap-Ferret, Pyla): direct trip, advance booking, upfront fare, comfortable vehicle for luggage and family.",
+      "Book a Bordeaux → Arcachon taxi (Pyla, Cap-Ferret, the Bay): direct trip, flat fare, Bordeaux VTC or 7-seater taxi for families and luggage.",
     intro:
       "Reach the Arcachon Bay by taxi from central Bordeaux, Mérignac airport or Saint-Jean station. Direct trip, price known in advance, no transfer.",
     sections: [
