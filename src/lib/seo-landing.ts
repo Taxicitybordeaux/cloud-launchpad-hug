@@ -441,8 +441,8 @@ const IT: Record<LandingKey, LandingContent> = {
     ctaBook: CTA.it.book, ctaCall: CTA.it.call,
   },
   arcachon: {
-    title: "Taxi Bordeaux → Arcachon — Trasferimento diretto, prezzo chiaro",
-    description: "Taxi da Bordeaux ad Arcachon (Baia, Cap-Ferret, Pyla): tragitto diretto, prenotazione anticipata, tariffa annunciata.",
+    title: "Taxi Bordeaux → Arcachon — Prenotare taxi 7 posti Pyla & Cap-Ferret",
+    description: "Prenotare un taxi Bordeaux → Arcachon (Pyla, Cap-Ferret, Baia): tragitto diretto, tariffa fissa, VTC Bordeaux o taxi 7 posti per famiglie e bagagli.",
     intro: "Raggiunga la Baia di Arcachon in taxi dal centro di Bordeaux, dall'aeroporto Mérignac o dalla stazione Saint-Jean. Tragitto diretto, prezzo noto in anticipo.",
     sections: [
       { h: "Tragitto diretto porta a porta", p: "Dal suo hotel, stazione o aeroporto fino ad Arcachon città, Dune du Pyla, Cap-Ferret o Andernos — senza cambi." },
