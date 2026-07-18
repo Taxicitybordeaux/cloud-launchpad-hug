@@ -251,9 +251,9 @@ const EN: Record<LandingKey, LandingContent> = {
     ctaBook: CTA.en.book, ctaCall: CTA.en.call,
   },
   cpam: {
-    title: "Approved Medical Taxi Bordeaux — Direct billing, ALD, dialysis",
+    title: "Approved Medical Taxi Bordeaux — Book direct billing, ALD 100%",
     description:
-      "Medical taxi approved by French health insurance in Bordeaux: seated medical transport, direct billing (tiers payant), ALD, dialysis, chemotherapy, hospital visits.",
+      "Book an approved medical taxi in Bordeaux: direct billing (tiers payant), ALD 100%, dialysis, chemo. Bordeaux VTC and 7-seater taxi also on request.",
     intro:
       "Taxi approved by the French health insurance (CPAM) in Bordeaux. With your medical transport prescription, the trip is billed directly — no upfront payment thanks to third-party billing.",
     sections: [
