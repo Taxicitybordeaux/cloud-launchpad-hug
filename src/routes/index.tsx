@@ -175,7 +175,7 @@ function Home() {
           <p className="max-w-md text-sm text-muted-foreground">{t("home.dest.intro")}</p>
         </div>
 
-        <div className="mt-8 grid auto-cols-[80vw] grid-flow-col gap-4 overflow-x-auto snap-x snap-mandatory pb-3 [-webkit-overflow-scrolling:touch] [overscroll-behavior-x:contain] sm:auto-cols-[60vw] md:grid-flow-row md:grid-cols-3 md:overflow-visible md:pb-0 md:gap-5">
+        <div className="mt-8 grid auto-cols-[80vw] grid-flow-col gap-4 overflow-x-auto snap-x snap-mandatory pb-3 [-webkit-overflow-scrolling:touch] [overscroll-behavior-x:contain] sm:auto-cols-[60vw] md:grid-flow-row md:grid-cols-2 lg:grid-cols-3 md:overflow-visible md:pb-0 md:gap-5">
           {[
             { img: destGare, title: t("home.dest.gare.title"), sub: t("home.dest.gare.sub") },
             { img: destAeroport, title: t("home.dest.airport.title"), sub: t("home.dest.airport.sub") },
@@ -1077,7 +1077,7 @@ function Testimonials() {
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">{t("home.test.eyebrow")}</p>
           <h2 className="mt-3 font-display text-3xl font-bold sm:text-4xl md:text-5xl">{t("home.test.title")}</h2>
         </div>
-        <div className="mt-8 grid auto-cols-[85vw] grid-flow-col gap-4 overflow-x-auto snap-x snap-mandatory pb-3 [-webkit-overflow-scrolling:touch] [overscroll-behavior-x:contain] sm:auto-cols-[60vw] md:grid-flow-row md:grid-cols-3 md:overflow-visible md:pb-0 md:gap-6 md:mt-12">
+        <div className="mt-8 grid auto-cols-[85vw] grid-flow-col gap-4 overflow-x-auto snap-x snap-mandatory pb-3 [-webkit-overflow-scrolling:touch] [overscroll-behavior-x:contain] sm:auto-cols-[60vw] md:grid-flow-row md:grid-cols-2 lg:grid-cols-3 md:overflow-visible md:pb-0 md:gap-6 md:mt-12">
           {items.map((r) => (
             <figure
               key={r.id}

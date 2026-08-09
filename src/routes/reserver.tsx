@@ -1538,6 +1538,7 @@ function ReservationPage() {
 
   return (
     <div
+      className="reserver-scroll"
       style={{
         background: "#f5f0e8",
         fontFamily: "'DM Sans',sans-serif",
@@ -1570,6 +1571,7 @@ function ReservationPage() {
 
       {/* ── Contenu principal ── */}
       <div
+        className="reserver-shell"
         dir={dir}
         style={{
           background: "#f5f0e8",

@@ -24,7 +24,7 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/90 backdrop-blur-md pt-[env(safe-area-inset-top)]">
-      <div className="mx-auto grid h-16 max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 sm:h-20 sm:px-4 md:flex md:justify-between">
+      <div className="mx-auto grid h-16 max-w-7xl grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 sm:h-20 sm:px-4 md:px-6 lg:flex lg:justify-between">
         <Link
           to="/"
           className="site-header-logo flex min-w-0 shrink-0 items-center overflow-hidden"
@@ -44,7 +44,7 @@ export function SiteHeader() {
           <span className="sr-only">Taxi City Bordeaux</span>
         </Link>
 
-        <nav className="hidden items-center gap-7 md:flex">
+        <nav className="hidden items-center gap-7 lg:flex">
           {links.map((l) => (
             <Link
               key={l.to}
@@ -58,7 +58,7 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center gap-2 lg:flex">
           <ThemeToggle />
           <LanguageSwitcher />
           <a
@@ -82,7 +82,7 @@ export function SiteHeader() {
           </Link>
         </div>
 
-        <div className="site-header-mobile-actions flex min-w-0 shrink-0 items-center gap-1.5 md:hidden">
+        <div className="site-header-mobile-actions flex min-w-0 shrink-0 items-center gap-1.5 lg:hidden">
           <a
             href={`tel:${PHONE}`}
             aria-label="Appeler"
@@ -104,7 +104,7 @@ export function SiteHeader() {
       </div>
 
       {open && (
-        <div className="border-t border-border bg-background md:hidden">
+        <div className="border-t border-border bg-background lg:hidden">
           <nav className="flex flex-col px-4 py-2">
             {links.map((l) => (
               <Link

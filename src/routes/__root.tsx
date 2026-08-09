@@ -230,11 +230,17 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     return () => cleanup?.();
   }, []);
 
+  // Pages "app" (plein écran, coquille fixe) : pas de header/footer site.
+  // Sur mobile ils étaient masqués par l'overlay ; sur tablette/PC la coquille
+  // est centrée et laissait apparaître le header/footer derrière.
   const showHeader =
     !pathname.startsWith("/reserver") &&
     !pathname.startsWith("/admin") &&
     !pathname.startsWith("/reservation") &&
     !pathname.startsWith("/login") &&
+    !pathname.startsWith("/client") &&
+    !pathname.startsWith("/suivi") &&
+    !pathname.startsWith("/driver") &&
     !pathname.startsWith("/carte");
 
   const showWhatsAppFloat = !pathname.startsWith("/carte");
