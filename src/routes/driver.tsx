@@ -1421,6 +1421,9 @@ function CourseCard({
   const [quickPrix, setQuickPrix] = useState("");
   const [quickMotif, setQuickMotif] = useState("");
   const [quickSaving, setQuickSaving] = useState(false);
+  const [quickSent, setQuickSent] = useState<{ ok: boolean; msg: string; at: string } | null>(null);
+  const markQuickSent = (ok: boolean, msg: string) =>
+    setQuickSent({ ok, msg, at: new Date().toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }) });
   const handleQuickPrice = async () => {
     const val = parseFloat((quickPrix || "").trim().replace(",", "."));
     if (!quickPrix || isNaN(val) || val <= 0) {
