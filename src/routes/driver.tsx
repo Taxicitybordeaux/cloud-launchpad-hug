@@ -1417,6 +1417,66 @@ function CourseCard({
     }
   };
 
+  // ── Prix rapide (haut de carte) : enregistre + email client avec lien suivi ──
+  const [quickPrix, setQuickPrix] = useState("");
+  const [quickMotif, setQuickMotif] = useState("");
+  const [quickSaving, setQuickSaving] = useState(false);
+  const handleQuickPrice = async () => {
+    const val = parseFloat((quickPrix || "").trim().replace(",", "."));
+    if (!quickPrix || isNaN(val) || val <= 0) {
+      toast.error("Prix invalide", { description: "Entrez un montant valide (ex : 18,50)" });
+      return;
+    }
+    setQuickSaving(true);
+    try {
+      const { error } = await (supabase as any)
+        .from("reservations")
+        .update({ prix_estime: val })
+        .eq("id", resa.id);
+      if (error) throw error;
+      broadcastSuiviUpdate(resa.id, "price");
+
+      const email = resa.client_email || (resa as any).email || "";
+      const suiviUrl =
+        typeof window !== "undefined" ? `${window.location.origin}/suivi/${resa.suivi_id || resa.id}` : "";
+      if (email) {
+        const res = await fetch("/api/admin/send-course-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Admin-Secret": "admin-pin-call" },
+          body: JSON.stringify({
+            templateName: "custom-price",
+            recipientEmail: email,
+            idempotencyKey: `custom-price-${resa.id}-${Date.now()}`,
+            templateData: {
+              nom: resa.client_name || "Client",
+              depart: resa.depart,
+              arrivee: resa.destination || "—",
+              prix: val,
+              motif: quickMotif.trim() || undefined,
+              suivi_url: suiviUrl,
+              reservation_id: resa.id,
+              pickup_datetime: resa.pickup_datetime ?? (resa as any).date_heure,
+            },
+          }),
+        });
+        if (!res.ok) {
+          toast.warning("Prix enregistré, mais email non envoyé");
+        } else {
+          toast.success(`Prix ${val.toFixed(2)} € envoyé à ${email}`);
+        }
+      } else {
+        toast.success(`Prix ${val.toFixed(2)} € enregistré (pas d'email client)`);
+      }
+      setQuickPrix("");
+      setQuickMotif("");
+      onRefresh();
+    } catch (e: any) {
+      toast.error("Erreur : " + (e.message ?? e));
+    } finally {
+      setQuickSaving(false);
+    }
+  };
+
   // ── Supprimer la course ──
   const [deleting, setDeleting] = useState(false);
   const handleDeleteResa = async () => {
