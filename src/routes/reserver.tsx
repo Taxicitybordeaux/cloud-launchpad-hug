@@ -1538,6 +1538,7 @@ function ReservationPage() {
 
   return (
     <div
+      className="reserver-scroll"
       style={{
         background: "#f5f0e8",
         fontFamily: "'DM Sans',sans-serif",
