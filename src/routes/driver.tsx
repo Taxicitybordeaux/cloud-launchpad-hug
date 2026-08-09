@@ -1474,11 +1474,14 @@ function CourseCard({
         });
         if (!res.ok) {
           toast.warning("Prix enregistré, mais email non envoyé");
+          markQuickSent(false, `Prix ${val.toFixed(2)} € enregistré, mais l'email à ${email} n'est pas parti. Réessayez.`);
         } else {
           toast.success(`Prix ${val.toFixed(2)} € envoyé à ${email}`);
+          markQuickSent(true, `Email envoyé à ${email} — nouveau prix ${val.toFixed(2)} € + lien de suivi.`);
         }
       } else {
         toast.success(`Prix ${val.toFixed(2)} € enregistré (pas d'email client)`);
+        markQuickSent(false, `Prix ${val.toFixed(2)} € enregistré — aucun email client renseigné, rien n'a été envoyé.`);
       }
       setQuickPrix("");
       setQuickMotif("");
