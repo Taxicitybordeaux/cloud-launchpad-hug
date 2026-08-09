@@ -1417,6 +1417,66 @@ function CourseCard({
     }
   };
 
+  // ── Prix rapide (haut de carte) : enregistre + email client avec lien suivi ──
+  const [quickPrix, setQuickPrix] = useState("");
+  const [quickMotif, setQuickMotif] = useState("");
+  const [quickSaving, setQuickSaving] = useState(false);
+  const handleQuickPrice = async () => {
+    const val = parseFloat((quickPrix || "").trim().replace(",", "."));
+    if (!quickPrix || isNaN(val) || val <= 0) {
+      toast.error("Prix invalide", { description: "Entrez un montant valide (ex : 18,50)" });
+      return;
+    }
+    setQuickSaving(true);
+    try {
+      const { error } = await (supabase as any)
+        .from("reservations")
+        .update({ prix_estime: val })
+        .eq("id", resa.id);
+      if (error) throw error;
+      broadcastSuiviUpdate(resa.id, "price");
+
+      const email = resa.client_email || (resa as any).email || "";
+      const suiviUrl =
+        typeof window !== "undefined" ? `${window.location.origin}/suivi/${resa.suivi_id || resa.id}` : "";
+      if (email) {
+        const res = await fetch("/api/admin/send-course-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Admin-Secret": "admin-pin-call" },
+          body: JSON.stringify({
+            templateName: "custom-price",
+            recipientEmail: email,
+            idempotencyKey: `custom-price-${resa.id}-${Date.now()}`,
+            templateData: {
+              nom: resa.client_name || "Client",
+              depart: resa.depart,
+              arrivee: resa.destination || "—",
+              prix: val,
+              motif: quickMotif.trim() || undefined,
+              suivi_url: suiviUrl,
+              reservation_id: resa.id,
+              pickup_datetime: resa.pickup_datetime ?? (resa as any).date_heure,
+            },
+          }),
+        });
+        if (!res.ok) {
+          toast.warning("Prix enregistré, mais email non envoyé");
+        } else {
+          toast.success(`Prix ${val.toFixed(2)} € envoyé à ${email}`);
+        }
+      } else {
+        toast.success(`Prix ${val.toFixed(2)} € enregistré (pas d'email client)`);
+      }
+      setQuickPrix("");
+      setQuickMotif("");
+      onRefresh();
+    } catch (e: any) {
+      toast.error("Erreur : " + (e.message ?? e));
+    } finally {
+      setQuickSaving(false);
+    }
+  };
+
   // ── Supprimer la course ──
   const [deleting, setDeleting] = useState(false);
   const handleDeleteResa = async () => {
@@ -1446,6 +1506,90 @@ function CourseCard({
         <span>📍 {resa.depart}</span>
         <span>🏁 {resa.destination}</span>
       </div>
+
+      {/* Prix du taxi — champ rapide en haut de carte */}
+      <div
+        style={{
+          marginTop: 10,
+          padding: "10px 12px",
+          background: "linear-gradient(180deg,#fffdf5 0%,#fdf6e3 100%)",
+          border: "1px solid #E8C96D",
+          borderRadius: 12,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.05em",
+            textTransform: "uppercase",
+            color: "#a16207",
+            marginBottom: 6,
+          }}
+        >
+          💶 Prix à envoyer au client
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <input
+            type="text"
+            inputMode="decimal"
+            placeholder="Prix € (ex : 18,50)"
+            value={quickPrix}
+            onChange={(e) => setQuickPrix(e.target.value)}
+            style={{
+              flex: "1 1 110px",
+              minWidth: 100,
+              padding: "11px 12px",
+              borderRadius: 10,
+              border: "1px solid #d6bd6a",
+              fontSize: 16,
+              fontWeight: 700,
+              background: "#fff",
+              color: "#0f172a",
+              outline: "none",
+              boxSizing: "border-box",
+            }}
+          />
+          <input
+            type="text"
+            placeholder="Justificatif (facultatif)"
+            value={quickMotif}
+            onChange={(e) => setQuickMotif(e.target.value)}
+            style={{
+              flex: "2 1 150px",
+              minWidth: 130,
+              padding: "11px 12px",
+              borderRadius: 10,
+              border: "1px solid #e2d5a8",
+              fontSize: 14,
+              background: "#fff",
+              color: "#0f172a",
+              outline: "none",
+              boxSizing: "border-box",
+            }}
+          />
+        </div>
+        <button
+          onClick={handleQuickPrice}
+          disabled={quickSaving}
+          style={{
+            marginTop: 8,
+            width: "100%",
+            padding: "11px 14px",
+            borderRadius: 10,
+            border: "none",
+            background: quickSaving ? "#d1d5db" : "linear-gradient(180deg,#E8C96D 0%,#c9a34d 100%)",
+            color: "#1a1a1a",
+            fontSize: 14,
+            fontWeight: 700,
+            cursor: quickSaving ? "default" : "pointer",
+          }}
+        >
+          {quickSaving ? "Envoi…" : "✉️ Valider & envoyer au client"}
+        </button>
+      </div>
+
+
 
       {/* Demande spéciale client — toujours visible pour que José la voie tout de suite */}
       {resa.message && resa.message.trim().length > 0 && (

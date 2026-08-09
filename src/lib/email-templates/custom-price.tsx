@@ -1,4 +1,4 @@
-import { Body, Container, Head, Heading, Hr, Html, Link, Preview, Section, Text } from "@react-email/components";
+import { Body, Button, Container, Head, Heading, Hr, Html, Link, Preview, Section, Text } from "@react-email/components";
 import type { TemplateEntry } from "./registry";
 
 type Lang = "fr" | "en" | "es" | "it" | "ar";
@@ -11,11 +11,15 @@ interface Props {
   arrivee?: string;
   prix?: string | number;
   reservation_id?: string;
+  motif?: string;
+  suivi_url?: string;
   unsubscribe_token?: string;
 }
 
 const STR: Record<Lang, Record<string, string>> = {
   fr: {
+    motif: "Motif",
+    suivi_btn: "📍 Suivre ma course en temps réel",
     preview: "Mise à jour de votre réservation",
     hi: "Bonjour",
     intro:
@@ -31,6 +35,8 @@ const STR: Record<Lang, Record<string, string>> = {
     subj: "Mise à jour de votre réservation",
   },
   en: {
+    motif: "Reason",
+    suivi_btn: "📍 Track my ride in real time",
     preview: "Your booking has been updated",
     hi: "Hello",
     intro: "Your booking has been updated by our team. Here are the new details for your ride:",
@@ -45,6 +51,8 @@ const STR: Record<Lang, Record<string, string>> = {
     subj: "Your booking has been updated",
   },
   es: {
+    motif: "Motivo",
+    suivi_btn: "📍 Seguir mi viaje en tiempo real",
     preview: "Su reserva ha sido actualizada",
     hi: "Hola",
     intro: "Su reserva ha sido actualizada por nuestro equipo. Aquí están los nuevos detalles de su viaje:",
@@ -59,6 +67,8 @@ const STR: Record<Lang, Record<string, string>> = {
     subj: "Su reserva ha sido actualizada",
   },
   it: {
+    motif: "Motivo",
+    suivi_btn: "📍 Segui la mia corsa in tempo reale",
     preview: "La sua prenotazione è stata aggiornata",
     hi: "Salve",
     intro: "La sua prenotazione è stata aggiornata dal nostro team. Ecco i nuovi dettagli della sua corsa:",
@@ -73,6 +83,8 @@ const STR: Record<Lang, Record<string, string>> = {
     subj: "La sua prenotazione è stata aggiornata",
   },
   ar: {
+    motif: "السبب",
+    suivi_btn: "📍 تتبع رحلتي في الوقت الفعلي",
     preview: "تم تحديث حجزك",
     hi: "مرحبا",
     intro: "تم تحديث حجزك من قبل فريقنا. إليك التفاصيل الجديدة لرحلتك:",
@@ -146,8 +158,17 @@ const Email = (p: Props) => {
             <Row label={s.to} value={p.arrivee} />
             <Hr style={hr} />
             <Row label={s.price} value={fmtPrice(p.prix)} highlight />
+            {p.motif ? <Row label={s.motif} value={p.motif} /> : null}
             {ref ? <Row label={s.ref} value={ref} /> : null}
           </Section>
+
+          {p.suivi_url ? (
+            <Section style={{ textAlign: "center", margin: "24px 0 8px" }}>
+              <Button href={p.suivi_url} style={btnSuivi}>
+                {s.suivi_btn}
+              </Button>
+            </Section>
+          ) : null}
 
           <Text style={footer}>{s.foot}</Text>
           {p.unsubscribe_token ? (
@@ -196,6 +217,8 @@ export const template = {
     arrivee: "Aéroport Mérignac",
     prix: 45,
     reservation_id: "abcdef12",
+    motif: "Trajet avec attente de 20 minutes",
+    suivi_url: "https://taxicitybordeaux.fr/suivi/abcdef12",
   },
 } satisfies TemplateEntry;
 
@@ -209,6 +232,16 @@ const rowLabel = { color: "#666", fontWeight: 600 };
 const rowValue = { color: "#111" };
 const rowValueHighlight = { color: "#c9a34d", fontWeight: "bold" as const, fontSize: "15px" };
 const hr = { borderColor: "#e5e5e5", margin: "12px 0" };
+const btnSuivi = {
+  backgroundColor: "#c9a34d",
+  borderRadius: "8px",
+  color: "#1a1a1a",
+  fontSize: "15px",
+  fontWeight: "700",
+  padding: "14px 28px",
+  textDecoration: "none",
+  display: "inline-block",
+};
 const footer = { fontSize: "12px", color: "#999", margin: "20px 0 0" };
 const unsubText = { fontSize: "11px", color: "#bbb", margin: "8px 0 0", textAlign: "center" as const };
 const unsubLink = { color: "#bbb", textDecoration: "underline" };
