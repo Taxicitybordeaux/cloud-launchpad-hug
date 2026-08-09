@@ -779,6 +779,41 @@ export type Database = {
           },
         ]
       }
+      reservation_price_changes: {
+        Row: {
+          created_at: string
+          id: string
+          motif: string | null
+          new_price: number
+          old_price: number | null
+          reservation_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          motif?: string | null
+          new_price: number
+          old_price?: number | null
+          reservation_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          motif?: string | null
+          new_price?: number
+          old_price?: number | null
+          reservation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_price_changes_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "reservations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reservations: {
         Row: {
           arrivee: string
@@ -1024,6 +1059,16 @@ export type Database = {
         Returns: number
       }
       get_active_visitor_count: { Args: { p_scope?: string }; Returns: number }
+      get_price_history_for_suivi: {
+        Args: { p_key: string }
+        Returns: {
+          created_at: string
+          id: string
+          motif: string
+          new_price: number
+          old_price: number
+        }[]
+      }
       get_reservation_by_tracking: {
         Args: { p_tracking_id: string }
         Returns: {
