@@ -1548,6 +1548,27 @@ function SuiviPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showRecurring, setShowRecurring] = useState(false);
+
+  // ── Historique des changements de prix (RPC SECURITY DEFINER, lien public) ──
+  const [priceHistory, setPriceHistory] = useState<
+    Array<{ id: string; old_price: number | null; new_price: number; motif: string | null; created_at: string }>
+  >([]);
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const { data, error } = await (supabase as any).rpc("get_price_history_for_suivi", { p_key: id });
+        if (!cancelled && !error && Array.isArray(data)) setPriceHistory(data);
+      } catch {
+        /* silencieux */
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, reservation?.prix_estime, reservation?.id]);
+
   const josePhone = JOSE_PHONE;
   const [pushDismissed, setPushDismissed] = useState(false);
   const { status: pushStatus, subscribe: pushSubscribe } = usePushNotifications();
