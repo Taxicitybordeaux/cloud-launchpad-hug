@@ -1597,6 +1597,27 @@ function CourseCard({
         >
           {quickSaving ? "Envoi…" : "✉️ Valider & envoyer au client"}
         </button>
+        {quickSent && (
+          <div
+            style={{
+              marginTop: 8,
+              padding: "9px 12px",
+              borderRadius: 10,
+              border: `1px solid ${quickSent.ok ? "#16a34a" : "#f59e0b"}`,
+              background: quickSent.ok ? "rgba(22,163,74,.10)" : "rgba(245,158,11,.12)",
+              color: quickSent.ok ? "#166534" : "#92400e",
+              fontSize: 13,
+              fontWeight: 600,
+              lineHeight: 1.35,
+            }}
+          >
+            {quickSent.ok ? "✅ " : "⚠️ "}
+            {quickSent.msg}
+            <div style={{ fontSize: 11, fontWeight: 500, opacity: 0.8, marginTop: 2 }}>
+              {quickSent.at}
+            </div>
+          </div>
+        )}
       </div>
 
 
