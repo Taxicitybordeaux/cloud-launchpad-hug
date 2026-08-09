@@ -1434,6 +1434,16 @@ function CourseCard({
         .update({ prix_estime: val })
         .eq("id", resa.id);
       if (error) throw error;
+      try {
+        await (supabase as any).from("reservation_price_changes").insert({
+          reservation_id: resa.id,
+          old_price: resa.prix_estime ?? null,
+          new_price: val,
+          motif: quickMotif.trim() || null,
+        });
+      } catch (histErr) {
+        console.warn("[driver] price history insert failed", histErr);
+      }
       broadcastSuiviUpdate(resa.id, "price");
 
       const email = resa.client_email || (resa as any).email || "";
