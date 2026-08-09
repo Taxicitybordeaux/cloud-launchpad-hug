@@ -88,6 +88,7 @@ export function WhatsAppFloat() {
     <>
       {/* Barre horizontale fixe (mobile + desktop) — 3 boutons */}
       <div
+        className="tcb-action-bar"
         ref={barRef}
         style={{
           position: "fixed",
