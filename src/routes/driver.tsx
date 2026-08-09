@@ -1507,6 +1507,90 @@ function CourseCard({
         <span>🏁 {resa.destination}</span>
       </div>
 
+      {/* Prix du taxi — champ rapide en haut de carte */}
+      <div
+        style={{
+          marginTop: 10,
+          padding: "10px 12px",
+          background: "linear-gradient(180deg,#fffdf5 0%,#fdf6e3 100%)",
+          border: "1px solid #E8C96D",
+          borderRadius: 12,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.05em",
+            textTransform: "uppercase",
+            color: "#a16207",
+            marginBottom: 6,
+          }}
+        >
+          💶 Prix à envoyer au client
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <input
+            type="text"
+            inputMode="decimal"
+            placeholder="Prix € (ex : 18,50)"
+            value={quickPrix}
+            onChange={(e) => setQuickPrix(e.target.value)}
+            style={{
+              flex: "1 1 110px",
+              minWidth: 100,
+              padding: "11px 12px",
+              borderRadius: 10,
+              border: "1px solid #d6bd6a",
+              fontSize: 16,
+              fontWeight: 700,
+              background: "#fff",
+              color: "#0f172a",
+              outline: "none",
+              boxSizing: "border-box",
+            }}
+          />
+          <input
+            type="text"
+            placeholder="Justificatif (facultatif)"
+            value={quickMotif}
+            onChange={(e) => setQuickMotif(e.target.value)}
+            style={{
+              flex: "2 1 150px",
+              minWidth: 130,
+              padding: "11px 12px",
+              borderRadius: 10,
+              border: "1px solid #e2d5a8",
+              fontSize: 14,
+              background: "#fff",
+              color: "#0f172a",
+              outline: "none",
+              boxSizing: "border-box",
+            }}
+          />
+        </div>
+        <button
+          onClick={handleQuickPrice}
+          disabled={quickSaving}
+          style={{
+            marginTop: 8,
+            width: "100%",
+            padding: "11px 14px",
+            borderRadius: 10,
+            border: "none",
+            background: quickSaving ? "#d1d5db" : "linear-gradient(180deg,#E8C96D 0%,#c9a34d 100%)",
+            color: "#1a1a1a",
+            fontSize: 14,
+            fontWeight: 700,
+            cursor: quickSaving ? "default" : "pointer",
+          }}
+        >
+          {quickSaving ? "Envoi…" : "✉️ Valider & envoyer au client"}
+        </button>
+      </div>
+
+
+
       {/* Demande spéciale client — toujours visible pour que José la voie tout de suite */}
       {resa.message && resa.message.trim().length > 0 && (
         <div
