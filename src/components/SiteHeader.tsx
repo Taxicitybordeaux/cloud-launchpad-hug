@@ -82,7 +82,7 @@ export function SiteHeader() {
           </Link>
         </div>
 
-        <div className="site-header-mobile-actions flex min-w-0 shrink-0 items-center gap-1.5 md:hidden">
+        <div className="site-header-mobile-actions flex min-w-0 shrink-0 items-center gap-1.5 lg:hidden">
           <a
             href={`tel:${PHONE}`}
             aria-label="Appeler"
