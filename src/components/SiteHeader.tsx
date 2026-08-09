@@ -44,7 +44,7 @@ export function SiteHeader() {
           <span className="sr-only">Taxi City Bordeaux</span>
         </Link>
 
-        <nav className="hidden items-center gap-7 md:flex">
+        <nav className="hidden items-center gap-7 lg:flex">
           {links.map((l) => (
             <Link
               key={l.to}
