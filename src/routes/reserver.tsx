@@ -1571,6 +1571,7 @@ function ReservationPage() {
 
       {/* ── Contenu principal ── */}
       <div
+        className="reserver-shell"
         dir={dir}
         style={{
           background: "#f5f0e8",
