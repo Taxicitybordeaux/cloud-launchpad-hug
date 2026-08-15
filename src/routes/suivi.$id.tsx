@@ -28,9 +28,16 @@ import {
 import { useI18n, useT } from "@/i18n/I18nProvider";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { getReservationForFinPublic } from "@/lib/reservation.functions";
+import { logTrackingEvent, requestRecurringRide } from "@/lib/public-events.functions";
 import { recomputeReservationDuration } from "@/lib/reservation-recompute.functions";
 import { durationSecondsToMinutes, durationSecondsToMs } from "@/lib/duration";
-import { listSuiviMessages, sendSuiviClientMessage, markReservationMessagesRead, countUnreadClientForReservation, type ChatMessage } from "@/lib/chat.functions";
+import {
+  listSuiviMessages,
+  sendSuiviClientMessage,
+  markReservationMessagesRead,
+  countUnreadClientForReservation,
+  type ChatMessage,
+} from "@/lib/chat.functions";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getTaxiSupabase } from "@/lib/taxi-supabase";
@@ -38,8 +45,8 @@ import { getTaxiSupabase } from "@/lib/taxi-supabase";
 export const Route = createFileRoute("/suivi/$id")({
   head: () => ({
     meta: [
-      { title: "Suivi de votre taxi — Taxi City Bordeaux" },
-      { name: "robots", content: "noindex" },
+      { title: "Suivi de votre taxi — Access Prestige Taxi" },
+      { name: "robots", content: "noindex, nofollow" },
       {
         name: "viewport",
         content:
@@ -52,7 +59,20 @@ export const Route = createFileRoute("/suivi/$id")({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────
-const JOSE_PHONE = "0673072322";
+const UI = {
+  fr: {
+    you: "Vous",
+    tbd: "À définir",
+  },
+  en: {
+    you: "You",
+    tbd: "To be determined",
+  },
+} as const;
+
+import { DRIVERS } from "@/data/drivers";
+
+const JOSE_PHONE = "0650260015";
 // Délai d'expiration du lien de suivi après la fin de la course (en jours)
 const SUIVI_EXPIRY_DAYS = 30;
 
@@ -311,7 +331,15 @@ function PremiumTimeline({ status }: { status: string }) {
 }
 
 // ─── Chat Component (anonyme, scopé par clé URL /suivi/$id) ──────────────────
-function ChatSection({ suiviKey, reservationId, t }: { suiviKey: string; reservationId: string; t: (k: string) => string }) {
+function ChatSection({
+  suiviKey,
+  reservationId,
+  t,
+}: {
+  suiviKey: string;
+  reservationId: string;
+  t: (k: string) => string;
+}) {
   const [unread, setUnread] = useState(0);
   return (
     <div
@@ -382,6 +410,8 @@ function AnonChat({
   onUnreadChange?: (n: number) => void;
 }) {
   const t = useT();
+  const { lang } = useI18n();
+  const u = lang === "en" ? UI.en : UI.fr;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -470,11 +500,9 @@ function AnonChat({
     let cancelled = false;
     (async () => {
       try {
-        await markReadFn({ data: { reservation_id: reservationId, role: "client" } });
+        await markReadFn({ data: { suivi_key: suiviKey, role: "client" } });
         if (!cancelled) {
-          setMessages((prev) =>
-            prev.map((m) => (!m.read_by_client ? { ...m, read_by_client: true } : m)),
-          );
+          setMessages((prev) => prev.map((m) => (!m.read_by_client ? { ...m, read_by_client: true } : m)));
           setUnreadSql(0);
         }
       } catch {}
@@ -545,7 +573,7 @@ function AnonChat({
                 {msg.content}
               </div>
               <div style={{ fontSize: "10px", color: "#94a3b8", marginTop: "3px", padding: "0 4px" }}>
-                {mine ? t("suivi.chat_you") || "Vous" : "José"}
+                {mine ? t("suivi.chat_you") || u.you : "Patricia"}
               </div>
             </div>
           );
@@ -613,13 +641,13 @@ function generateICS(reservation: any, t: (k: string) => string): string {
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Taxi City Bordeaux//FR",
+    "PRODID:-//Access Prestige Taxi//FR",
     "BEGIN:VEVENT",
-    `UID:tcb-${reservation.id}@taxicitybordeaux.fr`,
+    `UID:tcb-${reservation.id}@accessprestigetaxi.lovable.app`,
     `DTSTAMP:${fmt(new Date())}`,
     `DTSTART:${fmt(start)}`,
     `DTEND:${fmt(end)}`,
-    `SUMMARY:🚕 Taxi City Bordeaux`,
+    `SUMMARY:🚕 Access Prestige Taxi`,
     `DESCRIPTION:${labelDepart} : ${reservation.depart}\n${labelArrivee} : ${reservation.destination ?? reservation.arrivee ?? ""}`,
     `LOCATION:${reservation.depart}`,
     "END:VEVENT",
@@ -726,7 +754,7 @@ function InvoiceBlock({ reservation, locale, t }: { reservation: any; locale: st
   .btn { display: inline-block; margin: 20px 8px 0; padding: 10px 24px; background: #1d4ed8; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
 </style></head><body>
 <div class="header">
-  <div class="brand">🚕 Taxi City Bordeaux<small>taxicitybordeaux.fr · 06 73 07 23 22</small></div>
+  <div class="brand">🚕 Access Prestige Taxi<small>accessprestigetaxi.lovable.app · 06 50 26 00 15</small></div>
   <div class="meta"><strong>${labelReceiptTitle}</strong>N° ${reservation.id.slice(-8).toUpperCase()}<br/>${dateStr}</div>
 </div>
 <h2>${labelDetailsTitle}</h2>
@@ -953,23 +981,17 @@ function RecurringModal({ reservation, onClose }: { reservation: any; onClose: (
   const handleSave = async () => {
     setSaving(true);
     try {
-      const { error } = await (supabase as any).from("recurring_rides").insert([
-        {
-          source_reservation_id: reservation.id,
-          depart: reservation.depart,
-          destination: reservation.destination ?? reservation.arrivee,
-          nb_passagers: reservation.nb_passagers ?? 1,
-          nb_bagages: reservation.nb_bagages ?? 0,
-          mode_paiement: reservation.mode_paiement ?? "cb",
-          client_name: reservation.client_name,
-          frequency: freq,
+      // Écriture sécurisée : la fonction serveur vérifie la clé de suivi et
+      // recopie elle-même les détails du trajet (aucune donnée client de confiance).
+      const res = await requestRecurringRide({
+        data: {
+          key: String(reservation.suivi_id ?? reservation.tracking_id ?? reservation.id),
+          frequency: freq as "weekly" | "biweekly" | "monthly",
           day_of_week: dayOfWeek,
           time_hhmm: time,
-          active: true,
-          created_at: new Date().toISOString(),
         },
-      ]);
-      if (error) throw error;
+      });
+      if (!res.ok) throw new Error(res.error ?? "INVALID_REQUEST");
       setSaved(true);
       toast.success(t("suivi.rec_success"));
       setTimeout(onClose, 1800);
@@ -1157,7 +1179,15 @@ function RecurringModal({ reservation, onClose }: { reservation: any; onClose: (
 }
 
 // ─── Avis ──────────────────────────────────────────────────────────────────────────
-function ReviewBlock({ reservationId, authorName, t }: { reservationId: string; authorName?: string | null; t: (k: string) => string }) {
+function ReviewBlock({
+  reservationId,
+  authorName,
+  t,
+}: {
+  reservationId: string;
+  authorName?: string | null;
+  t: (k: string) => string;
+}) {
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   const [comment, setComment] = useState("");
@@ -1537,6 +1567,7 @@ function SuiviPage() {
   const { id } = Route.useParams();
   const { lang: locale } = useI18n();
   const t = useT();
+  const u = locale === "en" ? UI.en : UI.fr;
   const [reservation, setReservation] = useState<Reservation | null>(null);
   // ⚠️ IMPORTANT : le vrai id (clé primaire) de la réservation, résolu après
   // chargement. L'URL /suivi/$id peut contenir soit le vrai id, soit le
@@ -1548,6 +1579,9 @@ function SuiviPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showRecurring, setShowRecurring] = useState(false);
+  const assignedDriver =
+    DRIVERS.find((d) => d.name.toLowerCase() === (reservation?.driver_name ?? "").trim().toLowerCase()) ?? DRIVERS[0];
+  const josePhone = assignedDriver?.tel ?? JOSE_PHONE;
 
   // ── Historique des changements de prix (RPC SECURITY DEFINER, lien public) ──
   const [priceHistory, setPriceHistory] = useState<
@@ -1569,7 +1603,6 @@ function SuiviPage() {
     };
   }, [id, reservation?.prix_estime, reservation?.id]);
 
-  const josePhone = JOSE_PHONE;
   const [pushDismissed, setPushDismissed] = useState(false);
   const { status: pushStatus, subscribe: pushSubscribe } = usePushNotifications();
   const [pushActivatedHere, setPushActivatedHere] = useState(false);
@@ -1691,15 +1724,14 @@ function SuiviPage() {
   useEffect(() => {
     if (!resolvedId) return;
     const src = new URLSearchParams(window.location.search).get("src") ?? "direct";
-    (supabase as any)
-      .from("tracking_events")
-      .insert({
-        reservation_id: resolvedId,
+    void logTrackingEvent({
+      data: {
+        key: String(resolvedId),
         event_type: "tracking_opened",
-        source: src,
+        source: src.slice(0, 60),
         user_agent: navigator.userAgent.slice(0, 200),
-      })
-      .then(() => {}); // fire & forget
+      },
+    }).catch(() => {}); // fire & forget
   }, [resolvedId]);
 
   // ── Realtime connection state ──
@@ -1822,7 +1854,7 @@ function SuiviPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+          background: "linear-gradient(135deg, #EDE6D4 0%, #E5DCC8 100%)",
         }}
       >
         <style>{PREMIUM_CSS}</style>
@@ -1839,7 +1871,7 @@ function SuiviPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+          background: "linear-gradient(135deg, #EDE6D4 0%, #E5DCC8 100%)",
           padding: "20px",
         }}
       >
@@ -1875,7 +1907,7 @@ function SuiviPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+          background: "linear-gradient(135deg, #EDE6D4 0%, #E5DCC8 100%)",
           padding: "20px",
         }}
       >
@@ -1921,7 +1953,7 @@ function SuiviPage() {
       <div
         className="suivi-root"
         style={{
-          background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+          background: "linear-gradient(135deg, #EDE6D4 0%, #E5DCC8 100%)",
           minHeight: "100dvh",
           padding: "16px",
           paddingTop: "calc(16px + env(safe-area-inset-top, 0px))",
@@ -1935,7 +1967,7 @@ function SuiviPage() {
         {/* Bouton retour vers site */}
         <div style={{ marginBottom: "12px" }}>
           <a
-            href="https://taxicitybordeaux.fr"
+            href="https://accessprestigetaxi.lovable.app"
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -1950,7 +1982,7 @@ function SuiviPage() {
               textDecoration: "none",
             }}
           >
-            ← Taxi City Bordeaux
+            ← Access Prestige Taxi
           </a>
         </div>
 
@@ -2157,7 +2189,7 @@ function SuiviPage() {
                 className="vehicle-photo-block"
                 style={{
                   marginTop: "12px",
-                  background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)",
+                  background: "linear-gradient(135deg, #E5DCC8 0%, #EDE6D4 100%)",
                   borderRadius: "12px",
                   border: "1px solid rgba(255,255,255,0.08)",
                   overflow: "hidden",
@@ -2201,7 +2233,7 @@ function SuiviPage() {
                       left: 0,
                       right: 0,
                       height: "60px",
-                      background: "linear-gradient(to top, #0f172a, transparent)",
+                      background: "linear-gradient(to top, #EDE6D4, transparent)",
                     }}
                   />
                   {/* Badge Taxi flottant */}
@@ -2326,7 +2358,7 @@ function SuiviPage() {
                 <span>🔴</span> {t("suivi.arrivee_label")}
               </div>
               <div style={{ fontSize: "13px", fontWeight: 600, color: "#0f172a", marginTop: "2px" }}>
-                {reservation.destination || reservation.arrivee || "À définir"}
+                {reservation.destination || reservation.arrivee || u.tbd}
               </div>
             </div>
           </div>
@@ -2463,8 +2495,6 @@ function SuiviPage() {
             );
           })()}
 
-
-
         {/* Contact Jose */}
         {!isCompleted && (
           <div className="suivi-premium suivi-card" style={{ marginBottom: "16px", padding: "16px" }}>
@@ -2501,13 +2531,13 @@ function SuiviPage() {
                 }}
               >
                 <Phone size={16} />
-                <span style={{ flex: 1 }}>{t("suivi.call_jose")}</span>
+                <span style={{ flex: 1 }}>{`${t("suivi.call_jose").replace(/Patricia/g, assignedDriver.name)}`}</span>
                 <span style={{ fontSize: "12px", opacity: 0.8, fontWeight: 400 }}>
                   {josePhone.replace(/(\d{2})(?=\d)/g, "$1 ").trim()}
                 </span>
               </a>
               <a
-                href={`https://wa.me/${josePhone.replace(/^0/, "33")}?text=${encodeURIComponent(`Bonjour José`)}`}
+                href={`https://wa.me/${josePhone.replace(/^0/, "33")}?text=${encodeURIComponent(`Bonjour ${assignedDriver.name}`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -2528,7 +2558,7 @@ function SuiviPage() {
                 }}
               >
                 <MessageCircle size={16} />
-                {t("suivi.whatsapp_jose")}
+                {t("suivi.whatsapp_jose").replace(/Patricia/g, assignedDriver.name)}
               </a>
             </div>
           </div>
@@ -2541,7 +2571,11 @@ function SuiviPage() {
         {isCompleted && (
           <>
             <InvoiceBlock reservation={reservation} locale={locale} t={t} />
-            <ReviewBlock reservationId={reservation.id} authorName={reservation.client_name ?? reservation.nom ?? "Client"} t={t} />
+            <ReviewBlock
+              reservationId={reservation.id}
+              authorName={reservation.client_name ?? reservation.nom ?? "Client"}
+              t={t}
+            />
             {/* Actions post-course */}
             <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
               {/* 🔁 Rebooker le même trajet */}
