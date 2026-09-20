@@ -7,7 +7,7 @@ import { geocodeAddress } from "@/lib/googleGeocode";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useServerFn } from "@tanstack/react-start";
 import { listPushFailures, notifyReservationStatus } from "@/lib/push.functions";
-import { checkDriverSession, loginDriver } from "@/lib/driver-auth.functions";
+import { checkDriverSession, openDriverSession } from "@/lib/driver-auth.functions";
 import { calculerPrixMixte, estTarifJourParis, parseAsParisTime, TARIFS } from "@/lib/tarif";
 import { broadcastSuiviUpdate } from "@/lib/suivi-broadcast";
 import { subscribeChatBadgeEvents, type ChatBadgeEvent } from "@/lib/chat-badge-sync";
@@ -361,12 +361,25 @@ function eur(n: number) {
 // ── Main component ─────────────────────────────────────────────────────────
 function DriverPage() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
-  const [pin, setPin] = useState("");
-  const [loginBusy, setLoginBusy] = useState(false);
-  const [loginError, setLoginError] = useState(false);
 
   useEffect(() => {
-    checkDriverSession().then((result) => setAuthenticated(result.authenticated)).catch(() => setAuthenticated(false));
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await checkDriverSession();
+        if (!cancelled && result.authenticated) {
+          setAuthenticated(true);
+          return;
+        }
+        await openDriverSession();
+        if (!cancelled) setAuthenticated(true);
+      } catch {
+        if (!cancelled) setAuthenticated(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // ── Fix conflit manifest PWA ────────────────────────────────────────────
@@ -399,20 +412,7 @@ function DriverPage() {
         }}
       >
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
-          {authenticated === null ? <div>Vérification…</div> : (
-            <form onSubmit={async (event) => {
-              event.preventDefault(); setLoginBusy(true); setLoginError(false);
-              try { await loginDriver({ data: { pin } }); setAuthenticated(true); }
-              catch { setLoginError(true); }
-              finally { setLoginBusy(false); }
-            }}>
-              <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Code d’accès taxi</div>
-              <input type="password" value={pin} onChange={(event) => setPin(event.target.value)} autoComplete="current-password" style={{ padding: 12, borderRadius: 8, border: "1px solid #c99b4a", marginBottom: 10 }} />
-              <br /><button type="submit" disabled={loginBusy} style={{ padding: "10px 18px", borderRadius: 8, border: 0, background: "#c99b4a", fontWeight: 700 }}>{loginBusy ? "Connexion…" : "Accéder"}</button>
-              {loginError ? <div style={{ color: "#ef4444", marginTop: 10 }}>Code incorrect</div> : null}
-            </form>
-          )}
+          <div>{authenticated === null ? "Ouverture de l’espace taxi…" : "Connexion impossible, réessayez."}</div>
         </div>
       </div>
     );

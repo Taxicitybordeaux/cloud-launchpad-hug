@@ -26,3 +26,19 @@ export const checkDriverSession = createServerFn({ method: "GET" }).handler(asyn
   const { isValidDriverSession } = await import("./driver-auth.server");
   return { authenticated: isValidDriverSession() };
 });
+
+/** Ouvre une session taxi sans code : accès direct à /driver. */
+export const openDriverSession = createServerFn({ method: "POST" }).handler(async () => {
+  const { DRIVER_SESSION_COOKIE, isValidDriverSession, makeDriverSession } = await import("./driver-auth.server");
+  if (!isValidDriverSession()) {
+    const maxAge = 60 * 60 * 24 * 365;
+    setCookie(DRIVER_SESSION_COOKIE, makeDriverSession(Date.now() + maxAge * 1000), {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge,
+    });
+  }
+  return { ok: true };
+});
