@@ -274,7 +274,8 @@ function ClientDashboard() {
                 <div style={{ display: "flex", gap: 8 }}>
                   {activeRide.suivi_id && (
                     <Link
-                      to={`/suivi/${activeRide.suivi_id}`}
+                      to="/suivi/$id"
+                      params={{ id: String(activeRide.suivi_id) }}
                       style={{
                         display: "inline-flex",
                         alignItems: "center",
