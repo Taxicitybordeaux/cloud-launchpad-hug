@@ -25,21 +25,43 @@ const FIN_JOUR = 19;
 export function parseAsParisTime(iso: string): Date {
   if (!iso) return new Date();
   if (/Z|[+-]\d{2}:\d{2}$/.test(iso)) return new Date(iso);
-  const provisional = new Date(iso + "Z");
-  if (isNaN(provisional.getTime())) return new Date();
-  const parts = new Intl.DateTimeFormat("en-GB", {
+  const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (!match) return new Date(iso);
+
+  const [, year, month, day, hour, minute, second = "0"] = match;
+  const targetWallClock = Date.UTC(+year, +month - 1, +day, +hour, +minute, +second);
+  const formatter = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/Paris",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
     hourCycle: "h23",
-  }).formatToParts(provisional);
-  const parisH = parseInt(parts.find((p) => p.type === "hour")!.value, 10) % 24;
-  const parisM = parseInt(parts.find((p) => p.type === "minute")!.value, 10);
-  const [, h, m] = iso.match(/T(\d{2}):(\d{2})/) ?? ["", "0", "0"];
-  const wantedH = parseInt(h, 10);
-  const wantedM = parseInt(m, 10);
-  const diffMs = (wantedH * 60 + wantedM - (parisH * 60 + parisM)) * 60_000;
-  return new Date(provisional.getTime() + diffMs);
+  });
+
+  // Convertit une heure murale de Bordeaux en instant réel, sans jamais
+  // interpréter la valeur datetime-local dans le fuseau du téléphone.
+  let instant = targetWallClock;
+  for (let pass = 0; pass < 2; pass++) {
+    const values = Object.fromEntries(
+      formatter
+        .formatToParts(new Date(instant))
+        .filter((part) => part.type !== "literal")
+        .map((part) => [part.type, Number(part.value)]),
+    );
+    const displayedWallClock = Date.UTC(
+      values.year ?? +year,
+      (values.month ?? +month) - 1,
+      values.day ?? +day,
+      values.hour ?? +hour,
+      values.minute ?? +minute,
+      values.second ?? +second,
+    );
+    instant += targetWallClock - displayedWallClock;
+  }
+  return new Date(instant);
 }
 
 export function partsParis(iso: string): {
@@ -161,7 +183,7 @@ export function calculerPrixMixte(distanceKm: number, pickupIso: string): number
 
   const dureeH = distanceKm / VITESSE_MOYENNE_KMH;
   const dureeMs = Math.max(dureeH * 3_600_000, 60_000);
-  const departMs = new Date(pickupIso).getTime();
+  const departMs = parseAsParisTime(pickupIso).getTime();
   const steps = Math.max(Math.ceil(dureeMs / 60_000), 1);
 
   let kmJour = 0;

@@ -3617,9 +3617,17 @@ function SimulateurTab() {
 
   const [mode, setMode] = useState<"manuel" | "adresses">("manuel");
   const [pickupLocal, setPickupLocal] = useState(() => {
-    const d = new Date();
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    return d.toISOString().slice(0, 16);
+    const parts = new Intl.DateTimeFormat("fr-CA", {
+      timeZone: "Europe/Paris",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(new Date());
+    const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "00";
+    return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
   });
   const [distanceKm, setDistanceKm] = useState("");
   const [depart, setDepart] = useState("");
@@ -3789,7 +3797,7 @@ function SimulateurTab() {
       </div>
 
       <div style={{ marginBottom: 12 }}>
-        <label style={labelStyle}>📅 Heure de prise en charge</label>
+        <label style={labelStyle}>📅 Heure de prise en charge (heure de Bordeaux)</label>
         <input
           type="datetime-local"
           value={pickupLocal}
