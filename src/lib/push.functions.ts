@@ -113,7 +113,7 @@ export const sendTestPush = createServerFn({ method: "POST" })
     return sendPushToAudience(data.audience, {
       title: "🔔 Test notification",
       body: `Notification test envoyée à l'audience « ${data.audience} ».`,
-      url: data.audience === "client" ? "/" : "/driver?token=DSF234",
+      url: data.audience === "client" ? "/" : "/driver",
       tag: "test-push",
     });
   });
@@ -138,7 +138,7 @@ export const notifyNewReview = createServerFn({ method: "POST" })
     return sendPushToAudience("chauffeur", {
       title: `⭐ Nouvel avis ${stars}`,
       body: excerpt ? `${who} : « ${excerpt}${excerpt.length >= 90 ? "…" : ""} »` : `${who} vient de laisser un avis.`,
-      url: "/driver?token=DSF234",
+      url: "/driver",
       tag: `new-review-${Date.now()}`,
     });
   });
@@ -203,7 +203,7 @@ export const notifyNewReservation = createServerFn({ method: "POST" })
           passagers: r.nb_passagers || r.passagers || 1,
           bagages: r.bagages ?? 0,
           service_type: (r as any).service_type ?? "",
-          admin_url: `${APP_URL}/driver?token=DSF234`,
+          admin_url: `${APP_URL}/driver`,
         },
       };
 
@@ -518,36 +518,18 @@ export const updateReservationRoute = createServerFn({ method: "POST" })
 // ── Liste des échecs d'envoi push (admin) ─────────────────────────────────────
 // L'admin saisit son PIN courant ; on le compare au mot de passe stocké côté
 // client (pas de table dédiée aujourd'hui), donc on utilise un secret env
-// ADMIN_PIN. Fallback "DSF234" pour rester aligné avec le PIN par défaut.
-const ADMIN_PIN_DEFAULT = "DSF234";
-
-function checkAdminPin(pin: string): boolean {
-  const expected =
-    process.env.ADMIN_PIN ||
-    (typeof import.meta !== "undefined" ? (import.meta as any).env?.ADMIN_PIN : undefined) ||
-    ADMIN_PIN_DEFAULT;
-  if (!expected) return false;
-  // comparaison constante-temps simple
-  if (pin.length !== expected.length) return false;
-  let diff = 0;
-  for (let i = 0; i < pin.length; i++) diff |= pin.charCodeAt(i) ^ expected.charCodeAt(i);
-  return diff === 0;
-}
-
 export const listPushFailures = createServerFn({ method: "POST" })
   .inputValidator((input) =>
     z
       .object({
-        pin: z.string().min(1).max(128),
         only_price_update: z.boolean().optional(),
         limit: z.number().int().min(1).max(500).optional(),
       })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    if (!checkAdminPin(data.pin)) {
-      throw new Error("forbidden");
-    }
+    const { requireDriverSession } = await import("./driver-auth.server");
+    requireDriverSession();
     const { getTaxiSupabaseAdmin } = await import("@/lib/taxi-supabase.server");
     const supabaseAdmin = getTaxiSupabaseAdmin();
     let q = supabaseAdmin

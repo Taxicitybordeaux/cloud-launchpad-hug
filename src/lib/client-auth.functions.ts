@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { setCookie } from "@tanstack/react-start/server";
 
 
 // Session token = simple opaque random string (auth maison, pas Supabase Auth).
@@ -70,6 +71,16 @@ export const clientRegister = createServerFn({ method: "POST" })
       throw new Error("CREATE_FAILED");
     }
 
+    const { CLIENT_SESSION_COOKIE, hashSessionToken } = await import("./client-session.server");
+    const maxAge = 60 * 60 * 24 * 30;
+    const { error: sessionError } = await supabaseAdmin.from("client_sessions").insert({
+      client_account_id: row.id,
+      token_hash: hashSessionToken(token),
+      expires_at: new Date(Date.now() + maxAge * 1000).toISOString(),
+    });
+    if (sessionError) throw new Error("CREATE_FAILED");
+    setCookie(CLIENT_SESSION_COOKIE, token, { httpOnly: true, secure: true, sameSite: "strict", path: "/", maxAge });
+
     return {
       id: row.id,
       email: row.email,
@@ -102,11 +113,22 @@ export const clientLogin = createServerFn({ method: "POST" })
     const ok = await bcrypt.compare(data.password, (secret as any).password_hash);
     if (!ok) throw new Error("INVALID_CREDENTIALS");
 
+    const token = genToken();
+    const { CLIENT_SESSION_COOKIE, hashSessionToken } = await import("./client-session.server");
+    const maxAge = 60 * 60 * 24 * 30;
+    const { error: sessionError } = await supabaseAdmin.from("client_sessions").insert({
+      client_account_id: row.id,
+      token_hash: hashSessionToken(token),
+      expires_at: new Date(Date.now() + maxAge * 1000).toISOString(),
+    });
+    if (sessionError) throw new Error("INVALID_CREDENTIALS");
+    setCookie(CLIENT_SESSION_COOKIE, token, { httpOnly: true, secure: true, sameSite: "strict", path: "/", maxAge });
+
     return {
       id: row.id,
       email: row.email,
       name: row.client_name ?? "",
       phone: row.phone ?? "",
-      token: genToken(),
+      token,
     };
   });

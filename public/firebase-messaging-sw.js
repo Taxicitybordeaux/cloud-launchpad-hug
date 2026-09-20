@@ -4,7 +4,7 @@
 const SW_VERSION = "2026-07-03.push-click-open-client";
 console.log("[FCM SW] boot version =", SW_VERSION);
 
-const DRIVER_URL = "/driver?token=DSF234";
+const DRIVER_URL = "/driver";
 const FORBIDDEN_PATH_PREFIXES = ["/admin"];
 
 // Important : ce listener doit être enregistré AVANT importScripts(Firebase).
@@ -122,7 +122,7 @@ function sanitizeDeepLink(rawUrl, audience, reservationId) {
   }
   if (audience === "chauffeur" || url.pathname === "/driver") {
     if (url.pathname !== "/driver") url.pathname = "/driver";
-    if (!url.searchParams.get("token")) url.searchParams.set("token", "DSF234");
+    url.searchParams.delete("token");
   }
 
   return url.pathname + url.search + url.hash;

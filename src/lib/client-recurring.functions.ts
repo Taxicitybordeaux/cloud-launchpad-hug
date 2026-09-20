@@ -63,6 +63,8 @@ function computeNextRun(day: number, hour: number, minute: number): Date {
 export const listRecurringRides = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ListSchema.parse(input))
   .handler(async ({ data }): Promise<RecurringRide[]> => {
+    const { requireClientAccount } = await import("./client-session.server");
+    await requireClientAccount(data.account_id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin
       .from("client_recurring_rides" as any)
@@ -77,6 +79,8 @@ export const listRecurringRides = createServerFn({ method: "POST" })
 export const createRecurringRide = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => CreateSchema.parse(input))
   .handler(async ({ data }): Promise<RecurringRide> => {
+    const { requireClientAccount } = await import("./client-session.server");
+    await requireClientAccount(data.account_id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const next = computeNextRun(data.day_of_week, data.hour, data.minute);
     const { data: row, error } = await supabaseAdmin
@@ -105,6 +109,8 @@ export const createRecurringRide = createServerFn({ method: "POST" })
 export const toggleRecurringRide = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ToggleSchema.parse(input))
   .handler(async ({ data }) => {
+    const { requireClientAccount } = await import("./client-session.server");
+    await requireClientAccount(data.account_id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("client_recurring_rides" as any)
@@ -118,6 +124,8 @@ export const toggleRecurringRide = createServerFn({ method: "POST" })
 export const deleteRecurringRide = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => DeleteSchema.parse(input))
   .handler(async ({ data }) => {
+    const { requireClientAccount } = await import("./client-session.server");
+    await requireClientAccount(data.account_id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("client_recurring_rides" as any)

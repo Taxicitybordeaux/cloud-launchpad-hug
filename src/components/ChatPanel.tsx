@@ -94,7 +94,7 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
     (async () => {
       try {
         const rows = await listReservationMessages({
-          data: { reservation_id: reservationId, limit: PAGE_SIZE },
+          data: { reservation_id: reservationId, account_id: role === "client" ? clientIdentity?.account_id : undefined, limit: PAGE_SIZE },
         });
         if (cancelled) return;
         setMessages(rows);
@@ -124,7 +124,7 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
     }
     try {
       const older = await listReservationMessages({
-        data: { reservation_id: reservationId, before: oldest.created_at, limit: PAGE_SIZE },
+          data: { reservation_id: reservationId, account_id: role === "client" ? clientIdentity?.account_id : undefined, before: oldest.created_at, limit: PAGE_SIZE },
       });
       setMessages((prev) => [...older, ...prev]);
       setHasMore(older.length >= PAGE_SIZE);
@@ -194,7 +194,7 @@ export function ChatPanel({ reservationId, role, onClose, peerName, clientIdenti
       if (stop || document.hidden) return;
       try {
         const latest = await listReservationMessages({
-          data: { reservation_id: reservationId, limit: PAGE_SIZE },
+          data: { reservation_id: reservationId, account_id: role === "client" ? clientIdentity?.account_id : undefined, limit: PAGE_SIZE },
         });
         if (stop || latest.length === 0) return;
         setMessages((prev) => {

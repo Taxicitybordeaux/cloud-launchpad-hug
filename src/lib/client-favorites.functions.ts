@@ -27,6 +27,8 @@ const DeleteSchema = z.object({
 export const listClientFavorites = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ListSchema.parse(input))
   .handler(async ({ data }): Promise<ClientFavorite[]> => {
+    const { requireClientAccount } = await import("./client-session.server");
+    await requireClientAccount(data.account_id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin
       .from("client_favorites")
@@ -41,6 +43,8 @@ export const listClientFavorites = createServerFn({ method: "POST" })
 export const upsertClientFavorite = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => UpsertSchema.parse(input))
   .handler(async ({ data }): Promise<ClientFavorite> => {
+    const { requireClientAccount } = await import("./client-session.server");
+    await requireClientAccount(data.account_id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     if (data.id) {
       const { data: row, error } = await supabaseAdmin
@@ -76,6 +80,8 @@ export const upsertClientFavorite = createServerFn({ method: "POST" })
 export const deleteClientFavorite = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => DeleteSchema.parse(input))
   .handler(async ({ data }) => {
+    const { requireClientAccount } = await import("./client-session.server");
+    await requireClientAccount(data.account_id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("client_favorites")

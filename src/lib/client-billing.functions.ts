@@ -25,6 +25,8 @@ const IdentitySchema = z.object({
 export const getClientCompanyInfo = createServerFn({ method: "POST" })
   .inputValidator((input) => IdentitySchema.parse(input))
   .handler(async ({ data }): Promise<CompanyInfo> => {
+    const { requireClientAccount } = await import("./client-session.server");
+    await requireClientAccount(data.account_id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row } = await supabaseAdmin
       .from("client_accounts")
@@ -50,6 +52,8 @@ const UpdateSchema = z.object({
 export const updateClientCompanyInfo = createServerFn({ method: "POST" })
   .inputValidator((input) => UpdateSchema.parse(input))
   .handler(async ({ data }) => {
+    const { requireClientAccount } = await import("./client-session.server");
+    await requireClientAccount(data.account_id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("client_accounts")
@@ -81,6 +85,8 @@ function normalizePhone(p?: string | null): string | null {
 export const listCompletedForBilling = createServerFn({ method: "POST" })
   .inputValidator((input) => BillingListSchema.parse(input))
   .handler(async ({ data }): Promise<InvoiceRow[]> => {
+    const { requireClientAccount } = await import("./client-session.server");
+    await requireClientAccount(data.account_id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const cols =
       "id, pickup_datetime, depart, arrivee, destination, status, prix_estime, paiement, tracking_id, client_account_id, client_phone, telephone, client_email, email";
