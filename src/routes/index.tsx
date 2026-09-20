@@ -263,7 +263,11 @@ function Home() {
         <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:py-16 md:grid-cols-2 md:items-center md:py-20">
           <div className="relative">
             <div className="overflow-hidden rounded-3xl border border-primary/20 bg-card p-8 sm:p-10">
-              <Link to="/driver" className="block touch-manipulation [-webkit-tap-highlight-color:transparent]">
+              <Link
+                to="/driver"
+                search={{ token: "" }}
+                className="block touch-manipulation [-webkit-tap-highlight-color:transparent]"
+              >
                 <img
                   src={logo}
                   alt="Taxi City Bordeaux"
