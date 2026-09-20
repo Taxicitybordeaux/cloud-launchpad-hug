@@ -361,12 +361,25 @@ function eur(n: number) {
 // ── Main component ─────────────────────────────────────────────────────────
 function DriverPage() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
-  const [pin, setPin] = useState("");
-  const [loginBusy, setLoginBusy] = useState(false);
-  const [loginError, setLoginError] = useState(false);
 
   useEffect(() => {
-    checkDriverSession().then((result) => setAuthenticated(result.authenticated)).catch(() => setAuthenticated(false));
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await checkDriverSession();
+        if (!cancelled && result.authenticated) {
+          setAuthenticated(true);
+          return;
+        }
+        await openDriverSession();
+        if (!cancelled) setAuthenticated(true);
+      } catch {
+        if (!cancelled) setAuthenticated(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // ── Fix conflit manifest PWA ────────────────────────────────────────────
