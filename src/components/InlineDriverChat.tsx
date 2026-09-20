@@ -11,7 +11,7 @@ import { registerChauffeurReader, acquireReadLock, releaseReadLock, broadcastCha
 type Props = {
   reservationId: string;
   onUnreadChange?: (n: number) => void;
-  /** "dark" = charte Taxi Nova (fond nuit, or). Par défaut : thème clair d'origine. */
+  /** "dark" = charte Taxi City Bordeaux (fond nuit, or). Par défaut : thème clair d'origine. */
   theme?: "light" | "dark";
 };
 

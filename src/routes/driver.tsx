@@ -99,7 +99,7 @@ export const Route = createFileRoute("/driver")({
   component: DriverPage,
 });
 
-// ── Styles : charte Taxi Nova (fond nuit, or, rangées du tableau de bord) ─────
+// ── Styles : charte Taxi City Bordeaux (fond nuit, or, rangées du tableau de bord) ─────
 const css = `
   * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; touch-action: manipulation; }
   html, body {
@@ -109,7 +109,7 @@ const css = `
   }
   input, textarea, select { font-size: 16px; }
 
-  /* ── Coque (même palette que Nova) ── */
+  /* ── Coque (même palette que Taxi City Bordeaux) ── */
   .drv-root {
     position: fixed; inset: 0;
     max-width: 640px; margin: 0 auto;
@@ -162,7 +162,7 @@ const css = `
     overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;
   }
 
-  /* ── Tableau de bord : rangées Nova ── */
+  /* ── Tableau de bord : rangées Taxi City Bordeaux ── */
   .drv-dash-title { margin: 8px 0 0; font-size: 24px; line-height: 32px; font-weight: 600; color: #f6f0e5; }
   .drv-dash-back {
     display: inline-flex; align-items: center; gap: 6px; margin-bottom: 14px;
@@ -266,7 +266,7 @@ const css = `
   .drv-visitor-dot-active { animation: drv-pulse 2s ease-in-out infinite; }
 `;
 
-// ── Icônes (mêmes tracés que Taxi Nova pour les rangées) ───────────────────
+// ── Icônes (mêmes tracés que Taxi City Bordeaux pour les rangées) ───────────────────
 const svgIcon = (d: string) => () => (
   <svg
     viewBox="0 0 24 24"
@@ -390,7 +390,7 @@ function DriverPage() {
 // ── Application chauffeur : tableau de bord unique (sans onglets) ──────────
 const DRIVER_NAME = "José";
 
-/** Bouton de notifications de l'en-tête (même rendu que Taxi Nova). */
+/** Bouton de notifications de l'en-tête (même rendu que Taxi City Bordeaux). */
 function NotifButton({ status, onSubscribe }: { status: string; onSubscribe: () => void }) {
   const denied = status === "denied";
   const granted = status === "granted";
@@ -655,7 +655,7 @@ function DriverApp() {
   );
 }
 
-// ── Tableau de bord : rangées au format Taxi Nova ──────────────────────────
+// ── Tableau de bord : rangées au format Taxi City Bordeaux ──────────────────────────
 // ›  = ouvre un écran (bouton « Tableau de bord » pour revenir)
 // ＋/− = se déplie sur place
 type ClientCall = { id: string; name: string; phone: string; when: string };
