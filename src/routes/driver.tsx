@@ -7,6 +7,7 @@ import { geocodeAddress } from "@/lib/googleGeocode";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useServerFn } from "@tanstack/react-start";
 import { listPushFailures, notifyReservationStatus } from "@/lib/push.functions";
+import { checkDriverSession, loginDriver } from "@/lib/driver-auth.functions";
 import { calculerPrixMixte, estTarifJourParis, parseAsParisTime, TARIFS } from "@/lib/tarif";
 import { broadcastSuiviUpdate } from "@/lib/suivi-broadcast";
 import { subscribeChatBadgeEvents, type ChatBadgeEvent } from "@/lib/chat-badge-sync";
@@ -18,9 +19,6 @@ import {
   getUnreadCountsForReservations,
   type UnreadMap,
 } from "@/lib/chat.functions";
-
-// ── Token guard ────────────────────────────────────────────────────────────
-const DRIVER_TOKEN = "DSF234";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 type Tab = "courses" | "planning" | "avis" | "clients" | "stats" | "simulateur";
@@ -363,13 +361,14 @@ function eur(n: number) {
 
 // ── Main component ─────────────────────────────────────────────────────────
 function DriverPage() {
-  const { token } = Route.useSearch();
+  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const [pin, setPin] = useState("");
+  const [loginBusy, setLoginBusy] = useState(false);
+  const [loginError, setLoginError] = useState(false);
 
   useEffect(() => {
-    if (token === DRIVER_TOKEN) {
-      localStorage.setItem("driver_token", token);
-    }
-  }, [token]);
+    checkDriverSession().then((result) => setAuthenticated(result.authenticated)).catch(() => setAuthenticated(false));
+  }, []);
 
   // ── Fix conflit manifest PWA ────────────────────────────────────────────
   // __root.tsx injecte inconditionnellement <link rel="manifest" href="/manifest.json">
@@ -388,10 +387,7 @@ function DriverPage() {
     });
   }, []);
 
-  const savedToken = typeof window !== "undefined" ? localStorage.getItem("driver_token") : null;
-  const validToken = token === DRIVER_TOKEN || savedToken === DRIVER_TOKEN;
-
-  if (!validToken) {
+  if (authenticated !== true) {
     return (
       <div
         style={{
@@ -405,7 +401,19 @@ function DriverPage() {
       >
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
-          <div style={{ fontSize: 16, fontWeight: 600 }}>Accès non autorisé</div>
+          {authenticated === null ? <div>Vérification…</div> : (
+            <form onSubmit={async (event) => {
+              event.preventDefault(); setLoginBusy(true); setLoginError(false);
+              try { await loginDriver({ data: { pin } }); setAuthenticated(true); }
+              catch { setLoginError(true); }
+              finally { setLoginBusy(false); }
+            }}>
+              <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Code d’accès taxi</div>
+              <input type="password" value={pin} onChange={(event) => setPin(event.target.value)} autoComplete="current-password" style={{ padding: 12, borderRadius: 8, border: "1px solid #c99b4a", marginBottom: 10 }} />
+              <br /><button type="submit" disabled={loginBusy} style={{ padding: "10px 18px", borderRadius: 8, border: 0, background: "#c99b4a", fontWeight: 700 }}>{loginBusy ? "Connexion…" : "Accéder"}</button>
+              {loginError ? <div style={{ color: "#ef4444", marginTop: 10 }}>Code incorrect</div> : null}
+            </form>
+          )}
         </div>
       </div>
     );
@@ -519,7 +527,7 @@ function DriverApp() {
   useEffect(() => {
     const load = async () => {
       try {
-        const response = await fetch(`/api/public/reviews?token=${encodeURIComponent(DRIVER_TOKEN)}`);
+        const response = await fetch("/api/public/reviews");
         if (!response.ok) return;
         const result = await response.json();
         setPendingAvis(result.pending.length);
@@ -1526,7 +1534,7 @@ function CourseCard({
       try {
         const res = await fetch("/api/admin/send-course-email", {
           method: "POST",
-          headers: { "Content-Type": "application/json", "X-Admin-Secret": "admin-pin-call" },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             templateName: "custom-price",
             recipientEmail: email,
@@ -1577,7 +1585,7 @@ function CourseCard({
         try {
           await fetch("/api/admin/send-course-email", {
             method: "POST",
-            headers: { "Content-Type": "application/json", "X-Admin-Secret": "admin-pin-call" },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               templateName: "reschedule",
               recipientEmail: email,
@@ -1717,7 +1725,7 @@ function CourseCard({
       if (email) {
         const res = await fetch("/api/admin/send-course-email", {
           method: "POST",
-          headers: { "Content-Type": "application/json", "X-Admin-Secret": "admin-pin-call" },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             templateName: "custom-price",
             recipientEmail: email,
@@ -2640,7 +2648,7 @@ function AvisTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
 
   const load = useCallback(async () => {
     try {
-      const response = await fetch(`/api/public/reviews?token=${encodeURIComponent(DRIVER_TOKEN)}`);
+      const response = await fetch("/api/public/reviews");
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "chargement impossible");
       setPending(result.pending ?? []);
@@ -2676,7 +2684,7 @@ function AvisTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
     try {
       const response = await fetch("/api/public/reviews", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", "x-driver-token": DRIVER_TOKEN },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, status: action }),
       });
       const result = await response.json().catch(() => ({}));
@@ -2696,7 +2704,7 @@ function AvisTab({ onBadgeChange }: { onBadgeChange: (n: number) => void }) {
     try {
       const response = await fetch("/api/public/reviews", {
         method: "DELETE",
-        headers: { "Content-Type": "application/json", "x-driver-token": DRIVER_TOKEN },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
       const result = await response.json().catch(() => ({}));
@@ -4082,7 +4090,7 @@ function PushDiagnostic() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetchFailures({ data: { pin: DRIVER_TOKEN, only_price_update: false, limit: 30 } });
+      const res = await fetchFailures({ data: { only_price_update: false, limit: 30 } });
       setRows((res as any)?.failures ?? []);
     } catch {
       setRows([]);

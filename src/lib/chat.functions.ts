@@ -180,14 +180,19 @@ export const listReservationMessages = createServerFn({ method: "POST" })
     z
       .object({
         reservation_id: z.string().uuid(),
+        account_id: z.string().uuid().optional(),
         before: z.string().datetime().optional(),
         limit: z.number().int().min(1).max(100).optional(),
       })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const { requireDriverSession } = await import("./driver-auth.server");
-    requireDriverSession();
+    if (data.account_id) {
+      await assertClientOwnsReservation(data.reservation_id, { account_id: data.account_id });
+    } else {
+      const { requireDriverSession } = await import("./driver-auth.server");
+      requireDriverSession();
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let q = supabaseAdmin
       .from("reservation_messages")
@@ -207,12 +212,23 @@ export const markReservationMessagesRead = createServerFn({ method: "POST" })
       .object({
         reservation_id: z.string().uuid(),
         role: z.enum(["client", "chauffeur"]),
+        account_id: z.string().uuid().optional(),
+        suivi_key: z.string().trim().min(6).max(200).optional(),
       })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const { requireDriverSession } = await import("./driver-auth.server");
-    requireDriverSession();
+    if (data.role === "chauffeur") {
+      const { requireDriverSession } = await import("./driver-auth.server");
+      requireDriverSession();
+    } else if (data.account_id) {
+      await assertClientOwnsReservation(data.reservation_id, { account_id: data.account_id });
+    } else if (data.suivi_key) {
+      const reservation = await resolveSuiviReservation(data.suivi_key);
+      if (reservation.id !== data.reservation_id) throw new Error("FORBIDDEN");
+    } else {
+      throw new Error("UNAUTHORIZED");
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // role='client' → marque tous les messages read_by_client=true (y compris
     // la demande spéciale envoyée par le client lui-même, insérée avec
@@ -551,14 +567,20 @@ export const listDirectMessages = createServerFn({ method: "POST" })
     z
       .object({
         client_account_id: z.string().uuid(),
+        role: z.enum(["client", "chauffeur"]),
         before: z.string().datetime().optional(),
         limit: z.number().int().min(1).max(100).optional(),
       })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const { requireClientAccount } = await import("./client-session.server");
-    await requireClientAccount(data.client_account_id);
+    if (data.role === "chauffeur") {
+      const { requireDriverSession } = await import("./driver-auth.server");
+      requireDriverSession();
+    } else {
+      const { requireClientAccount } = await import("./client-session.server");
+      await requireClientAccount(data.client_account_id);
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let q = supabaseAdmin
       .from("direct_messages")

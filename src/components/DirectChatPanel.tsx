@@ -106,7 +106,7 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
     (async () => {
       try {
         const rows = await listDirectMessages({
-          data: { client_account_id: accountId, limit: PAGE_SIZE },
+          data: { client_account_id: accountId, role, limit: PAGE_SIZE },
         });
         if (cancelled) return;
         setMessages(rows);
@@ -136,7 +136,7 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
     }
     try {
       const older = await listDirectMessages({
-        data: { client_account_id: accountId, before: oldest.created_at, limit: PAGE_SIZE },
+        data: { client_account_id: accountId, role, before: oldest.created_at, limit: PAGE_SIZE },
       });
       setMessages((prev) => [...older, ...prev]);
       setHasMore(older.length >= PAGE_SIZE);
@@ -206,7 +206,7 @@ export function DirectChatPanel({ accountId, role, onClose, peerName }: Props) {
       if (stop || document.hidden) return;
       try {
         const latest = await listDirectMessages({
-          data: { client_account_id: accountId, limit: PAGE_SIZE },
+          data: { client_account_id: accountId, role, limit: PAGE_SIZE },
         });
         if (stop || latest.length === 0) return;
         setMessages((prev) => {
