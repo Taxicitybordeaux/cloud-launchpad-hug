@@ -295,6 +295,41 @@ export type Database = {
           },
         ]
       }
+      client_sessions: {
+        Row: {
+          client_account_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          last_seen_at: string
+          token_hash: string
+        }
+        Insert: {
+          client_account_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          last_seen_at?: string
+          token_hash: string
+        }
+        Update: {
+          client_account_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          last_seen_at?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_sessions_client_account_id_fkey"
+            columns: ["client_account_id"]
+            isOneToOne: false
+            referencedRelation: "client_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           created_at: string
