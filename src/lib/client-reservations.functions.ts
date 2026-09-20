@@ -36,6 +36,8 @@ function normalizePhone(p?: string | null): string | null {
 export const listClientReservations = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => IdentitySchema.parse(input))
   .handler(async ({ data }): Promise<ClientReservation[]> => {
+    const { requireClientAccount } = await import("./client-session.server");
+    await requireClientAccount(data.account_id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const cols =
@@ -132,6 +134,8 @@ const UpdateTimeSchema = IdentitySchema.extend({
 export const updateReservationTime = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => UpdateTimeSchema.parse(input))
   .handler(async ({ data }) => {
+    const { requireClientAccount } = await import("./client-session.server");
+    await requireClientAccount(data.account_id);
     const r = await assertOwnership(data.reservation_id, data);
     if (!["nouvelle", "pending", "accepted", "en_route", "arrived"].includes(r.status)) {
       throw new Error("STATUS_LOCKED");
@@ -172,6 +176,8 @@ const CancelSchema = IdentitySchema.extend({
 export const cancelClientReservation = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => CancelSchema.parse(input))
   .handler(async ({ data }) => {
+    const { requireClientAccount } = await import("./client-session.server");
+    await requireClientAccount(data.account_id);
     const r = await assertOwnership(data.reservation_id, data);
     if (!["nouvelle", "pending", "accepted"].includes(r.status)) {
       throw new Error("STATUS_LOCKED");
@@ -201,6 +207,8 @@ export const cancelClientReservation = createServerFn({ method: "POST" })
 export const requestPhoneCancellation = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => CancelSchema.parse(input))
   .handler(async ({ data }) => {
+    const { requireClientAccount } = await import("./client-session.server");
+    await requireClientAccount(data.account_id);
     await assertOwnership(data.reservation_id, data);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
