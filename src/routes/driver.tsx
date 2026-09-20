@@ -12,6 +12,7 @@ import { broadcastSuiviUpdate } from "@/lib/suivi-broadcast";
 import { subscribeChatBadgeEvents, type ChatBadgeEvent } from "@/lib/chat-badge-sync";
 import { ChatPanel } from "@/components/ChatPanel";
 import { InlineDriverChat } from "@/components/InlineDriverChat";
+import siteLogo from "@/assets/tcb-logo-badge.png";
 import {
   listReservationsWithUnreadChauffeur,
   getUnreadCountsForReservations,
@@ -85,21 +86,26 @@ export const Route = createFileRoute("/driver")({
   validateSearch: (s: Record<string, unknown>) => ({ token: String(s.token ?? "") }),
   head: () => ({
     meta: [
-      { title: "Espace chauffeur" },
+      { title: "Espace taxi — Taxi City Bordeaux" },
+      { name: "description", content: "Espace taxi privé de Taxi City Bordeaux." },
+      { property: "og:title", content: "Espace taxi — Taxi City Bordeaux" },
+      { property: "og:description", content: "Espace taxi privé de Taxi City Bordeaux." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
       { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" },
       { name: "theme-color", content: "#03070d" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-      { name: "apple-mobile-web-app-title", content: "Espace José" },
+      { name: "apple-mobile-web-app-title", content: "Taxi City Bordeaux" },
     ],
     links: [{ rel: "manifest", href: "/api/manifest?role=driver" }],
   }),
   component: DriverPage,
 });
 
-// ── Styles : charte Taxi Nova (fond nuit, or, rangées du tableau de bord) ─────
+// ── Styles : charte Taxi City Bordeaux (fond nuit, or, rangées du tableau de bord) ─────
 const css = `
   * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; touch-action: manipulation; }
   html, body {
@@ -109,7 +115,7 @@ const css = `
   }
   input, textarea, select { font-size: 16px; }
 
-  /* ── Coque (même palette que Nova) ── */
+  /* ── Coque (même palette que Taxi City Bordeaux) ── */
   .drv-root {
     position: fixed; inset: 0;
     max-width: 640px; margin: 0 auto;
@@ -122,7 +128,13 @@ const css = `
     background: linear-gradient(180deg, #0a1118, #050a10);
     border-bottom: 1px solid rgba(201,155,74,.35);
   }
-  .drv-brand-mark { display: flex; align-items: center; font-size: 30px; line-height: 1; margin-right: auto; }
+  .drv-brand-mark {
+    display: flex; align-items: center; justify-content: center; flex: 0 0 auto;
+    width: 48px; height: 48px; margin-right: 2px; overflow: hidden;
+    border: 1px solid rgba(201,155,74,.42); border-radius: 8px;
+    background: #050a10;
+  }
+  .drv-brand-mark img { display: block; width: 100%; height: 100%; object-fit: contain; }
   .drv-header-title { display: flex; flex-direction: column; min-width: 0; flex: 1; margin-right: 0; }
   .drv-header-title strong { color: #f6f0e5; font-size: 14px; font-weight: 700; line-height: 1.2; }
   .drv-header-title span { color: rgba(246,240,229,.55); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
@@ -162,7 +174,7 @@ const css = `
     overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;
   }
 
-  /* ── Tableau de bord : rangées Nova ── */
+  /* ── Tableau de bord : rangées Taxi City Bordeaux ── */
   .drv-dash-title { margin: 8px 0 0; font-size: 24px; line-height: 32px; font-weight: 600; color: #f6f0e5; }
   .drv-dash-back {
     display: inline-flex; align-items: center; gap: 6px; margin-bottom: 14px;
@@ -266,7 +278,7 @@ const css = `
   .drv-visitor-dot-active { animation: drv-pulse 2s ease-in-out infinite; }
 `;
 
-// ── Icônes (mêmes tracés que Taxi Nova pour les rangées) ───────────────────
+// ── Icônes (mêmes tracés que Taxi City Bordeaux pour les rangées) ───────────────────
 const svgIcon = (d: string) => () => (
   <svg
     viewBox="0 0 24 24"
@@ -390,7 +402,7 @@ function DriverPage() {
 // ── Application chauffeur : tableau de bord unique (sans onglets) ──────────
 const DRIVER_NAME = "José";
 
-/** Bouton de notifications de l'en-tête (même rendu que Taxi Nova). */
+/** Bouton de notifications de l'en-tête (même rendu que Taxi City Bordeaux). */
 function NotifButton({ status, onSubscribe }: { status: string; onSubscribe: () => void }) {
   const denied = status === "denied";
   const granted = status === "granted";
@@ -597,11 +609,11 @@ function DriverApp() {
       <div className="drv-root">
         <header className="drv-header">
           <div className="drv-brand-mark" aria-label="Taxi City Bordeaux">
-            🚕
+            <img src={siteLogo} alt="Logo Taxi City Bordeaux" />
           </div>
           <div className="drv-header-title">
             <strong>Bonjour {DRIVER_NAME}</strong>
-            <span>Espace chauffeur · Taxi City</span>
+            <span>Espace taxi · Taxi City Bordeaux</span>
           </div>
           <span className="drv-header-datetime">
             <strong>
@@ -655,7 +667,7 @@ function DriverApp() {
   );
 }
 
-// ── Tableau de bord : rangées au format Taxi Nova ──────────────────────────
+// ── Tableau de bord : rangées au format Taxi City Bordeaux ──────────────────────────
 // ›  = ouvre un écran (bouton « Tableau de bord » pour revenir)
 // ＋/− = se déplie sur place
 type ClientCall = { id: string; name: string; phone: string; when: string };
