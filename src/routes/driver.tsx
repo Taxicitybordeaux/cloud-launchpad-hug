@@ -166,17 +166,23 @@ const css = `
   .drv-header-back {
     display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; color: #e0b866; text-decoration: none;
     background: none; border: 1px solid rgba(201,155,74,.5); border-radius: 999px; padding: 7px 12px;
-    font-size: 11px; font-weight: 700; cursor: pointer; font-family: inherit;
+    font-size: 11px; font-weight: 700; cursor: pointer; font-family: inherit; white-space: nowrap;
   }
   .drv-header-back svg { width: 15px; height: 15px; }
+  .drv-header-back-label-short { display: none; }
   @media (max-width: 600px) { .drv-header-datetime { display: none !important; } }
   @media (max-width: 520px) {
     .drv-header-notif span.drv-header-notif-label { display: none; }
     .drv-header-notif { padding: 7px; }
-    .drv-header-back span.drv-header-back-label { display: none; }
-    .drv-header-back { padding: 7px; }
+    /* Le bouton « Retour au site » reste lisible : on réduit au lieu de masquer. */
+    .drv-header-back { padding: 6px 9px; font-size: 10px; gap: 5px; }
   }
-  @media (max-width: 430px) { .drv-header-title { display: none !important; } }
+  @media (max-width: 430px) {
+    .drv-header-title { display: none !important; }
+    .drv-header-back span.drv-header-back-label { display: none; }
+    .drv-header-back span.drv-header-back-label-short { display: inline; }
+    .drv-header-back { padding: 6px 8px; }
+  }
 
   .drv-body {
     flex: 1; padding: 16px; max-width: 100%; overflow-x: hidden;
@@ -630,8 +636,8 @@ function DriverApp() {
       <style>{css}</style>
       <div className="drv-root">
         <header className="drv-header">
-          <div className="drv-brand-mark" aria-label="Taxi City Bordeaux">
-            <img src={siteLogo} alt="Logo Taxi City Bordeaux" />
+          <div className="drv-brand-mark" aria-label="Taxi City Bordeaux" role="img">
+            <img src={siteLogo} alt="Logo Taxi City Bordeaux" draggable={false} />
           </div>
           <div className="drv-header-title">
             <strong>Bonjour {DRIVER_NAME}</strong>
@@ -661,6 +667,7 @@ function DriverApp() {
           <a className="drv-header-back" href="/" aria-label="Retour au site">
             <IconHome />
             <span className="drv-header-back-label">Retour au site</span>
+            <span className="drv-header-back-label-short">Site</span>
           </a>
         </header>
 
