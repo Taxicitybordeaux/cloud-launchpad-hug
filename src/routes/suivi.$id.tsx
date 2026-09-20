@@ -470,7 +470,7 @@ function AnonChat({
     let cancelled = false;
     (async () => {
       try {
-        await markReadFn({ data: { reservation_id: reservationId, role: "client" } });
+        await markReadFn({ data: { reservation_id: reservationId, role: "client", suivi_key: suiviKey } });
         if (!cancelled) {
           setMessages((prev) =>
             prev.map((m) => (!m.read_by_client ? { ...m, read_by_client: true } : m)),
@@ -482,7 +482,7 @@ function AnonChat({
     return () => {
       cancelled = true;
     };
-  }, [unreadSql, reservationId, markReadFn]);
+  }, [unreadSql, reservationId, suiviKey, markReadFn]);
 
   const send = async () => {
     const trimmed = text.trim();

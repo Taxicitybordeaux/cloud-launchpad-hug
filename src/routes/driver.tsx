@@ -81,7 +81,6 @@ interface RouteOption {
 
 // ── Route definition ───────────────────────────────────────────────────────
 export const Route = createFileRoute("/driver")({
-  validateSearch: (s: Record<string, unknown>) => ({ token: String(s.token ?? "") }),
   head: () => ({
     meta: [
       { title: "Espace taxi — Taxi City Bordeaux" },
