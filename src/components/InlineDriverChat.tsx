@@ -6,19 +6,60 @@ import {
   sendChauffeurMessage,
   type ChatMessage,
 } from "@/lib/chat.functions";
-import {
-  registerChauffeurReader,
-  acquireReadLock,
-  releaseReadLock,
-  broadcastChatBadge,
-} from "@/lib/chat-badge-sync";
+import { registerChauffeurReader, acquireReadLock, releaseReadLock, broadcastChatBadge } from "@/lib/chat-badge-sync";
 
 type Props = {
   reservationId: string;
   onUnreadChange?: (n: number) => void;
+  /** "dark" = charte Taxi Nova (fond nuit, or). Par défaut : thème clair d'origine. */
+  theme?: "light" | "dark";
 };
 
-export function InlineDriverChat({ reservationId, onUnreadChange }: Props) {
+const PALETTES = {
+  light: {
+    boxBg: "#FBF7EE",
+    boxBorder: "1px solid #E8DFCB",
+    listBg: "#ffffff",
+    listBorder: "1px solid #EEE6D2",
+    loading: "#666",
+    empty: "#888",
+    mineBg: "linear-gradient(135deg,#C9A84C,#E8C96D)",
+    mineBorder: "none",
+    theirBg: "#F5EEDC",
+    theirBorder: "1px solid #E8DFCB",
+    text: "#0f172a",
+    timeMine: "rgba(0,0,0,0.55)",
+    timeTheir: "rgba(0,0,0,0.45)",
+    inputBg: "#ffffff",
+    inputColor: "#000000",
+    inputBorder: "1px solid #E8DFCB",
+    sendBg: "linear-gradient(135deg,#C9A84C,#E8C96D)",
+    sendColor: "#000",
+  },
+  dark: {
+    boxBg: "rgba(255,255,255,.03)",
+    boxBorder: "1px solid rgba(246,240,229,.12)",
+    listBg: "rgba(0,0,0,.28)",
+    listBorder: "1px solid rgba(246,240,229,.1)",
+    loading: "rgba(246,240,229,.6)",
+    empty: "rgba(246,240,229,.5)",
+    mineBg: "linear-gradient(180deg,#e0b866,#c99b4a)",
+    mineBorder: "none",
+    theirBg: "rgba(255,255,255,.08)",
+    theirBorder: "1px solid rgba(246,240,229,.12)",
+    text: "#f6f0e5",
+    timeMine: "rgba(10,17,24,.6)",
+    timeTheir: "rgba(246,240,229,.5)",
+    inputBg: "rgba(0,0,0,.28)",
+    inputColor: "#f6f0e5",
+    inputBorder: "1px solid rgba(246,240,229,.2)",
+    sendBg: "linear-gradient(180deg,#e0b866,#c99b4a)",
+    sendColor: "#0a1118",
+  },
+} as const;
+
+export function InlineDriverChat({ reservationId, onUnreadChange, theme = "light" }: Props) {
+  const p = PALETTES[theme];
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -114,8 +155,8 @@ export function InlineDriverChat({ reservationId, onUnreadChange }: Props) {
       onClick={(e) => e.stopPropagation()}
       style={{
         marginTop: 8,
-        background: "#FBF7EE",
-        border: "1px solid #E8DFCB",
+        background: p.boxBg,
+        border: p.boxBorder,
         borderRadius: 12,
         padding: 10,
       }}
@@ -125,20 +166,20 @@ export function InlineDriverChat({ reservationId, onUnreadChange }: Props) {
         style={{
           maxHeight: 200,
           overflowY: "auto",
-          background: "#ffffff",
-          border: "1px solid #EEE6D2",
+          background: p.listBg,
+          border: p.listBorder,
           borderRadius: 8,
           padding: 8,
           marginBottom: 8,
         }}
       >
         {loading && (
-          <div style={{ textAlign: "center", padding: 12, color: "#666" }}>
+          <div style={{ textAlign: "center", padding: 12, color: p.loading }}>
             <Loader2 className="animate-spin" style={{ width: 14, height: 14, display: "inline" }} />
           </div>
         )}
         {!loading && messages.length === 0 && (
-          <div style={{ textAlign: "center", padding: 12, color: "#888", fontSize: 12 }}>
+          <div style={{ textAlign: "center", padding: 12, color: p.empty, fontSize: 12 }}>
             Aucun message pour l'instant.
           </div>
         )}
@@ -157,9 +198,9 @@ export function InlineDriverChat({ reservationId, onUnreadChange }: Props) {
               <div
                 style={{
                   maxWidth: "78%",
-                  background: mine ? "linear-gradient(135deg,#C9A84C,#E8C96D)" : "#F5EEDC",
-                  color: "#0f172a",
-                  border: mine ? "none" : "1px solid #E8DFCB",
+                  background: mine ? p.mineBg : p.theirBg,
+                  color: theme === "dark" && mine ? "#0a1118" : p.text,
+                  border: mine ? p.mineBorder : p.theirBorder,
                   borderRadius: 12,
                   padding: "6px 10px",
                   fontSize: 13,
@@ -177,7 +218,7 @@ export function InlineDriverChat({ reservationId, onUnreadChange }: Props) {
                     alignItems: "center",
                     gap: 4,
                     fontSize: 10,
-                    color: mine ? "rgba(0,0,0,0.55)" : "rgba(0,0,0,0.45)",
+                    color: mine ? p.timeMine : p.timeTheir,
                   }}
                 >
                   {new Date(m.created_at).toLocaleTimeString("fr-FR", {
@@ -219,9 +260,9 @@ export function InlineDriverChat({ reservationId, onUnreadChange }: Props) {
             flex: 1,
             resize: "none",
             maxHeight: 100,
-            background: "#ffffff",
-            color: "#000000",
-            border: "1px solid #E8DFCB",
+            background: p.inputBg,
+            color: p.inputColor,
+            border: p.inputBorder,
             borderRadius: 10,
             padding: "8px 10px",
             fontSize: 14,
@@ -235,8 +276,8 @@ export function InlineDriverChat({ reservationId, onUnreadChange }: Props) {
             width: 40,
             height: 40,
             borderRadius: 10,
-            background: "linear-gradient(135deg,#C9A84C,#E8C96D)",
-            color: "#000",
+            background: p.sendBg,
+            color: p.sendColor,
             border: "none",
             display: "flex",
             alignItems: "center",
