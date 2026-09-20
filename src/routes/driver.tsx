@@ -136,6 +136,13 @@ const css = `
       padding-top: calc(max(env(safe-area-inset-top, 0px), 59px) + 12px);
     }
   }
+  @supports (-webkit-touch-callout: none) {
+    @media (max-width: 600px) {
+      .drv-header {
+        padding-top: calc(max(env(safe-area-inset-top, 0px), 59px) + 12px);
+      }
+    }
+  }
   .drv-brand-mark {
     display: flex; align-items: center; justify-content: center; flex: 0 0 auto;
     width: 48px; height: 48px; margin-right: 2px; overflow: hidden;
