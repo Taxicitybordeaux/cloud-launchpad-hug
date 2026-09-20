@@ -667,6 +667,7 @@ function DriverApp() {
           <a className="drv-header-back" href="/" aria-label="Retour au site">
             <IconHome />
             <span className="drv-header-back-label">Retour au site</span>
+            <span className="drv-header-back-label-short">Site</span>
           </a>
         </header>
 
