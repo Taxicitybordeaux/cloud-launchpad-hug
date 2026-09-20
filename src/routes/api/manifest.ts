@@ -14,7 +14,7 @@ export const Route = createFileRoute("/api/manifest")({
           name: "Taxi City Bordeaux",
           short_name: isDriver ? "TCB Chauffeur" : "Taxi Bordeaux",
           description: "Réservez votre taxi à Bordeaux",
-          start_url: isDriver ? "/driver?token=DSF234" : "/",
+          start_url: isDriver ? "/driver" : "/",
           scope: isDriver ? "/driver" : "/",
           display: "standalone",
           background_color: isDriver ? "#151515" : "#151515",

@@ -1,8 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const ORS_API_KEY =
-  "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImNhMGVmYTZiNGQ2MzQ3ZGJhZDJmMmY0ZDc2YjYyYTIwIiwiaCI6Im11cm11cjY0In0=";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -14,6 +11,8 @@ serve(async (req) => {
   }
 
   try {
+    const ORS_API_KEY = Deno.env.get("ORS_API_KEY");
+    if (!ORS_API_KEY) throw new Error("Routing service is not configured");
     const { from_lng, from_lat, to_lng, to_lat, overview, geometries, alternatives } = await req.json();
 
     if (from_lng == null || from_lat == null || to_lng == null || to_lat == null) {

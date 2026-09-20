@@ -1,8 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-const DRIVER_TOKEN = "DSF234";
-
 const submitSchema = z.object({
   reservation_id: z.string().uuid().optional().nullable(),
   author_name: z.string().trim().min(1).max(80).optional().nullable(),
@@ -19,15 +17,9 @@ const deleteSchema = z.object({
   id: z.string().uuid(),
 });
 
-function tokenFrom(request: Request) {
-  const url = new URL(request.url);
-  return request.headers.get("x-driver-token") || url.searchParams.get("token") || "";
-}
-
-function assertDriver(request: Request) {
-  const expected = (process.env.DRIVER_PANEL_TOKEN || DRIVER_TOKEN).trim();
-  if (tokenFrom(request) !== expected) return false;
-  return true;
+async function assertDriver() {
+  const { isValidDriverSession } = await import("@/lib/driver-auth.server");
+  return isValidDriverSession();
 }
 
 export const Route = createFileRoute("/api/public/reviews")({
@@ -52,7 +44,7 @@ export const Route = createFileRoute("/api/public/reviews")({
           return Response.json({ hasReview: !!data, status: data?.status ?? null });
         }
 
-        if (!assertDriver(request)) return Response.json({ error: "Unauthorized" }, { status: 401 });
+        if (!(await assertDriver())) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
         const columns = "id,author_name,note,commentaire,created_at,status,reservation_id,chauffeur_id";
         const [{ data: pending, error: pendingError }, { data: published, error: publishedError }] = await Promise.all([
@@ -124,7 +116,7 @@ export const Route = createFileRoute("/api/public/reviews")({
           await sendPushToAudience("chauffeur", {
             title: `⭐ Nouvel avis ${stars}`,
             body: excerpt ? `${authorName} : « ${excerpt}${excerpt.length >= 90 ? "…" : ""} »` : `${authorName} vient de laisser un avis.`,
-            url: "/driver?token=DSF234",
+            url: "/driver",
             tag: `new-review-${inserted.id}`,
           });
         } catch (error) {
@@ -135,7 +127,7 @@ export const Route = createFileRoute("/api/public/reviews")({
       },
 
       PATCH: async ({ request }) => {
-        if (!assertDriver(request)) return Response.json({ error: "Unauthorized" }, { status: 401 });
+        if (!(await assertDriver())) return Response.json({ error: "Unauthorized" }, { status: 401 });
         const { getTaxiSupabaseAdmin } = await import("@/lib/taxi-supabase.server");
         let raw: unknown;
         try {
@@ -151,7 +143,7 @@ export const Route = createFileRoute("/api/public/reviews")({
       },
 
       DELETE: async ({ request }) => {
-        if (!assertDriver(request)) return Response.json({ error: "Unauthorized" }, { status: 401 });
+        if (!(await assertDriver())) return Response.json({ error: "Unauthorized" }, { status: 401 });
         const { getTaxiSupabaseAdmin } = await import("@/lib/taxi-supabase.server");
         let raw: unknown;
         try {

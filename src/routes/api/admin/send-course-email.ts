@@ -29,11 +29,8 @@ export const Route = createFileRoute("/api/admin/send-course-email")({
           return Response.json({ error: "Server configuration error" }, { status: 500 });
         }
 
-        // Ce bridge est serveur-only — on vérifie juste que l'appelant
-        // est bien notre propre frontend (même origine) via le header sentinelle.
-        // Le vrai secret (LOVABLE_API_KEY) n'est jamais envoyé par le navigateur.
-        const adminSecretHeader = request.headers.get("X-Admin-Secret") ?? "";
-        if (adminSecretHeader !== "admin-pin-call") {
+        const { isValidDriverSession } = await import("@/lib/driver-auth.server");
+        if (!isValidDriverSession()) {
           return Response.json({ error: "Unauthorized" }, { status: 401 });
         }
 
