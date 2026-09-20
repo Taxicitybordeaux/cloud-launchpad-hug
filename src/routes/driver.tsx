@@ -7,7 +7,7 @@ import { geocodeAddress } from "@/lib/googleGeocode";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useServerFn } from "@tanstack/react-start";
 import { listPushFailures, notifyReservationStatus } from "@/lib/push.functions";
-import { checkDriverSession, loginDriver } from "@/lib/driver-auth.functions";
+import { checkDriverSession, openDriverSession } from "@/lib/driver-auth.functions";
 import { calculerPrixMixte, estTarifJourParis, parseAsParisTime, TARIFS } from "@/lib/tarif";
 import { broadcastSuiviUpdate } from "@/lib/suivi-broadcast";
 import { subscribeChatBadgeEvents, type ChatBadgeEvent } from "@/lib/chat-badge-sync";
