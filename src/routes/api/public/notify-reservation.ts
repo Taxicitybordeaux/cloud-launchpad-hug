@@ -148,7 +148,7 @@ export const Route = createFileRoute("/api/public/notify-reservation")({
           const chauffeurResult = await sendPushToAudience("chauffeur", {
             title: "🚕 Nouvelle résa",
             body: `${clientName} — ${trajet}`,
-            url: "/driver?token=DSF234",
+            url: "/driver",
             tag: `chauffeur-res-${reservationId}`,
             requireInteraction: true,
           });
