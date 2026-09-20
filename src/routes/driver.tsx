@@ -124,9 +124,17 @@ const css = `
   }
   .drv-header {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap; row-gap: 8px; flex-shrink: 0;
-    padding: max(calc(env(safe-area-inset-top, 0px) + 10px), 54px) calc(env(safe-area-inset-right, 0px) + 14px) 10px calc(env(safe-area-inset-left, 0px) + 14px);
+    padding: calc(env(safe-area-inset-top, 0px) + 12px) calc(env(safe-area-inset-right, 0px) + 14px) 10px calc(env(safe-area-inset-left, 0px) + 14px);
     background: linear-gradient(180deg, #0a1118, #050a10);
     border-bottom: 1px solid rgba(201,155,74,.35);
+  }
+  /* En mode PWA, certains iPhone renvoient temporairement 0 pour la safe-area.
+     La réserve fixe empêche alors le logo et les actions de passer sous l'heure,
+     l'encoche ou l'indicateur de batterie. */
+  @media (display-mode: standalone) {
+    .drv-header {
+      padding-top: calc(max(env(safe-area-inset-top, 0px), 59px) + 12px);
+    }
   }
   .drv-brand-mark {
     display: flex; align-items: center; justify-content: center; flex: 0 0 auto;
