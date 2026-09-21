@@ -2109,6 +2109,30 @@ function ReservationPage() {
                       ))}
                     </div>
                   )}
+                  {departSuggestions.length > 0 && (
+                    <div style={{ display: "grid", gap: 6, marginTop: 8 }}>
+                      {departSuggestions.map((s) => (
+                        <button
+                          key={s.placeId}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => pickSuggestion("depart", s)}
+                          style={{
+                            width: "100%",
+                            textAlign: "left",
+                            padding: "10px 12px",
+                            borderRadius: 10,
+                            border: "1.5px solid #e2d9c8",
+                            background: "#faf9f7",
+                            color: "#1a1209",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   {departChoices.length > 0 && (
                     <div style={{ display: "grid", gap: 6, marginTop: 8 }}>
                       {departChoices.map((choice) => (
