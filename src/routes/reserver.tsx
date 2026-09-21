@@ -14,6 +14,11 @@ import {
 import { reverseGeocode, searchAddress } from "@/lib/googleGeocode";
 import { getDistanceAndDurationKm } from "@/lib/googleRoute";
 import { roundSecondsToMinute } from "@/lib/duration";
+import {
+  autocompletePlaces,
+  getPlaceDetail,
+  type PlaceSuggestion,
+} from "@/lib/places.functions";
 
 import { newSuiviId } from "@/lib/suivi-id";
 import { notifyNewReservation, subscribePush as subscribePushServer } from "@/lib/push.functions";
@@ -665,6 +670,14 @@ function ReservationPage() {
   const resolveDestinationAddressRef = useRef<((value?: string) => void) | null>(null);
   const resolveDepartAddressRef = useRef<((value?: string) => void) | null>(null);
   const [destinationChoices, setDestinationChoices] = useState<AddressChoice[]>([]);
+  // Suggestions d'autocomplétion (Google Places via la passerelle serveur)
+  const [departSuggestions, setDepartSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [destinationSuggestions, setDestinationSuggestions] = useState<PlaceSuggestion[]>([]);
+  const newSessionToken = () =>
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2);
+  const placesSessionRef = useRef<string>(newSessionToken());
   // Quand la géoloc (ou un choix de liste) pose directement label+coord,
   // on veut empêcher le prochain onBlur/debounce de relancer resolveDepartAddress
   // et de reset fromCoord à null. Ce flag neutralise un seul appel.
@@ -1318,18 +1331,24 @@ function ReservationPage() {
   }, [resolveDepartAddress]);
 
   // ── Autocomplétion en direct pendant la frappe (départ) ───────────────────
+  //    Passe par la passerelle Google Maps gérée par Lovable (clé côté serveur).
   useEffect(() => {
     const value = f.depart.trim();
     if (departDebounceRef.current) clearTimeout(departDebounceRef.current);
-    if (value.length < 3 || fromCoord) return;
+    if (value.length < 3 || fromCoord) {
+      setDepartSuggestions([]);
+      return;
+    }
     let cancelled = false;
     departDebounceRef.current = setTimeout(async () => {
       setSearchingDepart(true);
-      const choices = await searchNearbyAddressChoices(value, BORDEAUX_CENTER, 200).catch(() => []);
+      const list = await autocompletePlaces({
+        data: { input: value, sessionToken: placesSessionRef.current },
+      }).catch(() => [] as PlaceSuggestion[]);
       if (cancelled) return;
       setSearchingDepart(false);
-      setDepartChoices(choices.slice(0, 5));
-    }, 400);
+      setDepartSuggestions(list);
+    }, 350);
     return () => {
       cancelled = true;
       if (departDebounceRef.current) clearTimeout(departDebounceRef.current);
@@ -1340,21 +1359,60 @@ function ReservationPage() {
   useEffect(() => {
     const value = f.destination.trim();
     if (destinationDebounceRef.current) clearTimeout(destinationDebounceRef.current);
-    if (value.length < 3 || toCoord) return;
+    if (value.length < 3 || toCoord) {
+      setDestinationSuggestions([]);
+      return;
+    }
     let cancelled = false;
     destinationDebounceRef.current = setTimeout(async () => {
       setSearchingDestination(true);
-      const origin = fromCoord ?? BORDEAUX_CENTER;
-      const choices = await searchNearbyAddressChoices(value, origin, 200).catch(() => []);
+      const list = await autocompletePlaces({
+        data: { input: value, sessionToken: placesSessionRef.current },
+      }).catch(() => [] as PlaceSuggestion[]);
       if (cancelled) return;
       setSearchingDestination(false);
-      setDestinationChoices(choices.slice(0, 5));
-    }, 400);
+      setDestinationSuggestions(list);
+    }, 350);
     return () => {
       cancelled = true;
       if (destinationDebounceRef.current) clearTimeout(destinationDebounceRef.current);
     };
-  }, [f.destination, toCoord, fromCoord]);
+  }, [f.destination, toCoord]);
+
+  // Sélection d'une suggestion : on récupère l'adresse complète et ses coordonnées.
+  const pickSuggestion = useCallback(
+    async (field: "depart" | "destination", suggestion: PlaceSuggestion) => {
+      if (field === "depart") {
+        skipNextDepartResolveRef.current = true;
+        set("depart", suggestion.label);
+        setDepartSuggestions([]);
+        setDepartChoices([]);
+      } else {
+        destinationFocusedRef.current = false;
+        set("destination", suggestion.label);
+        setDestinationSuggestions([]);
+        setDestinationChoices([]);
+      }
+      const detail = await getPlaceDetail({
+        data: { placeId: suggestion.placeId, sessionToken: placesSessionRef.current },
+      }).catch(() => null);
+      placesSessionRef.current = newSessionToken();
+      if (!detail) return;
+      if (field === "depart") {
+        set("depart", detail.label || suggestion.label);
+        setFromCoord([detail.lat, detail.lng]);
+      } else {
+        set("destination", detail.label || suggestion.label);
+        setToCoord([detail.lat, detail.lng]);
+      }
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    },
+    [],
+  );
 
 
 
@@ -1905,6 +1963,7 @@ function ReservationPage() {
                         set("depart", v);
                         setFromCoord(null);
                         setDepartChoices([]);
+                        setDepartSuggestions([]);
                         if (departDebounceRef.current) clearTimeout(departDebounceRef.current);
                       }}
                       onBlur={() => resolveDepartAddress()}
@@ -2051,6 +2110,30 @@ function ReservationPage() {
                       ))}
                     </div>
                   )}
+                  {departSuggestions.length > 0 && (
+                    <div style={{ display: "grid", gap: 6, marginTop: 8 }}>
+                      {departSuggestions.map((s) => (
+                        <button
+                          key={s.placeId}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => pickSuggestion("depart", s)}
+                          style={{
+                            width: "100%",
+                            textAlign: "left",
+                            padding: "10px 12px",
+                            borderRadius: 10,
+                            border: "1.5px solid #e2d9c8",
+                            background: "#faf9f7",
+                            color: "#1a1209",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   {departChoices.length > 0 && (
                     <div style={{ display: "grid", gap: 6, marginTop: 8 }}>
                       {departChoices.map((choice) => (
@@ -2158,6 +2241,30 @@ function ReservationPage() {
                         }}
                       />
                       {t("res.loc.searching")}
+                    </div>
+                  )}
+                  {destinationSuggestions.length > 0 && (
+                    <div style={{ display: "grid", gap: 6, marginTop: 8 }}>
+                      {destinationSuggestions.map((s) => (
+                        <button
+                          key={s.placeId}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => pickSuggestion("destination", s)}
+                          style={{
+                            width: "100%",
+                            textAlign: "left",
+                            padding: "10px 12px",
+                            borderRadius: 10,
+                            border: "1.5px solid #e2d9c8",
+                            background: "#faf9f7",
+                            color: "#1a1209",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {s.label}
+                        </button>
+                      ))}
                     </div>
                   )}
                   {destinationChoices.length > 0 && (
