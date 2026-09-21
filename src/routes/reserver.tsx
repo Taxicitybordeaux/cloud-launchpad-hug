@@ -1857,7 +1857,7 @@ function ReservationPage() {
                         setDepartChoices([]);
                         if (departDebounceRef.current) clearTimeout(departDebounceRef.current);
                       }}
-                      onBlur={resolveDepartAddress}
+                      onBlur={() => resolveDepartAddress()}
                       placeholder="Adresse de départ"
                       autoComplete="off"
                       autoCorrect="off"
