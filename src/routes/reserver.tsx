@@ -1318,18 +1318,24 @@ function ReservationPage() {
   }, [resolveDepartAddress]);
 
   // ── Autocomplétion en direct pendant la frappe (départ) ───────────────────
+  //    Passe par la passerelle Google Maps gérée par Lovable (clé côté serveur).
   useEffect(() => {
     const value = f.depart.trim();
     if (departDebounceRef.current) clearTimeout(departDebounceRef.current);
-    if (value.length < 3 || fromCoord) return;
+    if (value.length < 3 || fromCoord) {
+      setDepartSuggestions([]);
+      return;
+    }
     let cancelled = false;
     departDebounceRef.current = setTimeout(async () => {
       setSearchingDepart(true);
-      const choices = await searchNearbyAddressChoices(value, BORDEAUX_CENTER, 200).catch(() => []);
+      const list = await autocompletePlaces({
+        data: { input: value, sessionToken: placesSessionRef.current },
+      }).catch(() => [] as PlaceSuggestion[]);
       if (cancelled) return;
       setSearchingDepart(false);
-      setDepartChoices(choices.slice(0, 5));
-    }, 400);
+      setDepartSuggestions(list);
+    }, 350);
     return () => {
       cancelled = true;
       if (departDebounceRef.current) clearTimeout(departDebounceRef.current);
@@ -1340,21 +1346,60 @@ function ReservationPage() {
   useEffect(() => {
     const value = f.destination.trim();
     if (destinationDebounceRef.current) clearTimeout(destinationDebounceRef.current);
-    if (value.length < 3 || toCoord) return;
+    if (value.length < 3 || toCoord) {
+      setDestinationSuggestions([]);
+      return;
+    }
     let cancelled = false;
     destinationDebounceRef.current = setTimeout(async () => {
       setSearchingDestination(true);
-      const origin = fromCoord ?? BORDEAUX_CENTER;
-      const choices = await searchNearbyAddressChoices(value, origin, 200).catch(() => []);
+      const list = await autocompletePlaces({
+        data: { input: value, sessionToken: placesSessionRef.current },
+      }).catch(() => [] as PlaceSuggestion[]);
       if (cancelled) return;
       setSearchingDestination(false);
-      setDestinationChoices(choices.slice(0, 5));
-    }, 400);
+      setDestinationSuggestions(list);
+    }, 350);
     return () => {
       cancelled = true;
       if (destinationDebounceRef.current) clearTimeout(destinationDebounceRef.current);
     };
-  }, [f.destination, toCoord, fromCoord]);
+  }, [f.destination, toCoord]);
+
+  // Sélection d'une suggestion : on récupère l'adresse complète et ses coordonnées.
+  const pickSuggestion = useCallback(
+    async (field: "depart" | "destination", suggestion: PlaceSuggestion) => {
+      if (field === "depart") {
+        skipNextDepartResolveRef.current = true;
+        set("depart", suggestion.label);
+        setDepartSuggestions([]);
+        setDepartChoices([]);
+      } else {
+        destinationFocusedRef.current = false;
+        set("destination", suggestion.label);
+        setDestinationSuggestions([]);
+        setDestinationChoices([]);
+      }
+      const detail = await getPlaceDetail({
+        data: { placeId: suggestion.placeId, sessionToken: placesSessionRef.current },
+      }).catch(() => null);
+      placesSessionRef.current = newSessionToken();
+      if (!detail) return;
+      if (field === "depart") {
+        set("depart", detail.label || suggestion.label);
+        setFromCoord([detail.lat, detail.lng]);
+      } else {
+        set("destination", detail.label || suggestion.label);
+        setToCoord([detail.lat, detail.lng]);
+      }
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    },
+    [],
+  );
 
 
 
