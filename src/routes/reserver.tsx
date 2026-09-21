@@ -670,6 +670,14 @@ function ReservationPage() {
   const resolveDestinationAddressRef = useRef<((value?: string) => void) | null>(null);
   const resolveDepartAddressRef = useRef<((value?: string) => void) | null>(null);
   const [destinationChoices, setDestinationChoices] = useState<AddressChoice[]>([]);
+  // Suggestions d'autocomplétion (Google Places via la passerelle serveur)
+  const [departSuggestions, setDepartSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [destinationSuggestions, setDestinationSuggestions] = useState<PlaceSuggestion[]>([]);
+  const newSessionToken = () =>
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2);
+  const placesSessionRef = useRef<string>(newSessionToken());
   // Quand la géoloc (ou un choix de liste) pose directement label+coord,
   // on veut empêcher le prochain onBlur/debounce de relancer resolveDepartAddress
   // et de reset fromCoord à null. Ce flag neutralise un seul appel.
