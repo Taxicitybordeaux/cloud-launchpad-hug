@@ -1963,6 +1963,7 @@ function ReservationPage() {
                         set("depart", v);
                         setFromCoord(null);
                         setDepartChoices([]);
+                        setDepartSuggestions([]);
                         if (departDebounceRef.current) clearTimeout(departDebounceRef.current);
                       }}
                       onBlur={() => resolveDepartAddress()}
