@@ -662,8 +662,9 @@ function ReservationPage() {
   const [voiceBothListening, setVoiceBothListening] = useState(false);
   const voiceRecogRef = useRef<any>(null);
   const voiceBothRecogRef = useRef<any>(null);
-  const resolveDestinationAddressRef = useRef<(() => void) | null>(null);
-  const resolveDepartAddressRef = useRef<(() => void) | null>(null);
+  const resolveDestinationAddressRef = useRef<((value?: string) => void) | null>(null);
+  const resolveDepartAddressRef = useRef<((value?: string) => void) | null>(null);
+  const [destinationChoices, setDestinationChoices] = useState<AddressChoice[]>([]);
   // Quand la géoloc (ou un choix de liste) pose directement label+coord,
   // on veut empêcher le prochain onBlur/debounce de relancer resolveDepartAddress
   // et de reset fromCoord à null. Ce flag neutralise un seul appel.
