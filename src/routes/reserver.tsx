@@ -1139,13 +1139,13 @@ function ReservationPage() {
   }, [f.depart, geolocLoading, handleGeolocate]);
 
   // ── Résoudre adresse départ (saisie manuelle) ────────────────────────────
-  const resolveDepartAddress = useCallback(async () => {
+  const resolveDepartAddress = useCallback(async (overrideValue?: string) => {
     // Géoloc vient de poser l'adresse directement — on saute ce resolve
     if (skipNextDepartResolveRef.current) {
       skipNextDepartResolveRef.current = false;
       return;
     }
-    const value = f.depart.trim();
+    const value = (overrideValue ?? f.depart).trim();
     if (!value) return;
     setCalcLoading(true);
     setSearchingDepart(true);
