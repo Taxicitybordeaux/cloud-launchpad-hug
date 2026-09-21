@@ -1233,11 +1233,13 @@ function ReservationPage() {
   }, [f.depart, fromCoord]);
 
   // ── Résoudre adresse destination ─────────────────────────────────────────
-  const resolveDestinationAddress = useCallback(async () => {
-    const value = f.destination.trim();
+  const resolveDestinationAddress = useCallback(async (overrideValue?: string) => {
+    const value = (overrideValue ?? f.destination).trim();
     if (!value) return;
+    if (overrideValue) set("destination", overrideValue);
     setCalcLoading(true);
     setSearchingDestination(true);
+    setDestinationChoices([]);
 
     // Si le départ est saisi mais fromCoord pas encore résolu (l'utilisateur
     // a sauté directement au champ destination avant que resolveDepartAddress finisse),
