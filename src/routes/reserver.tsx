@@ -662,8 +662,9 @@ function ReservationPage() {
   const [voiceBothListening, setVoiceBothListening] = useState(false);
   const voiceRecogRef = useRef<any>(null);
   const voiceBothRecogRef = useRef<any>(null);
-  const resolveDestinationAddressRef = useRef<(() => void) | null>(null);
-  const resolveDepartAddressRef = useRef<(() => void) | null>(null);
+  const resolveDestinationAddressRef = useRef<((value?: string) => void) | null>(null);
+  const resolveDepartAddressRef = useRef<((value?: string) => void) | null>(null);
+  const [destinationChoices, setDestinationChoices] = useState<AddressChoice[]>([]);
   // Quand la géoloc (ou un choix de liste) pose directement label+coord,
   // on veut empêcher le prochain onBlur/debounce de relancer resolveDepartAddress
   // et de reset fromCoord à null. Ce flag neutralise un seul appel.
@@ -713,11 +714,14 @@ function ReservationPage() {
       }
     };
     recog.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
+      const transcript = String(event.results[0][0].transcript ?? "").trim();
+      if (!transcript) return;
       set("destination", transcript);
       setToCoord(null);
-      // Déclencher la résolution d'adresse après un court délai
-      setTimeout(() => resolveDestinationAddressRef.current?.(), 300);
+      destinationFocusedRef.current = false;
+      // On passe le texte dicté directement : la résolution ne dépend plus de
+      // l'état React, qui peut ne pas être encore à jour au moment de l'appel.
+      setTimeout(() => resolveDestinationAddressRef.current?.(transcript), 200);
     };
     voiceRecogRef.current = recog;
     try {
@@ -835,9 +839,13 @@ function ReservationPage() {
         setToCoord(null);
       }
       // Résolution séquentielle : départ d'abord (sert d'origine), puis destination.
+      // Les textes dictés sont passés en argument pour ne pas dépendre de l'état React.
+      destinationFocusedRef.current = false;
       setTimeout(() => {
-        if (depart) resolveDepartAddressRef.current?.();
-        setTimeout(() => resolveDestinationAddressRef.current?.(), 600);
+        if (depart) resolveDepartAddressRef.current?.(depart);
+        setTimeout(() => {
+          if (destination) resolveDestinationAddressRef.current?.(destination);
+        }, 600);
       }, 200);
     };
     voiceBothRecogRef.current = recog;
@@ -1131,13 +1139,13 @@ function ReservationPage() {
   }, [f.depart, geolocLoading, handleGeolocate]);
 
   // ── Résoudre adresse départ (saisie manuelle) ────────────────────────────
-  const resolveDepartAddress = useCallback(async () => {
+  const resolveDepartAddress = useCallback(async (overrideValue?: string) => {
     // Géoloc vient de poser l'adresse directement — on saute ce resolve
     if (skipNextDepartResolveRef.current) {
       skipNextDepartResolveRef.current = false;
       return;
     }
-    const value = f.depart.trim();
+    const value = (overrideValue ?? f.depart).trim();
     if (!value) return;
     setCalcLoading(true);
     setSearchingDepart(true);
@@ -1225,11 +1233,13 @@ function ReservationPage() {
   }, [f.depart, fromCoord]);
 
   // ── Résoudre adresse destination ─────────────────────────────────────────
-  const resolveDestinationAddress = useCallback(async () => {
-    const value = f.destination.trim();
+  const resolveDestinationAddress = useCallback(async (overrideValue?: string) => {
+    const value = (overrideValue ?? f.destination).trim();
     if (!value) return;
+    if (overrideValue) set("destination", overrideValue);
     setCalcLoading(true);
     setSearchingDestination(true);
+    setDestinationChoices([]);
 
     // Si le départ est saisi mais fromCoord pas encore résolu (l'utilisateur
     // a sauté directement au champ destination avant que resolveDepartAddress finisse),
@@ -1285,10 +1295,17 @@ function ReservationPage() {
       });
     } else {
       setToCoord(null);
-      setErrors((prev) => ({
-        ...prev,
-        destination: "Adresse introuvable — précisez la ville ou le lieu",
-      }));
+      // Pas de correspondance exacte → on propose une liste de lieux proches.
+      const nearby = await searchNearbyAddressChoices(value, origin, 200).catch(() => []);
+      if (nearby.length) {
+        setDestinationChoices(nearby.slice(0, 4));
+        setErrors((prev) => ({ ...prev, destination: "Sélectionnez une adresse dans la liste" }));
+      } else {
+        setErrors((prev) => ({
+          ...prev,
+          destination: "Adresse introuvable — précisez la ville ou le lieu",
+        }));
+      }
     }
   }, [f.destination, f.depart, fromCoord]);
 
@@ -1299,6 +1316,47 @@ function ReservationPage() {
   useEffect(() => {
     resolveDepartAddressRef.current = resolveDepartAddress;
   }, [resolveDepartAddress]);
+
+  // ── Autocomplétion en direct pendant la frappe (départ) ───────────────────
+  useEffect(() => {
+    const value = f.depart.trim();
+    if (departDebounceRef.current) clearTimeout(departDebounceRef.current);
+    if (value.length < 3 || fromCoord) return;
+    let cancelled = false;
+    departDebounceRef.current = setTimeout(async () => {
+      setSearchingDepart(true);
+      const choices = await searchNearbyAddressChoices(value, BORDEAUX_CENTER, 200).catch(() => []);
+      if (cancelled) return;
+      setSearchingDepart(false);
+      setDepartChoices(choices.slice(0, 5));
+    }, 400);
+    return () => {
+      cancelled = true;
+      if (departDebounceRef.current) clearTimeout(departDebounceRef.current);
+    };
+  }, [f.depart, fromCoord]);
+
+  // ── Autocomplétion en direct pendant la frappe (destination) ──────────────
+  useEffect(() => {
+    const value = f.destination.trim();
+    if (destinationDebounceRef.current) clearTimeout(destinationDebounceRef.current);
+    if (value.length < 3 || toCoord) return;
+    let cancelled = false;
+    destinationDebounceRef.current = setTimeout(async () => {
+      setSearchingDestination(true);
+      const origin = fromCoord ?? BORDEAUX_CENTER;
+      const choices = await searchNearbyAddressChoices(value, origin, 200).catch(() => []);
+      if (cancelled) return;
+      setSearchingDestination(false);
+      setDestinationChoices(choices.slice(0, 5));
+    }, 400);
+    return () => {
+      cancelled = true;
+      if (destinationDebounceRef.current) clearTimeout(destinationDebounceRef.current);
+    };
+  }, [f.destination, toCoord, fromCoord]);
+
+
 
   // ── Disponibilité taxi ────────────────────────────────────────────────────
   useEffect(() => {
@@ -1849,7 +1907,7 @@ function ReservationPage() {
                         setDepartChoices([]);
                         if (departDebounceRef.current) clearTimeout(departDebounceRef.current);
                       }}
-                      onBlur={resolveDepartAddress}
+                      onBlur={() => resolveDepartAddress()}
                       placeholder="Adresse de départ"
                       autoComplete="off"
                       autoCorrect="off"
@@ -2057,7 +2115,7 @@ function ReservationPage() {
                       const v = e.target.value;
                       set("destination", v);
                       setToCoord(null);
-                      if (destinationDebounceRef.current) clearTimeout(destinationDebounceRef.current);
+                      setDestinationChoices([]);
                     }}
                     onFocus={() => {
                       destinationFocusedRef.current = true;
@@ -2100,6 +2158,41 @@ function ReservationPage() {
                         }}
                       />
                       {t("res.loc.searching")}
+                    </div>
+                  )}
+                  {destinationChoices.length > 0 && (
+                    <div style={{ display: "grid", gap: 6, marginTop: 8 }}>
+                      {destinationChoices.map((choice) => (
+                        <button
+                          key={`${choice.label}-${choice.coord[0]}-${choice.coord[1]}`}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            if (destinationDebounceRef.current) clearTimeout(destinationDebounceRef.current);
+                            destinationFocusedRef.current = false;
+                            set("destination", choice.label);
+                            setToCoord(choice.coord);
+                            setDestinationChoices([]);
+                            setErrors((prev) => {
+                              const next = { ...prev };
+                              delete next.destination;
+                              return next;
+                            });
+                          }}
+                          style={{
+                            width: "100%",
+                            textAlign: "left",
+                            padding: "10px 12px",
+                            borderRadius: 10,
+                            border: "1.5px solid #e2d9c8",
+                            background: "#faf9f7",
+                            color: "#1a1209",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {choice.label}
+                        </button>
+                      ))}
                     </div>
                   )}
                   {toCoord && !errors.destination && (

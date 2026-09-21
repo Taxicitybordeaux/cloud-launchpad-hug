@@ -105,7 +105,9 @@ export const Route = createFileRoute("/driver")({
 // ── Styles : charte Taxi City Bordeaux (fond nuit, or, rangées du tableau de bord) ─────
 const css = `
   * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; touch-action: manipulation; }
-  html, body {
+  /* Verrouillage de scroll limité à l'espace taxi : la classe est retirée au
+     démontage, ce qui restitue toujours le défilement des pages du site. */
+  html.drv-locked, body.drv-locked {
     margin: 0; padding: 0; height: 100%; overflow: hidden;
     overscroll-behavior-y: none; background: #03070d;
     font-family: 'DM Sans', sans-serif;
@@ -630,6 +632,16 @@ function DriverApp() {
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: 0 });
   }, [tab]);
+
+  // Verrouille le scroll uniquement pendant l'espace taxi et le restitue en sortant.
+  useEffect(() => {
+    document.documentElement.classList.add("drv-locked");
+    document.body.classList.add("drv-locked");
+    return () => {
+      document.documentElement.classList.remove("drv-locked");
+      document.body.classList.remove("drv-locked");
+    };
+  }, []);
 
   return (
     <>
