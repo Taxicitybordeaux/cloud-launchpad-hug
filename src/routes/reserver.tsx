@@ -839,9 +839,13 @@ function ReservationPage() {
         setToCoord(null);
       }
       // Résolution séquentielle : départ d'abord (sert d'origine), puis destination.
+      // Les textes dictés sont passés en argument pour ne pas dépendre de l'état React.
+      destinationFocusedRef.current = false;
       setTimeout(() => {
-        if (depart) resolveDepartAddressRef.current?.();
-        setTimeout(() => resolveDestinationAddressRef.current?.(), 600);
+        if (depart) resolveDepartAddressRef.current?.(depart);
+        setTimeout(() => {
+          if (destination) resolveDestinationAddressRef.current?.(destination);
+        }, 600);
       }, 200);
     };
     voiceBothRecogRef.current = recog;
