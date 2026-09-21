@@ -633,6 +633,16 @@ function DriverApp() {
     bodyRef.current?.scrollTo({ top: 0 });
   }, [tab]);
 
+  // Verrouille le scroll uniquement pendant l'espace taxi et le restitue en sortant.
+  useEffect(() => {
+    document.documentElement.classList.add("drv-locked");
+    document.body.classList.add("drv-locked");
+    return () => {
+      document.documentElement.classList.remove("drv-locked");
+      document.body.classList.remove("drv-locked");
+    };
+  }, []);
+
   return (
     <>
       <style>{css}</style>
