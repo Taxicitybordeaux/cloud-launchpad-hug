@@ -105,3 +105,37 @@ export const getPlaceDetail = createServerFn({ method: "POST" })
     const label = name && addr && !addr.startsWith(name) ? `${name}, ${addr}` : (addr ?? name ?? "");
     return { label, lat, lng };
   });
+
+// Géocodage inverse (coordonnées -> adresse) via la passerelle serveur.
+export const reverseGeocodeServer = createServerFn({ method: "POST" })
+  .inputValidator((data) =>
+    z
+      .object({
+        lat: z.number().min(-90).max(90),
+        lng: z.number().min(-180).max(180),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }): Promise<string | null> => {
+    const url = new URL(`${GATEWAY_URL}/maps/api/geocode/json`);
+    url.searchParams.set("latlng", `${data.lat},${data.lng}`);
+    url.searchParams.set("language", "fr");
+    const res = await fetch(url.toString(), { headers: gatewayHeaders() });
+    if (!res.ok) {
+      const body = await res.text();
+      console.error(`Reverse geocode failed [${res.status}]: ${body}`);
+      return null;
+    }
+    const json: any = await res.json();
+    if (json?.status !== "OK") {
+      console.error(`Reverse geocode status ${json?.status}: ${json?.error_message ?? ""}`);
+      return null;
+    }
+    const results: any[] = json?.results ?? [];
+    const best =
+      results.find((r) => (r?.types ?? []).includes("street_address")) ??
+      results.find((r) => (r?.types ?? []).includes("premise")) ??
+      results.find((r) => (r?.types ?? []).includes("route")) ??
+      results[0];
+    return (best?.formatted_address as string | undefined) ?? null;
+  });

@@ -17,6 +17,7 @@ import { roundSecondsToMinute } from "@/lib/duration";
 import {
   autocompletePlaces,
   getPlaceDetail,
+  reverseGeocodeServer,
   type PlaceSuggestion,
 } from "@/lib/places.functions";
 
@@ -1019,7 +1020,9 @@ function ReservationPage() {
     setGeolocStatusMsg(automatic ? "Détection automatique du départ…" : "Localisation en cours…");
 
     const applyPosition = async (lat: number, lng: number, source: "gps" | "approx" | "ip" = "gps") => {
-      let adresse = await reverseGeocode(lat, lng).catch(() => null);
+      // Passerelle serveur d'abord (clé Google gérée), puis anciens fallbacks.
+      let adresse = await reverseGeocodeServer({ data: { lat, lng } }).catch(() => null);
+      if (!adresse) adresse = await reverseGeocode(lat, lng).catch(() => null);
       if (!adresse) {
         const fallback = await searchAddress(`${lat}, ${lng}`, 1).catch(() => []);
         adresse = fallback[0]?.label ?? null;
