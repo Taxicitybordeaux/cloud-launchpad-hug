@@ -2115,7 +2115,7 @@ function ReservationPage() {
                       const v = e.target.value;
                       set("destination", v);
                       setToCoord(null);
-                      if (destinationDebounceRef.current) clearTimeout(destinationDebounceRef.current);
+                      setDestinationChoices([]);
                     }}
                     onFocus={() => {
                       destinationFocusedRef.current = true;
