@@ -714,11 +714,14 @@ function ReservationPage() {
       }
     };
     recog.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
+      const transcript = String(event.results[0][0].transcript ?? "").trim();
+      if (!transcript) return;
       set("destination", transcript);
       setToCoord(null);
-      // Déclencher la résolution d'adresse après un court délai
-      setTimeout(() => resolveDestinationAddressRef.current?.(), 300);
+      destinationFocusedRef.current = false;
+      // On passe le texte dicté directement : la résolution ne dépend plus de
+      // l'état React, qui peut ne pas être encore à jour au moment de l'appel.
+      setTimeout(() => resolveDestinationAddressRef.current?.(transcript), 200);
     };
     voiceRecogRef.current = recog;
     try {
