@@ -1317,6 +1317,47 @@ function ReservationPage() {
     resolveDepartAddressRef.current = resolveDepartAddress;
   }, [resolveDepartAddress]);
 
+  // ── Autocomplétion en direct pendant la frappe (départ) ───────────────────
+  useEffect(() => {
+    const value = f.depart.trim();
+    if (departDebounceRef.current) clearTimeout(departDebounceRef.current);
+    if (value.length < 3 || fromCoord) return;
+    let cancelled = false;
+    departDebounceRef.current = setTimeout(async () => {
+      setSearchingDepart(true);
+      const choices = await searchNearbyAddressChoices(value, BORDEAUX_CENTER, 200).catch(() => []);
+      if (cancelled) return;
+      setSearchingDepart(false);
+      setDepartChoices(choices.slice(0, 5));
+    }, 400);
+    return () => {
+      cancelled = true;
+      if (departDebounceRef.current) clearTimeout(departDebounceRef.current);
+    };
+  }, [f.depart, fromCoord]);
+
+  // ── Autocomplétion en direct pendant la frappe (destination) ──────────────
+  useEffect(() => {
+    const value = f.destination.trim();
+    if (destinationDebounceRef.current) clearTimeout(destinationDebounceRef.current);
+    if (value.length < 3 || toCoord) return;
+    let cancelled = false;
+    destinationDebounceRef.current = setTimeout(async () => {
+      setSearchingDestination(true);
+      const origin = fromCoord ?? BORDEAUX_CENTER;
+      const choices = await searchNearbyAddressChoices(value, origin, 200).catch(() => []);
+      if (cancelled) return;
+      setSearchingDestination(false);
+      setDestinationChoices(choices.slice(0, 5));
+    }, 400);
+    return () => {
+      cancelled = true;
+      if (destinationDebounceRef.current) clearTimeout(destinationDebounceRef.current);
+    };
+  }, [f.destination, toCoord, fromCoord]);
+
+
+
   // ── Disponibilité taxi ────────────────────────────────────────────────────
   useEffect(() => {
     const check = async () => {
