@@ -2160,6 +2160,41 @@ function ReservationPage() {
                       {t("res.loc.searching")}
                     </div>
                   )}
+                  {destinationChoices.length > 0 && (
+                    <div style={{ display: "grid", gap: 6, marginTop: 8 }}>
+                      {destinationChoices.map((choice) => (
+                        <button
+                          key={`${choice.label}-${choice.coord[0]}-${choice.coord[1]}`}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            if (destinationDebounceRef.current) clearTimeout(destinationDebounceRef.current);
+                            destinationFocusedRef.current = false;
+                            set("destination", choice.label);
+                            setToCoord(choice.coord);
+                            setDestinationChoices([]);
+                            setErrors((prev) => {
+                              const next = { ...prev };
+                              delete next.destination;
+                              return next;
+                            });
+                          }}
+                          style={{
+                            width: "100%",
+                            textAlign: "left",
+                            padding: "10px 12px",
+                            borderRadius: 10,
+                            border: "1.5px solid #e2d9c8",
+                            background: "#faf9f7",
+                            color: "#1a1209",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {choice.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   {toCoord && !errors.destination && (
                     <div style={{ color: "#166534", fontSize: 11, marginTop: 4 }}>✓ {t("res.loc.to")}</div>
                   )}
