@@ -14,6 +14,11 @@ import {
 import { reverseGeocode, searchAddress } from "@/lib/googleGeocode";
 import { getDistanceAndDurationKm } from "@/lib/googleRoute";
 import { roundSecondsToMinute } from "@/lib/duration";
+import {
+  autocompletePlaces,
+  getPlaceDetail,
+  type PlaceSuggestion,
+} from "@/lib/places.functions";
 
 import { newSuiviId } from "@/lib/suivi-id";
 import { notifyNewReservation, subscribePush as subscribePushServer } from "@/lib/push.functions";
