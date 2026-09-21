@@ -1295,10 +1295,17 @@ function ReservationPage() {
       });
     } else {
       setToCoord(null);
-      setErrors((prev) => ({
-        ...prev,
-        destination: "Adresse introuvable — précisez la ville ou le lieu",
-      }));
+      // Pas de correspondance exacte → on propose une liste de lieux proches.
+      const nearby = await searchNearbyAddressChoices(value, origin, 200).catch(() => []);
+      if (nearby.length) {
+        setDestinationChoices(nearby.slice(0, 4));
+        setErrors((prev) => ({ ...prev, destination: "Sélectionnez une adresse dans la liste" }));
+      } else {
+        setErrors((prev) => ({
+          ...prev,
+          destination: "Adresse introuvable — précisez la ville ou le lieu",
+        }));
+      }
     }
   }, [f.destination, f.depart, fromCoord]);
 
