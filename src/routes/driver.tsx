@@ -105,7 +105,9 @@ export const Route = createFileRoute("/driver")({
 // ── Styles : charte Taxi City Bordeaux (fond nuit, or, rangées du tableau de bord) ─────
 const css = `
   * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; touch-action: manipulation; }
-  html, body {
+  /* Verrouillage de scroll limité à l'espace taxi : la classe est retirée au
+     démontage, ce qui restitue toujours le défilement des pages du site. */
+  html.drv-locked, body.drv-locked {
     margin: 0; padding: 0; height: 100%; overflow: hidden;
     overscroll-behavior-y: none; background: #03070d;
     font-family: 'DM Sans', sans-serif;
